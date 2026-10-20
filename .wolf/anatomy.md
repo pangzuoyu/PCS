@@ -1,14 +1,14 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T14:16:46.314Z
-> Files: 945 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:12:39.369Z
+> Files: 948 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~1141 tok)
+- `CLAUDE.md` — OpenWolf (~1346 tok)
 - `CONCEPTS.md` — Concepts (~1673 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~915 tok)
@@ -1140,6 +1140,7 @@
 - `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
 - `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~918 tok)
 - `p9_006_cost_est_record_hash.py` — P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。 (~806 tok)
+- `p9_007_cost_est_project_id.py` — P9A-5 Task B：cost_est_results 补 project_id（项目隔离键）。 (~1191 tok)
 
 ## pcs-backend/app/
 
@@ -1154,7 +1155,7 @@
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
-- `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~4448 tok)
+- `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
 - `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~3102 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
@@ -1191,7 +1192,7 @@
 ## pcs-backend/app/models/
 
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~334 tok)
-- `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16949 tok)
+- `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~17119 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5203 tok)
@@ -1252,7 +1253,7 @@
 
 ## pcs-backend/app/services/cost_est/
 
-- `cost_est_persist_service.py` — COST_EST 计算结果持久化服务（SPEC §3.2.8，P6-3 Task 36）。 (~5734 tok)
+- `cost_est_persist_service.py` — COST_EST 计算结果持久化服务（SPEC §3.2.8，P6-3 Task 36）。 (~5989 tok)
 
 ## pcs-backend/app/services/filtration/
 
@@ -1353,12 +1354,14 @@
 - `test_p9_002_workflow_progress.py` — P9A 迁移基座的 schema 断言 —— workflow_progress（SPEC P9A-OBS-001 + ADR-0047）。 (~1500 tok)
 - `test_p9_005_notifications.py` — P9A C0 迁移基座的 schema 断言 —— notifications（ADR-0049 §①/§③）。 (~1611 tok)
 - `test_p9_006_cost_est_record_hash.py` — P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。 (~1558 tok)
+- `test_p9_007_cost_est_project_id.py` — `p9_007`（cost_est_results 补 project_id）的迁移形状断言 —— P9A-5 Task B。 (~981 tok)
 
 ## pcs-backend/tests/api/v1/
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_change_impact_confirm.py` — CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。 (~2805 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
+- `test_cost_est_project_isolation.py` — `CostEstResult` 的项目隔离 —— P9A-5 Task B（TODO-061）。 (~3042 tok)
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)

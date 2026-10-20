@@ -77,6 +77,7 @@ def upgrade() -> None:
         "notifications",
         ["recipient_id", "read_at"],
         postgresql_where=sa.text("read_at IS NULL"),
+        if_not_exists=True,
     )
     # 断线兜底列表（ADR-0049 §⑤ 约束 1）：按 created_at 倒序翻页。
     # 真正扛住 500ms 的是**这个**索引。
@@ -84,12 +85,19 @@ def upgrade() -> None:
         "ix_notifications_recipient_created",
         "notifications",
         ["recipient_id", "created_at"],
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
     op.drop_index(
-        "ix_notifications_recipient_created", table_name="notifications"
+        "ix_notifications_recipient_created",
+        table_name="notifications",
+        if_exists=True,
     )
-    op.drop_index("ix_notifications_recipient_unread", table_name="notifications")
-    op.drop_table("notifications")
+    op.drop_index(
+        "ix_notifications_recipient_unread",
+        table_name="notifications",
+        if_exists=True,
+    )
+    op.drop_table("notifications", if_exists=True)

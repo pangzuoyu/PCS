@@ -21,7 +21,30 @@ For the full operating protocol (session handoff, memory discipline, bug logging
   单测跑内存 SQLite。2026-10-07 实测它曾长期停在 `p7_s4_001`（落后 3 个 revision、
   多一张已被 p7_s5_001 删除的 `equipment_lib`），已补 `alembic upgrade head` 对齐到
   `p7_s5_007`。**改迁移后若要验证「迁移在另一个库上也成立」，显式指定它**：
-  `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`。
+  ⚠️ **只能靠 `DATABASE_URL` 环境变量**（口令**不要**写在命令行，会被权限分类器拦）。
+  推荐**单进程内**做，口令既不落盘也不进命令行：
+
+  ```python
+  import os, re
+  from dotenv import dotenv_values
+  from alembic import command
+  from alembic.config import Config
+
+  url = dotenv_values('.env')['DATABASE_URL']
+  os.environ['DATABASE_URL'] = re.sub(r'/pcs(\?|$)', r'/pcs_test\1', url)  # 进程内设
+  cfg = Config('alembic.ini')
+  command.upgrade(cfg, 'head')
+  command.current(cfg)
+  command.check(cfg)          # exit 255 = 真有漂移；0 = 一致（且要确认它真跑了）
+  ```
+
+  ⚠️⚠️ **不要用 `Config.set_main_option('sqlalchemy.url', ...)`** ——
+  `alembic/env.py:18` 会 `config.set_main_option("sqlalchemy.url",
+  settings.database_url)` **覆盖**你设的值 ⇒ 所有命令照旧跑在**开发库**上。
+  2026-10-20 实测踩过：`pcs_test` 当时停在 `p9_006`，而这条路径下 `current`
+  打出 `p9_007 (head)`、`check` 打出 `No new upgrade operations detected`
+  ⇒ **exit 0 却根本没在 `pcs_test` 上跑**（与下面读法 ③ 同一形状）。
+  ⇒ 换库后**先 `current` 确认 revision 真的变了**，再信 `check` 的结论。
   第二个库停在旧 revision 是产生困惑漂移结果的常见来源。
 - **Postgres 版本**：**18**。开发库是 apt 集群 `18-main`（5432，实测 18.6）；
   `docker-compose.yml` 与 CI 已于 2026-10-07 对齐到 18，CI 首次以 18 跑即全绿。

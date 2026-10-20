@@ -29,12 +29,20 @@ import pytest
 
 
 async def _ensure_equipment(
-    db, equipment_id: uuid.UUID, tag_number: str | None = None
-) -> None:
-    """在 db_session 上预建一个 EquipmentList 行（FK 必填）。
+    db,
+    equipment_id: uuid.UUID,
+    tag_number: str | None = None,
+    project_id: uuid.UUID | None = None,
+):
+    """在 db_session 上预建一个 EquipmentList 行（FK 必填）。**返回该行**。
 
     用 ORM 直构 — 测试用 in-memory SQLite，``metadata.create_all`` 已
     创齐所有列（含 P4-0-1 审计列），与 pcs_test 库漂移无关。
+
+    ⚠️ **返回 EquipmentList**（P9A-5 Task B）：`cost_est_results` 现在有
+    `project_id` 列（取自 equipment），而 ``GET /cost-est/results`` 的
+    ``project_id`` **必填**（不传 = 整表返回 ⇒ 跨项目读泄漏）
+    ⇒ 测试要读得到设备的 project_id。
     """
     from app.models.equipment import EquipmentList
 
@@ -43,11 +51,12 @@ async def _ensure_equipment(
         type_code="PUMP",
         equipment_name=f"E-{uuid.uuid4().hex[:8]}",
         tag_number=tag_number or f"T-{uuid.uuid4().hex[:8]}",
-        project_id=uuid.uuid4(),
+        project_id=project_id or uuid.uuid4(),
         workspace_id=uuid.uuid4(),
     )
     db.add(eq)
     await db.commit()
+    return eq
 
 
 # ============================================================================
@@ -248,12 +257,13 @@ async def test_list_cost_est_results_endpoint_200(
 ) -> None:
     """GET /cost-est/results?equipment_id=X → 200 + 列表。"""
     equipment_id = uuid.uuid4()
-    await _ensure_equipment(db, equipment_id)
-    # 两条 record（cost_est 1:1 跟 equipment，需要不同 equipment 各自创建）
+    # ⚠️ 两个设备必须**同项目**（P9A-5 Task B：list 必传 project_id 且按项目过滤）
+    project_id = uuid.uuid4()
+    await _ensure_equipment(db, equipment_id, project_id=project_id)
     equipment_ids = [equipment_id, uuid.uuid4()]
     for eq in equipment_ids:
         if eq != equipment_id:
-            await _ensure_equipment(db, eq)
+            await _ensure_equipment(db, eq, project_id=project_id)
     for eq in equipment_ids:
         body = _create_request_body(eq, estimated_cost=1000.0 + equipment_ids.index(eq))
         create_r = await client.post(
@@ -264,7 +274,7 @@ async def test_list_cost_est_results_endpoint_200(
         assert create_r.status_code == 201, create_r.text
 
     r = await client.get(
-        f"/api/v1/cost-est/results?equipment_id={equipment_id}",
+        f"/api/v1/cost-est/results?project_id={project_id}&equipment_id={equipment_id}",
         headers={"Authorization": f"Bearer {sample_user_token}"},
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"
@@ -345,7 +355,11 @@ async def test_update_cost_est_result_endpoint_200(
 
     # P9A-4 D2：并发基线（ADR-0048 §⑥）—— **不带基线 ⇒ 409**
     # （服务端无法判定并发 ⇒ 不得放行）
-    patch_body = {"estimated_cost": 99999.0, "currency": "EUR", "expected_hash": create_r.json()["record_hash"]}
+    patch_body = {
+        "estimated_cost": 99999.0,
+        "currency": "EUR",
+        "expected_hash": create_r.json()["record_hash"],
+    }
     r = await client.patch(
         f"/api/v1/cost-est/results/{rid}",
         json=patch_body,

@@ -4857,9 +4857,13 @@ export interface paths {
         };
         /**
          * List Cost Est Results
-         * @description 按 equipment_id 列出 CostEstResult（GET list，分页）。
+         * @description 按 project_id 列出 CostEstResult（GET list，分页）。
          *
-         *     CostEstResult 1:1 跟随 equipment；不传 equipment_id = 全量列表。
+         *     ⚠️ **`project_id` 必填**（P9A-5 Task B）：原先不传 `equipment_id` 就是
+         *     **整表返回** ⇒ 跨项目读泄漏。现在与其余 5 个结果模块一致 ——
+         *     `project_id: Annotated[UUID, Query(...)]` 必填 + 守卫 + 按项目过滤。
+         *
+         *     可选再按 equipment_id 收窄（CostEstResult 1:1 跟随 equipment）。
          *     无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
@@ -7769,6 +7773,12 @@ export interface components {
              * @description record_hash（16 hex；P9A-4 D0 新增的并发令牌）
              */
             record_hash?: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（前端按它过滤列表；与 equipment 同项目）
+             */
+            project_id: string;
             /**
              * Created At
              * Format: date-time
@@ -27919,7 +27929,8 @@ export interface operations {
     };
     list_cost_est_results_api_v1_cost_est_results_get: {
         parameters: {
-            query?: {
+            query: {
+                project_id: string;
                 equipment_id?: string | null;
                 skip?: number;
                 limit?: number;

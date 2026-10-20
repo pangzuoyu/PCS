@@ -49,7 +49,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("comment_id"),
     )
     op.create_index(
-        "ix_record_comments_project_id", "record_comments", ["project_id"]
+        "ix_record_comments_project_id",
+        "record_comments",
+        ["project_id"],
+        if_not_exists=True,
     )
     # 读路径索引。comment_id 作 tiebreaker：created_at 秒级粒度，
     # 同一批写入的批注时间戳相同，只按它排序时并列行顺序不确定 ⇒ 翻页会漏或重。
@@ -57,10 +60,17 @@ def upgrade() -> None:
         "ix_record_comments_record_created",
         "record_comments",
         ["record_type", "record_id", "created_at", "comment_id"],
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_record_comments_record_created", table_name="record_comments")
-    op.drop_index("ix_record_comments_project_id", table_name="record_comments")
-    op.drop_table("record_comments")
+    op.drop_index(
+        "ix_record_comments_record_created",
+        table_name="record_comments",
+        if_exists=True,
+    )
+    op.drop_index(
+        "ix_record_comments_project_id", table_name="record_comments", if_exists=True
+    )
+    op.drop_table("record_comments", if_exists=True)

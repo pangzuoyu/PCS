@@ -129,17 +129,39 @@ def check_migration(path: Path) -> list[str]:
     return violations
 
 
+#: 守门覆盖的迁移前缀。历史演进（覆盖范围随修完随推进）：
+#:   ① 4 个前缀的白名单 → ② 2026-10-07 收敛为 `p7_*`（那 9 个既有文件
+#:      已补齐 guard，白名单随之取消）→ ③ **2026-10-20 补上 `p9_*`**。
+#:
+#: ⚠️ ③ 的起因：实测 `p9_001`~`p9_007` 这 7 个文件**从未被检查过**，
+#:    其中 `p9_002` / `p9_003` / `p9_005` 共 17 处违规，而守门每次都报 OK
+#:    —— 这正是本仓反复吃的亏：**守门没跑，却看着是绿的**。
+#:
+#: ⚠️ **前缀白名单天生会漏掉「新一串前缀」** ⇒ ① 加新一波迁移时**必须**把
+#:    它的前缀加进这里（`tests/scripts/test_check_migration_idempotency.py::
+#:    test_covered_globs_include_every_migration_prefix` 会红），② 或把它写进
+#:    `LEGACY_PREFIXES` 并在 TODO-063 里记账。
+GLOBS = ("p7_*.py", "p9_*.py")
+
+#: **有意留在覆盖外**的历史前缀（实测 93 个文件 / 350 处违规，含
+#: `dd47298c9c38` 全 schema 迁移）。一次补 350 处会淹没 diff、且要逐个确认
+#: 语义（`if_exists` 在某些 drop 上会掩盖真实错误）⇒ 已登记 TODO-063。
+LEGACY_PREFIXES = (
+    "dd47298c9c38",  # v3.1 全 schema 迁移（53 张表）
+    "2026_",         # 最早的裸时间戳命名
+    "15421f7d5afb",  # p2 merge
+    "p1", "p2", "p3", "p4", "p5", "p6", "p8",
+)
+
+
 def main() -> int:
     violations: list[str] = []
-    # 覆盖全部 p7_* 迁移（2026-10-07 起）。此前是 4 个前缀的白名单，
-    # `p7_open_*` / `p7_s1_*` 共 9 个既有文件不在检查范围内（既有债，见 #12），
-    # 那 9 个已补齐 guard，白名单随之取消 —— 新的 p7_* 迁移不再有「漏进盲区」的可能。
-    paths = sorted(MIGRATIONS_DIR.glob("p7_*.py"))
+    paths = sorted({p for g in GLOBS for p in MIGRATIONS_DIR.glob(g)})
     for path in paths:
         violations.extend(check_migration(path))
 
     if not violations:
-        print(f"OK: 0 violations in {len(paths)} p7_* migrations")
+        print(f"OK: 0 violations in {len(paths)} migrations ({' '.join(GLOBS)})")
         return 0
 
     print(f"FAIL: {len(violations)} violations:")

@@ -32,6 +32,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import (
+    check_project_access_or_404,
+    check_record_access_or_404,
+)
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
@@ -93,6 +97,59 @@ def _to_http(err: Exception) -> CorePcsError:
 # ============================================================================
 
 
+# ============================================================================
+# 项目守卫（P9A-5 Task B · TODO-061）
+#
+# ⚠️ 本模块原先 **0 处**项目鉴权，而 `CostEstResult` 连 `project_id` 列都没有
+#    （`app/models/calc.py:1193 class CostEstResult(Base)` 不继承 mixin）
+#    ⇒ 守卫挂不上。⇒ 最宽的一条是读面：`GET /results` 不传参时整表返回。
+# ⚠️ 顺序：**先鉴权，再写**（bug-2039 的教训 —— 鉴权排在保存之后时，响应是
+#    404 但**行已经改了**）。PATCH 的顺序固定为
+#    预取 → 鉴权 → check_conflict → 保存。
+# ============================================================================
+
+
+async def _guard_by_equipment(
+    db: AsyncSession, *, user_id: uuid.UUID, equipment_id: uuid.UUID, roles: list[str]
+) -> None:
+    """按 `equipment_id` 守卫：设备的 project 即结果的 project（P9A-5 Task B）。
+
+    ⚠️ 4 个**创建**端点（3 calc + direct）都只有 `equipment_id`
+    ⇒ 「这条记录属于哪个项目」只能从 equipment 反查。
+    ⚠️ equipment_id 不存在时这里**放行**（不是 404）：存在性由 service 的
+    `COST_EST_EQUIPMENT_NOT_FOUND`（422）报，那是本模块既有的语义，
+    不在这里改。
+    """
+    from sqlalchemy import select as _sa_select
+
+    from app.models.equipment import EquipmentList
+
+    project_id = (
+        await db.execute(
+            _sa_select(EquipmentList.project_id).where(
+                EquipmentList.equipment_id == equipment_id
+            )
+        )
+    ).scalar_one_or_none()
+    if project_id is None:
+        return
+    await check_project_access_or_404(
+        db, user_id=user_id, project_id=project_id, actor_roles=roles
+    )
+
+
+async def _prefetch_for_guard(db: AsyncSession, result_id: uuid.UUID):
+    """按 `cost_est_id` 取记录供守卫用（不存在 ⇒ None）。"""
+    from sqlalchemy import select as _sa_select
+
+    from app.models.calc import CostEstResult
+
+    return (
+        await db.execute(
+            _sa_select(CostEstResult).where(CostEstResult.cost_est_id == result_id)
+        )
+    ).scalar_one_or_none()
+
 @router.post(
     "/six-tenths-rule/calculate",
     response_model=SixTenthsRuleCalcResponse,
@@ -115,6 +172,10 @@ async def calculate_six_tenths_rule(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _guard_by_equipment(
+        db, user_id=user.user_id,
+        equipment_id=req.equipment_id, roles=user.roles,
+    )
     try:
         # 1. 六十法则（reference_cost × ratio^n；reference_scale/target_scale
         #    取 1.0 → ratio=1，仅用 scaling_exponent 表达）
@@ -184,6 +245,10 @@ async def calculate_cepci_adjustment(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _guard_by_equipment(
+        db, user_id=user.user_id,
+        equipment_id=req.equipment_id, roles=user.roles,
+    )
     try:
         cepci_inp = CepciAdjustmentInput(
             reference_cost=req.reference_cost,
@@ -245,6 +310,10 @@ async def calculate_cost_correlation(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _guard_by_equipment(
+        db, user_id=user.user_id,
+        equipment_id=req.equipment_id, roles=user.roles,
+    )
     try:
         corr_inp = CostCorrelationInput(
             equipment_type=req.equipment_type,
@@ -303,6 +372,10 @@ async def create_cost_est_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _guard_by_equipment(
+        db, user_id=user.user_id,
+        equipment_id=req.equipment_id, roles=user.roles,
+    )
     payload = req.model_dump(exclude={"equipment_id"})
     try:
         record = await create_cost_est_result_direct(
@@ -320,22 +393,31 @@ async def create_cost_est_result(
 
 @router.get("/results", response_model=CostEstListResponse)
 async def list_cost_est_results(
+    project_id: Annotated[uuid.UUID, Query()],
     equipment_id: Annotated[uuid.UUID | None, Query()] = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     user: _Actor = Depends(current_actor),
     db: AsyncSession = Depends(get_db),
 ) -> CostEstListResponse:
-    """按 equipment_id 列出 CostEstResult（GET list，分页）。
+    """按 project_id 列出 CostEstResult（GET list，分页）。
 
-    CostEstResult 1:1 跟随 equipment；不传 equipment_id = 全量列表。
+    ⚠️ **`project_id` 必填**（P9A-5 Task B）：原先不传 `equipment_id` 就是
+    **整表返回** ⇒ 跨项目读泄漏。现在与其余 5 个结果模块一致 ——
+    `project_id: Annotated[UUID, Query(...)]` 必填 + 守卫 + 按项目过滤。
+
+    可选再按 equipment_id 收窄（CostEstResult 1:1 跟随 equipment）。
     无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     records = await list_cost_est_results_service(
         db,
+        project_id=project_id,
         equipment_id=equipment_id,
         skip=skip,
         limit=limit,
@@ -362,6 +444,16 @@ async def get_cost_est_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠️ **先鉴权，再冲突/再写**（P9A-5 Task B · bug-2039 的教训）：
+    # 冲突检查会把**持锁人身份**放进 409 响应 ⇒ 排在鉴权之前，无权者就能
+    # 问出「谁在改这条记录」；且 update/delete service 取记录不带 project_id
+    # ⇒ 保存那一步零隔离。顺序固定：**预取 → 鉴权 → 冲突检查 → 保存**。
+    pre_record = await _prefetch_for_guard(db, result_id)
+    if pre_record is not None:
+        await check_record_access_or_404(
+            db, user_id=user.user_id, record=pre_record,
+            actor_roles=user.roles,
+        )
     try:
         record = await get_cost_est_result_service(db, result_id=result_id)
     except CostEstPersistInputError as e:
@@ -393,6 +485,16 @@ async def update_cost_est_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠️ **先鉴权，再冲突/再写**（P9A-5 Task B · bug-2039 的教训）：
+    # 冲突检查会把**持锁人身份**放进 409 响应 ⇒ 排在鉴权之前，无权者就能
+    # 问出「谁在改这条记录」；且 update/delete service 取记录不带 project_id
+    # ⇒ 保存那一步零隔离。顺序固定：**预取 → 鉴权 → 冲突检查 → 保存**。
+    pre_record = await _prefetch_for_guard(db, result_id)
+    if pre_record is not None:
+        await check_record_access_or_404(
+            db, user_id=user.user_id, record=pre_record,
+            actor_roles=user.roles,
+        )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
         db,
@@ -451,6 +553,14 @@ async def soft_delete_cost_est_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠️ **先鉴权，再删**（P9A-5 Task B）—— cost_est 是**物理**删除
+    # ⇒ 删掉就找不回来，没有「软删可恢复」这层兜底。
+    pre_record = await _prefetch_for_guard(db, result_id)
+    if pre_record is not None:
+        await check_record_access_or_404(
+            db, user_id=user.user_id, record=pre_record,
+            actor_roles=user.roles,
+        )
     try:
         record = await soft_delete_cost_est_result_service(
             db, result_id=result_id

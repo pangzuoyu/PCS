@@ -993,7 +993,19 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
 
 ---
 
-## TODO-060: `record_type` 存在两套词表（类名 vs 表名）
+## ✅ DONE —— TODO-060: `record_type` 两套词表（类名 vs 表名）→ 收敛为注册表键（2026-10-20 修完）
+
+> **闭环摘要**：契约面（`/locks` + 6 个 PATCH 的 guard 入参）由**表名**改为
+> `RECORD_TYPE_REGISTRY` 的**键**；`/locks` 三端点**加校验**（未登记 ⇒ 404）；
+> `{record_type}` 在 OpenAPI 里带 `enum`；**SPEC 升 V2.0**（破坏性契约变更）。
+> ⚠️ 实施中**推翻了本条的两处原文**：① 不是「三套词表」而是**五套**；②
+> 「`__tablename__` ↔ 注册表键**双向**可换」**实测为假**（只有「键 → 表名」
+> 单向成立）⇒ 原定的「归一到类名」方向作废（注册表 21 键里 5 个 ≠ 类名）。
+> 详见 `docs/PCS-PLAN-P9A-5-债项清理.md` Task A。
+
+<details><summary>原条目（2026-10-20 修前）</summary>
+
+## TODO-060（原）: `record_type` 存在两套词表（类名 vs 表名）
 
 | URL 空间 | 词表 | 例 |
 |---|---|---|
@@ -1022,9 +1034,18 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
 - **关联**：ADR-0050（同一形状的词表分叉）、ADR-0048 §⑥、
   `docs/PCS-UI-SPEC.md` §6.21、`RECORD_TYPE_REGISTRY`（见 TODO-048）
 
+</details>
+
 ---
 
-## TODO-061: `CostEstResult` 无 `project_id` ⇒ 其 PATCH/DELETE **完全没有项目隔离**（🔴 高）
+## ✅ DONE —— TODO-061: `CostEstResult` 无 `project_id` ⇒ 编辑面零项目隔离（2026-10-20 修完）
+
+> **闭环摘要**：迁移 `p9_007` 补 `cost_est_results.project_id`（NOT NULL + FK +
+> 索引，`UPDATE ... FROM equipment_list` 回填）；`cost_est.py` **8 个端点全部**
+> 补守卫（实测原先 **0 处**）；`GET /results` 的 `project_id` 改**必填**。
+> ⚠️ 实施中把本条的范围**写大了也更准了**：原文写「PATCH/DELETE」，实测
+> **8 个端点全无鉴权**，且 `GET /results` 不传参时**整表返回**（跨项目**读**泄漏）。
+> 详见下方原文与 `docs/PCS-PLAN-P9A-5-债项清理.md` Task B。
 
 - **发现**：2026-10-20，P9A-4 D2 修 bug-2039 时顺带查出来的。
 - **事实**（实测 2026-10-20）：
@@ -1045,3 +1066,53 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
   两处登记指向同一件事，**只做一次**）。
 - **严重度**：HIGH（真实越权面，非理论）
 - **关联**：bug-2039（守卫顺序族）、ADR-0050 P5、TODO-048
+
+---
+
+## TODO-062: `cia_engine.REGISTRY` 是 `record_type` 的**第 6 套词表**，且自相矛盾（🟡）
+
+2026-10-20 实测（P9A-5 Task A 顺带发现，**未修**）：
+
+```
+app/services/cia_engine.py:46-52  REGISTRY = {"config_asset": ConfigAsset,
+                                              "config_version": ConfigVersion,
+                                              "equipment_list": EquipmentList}
+app/services/cia_engine.py:160    data_lineage.record_type 写的是 cls.__name__（类名）
+```
+
+⇒ `REGISTRY` 的键是 snake 单数，而它**自己写进 DB 的值**是 PascalCase 类名
+⇒ `cia_engine.py:447` 的 `_get_record(record_type)` 用 `REGISTRY.get(record_type)`
+路由时，DB 里存的类名**永远匹配不上** ⇒ 注释自己承认的「未登记返回 None
+（**静默跳过**）」。
+
+- **为什么没在 P9A-5 Task A 里修**：改它要**重路由 CIA 扫描**（哪些配置资产被
+  CIA 跟踪），属于 CIA 引擎的行为变更，不在「归一契约面词表」的范围内。
+- **后果**：CIA 扫描对 `config_asset` / `config_version` / `equipment_list`
+  这三类记录**静默跳过**（不报错、不告警）。
+- **建议**：单独一笔。先用真库确认这三类记录在 `data_lineage` 里到底存的
+  是什么值，再决定是改 `_get_record` 的路由还是改写入端 ⇒ **不要**两边一起改。
+- **严重度**：MEDIUM（当前静默跳过，无数据损坏）
+- **关联**：TODO-060（已闭环，本次把它收敛到 `RECORD_TYPE_REGISTRY` 的键）·
+  ADR-0050 §未决 2
+
+---
+
+## TODO-063: 迁移幂等守门的**遗留盲区**：`p1`~`p6` / `p8` 共 93 个文件从未被检查（🟡）
+
+2026-10-20 实测（P9A-5 Task B 顺带发现）：
+
+- `scripts/check_migration_idempotency.py` 原先只扫 `p7_*.py` ⇒ **`p9_*` 的
+  7 个文件也从未被检查**，其中 3 个共 **17 处**违规，而守门每次都报 `OK`。
+  ⇒ 本次已把 `p9_*` 纳入并补掉那 17 处（见提交「迁移幂等守门覆盖 p9_*」）。
+- 但把 glob 开到 `*.py` 会暴露 **93 个文件 / 350 处**违规（含
+  `dd47298c9c38` 全 schema 迁移的几十个 `op.drop_table`）⇒ 一次补 350 处会
+  淹没 diff，且每处都要确认语义（某些 `drop` 上加 `if_exists=True` 会掩盖
+  真实错误）⇒ 有意留在覆盖外，脚本里以 `LEGACY_PREFIXES` 显式列出。
+- **新增守卫**：`tests/scripts/test_check_migration_idempotency.py::
+  test_covered_globs_include_every_migration_prefix` 断言「不在 `GLOBS`
+  也不在 `LEGACY_PREFIXES` 的迁移文件数为 0」⇒ **加新一波前缀却忘了加 glob
+  会立刻红**。
+- **建议**：下一批迁移开工前，先跑一遍并把该批前缀加进 `GLOBS`；遗留的 93 个
+  按 sprint 逐步消化（每个 sprint 顺手补自己那一段）。
+- **严重度**：LOW（存量迁移已跑过，幂等 guard 只影响「重跑同一迁移」的场景）
+- **关联**：`docs/PCS-PLAN-P9A-5-债项清理.md` Task B

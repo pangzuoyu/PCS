@@ -53,6 +53,8 @@ async def _make_cost_est(db, **overrides) -> CostEstResult:
     """造一条 cost_est_results 行（equipment_id 有 FK，但单测 SQLite 不强制外键）。"""
     rec = CostEstResult(
         equipment_id=overrides.pop("equipment_id", uuid.uuid4()),
+        # P9A-5 Task B：project_id NOT NULL（项目隔离键）
+        project_id=overrides.pop("project_id", uuid.uuid4()),
         estimated_cost=overrides.pop("estimated_cost", 1000.0),
         currency=overrides.pop("currency", "USD"),
         cost_index_year=overrides.pop("cost_index_year", 2019),

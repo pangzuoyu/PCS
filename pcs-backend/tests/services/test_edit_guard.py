@@ -70,6 +70,8 @@ async def _make_cool_tower(
 async def _make_cost_est(db, *, record_hash: str = "a1b2c3d4e5f60718") -> CostEstResult:
     rec = CostEstResult(
         equipment_id=uuid.uuid4(),
+        # P9A-5 Task B：project_id NOT NULL（本测试不关心项目语义）
+        project_id=uuid.uuid4(),
         estimated_cost=1000.0,
         currency="USD",
         cost_index_year=2019,

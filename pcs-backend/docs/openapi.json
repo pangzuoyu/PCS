@@ -15174,9 +15174,19 @@
           "cost-est"
         ],
         "summary": "List Cost Est Results",
-        "description": "按 equipment_id 列出 CostEstResult（GET list，分页）。\n\nCostEstResult 1:1 跟随 equipment；不传 equipment_id = 全量列表。\n无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "按 project_id 列出 CostEstResult（GET list，分页）。\n\n⚠️ **`project_id` 必填**（P9A-5 Task B）：原先不传 `equipment_id` 就是\n**整表返回** ⇒ 跨项目读泄漏。现在与其余 5 个结果模块一致 ——\n`project_id: Annotated[UUID, Query(...)]` 必填 + 守卫 + 按项目过滤。\n\n可选再按 equipment_id 收窄（CostEstResult 1:1 跟随 equipment）。\n无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
         "operationId": "list_cost_est_results_api_v1_cost_est_results_get",
         "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
           {
             "name": "equipment_id",
             "in": "query",
@@ -22219,6 +22229,12 @@
             "title": "Record Hash",
             "description": "record_hash（16 hex；P9A-4 D0 新增的并发令牌）"
           },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（前端按它过滤列表；与 equipment 同项目）"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -22233,6 +22249,7 @@
           "estimated_cost",
           "currency",
           "cost_index_year",
+          "project_id",
           "created_at"
         ],
         "title": "CostEstResultResponse",

@@ -1199,12 +1199,26 @@ class CostEstResult(Base):
     P6-3 Task 30 补齐 6 派生字段（base_cost / CEPCI 双件套 + scaling_exponent
     + correlation_source）。Task 35（六十法则 + CEPCI 调整模块）将消费这些
     字段落库。
+
+    ⚠️ **`project_id` 是 P9A-5 Task B（TODO-061）补的**：本表原先**没有**
+    任何项目隔离键 ⇒ `cost_est.py` 的 8 个端点全都没有项目鉴权，且
+    `GET /results` 不传参时整表返回（跨项目读泄漏）。
+    ⚠️ 它是**冗余**列（设备本身已带 project）⇒ 唯一同步点是**创建路径从
+    equipment 复制**（`cost_est_persist_service._ensure_equipment_exists`
+    返回 project_id）⇒ 漂移路径「设备改项目」当前**不存在任何端点**。
+    ⚠️ 仍**不补** `workspace_id` / `sign_status` / `updated_at` ——
+    本表的设计是「1:1 跟随设备、状态跟设备」，补那三列是另一套设计。
     """
 
     __tablename__ = "cost_est_results"
     cost_est_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     equipment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("equipment_list.equipment_id"), unique=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id"),
+        index=True,
+        comment="项目 ID（取自 equipment_list.project_id；项目隔离键）",
     )
     # 既有 4 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
     estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2), comment="估算成本")

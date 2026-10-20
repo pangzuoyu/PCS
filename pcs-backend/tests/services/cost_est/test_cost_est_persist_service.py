@@ -96,16 +96,18 @@ def _mock_session_with_equipment(equipment_exists: bool = True) -> MagicMock:
     """构造 mock session：模拟 service 层 ``_ensure_equipment_exists`` +
     ``_ensure_no_existing_cost_est`` 两条 execute 查询。
 
-    - execute(...).scalar_one_or_none() → equipment_id 或 None
-      （PK-only 查询；避免 ORM 触发 SELECT *）
+    - execute(...).first() → ``(equipment_id, project_id)`` 或 None
+      （`_ensure_equipment_exists` 现在查**两列**：除存在性外还要把
+      `project_id` 带出来 —— 它是 `cost_est_results` 冗余列的**唯一同步点**，
+      P9A-5 Task B；仍不触发 ORM SELECT *）
     - execute(...).scalars().first() → 已存在 cost_est_id 或 None
       （1:1 唯一性校验）
     """
     session = MagicMock()
 
     execute_result = MagicMock()
-    execute_result.scalar_one_or_none.return_value = (
-        uuid.uuid4() if equipment_exists else None
+    execute_result.first.return_value = (
+        (uuid.uuid4(), uuid.uuid4()) if equipment_exists else None
     )
     scalars_mock = MagicMock()
     scalars_mock.first.return_value = None
@@ -402,7 +404,7 @@ async def test_create_cost_est_result_direct_valid() -> None:
 
 @pytest.mark.asyncio
 async def test_list_cost_est_results_service_empty() -> None:
-    """空结果列表。"""
+    """空结果列表（⚠️ `project_id` 现在**必填**，P9A-5 Task B）。"""
     session = MagicMock()
     execute_result = MagicMock()
     scalars_mock = MagicMock()
@@ -410,8 +412,22 @@ async def test_list_cost_est_results_service_empty() -> None:
     execute_result.scalars.return_value = scalars_mock
     session.execute = AsyncMock(return_value=execute_result)
 
-    rows = await list_cost_est_results_service(session, equipment_id=uuid.uuid4())
+    rows = await list_cost_est_results_service(
+        session, project_id=uuid.uuid4(), equipment_id=uuid.uuid4()
+    )
     assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_list_cost_est_results_service_requires_project_id() -> None:
+    """⚠️ 不传 `project_id` ⇒ TypeError（不再是「全量」）。
+
+    「不传 = 全量」曾让 API 层把**整表**返回给任何登录用户（跨项目读泄漏）。
+    """
+    session = MagicMock()
+    session.execute = AsyncMock()
+    with pytest.raises(TypeError):
+        await list_cost_est_results_service(session)  # type: ignore[call-arg]
 
 
 @pytest.mark.asyncio
@@ -424,7 +440,9 @@ async def test_list_cost_est_results_service_with_filter() -> None:
     execute_result.scalars.return_value = scalars_mock
     session.execute = AsyncMock(return_value=execute_result)
 
-    await list_cost_est_results_service(session, equipment_id=uuid.uuid4())
+    await list_cost_est_results_service(
+        session, project_id=uuid.uuid4(), equipment_id=uuid.uuid4()
+    )
     # execute 应被调用一次
     assert session.execute.called
 

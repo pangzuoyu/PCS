@@ -228,6 +228,10 @@ class CostEstResultResponse(BaseModel):
     record_hash: str | None = Field(
         None, description="record_hash（16 hex；P9A-4 D0 新增的并发令牌）"
     )
+    # P9A-5 Task B：项目隔离键（取自 equipment_list.project_id）
+    project_id: uuid.UUID = Field(
+        ..., description="项目 ID（前端按它过滤列表；与 equipment 同项目）"
+    )
     created_at: datetime = Field(..., description="创建时间")
 
     @model_validator(mode="before")

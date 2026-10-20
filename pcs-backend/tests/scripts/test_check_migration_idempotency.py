@@ -23,12 +23,42 @@ def _load_check_module(migrations_dir: Path):
     return mod
 
 
-def test_check_passes_current_p7_s2_migrations():
-    """p7_s2_001 + p7_s2_002 当前都已带 idempotency guard, 应通过."""
+def test_check_passes_current_p7_s2_migrations(capsys):
+    """p7_* + p9_* 当前都已带 idempotency guard, 应通过."""
     real_dir = SCRIPT_PATH.parent.parent / "alembic" / "versions"
     mod = _load_check_module(real_dir)
     rc = mod.main()
     assert rc == 0, f"应通过, 实际 exit {rc}"
+    # ⚠️ **必须同时断言「有输出」**：只断言退出码是不够的 ——
+    # 2026-10-20 实测：把脚本的 `if __name__ == "__main__"` 入口块连带删掉时，
+    # `python scripts/check_migration_idempotency.py` 依然 **exit 0 且零输出**
+    # ⇒ 守门「没跑」却报「绿」—— 这正是本仓反复吃的亏（见 CLAUDE.md
+    # 「测试前检查」里 alembic check 的 255 陷阱同一形状）。
+    out = capsys.readouterr().out.strip()
+    assert out.startswith("OK:"), f"守门没真的跑（无输出）: {out!r}"
+    assert "migrations" in out, f"输出应报告检查了哪些迁移: {out!r}"
+
+
+def test_covered_globs_include_every_migration_prefix():
+    """⚠️ **每批新前缀必须进覆盖范围**（防「前缀白名单漏掉新一波」）。
+
+    2026-10-20 实测：守门只扫 `p7_*.py` ⇒ `p9_001`~`p9_007` **7 个文件从未
+    被检查**，其中 3 个共 17 处违规而守门每次都报 OK。
+    ⇒ 本例断言「仓库里除已知遗留前缀外的每个迁移文件都落在 GLOBS 覆盖内」。
+    遗留前缀显式列出并指向 TODO-063 ⇒ 新增一批前缀忘了加，会在这里红。
+    """
+    real_dir = SCRIPT_PATH.parent.parent / "alembic" / "versions"
+    mod = _load_check_module(real_dir)
+    covered = {p.name for g in mod.GLOBS for p in real_dir.glob(g)}
+    # 已知遗留（有意留在覆盖外，见 TODO-063；清单在脚本的 LEGACY_PREFIXES）
+    legacy_prefixes = mod.LEGACY_PREFIXES
+    uncovered = {
+        p.name for p in real_dir.glob("*.py")
+        if p.name not in covered and not p.name.startswith(legacy_prefixes)
+    }
+    assert not uncovered, (
+        f"这些迁移不在守门覆盖范围内（前缀白名单漏掉了新一波）: {sorted(uncovered)}"
+    )
 
 
 def test_check_detects_missing_if_not_exists(tmp_path):

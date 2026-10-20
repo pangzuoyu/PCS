@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T14:16:46.314Z",
-    "fileCount": 945,
+    "lastScanned": "2026-10-20T15:12:39.369Z",
+    "fileCount": 948,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8503e4d869d6f7276bdd5d333b78e0c8cfb99510b7e365c6fd96599c2ae53c20",
-    "storeUpdatedAt": "2026-10-20T14:16:46.326Z",
-    "rootHash": "33884dde8a116559"
+    "renderedHash": "1d07e5eb6e258f81f5c45dfb0b4558e2d04ddc5f860571e6dc2b568ddb3c31df",
+    "storeUpdatedAt": "2026-10-20T15:12:39.380Z",
+    "rootHash": "c4f35497fad6b473"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -770,11 +770,11 @@
     },
     "CLAUDE.md": {
       "description": "OpenWolf",
-      "tokens": 1141,
-      "hash": "cb6de1135ad728d9",
-      "size": 7279,
-      "mtimeMs": 1791943739921.9973,
-      "updatedAt": "2026-10-14T02:08:59.979Z",
+      "tokens": 1346,
+      "hash": "ba781ab30c077721",
+      "size": 8423,
+      "mtimeMs": 1792509159323.5852,
+      "updatedAt": "2026-10-20T15:12:39.369Z",
       "source": "hook"
     },
     "CONTEXT.md": {
@@ -20641,11 +20641,11 @@
     },
     "pcs-backend/app/models/calc.py": {
       "description": "计算结果 ORM 模型（P5-3 计算引擎持久化）。",
-      "tokens": 16949,
-      "hash": "394fcd8894aa2206",
-      "size": 67597,
-      "mtimeMs": 1792486059375.749,
-      "updatedAt": "2026-10-20T08:47:39.432Z",
+      "tokens": 17119,
+      "hash": "54dbebc05fba968e",
+      "size": 68506,
+      "mtimeMs": 1792506904515.1265,
+      "updatedAt": "2026-10-20T14:35:04.569Z",
       "source": "hook",
       "symbols": [
         {
@@ -20785,14 +20785,14 @@
           "name": "CostEstResult",
           "kind": "class",
           "startLine": 1193,
-          "endLine": 1237,
-          "tokens": 556
+          "endLine": 1251,
+          "tokens": 726
         },
         {
           "name": "ThermosiphonCirculationResult",
           "kind": "class",
-          "startLine": 1238,
-          "endLine": 1364,
+          "startLine": 1252,
+          "endLine": 1378,
           "tokens": 1353
         }
       ]
@@ -32189,11 +32189,11 @@
     },
     "pcs-backend/app/services/cost_est/cost_est_persist_service.py": {
       "description": "COST_EST 计算结果持久化服务（SPEC §3.2.8，P6-3 Task 36）。",
-      "tokens": 5734,
-      "hash": "374190b0eb7c29aa",
-      "size": 22704,
-      "mtimeMs": 1792486127550.637,
-      "updatedAt": "2026-10-20T08:48:47.602Z",
+      "tokens": 5989,
+      "hash": "ecc06fd5ae22bb4e",
+      "size": 23991,
+      "mtimeMs": 1792507001486.092,
+      "updatedAt": "2026-10-20T14:36:41.539Z",
       "source": "hook",
       "symbols": [
         {
@@ -32207,179 +32207,193 @@
           "name": "_ensure_equipment_exists",
           "kind": "fn",
           "startLine": 99,
-          "endLine": 125,
-          "tokens": 272
+          "endLine": 133,
+          "tokens": 359
         },
         {
           "name": "_ensure_created_at",
           "kind": "fn",
-          "startLine": 126,
-          "endLine": 139,
+          "startLine": 134,
+          "endLine": 147,
           "tokens": 138
         },
         {
           "name": "_ensure_no_existing_cost_est",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 158,
+          "startLine": 148,
+          "endLine": 166,
           "tokens": 172
         },
         {
           "name": "_validate_common_inputs",
           "kind": "fn",
-          "startLine": 159,
-          "endLine": 175,
+          "startLine": 167,
+          "endLine": 183,
           "tokens": 174
         },
         {
           "name": "_validate_cepci_pair",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 187,
+          "startLine": 184,
+          "endLine": 195,
           "tokens": 118
         },
         {
           "name": "_validate_scaling_exponent",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 192,
+          "startLine": 196,
+          "endLine": 200,
           "tokens": 55
         },
         {
           "name": "_validate_base_cost",
           "kind": "fn",
-          "startLine": 193,
-          "endLine": 202,
+          "startLine": 201,
+          "endLine": 210,
           "tokens": 103
         },
         {
           "name": "save_six_tenths_rule_result",
           "kind": "fn",
-          "startLine": 203,
-          "endLine": 280,
-          "tokens": 665
+          "startLine": 211,
+          "endLine": 290,
+          "tokens": 699
         },
         {
           "name": "save_cepci_adjustment_result",
           "kind": "fn",
-          "startLine": 281,
-          "endLine": 339,
-          "tokens": 476
+          "startLine": 291,
+          "endLine": 351,
+          "tokens": 509
         },
         {
           "name": "save_cost_correlation_result",
           "kind": "fn",
-          "startLine": 340,
-          "endLine": 411,
-          "tokens": 710
+          "startLine": 352,
+          "endLine": 425,
+          "tokens": 744
         },
         {
           "name": "list_cost_est_results_service",
           "kind": "fn",
-          "startLine": 412,
-          "endLine": 445,
-          "tokens": 271
+          "startLine": 426,
+          "endLine": 461,
+          "tokens": 304
         },
         {
           "name": "get_cost_est_result_service",
           "kind": "fn",
-          "startLine": 446,
-          "endLine": 467,
+          "startLine": 462,
+          "endLine": 483,
           "tokens": 151
         },
         {
           "name": "update_cost_est_result_service",
           "kind": "fn",
-          "startLine": 468,
-          "endLine": 520,
+          "startLine": 484,
+          "endLine": 536,
           "tokens": 488
         },
         {
           "name": "soft_delete_cost_est_result_service",
           "kind": "fn",
-          "startLine": 521,
-          "endLine": 558,
+          "startLine": 537,
+          "endLine": 574,
           "tokens": 354
         },
         {
           "name": "create_cost_est_result_direct",
           "kind": "fn",
-          "startLine": 559,
-          "endLine": 634,
-          "tokens": 676
+          "startLine": 575,
+          "endLine": 652,
+          "tokens": 710
         }
       ]
     },
     "pcs-backend/app/api/v1/cost_est.py": {
       "description": "P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。",
-      "tokens": 4448,
-      "hash": "1806d183fb53dd85",
-      "size": 16438,
-      "mtimeMs": 1792486130948.5825,
-      "updatedAt": "2026-10-20T08:48:50.994Z",
+      "tokens": 5520,
+      "hash": "e2394bf884296a90",
+      "size": 20833,
+      "mtimeMs": 1792506996857.9978,
+      "updatedAt": "2026-10-20T14:36:36.916Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 98,
-          "tokens": 234
+          "startLine": 82,
+          "endLine": 111,
+          "tokens": 341
+        },
+        {
+          "name": "_guard_by_equipment",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 140,
+          "tokens": 253
+        },
+        {
+          "name": "_prefetch_for_guard",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 157,
+          "tokens": 141
         },
         {
           "name": "calculate_six_tenths_rule",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 174,
-          "tokens": 808
+          "startLine": 158,
+          "endLine": 237,
+          "tokens": 845
         },
         {
           "name": "calculate_cepci_adjustment",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 232,
-          "tokens": 569
+          "startLine": 238,
+          "endLine": 299,
+          "tokens": 605
         },
         {
           "name": "calculate_cost_correlation",
           "kind": "fn",
-          "startLine": 233,
-          "endLine": 293,
-          "tokens": 614
+          "startLine": 300,
+          "endLine": 364,
+          "tokens": 651
         },
         {
           "name": "create_cost_est_result",
           "kind": "fn",
-          "startLine": 294,
-          "endLine": 319,
-          "tokens": 253
+          "startLine": 365,
+          "endLine": 394,
+          "tokens": 289
         },
         {
           "name": "list_cost_est_results",
           "kind": "fn",
-          "startLine": 320,
-          "endLine": 352,
-          "tokens": 296
+          "startLine": 395,
+          "endLine": 436,
+          "tokens": 402
         },
         {
           "name": "get_cost_est_result",
           "kind": "fn",
-          "startLine": 353,
-          "endLine": 379,
+          "startLine": 437,
+          "endLine": 463,
           "tokens": 268
         },
         {
           "name": "update_cost_est_result",
           "kind": "fn",
-          "startLine": 380,
-          "endLine": 413,
-          "tokens": 326
+          "startLine": 464,
+          "endLine": 522,
+          "tokens": 580
         },
         {
           "name": "soft_delete_cost_est_result",
           "kind": "fn",
-          "startLine": 414,
-          "endLine": 447,
+          "startLine": 523,
+          "endLine": 556,
           "tokens": 330
         }
       ]
@@ -34418,6 +34432,214 @@
           "startLine": 227,
           "endLine": 232,
           "tokens": 74
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_cost_est_project_isolation.py": {
+      "description": "`CostEstResult` 的项目隔离 —— P9A-5 Task B（TODO-061）。",
+      "tokens": 3042,
+      "hash": "185a5e9350b9cd18",
+      "size": 12217,
+      "mtimeMs": 1792506841514.8616,
+      "updatedAt": "2026-10-20T14:34:01.564Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 50,
+          "tokens": 26
+        },
+        {
+          "name": "_no_project_access",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 55,
+          "tokens": 33
+        },
+        {
+          "name": "_make_equipment",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 70,
+          "tokens": 126
+        },
+        {
+          "name": "_make_cost_est",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 97,
+          "tokens": 204
+        },
+        {
+          "name": "_create_body",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 106,
+          "tokens": 63
+        },
+        {
+          "name": "_six_tenths_body",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 124,
+          "tokens": 150
+        },
+        {
+          "name": "test_create_without_project_access_is_404_and_creates_nothing",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 152,
+          "tokens": 292
+        },
+        {
+          "name": "test_calculate_without_project_access_is_404_and_creates_nothing",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 174,
+          "tokens": 240
+        },
+        {
+          "name": "test_patch_without_project_access_is_404_and_does_not_write",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 200,
+          "tokens": 258
+        },
+        {
+          "name": "test_delete_without_project_access_is_404_and_keeps_the_row",
+          "kind": "fn",
+          "startLine": 201,
+          "endLine": 228,
+          "tokens": 288
+        },
+        {
+          "name": "test_list_requires_a_project_id",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 240,
+          "tokens": 110
+        },
+        {
+          "name": "test_list_without_project_access_is_404",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 253,
+          "tokens": 117
+        },
+        {
+          "name": "test_list_only_returns_rows_of_the_requested_project",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 274,
+          "tokens": 210
+        },
+        {
+          "name": "test_get_without_project_access_is_404",
+          "kind": "fn",
+          "startLine": 275,
+          "endLine": 296,
+          "tokens": 212
+        },
+        {
+          "name": "test_created_row_takes_its_project_from_the_equipment",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 325,
+          "tokens": 254
+        },
+        {
+          "name": "test_cost_est_result_has_a_project_id_column",
+          "kind": "fn",
+          "startLine": 326,
+          "endLine": 331,
+          "tokens": 86
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p9_007_cost_est_project_id.py": {
+      "description": "P9A-5 Task B：cost_est_results 补 project_id（项目隔离键）。",
+      "tokens": 1191,
+      "hash": "a1d9c6f59c729329",
+      "size": 5564,
+      "mtimeMs": 1792506897940.9941,
+      "updatedAt": "2026-10-20T14:34:57.995Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 125,
+          "tokens": 480
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 134,
+          "tokens": 90
+        }
+      ]
+    },
+    "pcs-backend/tests/alembic/test_p9_007_cost_est_project_id.py": {
+      "description": "`p9_007`（cost_est_results 补 project_id）的迁移形状断言 —— P9A-5 Task B。",
+      "tokens": 981,
+      "hash": "5ccf39070e661b71",
+      "size": 4301,
+      "mtimeMs": 1792508080052.0715,
+      "updatedAt": "2026-10-20T14:54:40.102Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_source",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 27,
+          "tokens": 21
+        },
+        {
+          "name": "test_migration_exists_and_is_chained_to_p9_006",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 41,
+          "tokens": 170
+        },
+        {
+          "name": "test_orm_declares_project_id_not_null_with_fk_and_index",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 56,
+          "tokens": 159
+        },
+        {
+          "name": "test_migration_backfills_from_equipment_list",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 68,
+          "tokens": 117
+        },
+        {
+          "name": "test_migration_fails_loudly_on_unbackfillable_orphan_rows",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 80,
+          "tokens": 110
+        },
+        {
+          "name": "test_migration_does_not_add_the_columns_we_deliberately_refused",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 99,
+          "tokens": 215
+        },
+        {
+          "name": "test_migration_adds_exactly_one_column",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 105,
+          "tokens": 54
         }
       ]
     }

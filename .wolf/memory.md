@@ -2145,3 +2145,10 @@
 | 22:16 | Edited pcs-backend/app/services/edit_guard.py | modified capability_of() | ~158 |
 | 22:16 | Edited pcs-backend/app/services/edit_guard.py | inline fix | ~9 |
 | 22:16 | Edited pcs-backend/app/api/v1/locks.py | added error handling | ~612 |
+| 22:34 | Created pcs-backend/tests/api/v1/test_cost_est_project_isolation.py | — | ~3042 |
+| 22:34 | Created pcs-backend/alembic/versions/p9_007_cost_est_project_id.py | — | ~1191 |
+| 22:35 | Edited pcs-backend/app/models/calc.py | expanded (+14 lines) | ~285 |
+| 22:36 | Edited pcs-backend/app/api/v1/cost_est.py | modified list_cost_est_results() | ~396 |
+| 22:36 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | modified list_cost_est_results_service() | ~304 |
+| 22:54 | Created pcs-backend/tests/alembic/test_p9_007_cost_est_project_id.py | — | ~981 |
+| 23:12 | Edited CLAUDE.md | expanded (+23 lines) | ~269 |

@@ -106,21 +106,42 @@ def upgrade() -> None:
     )
     # 读 API（P9A-OBS-003）按 (workflow_type, workflow_id) 查；无索引则每次全表扫。
     op.create_index(
-        "ix_workflow_progress_project_id", "workflow_progress", ["project_id"]
+        "ix_workflow_progress_project_id",
+        "workflow_progress",
+        ["project_id"],
+        if_not_exists=True,
     )
     op.create_index(
-        "ix_workflow_progress_workflow_type", "workflow_progress", ["workflow_type"]
+        "ix_workflow_progress_workflow_type",
+        "workflow_progress",
+        ["workflow_type"],
+        if_not_exists=True,
     )
     op.create_index(
-        "ix_workflow_progress_workflow_id", "workflow_progress", ["workflow_id"]
+        "ix_workflow_progress_workflow_id",
+        "workflow_progress",
+        ["workflow_id"],
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_workflow_progress_workflow_id", table_name="workflow_progress")
-    op.drop_index("ix_workflow_progress_workflow_type", table_name="workflow_progress")
-    op.drop_index("ix_workflow_progress_project_id", table_name="workflow_progress")
-    op.drop_table("workflow_progress")
+    op.drop_index(
+        "ix_workflow_progress_workflow_id",
+        table_name="workflow_progress",
+        if_exists=True,
+    )
+    op.drop_index(
+        "ix_workflow_progress_workflow_type",
+        table_name="workflow_progress",
+        if_exists=True,
+    )
+    op.drop_index(
+        "ix_workflow_progress_project_id",
+        table_name="workflow_progress",
+        if_exists=True,
+    )
+    op.drop_table("workflow_progress", if_exists=True)
 
     bind = op.get_bind()
     workflowprogressstate_enum.drop(bind, checkfirst=True)

@@ -98,29 +98,37 @@ _COST_EST_CREATE_FIELDS: frozenset[str] = _COST_EST_UPDATE_FIELDS
 
 async def _ensure_equipment_exists(
     session: AsyncSession, equipment_id: uuid.UUID
-) -> None:
-    """校验 equipment_id 存在于 equipment_list（FK 必填）。
+) -> uuid.UUID:
+    """校验 equipment_id 存在于 equipment_list（FK 必填），**并返回它的 project_id**。
 
-    实现：``SELECT equipment_id FROM equipment_list WHERE equipment_id = ?``
-    — 仅查 PK 列，不触发 ORM ``SELECT *``（equipment_list 走
+    实现：``SELECT equipment_id, project_id FROM equipment_list WHERE equipment_id = ?``
+    — 只查这两列，不触发 ORM ``SELECT *``（equipment_list 走
     TaggedRecordMixin → RecordMixin，含 P4-0-1 审计 3 列；
     ``session.get`` 会展开 SELECT *，在 pcs_test 库会触发
-    "column stale_resolution_path does not exist"；因此存在性校验只查 PK）。
+    "column stale_resolution_path does not exist"；因此这里显式列出所需列）。
+
+    ⚠️ **返回 project_id 而不是 None**（P9A-5 Task B）：`cost_est_results`
+    的 `project_id` 是**冗余**列，其唯一同步点就是这里 —— 调用方把它写进
+    新行。把它做成「同一次查询顺带取回」而不是让每个创建路径各查一次：
+    多一次查询就多一处「忘了同步」的机会。
+
+    ⚠️ ``project_id`` 在 equipment_list 上是 **NOT NULL** ⇒ 取回即有效。
 
     Raises:
         CostEstPersistInputError: equipment_id 不存在（COST_EST_EQUIPMENT_NOT_FOUND）。
     """
     from app.models.equipment import EquipmentList
 
-    stmt = select(EquipmentList.equipment_id).where(
+    stmt = select(EquipmentList.equipment_id, EquipmentList.project_id).where(
         EquipmentList.equipment_id == equipment_id
     )
-    exists = (await session.execute(stmt)).scalar_one_or_none()
-    if exists is None:
+    row = (await session.execute(stmt)).first()
+    if row is None:
         raise CostEstPersistInputError(
             f"equipment_id {equipment_id} 不存在（FK 必填）",
             code="COST_EST_EQUIPMENT_NOT_FOUND",
         )
+    return row[1]
 
 
 def _ensure_created_at(record: CostEstResult) -> None:
@@ -248,11 +256,13 @@ async def save_six_tenths_rule_result(
     _validate_scaling_exponent(scaling_exponent)
     _validate_base_cost(base_cost)
 
-    await _ensure_equipment_exists(session, equipment_id)
+    # project_id 由 equipment 带出（P9A-5 Task B 的冗余列同步点）
+    equipment_project_id = await _ensure_equipment_exists(session, equipment_id)
     await _ensure_no_existing_cost_est(session, equipment_id)
 
     record = CostEstResult(
         equipment_id=equipment_id,
+        project_id=equipment_project_id,
         estimated_cost=estimated_cost,
         currency=currency,
         cost_index_year=cost_index_year,
@@ -307,11 +317,13 @@ async def save_cepci_adjustment_result(
     )
     _validate_base_cost(base_cost)
 
-    await _ensure_equipment_exists(session, equipment_id)
+    # project_id 由 equipment 带出（P9A-5 Task B 的冗余列同步点）
+    equipment_project_id = await _ensure_equipment_exists(session, equipment_id)
     await _ensure_no_existing_cost_est(session, equipment_id)
 
     record = CostEstResult(
         equipment_id=equipment_id,
+        project_id=equipment_project_id,
         estimated_cost=estimated_cost,
         currency=currency,
         cost_index_year=cost_index_year,
@@ -374,11 +386,13 @@ async def save_cost_correlation_result(
     if len(correlation_source) > 64:
         raise CostEstPersistInputError("correlation_source 长度必须 ≤ 64")
 
-    await _ensure_equipment_exists(session, equipment_id)
+    # project_id 由 equipment 带出（P9A-5 Task B 的冗余列同步点）
+    equipment_project_id = await _ensure_equipment_exists(session, equipment_id)
     await _ensure_no_existing_cost_est(session, equipment_id)
 
     record = CostEstResult(
         equipment_id=equipment_id,
+        project_id=equipment_project_id,
         estimated_cost=estimated_cost,
         currency=currency,
         cost_index_year=cost_index_year,
@@ -412,26 +426,28 @@ async def save_cost_correlation_result(
 async def list_cost_est_results_service(
     session: AsyncSession,
     *,
+    project_id: uuid.UUID,
     equipment_id: uuid.UUID | None = None,
     skip: int = 0,
     limit: int = 50,
 ) -> Sequence[CostEstResult]:
-    """列出 COST_EST 结果（默认按 equipment_id 过滤；不传则全量）。
+    """列出 COST_EST 结果（**必按 project_id 过滤**，可再按 equipment_id 收窄）。
 
-    与 filtration/open_channel 不同：CostEstResult 不含 project_id 列（隔离
-    键经 equipment_id → equipment_list.project_id 间接传递）。本批次
-    按 equipment_id 过滤，便于前端按设备查其投资估算。
+    ⚠️ `project_id` **必填**（P9A-5 Task B）：原签名是 `equipment_id` 可选、
+    「不传 = 全量」⇒ API 层直接把**整表**返回给任何登录用户（跨项目读泄漏）。
+    ⇒ 现在项目过滤是**函数的前置条件**，不再依赖调用方自觉。
 
     Args:
         session: async SQLAlchemy session。
-        equipment_id: 设备 UUID（可选；不传 = 全量）。
+        project_id: 项目 UUID（**必填**）。
+        equipment_id: 设备 UUID（可选；不传 = 该项目全部）。
         skip: 分页偏移（默认 0）。
         limit: 分页上限（默认 50）。
 
     Returns:
         CostEstResult 列表（按 created_at DESC）。
     """
-    stmt = select(CostEstResult)
+    stmt = select(CostEstResult).where(CostEstResult.project_id == project_id)
     if equipment_id is not None:
         stmt = stmt.where(CostEstResult.equipment_id == equipment_id)
     stmt = (
@@ -539,6 +555,7 @@ async def soft_delete_cost_est_result_service(
     snapshot = CostEstResult(
         cost_est_id=record.cost_est_id,
         equipment_id=record.equipment_id,
+        project_id=record.project_id,
         estimated_cost=record.estimated_cost,
         currency=record.currency,
         cost_index_year=record.cost_index_year,
@@ -597,11 +614,13 @@ async def create_cost_est_result_direct(
     if "base_cost" in payload:
         _validate_base_cost(payload["base_cost"])
 
-    await _ensure_equipment_exists(session, equipment_id)
+    # project_id 由 equipment 带出（P9A-5 Task B 的冗余列同步点）
+    equipment_project_id = await _ensure_equipment_exists(session, equipment_id)
     await _ensure_no_existing_cost_est(session, equipment_id)
 
     record = CostEstResult(
         equipment_id=equipment_id,
+        project_id=equipment_project_id,
         **payload,
     )
     _ensure_created_at(record)
