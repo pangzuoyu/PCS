@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T15:40:22.081Z",
-    "fileCount": 954,
+    "lastScanned": "2026-10-20T17:13:30.078Z",
+    "fileCount": 961,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5e5a166f016125a2e36c575e786913b164722ecdccc27ba363ff81e460815d5d",
-    "storeUpdatedAt": "2026-10-20T15:40:22.092Z",
-    "rootHash": "90e9f00560f657ba"
+    "renderedHash": "7b3166b8ec5794dfea24e1a45f4fbefc8a9794e710805db730c9b3e8bb3f5b81",
+    "storeUpdatedAt": "2026-10-20T17:13:30.089Z",
+    "rootHash": "e7f4fd10bf69db04"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1757,11 +1757,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 10352,
-      "hash": "5d43578b5bb6483f",
-      "size": 64703,
-      "mtimeMs": 1792484482429.908,
-      "updatedAt": "2026-10-20T08:21:22.483Z",
+      "tokens": 13822,
+      "hash": "867574bfdf5cef7f",
+      "size": 88652,
+      "mtimeMs": 1792516375225.2493,
+      "updatedAt": "2026-10-20T17:12:55.279Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 5264,
-      "hash": "9539709b56a2d247",
-      "size": 34406,
-      "mtimeMs": 1792404134102.3086,
-      "updatedAt": "2026-10-19T10:02:14.151Z",
+      "tokens": 10310,
+      "hash": "2ee96dfb6f0a2aa3",
+      "size": 68556,
+      "mtimeMs": 1792514215775.3887,
+      "updatedAt": "2026-10-20T16:36:55.827Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -13830,51 +13830,65 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 1538,
-      "hash": "150e6551d131029c",
-      "size": 5755,
-      "mtimeMs": 1790978919772.5967,
-      "updatedAt": "2026-10-02T22:08:39.827Z",
+      "tokens": 1795,
+      "hash": "e7bd715b6f0e0ac6",
+      "size": 6922,
+      "mtimeMs": 1792514560253.0747,
+      "updatedAt": "2026-10-20T16:42:40.309Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
-          "startLine": 14,
-          "endLine": 69,
-          "tokens": 558
+          "startLine": 18,
+          "endLine": 77,
+          "tokens": 595
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 82,
+          "startLine": 78,
+          "endLine": 90,
           "tokens": 96
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 161,
-          "tokens": 725
+          "startLine": 91,
+          "endLine": 190,
+          "tokens": 923
         }
       ]
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 9066,
-      "hash": "7eb997a4bff6c1c1",
-      "size": 33822,
-      "mtimeMs": 1792374366063.4272,
-      "updatedAt": "2026-10-19T01:46:06.114Z",
+      "tokens": 9899,
+      "hash": "e92eb6df86b2e655",
+      "size": 37678,
+      "mtimeMs": 1792514905343.4336,
+      "updatedAt": "2026-10-20T16:48:25.393Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 55,
-          "endLine": 713,
-          "tokens": 8344
+          "startLine": 65,
+          "endLine": 492,
+          "tokens": 5406
+        },
+        {
+          "name": "buildNotificationList",
+          "kind": "fn",
+          "startLine": 493,
+          "endLine": 500,
+          "tokens": 64
+        },
+        {
+          "name": "buildTodoList",
+          "kind": "fn",
+          "startLine": 501,
+          "endLine": 776,
+          "tokens": 3567
         }
       ]
     },
@@ -16427,33 +16441,47 @@
     },
     "pcs-frontend/tests/mocks/handlers.test.ts": {
       "description": "MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5)",
-      "tokens": 1807,
-      "hash": "6380a9b187698cd0",
-      "size": 6822,
-      "mtimeMs": 1791095402704.178,
-      "updatedAt": "2026-10-04T06:30:02.751Z",
+      "tokens": 2936,
+      "hash": "d7a1b834ad5330bf",
+      "size": 12043,
+      "mtimeMs": 1792514921593.2407,
+      "updatedAt": "2026-10-20T16:48:41.642Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "stripComments",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 30,
+          "tokens": 38
+        },
+        {
           "name": "resolveRef",
           "kind": "fn",
-          "startLine": 25,
-          "endLine": 32,
-          "tokens": 66
+          "startLine": 31,
+          "endLine": 46,
+          "tokens": 143
         },
         {
           "name": "inlineRefs",
           "kind": "fn",
-          "startLine": 33,
-          "endLine": 48,
+          "startLine": 47,
+          "endLine": 62,
           "tokens": 170
         },
         {
           "name": "validateAgainst",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 170,
-          "tokens": 1332
+          "startLine": 63,
+          "endLine": 186,
+          "tokens": 1358
+        },
+        {
+          "name": "schemaFor",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 274,
+          "tokens": 955
         }
       ]
     },
@@ -28181,11 +28209,11 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 6554,
-      "hash": "274709cd7d9269d7",
-      "size": 44922,
-      "mtimeMs": 1792456593279.2515,
-      "updatedAt": "2026-10-20T00:36:33.327Z",
+      "tokens": 7663,
+      "hash": "5817867abd586f02",
+      "size": 51810,
+      "mtimeMs": 1792514176457.277,
+      "updatedAt": "2026-10-20T16:36:16.511Z",
       "source": "hook"
     },
     "docs/adr/0046-user-identity-model-migration.md": {
@@ -30051,11 +30079,11 @@
     },
     "pcs-backend/tests/services/test_workflow_progress_acceptance.py": {
       "description": "P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。",
-      "tokens": 1176,
-      "hash": "b797fec675c64234",
-      "size": 5368,
-      "mtimeMs": 1792454433593.2246,
-      "updatedAt": "2026-10-20T00:00:33.647Z",
+      "tokens": 1270,
+      "hash": "e67cd7f1812cf3fc",
+      "size": 5921,
+      "mtimeMs": 1792513734198.3645,
+      "updatedAt": "2026-10-20T16:28:54.248Z",
       "source": "hook",
       "symbols": [
         {
@@ -30069,21 +30097,21 @@
           "name": "_write_then_read",
           "kind": "fn",
           "startLine": 54,
-          "endLine": 91,
-          "tokens": 331
+          "endLine": 102,
+          "tokens": 412
         },
         {
           "name": "test_observed_p99_under_500ms",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 119,
-          "tokens": 242
+          "startLine": 103,
+          "endLine": 131,
+          "tokens": 255
         },
         {
           "name": "test_all_three_workflow_types_are_writable",
           "kind": "fn",
-          "startLine": 120,
-          "endLine": 140,
+          "startLine": 132,
+          "endLine": 152,
           "tokens": 202
         }
       ]
@@ -31614,11 +31642,11 @@
     },
     "docs/adr/0050-sign-responsibility-and-task-participation.md": {
       "description": "ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期",
-      "tokens": 5015,
-      "hash": "5221d21cff295962",
-      "size": 30266,
-      "mtimeMs": 1792484447732.8308,
-      "updatedAt": "2026-10-20T08:20:47.783Z",
+      "tokens": 5162,
+      "hash": "2a9877e2f780bcf0",
+      "size": 31102,
+      "mtimeMs": 1792513411415.8298,
+      "updatedAt": "2026-10-20T16:23:31.472Z",
       "source": "hook"
     },
     ".superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/progress.md": {
@@ -34839,6 +34867,124 @@
           "tokens": 591
         }
       ]
+    },
+    "pcs-backend/tests/api/v1/test_notification_list_budget.py": {
+      "description": "P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。",
+      "tokens": 1813,
+      "hash": "0359abeb0d30382e",
+      "size": 8377,
+      "mtimeMs": 1792514070698.8984,
+      "updatedAt": "2026-10-20T16:34:30.746Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 67,
+          "tokens": 46
+        },
+        {
+          "name": "_seed",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 113,
+          "tokens": 471
+        },
+        {
+          "name": "test_notification_list_and_unread_count_within_budget",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 147,
+          "tokens": 317
+        },
+        {
+          "name": "test_notification_list_after_pagination_within_budget",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 198,
+          "tokens": 528
+        }
+      ]
+    },
+    "pcs-frontend/tests/layouts/MainLayout.test.tsx": {
+      "description": "MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。",
+      "tokens": 664,
+      "hash": "22b3c418f6f7474c",
+      "size": 2931,
+      "mtimeMs": 1792514723573.7314,
+      "updatedAt": "2026-10-20T16:45:23.622Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/notifications.ts": {
+      "description": "通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。",
+      "tokens": 634,
+      "hash": "f3eb231b533d6a06",
+      "size": 2855,
+      "mtimeMs": 1792514458836.7065,
+      "updatedAt": "2026-10-20T16:40:58.884Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isUnread",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 70,
+          "tokens": 36
+        }
+      ]
+    },
+    "pcs-frontend/src/api/todos.ts": {
+      "description": "待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。",
+      "tokens": 182,
+      "hash": "ac87a9d0c3d1a5b7",
+      "size": 921,
+      "mtimeMs": 1792514464089.6182,
+      "updatedAt": "2026-10-20T16:41:04.135Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/common/NotificationCenter.tsx": {
+      "description": "NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。",
+      "tokens": 1844,
+      "hash": "d48e73fdfee61c5c",
+      "size": 6989,
+      "mtimeMs": 1792514492254.1514,
+      "updatedAt": "2026-10-20T16:41:32.307Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 31,
+          "endLine": 43,
+          "tokens": 98
+        },
+        {
+          "name": "NotificationCenter",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 204,
+          "tokens": 1469
+        }
+      ]
+    },
+    "pcs-frontend/tests/components/common/NotificationCenter.test.tsx": {
+      "description": "NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。",
+      "tokens": 2283,
+      "hash": "43fef8a82885f8c3",
+      "size": 8895,
+      "mtimeMs": 1792514690402.1829,
+      "updatedAt": "2026-10-20T16:44:50.452Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md": {
+      "description": "QA 报告 — pcs-frontend — P9A Z 收口（2026-10-21）",
+      "tokens": 606,
+      "hash": "e1ca2c311a2d4064",
+      "size": 3771,
+      "mtimeMs": 1792516410030.2957,
+      "updatedAt": "2026-10-20T17:13:30.077Z",
+      "source": "hook"
     }
   }
 }

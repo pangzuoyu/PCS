@@ -3774,6 +3774,31 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "HIGH"
+    },
+    {
+      "id": "bug-2040",
+      "timestamp": "2026-10-21T00:00:00.000Z",
+      "error_message": "生产构建下 MainLayout 整个壳崩：TypeError: notifications.filter is not a function（src/layouts/MainLayout.tsx:105）。dev 与浏览器 QA 全程看不见。",
+      "file": "pcs-frontend/src/layouts/MainLayout.tsx + pcs-frontend/src/mocks/handlers.ts",
+      "root_cause": "P9A 交付了真的 GET /api/v1/notifications（响应 {items, unread_count}），而前端仍按**自造数组**消费它：`.then((j: Notification[]) => setNotifications(j))` —— `as Notification[]` 是**类型断言**，运行时零检查 ⇒ 真后端的**对象**被塞进 useState<Notification[]> ⇒ 下一行 notifications.filter 抛 TypeError（MainLayout 是所有已登录页面的父级 ⇒ 整个壳崩）。**为什么 dev/QA 看不见**：main.tsx 在 import.meta.env.DEV 下恒挂 MSW，而 MSW 的 /notifications handler 返回**前端自造数组**（category/summary/issued_at/unread）⇒ mock 把漂移**藏住**；只有生产构建（MSW 被 tree-shake 移除）才暴露。三件事叠加：①mock 与真端点不同源 ②dev 恒有 mock ③消费处用类型断言而非真解析。",
+      "fix": "前端通知/待办按契约重绑（commit 902a754）：新增 src/api/notifications.ts + src/api/todos.ts（类型全取 components['schemas'][...]，不手写）；NotificationCenter props 改契约形状 + 四个分组来源按 SPEC §6.20（待办 ← GET /todos，不是通知）；MainLayout 改走 axios 实例（带 token + 401 处理）并按契约解析，标已读后重新拉列表；MSW 的通知/待办 mock 改契约形状，并把 notifications 从「mock-only（没有契约可漂移）」名单划掉。守卫先 RED 后 GREEN：tests/layouts/MainLayout.test.tsx（MSW node server 返契约形状 ⇒ 修复前 RED 于 notifications.filter is not a function）；tests/mocks/handlers.test.ts +6 例（ajv 对着 OpenAPI 校验通知/待办 mock 响应体 + kind 四值与后端 NotificationKind 一致 + unread_count 与 read_at===null 条数一致 + **棘轮**：devOnly ∩ 契约 的端点清单钉死，新增即红 ⇒ 必须一并加校验）。守卫有效性已实测：把 buildNotificationList 改回返数组 ⇒ RED（must be object）。",
+      "fix_commit": "902a754",
+      "tags": [
+        "p9a",
+        "frontend",
+        "contract-drift",
+        "mock-hides-drift",
+        "type-assertion-not-runtime-check",
+        "production-only-crash",
+        "z-closeout"
+      ],
+      "related_bugs": [
+        "bug-189",
+        "bug-2038"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "CRITICAL"
     }
   ]
 }

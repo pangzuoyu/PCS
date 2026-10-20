@@ -1322,3 +1322,61 @@ grep -oE "^#{2,3} TODO-[0-9]+" TODOS.md | grep -oE "TODO-[0-9]+" | sort -u
 
 **「编号连续性」这类结论必须用查到的证据下，不能靠印象。**
 引用一个编号前先确认它存在；断言一批编号空闲时，先确认查询没漏级别。
+
+---
+
+## Do-Not-Repeat: mock 返回自造形状 ⇒ 漂移被藏住 ⇒ 只有生产构建才炸（2026-10-21，bug-2040）
+
+2026-10-21 P9A Z 收口实测：`GET /notifications` 真端点返
+`{items, unread_count}`，前端 mock 返**自造数组** ⇒ dev 与浏览器 QA
+**全程绿**（`main.tsx` 在 `import.meta.env.DEV` 下恒挂 MSW）⇒ 生产构建
+（MSW 被 tree-shake 移除）下 `MainLayout.tsx:105` 抛
+`TypeError: notifications.filter is not a function` ⇒ **整个壳崩**。
+
+根因不是「前端忘了改」，是**三件事叠在一起**：
+① mock 与真端点**不同源**；② dev 环境**恒**有 mock ⇒ QA 看不见；
+③ 消费的代码用 `as Notification[]` **类型断言**（运行时零检查）。
+
+**判据（下次直接照这条查）**：
+- 任何 mock handler 的路径**一旦出现在 OpenAPI 里** ⇒ 它的响应体必须
+  **对着契约校验**（ajv + `components['schemas'][...]` 类型标注）。
+  ⇒ 已加**棘轮**守卫：`devOnly ∩ 契约` 的端点清单钉死，新增即红。
+- 「mock-only（没有契约可漂移）」是一张**会过期**的名单：端点起初没有
+  契约，后来后端交付了真端点 ⇒ 名单**不会自己更新** ⇒ 漂移被藏住。
+  ⇒ 名单项要跟着契约走，别信它自己。
+
+**修法**：mock 响应体用 ajv 对着 OpenAPI 校验（`tests/mocks/handlers.test.ts`）；
+契约端点的 mock 一律用 `components['schemas'][...]` 标注，**不用组件自有类型**
+（组件自有类型就是漂移源）。
+
+## Do-Not-Repeat: 类型断言不是运行时检查（2026-10-21，bug-2040）
+
+`as Notification[]` **只骗编译器**，运行时那个对象照样被塞进数组 state。
+⇒ 崩点出现在**下一行**（`notifications.filter`），与断言处相隔几行 ⇒
+报错信息**不指向**真正的原因（「filter is not a function」看着像组件的锅）。
+
+**判据**：跨进程边界的数据（HTTP / IPC / 存储）**一律按响应的真实形状**建模
+—— 要么用契约类型，要么在解析处**真的校验**（不是断言）。
+⇒ 前端已有 `src/api/*.ts` 的一层，**从那里拿**，别在组件里直接 fetch + cast。
+
+## Do-Not-Repeat: 验收标准里写着的指标，没有自动化断言 = 没验收过（2026-10-21）
+
+SPEC §7.2 写「待办/通知 ≤500ms」。待办有验收测试，**通知一条都没有** ——
+标准写了、代码实现了、**没人证明达标**。
+⇒ 「实现完成」≠「验收通过」。收口时要把 §7.2 的每一条**对上一条自动化断言**，
+对不上的要么补断言，要么在验收表里写明「无自动化验收」。
+
+⚠️ 补性能断言的两条纪律（照 `test_todos.py` 头注）：
+① **必须造到预期数据量** —— 小表下测不出真实性能，500ms 是假达标；
+② **断言要能对旧代码变红** —— `after` 切点取「切出条数 < limit」的位置，
+否则过滤被静默忽略时那条也绿（实测过：切点取 15 天前就绿，取 1 天前才红）。
+
+## Do-Not-Repeat: 参数化装饰了一个从未生效的变量（2026-10-21）
+
+`@parametrize("workflow_type", [SIGN, CHANGE_NOTICE, CUSTOMER_APPROVAL_PROXY])`
+下面，helper 把 `WorkflowType.SIGN` **写死在写入与查询两处** ⇒ 三个用例
+**测的都是 SIGN**，而用例名与 docstring 都说「三类工作流逐类」。
+
+**判据**：看到 `@parametrize` 就去确认**被参数化的那个量真的进了被测代码**。
+最容易漏的地方是**helper 的默认参数**与**第二处使用点**（这里是查询侧）。
+⇒ 这与「注释与代码字面冲突，是 bug 的气味」同源。

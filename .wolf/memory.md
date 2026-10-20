@@ -2160,3 +2160,52 @@
 | 23:38 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~789 |
 | 23:39 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~1074 |
 | 23:40 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~1488 |
+| 23:47 | Session end: 178 writes across 80 files (progress.md, test_p9_005_notifications.py, notification.py, __init__.py, p9_005_notifications.py) | 136 reads | ~216513 tok |
+| 23:48 | Session end: 456 writes across 185 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 190 reads | ~500431 tok |
+| 23:49 | Session end: 456 writes across 185 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 190 reads | ~500431 tok |
+
+## Session: 2026-10-20 23:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 00:21 | Edited docs/PCS-UI-SPEC.md | expanded (+29 lines) | ~326 |
+| 00:22 | Edited docs/PCS-UI-SPEC.md | expanded (+89 lines) | ~852 |
+| 00:22 | Edited docs/PCS-UI-SPEC.md | 2→2 lines | ~8 |
+| 00:22 | Edited docs/PCS-UI-SPEC.md | 2→3 lines | ~390 |
+| 00:22 | Edited docs/PCS-UI-SPEC.md | 3→5 lines | ~68 |
+| 00:23 | Edited docs/adr/0050-sign-responsibility-and-task-participation.md | 4→8 lines | ~106 |
+| 00:28 | Edited pcs-backend/tests/services/test_workflow_progress_acceptance.py | modified _write_then_read() | ~372 |
+| 00:28 | Edited pcs-backend/tests/services/test_workflow_progress_acceptance.py | 6→7 lines | ~68 |
+| 00:29 | Created pcs-backend/tests/api/v1/test_notification_list_budget.py | — | ~1530 |
+| 00:30 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | 3→5 lines | ~76 |
+| 00:30 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | added 1 import(s) | ~31 |
+| 00:31 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | modified range() | ~363 |
+| 00:31 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | modified disabled() | ~143 |
+| 00:31 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | modified _naive() | ~106 |
+| 00:32 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | modified _naive() | ~407 |
+| 00:34 | Edited pcs-backend/tests/api/v1/test_notification_list_budget.py | inline fix | ~11 |
+| 00:35 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+60 lines) | ~1034 |
+| 00:36 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~19 |
+| 00:36 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~214 |
+| 00:36 | Edited TODOS.md | 5→10 lines | ~117 |
+| 00:36 | Edited TODOS.md | 3→6 lines | ~73 |
+| 00:39 | Created pcs-frontend/tests/layouts/MainLayout.test.tsx | — | ~628 |
+| 00:40 | Created pcs-frontend/src/api/notifications.ts | — | ~634 |
+| 00:41 | Created pcs-frontend/src/api/todos.ts | — | ~182 |
+| 00:41 | Created pcs-frontend/src/components/common/NotificationCenter.tsx | — | ~1844 |
+| 00:42 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 8→12 lines | ~153 |
+| 00:42 | Edited pcs-frontend/src/layouts/MainLayout.tsx | expanded (+11 lines) | ~248 |
+| 00:42 | Edited pcs-frontend/src/layouts/MainLayout.tsx | expanded (+10 lines) | ~176 |
+| 00:42 | Edited pcs-frontend/src/mocks/handlers.ts | added 1 condition(s) | ~251 |
+| 00:43 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+15 lines) | ~564 |
+| 00:43 | Edited pcs-frontend/src/mocks/handlers.ts | 2→7 lines | ~113 |
+| 00:44 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+6 lines) | ~227 |
+| 00:44 | Created pcs-frontend/tests/components/common/NotificationCenter.test.tsx | — | ~2283 |
+| 00:45 | Created pcs-frontend/tests/layouts/MainLayout.test.tsx | — | ~664 |
+| 00:48 | Edited pcs-frontend/src/mocks/handlers.ts | reduced (-6 lines) | ~197 |
+| 00:48 | Edited pcs-frontend/src/mocks/handlers.ts | modified buildNotificationList() | ~287 |
+| 00:48 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 2→1 lines | ~17 |
+| 00:48 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 1→2 lines | ~17 |
+| 01:12 | Edited docs/PCS-UI-SPEC.md | 3→7 lines | ~47 |
+| 01:13 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md | — | ~647 |
+| 01:15 | P9A Z 收口：SPEC 欠账补写（UI-SPEC V2.1 十条 + P9 SPEC V2.1 §7.2.1 验收登记）+ OpenAPI baseline 滚动 + 通知 500ms 验收 + 修前端生产崩溃（bug-2040） | docs/PCS-UI-SPEC.md · spec/PCS-REQ-2026-002-SPEC-P9*.md · docs/adr/0050*.md · pcs-backend/tests/api/v1/test_notification_list_budget.py · pcs-backend/tests/services/test_workflow_progress_acceptance.py · pcs-backend/docs/openapi-baseline.json · pcs-frontend/src/api/{notifications,todos}.ts · pcs-frontend/src/components/common/NotificationCenter.tsx · pcs-frontend/src/layouts/MainLayout.tsx · pcs-frontend/src/mocks/handlers.ts · pcs-frontend/tests/{layouts/MainLayout,components/common/NotificationCenter,mocks/handlers}.test.tsx · TODOS.md | 完成。后端 5157 passed / 前端 725 passed / 两库 alembic clean / 浏览器回归 10 项全过 | ~95k |

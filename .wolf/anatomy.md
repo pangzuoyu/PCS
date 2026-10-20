@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:40:22.081Z
-> Files: 954 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T17:13:30.078Z
+> Files: 961 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~915 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3771 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~5264 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~10310 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -163,6 +163,7 @@
 - `qa-report-pcs-frontend-2026-10-01-sprint2.md` — Sprint 2 batch-end QA report (~1214 tok)
 - `qa-report-pcs-frontend-2026-10-02-sprint2-batch.md` — QA Report: pcs-frontend 2026-10-02 Sprint 2 批末 (~1014 tok)
 - `qa-report-pcs-frontend-2026-10-13-report-builder.md` — QA 报告 — P8 REPORT_BUILDER 前端（b10–b12 / c6 第一批） (~926 tok)
+- `qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md` — QA 报告 — pcs-frontend — P9A Z 收口（2026-10-21） (~606 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -306,7 +307,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~10352 tok)
+- `PCS-UI-SPEC.md` (~13822 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -346,7 +347,7 @@
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3977 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
-- `0050-sign-responsibility-and-task-participation.md` — ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期 (~5015 tok)
+- `0050-sign-responsibility-and-task-participation.md` — ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期 (~5162 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
@@ -1372,6 +1373,7 @@
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
+- `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~3944 tok)
@@ -1437,7 +1439,7 @@
 - `test_record_hash_invariant.py` — record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。 (~3104 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
-- `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1176 tok)
+- `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
 
 ## pcs-backend/tests/services/cool_tower/
@@ -1532,15 +1534,18 @@
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
 - `locks.ts` — 编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1276 tok)
+- `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
+- `todos.ts` — 待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。 (~182 tok)
 
 ## pcs-frontend/src/components/common/
 
+- `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
 - `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~2752 tok)
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1538 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1795 tok)
 
 ## pcs-frontend/src/lib/
 
@@ -1548,7 +1553,7 @@
 
 ## pcs-frontend/src/mocks/
 
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~9066 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~9899 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 
@@ -1598,13 +1603,21 @@
 - `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
 - `edit_lock_api.test.ts` — 编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。 (~1452 tok)
 
+## pcs-frontend/tests/components/common/
+
+- `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~2283 tok)
+
+## pcs-frontend/tests/layouts/
+
+- `MainLayout.test.tsx` — MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。 (~664 tok)
+
 ## pcs-frontend/tests/lib/
 
 - `pipeClassSch.test.ts` — `summarizeSchSeries` —— 把 `sch_series_json`（DN → Sch 映射）压成 (~1021 tok)
 
 ## pcs-frontend/tests/mocks/
 
-- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~1807 tok)
+- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~2936 tok)
 - `reportBuilderStatusFilter.test.ts` — MSW 的 `/report-builder/definitions` 必须**遵守 `status` 查询参数**。 (~782 tok)
 
 ## pcs-frontend/tests/pages/audit/
@@ -1639,4 +1652,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
-- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~6554 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~7663 tok)
