@@ -1967,3 +1967,6 @@
 | 08:36 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+21 lines) | ~386 |
 | 08:36 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+12 lines) | ~213 |
 | 08:36 | Edited docs/PCS-PLAN-P9A.md | expanded (+15 lines) | ~211 |
+| 08:44 | Created pcs-backend/tests/services/test_record_capabilities.py | — | ~1308 |
+| 08:45 | Created pcs-backend/app/services/record_capabilities.py | — | ~922 |
+| 08:46 | Edited pcs-backend/app/services/calc_lineage.py | expanded (+15 lines) | ~247 |

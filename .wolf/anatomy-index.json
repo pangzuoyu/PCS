@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T00:36:43.359Z",
-    "fileCount": 880,
+    "lastScanned": "2026-10-20T00:46:16.114Z",
+    "fileCount": 883,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f42a1adb52b19a560c138bc142c8dd435bea7329863ff653d2275d8d6a548757",
-    "storeUpdatedAt": "2026-10-20T00:36:43.370Z",
-    "rootHash": "7974de676ca4b8eb"
+    "renderedHash": "540b1358cd9713fa31dc5ec558f02a6c75c5bbebc06f4cdfd6ea16d55956ef0b",
+    "storeUpdatedAt": "2026-10-20T00:46:16.125Z",
+    "rootHash": "96e43da7126d1f6d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -30079,6 +30079,95 @@
           "startLine": 120,
           "endLine": 140,
           "tokens": 202
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_record_capabilities.py": {
+      "description": "`record_capabilities` 测试（TODO-058 裁决的落地契约）。",
+      "tokens": 1308,
+      "hash": "fe94d321fc9b9121",
+      "size": 6258,
+      "mtimeMs": 1792457084397.8105,
+      "updatedAt": "2026-10-20T00:44:44.456Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "TestPredicate",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 59,
+          "tokens": 232
+        },
+        {
+          "name": "TestRegistryContract",
+          "kind": "class",
+          "startLine": 60,
+          "endLine": 112,
+          "tokens": 583
+        },
+        {
+          "name": "TestDerivationIsNotACopy",
+          "kind": "class",
+          "startLine": 113,
+          "endLine": 135,
+          "tokens": 240
+        }
+      ]
+    },
+    "pcs-backend/app/services/record_capabilities.py": {
+      "description": "记录能力谓词（TODO-058 裁决，2026-10-20）。",
+      "tokens": 922,
+      "hash": "74e8d9490cf8c2ba",
+      "size": 5064,
+      "mtimeMs": 1792457105251.0283,
+      "updatedAt": "2026-10-20T00:45:05.300Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "missing_workflow_columns",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 79,
+          "tokens": 59
+        },
+        {
+          "name": "supports_state_workflow",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 104,
+          "tokens": 203
+        }
+      ]
+    },
+    "pcs-backend/app/services/calc_lineage.py": {
+      "description": "P4-0-1 统一计算记录收口（ADR-0031）。",
+      "tokens": 2138,
+      "hash": "f93ad5abcd4a0e60",
+      "size": 9281,
+      "mtimeMs": 1792457176062.7087,
+      "updatedAt": "2026-10-20T00:46:16.114Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_round_sig",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 141,
+          "tokens": 58
+        },
+        {
+          "name": "compute_record_hash",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 170,
+          "tokens": 286
+        },
+        {
+          "name": "finalize_calc_record",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 218,
+          "tokens": 452
         }
       ]
     }

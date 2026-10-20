@@ -833,34 +833,66 @@ ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个
 
 ---
 
-## TODO-058: `RECORD_TYPE_REGISTRY` 的语义未定 + 列完整性无契约（🔴 会继续咬人）
+## TODO-058: `RECORD_TYPE_REGISTRY` 的语义未定 + 列完整性无契约（✅ 已裁决 2026-10-20）
 
-P9A B lane 终审的 CRITICAL 修复（`d669f9b`）只治了**症状**：
-`{module}` 取 `RECORD_TYPE_REGISTRY` 的键，而注册表里混着**列不齐**的表
-（`CostEstResult` / `TwoPhaseResult` 连 `project_id` 都没有），
-于是走到守卫抛 500。修法是「加列检查返 422」。
+### 裁决
 
-**那没回答的是：注册表里为什么有这些表？** 两种读法，后果完全不同：
+**`RECORD_TYPE_REGISTRY` = 「本仓的结果表模型清单」（表枚举）。**
+它**不是**能力清单 —— 既不是 `finalize_calc_record` 的支持清单
+（那段是鸭子类型，注册表从未驱动过，见 TODO-048），
+也不是「可参与工作流的记录类型」。
 
-| 语义 | 若成立则 |
-|---|---|
-| A「可参与工作流的记录类型」 | `CostEstResult` / `TwoPhaseResult` **不该在注册表里**（它们无工作流场景） |
-| B「所有结果表的枚举」 | 工作流代码**不该用它做 `{module}` 参数化**，应另建「可工作流模块」清单 |
+**「能不能走 9 态工作流」是从 schema 推导的谓词，不是注册表的属性。**
 
-**不裁决的后果**：任何新的「模块参数化」代码（P9B、或再加一种记录族）
-都会重蹈同一条覆辙，而每次都只能做症状级修复。
-本 lane 的 23 条 RED 失败正说明这个问题比估算的普遍。
+### 依据（实测，2026-10-20）
 
-### 当前处置（临时，非裁决）
+1. 全仓 `RECORD_TYPE_REGISTRY` 的**代码消费方只有一个** ——
+   `app/api/v1/records_actions.py`（P9A B lane 新写）。
+   其余引用全是模型注释与 `tests/architecture/*` 的存在性断言
+   （`len == 21`、`"X" in REGISTRY`）。**它此前没有功能消费方。**
+2. 三个问题键各缺 **24~25 个 `RecordMixin` 列**
+   （`CostEstResult` 25 / `TwoPhaseResult` 24 / `ProjectCalculationStandardProfile` 24），
+   **根本不继承 `RecordMixin`** —— 它们不是记录。
+   ⇒ 它们被登记的理由只是「它们是结果表」。
 
-B lane 用「**从 `RecordMixin.__annotations__` 派生的列集**」做能力判定
-（`records_actions.py:resolve_record_model(need_mixin=True)`）：
-派生而非手写清单，是为了让「mixin 加列 ⇒ 所有子类自动进入可用集合」。
-批注走 `need_mixin=False`（任何有 `project_id` 的记录都能留言）。
-**这是能自洽的临时判据，但它回答的是「这张表能不能用」，不是「注册表该有什么」。**
+### 为什么不另建「可工作流模块清单」
 
-- **发现**：2026-10-20，P9A-2 终审（决策委员会提出，用户未提）
-- **归属**：**P9B 开工前**，或独立技术债
-- **严重度**：🔴 HIGH（不是当前缺陷 —— B lane 已修；是**会重复发生的设计债**：
-  每来一个用 `{module}` 的端点都要重新踩一遍）
-- **关联**：TODO-048（同一注册表的 finalize 语义问题）· TODO-055（键风格不统一）
+它是**人工维护的事实**，而注册表也是人工维护的事实 —— **两份必然漂移，
+而漂移的那份没人会去对**。本仓已为此付过代价：P9A B lane 明确拒绝另建
+「模块 → 模型」映射而复用注册表；终审 CRITICAL 的 23 条 RED 也正源于
+「注册表是能力清单」这个**未经证实的假设被当成了保护色**
+（原测试断言「每个键都能解析」，却从未验证「解析后能用」）。
+
+谓词从 `RecordMixin` 推导 ⇒ **推导出来的，不漂移**。
+
+### 落地（`app/services/record_capabilities.py`）
+
+- `REQUIRED_WORKFLOW_COLUMNS` —— **从 `RecordMixin.__annotations__` 派生**
+  + `project_id`。手抄清单会与 mixin 漂移，漂移的表现是「哪天给 mixin 加了列、
+  判定却没跟着变」—— 于是又出现一条「解析成功但加载 500」的路。
+- `supports_state_workflow(model, *, need_workflow=True)` / `missing_workflow_columns(model)`
+  —— 后者**报出缺哪些列**，不吞掉（「不支持」必须能回答「缺什么」，
+  否则端点只能显示一句无信息量的文案）。
+- `WORKFLOW_UNSUPPORTED` —— 当前不支持的键 + **真实理由**。
+  它不新增键，只解释已存在的键；测试强制理由必须提到该键**实际缺失的列**，
+  写「该表不参与工作流」这种放之四海皆准的空话会红。
+- 契约测试 `tests/services/test_record_capabilities.py`（10 例）：
+  注册表每个键要么支持、要么在例外字典里且理由非空且点名真实缺列；
+  **两边都不能为空**（空集合说明分区写死了而不是真在推导）；
+  已支持的键不得留在例外字典里（防僵尸条目）。
+- `calc_lineage.py` 的模块 docstring 已澄清「它是什么 / 不是什么」，
+  并指向 capabilities 模块 —— 这是 TODO-048「名不副实」那半的处置。
+
+### 残余（不在本条裁决内）
+
+`CostEstResult` / `TwoPhaseResult` / `ProjectCalculationStandardProfile`
+**仍然留在注册表里**（移出会破坏 `tests/architecture/*` 的
+`len == 21` 与 `"ProjectCalculationStandardProfile" in REGISTRY` 断言）。
+它们不参与工作流这件事由谓词负责表达，不需要改注册表。
+`CostEstResult` 补 `record_hash` 是 **D lane**（TODO-048 的补列那步）；
+补齐 `project_id` / `sign_status` 之后，从 `WORKFLOW_UNSUPPORTED` 删掉条目即可，
+`test_supported_keys_are_not_listed_as_exceptions` 会守住不出现僵尸条目。
+
+- **发现**：2026-10-20，P9A-2 终审（决策委员会提出，用户裁决）
+- **严重度**：~~🔴~~ → **已关闭**（语义定 + 谓词落地 + 契约测试）
+- **关联**：TODO-048（同一注册表的 finalize 语义，已在其 docstring 澄清）· TODO-055（键风格不统一）

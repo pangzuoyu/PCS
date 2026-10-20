@@ -1,12 +1,27 @@
 """P4-0-1 统一计算记录收口（ADR-0031）。
 
 三件套：
-- RECORD_TYPE_REGISTRY：P4 批 0 record 类型占位（正式 registry 后置 P4-TASK0）
+- RECORD_TYPE_REGISTRY：本仓**结果表模型的清单**（见下方「它是什么 / 不是什么」）
 - compute_record_hash：数值规范化 6 位有效数字后 sha256 截断 16 hex
 - finalize_calc_record：计算记录唯一收口（record_hash + DataLineage 血缘）
 
 审计列护栏：stale_resolution_path / hash_changed / changed_fields 只经本模块
 （或 CIA 引擎后续批次）写，业务模块禁止直写——本批次只实现 hash 写入。
+
+## RECORD_TYPE_REGISTRY 是什么 / 不是什么（2026-10-20 裁决，TODO-058）
+
+**是**：本仓有哪些结果表模型的**表枚举**。
+**不是**：① `finalize_calc_record` 的支持清单 —— 那段逻辑是**鸭子类型**的，
+本注册表从未驱动过它（TODO-048）；② 「可参与 9 态工作流的能力清单」。
+
+第 ② 点曾被当成事实用掉：P9A 终审发现把本注册表的键当 `{module}` 参数化
+会撞上列不齐的表（`CostEstResult` / `TwoPhaseResult` /
+`ProjectCalculationStandardProfile` 各缺 24~25 个 `RecordMixin` 列），
+一度全返 500。**能力判定已移到 `app/services/record_capabilities.py`**
+——它是从 `RecordMixin` 推导的**谓词**，不是人工维护的清单，因此不会漂移。
+
+⇒ 要判断「这条记录能不能走工作流」，用
+`record_capabilities.supports_state_workflow(model)`，**不要**自己遍历本注册表。
 """
 
 from __future__ import annotations

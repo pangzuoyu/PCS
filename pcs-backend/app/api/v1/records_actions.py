@@ -40,7 +40,6 @@ from app.models.enums import (
     StateTransition,
     to_value,
 )
-from app.models.mixins import RecordMixin
 from app.models.record_comment import RecordComment
 from app.schemas.records_actions import (
     ApprovalStepRequest,
@@ -58,6 +57,11 @@ from app.schemas.records_actions import (
 from app.services.audit_service import AuditService
 from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 from app.services.record_cancellation_service import RecordCancellationService
+from app.services.record_capabilities import (
+    WORKFLOW_UNSUPPORTED,
+    missing_workflow_columns,
+    supports_state_workflow,
+)
 from app.services.reversal_approval_service import ReversalApprovalService
 from app.services.state_machine import (
     TRANSITION_ROLES,
@@ -72,13 +76,6 @@ router = APIRouter(tags=["records"])
 # （评审、设计、专业负责人都会留意见），收窄到作者侧会让「发现问题却不能说」
 # 变成绕过系统的私下沟通 —— 那正好是批注要解决的事。
 _COMMENT_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN")
-
-
-#: 9 态工作流写路径依赖的列 = `RecordMixin` 的全部列。
-#: **从 mixin 自己派生**而不是手写清单 —— 手写清单会与 mixin 漂移，
-#: 漂移的表现是「哪天给 mixin 加了列，这里的检查却没跟着变」，
-#: 于是又出现一条「解析成功但加载 500」的路。
-_RECORD_MIXIN_COLUMNS = tuple(RecordMixin.__annotations__)
 
 
 def resolve_record_model(module: str, *, need_mixin: bool = True) -> type[Any]:
@@ -113,20 +110,18 @@ def resolve_record_model(module: str, *, need_mixin: bool = True) -> type[Any]:
             ),
             status=422,
         )
-    if need_mixin:
-        columns = model.__table__.columns
-        missing = sorted(c for c in _RECORD_MIXIN_COLUMNS if c not in columns)
-        if missing or "project_id" not in columns:
-            missing = sorted({*missing, "project_id"} - set(columns.keys()))
-            raise PcsError(
-                code="RECORD_MODULE_UNSUPPORTED",
-                message=(
-                    f"记录类型 {module!r} 不参与 9 态工作流"
-                    f"（缺列：{', '.join(missing) or '未知'}）；"
-                    f"该端点只适用于继承 RecordMixin 的记录"
-                ),
-                status=422,
-            )
+    if not supports_state_workflow(model, need_workflow=need_mixin):
+        missing = missing_workflow_columns(model) or ["project_id"]
+        hint = WORKFLOW_UNSUPPORTED.get(module)
+        raise PcsError(
+            code="RECORD_MODULE_UNSUPPORTED",
+            message=(
+                f"记录类型 {module!r} 不参与 9 态工作流"
+                f"（缺列：{', '.join(missing)}）"
+                + (f"；{hint}" if hint else "")
+            ),
+            status=422,
+        )
     return model
 
 
