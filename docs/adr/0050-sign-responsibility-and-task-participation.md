@@ -483,10 +483,14 @@ CREATE TABLE user_project_sign_assignments (
   但 DRAFT 期间是否允许创建记录 / 交付物？本 ADR 留白（P2 决定）。
 - **`CostEstResult` 无 `project_id` 列** ⇒ 它的工作集归属与加门需先补列
   （TODO-048 同族，归属 D lane）。
-- **SPEC 的 `P9A-OBS-001~004` / `P9A-NOT-001~006` 至今不在 SPEC 里**
+- ~~**SPEC 的 `P9A-OBS-001~004` / `P9A-NOT-001~006` 至今不在 SPEC 里**
   （全文 grep 0 命中）—— ADR-0047 §后果 与 ADR-0049 §⑥ 承诺要写进去的条款
   **至今未写**。本次 SPEC 增补**不补**它们（超出本轮范围），
-  但登记在此处免得又欠一笔。
+  但登记在此处免得又欠一笔。~~
+  ✅ **已于 2026-10-21（P9A Z 收口）补写** —— `docs/PCS-UI-SPEC.md` V2.1：
+  §6.22 TodoPanel（P9A-NOT-002）/ §6.23 RealtimeStatus（P9A-NOT-005/006）/
+  §6.24 WorkflowProgressPanel（P9A-OBS-001~004）+ §6.20 扩写
+  （P9A-NOT-001/003/004）。
 - **「只读也能算参与人员吗」** —— `Project-VIEWER` 职责是否构成参与人员？
   本 ADR 规定：参与人员 = 有**任意**职责分配的人（含只读职责）。
   若产品认为只读不算，转态前置的判据要改。

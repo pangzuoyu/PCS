@@ -1,6 +1,6 @@
 P9 工作流与权限开发规格说明书（修订版）
 文件标识：PCS-REQ-2026-002-SPEC-P9
-当前版本：V2.0（V1.3 → V2.0 结构性重排，2026-10-07）
+当前版本：V2.1（V2.0 + P9A Z 收口验收登记，2026-10-21；V1.3 → V2.0 结构性重排，2026-10-07）
 修订依据：架构审查结论（2026-10-07）+ TODOS.md 实证核销（2026-10-06/07）
 修订性质：破坏性重排——V1.3 的"前端集成阶段"定位作废，改为 P9-Prep → P9A（后端）→ P9B（前端）三段式
 
@@ -507,6 +507,66 @@ P9-Prep 完成	（无）	bug-144 修复；alembic check ≤5；4 份 ADR accepte
 P9A 完成	（无）	交付物全套端点可用；AD 同步端到端跑通；停用用户 refresh 立即 401；workflow_progress 三工作流写入 + 500ms 达标；待办/通知 ≤500ms；编辑锁并发正确；OpenAPI 冻结
 P9B 完成	签署流程完整走通、变更影响分析正确触发	同左，加：前端 type 全部 from './api'；MSW handlers 按 OpenAPI；workflow_progress 甘特图可用；物流手动创建向导可用
 P9 整体完成	（原标准）	P9-Prep + P9A + P9B 三段验收全过
+
+### 7.2.1 P9A 验收状态（2026-10-21 Z 收口实测）
+
+⚠️ **本表是「实测状态」，不是「验收标准」** —— 标准在 §7.2 原表（不改）。
+状态取值只有三档：**通过** / **代码就绪，待运维账号** / **部分（记明缺哪一项）**。
+⚠️ **不得**把「代码就绪」记成「通过」（与 TODO-045「本地有、部署无」同族）；
+⚠️ **不得**把「部分」记成「已写入」，也**不得**记成「不适用」。
+
+| §7.2 验收标准 | 状态 | 证据 |
+|---|---|---|
+| 交付物全套端点可用 | **通过** | OpenAPI 冻结件含 deliverables 6 端点（issue / sign-step / customer-approval/proxy / versions / snapshot / actions）+ records 9 端点；测试见 `tests/api/v1/test_deliverable_sign_step.py` 等 |
+| AD 同步端到端跑通 | **代码就绪，待运维账号** | `POST /admin/users/sync` 已发布；服务账号（`LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` / `LDAP_USER_FILTER` / `LDAP_USER_ATTRS`）到位前端点返 503、每日 cron 记一条 WARN 后 no-op ⇒ **端到端验收不可演示，不得标「通过」** |
+| 停用用户 refresh 立即 401 | **通过** | `tests/api/v1/test_admin_users.py::test_disabled_user_refresh_returns_401`（含登录建行 → 可见 → 停用 → refresh 401 的完整验收链） |
+| workflow_progress 三工作流写入 | **部分（2/3）** | SIGN ✅ / CUSTOMER_APPROVAL_PROXY ✅ / **CHANGE_NOTICE ❌** —— `change_notice_service.create_change_notice` 直接 `raise NotImplementedError`（等 P9A-DLV-007）⇒ 该工作流的触发点今天不可达。记「2/3，第 3 项待 P9A-DLV-007」（TODO-057） |
+| workflow_progress ≤500ms | **通过** | `tests/services/test_workflow_progress_acceptance.py::test_observed_p99_under_500ms` —— 三类工作流**逐类**实测 p99（**2026-10-21 修了参数化**：原实现把 `WorkflowType.SIGN` 写死在写入与查询两处 ⇒ 三个用例其实只跑了一类） |
+| 待办 ≤500ms | **通过** | `tests/api/v1/test_todos.py::test_todo_sql_and_parse_both_within_budget`（300 个待签交付物，分段计时） |
+| 通知 ≤500ms | **通过（本轮才补上的验收）** | `tests/api/v1/test_notification_list_budget.py`（表内 2800 行 / 目标收件人 800 条 / 未读 300；含 `?after=` 断线补齐路径）。⚠️ **收口前全仓无任何通知性能断言** —— 标准写了、代码实现了，但没人证明达标 |
+| 编辑锁并发正确 | **通过** | `tests/api/v1/test_edit_lock_api.py`（锁三端点 + 降级放行）+ `tests/api/v1/test_edit_acl_order.py`（bug-2039 鉴权顺序） |
+| OpenAPI 冻结 | **通过** | baseline 滚动至 `p9_007` 终态：**+60 path / +105 schema / 0 删除**；裸字段仍 **71**（基线未降 —— 71 是既有欠账，不是本轮成果） |
+
+**收口时的门禁实测（2026-10-21）**
+
+| 门禁 | 结果 |
+|---|---|
+| `alembic check`（开发库 `pcs`） | exit 0，无漂移；`current` = `p9_007` = `heads`（**先核对 revision 真的变了**，再信 check 的结论） |
+| `alembic check`（`pcs_test`） | 同上，exit 0（**每个库各跑一次** —— 只在一个库上 exit 0 推不出另一个库也干净） |
+| `check_openapi_payload_coverage.py` | exit 0，裸字段 **71**（未升未降） |
+| `gate_08_openapi_contract.sh --check-baseline` | exit 0（冻结后） |
+| 后端 `pytest -q` | **5155 passed / 77 skipped / 0 failed**（P9A-4 D lane 收口时 5102，本轮 +53） |
+| 前端 `typecheck` / `lint` / `test` | exit 0 / exit 0 / **716 passed** |
+
+**本轮（P9A Z 收口）补的三件事** —— 都不是「优化」，是**验收标准缺证据**：
+
+1. **通知 ≤500ms 的自动化验收**（§7.2 写着，代码实现了，**没人证明**）。
+   ⇒ 新增 `tests/api/v1/test_notification_list_budget.py`（列表 + 未读计数 + `?after=` 补齐）。
+   ⚠️ 造到 **2800 行**再测 —— 小表下测不出真实性能，500ms 是假达标（同 `test_todos.py` 头注）。
+2. **一个装饰性的参数化** —— `test_observed_p99_under_500ms` 的
+   `@parametrize("workflow_type", [SIGN, CHANGE_NOTICE, CUSTOMER_APPROVAL_PROXY])`
+   下面，`_write_then_read` 把 `WorkflowType.SIGN` **写死在写入与查询两处**
+   ⇒ 三个用例**测的都是 SIGN**，而用例名与 docstring 都说「三类工作流逐类」。
+   ⇒ 已修（`workflow_type` 传进写入与查询）。**注释与代码字面冲突，是 bug 的气味。**
+3. **SPEC 欠账补写** —— ADR-0047 §后果 与 ADR-0049 §⑥ 承诺要写进 UI-SPEC 的
+   `P9A-OBS-001~004` / `P9A-NOT-001~006` 十条**至今 0 命中**
+   ⇒ 已写进 `docs/PCS-UI-SPEC.md` **V2.1**（§6.22 TodoPanel / §6.23 RealtimeStatus /
+   §6.24 WorkflowProgressPanel + §6.20 扩写）。
+
+**仍未闭环（不占 P9A 验收，但必须跟着走）**
+
+- **P9A-DLV-007**：`SignatureMatrixService` + `change_notice_service` 的
+  `create_change_notice` 仍是 `NotImplementedError` ⇒ workflow_progress 三工作流
+  只能记 2/3（TODO-057）。
+- **ADR-0050 P1~P6**：签署职责与任务参与（`users.token_version` 之外的整条签署门禁
+  线）**用户 2026-10-20 裁决「先不做」** ⇒ 不实施；再开工按 P1~P6（P1 纯增量）。
+- **P9B（前端）**：本轮**未做**。`docs/PCS-UI-SPEC.md` §6.21 / §6.7.1 的前端
+  兑现（编辑锁 UI / 409 弹窗 / CIA 确认）与本轮补写的 §6.22~§6.24 都归
+  `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`。
+  ⚠️ 收口前实测发现**前端 `NotificationCenter` 组件的 props 与契约已漂移**
+  （自造 `category` / `summary` / `issued_at` / `unread`，而契约是
+  `kind` / `title` / `body` / `created_at` / `read_at`）⇒ 归 P9B-1 处理。
+
 第八部分：待确定问题（修订）
 编号	问题	V1.3 状态	V2.0 状态	归属
 P9-OPEN-001	MFA 实现方式	已裁决（路径 B，2026-10-19）：AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计；mock 会话豁免（限登录层）	硬阻塞 → `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`	~~P9-Prep~~ 已关闭
@@ -550,3 +610,4 @@ V1.1	2026-08-28	SUP-004/005/006/007 两层签署	联合项目组
 V1.2	2026-08-29	ADR-0019/0022 物流手动创建	联合项目组
 V1.3	2026-09-03	SUP-008 V1.1 workflow_progress	联合项目组
 V2.0	2026-10-07	架构审查后结构性重排：拆 P9-Prep/P9A/P9B；新增后端交付物子系统规格；补 4 份 ADR 前置；补 notifications/todos/workflow_progress 三表；补 token_version 条目；MFA 升级硬阻塞；工作量 5.5–7.5 → 17.5–24 人周；周期 3 周 → 9–12 周；依赖 P1,P7 → P7 收口 + P9-Prep	架构审查
+V2.1	2026-10-21	P9A Z 收口（**纯追加，不改任何绑定正文**）：①新增 **§7.2.1 P9A 验收状态**（实测状态表 + 门禁实测 + 「本轮补的三件事」+「仍未闭环」）—— ⚠️ §7.2 原表**不改**：验收标准是绑定权威，改它要重走 §7.2 验收；状态表的取值只有「通过 / 代码就绪待运维账号 / 部分（记明缺哪一项）」三档，**不得**把「代码就绪」记成「通过」、**不得**把「部分」记成「已写入」或「不适用」；②**TODO-053 偏离的处置在此登记**：§3.2.3 `P9A-OBS-001` 的「8 字段」**保留原文不改**（它是原始设计，不是实现目标），实际 10 业务列 + 2 处改名以**行下注记 + ADR-0047 §后果**双重登记；③补记 ADR-0047 §后果 / ADR-0049 §⑥ 承诺的 `P9A-OBS-001~004` / `P9A-NOT-001~006` 十条前端条款已写进 `docs/PCS-UI-SPEC.md` **V2.1**（§6.22 / §6.23 / §6.24 + §6.20 扩写）；④OpenAPI baseline 滚动至 `p9_007` 终态（+60 path / +105 schema / 0 删除），裸字段仍 71	Claude Code

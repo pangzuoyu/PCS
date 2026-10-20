@@ -1,8 +1,8 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V2.0
-发布日期: 2026-10-20
+当前版本: V2.1
+发布日期: 2026-10-21
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
   - PCS-REQ-2026-002-SPEC-P0 V1.2
@@ -899,6 +899,35 @@ text
        [查看]
 未读左侧蓝点。
 
+⚠️ **P9A-NOT-001/003/004（2026-10-21 补写，此前欠账）**：抽屉的数据**绑定契约**，
+不绑定自造形状。
+- 列表源 `GET /api/v1/notifications`（`after` = 断线前最后见到的时刻，
+  `limit` ≤ 200）⇒ 响应 `{items: NotificationItemResponse[], unread_count: number}`。
+- 单条字段（**逐字取契约**）：`notification_id` / `kind` / `title` / `body` /
+  `created_at` / `read_at`（null = 未读）/ `detail`（`NotificationDetail`，可空；
+  字段级 schema，**不是**自由 dict）。
+- 未读判定 = **`read_at` 为 null**，不是自造的 `unread` 布尔。
+- 铃铛红点数字 = 响应的 **`unread_count`**（**不是**前端自己数 `items` ——
+  列表是分页的，数出来的不是未读总数）。
+- `kind` 四值（`NotificationKind`）：`SIGN_COMPLETED` / `STEP_RETURNED` /
+  `PROXY_RECORDED` / `CHANGE_NOTICE_APPROVED`。
+  ⚠️ **不得**把 `kind` 映射成「变更 / 待办 / 系统」三档自造分类 ——
+  后端只有这四值，分类是**前端呈现**，不是后端词表。
+- 标已读 `PUT /api/v1/notifications/{notification_id}/read`（**幂等**）⇒
+  标读后**重新拉列表**，不要就地改本地 `read_at`。
+- 通知**只保留 30 天**（P9A-NOT-004，ARQ 清理）⇒ 前端**不得**承诺「历史全部可查」，
+  也不得把「翻不到旧通知」当成 bug。
+- 四个分组的**数据来源**（V1.0 只锁了分组名，没锁来源；P9A 交付了两个来源，
+  此处补齐）：
+
+| 分组 | 数据源 |
+|---|---|
+| 待办 | `GET /todos`（§6.22）—— **不是**通知 |
+| 变更 | 通知中 `kind = CHANGE_NOTICE_APPROVED` |
+| 系统 | 通知中其余三种 `kind`（签署完成 / 退回 / 代录已录） |
+| 全部 | 全部**通知**（**不含**待办 —— 待办是另一种东西） |
+
+
 6.21 EditLockIndicator
 进入可编辑记录的详情页时取一把编辑锁。编辑锁是**体验层**：让人知道「谁在改」，
 **不是**保存成功的保证（保存冲突由后端的 record_hash 比对裁定，见 P9A-4 D2 契约）。
@@ -995,6 +1024,95 @@ no_baseline	「无法校验这条记录是否被他人修改」	「刷新后重�
 ⚠️ **不得自动重试**（会无限循环覆盖，ADR-0048 §⑦）。
 ⚠️ changed_by / changed_at 为 null 时**不得**用 updated_at 冒充（ADR-0048 §⑦）。
 「查看差异」靠审计里的 changed_fields（**字段名列表**，不是值）。
+
+6.22 TodoPanel
+用途：我的待办 —— **当前该签什么**。
+
+依据 P9A-NOT-002（ADR-0049 §②）。待办**不落库**，每次查询由
+「签署矩阵的当前步骤 × 当前用户角色」**实时计算** ⇒
+真值永远是当前矩阵，不是某张快照。
+
+数据源 `GET /api/v1/todos` ⇒ `{items: TodoResponse[], total: number}`，
+单条字段（逐字取契约）：`deliverable_id` / `version_id` / `project_id` /
+`step_order` / `step_role` / `title`。
+
+列表列：
+列	说明
+交付物	`deliverable_id`（可带出名称由页面自取）
+版本	`version_id`
+步骤	`step_order`（第几步）
+签署职责	`step_role`（该步要求的角色）
+标题	`title`
+操作	[去签署]
+
+⚠️ **`total` 与 `items.length` 可能不等**（分页/上限）⇒ 计数用 `total`。
+⚠️ **待办为空 ≠ 没有待办** —— 也可能是「当前用户在该项目内无签署职责」。
+空态文案**不得**写「你没有待办」以外任何断言；越权过滤在服务端完成，
+前端**不得**自行按项目过滤（会把「无权限」显示成「无待办」）。
+⚠️ 待办**不含**通知 —— 通知在 §6.20 抽屉，两者**不得**合并成一个列表。
+
+6.23 RealtimeStatus
+用途：通知实时推送的状态与降级。
+
+依据 P9A-NOT-005/006（ADR-0049 §⑤⑥）。
+
+- 推送通道 `WS /api/v1/ws/notifications`
+  （握手鉴权用 `?token=` 或 `Authorization: Bearer`）。
+  服务端下行帧（**逐字取实现**）：
+  `notification_id` / `recipient_id` / `kind` / `title` / `body` /
+  `created_at` / `detail`；另有 `{"type":"pong"}`（客户端发 `{"type":"ping"}` 探活）。
+- **真值是 `notifications` 表**，WS 只是及时性通道 ⇒
+  「WS 推送成功」**不得**当成「通知已送达」（ADR-0049 §⑤ 约束 ①）。
+  断线期间的消息只存在于表里 ⇒ **重连后拉 `GET /notifications?after=<last_seen>` 补齐**。
+- 降级状态读 `GET /api/v1/health` 的 `realtime`（`ok` / `degraded`）
+  与 `realtime_reason`（`redis_unavailable` / `redis_timeout` / `pubsub_error` / null）。
+  ⚠️ `realtime` 检测的是 **pub/sub 可达性**，**不是** Redis 整体健康
+  —— 排障时不得把它当「Redis 挂了」的判据。
+  ⚠️ `realtime` **不得**用于 liveness / readiness 判定（Redis 挂了会触发重启循环）。
+  ⚠️ 读 `/health` **不得**阻塞页面主路径；`/health` 现在已同步查库。
+- 降级时的前端表现：`degraded` ⇒ 顶部横幅，文案**取 `realtime_reason` 的中文映射**，
+  并**自动切轮询**（`GET /notifications` 定时拉取）⇒ 通知**仍然可达**，只是不再即时。
+  ⚠️ 横幅**不阻断**任何操作；⚠️ **不得**显示「通知已关闭」之类断言 ——
+  降级的是**及时性**，不是**可达性**。
+- ⚠️ **不得**把「WS 推送成功」记成「用户已收到」。
+
+6.24 WorkflowProgressPanel
+用途：一条工作流的步骤进度（签署 / 变更单 / 代录客户批准）。
+
+依据 P9A-OBS-001~004（ADR-0047）。
+
+数据源 `GET /api/v1/workflow-progress/{workflow_type}/{workflow_id}`
+- `{workflow_type}` ∈ `SIGN` / `CHANGE_NOTICE` / `CUSTOMER_APPROVAL_PROXY`
+- `{workflow_id}` 多态：`SIGN` → **版本 ID**；其余 → **交付物 ID**
+  ⇒ 前端**不得**假设它一定是交付物 ID（传错 ⇒ 404）。
+
+响应 `WorkflowProgressResponse`：
+`workflow_type` / `workflow_id` / `project_id` / `total` / `pending` /
+`in_progress` / `completed` / `skipped` / `failed` / `items[]`；
+单条 `WorkflowProgressItemResponse`：
+`progress_id` / `step_order` / `step_role` / `step_status` /
+`started_at` / `completed_at` / `assignee` / `result_hash`。
+
+展示：
+- 顶部统计条：待办 / 进行中 / 完成 / 跳过 / 失败 五计数（取响应同名字段）。
+- 节点条：横轴 = `items` 按 `step_order` 升序；每节点显示
+  `step_role` + `step_status` + `started_at` / `completed_at` +
+  `assignee` + `result_hash`（HashBadge）。
+
+五态（`step_status`）配色：
+PENDING 灰 · IN_PROGRESS 蓝（脉冲）· COMPLETED 绿 · SKIPPED 灰虚线 · FAILED 红
+
+⚠️ **五态不得归并成三态**：PENDING 与 SKIPPED 都是「没完成」，但一个是**还没开始**、
+一个是**被跳过** ⇒ 合并后用户无法区分「还没排到我」和「这一步被跳过」。
+⚠️ **不得显示百分比**：`total` 是**节点数**不是工作量 ⇒ 百分比是编造的。
+⚠️ `items` 为空 ⇒ 空态「该工作流暂无步骤记录」，**不是**「0 步已完成」。
+⚠️ **超时告警**（P9A-OBS-003 的消费点）：非终态且 `started_at` 距今超阈值 ⇒
+  该节点标橙。阈值取后端/配置，**前端不得自造**。
+⚠️ 观测层**保证「流程进度可信」，不保证「通知已送达」**（ADR-0049 §后果）⇒
+  进度条显示 COMPLETED 而通知未到，是**已知行为不是错误**。
+⚠️ **CHANGE_NOTICE 的写入点当前不可达**（`change_notice_service` 抛
+  `NotImplementedError`，待 P9A-DLV-007）⇒ 该类型的面板**现在恒为空**，
+  前端**不得**把空面板显示成「流程异常」。
 
 7. 模块 UI 规格
 7.1 登录页
@@ -2156,6 +2274,7 @@ V1.7	2026-10-20	P9A-4 D1 新增 §6.21 EditLockIndicator（依据 ADR-0048，编
 V1.8	2026-10-20	P9A-4 D2 补 §6.21 P9A-LCK-006（保存请求的并发基线与 409 契约，依据 ADR-0048 §⑥§⑦）：①PATCH 请求体**必填** expected_hash（可选 expected_updated_at），**不带基线 ⇒ 409**（服务端无法判定并发 ⇒ 不得放行）；②给出 409 响应体全文（仓库统一错误信封 `{code, message, detail, trace_id}`，冲突对象在 `detail.conflict` —— ADR-0048 §⑦ 原文的顶层三字段已按仓库信封归一，ADR 已修订）；③前端按 basis 三值分流文案与动作（record_hash / updated_at / no_baseline），**不得自动重试**；④changed_by / changed_at 为 null 时不得用 updated_at 冒充；⑤「查看差异」靠审计里的 changed_fields（字段名列表）。	Claude Code
 V1.9	2026-10-20	P9A-4 D3 补 §6.7.1 变更影响的「确认」动作（P9A-CIA-001/002，依据 ADR-0048 与 P9-Prep 交付面清单 §3）：①新增两个**不可合并**的端点 —— `confirm`（系统按哈希判定分流：结果不变 ⇒ 免凭证回 CHECKED；结果变化 ⇒ 进 CHANGE_PENDING 要求重新签署）与 `manual-adjust`（人工判定，reason 必填，限权 + 审计）；②明确按钮文案随响应的 decision 分流、不得自动重试；③登记 record_type 词表差（类名 vs 表名，TODO-060）。	Claude Code
 V2.0	2026-10-20	P9A-5 Task A 归一 `record_type` 词表（TODO-060）：①**全仓只有一套词表** —— `RECORD_TYPE_REGISTRY` 的键，取代此前 `/change-impact`（键）与 `/locks`+`/results`（表名）的分叉；⚠️ 推翻了 V1.9 登记的「§6.7.1 用类名」—— 实测注册表 21 个键里 **5 个 ≠ 类名**（`cv_result`/`restriction_result`/`flare_system_result`/`cooling_tower_result`/`psychro_result`）⇒「类名」不是一套词表；②**破坏性变更**：`/locks/{record_type}` 三端点改为只接受注册表键、**并校验**（未登记 ⇒ 404）。原先完全不校验 ⇒ 传错拼写 200 成功、锁写进 `lock:edit:{错拼写}:{id}`，与正确拼写**互不可见** ⇒ 两个人能同时编辑同一条记录；且 `has_conflict_detection(错拼写)`=False 会让降级横幅**错误地**说「本次编辑无冲突检测」；③`{record_type}` 参数在 OpenAPI 里带 `enum`（前端不必再读 SPEC 源码才知道取值）；④SPEC §6.7.1 与 §6.21 的词表句同步修订。**风格不统一**（3 snake + 3 Pascal）是 `RECORD_TYPE_REGISTRY` 的历史遗留（TODO-055）⇒ 统一风格要动 `/change-impact` 与 `/records/{module}` 两个已发布契约 + 存量 DB 列，本版不做。	Claude Code
+V2.1	2026-10-21	P9A Z 收口补写 **ADR-0047 §后果 / ADR-0049 §⑥ 承诺而至今 0 命中的 10 条 SPEC 条款**（P9A-OBS-001~004 / P9A-NOT-001~006，V1.6/V1.7 两版都登记为欠账）：①新增 **§6.22 TodoPanel**（P9A-NOT-002 待办实时计算 —— 待办**不落库**，真值是「签署矩阵当前步骤 × 当前用户角色」；`GET /todos` 逐字字段；`total` ≠ `items.length` 时计数用 `total`；待办为空不得断言「你没有待办」—— 也可能是无签署职责）；②新增 **§6.23 RealtimeStatus**（P9A-NOT-005/006 —— `WS /api/v1/ws/notifications` 的下行帧逐字取实现；**真值是 `notifications` 表**，WS 只是及时性通道，「WS 推送成功」≠「通知已送达」；重连走 `?after=<last_seen>` 补齐；降级读 `/health` 的 `realtime`/`realtime_reason`，`realtime` 只承诺 **pub/sub 可达性**、**不得**用于 liveness/readiness；降级 ⇒ 自动切轮询，通知**仍可达**，横幅**不阻断**）；③新增 **§6.24 WorkflowProgressPanel**（P9A-OBS-001~004 —— `GET /workflow-progress/{workflow_type}/{workflow_id}`；`{workflow_id}` **多态**（SIGN→版本 ID，其余→交付物 ID）；**五态不得归并成三态**（PENDING 与 SKIPPED 都是「没完成」但语义不同）；**不得显示百分比**（`total` 是节点数不是工作量）；观测层**保证「流程进度可信」不保证「通知已送达」**；CHANGE_NOTICE 写入点当前不可达 ⇒ 该类型面板恒为空，前端不得显示成「流程异常」）；④**扩写 §6.20**：通知条目**逐字绑定契约**（`kind`/`title`/`body`/`created_at`/`read_at`/`detail`）、未读判定 = `read_at` 为 null、铃铛红点 = 响应 `unread_count`（**不是**前端数 `items`）、`kind` 只有后端四值（**不得**映射成自造三档分类）、标已读后**重新拉列表**、通知**只保留 30 天**；⑤**补齐 §6.20 四个分组的数据来源**（V1.0 只锁了分组名没锁来源，P9A 交付了「通知」与「待办」两个来源）：待办 ← `GET /todos`（**不是**通知）、变更 ← `kind=CHANGE_NOTICE_APPROVED`、系统 ← 其余三种 kind、全部 ← 全部**通知**（不含待办）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
@@ -2286,3 +2405,5 @@ None（无 TOE 折算，纯 utility 计数）」。这与炼化强制国标 **GB
 - **P9A-OBS-001~004 / P9A-NOT-001~006 仍未写。** ADR-0047 §后果 与 ADR-0049 §⑥
   承诺要写进 SPEC 的这两组条款**至今 0 命中**。本版**不补**（超出本轮范围），
   欠账登记在 ADR-0050「尚未解决」与 `TODOS.md`。
+  ⚠️ **本条已于 V2.1（2026-10-21）补写**：§6.22 / §6.23 / §6.24 + §6.20 扩写。
+  上面保留的是 V1.6 当时的**历史事实**，不改写。
