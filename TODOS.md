@@ -780,3 +780,37 @@ P9A B4a 的 `POST /records/{module}/{id}/...` **直接以该注册表的键作�
 - **发现**：2026-10-20，P9A B1
 - **归属**：独立修复（一个标注 + 一条断言）
 - **严重度**：LOW（无运行期缺陷；只误导 mypy 与下一个消费者）
+
+---
+
+## TODO-057: ADR-0047 §① 的第三个观测写入点（变更单）未实现（P9A B lane 终审登记）
+
+ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个**：
+
+| 工作流 | 写入点 | 状态 |
+|---|---|---|
+| SIGN | `DeliverableService.sign_step` | ✅ 已实现（B2） |
+| CUSTOMER_APPROVAL_PROXY | `DeliverableService.record_customer_approval_proxy` | ✅ 已实现（B3） |
+| **CHANGE_NOTICE** | 变更单的**创建**与**自动关闭** | ❌ **未实现** |
+
+**核实：这是潜在缺口，不是可达缺陷。** `change_notice_service.create_change_notice`
+当前直接 `raise NotImplementedError`（等 P9A-DLV-007 `SignatureMatrixService`），
+所以「创建」与「自动关闭」今天**没有任何可达路径**能触发。
+
+**为什么不在 `approve_change_notice` 里补**：ADR §① 指定的两个触发点是
+「创建」与「自动关闭」，而 `approve_change_notice` 两者都不是 ——
+它是「批准变更单、变更生效」（交付物 PENDING → APPROVED）。
+在那里加写入 = 写一个不在 ADR 词表里的语义点，
+而 ADR §后果 明写「3 个写入点若超出这个数，说明有第四类工作流被漏登记」。
+
+**为什么不写占位测试**：永远绿的测试会把「缺一个写入点」伪装成「已覆盖」。
+总纲第二轮处置第 2 条刚删过一个同形的伪测试（`test_abandon_change_semantics_
+verified_first`），不重复同一个错。
+
+**解锁后的症状**：变更单在甘特图上永远空白，**且不报错** ——
+与 ADR-0047 立观测层要防的失败（cron 驱动变更系统性隐形）同形。
+
+- **发现**：2026-10-20，P9A B lane 终审（fresh reviewer 提出 HIGH，按后果改判 MEDIUM）
+- **归属**：**P9A-DLV-007（SignatureMatrixService）落地时一并做**；不阻塞 P9A 收口
+- **严重度**：MEDIUM（今天无可达失败）
+- **关联**：ADR-0047 §① · TODO-052（同一批 SPEC 未决项）
