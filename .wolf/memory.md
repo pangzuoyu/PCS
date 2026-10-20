@@ -2128,3 +2128,8 @@
 | 17:19 | Created pcs-backend/tests/api/v1/test_edit_lock_api.py | — | ~2254 |
 | 17:19 | Edited pcs-backend/tests/api/v1/test_edit_lock_api.py | modified test_degraded_acquire_still_works_when_the_audit_fails() | ~178 |
 | 17:21 | Edited pcs-backend/tests/api/v1/test_edit_lock_api.py | modified test_holder_info_carries_the_username() | ~131 |
+| 17:34 | Created pcs-backend/app/schemas/edit_conflict.py | — | ~775 |
+| 17:34 | Created pcs-backend/app/services/edit_guard.py | — | ~2952 |
+| 17:40 | Created pcs-backend/tests/services/test_edit_guard.py | — | ~3662 |
+| 17:41 | Created pcs-backend/tests/api/v1/test_edit_conflict.py | — | ~2340 |
+| 17:42 | Created pcs-backend/app/workers/edit_guard_tasks.py | — | ~226 |

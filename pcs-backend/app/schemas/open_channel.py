@@ -25,6 +25,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.edit_conflict import EditBaselineMixin
+
 # ───────────────────────────── 公共 base ─────────────────────────────
 
 
@@ -182,7 +184,7 @@ class OpenChannelCreateRequest(BaseModel):
     energy_loss: float | None = Field(default=None, ge=0)
 
 
-class OpenChannelUpdateRequest(BaseModel):
+class OpenChannelUpdateRequest(EditBaselineMixin):
     """PATCH /open-channel/results/{id} 请求（partial update）。
 
     所有字段 optional（PATCH 部分更新）。白名单由 service 层校验。

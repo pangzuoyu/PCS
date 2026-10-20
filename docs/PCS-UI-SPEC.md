@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.7
+当前版本: V1.8
 发布日期: 2026-10-20
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -921,6 +921,52 @@ P9A-LCK-005 与保存冲突的分工
 保存时后端可能返回 409（record_hash 比对出的真冲突），契约见 P9A-4 D2：
 弹窗必须显示「谁在什么时候改了什么字段」（changed_fields），并提供
 「放弃我的修改 / 查看对方版本」两个出口。
+
+P9A-LCK-006 保存请求必须带并发基线
+可编辑记录的 PATCH 请求体**必须**带 expected_hash（客户端看到的 record_hash，
+16 hex）；无 record_hash 令牌时另带 expected_updated_at。
+
+text
+PATCH /api/v1/cool-tower/results/{id}
+{
+  "duty_kw": 35.0,
+  "expected_hash": "a3f9c21d…",        ← 必填
+  "expected_updated_at": "2026-10-20T10:22:31+08:00"   ← 可选（第二档基线）
+}
+
+⚠️ **不带基线 ⇒ 409**（code=RECORD_EDIT_CONFLICT，basis=no_baseline）。
+服务端无法判定并发，放行等于「保护可以不存在」。
+
+409 响应体（仓库统一错误信封）：
+
+text
+{
+  "code": "RECORD_EDIT_CONFLICT",
+  "message": "该记录无法安全保存，请刷新后重新编辑",
+  "detail": {
+    "conflict": {
+      "record_type": "cooling_tower_results",
+      "record_id": "…uuid…",
+      "your_expected_hash": "…16 hex…",
+      "current_hash": "…16 hex…",
+      "changed_by": "…uuid… 或 null…",
+      "changed_at": "… 或 null…",
+      "basis": "record_hash | updated_at | no_baseline"
+    }
+  },
+  "trace_id": "…"
+}
+
+⚠️ **前端按 basis 分流**（文案不同，动作不同）：
+
+basis	文案	动作
+record_hash	「{changed_by} 于 {changed_at} 修改了这条记录」	「查看差异」/「放弃我的修改并刷新」
+updated_at	同上（只知道行被改过，不知道改了哪）	同上
+no_baseline	「无法校验这条记录是否被他人修改」	「刷新后重试」/「联系管理员」
+
+⚠️ **不得自动重试**（会无限循环覆盖，ADR-0048 §⑦）。
+⚠️ changed_by / changed_at 为 null 时**不得**用 updated_at 冒充（ADR-0048 §⑦）。
+「查看差异」靠审计里的 changed_fields（**字段名列表**，不是值）。
 
 7. 模块 UI 规格
 7.1 登录页
@@ -2079,6 +2125,7 @@ V1.4	2026-09-17	P5-3 PSV 泄放工况多选 + SUP-P5-PSV-002 §5.1/5.2 安全阀
 V1.5	2026-10-06	P7 Sprint 4 S4-2/S4-3 落地反馈（docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md）：①§7.14「结论」枚举由 3 档（合格/警告/不合格）扩为 4 档，追加「不可判」UNVERDICTABLE，语义为「判不了」而非「不合格」，且与不合格一并阻断确认门禁（fail-closed：把不可判并入合格会让 §3.2.4(4) 的确认门禁形同虚设，一个从未被测量的值能拿到「已确认」）；②同批登记 pcs-backend/app/api/v1/supplier.py 的 5 条端点实际发布在 `/api/v1/equipment/...` 而非本 SPEC 早期描述的 `/api/v1/equipment-list/...`（后者是另一个已挂载 router，按 SPEC 写的客户端会 404，且该 404 与「设备不存在」不可区分），登记见 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` 关联的 SPEC-ADD-002；③Excel 批量导入端点（S4-1 裁决不实现）已在 SPEC 侧标注删除线。	Claude Code
 V1.6	2026-10-20	P9A 新增 §5.5 参与人员门禁（依据 ADR-0050，用户 2026-10-20 裁决）：①§5.5 新增两种角色口径（全局角色 / 签署职责，后者为 `Project-` 前缀 + 全局角色名的机械派生）与三条门（可创建 / 可审阅 / 可签署）及未参与时的前端表现；②新增项目两态（DRAFT 准备中 / ACTIVE 进行中）与转态前置；③新增 5 个错误码（PROJECT_TASK_NOT_ASSIGNED / PARTICIPANT_NOT_ASSIGNED / PROJECT_NOT_STARTED / PARTICIPANTS_LOCKED / QUALIFICATION_NOT_MET）；④明确 §5.2 记录态门禁与 §5.5 项目内分工门禁**同时**满足才放行；⑤**连带修正**：文件头「当前版本」原为 V1.4，而 §12.4 修订记录已到 V1.5 —— 版本漂移，本次一并校正为 V1.6；⑥本版**不含** ADR-0047 / ADR-0049 承诺要写入的 P9A-OBS-001~004 / P9A-NOT-001~006 条款（至今未写，欠账登记在 ADR-0050「尚未解决」）。	Claude Code
 V1.7	2026-10-20	P9A-4 D1 新增 §6.21 EditLockIndicator（依据 ADR-0048，编辑锁 = Redis 体验层 + DB 正确性层两层锁）：①新增 P9A-LCK-001~005 五条（取锁 / 60s 心跳 / 只读化边界 / 降级横幅 / 与保存冲突的分工）；②§3.2 TopBar 增「编辑锁降级横幅」一行（文案取后端 message 原文，前端不改写）；③明确「他人持锁」只禁用保存、不阻断浏览复制，禁用原因写「谁在改」而非「无权限」；④明确「我拿到锁」不等于「保存一定成功」（保存冲突由 record_hash 比对裁定）。本版不含 ADR-0047 / ADR-0049 承诺的 P9A-OBS-001~004 / P9A-NOT-001~006（仍欠账）。	Claude Code
+V1.8	2026-10-20	P9A-4 D2 补 §6.21 P9A-LCK-006（保存请求的并发基线与 409 契约，依据 ADR-0048 §⑥§⑦）：①PATCH 请求体**必填** expected_hash（可选 expected_updated_at），**不带基线 ⇒ 409**（服务端无法判定并发 ⇒ 不得放行）；②给出 409 响应体全文（仓库统一错误信封 `{code, message, detail, trace_id}`，冲突对象在 `detail.conflict` —— ADR-0048 §⑦ 原文的顶层三字段已按仓库信封归一，ADR 已修订）；③前端按 basis 三值分流文案与动作（record_hash / updated_at / no_baseline），**不得自动重试**；④changed_by / changed_at 为 null 时不得用 updated_at 冒充；⑤「查看差异」靠审计里的 changed_fields（字段名列表）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T09:21:13.667Z",
-    "fileCount": 935,
+    "lastScanned": "2026-10-20T09:42:07.581Z",
+    "fileCount": 939,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3332363a7511fadf7fe4150fffe97ff6ea851be6fc43f57c1a7da42aab88de0d",
-    "storeUpdatedAt": "2026-10-20T09:21:13.678Z",
-    "rootHash": "fae34e6c56dd1917"
+    "renderedHash": "7b3135c9353f17001465539652b7023171ccfaee3447b3bde6a526060f1b7fb3",
+    "storeUpdatedAt": "2026-10-20T09:42:07.592Z",
+    "rootHash": "1a32b0b6d7d76a46"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -33502,41 +33502,83 @@
       ]
     },
     "pcs-backend/app/services/edit_guard.py": {
-      "description": "编辑冲突 guard 的**能力声明**（ADR-0048 §⑥）。",
-      "tokens": 798,
-      "hash": "7658bc06736e7c74",
-      "size": 4066,
-      "mtimeMs": 1792487717043.2212,
-      "updatedAt": "2026-10-20T09:15:17.093Z",
+      "description": "编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。",
+      "tokens": 2952,
+      "hash": "79cee7e92d59a6d0",
+      "size": 13117,
+      "mtimeMs": 1792488884430.8142,
+      "updatedAt": "2026-10-20T09:34:44.486Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UnregisteredTableError",
           "kind": "class",
-          "startLine": 34,
-          "endLine": 42,
+          "startLine": 53,
+          "endLine": 61,
           "tokens": 54
         },
         {
           "name": "TableCapability",
           "kind": "class",
-          "startLine": 43,
-          "endLine": 71,
-          "tokens": 325
+          "startLine": 62,
+          "endLine": 126,
+          "tokens": 521
+        },
+        {
+          "name": "ConflictCheckResult",
+          "kind": "class",
+          "startLine": 127,
+          "endLine": 144,
+          "tokens": 140
         },
         {
           "name": "capability_of",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 82,
+          "startLine": 145,
+          "endLine": 155,
           "tokens": 98
         },
         {
           "name": "has_conflict_detection",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 96,
-          "tokens": 87
+          "startLine": 156,
+          "endLine": 160,
+          "tokens": 39
+        },
+        {
+          "name": "_as_utc",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 169,
+          "tokens": 70
+        },
+        {
+          "name": "check_conflict",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 240,
+          "tokens": 746
+        },
+        {
+          "name": "_last_editor",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 268,
+          "tokens": 259
+        },
+        {
+          "name": "record_edit_audit",
+          "kind": "fn",
+          "startLine": 269,
+          "endLine": 307,
+          "tokens": 332
+        },
+        {
+          "name": "scan_missing_record_hash",
+          "kind": "fn",
+          "startLine": 308,
+          "endLine": 349,
+          "tokens": 319
         }
       ]
     },
@@ -33770,6 +33812,265 @@
           "tokens": 39
         }
       ]
+    },
+    "pcs-backend/app/schemas/edit_conflict.py": {
+      "description": "编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。",
+      "tokens": 775,
+      "hash": "54104240b9df7299",
+      "size": 3827,
+      "mtimeMs": 1792488842865.0383,
+      "updatedAt": "2026-10-20T09:34:02.912Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ConflictDetail",
+          "kind": "class",
+          "startLine": 34,
+          "endLine": 55,
+          "tokens": 202
+        },
+        {
+          "name": "EditAuditDetail",
+          "kind": "class",
+          "startLine": 56,
+          "endLine": 72,
+          "tokens": 128
+        },
+        {
+          "name": "EditBaselineMixin",
+          "kind": "class",
+          "startLine": 73,
+          "endLine": 105,
+          "tokens": 228
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_edit_guard.py": {
+      "description": "编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。",
+      "tokens": 3662,
+      "hash": "ea34cdd2147cc8d2",
+      "size": 13813,
+      "mtimeMs": 1792489255646.787,
+      "updatedAt": "2026-10-20T09:40:55.700Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_cool_tower",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 69,
+          "tokens": 164
+        },
+        {
+          "name": "_make_cost_est",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 89,
+          "tokens": 160
+        },
+        {
+          "name": "test_matching_hash_passes",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 104,
+          "tokens": 132
+        },
+        {
+          "name": "test_stale_hash_conflicts_with_basis_record_hash",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 120,
+          "tokens": 179
+        },
+        {
+          "name": "test_missing_baseline_is_no_baseline_not_a_pass",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 139,
+          "tokens": 179
+        },
+        {
+          "name": "test_empty_hash_falls_to_updated_at",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 154,
+          "tokens": 160
+        },
+        {
+          "name": "test_empty_hash_and_stale_updated_at_conflicts",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 168,
+          "tokens": 143
+        },
+        {
+          "name": "test_null_updated_at_is_no_baseline_not_equal",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 187,
+          "tokens": 163
+        },
+        {
+          "name": "test_table_without_updated_at_falls_to_no_baseline",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 206,
+          "tokens": 190
+        },
+        {
+          "name": "test_conflict_basis_has_three_values",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 239,
+          "tokens": 321
+        },
+        {
+          "name": "test_check_conflict_is_pure",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 258,
+          "tokens": 185
+        },
+        {
+          "name": "test_unregistered_table_raises",
+          "kind": "fn",
+          "startLine": 259,
+          "endLine": 272,
+          "tokens": 144
+        },
+        {
+          "name": "test_capability_map_covers_exactly_the_editable_tables",
+          "kind": "fn",
+          "startLine": 273,
+          "endLine": 292,
+          "tokens": 190
+        },
+        {
+          "name": "test_record_edit_audit_writes_changed_fields",
+          "kind": "fn",
+          "startLine": 293,
+          "endLine": 313,
+          "tokens": 216
+        },
+        {
+          "name": "test_overwrote_stale_baseline_writes_an_extra_audit",
+          "kind": "fn",
+          "startLine": 314,
+          "endLine": 332,
+          "tokens": 189
+        },
+        {
+          "name": "test_changed_by_comes_from_the_edit_audit",
+          "kind": "fn",
+          "startLine": 333,
+          "endLine": 367,
+          "tokens": 312
+        },
+        {
+          "name": "test_changed_by_is_null_when_no_edit_audit",
+          "kind": "fn",
+          "startLine": 368,
+          "endLine": 387,
+          "tokens": 204
+        },
+        {
+          "name": "test_scan_reports_rows_with_empty_hash",
+          "kind": "fn",
+          "startLine": 388,
+          "endLine": 395,
+          "tokens": 110
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_edit_conflict.py": {
+      "description": "编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。",
+      "tokens": 2340,
+      "hash": "d3716a8fa76da1d0",
+      "size": 8873,
+      "mtimeMs": 1792489297313.1199,
+      "updatedAt": "2026-10-20T09:41:37.359Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_create_body",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 51,
+          "tokens": 180
+        },
+        {
+          "name": "_create",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 68,
+          "tokens": 151
+        },
+        {
+          "name": "test_patch_without_baseline_is_409",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 82,
+          "tokens": 159
+        },
+        {
+          "name": "test_patch_with_stale_hash_is_409",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 99,
+          "tokens": 224
+        },
+        {
+          "name": "test_conflict_body_uses_the_repo_error_envelope",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 114,
+          "tokens": 168
+        },
+        {
+          "name": "test_conflict_does_not_write_an_audit",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 133,
+          "tokens": 240
+        },
+        {
+          "name": "test_patch_with_current_hash_succeeds",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 145,
+          "tokens": 137
+        },
+        {
+          "name": "test_successful_edit_writes_the_edit_audit",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 169,
+          "tokens": 256
+        },
+        {
+          "name": "test_conflict_after_another_edit_reports_who_changed_it",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 194,
+          "tokens": 280
+        },
+        {
+          "name": "test_cost_est_patch_uses_the_same_contract",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 233,
+          "tokens": 381
+        }
+      ]
+    },
+    "pcs-backend/app/workers/edit_guard_tasks.py": {
+      "description": "并发令牌自检（ADR-0048 §⑥ 的残留风险，ARQ cron）。",
+      "tokens": 226,
+      "hash": "02446a9d4ecd7451",
+      "size": 1297,
+      "mtimeMs": 1792489327527.0295,
+      "updatedAt": "2026-10-20T09:42:07.581Z",
+      "source": "hook"
     }
   }
 }

@@ -27,10 +27,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.config import _Actor, current_actor, require_roles
 from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
+from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
+from app.schemas.edit_conflict import BASELINE_FIELDS
 from app.schemas.open_channel import (
     CriticalCalcRequest,
     CriticalCalcResponse,
@@ -46,6 +47,7 @@ from app.schemas.open_channel import (
     SectionCalcRequest,
     SectionCalcResponse,
 )
+from app.services.edit_guard import check_conflict, record_edit_audit
 from app.services.exceptions import PcsError as ServicePcsError
 from app.services.open_channel import (  # P6-3 Task 32
     CriticalInputError,
@@ -521,6 +523,7 @@ async def update_open_channel_result(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 record 后再 service 调用
     from sqlalchemy import select as _sa_select
+
     from app.models.calc import OpenChannelResult
     pre_record = (await db.execute(
         _sa_select(OpenChannelResult).where(OpenChannelResult.open_channel_id == result_id)
@@ -532,7 +535,22 @@ async def update_open_channel_result(
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
     )
-    patch = req.model_dump(exclude_unset=True)
+    # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
+    conflict = await check_conflict(
+        db,
+        record_type="open_channel_results",
+        record_id=result_id,
+        expected_hash=req.expected_hash,
+        expected_updated_at=req.expected_updated_at,
+    )
+    if conflict.conflict is not None:
+        raise CorePcsError(
+            code="RECORD_EDIT_CONFLICT",
+            message="该记录无法安全保存，请刷新后重新编辑",
+            status=409,
+            detail={"conflict": conflict.conflict.model_dump(mode="json")},
+        )
+    patch = req.model_dump(exclude_unset=True, exclude=BASELINE_FIELDS)
     try:
         record = await update_open_channel_result_service(
             db, result_id=result_id, patch=patch
@@ -546,6 +564,16 @@ async def update_open_channel_result(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
 
+    # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
+    await record_edit_audit(
+        db,
+        record_type="open_channel_results",
+        record_id=result_id,
+        user_id=user.user_id,
+        changed_fields=sorted(patch.keys()),
+        overwrote_stale_baseline=conflict.overwrote_stale_baseline,
+    )
+    await db.commit()
     return OpenChannelResultResponse.model_validate(record, from_attributes=True)
 
 
@@ -567,6 +595,7 @@ async def soft_delete_open_channel_result(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 record 后再 service 调用
     from sqlalchemy import select as _sa_select
+
     from app.models.calc import OpenChannelResult
     pre_record = (await db.execute(
         _sa_select(OpenChannelResult).where(OpenChannelResult.open_channel_id == result_id)

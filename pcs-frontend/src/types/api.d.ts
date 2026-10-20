@@ -1028,6 +1028,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/locks/{record_type}/{record_id}/acquire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acquire Edit Lock
+         * @description 取编辑锁。
+         *
+         *     已被他人持有 ⇒ **409 + 持锁人信息**（前端显示「XX 正在编辑」）。
+         *     Redis 不可用 ⇒ **降级放行**（200 + `degraded=true` + 横幅文案）。
+         */
+        post: operations["acquire_edit_lock_api_v1_locks__record_type___record_id__acquire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/locks/{record_type}/{record_id}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew Edit Lock
+         * @description 续期（compare-and-expire）。
+         *
+         *     ⚠️ **他人的心跳不得延长我的锁**（§②）—— 不是持有者 ⇒ 409。
+         *     ⚠️ **本端点不碰数据库**（连 session 都不开）：续期是纯 Redis 操作，
+         *     且不写审计（60s 一次的心跳会把 audit_logs 灌爆）。
+         */
+        post: operations["renew_edit_lock_api_v1_locks__record_type___record_id__renew_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/locks/{record_type}/{record_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Edit Lock
+         * @description 释放编辑锁。
+         *
+         *     ⚠️ **仅持有者可释放**（非持有者 ⇒ 409，且**不得**动别人的锁）。
+         */
+        post: operations["release_edit_lock_api_v1_locks__record_type___record_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
         parameters: {
             query?: never;
@@ -11721,6 +11790,73 @@ export interface components {
             formula_ref: string;
         };
         /**
+         * LockHolderResponse
+         * @description 锁的持有者（体验层的全部价值：让人知道「谁在改」）。
+         */
+        LockHolderResponse: {
+            /**
+             * User Id
+             * @description 持有者 user_id
+             */
+            user_id: string;
+            /**
+             * Acquired At
+             * Format: date-time
+             * @description 获取时刻（ISO8601）
+             */
+            acquired_at: string;
+            /**
+             * Username
+             * @description 持有者显示名（取锁时写入，免掉一次用户查询）
+             */
+            username?: string | null;
+        };
+        /**
+         * LockResponse
+         * @description 三个端点共用的响应体。
+         */
+        LockResponse: {
+            /**
+             * Record Type
+             * @description 记录类型（表名，如 cost_est_results）
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 ID
+             */
+            record_id: string;
+            /**
+             * Operation
+             * @description 操作
+             * @enum {string}
+             */
+            operation: "acquire" | "renew" | "release";
+            /**
+             * Success
+             * @description 本次操作是否成功
+             */
+            success: boolean;
+            /** @description 当前持有者（他人持锁时给出；降级时为 None） */
+            holder?: components["schemas"]["LockHolderResponse"] | null;
+            /**
+             * Ttl Seconds
+             * @description 剩余租约秒数（降级时为 0）
+             */
+            ttl_seconds: number;
+            /**
+             * Degraded
+             * @description True = Redis 不可用，本次是降级放行（体验层失效）
+             * @default false
+             */
+            degraded: boolean;
+            /**
+             * Message
+             * @description 横幅文案（降级时给出；前端顶栏显示）
+             */
+            message?: string | null;
+        };
+        /**
          * LoginRequest
          * @description 登录请求体（POST /auth/login）。
          *
@@ -20961,6 +21097,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acquire_edit_lock_api_v1_locks__record_type___record_id__acquire_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_type: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
+                };
+            };
+            /** @description 他人持锁（或已过期）：响应体带持锁人信息 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renew_edit_lock_api_v1_locks__record_type___record_id__renew_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_type: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
+                };
+            };
+            /** @description 他人持锁（或已过期）：响应体带持锁人信息 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_edit_lock_api_v1_locks__record_type___record_id__release_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_type: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
+                };
+            };
+            /** @description 他人持锁（或已过期）：响应体带持锁人信息 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockResponse"];
                 };
             };
             /** @description Validation Error */

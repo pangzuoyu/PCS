@@ -294,17 +294,44 @@ async def test_redis_down_degrades_renew_and_release():
         await svc.aclose()
 
 
-async def test_degradation_banner_mentions_no_conflict_detection_for_cost_est():
-    """无 DB 兜底的表 ⇒ 横幅须写「本次编辑无冲突检测」。
+async def test_degradation_banner_mentions_no_conflict_detection_for_unguarded_table():
+    """**没接上 DB 兜底**的表 ⇒ 横幅须写「本次编辑无冲突检测」。
 
     ⚠️ **用户必须在无保护状态下知道这一点**（§⑤ 明写「不是可选的措辞优化」）。
+
+    🔻 2026-10-20 D2 后：cost_est_results **已接上**（D2 把 guard 接进了它的
+    保存路径）⇒ 它**不再**属于这一类。测试改用一张确实没有兜底的表。
     """
+    from app.services.edit_guard import GUARDED_TABLES
+
+    unguarded = next(
+        (t for t in ("sim_tower_results", "util_results") if t not in GUARDED_TABLES),
+        None,
+    )
+    assert unguarded is not None, "本仓的表要么已接上兜底，要么没有编辑路径"
     svc = EditLockService(DEAD_REDIS_URL)
     try:
         r = await svc.acquire(
-            record_type="cost_est_results", record_id=_rid(), user_id=uuid.uuid4()
+            record_type=unguarded, record_id=_rid(), user_id=uuid.uuid4()
         )
         assert NO_CONFLICT_DETECTION_MESSAGE in (r.message or "")
+    finally:
+        await svc.aclose()
+
+
+async def test_degradation_banner_omits_the_warning_for_a_guarded_table():
+    """已接上 DB 兜底的表 ⇒ 横幅**不**写「无冲突检测」（否则是假话）。"""
+    from app.services.edit_guard import GUARDED_TABLES
+
+    guarded = "cost_est_results"
+    assert guarded in GUARDED_TABLES, "D2 接线后 cost_est 必须在 GUARDED_TABLES 里"
+    svc = EditLockService(DEAD_REDIS_URL)
+    try:
+        r = await svc.acquire(
+            record_type=guarded, record_id=_rid(), user_id=uuid.uuid4()
+        )
+        assert DEGRADED_MESSAGE in (r.message or "")
+        assert NO_CONFLICT_DETECTION_MESSAGE not in (r.message or "")
     finally:
         await svc.aclose()
 

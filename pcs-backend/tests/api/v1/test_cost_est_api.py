@@ -343,7 +343,9 @@ async def test_update_cost_est_result_endpoint_200(
     assert create_r.status_code == 201, create_r.text
     rid = create_r.json()["result_id"]
 
-    patch_body = {"estimated_cost": 99999.0, "currency": "EUR"}
+    # P9A-4 D2：并发基线（ADR-0048 §⑥）—— **不带基线 ⇒ 409**
+    # （服务端无法判定并发 ⇒ 不得放行）
+    patch_body = {"estimated_cost": 99999.0, "currency": "EUR", "expected_hash": create_r.json()["record_hash"]}
     r = await client.patch(
         f"/api/v1/cost-est/results/{rid}",
         json=patch_body,

@@ -48,6 +48,7 @@ from app.schemas.cost_est import (
     SixTenthsRuleCalcRequest,
     SixTenthsRuleCalcResponse,
 )
+from app.schemas.edit_conflict import BASELINE_FIELDS
 from app.services.cost_est import (  # 8 persist（Task 36）
     # 3 calc（Task 35）
     CepciAdjustmentInput,
@@ -69,6 +70,7 @@ from app.services.cost_est import (  # 8 persist（Task 36）
     soft_delete_cost_est_result_service,
     update_cost_est_result_service,
 )
+from app.services.edit_guard import check_conflict, record_edit_audit
 
 router = APIRouter(prefix="/cost-est", tags=["cost-est"])
 
@@ -391,7 +393,22 @@ async def update_cost_est_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    patch = req.model_dump(exclude_unset=True)
+    # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
+    conflict = await check_conflict(
+        db,
+        record_type="cost_est_results",
+        record_id=result_id,
+        expected_hash=req.expected_hash,
+        expected_updated_at=req.expected_updated_at,
+    )
+    if conflict.conflict is not None:
+        raise CorePcsError(
+            code="RECORD_EDIT_CONFLICT",
+            message="该记录无法安全保存，请刷新后重新编辑",
+            status=409,
+            detail={"conflict": conflict.conflict.model_dump(mode="json")},
+        )
+    patch = req.model_dump(exclude_unset=True, exclude=BASELINE_FIELDS)
     try:
         record = await update_cost_est_result_service(
             db, result_id=result_id, patch=patch
@@ -405,6 +422,16 @@ async def update_cost_est_result(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
 
+    # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
+    await record_edit_audit(
+        db,
+        record_type="cost_est_results",
+        record_id=result_id,
+        user_id=user.user_id,
+        changed_fields=sorted(patch.keys()),
+        overwrote_stale_baseline=conflict.overwrote_stale_baseline,
+    )
+    await db.commit()
     return CostEstResultResponse.model_validate(record, from_attributes=True)
 
 

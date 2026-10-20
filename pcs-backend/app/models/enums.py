@@ -299,8 +299,9 @@ class UserStatus(str, enum.Enum):
 class AuditAction(str, enum.Enum):
     """audit_logs.action 标准值。
 
-    P0 + P1 完整集合（Issue 6 锁定，40 项 —— 2026-10-20 P9A-4 D1 增
-    EDIT_LOCK_ACQUIRED / EDIT_LOCK_RELEASED）。所有值 ≤50 字符
+    P0 + P1 完整集合（Issue 6 锁定，42 项 —— 2026-10-20 P9A-4 增
+    EDIT_LOCK_ACQUIRED / EDIT_LOCK_RELEASED / RECORD_EDITED /
+    RECORD_EDIT_OVERWROTE_STALE_BASELINE）。所有值 ≤50 字符
     （test_audit_action_max_length_50 断言）。DB 字段类型 String(50)，
     零 migration 成本。
     """
@@ -323,6 +324,11 @@ class AuditAction(str, enum.Enum):
     RECORD_CREATED = "RECORD_CREATED"
     RECORD_UPDATED = "RECORD_UPDATED"
     RECORD_OBSOLETED = "RECORD_OBSOLETED"
+    # === 编辑（P9A-4 D2 · ADR-0048 §⑦）===
+    # 每次编辑保存写一条（changed_fields 供 409 弹窗的「查看差异」）。
+    RECORD_EDITED = "RECORD_EDITED"
+    # 未经 hash 级比对就放行的保存（可能覆盖了别人的改动）。
+    RECORD_EDIT_OVERWROTE_STALE_BASELINE = "RECORD_EDIT_OVERWROTE_STALE_BASELINE"
     # === 编辑锁（P9A-4 D1 · ADR-0048 §①）===
     # ⚠️ **renew 不写审计** —— 60s 一次的心跳会把 audit_logs 灌爆。
     EDIT_LOCK_ACQUIRED = "EDIT_LOCK_ACQUIRED"

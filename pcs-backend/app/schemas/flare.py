@@ -22,6 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.edit_conflict import EditBaselineMixin
+
 
 class HeaderSizingRequest(BaseModel):
     """FLARE_SYS header_sizing 请求。
@@ -517,7 +519,7 @@ class FlareResultCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class FlareResultUpdateRequest(BaseModel):
+class FlareResultUpdateRequest(EditBaselineMixin):
     """FlareSystemResult 更新请求（PATCH /flare/results/{id}）。
 
     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number / 溯源等）

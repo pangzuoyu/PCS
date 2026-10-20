@@ -242,7 +242,8 @@ async def test_redis_down_degrades_with_a_banner_not_503(
     assert data["degraded"] is True
     assert data["success"] is True
     assert DEGRADED_MESSAGE in data["message"]
-    assert NO_CONFLICT_DETECTION_MESSAGE in data["message"]
+    # 🔻 D2 后 cost_est 已接上 DB 兜底 ⇒ 不再警告「无冲突检测」（否则是假话）
+    assert NO_CONFLICT_DETECTION_MESSAGE not in data["message"]
 
 
 async def test_degraded_acquire_still_works_when_the_audit_fails(

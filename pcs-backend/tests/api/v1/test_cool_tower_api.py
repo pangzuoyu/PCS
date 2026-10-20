@@ -331,7 +331,9 @@ async def test_update_cool_tower_result_endpoint_200(
     assert create_r.status_code == 201, create_r.text
     rid = create_r.json()["id"]
 
-    patch_body = {"duty_kw": 35.0, "fan_power_kw": 4.5}
+    # P9A-4 D2：并发基线（ADR-0048 §⑥）—— **不带基线 ⇒ 409**
+    # （服务端无法判定并发 ⇒ 不得放行）
+    patch_body = {"duty_kw": 35.0, "fan_power_kw": 4.5, "expected_hash": create_r.json()["record_hash"]}
     r = await client.patch(
         f"/api/v1/cool-tower/results/{rid}",
         json=patch_body,

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T09:21:13.667Z
-> Files: 935 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T09:42:07.581Z
+> Files: 939 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1208,6 +1208,7 @@
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
+- `edit_conflict.py` — 编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。 (~775 tok)
 - `lock.py` — 编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。 (~404 tok)
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
@@ -1228,7 +1229,7 @@
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
-- `edit_guard.py` — 编辑冲突 guard 的**能力声明**（ADR-0048 §⑥）。 (~798 tok)
+- `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~2952 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
@@ -1306,6 +1307,7 @@
 ## pcs-backend/app/workers/
 
 - `ad_sync_tasks.py` — AD 同步的 ARQ 任务（SPEC P9A-USR-002 的「定时任务」）。 (~282 tok)
+- `edit_guard_tasks.py` — 并发令牌自检（ADR-0048 §⑥ 的残留风险，ARQ cron）。 (~226 tok)
 - `notification_tasks.py` — 通知保留期清理（ADR-0049 §④ / SPEC P9A-NOT-004，ARQ cron）。 (~332 tok)
 - `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~2890 tok)
 - `report_tasks.py` — ARQ 报表异步生成任务。 (~3693 tok)
@@ -1357,6 +1359,7 @@
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
+- `test_edit_conflict.py` — 编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。 (~2340 tok)
 - `test_edit_lock_api.py` — 编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。 (~2367 tok)
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
@@ -1416,6 +1419,7 @@
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
+- `test_edit_guard.py` — 编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。 (~3662 tok)
 - `test_edit_lock.py` — 编辑锁（Redis 层）测试 —— P9A-4 D1（ADR-0048 §①~⑤）。 (~3260 tok)
 - `test_notification_triggers.py` — P9A C1b：通知**触发接线**（用户 2026-10-20 裁决的最小集合）。 (~1502 tok)
 - `test_notifications_channel.py` — P9A C1：通知通道抽象（ADR-0049 §①）。 (~2860 tok)

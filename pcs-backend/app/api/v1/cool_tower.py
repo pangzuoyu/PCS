@@ -32,8 +32,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.config import _Actor, current_actor, require_roles
 from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
+from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.models.enums import RecordSignStatus9
@@ -49,6 +49,7 @@ from app.schemas.cool_tower import (
     WaterBalanceRequest,
     WaterBalanceResponse,
 )
+from app.schemas.edit_conflict import BASELINE_FIELDS
 from app.services.cool_tower.cool_tower_persist_service import (  # P6-2 Task 25
     CoolTowerPersistInputError,
     save_cool_tower_result,
@@ -77,6 +78,7 @@ from app.services.cool_tower.water_balance import (  # P6-2 Task 24
     WaterBalanceInput,
     calc_water_balance,
 )
+from app.services.edit_guard import check_conflict, record_edit_audit
 from app.services.exceptions import PcsError
 
 router = APIRouter(prefix="/cool-tower", tags=["cool-tower"])
@@ -371,6 +373,7 @@ async def update_cool_tower_result(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 record 后再 service 调用
     from sqlalchemy import select as _sa_select
+
     from app.models.calc import CoolingTowerResult
     pre_record = (await db.execute(
         _sa_select(CoolingTowerResult).where(CoolingTowerResult.cooling_tower_id == record_id)
@@ -382,7 +385,22 @@ async def update_cool_tower_result(
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
     )
-    payload = req.model_dump(exclude_unset=True)
+    # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
+    conflict = await check_conflict(
+        db,
+        record_type="cooling_tower_results",
+        record_id=record_id,
+        expected_hash=req.expected_hash,
+        expected_updated_at=req.expected_updated_at,
+    )
+    if conflict.conflict is not None:
+        raise CorePcsError(
+            code="RECORD_EDIT_CONFLICT",
+            message="该记录无法安全保存，请刷新后重新编辑",
+            status=409,
+            detail={"conflict": conflict.conflict.model_dump(mode="json")},
+        )
+    payload = req.model_dump(exclude_unset=True, exclude=BASELINE_FIELDS)
     try:
         record = await update_cool_tower_result_service(
             db,
@@ -398,6 +416,16 @@ async def update_cool_tower_result(
         raise HTTPException(
             status_code=404, detail="CoolingTowerResult not found"
         )
+    # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
+    await record_edit_audit(
+        db,
+        record_type="cooling_tower_results",
+        record_id=record_id,
+        user_id=user.user_id,
+        changed_fields=sorted(payload.keys()),
+        overwrote_stale_baseline=conflict.overwrote_stale_baseline,
+    )
+    await db.commit()
     return CoolTowerResultResponse.model_validate(record, from_attributes=True)
 
 

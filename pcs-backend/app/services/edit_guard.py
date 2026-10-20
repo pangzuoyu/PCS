@@ -1,8 +1,9 @@
-"""编辑冲突 guard 的**能力声明**（ADR-0048 §⑥）。
+"""编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。
 
 P9A-4 的分工：
-- **D1（本文件当前内容）**：静态声明 —— 每张可编辑表有哪些并发令牌。
-- **D2**：阶梯实现 —— `check_conflict` / `record_edit_audit` / 409 契约。
+- **D1**：静态声明（能力表 / 已接线表）。
+- **D2（本文件当前内容）**：阶梯判定（`check_conflict`）+ 编辑审计
+  （`record_edit_audit`）+ 自检扫描（`scan_missing_record_hash`）。
 
 ## 为什么用显式映射，不用 ORM 反射
 
@@ -18,17 +19,35 @@ ADR-0048 §⑥ 记的教训：`cost_est_results` 曾经「登记在
 
 | 常量 | 含义 | 变更时机 |
 |---|---|---|
-| `TABLE_CAPABILITIES` | 该表**有**哪些并发令牌（能力） | 加列 / 改 schema 时 |
-| `GUARDED_TABLES` | 该表的保存路径**已接上** DB 层冲突检测（接线） | D2 接线时 |
+| `TABLE_CAPABILITIES` | 该表**有**哪些并发令牌（能力）+ ORM 模型 | 加列 / 改 schema 时 |
+| `GUARDED_TABLES` | 该表的保存路径**已接上** DB 层冲突检测（接线） | 接线时 |
 
-「有能力」≠「已接线」：D2 落地前，6 张可编辑表都有 `record_hash`（能力），
-但**保存路径还没接** guard（未接线）⇒ 降级横幅必须按 `GUARDED_TABLES`
-说话（§⑤ 的横幅是给用户的**事实陈述**，不是能力表）。
-D2 的契约测试断言两张表**逐项相等** ⇒ 不会漂移。
+「有能力」≠「已接线」。降级横幅按 `GUARDED_TABLES` 说话（§⑤ 的横幅是给
+用户的**事实陈述**，不是能力表）。D2 的契约测试断言两张表**逐项相等**。
 """
 from __future__ import annotations
 
+import logging
+import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.calc import (
+    CoolingTowerResult,
+    CostEstResult,
+    FiltrationResult,
+    FlareSystemResult,
+    OpenChannelResult,
+    PsychroResult,
+)
+from app.models.enums import AuditAction
+from app.schemas.edit_conflict import ConflictDetail, EditAuditDetail
+from app.services.audit_service import AuditService
+
+logger = logging.getLogger(__name__)
 
 
 class UnregisteredTableError(LookupError):
@@ -41,8 +60,14 @@ class UnregisteredTableError(LookupError):
 
 @dataclass(frozen=True)
 class TableCapability:
-    """一张可编辑表的并发令牌能力（ADR-0048 §⑥）。"""
+    """一张可编辑表的并发令牌能力（ADR-0048 §⑥）。
 
+    ⚠️ `model` 与 `pk_attr` 也在声明里 —— guard 要**按表**取行，
+    「表名 → 模型 / 主键」若另开一张表，就是同一概念的两份清单（会漂移）。
+    """
+
+    model: type
+    pk_attr: str
     has_record_hash: bool
     has_updated_at: bool
 
@@ -50,23 +75,71 @@ class TableCapability:
 #: 全部有手动编辑端点的结果表（实测：`grep -rn '@router\.\(patch\|put\)' app/api/v1/*.py`）。
 #: ⚠️ **只登记有编辑路径的表** —— 其余表保护的是一个不存在的并发。
 TABLE_CAPABILITIES: dict[str, TableCapability] = {
-    "cooling_tower_results": TableCapability(has_record_hash=True, has_updated_at=True),
-    "filtration_results": TableCapability(has_record_hash=True, has_updated_at=True),
-    "flare_system_results": TableCapability(has_record_hash=True, has_updated_at=True),
-    "open_channel_results": TableCapability(has_record_hash=True, has_updated_at=True),
-    "psychro_results": TableCapability(has_record_hash=True, has_updated_at=True),
+    "cooling_tower_results": TableCapability(
+        model=CoolingTowerResult,
+        pk_attr="cooling_tower_id",
+        has_record_hash=True,
+        has_updated_at=True,
+    ),
+    "filtration_results": TableCapability(
+        model=FiltrationResult,
+        pk_attr="filter_id",
+        has_record_hash=True,
+        has_updated_at=True,
+    ),
+    "flare_system_results": TableCapability(
+        model=FlareSystemResult,
+        pk_attr="flare_id",
+        has_record_hash=True,
+        has_updated_at=True,
+    ),
+    "open_channel_results": TableCapability(
+        model=OpenChannelResult,
+        pk_attr="open_channel_id",
+        has_record_hash=True,
+        has_updated_at=True,
+    ),
+    "psychro_results": TableCapability(
+        model=PsychroResult,
+        pk_attr="psychro_id",
+        has_record_hash=True,
+        has_updated_at=True,
+    ),
     # cost_est_results：P9A-4 D0 刚补上 record_hash，但**没有 updated_at**
     # ⇒ 退化阶梯对它只有**一档**（record_hash），没有第二档兜底。
-    "cost_est_results": TableCapability(has_record_hash=True, has_updated_at=False),
+    "cost_est_results": TableCapability(
+        model=CostEstResult,
+        pk_attr="cost_est_id",
+        has_record_hash=True,
+        has_updated_at=False,
+    ),
 }
 
 #: 保存路径**已接上** DB 层冲突检测的表。
 #:
-#: ⚠️ D1 阶段**为空** —— D2 还没接线 ⇒ 此刻**任何**表的保存路径都没有
-#: 并发检出能力 ⇒ 降级横幅对所有表都要写「本次编辑无冲突检测」
-#: （ADR-0048 §⑤：这不是可选的措辞优化）。
-#: D2 接线时把 6 张表登记进来，届时横幅自动精确化。
-GUARDED_TABLES: frozenset[str] = frozenset()
+#: ⚠️ 「已接上」= D2 的 guard **真的接在该表的保存路径上**，不是「该表有
+#: record_hash 列」。降级横幅按这张表说话：不在表里 ⇒ 用户在无冲突检测
+#: 的状态下编辑 ⇒ 横幅必须写「本次编辑无冲突检测」（ADR-0048 §⑤）。
+GUARDED_TABLES: frozenset[str] = frozenset(TABLE_CAPABILITIES)
+
+
+@dataclass(frozen=True)
+class ConflictCheckResult:
+    """`check_conflict` 的结果（ADR-0048 §⑥ 决策 2）。
+
+    ⚠️ **不返回 None、不抛异常**：
+    - 返回 None ⇒ 每个调用点都要自己发明「怎么把冲突传出去」，然后漂移；
+    - 抛异常 ⇒ 每个调用点都要 try/except。
+    ⇒ 统一返回本对象；`conflict` 为 None 表示放行。
+
+    `overwrote_stale_baseline`：本次保存**未经 hash 级比对**就放行了
+    （行上的 hash 是空的 ⇒ 只能靠 updated_at 或根本没得比）⇒ 可能覆盖了
+    别人的改动 ⇒ 按 ADR-0048 §⑦ 另写一条
+    `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计。
+    """
+
+    conflict: ConflictDetail | None
+    overwrote_stale_baseline: bool = False
 
 
 def capability_of(record_type: str) -> TableCapability:
@@ -85,11 +158,191 @@ def has_conflict_detection(record_type: str) -> bool:
     return record_type in GUARDED_TABLES
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    """时间统一到 UTC（客户端可能送 naive 或带别的时区）。"""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+async def check_conflict(
+    session: AsyncSession,
+    *,
+    record_type: str,
+    record_id: uuid.UUID,
+    expected_hash: str | None,
+    expected_updated_at: datetime | None,
+) -> ConflictCheckResult:
+    """判定本次编辑是否与他人冲突（ADR-0048 §⑥ 的退化阶梯）。
+
+    **纯检查，无副作用**：不改数据、不写审计（约束 1）。
+
+    阶梯：
+
+    ```
+    当前 record_hash != ""  → 比 hash：不等 ⇒ 409 (basis=record_hash)
+    当前 record_hash == ""  → 比 updated_at：不等 ⇒ 409 (basis=updated_at)
+                            → 没有 updated_at / 客户端没给基线 ⇒ 409 (basis=no_baseline)
+    ```
+
+    ⚠️ **客户端没给基线 ⇒ 409（no_baseline）**：服务端无法判定并发，
+    放行等于「保护可以不存在」（这正是 D0 修掉的那个假绿形状）。
+    """
+    cap = capability_of(record_type)  # 未登记 ⇒ UnregisteredTableError
+    model = cap.model
+    pk = getattr(model, cap.pk_attr)
+    row = (
+        await session.execute(select(model).where(pk == record_id))
+    ).scalar_one_or_none()
+    if row is None:
+        # 记录不存在 ⇒ 交给业务层 404（这里不编造冲突）
+        return ConflictCheckResult(conflict=None, overwrote_stale_baseline=False)
+
+    current_hash = (getattr(row, "record_hash", "") or "").strip()
+    current_updated_at = _as_utc(getattr(row, "updated_at", None))
+
+    async def _conflict(basis: str, message: str) -> ConflictCheckResult:
+        changed_by, changed_at = await _last_editor(session, record_type, record_id)
+        return ConflictCheckResult(
+            conflict=ConflictDetail(
+                record_type=record_type,
+                record_id=str(record_id),
+                your_expected_hash=expected_hash,
+                current_hash=current_hash or None,
+                changed_by=changed_by,
+                changed_at=changed_at,
+                basis=basis,  # type: ignore[arg-type]
+            ),
+            overwrote_stale_baseline=False,
+        )
+
+    if current_hash:
+        # 第一档：hash 比对（最强，能检出「内容变了但行没动」）
+        if expected_hash is None:
+            return await _conflict("no_baseline", "客户端未提供基线，无法判定并发")
+        if current_hash != expected_hash:
+            return await _conflict("record_hash", "该记录已被他人修改，请刷新后重新编辑")
+        return ConflictCheckResult(conflict=None, overwrote_stale_baseline=False)
+
+    # 第二档：hash 为空（从未计算过）⇒ 退到 updated_at
+    if cap.has_updated_at and current_updated_at is not None:
+        if expected_updated_at is None:
+            return await _conflict("no_baseline", "客户端未提供基线，无法判定并发")
+        if current_updated_at != _as_utc(expected_updated_at):
+            return await _conflict("updated_at", "该记录已被他人修改，请刷新后重新编辑")
+        # 放行，但**未经 hash 级比对** ⇒ 记一条「覆盖了陈旧基线」审计
+        return ConflictCheckResult(conflict=None, overwrote_stale_baseline=True)
+
+    return await _conflict("no_baseline", "该记录没有可用的并发基线，无法判定并发")
+
+
+async def _last_editor(
+    session: AsyncSession, record_type: str, record_id: uuid.UUID
+) -> tuple[str | None, datetime | None]:
+    """上一次编辑者（user_id / 时间），取自**编辑审计**。
+
+    ⚠️ 只认 `action = RECORD_EDITED` 的审计行，**不得**用「该记录最近一条
+    审计」泛匹配去凑（ADR-0048 §⑦ 强制）。
+    ⚠️ **不得**用 `updated_at` 冒充 `changed_at`（那是精确性伪装）。
+    """
+    from app.models.system import AuditLog
+
+    row = (
+        await session.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.action == AuditAction.RECORD_EDITED.value,
+                AuditLog.resource_type == record_type,
+                AuditLog.resource_id == str(record_id),
+            )
+            .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None, None
+    return (str(row.user_id) if row.user_id else None), row.occurred_at
+
+
+async def record_edit_audit(
+    session: AsyncSession,
+    *,
+    record_type: str,
+    record_id: uuid.UUID,
+    user_id: uuid.UUID,
+    changed_fields: list[str],
+    overwrote_stale_baseline: bool = False,
+) -> None:
+    """写编辑审计（ADR-0048 §⑦）。
+
+    ⚠️ **纯写审计**：不判定冲突（判定在 `check_conflict`），也不改业务数据。
+    ⚠️ `changed_fields` 是**字段名列表**，不是完整值（一次大改版几十 KB）。
+    ⚠️ 本函数**不 commit** —— 事务边界由调用方控制。
+    """
+    detail = EditAuditDetail(
+        changed_fields=list(changed_fields),
+        overwrote_stale_baseline=overwrote_stale_baseline,
+    )
+    audit = AuditService(session)
+    await audit.write(
+        action=AuditAction.RECORD_EDITED,
+        resource_type=record_type,
+        resource_id=str(record_id),
+        user_id=user_id,
+        detail=detail.model_dump(mode="json"),
+    )
+    if overwrote_stale_baseline:
+        # ADR-0048 §⑦：覆盖了无法校验的基线 ⇒ 另写一条，事后能看见
+        # 「谁在锁失效期间覆盖了别人」
+        await audit.write(
+            action=AuditAction.RECORD_EDIT_OVERWROTE_STALE_BASELINE,
+            resource_type=record_type,
+            resource_id=str(record_id),
+            user_id=user_id,
+            detail=detail.model_dump(mode="json"),
+        )
+
+
+async def scan_missing_record_hash(session: AsyncSession) -> dict[str, int]:
+    """自检：扫出「record_hash 为空」的行（ADR-0048 §⑥ 的残留风险自检）。
+
+    「提交了但没 finalize」的行会**永久**停在 `hash=""` ⇒ 落 no_baseline
+    ⇒ 那一行没有并发保护。这是「计算结果已落库但哈希从未生成」的可靠信号。
+
+    返回 {表名: 行数}（全为 0 才是健康）。
+    """
+    out: dict[str, int] = {}
+    for record_type, cap in TABLE_CAPABILITIES.items():
+        if not cap.has_record_hash:
+            continue
+        model = cap.model
+        n = (
+            await session.execute(
+                select(model).where(model.__table__.c.record_hash == "")
+            )
+        ).scalars().all()
+        count = len(n)
+        out[record_type] = count
+        if count:
+            logger.error(
+                "自检：%s 有 %d 行 record_hash 为空（提交了但没 finalize？）",
+                record_type,
+                count,
+            )
+    return out
+
+
 __all__ = [
     "GUARDED_TABLES",
     "TABLE_CAPABILITIES",
+    "ConflictCheckResult",
     "TableCapability",
     "UnregisteredTableError",
     "capability_of",
+    "check_conflict",
     "has_conflict_detection",
+    "record_edit_audit",
+    "scan_missing_record_hash",
 ]

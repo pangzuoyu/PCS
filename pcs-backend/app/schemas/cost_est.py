@@ -32,6 +32,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.edit_conflict import EditBaselineMixin
+
 # ───────────────────────────── 公共 base ─────────────────────────────
 
 
@@ -188,7 +190,7 @@ class CostEstCreateRequest(BaseModel):
     scaling_exponent: float | None = Field(default=None, gt=0, le=1.5)
 
 
-class CostEstUpdateRequest(BaseModel):
+class CostEstUpdateRequest(EditBaselineMixin):
     """PATCH /cost-est/results/{id} 请求（partial update）。"""
 
     model_config = ConfigDict(extra="forbid")
@@ -222,6 +224,10 @@ class CostEstResultResponse(BaseModel):
     cepci_index_target: float | None = Field(default=None)
     correlation_source: str | None = Field(default=None)
     scaling_exponent: float | None = Field(default=None)
+    # P9A-4 D0/D2：并发基线（ADR-0048 §⑥）—— 前端要靠它做乐观比对
+    record_hash: str | None = Field(
+        None, description="record_hash（16 hex；P9A-4 D0 新增的并发令牌）"
+    )
     created_at: datetime = Field(..., description="创建时间")
 
     @model_validator(mode="before")

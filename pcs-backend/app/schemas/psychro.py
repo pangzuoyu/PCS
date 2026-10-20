@@ -28,6 +28,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.edit_conflict import EditBaselineMixin
+
 # 6 calc 公共请求基础字段（Kelvin / RH / P_pa）：
 # ASHRAE RP-1845 约定输入用 K / Pa；为方便前端使用，schema 用 °C 接收，
 # endpoint 内部 +273.15 转 K 喂给 chedl_wrapper 6 函数。
@@ -340,7 +342,7 @@ class PsychroResultCreateRequest(BaseModel):
     output_json: dict | None = Field(None, description="出参（业务子结构）")
 
 
-class PsychroResultUpdateRequest(BaseModel):
+class PsychroResultUpdateRequest(EditBaselineMixin):
     """PsychroResult 更新请求（PATCH /psychro/results/{id}）。
 
     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /

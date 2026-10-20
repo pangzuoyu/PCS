@@ -22,6 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.edit_conflict import EditBaselineMixin
+
 # ───────────────────────────── 1. heat-load-aggregator（§3.2.4.5）────
 
 
@@ -235,7 +237,7 @@ class CoolTowerResultCreateRequest(BaseModel):
     output_json: dict | None = Field(None, description="出参（业务子结构）")
 
 
-class CoolTowerResultUpdateRequest(BaseModel):
+class CoolTowerResultUpdateRequest(EditBaselineMixin):
     """CoolingTowerResult 更新请求（PATCH /cool-tower/results/{id}）。
 
     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /

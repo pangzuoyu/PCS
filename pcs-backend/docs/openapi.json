@@ -2687,6 +2687,240 @@
         }
       }
     },
+    "/api/v1/locks/{record_type}/{record_id}/acquire": {
+      "post": {
+        "tags": [
+          "locks"
+        ],
+        "summary": "Acquire Edit Lock",
+        "description": "取编辑锁。\n\n已被他人持有 ⇒ **409 + 持锁人信息**（前端显示「XX 正在编辑」）。\nRedis 不可用 ⇒ **降级放行**（200 + `degraded=true` + 横幅文案）。",
+        "operationId": "acquire_edit_lock_api_v1_locks__record_type___record_id__acquire_post",
+        "parameters": [
+          {
+            "name": "record_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Type"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "他人持锁（或已过期）：响应体带持锁人信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locks/{record_type}/{record_id}/renew": {
+      "post": {
+        "tags": [
+          "locks"
+        ],
+        "summary": "Renew Edit Lock",
+        "description": "续期（compare-and-expire）。\n\n⚠️ **他人的心跳不得延长我的锁**（§②）—— 不是持有者 ⇒ 409。\n⚠️ **本端点不碰数据库**（连 session 都不开）：续期是纯 Redis 操作，\n且不写审计（60s 一次的心跳会把 audit_logs 灌爆）。",
+        "operationId": "renew_edit_lock_api_v1_locks__record_type___record_id__renew_post",
+        "parameters": [
+          {
+            "name": "record_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Type"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "他人持锁（或已过期）：响应体带持锁人信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locks/{record_type}/{record_id}/release": {
+      "post": {
+        "tags": [
+          "locks"
+        ],
+        "summary": "Release Edit Lock",
+        "description": "释放编辑锁。\n\n⚠️ **仅持有者可释放**（非持有者 ⇒ 409，且**不得**动别人的锁）。",
+        "operationId": "release_edit_lock_api_v1_locks__record_type___record_id__release_post",
+        "parameters": [
+          {
+            "name": "record_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Type"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "他人持锁（或已过期）：响应体带持锁人信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
       "post": {
         "tags": [
@@ -28403,6 +28637,113 @@
         ],
         "title": "KodSizingResponse",
         "description": "FLARE_SYS kod_sizing 响应（KOD + Water Seal 综合）。\n\n字段：\n\n- kod: KOD 子结果（KodInfo；API 521 §5.15.3）\n- water_seal: Water Seal 子结果（WaterSealInfo；API 521 §5.15.5）\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code\n- formula_ref: 综合公式溯源标记 \"API_521_§5.15.3+§5.15.5\""
+      },
+      "LockHolderResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "持有者 user_id"
+          },
+          "acquired_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Acquired At",
+            "description": "获取时刻（ISO8601）"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "持有者显示名（取锁时写入，免掉一次用户查询）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "acquired_at"
+        ],
+        "title": "LockHolderResponse",
+        "description": "锁的持有者（体验层的全部价值：让人知道「谁在改」）。"
+      },
+      "LockResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型（表名，如 cost_est_results）"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 ID"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "acquire",
+              "renew",
+              "release"
+            ],
+            "title": "Operation",
+            "description": "操作"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "本次操作是否成功"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LockHolderResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当前持有者（他人持锁时给出；降级时为 None）"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "title": "Ttl Seconds",
+            "description": "剩余租约秒数（降级时为 0）"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded",
+            "description": "True = Redis 不可用，本次是降级放行（体验层失效）",
+            "default": false
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "横幅文案（降级时给出；前端顶栏显示）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "operation",
+          "success",
+          "ttl_seconds"
+        ],
+        "title": "LockResponse",
+        "description": "三个端点共用的响应体。"
       },
       "LoginRequest": {
         "properties": {

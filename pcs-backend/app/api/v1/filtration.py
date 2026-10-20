@@ -30,6 +30,7 @@ from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
+from app.schemas.edit_conflict import BASELINE_FIELDS
 from app.schemas.filtration import (
     ErgunCalcRequest,
     ErgunCalcResponse,
@@ -43,6 +44,7 @@ from app.schemas.filtration import (
     RuthConstantRateCalcRequest,
     RuthConstantRateCalcResponse,
 )
+from app.services.edit_guard import check_conflict, record_edit_audit
 from app.services.exceptions import PcsError as ServicePcsError
 from app.services.filtration import (  # P6-3 Task 34
     ErgunInput,
@@ -457,7 +459,22 @@ async def update_filtration_result(
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     actor_roles_list = list(user.roles)
-    patch = req.model_dump(exclude_unset=True)
+    # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
+    conflict = await check_conflict(
+        db,
+        record_type="filtration_results",
+        record_id=result_id,
+        expected_hash=req.expected_hash,
+        expected_updated_at=req.expected_updated_at,
+    )
+    if conflict.conflict is not None:
+        raise CorePcsError(
+            code="RECORD_EDIT_CONFLICT",
+            message="该记录无法安全保存，请刷新后重新编辑",
+            status=409,
+            detail={"conflict": conflict.conflict.model_dump(mode="json")},
+        )
+    patch = req.model_dump(exclude_unset=True, exclude=BASELINE_FIELDS)
     try:
         record = await update_filtration_result_service(
             db, result_id=result_id, patch=patch
@@ -476,6 +493,16 @@ async def update_filtration_result(
         actor_roles=actor_roles_list,
     )
 
+    # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
+    await record_edit_audit(
+        db,
+        record_type="filtration_results",
+        record_id=result_id,
+        user_id=user.user_id,
+        changed_fields=sorted(patch.keys()),
+        overwrote_stale_baseline=conflict.overwrote_stale_baseline,
+    )
+    await db.commit()
     return FiltrationResultResponse.model_validate(record, from_attributes=True)
 
 

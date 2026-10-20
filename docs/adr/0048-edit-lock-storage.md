@@ -100,15 +100,22 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > 横幅须额外提示「**本次编辑无冲突检测**」（而不是让用户以为有 DB 兜底）。
 > 这不是可选的措辞优化 —— 用户在无保护状态下编辑，**必须知道**。
 >
-> **🔻 2026-10-20 D1 落地口径（实现说明）**：横幅里「本次编辑无冲突检测」这半句
+> **🔻 2026-10-20 D1/D2 落地口径（实现说明）**：横幅里「本次编辑无冲突检测」这半句
 > 由 **`GUARDED_TABLES`（`app/services/edit_guard.py`）**决定 —— 即「该表的
 > 保存路径**已接上** DB 层冲突检测」，**不是**「该表有 record_hash 列」。
 >
-> 理由：横幅是给用户的**事实陈述**。D1 阶段 D2 还没接线 ⇒ 此刻**任何**表的
-> 保存路径都没有冲突检出能力 ⇒ 所有表都带这半句（对 `cost_est_results`
-> 而言这与本节的要求一致）。D2 接线后该表被登记进 `GUARDED_TABLES` ⇒
-> 横幅自动精确化。**D2 落地时须回本节修订**（本节「对 `cost_est_results`
-> 须额外提示」在 D2 之后不再成立）。
+> 理由：横幅是给用户的**事实陈述**。
+>
+> - **D1 阶段**（D2 未接线）：任何表的保存路径都没有冲突检出能力 ⇒ 所有表
+>   都带这半句（对 `cost_est_results` 而言与本节的要求一致）。
+> - **D2 之后**：6 张可编辑表的保存路径**全部**接上了 guard ⇒
+>   `GUARDED_TABLES` = 6 张表 ⇒ 这半句**对它们都不再出现**。
+>   ⇒ **本节「对 `cost_est_results` 的记录，横幅须额外提示『本次编辑无冲突
+>   检测』」自 D2 起不再成立** —— 它的前提是「cost_est 没有 DB 兜底」，
+>   而 D0 补了 `record_hash`、D2 接了 guard，前提已消失。
+>   横幅机制**保留**（`GUARDED_TABLES` 仍是单一来源）：将来若新增一张
+>   「可编辑 ∧ 未接线」的表，它会**自动**带上这半句。
+
 
 告警走日志 ERROR + P9B 前端顶栏横幅。
 
@@ -329,21 +336,36 @@ commit 之前）。
 
 **响应体**（受 P9A-DLV-010 零裸字段约束，字段必须显式声明）：
 
+> 🔻 **2026-10-20 D2 落地时更正**：原文写的是**顶层三字段**
+> （`error_code` / `message` / `conflict`）。**本仓的统一错误信封是
+> `{code, message, detail, trace_id}`**（`app/core/errors.py::ErrorResponse`，
+> 全局异常处理器产出，所有 4xx/5xx 都走它）⇒ 冲突对象放进 `detail.conflict`。
+> 照原文实现 ⇒ 前端要解析**两种**错误信封 ⇒ 必有一处漏解析。
+> ⇒ 冲突对象的**内容**不变，只是**信封**归一。
+
 ```json
 {
-  "error_code": "RECORD_EDIT_CONFLICT",
-  "message": "该记录已被他人修改，请刷新后重新编辑",
-  "conflict": {
-    "record_type": "PipingResult",
-    "record_id": "…uuid…",
-    "your_expected_hash": "…16 hex…",
-    "current_hash": "…16 hex…",
-    "changed_by": "…uuid… 或 null…",
-    "changed_at": "2026-10-19T10:22:31+08:00 或 null",
-    "basis": "record_hash | updated_at | no_baseline"
-  }
+  "code": "RECORD_EDIT_CONFLICT",
+  "message": "该记录无法安全保存，请刷新后重新编辑",
+  "detail": {
+    "conflict": {
+      "record_type": "cooling_tower_results",
+      "record_id": "…uuid…",
+      "your_expected_hash": "…16 hex…",
+      "current_hash": "…16 hex…",
+      "changed_by": "…uuid… 或 null…",
+      "changed_at": "2026-10-19T10:22:31+08:00 或 null",
+      "basis": "record_hash | updated_at | no_baseline"
+    }
+  },
+  "trace_id": "…"
 }
 ```
+
+- `message` 是**通用**措辞（两种 basis 都用它）：`basis` 才是分流依据 ——
+  「别人改了」（刷新有用）与「没有基线」（刷新没用）的前端文案不同。
+- 冲突对象有**显式 schema**：`app/schemas/edit_conflict.py::ConflictDetail`
+  （P9A-DLV-010 零裸字段）。
 
 - `basis` 三值对应 §⑥ 三条判定分支 —— 让前端能区分「别人改了」（刷新有用）
   与「记录没基线」（刷新没用，应联系管理员）。
