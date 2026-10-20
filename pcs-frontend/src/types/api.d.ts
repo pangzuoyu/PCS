@@ -18,10 +18,15 @@ export interface paths {
          *     步骤：
          *     1. 调 check_database_async（asyncpg SELECT 1）探测 DB 连接
          *     2. 返回 {status, database}：db ok → "ok"/"up"，db fail → "degraded"/"down"
-         *     3. 始终 200（不依赖 DB 状态码），由调用方按字段判定
+         *     3. **读 broadcaster 维护的状态标志**得出 realtime —— **零额外探测**
+         *        （ADR-0049 §⑥ 约束 1：`/health` 已经在同步探测 DB，不能再叠第二个
+         *        阻塞依赖；比「加超时」更好：既不占连接池，也不拖响应）
+         *     4. 始终 200，由调用方按字段判定
          *
-         *     用于：K8s liveness probe / 监控 / 容器 orchestrator 健康检查。
-         *     不暴露敏感信息（无 DB URL / 表名 / 用户名）。
+         *     ⚠️ **语义精确性**：`realtime` 检测的是 **pub/sub 通道可达性**，不是
+         *     Redis 整体健康。二者当前等价（同一个 Redis），但它只承诺「WS 推送能力」。
+         *     排障时不得把 `realtime = degraded` 当作「Redis 挂了」的唯一判据 ——
+         *     应结合 ARQ 队列状态与 `database` 字段综合判断。
          */
         get: operations["health_api_v1_health_get"];
         put?: never;
@@ -982,6 +987,40 @@ export interface paths {
          */
         get: operations["get_ui_schema_api_v1_meta_ui_schema__resource__get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的通知（断线兜底路径） */
+        get: operations["list_my_notifications_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notification_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 标记已读（幂等） */
+        put: operations["mark_notification_read_api_v1_notifications__notification_id__read_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4153,6 +4192,30 @@ export interface paths {
          *     甘特图会把「查过一眼」也算成活动。
          */
         get: operations["list_deliverable_actions_api_v1_deliverables__deliverable_id__actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/todos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 我的待办（实时计算）
+         * @description 当前用户该签什么 —— **每次查询现算，不建表**。
+         *
+         *     真值是签署矩阵的当前步骤 × 当前用户角色，随每次签署推进自动改变。
+         *     建表意味着每次推进都要 UPDATE 全部下游步骤的 todo 行，并引入
+         *     「todo 表与 matrix 表不一致」的窗口（ADR-0049 §②）。
+         */
+        get: operations["list_todos_api_v1_todos_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10855,14 +10918,22 @@ export interface components {
          * HealthResponse
          * @description 健康检查响应（GET /health）。
          *
-         *     业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）；
-         *     用于 K8s liveness probe 与监控告警（始终 200，由调用方按字段判定）。
+         *     业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）
+         *     + realtime WS 推送通道状态（ok/degraded）；用于 K8s liveness probe 与
+         *     监控告警（**始终 200**，由调用方按字段判定）。
+         *
+         *     ⚠️ `realtime` **不得**纳入 liveness / readiness 判定 —— Redis 挂了会触发
+         *     **服务重启循环**。需要 readiness probe 时另建端点，不复用 `/health`。
          */
         HealthResponse: {
             /** Status */
             status: string;
             /** Database */
             database: string;
+            /** Realtime */
+            realtime: string;
+            /** Realtime Reason */
+            realtime_reason: string | null;
         };
         /**
          * HeatLoadAggregatorRequest
@@ -12113,6 +12184,78 @@ export interface components {
              * @description 设备类型（仅 EQUIPMENT_INTERFACE）
              */
             upstream_equipment_type?: string | null;
+        };
+        /**
+         * NotificationDetail
+         * @description `notifications.detail_json` 的字段级 schema（P9A-DLV-010）。
+         *
+         *     `extra="forbid"` 是这个模型存在的意义：不 forbid 的模型等于没有 schema。
+         */
+        NotificationDetail: {
+            /** Project Id */
+            project_id?: string | null;
+            /** Deliverable Id */
+            deliverable_id?: string | null;
+            /** Deliverable Version Id */
+            deliverable_version_id?: string | null;
+            /** Workflow Type */
+            workflow_type?: string | null;
+            /** Step Order */
+            step_order?: number | null;
+            /** Actor Id */
+            actor_id?: string | null;
+            /** Actor Name */
+            actor_name?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * NotificationItemResponse
+         * @description 单条通知。
+         */
+        NotificationItemResponse: {
+            /**
+             * Notification Id
+             * Format: uuid
+             */
+            notification_id: string;
+            /**
+             * Kind
+             * @description NotificationKind 四值之一
+             */
+            kind: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            detail?: components["schemas"]["NotificationDetail"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Read At
+             * @description NULL = 未读
+             */
+            read_at?: string | null;
+        };
+        /**
+         * NotificationListResponse
+         * @description 通知列表。
+         *
+         *     `unread_count` 与 `items` 都走 ADR-0049 §③ 的部分索引
+         *     `ix_notifications_recipient_unread (recipient_id, read_at) WHERE read_at IS NULL`
+         *     —— 铃铛上的红点数字正是这个索引的用途。
+         */
+        NotificationListResponse: {
+            /** Items */
+            items: components["schemas"]["NotificationItemResponse"][];
+            /**
+             * Unread Count
+             * @description 未读总数（铃铛红点）
+             */
+            unread_count: number;
         };
         /**
          * ObsoleteRequest
@@ -17047,6 +17190,47 @@ export interface components {
             formula_ref_source: string;
         };
         /**
+         * TodoListResponse
+         * @description 待办列表。`total` = `len(items)` —— 没有分页，因为没有可分页的表。
+         */
+        TodoListResponse: {
+            /** Items */
+            items: components["schemas"]["TodoResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * TodoResponse
+         * @description 一条待办（实时计算的结果，不落库）。字段集合被契约测试钉死。
+         */
+        TodoResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 越权过滤在 service 层按此列完成
+             */
+            project_id: string;
+            /** Step Order */
+            step_order: number;
+            /**
+             * Step Role
+             * @description 当前该签这一步要求的角色
+             */
+            step_role: string;
+            /** Title */
+            title: string;
+        };
+        /**
          * TokenResponse
          * @description JWT token 响应（POST /auth/login 响应体）。
          *
@@ -20709,6 +20893,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UiSchemaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_notifications_api_v1_notifications_get: {
+        parameters: {
+            query?: {
+                /** @description 断线前最后见到的时刻 */
+                after?: string | null;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_notification_read_api_v1_notifications__notification_id__read_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                notification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationItemResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26117,6 +26369,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliverableActionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_todos_api_v1_todos_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodoListResponse"];
                 };
             };
             /** @description Validation Error */

@@ -11,7 +11,7 @@
           "health"
         ],
         "summary": "Health",
-        "description": "GET /health（liveness + DB 探测）。\n\n步骤：\n1. 调 check_database_async（asyncpg SELECT 1）探测 DB 连接\n2. 返回 {status, database}：db ok → \"ok\"/\"up\"，db fail → \"degraded\"/\"down\"\n3. 始终 200（不依赖 DB 状态码），由调用方按字段判定\n\n用于：K8s liveness probe / 监控 / 容器 orchestrator 健康检查。\n不暴露敏感信息（无 DB URL / 表名 / 用户名）。",
+        "description": "GET /health（liveness + DB 探测）。\n\n步骤：\n1. 调 check_database_async（asyncpg SELECT 1）探测 DB 连接\n2. 返回 {status, database}：db ok → \"ok\"/\"up\"，db fail → \"degraded\"/\"down\"\n3. **读 broadcaster 维护的状态标志**得出 realtime —— **零额外探测**\n   （ADR-0049 §⑥ 约束 1：`/health` 已经在同步探测 DB，不能再叠第二个\n   阻塞依赖；比「加超时」更好：既不占连接池，也不拖响应）\n4. 始终 200，由调用方按字段判定\n\n⚠️ **语义精确性**：`realtime` 检测的是 **pub/sub 通道可达性**，不是\nRedis 整体健康。二者当前等价（同一个 Redis），但它只承诺「WS 推送能力」。\n排障时不得把 `realtime = degraded` 当作「Redis 挂了」的唯一判据 ——\n应结合 ARQ 队列状态与 `database` 字段综合判断。",
         "operationId": "health_api_v1_health_get",
         "responses": {
           "200": {
@@ -2531,6 +2531,145 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UiSchemaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "我的通知（断线兜底路径）",
+        "operationId": "list_my_notifications_api_v1_notifications_get",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "断线前最后见到的时刻",
+              "title": "After"
+            },
+            "description": "断线前最后见到的时刻"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "put": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "标记已读（幂等）",
+        "operationId": "mark_notification_read_api_v1_notifications__notification_id__read_put",
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Notification Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationItemResponse"
                 }
               }
             }
@@ -12824,6 +12963,56 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DeliverableActionsListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "我的待办（实时计算）",
+        "description": "当前用户该签什么 —— **每次查询现算，不建表**。\n\n真值是签署矩阵的当前步骤 × 当前用户角色，随每次签署推进自动改变。\n建表意味着每次推进都要 UPDATE 全部下游步骤的 todo 行，并引入\n「todo 表与 matrix 表不一致」的窗口（ADR-0049 §②）。",
+        "operationId": "list_todos_api_v1_todos_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoListResponse"
                 }
               }
             }
@@ -27116,15 +27305,32 @@
           "database": {
             "type": "string",
             "title": "Database"
+          },
+          "realtime": {
+            "type": "string",
+            "title": "Realtime"
+          },
+          "realtime_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Realtime Reason"
           }
         },
         "type": "object",
         "required": [
           "status",
-          "database"
+          "database",
+          "realtime",
+          "realtime_reason"
         ],
         "title": "HealthResponse",
-        "description": "健康检查响应（GET /health）。\n\n业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）；\n用于 K8s liveness probe 与监控告警（始终 200，由调用方按字段判定）。"
+        "description": "健康检查响应（GET /health）。\n\n业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）\n+ realtime WS 推送通道状态（ok/degraded）；用于 K8s liveness probe 与\n监控告警（**始终 200**，由调用方按字段判定）。\n\n⚠️ `realtime` **不得**纳入 liveness / readiness 判定 —— Redis 挂了会触发\n**服务重启循环**。需要 readiness probe 时另建端点，不复用 `/health`。"
       },
       "HeatLoadAggregatorRequest": {
         "properties": {
@@ -28950,6 +29156,189 @@
         ],
         "title": "NodeReq",
         "description": "管网节点请求。"
+      },
+      "NotificationDetail": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "deliverable_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverable Id"
+          },
+          "deliverable_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverable Version Id"
+          },
+          "workflow_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Type"
+          },
+          "step_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Order"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NotificationDetail",
+        "description": "`notifications.detail_json` 的字段级 schema（P9A-DLV-010）。\n\n`extra=\"forbid\"` 是这个模型存在的意义：不 forbid 的模型等于没有 schema。"
+      },
+      "NotificationItemResponse": {
+        "properties": {
+          "notification_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Notification Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "NotificationKind 四值之一"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NotificationDetail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At",
+            "description": "NULL = 未读"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notification_id",
+          "kind",
+          "title",
+          "body",
+          "created_at"
+        ],
+        "title": "NotificationItemResponse",
+        "description": "单条通知。"
+      },
+      "NotificationListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count",
+            "description": "未读总数（铃铛红点）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "unread_count"
+        ],
+        "title": "NotificationListResponse",
+        "description": "通知列表。\n\n`unread_count` 与 `items` 都走 ADR-0049 §③ 的部分索引\n`ix_notifications_recipient_unread (recipient_id, read_at) WHERE read_at IS NULL`\n—— 铃铛上的红点数字正是这个索引的用途。"
       },
       "ObsoleteRequest": {
         "properties": {
@@ -37538,6 +37927,72 @@
         ],
         "title": "ThermosiphonCalculateResponse",
         "description": "POST /api/v1/thermosiphon/calculate 响应体（200）。\n\n字段对齐 service 层 ThermosiphonCirculationResult（frozen dataclass）。"
+      },
+      "TodoListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodoResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TodoListResponse",
+        "description": "待办列表。`total` = `len(items)` —— 没有分页，因为没有可分页的表。"
+      },
+      "TodoResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "越权过滤在 service 层按此列完成"
+          },
+          "step_order": {
+            "type": "integer",
+            "title": "Step Order"
+          },
+          "step_role": {
+            "type": "string",
+            "title": "Step Role",
+            "description": "当前该签这一步要求的角色"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "version_id",
+          "project_id",
+          "step_order",
+          "step_role",
+          "title"
+        ],
+        "title": "TodoResponse",
+        "description": "一条待办（实时计算的结果，不落库）。字段集合被契约测试钉死。"
       },
       "TokenResponse": {
         "properties": {

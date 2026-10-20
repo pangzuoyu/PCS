@@ -20,6 +20,8 @@ from app.api.v1.heat import router as heat_router  # P5-4-5
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
 from app.api.v1.meta import router as meta_router
+from app.api.v1.notifications import router as notifications_router  # P9A-NOT-001/005
+from app.api.v1.ws import router as notifications_ws_router  # P9A-NOT-006 / ADR-0049 §⑤
 from app.api.v1.open_channel import router as open_channel_router  # P6-3 Task 32
 from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
@@ -60,6 +62,8 @@ api_router.include_router(records_actions_router)
 api_router.include_router(workflow_progress_router)
 api_router.include_router(lineage_router)
 api_router.include_router(meta_router)
+api_router.include_router(notifications_router)
+api_router.include_router(notifications_ws_router)
 api_router.include_router(change_impact_router)
 api_router.include_router(config_router)
 api_router.include_router(pipe_classes_router)
