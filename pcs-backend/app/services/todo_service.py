@@ -12,11 +12,14 @@
 `step_order` 之外，最小的那个待签步骤就是当前的。**必须**复用同一判据 ——
 两条规则漂移的症状很安静：签署端点说「该你签了」，待办列表说「没你什么事」。
 
-## 角色判定：全局 ∪ 项目内
+## 角色判定：**全局角色**（不是项目内角色）
 
-与 `notification_recipients.resolve_role_recipients` **同一套语义**（全局
-`users.roles` ∪ 项目内 `user_projects.role_in_project`，已撤销的授权不算）。
-只取全局的话，被只在某个项目里授予复核权的人永远没有待办。
+签署矩阵的 `sign_role` 与 **token 的 role claim** 比较（`sign_step` 里
+`sign_role != actor_role` 就 403），项目那侧只校验**成员身份**。
+⇒ 「能签第 N 步」= 有项目授权 **且** 全局角色 == step.sign_role。
+
+待办若按 `role_in_project` 圈人，会列出那些**点了必然 403** 的待办 ——
+「待办里有，点进去说你不是」比没有待办更坏。
 
 ## 项目范围只认 `user_projects`
 
@@ -65,20 +68,6 @@ def current_step(
     return None
 
 
-async def my_roles(db: AsyncSession, *, actor_user_id: uuid.UUID) -> set[str]:
-    """当前用户的角色集合 = 全局 roles ∪ 项目内 role_in_project。
-
-    全局那部分由调用方从 token 传入（`_Actor.role`）；这里补项目内那部分，
-    且只算**未撤销**的授权 —— 人离开项目后待办必须跟着消失。
-    """
-    rows = await db.execute(
-        select(UserProject.role_in_project).where(
-            UserProject.user_id == actor_user_id, UserProject.revoked_at.is_(None)
-        )
-    )
-    return {str(r) for (r,) in rows.all()}
-
-
 async def _my_project_ids(db: AsyncSession, *, actor_user_id: uuid.UUID) -> set[uuid.UUID]:
     """当前用户有权的项目（走 `user_projects`）。
 
@@ -96,8 +85,21 @@ async def _my_project_ids(db: AsyncSession, *, actor_user_id: uuid.UUID) -> set[
 async def compute_todos(
     db: AsyncSession, *, actor_user_id: uuid.UUID, global_role: str
 ) -> list[TodoItem]:
-    """算出「当前用户在这些项目上该签什么」。"""
-    roles = {global_role} | await my_roles(db, actor_user_id=actor_user_id)
+    """算出「当前用户在这些项目上该签什么」。
+
+    角色只用**全局角色**（token 的 role claim）—— 与 `sign_step` 实际校验的
+    口径一致。
+
+    ⚠️ **不用 `user_projects.role_in_project`**：`sign_step` 拿
+    `actor.role`（token 的 role claim）与 `step["sign_role"]` 直接比较，
+    不匹配就 403 `SIGN_STEP_ROLE_MISMATCH`；项目那侧（`_authorize` →
+    `check_project_access_or_404`）只校验**成员身份**、不看角色。
+
+    ⇒ 「能签第 N 步」= 有项目授权 **且** 全局角色 == step.sign_role。
+    按项目内角色圈人，会列出那些**点了必然 403** 的待办 ——
+    「待办里有，点进去说你不是」比没有待办更坏。
+    """
+    roles = {global_role}
 
     project_ids = await _my_project_ids(db, actor_user_id=actor_user_id)
     if not project_ids:
@@ -182,4 +184,4 @@ async def compute_todos(
     return out
 
 
-__all__ = ["TodoItem", "compute_todos", "current_step", "my_roles"]
+__all__ = ["TodoItem", "compute_todos", "current_step"]

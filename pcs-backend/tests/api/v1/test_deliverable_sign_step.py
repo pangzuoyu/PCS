@@ -142,6 +142,14 @@ async def _sign(client, auth, deliverable_id, version_id, **body):
     )
 
 
+async def _grant_project(db: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """给用户授予项目成员身份（`user_projects` 有效行）。"""
+    from app.models.project import UserProject
+
+    db.add(UserProject(user_id=user_id, project_id=project_id, role_in_project="VIEWER"))
+    await db.commit()
+
+
 async def _progress(db: AsyncSession, version_id: uuid.UUID) -> list[WorkflowProgress]:
     return (
         await db.execute(
@@ -423,6 +431,9 @@ class TestNotificationTriggers:
         """签完第 1 步 ⇒ 第 2 步的角色（REVIEWER）收到 SIGN_COMPLETED。"""
         reviewer = await make_user("rev", ["REVIEWER"])
         await make_user("des", ["DESIGNER"])
+        # ⚠️ 复核人必须有**项目授权**才能收到通知：矩阵的 sign_role 是全局
+        # 角色，但项目那一侧只校验成员身份 —— 没有授权的人点进去必然 404。
+        await _grant_project(db_session, reviewer, project_id)
         d, v = await _issued(db_session, project_id)
 
         resp = await _sign(
@@ -465,6 +476,8 @@ class TestNotificationTriggers:
         """
         designer = await make_user("des", ["DESIGNER"])
         reviewer = await make_user("rev", ["REVIEWER"])
+        await _grant_project(db_session, designer, project_id)
+        await _grant_project(db_session, reviewer, project_id)
         d, v = await _issued(db_session, project_id, submitter_id=designer)
 
         await _sign(
@@ -472,3 +485,121 @@ class TestNotificationTriggers:
         )
         assert await self._rows(db_session, recipient=designer) == []
         assert len(await self._rows(db_session, recipient=reviewer)) == 1
+
+
+class TestSingleTransactionBoundary:
+    """⚠️ F-1：业务变更与通知行必须**同一次提交**。
+
+    两次提交意味着两个真相源：业务变更已落库、通知行还没落库，
+    而两者之间进程挂掉 ⇒ 变更发生了但没人被告知。
+    提交前推送更糟：commit 失败时用户收到一条会被回滚的通知（phantom）。
+    """
+
+    async def test_sign_step_commits_exactly_once(self, db_session, project_id, make_user):
+        """签署推进 + 通知行 = **一次** commit。
+
+        ⚠️ 必须让通知**真的发出去**（复核人有项目授权）—— 否则没人可通知时
+        第二次 commit 压根不发生，这条断言就成了摆设（它对着旧代码也绿）。
+        """
+        await make_user("des", ["DESIGNER"])
+        reviewer = await make_user("rev", ["REVIEWER"])
+        await _grant_project(db_session, reviewer, project_id)
+        d, v = await _issued(db_session, project_id)
+
+        calls: list[int] = []
+        original = db_session.commit
+
+        async def _counting_commit():
+            calls.append(1)
+            await original()
+
+        db_session.commit = _counting_commit
+        try:
+            await DeliverableService.sign_step(
+                db_session,
+                deliverable_id=d.deliverable_id,
+                version_id=v.version_id,
+                step_index=1,
+                decision="SIGN",
+                actor_user_id=uuid.uuid4(),
+                actor_role="DESIGNER",
+            )
+        finally:
+            db_session.commit = original
+
+        assert len(calls) == 1, (
+            f"sign_step 提交了 {len(calls)} 次 —— 通知行与业务变更不同事务"
+        )
+
+    async def test_sign_step_does_not_commit_when_the_step_is_rejected(
+        self, db_session, project_id
+    ):
+        """被拒的签署**一次都不该提交**（否则会留下半截状态）。"""
+        d, v = await _issued(db_session, project_id)
+
+        calls: list[int] = []
+        original = db_session.commit
+
+        async def _counting_commit():
+            calls.append(1)
+            await original()
+
+        db_session.commit = _counting_commit
+        try:
+            with pytest.raises(Exception):
+                await DeliverableService.sign_step(
+                    db_session,
+                    deliverable_id=d.deliverable_id,
+                    version_id=v.version_id,
+                    step_index=1,
+                    decision="SIGN",
+                    actor_user_id=uuid.uuid4(),
+                    actor_role="REVIEWER",  # 第 1 步要 DESIGNER ⇒ 403
+                )
+        finally:
+            db_session.commit = original
+
+        assert calls == [], f"被拒的签署提交了 {len(calls)} 次"
+
+    async def test_last_step_sign_notifies_the_submitter(
+        self, db_session, project_id, make_user
+    ):
+        """⚠️ F-2：**最后一步签完**（交付物 APPROVED）必须通知版本提交人。
+
+        用户裁决的接线集合写的是「sign-step 成功」—— 字面包含最后一步。
+        这一支原先完全没通知任何人。
+        """
+        designer = await make_user("des", ["DESIGNER"])
+        await make_user("rev", ["REVIEWER"])
+        d, v = await _issued(db_session, project_id, submitter_id=designer)
+
+        # 第 1 步（DESIGNER）
+        await DeliverableService.sign_step(
+            db_session,
+            deliverable_id=d.deliverable_id,
+            version_id=v.version_id,
+            step_index=1,
+            decision="SIGN",
+            actor_user_id=uuid.uuid4(),
+            actor_role="DESIGNER",
+        )
+        # 第 2 步（REVIEWER）= 最后一步 ⇒ APPROVED
+        await DeliverableService.sign_step(
+            db_session,
+            deliverable_id=d.deliverable_id,
+            version_id=v.version_id,
+            step_index=2,
+            decision="SIGN",
+            actor_user_id=uuid.uuid4(),
+            actor_role="REVIEWER",
+        )
+
+        rows = (
+            await db_session.execute(
+                select(Notification).where(Notification.recipient_id == designer)
+            )
+        ).scalars().all()
+        assert [r.kind for r in rows] == [NotificationKind.SIGN_COMPLETED], (
+            "最后一步签完（交付物 APPROVED）必须通知版本提交人 —— "
+            "他等的就是这个结果"
+        )

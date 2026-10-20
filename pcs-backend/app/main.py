@@ -64,6 +64,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 否则重启时连接可能 TIME_WAIT 累积 + 文件描述符泄漏
         dispose_sync_engine()
         await dispose_engines_async()
+        # P9A：释放 Redis 连接（broadcaster 的发布连接 + 订阅 registry 的
+        # 订阅连接）。⚠️ 漏掉的话每次优雅重启漏一到两条 —— K8s 滚动升级
+        # N 次后撞 Redis 的 `maxclients`，而症状（连接被拒）会被误当成
+        # 「Redis 挂了」，把排障方向带偏。
+        # 本仓在 `worker.py` 修过同类问题（ARQ cron 的 Redis 必须来自
+        # settings）—— 这次漏的不是配置，是**关闭 hook**。
+        await _close_redis_connections()
+
+
+async def _close_redis_connections() -> None:
+    """关闭 broadcaster 的发布连接与 WS 订阅 registry 的订阅连接。
+
+    ⚠️ 两者都是**进程级单例**，不关的话每次优雅重启漏一到两条连接。
+    关闭失败不得影响关闭流程（连接池的释放已经做完了）。
+    """
+    import logging
+
+    from app.api.v1 import ws as ws_mod
+    from app.services.broadcaster import get_broadcaster
+
+    log = logging.getLogger(__name__)
+    for label, closer in (
+        ("broadcaster", get_broadcaster().aclose()),
+        ("ws registry", ws_mod.get_registry().aclose()),
+    ):
+        try:
+            await closer
+        except Exception:  # noqa: BLE001 — 关闭失败不该让整个 shutdown 失败
+            log.warning("关闭 %s 的 Redis 连接失败", label, exc_info=True)
 
 
 def create_app() -> FastAPI:

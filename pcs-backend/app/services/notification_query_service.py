@@ -17,15 +17,19 @@
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import PcsError
 from app.models.notification import Notification
 from app.services.notifications.payload import NotificationDetail
+
+logger = logging.getLogger(__name__)
 
 
 async def list_notifications(
@@ -79,7 +83,25 @@ async def mark_read(
 
 
 def to_detail(row: Notification) -> NotificationDetail | None:
-    """`detail_json`（落库时是 JSON 形态）→ schema。空则 None。"""
+    """`detail_json`（落库时是 JSON 形态）→ schema。空则 None。
+
+    ⚠️ **必须兜住 `ValidationError`**（F-5）。`NotificationDetail` 是
+    `extra="forbid"` 的 —— 那是它存在的意义（自由 dict 等于没有 schema）。
+    但代价是：将来若有人**删/改名**一个字段，已落库的旧通知行里那个键就会
+    让 `model_validate` 抛错 ⇒ 整个 `GET /notifications` 返 500
+    （一个人的旧数据让所有人看不了通知）。
+
+    ⇒ 坏的那一条降级成 `detail=None` 并记 ERROR，其余照常返回。
+    通知的**标题与正文**仍然可读 —— 那才是铃铛上显示的东西。
+    """
     if not row.detail_json:
         return None
-    return NotificationDetail.model_validate(row.detail_json)
+    try:
+        return NotificationDetail.model_validate(row.detail_json)
+    except ValidationError:
+        logger.error(
+            "通知 %s 的 detail_json 与当前 schema 不符，已降级为 detail=None：%r",
+            row.notification_id,
+            row.detail_json,
+        )
+        return None

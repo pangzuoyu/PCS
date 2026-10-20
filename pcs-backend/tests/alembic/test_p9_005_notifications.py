@@ -176,3 +176,54 @@ def test_title_and_body_are_not_null():
     """标题与正文是铃铛上显示的全部内容；可空的通知前端无从渲染。"""
     assert _table().columns["title"].nullable is False
     assert _table().columns["body"].nullable is False
+
+
+def test_notifications_created_index_exists():
+    """⚠️ 断线兜底列表**实际靠的是这个索引**，不是那个部分索引。
+
+    真库实测（2000 行、事务内、ROLLBACK 无残留）：
+
+    ```
+    select * from notifications
+     where recipient_id = :u and read_at is null
+     order by created_at desc limit 50;
+    ── Index Scan Backward using ix_notifications_recipient_created
+       Index Cond: (recipient_id = ...)
+       Filter: (read_at IS NULL)          ← 部分索引没被用上
+       Execution Time: 0.026 ms
+    ```
+
+    原因：`ORDER BY created_at DESC` 需要按 created_at 排序，而部分索引是
+    `(recipient_id, read_at)` —— 没有 created_at，**排不了序**，于是 planner
+    选了能提供顺序的那个索引。
+
+    ⇒ 两个索引各有各的用处，**都**必须进迁移：
+    - `ix_notifications_recipient_created` → 列表（要排序）
+    - `ix_notifications_recipient_unread` → 未读计数（铃铛红点，不必排序）
+    """
+    idx = _table().indexes
+    matches = [i for i in idx if i.name == "ix_notifications_recipient_created"]
+    assert len(matches) == 1, "缺 ix_notifications_recipient_created"
+    assert [c.name for c in matches[0].columns] == ["recipient_id", "created_at"]
+
+
+def test_cleanup_query_has_its_own_index_shape():
+    """⚠️ 30 天清理的 `WHERE read_at IS NOT NULL AND created_at < cutoff`
+    **用不了**那个部分索引（它的前导列是 recipient_id，而清理不按人筛）。
+
+    真库实测它走 `ix_notifications_recipient_created` 的 index skip scan
+    （PG 18），成本可接受（0.044 ms / 2000 行）。
+
+    ⇒ 这里**不**加第三个索引：清理是每日一次的 cron，表规模是
+    「每年几千行」量级，一次范围扫描毫秒级。加索引要付写入开销与
+    schema 复杂度，换不来可观测的收益（D7 裁决的同一条理由）。
+    """
+    # 断言「清理不按 recipient_id 筛」这件事不会被人悄悄改掉
+    import inspect
+
+    from app.workers.notification_tasks import cleanup_old_notifications
+
+    src = inspect.getsource(cleanup_old_notifications)
+    assert "recipient_id" not in src, (
+        "清理查询按 recipient_id 过滤了 —— 那会让部分索引变成第二个真相源"
+    )

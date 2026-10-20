@@ -40,38 +40,58 @@ async def resolve_role_recipients(
     db: AsyncSession,
     *,
     role: str,
-    project_id: uuid.UUID | None = None,
+    project_id: uuid.UUID,
     exclude_user_ids: tuple[uuid.UUID, ...] = (),
 ) -> list[uuid.UUID]:
-    """持有 `role` 的启用用户。`project_id` 给定时额外计入项目内角色。"""
+    """持有**全局角色** `role`、且**有该项目授权**的启用用户。
+
+    ⚠️ `project_id` **必填**，不给默认值 —— 「不限项目范围地发通知」这个用法
+    本版不存在，留一个可选参数等于留一个**忘了传就越权**的坑（bug-2030 的
+    同类：缺了约束，调用点不会报错，只是不漏地少收或多收）。
+
+    ## 为什么只看全局角色，不看 `role_in_project`
+
+    签署矩阵的 `sign_role` 是**全局角色**：`DeliverableService.sign_step` 拿
+    `actor.role`（token 的 role claim）与 `step["sign_role"]` 直接比较，不匹配
+    就 403 `SIGN_STEP_ROLE_MISMATCH`。而项目那一侧（`_authorize` →
+    `check_project_access_or_404`）只校验**成员身份**，不看角色。
+
+    ⇒ 「能签第 N 步」的充要条件 = **有项目授权 且 全局角色 == step.sign_role**。
+
+    所以本函数与 `compute_todos` 都必须按**全局角色**圈人：
+    按 `role_in_project` 圈人会通知 / 列出那些**点了必然 403**的人 ——
+    「待办里有，点进去说你不是」比没有待办更坏。
+
+    ## 为什么给了 `project_id` 时候选集先受项目授权约束
+
+    一个全局角色是 DESIGNER、但**没有该项目授权**的人，不得收到该项目的
+    通知（通知体里带着交付物标题与 project_id，那是不该让他看到的东西），
+    也点不开那个待办。
+
+    这条约束是**对齐待办侧**的：`compute_todos` 按 `user_projects` 圈人，
+    通知侧若不圈，两边就漂移了 —— 症状是「待办里没有他，通知里有他」，
+    而两边各自都「正常」。
+    """
     recipients: dict[uuid.UUID, None] = {}
 
-    if project_id is not None:
-        rows = await db.execute(
-            select(UserProject.user_id).where(
-                UserProject.project_id == project_id,
-                UserProject.role_in_project == role,
-                UserProject.revoked_at.is_(None),
-            )
+    # ⚠️ 候选集 = 本项目**有有效授权**的人。授权之外的人一律不收。
+    candidates = await db.execute(
+        select(UserProject.user_id).where(
+            UserProject.project_id == project_id,
+            UserProject.revoked_at.is_(None),
         )
-        for (uid,) in rows.all():
-            recipients[uid] = None
+    )
+    candidate_ids = {uid for (uid,) in candidates.all()}
 
     # 全局角色。ACTIVE 过滤在 SQL 里 —— 离职的人不该再收通知。
     active = await db.execute(
         select(User.user_id, User.roles).where(User.status == "ACTIVE")
     )
     for uid, roles in active.all():
+        if uid not in candidate_ids:
+            continue
         if isinstance(roles, list) and role in roles:
             recipients[uid] = None
-
-    # 项目内授权可能落在已停用用户上 —— 全局过滤拿不到他们，这里剔除。
-    if project_id is not None:
-        disabled = await db.execute(
-            select(User.user_id).where(User.status != "ACTIVE")
-        )
-        for (uid,) in disabled.all():
-            recipients.pop(uid, None)
 
     for uid in exclude_user_ids:
         recipients.pop(uid, None)

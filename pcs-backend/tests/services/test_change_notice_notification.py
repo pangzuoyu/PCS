@@ -26,6 +26,7 @@ from app.models.deliverable import (
 )
 from app.models.enums import DeliverableSignStatus
 from app.models.notification import Notification, NotificationKind
+from app.models.project import UserProject
 from app.services.change_notice_service import ChangeNoticeService
 
 pytestmark = pytest.mark.asyncio
@@ -90,6 +91,12 @@ async def test_approval_notifies_project_designers(db, project_id, make_user):
     """审批通过 ⇒ 持 DESIGNER 角色的用户各收到一条 CHANGE_NOTICE_APPROVED。"""
     designer = await make_user("des", ["DESIGNER"])
     await make_user("rev", ["REVIEWER"])  # 复核人不是受众
+    # ⚠️ 设计师必须有**项目授权**：通知的收件人 = 全局角色命中 **且** 有项目
+    # 授权的人（矩阵的 sign_role 是全局角色，项目侧只校验成员身份）。
+    db.add(
+        UserProject(user_id=designer, project_id=project_id, role_in_project="VIEWER")
+    )
+    await db.flush()
     d = await _pending_change_notice(db, project_id)
 
     await ChangeNoticeService.approve_change_notice(

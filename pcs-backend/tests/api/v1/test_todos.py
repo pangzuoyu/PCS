@@ -376,3 +376,37 @@ async def test_todo_at_expected_data_volume(client, db, project_id, capsys):
     with capsys.disabled():
         print(f"[todo 量级] 300 条重算 {parse_ms:.1f}ms")
     assert parse_ms <= 500, f"重算耗时 {parse_ms:.1f}ms，超过 500ms 预算"
+
+
+async def test_todo_does_not_list_items_the_user_cannot_sign(client, db, project_id):
+    """⚠️ 项目内角色**不参与**角色匹配。
+
+    矩阵的 `sign_role` 与 **token 的 role claim** 比较（`sign_step` 里
+    `sign_role != actor_role` ⇒ 403），项目那侧只校验成员身份。
+
+    ⇒ 一个全局 DESIGNER、项目内 REVIEWER 的人**签不了** REVIEWER 那一步。
+    把他算进待办 = 「待办里有，点进去说你不是」—— 比没有待办更坏。
+    """
+    me = _actor_id()
+    await _grant(db, me, project_id, "REVIEWER")  # 项目内角色
+    # 全局角色是 DESIGNER（token 的 role claim），不是 REVIEWER
+    await _issue(db, project_id, steps=[{"step_order": 1, "sign_role": "REVIEWER"}])
+
+    resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
+
+    assert resp.json()["items"] == []
+
+
+async def test_todo_lists_items_the_user_can_actually_sign(client, db, project_id):
+    """反向：全局角色命中 **且** 有项目授权 ⇒ 待办出现。
+
+    两个条件缺一不可：只有全局角色 ⇒ 他点不开（越权 404）；
+    只有项目授权 ⇒ 他的角色不是矩阵要的那一档。
+    """
+    me = _actor_id()
+    await _grant(db, me, project_id, "VIEWER")  # 项目授权（成员身份）
+    await _issue(db, project_id, steps=[{"step_order": 1, "sign_role": "DESIGNER"}])
+
+    resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
+
+    assert len(resp.json()["items"]) == 1

@@ -64,12 +64,13 @@ class Notification(TimestampMixin, Base):
 
     __tablename__ = "notifications"
     __table_args__ = (
-        # ADR-0049 §③：这是 P9A-NOT-003「≤500ms」指标的**全部**支撑。
-        # 建成全量索引时已读行也进索引，未读占比一降索引就失去选择性 ——
-        # 所以必须是 partial index，条件 `read_at IS NULL`。
+        # ADR-0049 §③：未读**计数**（铃铛红点）靠它。建成全量索引时已读行
+        # 也进索引，未读占比一降索引就失去选择性 ⇒ 必须是 partial index。
         #
-        # ⚠️ read_at 作为第二列是因为读路径是「某人当前所有未读」，
-        # ORDER BY created_at 则由 `ix_notifications_recipient_created` 承担。
+        # ⚠️ **它不是 500ms 指标的全部支撑**（2026-10-20 真库实测修正）：
+        # 断线兜底**列表**带 `ORDER BY created_at DESC`，而本索引没有
+        # created_at ⇒ **排不了序** ⇒ planner 选的是
+        # `ix_notifications_recipient_created`。两个索引各有各的用处。
         Index(
             "ix_notifications_recipient_unread",
             "recipient_id",

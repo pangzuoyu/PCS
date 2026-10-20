@@ -247,20 +247,30 @@ def test_ws_requires_a_token():
 
     ⚠️ 浏览器 `WebSocket` API **不能设置请求头**，所以 token 走 query；
     但「query 里没 token」必须和「header 里没 token」一样被拒。
+
+    ⚠️ 断言**具体异常 + close code**，不是 `pytest.raises(Exception)`：
+    盲断异常在「端点根本没注册」时也绿（握手同样失败）——
+    本仓已为这种假绿栽过三次。正向证明见 `test_ws_accepts_a_valid_token`。
     """
+    from starlette.websockets import WebSocketDisconnect
+
     with TestClient(create_app()) as client:
-        with pytest.raises(Exception):
+        with pytest.raises(WebSocketDisconnect) as exc:
             with client.websocket_connect("/api/v1/ws/notifications") as ws:
                 ws.receive_text()
+    assert exc.value.code == 1008, "未鉴权必须以 policy violation 关闭"
 
 
 def test_ws_rejects_invalid_token():
+    from starlette.websockets import WebSocketDisconnect
+
     with TestClient(create_app()) as client:
-        with pytest.raises(Exception):
+        with pytest.raises(WebSocketDisconnect) as exc:
             with client.websocket_connect(
                 "/api/v1/ws/notifications?token=not-a-jwt"
             ) as ws:
                 ws.receive_text()
+    assert exc.value.code == 1008
 
 
 @pytest.mark.skipif(not _redis_up(), reason="真 Redis 未运行（docker compose up redis）")
@@ -397,3 +407,66 @@ def test_health_still_has_the_pre_existing_fields(monkeypatch):
     with TestClient(create_app()) as client:
         body = client.get("/api/v1/health").json()
     assert {"status", "database", "realtime", "realtime_reason"} <= set(body)
+
+
+async def test_old_detail_json_does_not_break_the_whole_list(client, db, user_id):
+    """⚠️ F-5：`NotificationDetail` 是 `extra="forbid"` 的。
+
+    将来若有人给该 schema **删/改名**一个字段，已落库的旧通知行里那个键
+    就会让 `model_validate` 抛 `ValidationError` ⇒ `_to_item` 抛 ⇒
+    **整个 `GET /notifications` 返 500**（一个人的旧数据让所有人看不了通知）。
+
+    ⇒ 读路径必须兜住：坏的那一条降级成 `detail=None`，其余照常返回。
+    """
+    from app.models.notification import Notification as N
+
+    db.add(
+        N(
+            notification_id=uuid.uuid4(),
+            recipient_id=user_id,
+            kind=NotificationKind.SIGN_COMPLETED,
+            title="老通知",
+            body="B",
+            # 模拟「已删字段」的旧行
+            detail_json={"some_removed_field": 1, "step_order": 3},
+        )
+    )
+    await db.commit()
+
+    resp = await client.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {_token(user_id)}"},
+    )
+    assert resp.status_code == 200, resp.text
+    item = resp.json()["items"][0]
+    assert item["title"] == "老通知"
+    assert item["detail"] is None
+
+
+def test_lifespan_closes_the_redis_connections(monkeypatch):
+    """⚠️ F-6：`/health` 与 WS 各自持有一条 Redis 连接，lifespan 结束时不关 ⇒
+    每次优雅重启漏一条（或两条），K8s 滚动升级 N 次后撞 Redis `maxclients`。
+
+    本仓在 `worker.py` 修过同类问题（ARQ cron 的 Redis 必须来自 settings，
+    连错实例会静默连错）—— 这次漏的不是配置，是**关闭 hook**。
+    """
+    from app.api.v1 import ws as ws_mod
+    from app.main import create_app
+    from app.services.broadcaster import (
+        Broadcaster,
+        UserSubscriptionRegistry,
+        set_broadcaster,
+    )
+
+    broadcaster = Broadcaster("redis://localhost:6379/9")
+    registry = UserSubscriptionRegistry("redis://localhost:6379/9")
+    set_broadcaster(broadcaster)
+    ws_mod.set_registry(registry)
+    try:
+        with TestClient(create_app()):
+            pass  # lifespan 跑完即退出
+        assert broadcaster.closed is True, "lifespan 结束没关 broadcaster 的 Redis 连接"
+        assert registry.closed is True, "lifespan 结束没关 registry 的订阅连接"
+    finally:
+        set_broadcaster(None)
+        ws_mod.set_registry(None)

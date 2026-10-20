@@ -49,7 +49,7 @@ async def _seed(db, *, days_old: float, read: bool):
 
 
 async def test_cleanup_deletes_read_notifications_older_than_retention(db):
-    nid = await _seed(db, days_old=NOTIFICATION_RETENTION_DAYS + 1, read=True)
+    await _seed(db, days_old=NOTIFICATION_RETENTION_DAYS + 1, read=True)
 
     n = await cleanup_old_notifications({"session_factory": _factory(db)})
 

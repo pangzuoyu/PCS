@@ -51,6 +51,8 @@ from app.models.project import Project
 from app.models.system import AuditLog
 from app.models.workflow_progress import WorkflowProgress
 from app.services.audit_service import AuditService
+from app.services.notifications.notify import publish
+from app.services.notifications.payload import NotificationPayload
 from app.services.numbering_service import NumberingService
 from app.services.secondary_auth import verify_secondary_auth
 from app.services.workflow_progress_writer import record_step
@@ -617,8 +619,10 @@ class DeliverableService:
             },
         )
 
-        await db.commit()
-        await cls._notify_sign_outcome(
+        # ⚠️ 通知行与业务变更**同一个事务**（ADR §① 同步写裁决承诺的
+        # 「同一次提交、同一套事务边界」）。推送在提交**之后**做 ——
+        # 提交前推送 ⇒ commit 失败时用户收到一条会被回滚的通知（phantom）。
+        pending = await cls._notify_sign_outcome(
             db,
             deliverable=deliverable,
             version=version,
@@ -626,6 +630,8 @@ class DeliverableService:
             next_step=next_step,
             actor_user_id=actor_user_id,
         )
+        await db.commit()
+        await publish(pending)
         return SignStepOutcome(
             deliverable=deliverable,
             version=version,
@@ -645,11 +651,11 @@ class DeliverableService:
         decision: str,
         next_step: dict[str, Any] | None,
         actor_user_id: uuid.UUID,
-    ) -> None:
+    ) -> list[NotificationPayload]:
         """签署事件的通知触发（用户 2026-10-20 裁决的最小集合）。
 
-        放在 `db.commit()` **之后**：推送与通知行都不该把已提交的签署拖回失败。
-        本行自身不再 commit —— 由调用方的请求级提交收尾。
+        ⚠️ **只写不推、不提交**：本方法在业务变更的**同一个事务**里写通知行，
+        由调用方一次提交，然后才推送。详见 `notify.notify` 的 docstring。
         """
         from app.models.notification import NotificationKind
         from app.services.notifications.notify import notify, notify_role
@@ -663,11 +669,11 @@ class DeliverableService:
             workflow_type="SIGN",
         )
 
-        sent: list = []
+        pending: list[NotificationPayload] = []
         if decision == "RETURN":
             # 退回的对象是「谁要返工」= 版本提交人，不是全体复核人。
             if version.created_by is not None:
-                sent.append(
+                pending.append(
                     await notify(
                         db,
                         recipient_id=version.created_by,
@@ -677,8 +683,24 @@ class DeliverableService:
                         detail=detail,
                     )
                 )
-        elif decision == "SIGN" and next_step is not None:
-            sent = await notify_role(
+        elif decision == "SIGN" and next_step is None:
+            # ⚠️ **最后一步签完 ⇒ 交付物 APPROVED**。这一支原先完全没通知
+            # 任何人 —— 而用户裁决的接线集合写的是「sign-step 成功」，
+            # 字面包含最后一步。收件人 = 版本提交人（他等的就是这个结果），
+            # 与代录完成的收件人口径一致。
+            if version.created_by is not None:
+                pending.append(
+                    await notify(
+                        db,
+                        recipient_id=version.created_by,
+                        kind=NotificationKind.SIGN_COMPLETED,
+                        title=f"「{deliverable.title}」已批准",
+                        body="签署流程已全部完成，交付物已批准",
+                        detail=detail,
+                    )
+                )
+        elif decision == "SIGN":
+            pending = await notify_role(
                 db,
                 role=str(next_step.get("sign_role", "")),
                 kind=NotificationKind.SIGN_COMPLETED,
@@ -688,10 +710,7 @@ class DeliverableService:
                 project_id=deliverable.project_id,
                 exclude_user_ids=(actor_user_id,),
             )
-        if sent:
-            # 没人可通知时不额外提交 —— 多一次 commit 会打乱既有测试对
-            # 提交次数的断言，且对数据没有任何好处。
-            await db.commit()
+        return pending
 
     @staticmethod
     def _matrix_steps(matrix: SignatureMatrix | None) -> list[dict[str, Any]]:
@@ -868,9 +887,13 @@ class DeliverableService:
             result_hash=file_hash,
         )
 
+        # ⚠️ 通知行与代录**同一个事务**；推送在提交之后（同 sign_step）。
+        pending = await cls._notify_proxy_recorded(
+            db, deliverable=deliverable, version=version
+        )
         await db.commit()
         await db.refresh(attachment)
-        await cls._notify_proxy_recorded(db, deliverable=deliverable, version=version)
+        await publish(pending)
         return CustomerApprovalProxyOutcome(
             deliverable=deliverable,
             version=version,
@@ -884,33 +907,36 @@ class DeliverableService:
         *,
         deliverable: Deliverable,
         version: DeliverableVersion,
-    ) -> None:
+    ) -> list[NotificationPayload]:
         """代录完成的通知触发（用户 2026-10-20 裁决的最小集合）。
 
         收件人 = 版本提交人。代录闭合的是**他**的交付物的 CUSTOMER 签署步骤，
         他是唯一因此状态发生变化的人。`created_by` 为空时不发也不报错 ——
         「没有明确收件人」是一种状态，不是一次失败。
+
+        ⚠️ **只写不推、不提交**（同 `_notify_sign_outcome`）。
         """
         from app.models.notification import NotificationKind
         from app.services.notifications.notify import notify
         from app.services.notifications.payload import NotificationDetail
 
         if version.created_by is None:
-            return
-        await notify(
-            db,
-            recipient_id=version.created_by,
-            kind=NotificationKind.PROXY_RECORDED,
-            title=f"「{deliverable.title}」客户批准已代录",
-            body="客户批准凭证已登记，签署步骤已闭合",
-            detail=NotificationDetail(
-                project_id=deliverable.project_id,
-                deliverable_id=deliverable.deliverable_id,
-                deliverable_version_id=version.version_id,
-                workflow_type="CUSTOMER_APPROVAL_PROXY",
-            ),
-        )
-        await db.commit()
+            return []
+        return [
+            await notify(
+                db,
+                recipient_id=version.created_by,
+                kind=NotificationKind.PROXY_RECORDED,
+                title=f"「{deliverable.title}」客户批准已代录",
+                body="客户批准凭证已登记，签署步骤已闭合",
+                detail=NotificationDetail(
+                    project_id=deliverable.project_id,
+                    deliverable_id=deliverable.deliverable_id,
+                    deliverable_version_id=version.version_id,
+                    workflow_type="CUSTOMER_APPROVAL_PROXY",
+                ),
+            )
+        ]
 
     # ------------------------------------------------------------------
     # 读面（P9A B4d：动作时间线）

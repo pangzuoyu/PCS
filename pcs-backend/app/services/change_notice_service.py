@@ -35,6 +35,8 @@ from app.models.enums import (
 )
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
+from app.services.notifications.notify import publish
+from app.services.notifications.payload import NotificationPayload
 
 
 class ChangeType(str, enum.Enum):
@@ -342,8 +344,10 @@ class ChangeNoticeService:
             },
         )
 
+        # ⚠️ 通知行与审批**同一个事务**；推送在提交之后（同 sign_step）。
+        pending = await cls._notify_approved(db, deliverable=deliverable, detail=detail)
         await db.commit()
-        await cls._notify_approved(db, deliverable=deliverable, detail=detail)
+        await publish(pending)
 
         return {
             "deliverable_id": deliverable_id,
@@ -358,7 +362,7 @@ class ChangeNoticeService:
         }
 
     @classmethod
-    async def _notify_approved(cls, db, *, deliverable, detail) -> None:
+    async def _notify_approved(cls, db, *, deliverable, detail) -> list[NotificationPayload]:
         """审批通过的通知触发（用户 2026-10-20 裁决的最小接线集合）。
 
         收件人 = 项目的 DESIGNER。**为什么不是「变更单的申请人」** ——
@@ -372,7 +376,7 @@ class ChangeNoticeService:
         from app.services.notifications.notify import notify_role
         from app.services.notifications.payload import NotificationDetail
 
-        sent = await notify_role(
+        return await notify_role(
             db,
             role="DESIGNER",
             kind=NotificationKind.CHANGE_NOTICE_APPROVED,
@@ -386,8 +390,6 @@ class ChangeNoticeService:
             ),
             project_id=deliverable.project_id,
         )
-        if sent:
-            await db.commit()
 
     @classmethod
     async def _apply_record_resolution(
