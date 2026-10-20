@@ -1,8 +1,8 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.4
-发布日期: 2026-09-15
+当前版本: V1.6
+发布日期: 2026-10-20
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
   - PCS-REQ-2026-002-SPEC-P0 V1.2
@@ -427,6 +427,52 @@ IN_APPROVAL	下拉中置灰，Tooltip“物流校对中”
 CHECKED	可选
 OBSOLETE	置灰
 后端 403 为兜底。
+
+5.5 参与人员门禁
+项目下的每一块工作（工作集）有指定的参与人员与签署职责。参与人员在项目开始前由
+项目负责人指定，只有被指定的人员才能在该工作集上创建、审阅、签署相关内容。
+依据：ADR-0050。
+
+5.5.1 两种角色口径（前端不要混用）
+全局角色	组织职务，多个。例：DESIGNER / CHECKER / REVIEWER / APPROVER / PROCESS_CONTROLLER / SYSTEM_ADMIN / VIEWER / DATA_ADMIN。用于菜单、页面级权限（§5.1）。
+签署职责	工作集内具体要干的职能。形如 Project- 前缀 + 全局角色名（Project-DESIGNER / Project-REVIEWER / …）。用于本节门禁。
+两者的关系	每个全局角色有「可被授予的签署职责」集合（资格集），可配置。前端从接口读，不要在前端硬编码任何一张清单。
+⚠️ 前端不得自行推导「某角色能不能审阅」—— 能力（可创建 / 可审阅）是后端配置项，由接口下发。
+
+5.5.2 门禁三条
+工作集	门	判定
+任一	可创建	该用户在此项目此工作集被授予的职责，其对应的全局角色具备「可创建」能力
+任一	可审阅	同上，「可审阅」能力
+任一	可签署	该用户在此项目此工作集被授予的签署职责，等于该步骤要求的职责
+未指定参与人员	全部	该项目此工作集尚无任何参与人员 → 一律不可创建 / 审阅 / 签署
+
+5.5.3 未参与时的前端表现
+沿用 §5.1 的形态：
+
+场景	表现
+主操作按钮（计算 / 保存 / 提交批准 / 签署）	禁用 + Tooltip 说明原因
+列表页	仍可读（可见性由项目访问权决定，与参与人员无关）
+页面直达	403 页
+原因文案	「你不是本项目「管径核算」工作集的参与人员」/「本项目「管径核算」尚未指定参与人员」
+后端 403 为兜底。
+
+⚠️ 与 §5.2 状态门禁的叠加：§5.2 判的是记录态（DRAFT / IN_APPROVAL / …），
+本节判的是项目内分工。两道门**同时**满足才放行 —— 前端不得用其中一个的结论代替另一个。
+
+5.5.4 项目两态
+项目状态	含义	前端表现
+DRAFT	准备中：正在指定参与人员，尚未开工	可进入项目、可查看；创建 / 审阅 / 签署按钮禁用 + Tooltip「项目尚未开始」；参与人员指定入口可用
+ACTIVE	进行中	正常
+项目负责人可见「指定参与人员」入口（仅此角色）。该工作集一旦有产出，人员指定即锁定 —— UI 置灰 + Tooltip「该工作集已有产出，人员不可再调整」。
+
+5.5.5 错误码
+错误码	HTTP	含义	前端
+PROJECT_TASK_NOT_ASSIGNED	403	该项目此工作集尚未指定参与人员	禁用 + Tooltip
+PARTICIPANT_NOT_ASSIGNED	403	你不是该工作集的参与人员	禁用 + Tooltip
+PROJECT_NOT_STARTED	409	项目处于 DRAFT，尚未开始	禁用 + Tooltip
+PARTICIPANTS_LOCKED	409	该工作集已有产出，人员指定已锁定	置灰 + Tooltip
+QUALIFICATION_NOT_MET	403	所授职责超出该用户的全局角色资格上限	提示（通常只出现在指定端点的错误里）
+ERROR	后端 403 为兜底，前端按 code 分支，不解析 message 文本。
 
 6. 跨模块核心组件
 6.1 StateBadge
@@ -1981,6 +2027,7 @@ V1.2	2026-09-17	P5-3 闭环后追加 §7.11.5 PSV 详细字段章节（解决 TO
 V1.3	2026-09-17	P5-4 闭环后追加 §7.11.6 HEAT 详细字段章节：①设计阶段单层（无 BASIC/DETAIL 分级；HeatResult 模型 pcs-backend/app/models/calc.py:456 不含 design_stage 字段，VESSEL/PSV/COLUMN 三表 design_stage 下沉不覆盖 HEAT）；②输入字段（POST /api/v1/heat/import-htri，multipart/form-data：file HTRI Xist v6.0 .txt + project_id + workspace_id + equipment_no + tag_number + exchanger_category ∈ SHELL_TUBE/AIR_COOL/PLATE + equipment_name? + source_stream_id? — 提供则创建 HEAT_CALCULATED outlet stream）；③输出 ImportHtriResponse 201（calc_id + record_hash 16 hex + project_id + equipment_no + tag_number + exchanger_category + duty_w HTRI 热负荷 W + outlet_stream_id + outlet_stream_name HEAT_EXCHANGE 后缀）；④详情 GET /api/v1/heat/{heat_id} 200 HeatResultResponse（calc_id + record_hash + tag_number + equipment_no/equipment_name + exchanger_category + duty P7 UTIL 消费 + input_json/output_json 双轨 + output_json.total_weight_kg 字段可读 P7 UTIL）；⑤重量估算 POST /api/v1/heat/{heat_id}/weight-estimate 200 WeightEstimateResponse（请求体 22 字段 TEMA 9th 几何参数，必填 4 项：tema_type/shell_id_m/shell_length_m/shell_thickness_m；默认 18 项：material/head_*/flange_*/nozzle_*/saddle_*/tube_*/baffle_*；响应 total_weight_kg + shell_total_kg + 9 段 segments 拆分：TEMA 9th 5 段壳体 cylinder/heads/flanges/nozzles/saddles + tube + baffle + channels + shell_total 累加 + formula_ref 顶层含 TEMA 版本 + 各段标准 + clause）；⑥出口流 source_type=HEAT_CALCULATED + change_type=HEAT_EXCHANGE + upstream_equipment_type=HEAT + sign_status=DRAFT + outlet_stream_name = {source}-{HEAT_EXCHANGE}-{uuid 短码}；⑦错误码 HEAT_INPUT_ERROR 422 / HEAT_NOT_FOUND 404 / HEAT_PROJECT_MISMATCH 422 / SIM_STREAM_NOT_FOUND 404；⑧ACL DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN（与 PSV/VESSEL/SEP_EQUIP 一致）。	Claude Code
 V1.4	2026-09-17	P5-3 PSV 泄放工况多选 + SUP-P5-PSV-002 §5.1/5.2 安全阀选型前端部分：①泄放工况由单选 Select 改 mode="multiple"（FIRE/CLOSED_VALVE/REACTION_RUNAWAY/THERMAL_EXPANSION 任意组合勾选），onCalculate 对每个 scenario 并行 POST /api/v1/psv/calculate（Promise.all），取 orifice.actual_area_m2 最大者为主导工况；结果区新增"多工况对比表"（每 scenario 一行：工况/孔口/actual_area_m2/泄放面积/record_hash，max 行高亮"最大（主导）"金标）；②SUP-P5-PSV-002 §5.1 新增"安全阀选型"Collapse（位于"泄放工况"之上），6 字段 UI：阀体型式 Radio.Group（SPRING_LOADED 默认 / BALANCED_BELLOWS / PILOT_OPERATED / RUPTURE_DISC）+ 阀体材料 Select（CARBON_STEEL/SS304/SS316 默认/SS316L/ALLOY）+ 入口尺寸 Select + 出口尺寸 Select + 超压百分比 InputNumber（2%~10%）+ 孔口手动 override Select（API 526 D~T 顺序，可空 → 自动选型）；③§5.2 联动规则前端实现：阀体型式 ∈ {PILOT_OPERATED, RUPTURE_DISC} → 黄色 Alert 警告 + 提交按钮 disabled；blowdown_fraction 越界 → 前端阻止；orifice_override < 计算孔口（ORIFICE_ORDER 索引）→ 计算后阻止提交；④§4.2 G7/G8/G9 错误码前端解析（后端 extra='ignore' 静默兼容，等后端契约扩展后自动激活）：PSV_PILOT_OPERATED_NOT_SUPPORTED / PSV_RUPTURE_DISC_NOT_SUPPORTED / PSV_ORIFICE_OVERRIDE_TOO_SMALL；⑤types/psv.ts 新增 PsvValveType / PsvBodyMaterial 枚举 + 3 新字段（valve_type/body_material/orifice_override）扩展 PsvCalculateRequest；⑥SPEC SUP-P5-PSV-002 V1.0 状态：待评审（本批次仅落地前端部分，后端契约扩展待 SPEC 评审通过后启动）。	Claude Code
 V1.5	2026-10-06	P7 Sprint 4 S4-2/S4-3 落地反馈（docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md）：①§7.14「结论」枚举由 3 档（合格/警告/不合格）扩为 4 档，追加「不可判」UNVERDICTABLE，语义为「判不了」而非「不合格」，且与不合格一并阻断确认门禁（fail-closed：把不可判并入合格会让 §3.2.4(4) 的确认门禁形同虚设，一个从未被测量的值能拿到「已确认」）；②同批登记 pcs-backend/app/api/v1/supplier.py 的 5 条端点实际发布在 `/api/v1/equipment/...` 而非本 SPEC 早期描述的 `/api/v1/equipment-list/...`（后者是另一个已挂载 router，按 SPEC 写的客户端会 404，且该 404 与「设备不存在」不可区分），登记见 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` 关联的 SPEC-ADD-002；③Excel 批量导入端点（S4-1 裁决不实现）已在 SPEC 侧标注删除线。	Claude Code
+V1.6	2026-10-20	P9A 新增 §5.5 参与人员门禁（依据 ADR-0050，用户 2026-10-20 裁决）：①§5.5 新增两种角色口径（全局角色 / 签署职责，后者为 `Project-` 前缀 + 全局角色名的机械派生）与三条门（可创建 / 可审阅 / 可签署）及未参与时的前端表现；②新增项目两态（DRAFT 准备中 / ACTIVE 进行中）与转态前置；③新增 5 个错误码（PROJECT_TASK_NOT_ASSIGNED / PARTICIPANT_NOT_ASSIGNED / PROJECT_NOT_STARTED / PARTICIPANTS_LOCKED / QUALIFICATION_NOT_MET）；④明确 §5.2 记录态门禁与 §5.5 项目内分工门禁**同时**满足才放行；⑤**连带修正**：文件头「当前版本」原为 V1.4，而 §12.4 修订记录已到 V1.5 —— 版本漂移，本次一并校正为 V1.6；⑥本版**不含** ADR-0047 / ADR-0049 承诺要写入的 P9A-OBS-001~004 / P9A-NOT-001~006 条款（至今未写，欠账登记在 ADR-0050「尚未解决」）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
@@ -2047,3 +2094,67 @@ None（无 TOE 折算，纯 utility 计数）」。这与炼化强制国标 **GB
 两处均由 `tests/services/util/test_gas_media_and_low_temp_heat.py` 抓出并修正。
 
 
+
+---
+
+## §5.5 修订登记 — 签署职责 / 参与人员 / 项目生命周期 (2026-10-20)
+
+**修订人**: PCS 实现自验　**依据**: ADR-0050（用户 2026-10-20 裁决）
+
+### 背景
+
+§5 此前只有四种门禁：权限组件（§5.1）、记录状态（§5.2）、工作区类型（§5.3）、
+物流引用（§5.4）。**没有一道门管「项目内的分工」**。
+
+实测发现三个互相咬合的问题（ADR-0050 背景，逐条带代码位置）：
+
+1. **签署矩阵比的是「全局角色」**。`app/services/deliverable_service.py:533-538` 拿
+   token 的 `role` claim 与 `steps_json[].sign_role` 直接比较，不匹配即 403
+   `SIGN_STEP_ROLE_MISMATCH`；而项目侧（`app/api/v1/deliverables.py:74-92`）
+   **只校验成员身份**。⇒ 「能签第 N 步」= 有项目授权 **且** 全局角色匹配。
+2. **项目内角色至今零授权消费方**。`user_projects.role_in_project` 被存下来、
+   在 `user_projects` 端点响应里显示，但 `check_user_project_access(required_role=...)`
+   的比对分支**全仓 4 个调用点没有一个传它** ⇒ 签署链路**根本不读**项目内角色。
+3. **「项目开始前」没有可挂靠的时点**。`ProjectStatus` 5-state 被刻意拆出
+   （`app/models/enums.py:148-160`「待业务需求驱动落地」），`projects.status`
+   只有 `ACTIVE` 默认，且**全仓没有项目创建端点**。
+
+另有一处**词表漂移**（ADR-0050 背景 §①）：`current_actor._ALLOWED_ROLES`（含 `VIEWER`）、
+`ApprovalRole`（含 `DATA_ADMIN`、无 `VIEWER`）、`VALID_PROJECT_ROLES` 三份清单
+互有出入，**无任何契约测试互相对齐**。
+
+### 修订内容
+
+新增 **§5.5 参与人员门禁**（5 小节）：
+
+| 小节 | 内容 |
+|---|---|
+| 5.5.1 | 两种角色口径：全局角色（组织职务，多个）/ 签署职责（`Project-` 前缀 + 全局角色名，机械派生）。**前端不得硬编码任何一张清单，也不得自行推导「某角色能不能审阅」** —— 能力是后端配置项 |
+| 5.5.2 | 三条门：可创建 / 可审阅 / 可签署 + 「未指定参与人员」时一律不可 |
+| 5.5.3 | 未参与时的前端表现（沿用 §5.1 形态：按钮禁用 + Tooltip / 页面 403） |
+| 5.5.4 | 项目两态 DRAFT / ACTIVE + 参与人员指定入口（仅项目负责人）+ 锁定规则 |
+| 5.5.5 | 5 个错误码 |
+
+**关键定义（前端据此编码）**：
+
+- **参与人员** = 在 (项目, 工作集) 上被授予了签署职责的人。**不另立「参与人员」概念**
+  —— 那是同一件事的第二份清单。
+- **工作集** = 项目下的单一工作集（用户口径：「任务」）。例：SIM / 管径核算 / 泵计算。
+  **每个工作集各有各的签署流程**（矩阵按 (项目, 工作集) 绑定）。
+- **资格上限**：可被授予的签署职责受全局角色的「资格集」约束，且**资格集可配置**。
+  ⇒ 后端在授权时与使用时**各查一次**（后者防「全局角色降级后旧授权仍生效」）。
+- **单一签署职责**：一个用户在一个项目的一个工作集上只有一个职责
+  （`UNIQUE (user_id, project_id, work_set)`）⇒ 职责分离由结构保证。
+
+### 刻意未改
+
+- **§5.2 记录状态门禁不动。** 那一道判的是**记录态**（DRAFT / IN_APPROVAL / …），
+  §5.5 判的是**项目内分工**。两道门**同时**满足才放行 —— §5.5.3 已写明
+  「前端不得用其中一个的结论代替另一个」。
+- **§5.3 工作区门禁不动。** FORMAL / PERSONAL / TEMPORARY 的区分与参与人员无关。
+- **§5.1 权限组件形态不动。** §5.5 复用「按钮禁用 + Tooltip 原因 / 菜单项隐藏 / 页面 403」
+  这套既有表现，不新造一套。
+- **§7 各模块 UI 规格不动。** 本次只增门禁章节；各模块 Page 的具体接线属后续实现批次。
+- **P9A-OBS-001~004 / P9A-NOT-001~006 仍未写。** ADR-0047 §后果 与 ADR-0049 §⑥
+  承诺要写进 SPEC 的这两组条款**至今 0 命中**。本版**不补**（超出本轮范围），
+  欠账登记在 ADR-0050「尚未解决」与 `TODOS.md`。

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T06:56:04.731Z",
-    "fileCount": 910,
+    "lastScanned": "2026-10-20T08:21:22.483Z",
+    "fileCount": 911,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3504dd690befa2c575180c6e56858276705298b49defa93bf70572e879ec096d",
-    "storeUpdatedAt": "2026-10-20T06:56:04.743Z",
-    "rootHash": "1e2e2101a69fefd0"
+    "renderedHash": "8fc21e6123d90f6a4230bafccaed41041916c0b52e0c9e9a528660f906054d12",
+    "storeUpdatedAt": "2026-10-20T08:21:22.494Z",
+    "rootHash": "adcaa7cc0f9d4ce9"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1757,13 +1757,12 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 9161,
-      "hash": "9fe09fdc7c98ad4c",
-      "size": 56182,
-      "mtimeMs": 1790777320891.7783,
-      "updatedAt": "2026-10-02T12:43:34.561Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 10352,
+      "hash": "5d43578b5bb6483f",
+      "size": 64703,
+      "mtimeMs": 1792484482429.908,
+      "updatedAt": "2026-10-20T08:21:22.483Z",
+      "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
       "description": "P0 骨架 + Schema 实施计划",
@@ -31591,6 +31590,15 @@
           "tokens": 541
         }
       ]
+    },
+    "docs/adr/0050-sign-responsibility-and-task-participation.md": {
+      "description": "ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期",
+      "tokens": 5015,
+      "hash": "5221d21cff295962",
+      "size": 30266,
+      "mtimeMs": 1792484447732.8308,
+      "updatedAt": "2026-10-20T08:20:47.783Z",
+      "source": "hook"
     }
   }
 }

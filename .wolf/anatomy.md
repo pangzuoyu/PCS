@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T06:56:04.731Z
-> Files: 910 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T08:21:22.483Z
+> Files: 911 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -300,7 +300,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~9161 tok)
+- `PCS-UI-SPEC.md` (~10352 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -340,6 +340,7 @@
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3499 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
+- `0050-sign-responsibility-and-task-participation.md` — ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期 (~5015 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
