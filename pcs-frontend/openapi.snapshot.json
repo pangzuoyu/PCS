@@ -21319,6 +21319,31 @@
       },
       "CoolTowerResultUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "tower_type": {
             "anyOf": [
               {
@@ -21944,6 +21969,18 @@
             ],
             "title": "Scaling Exponent"
           },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex；P9A-4 D0 新增的并发令牌）"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -21965,6 +22002,31 @@
       },
       "CostEstUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "estimated_cost": {
             "anyOf": [
               {
@@ -25738,6 +25800,31 @@
       },
       "FiltrationUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "filter_type": {
             "anyOf": [
               {
@@ -26465,6 +26552,31 @@
       },
       "FlareResultUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "calc_type": {
             "anyOf": [
               {
@@ -30132,6 +30244,31 @@
       },
       "OpenChannelUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "channel_type": {
             "anyOf": [
               {
@@ -31809,6 +31946,31 @@
       },
       "PsychroResultUpdateRequest": {
         "properties": {
+          "expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Hash",
+            "description": "客户端看到的 record_hash（16 hex）；必填，否则 409"
+          },
+          "expected_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Updated At",
+            "description": "客户端看到的 updated_at（无 hash 令牌时的第二档基线）"
+          },
           "humidity_ratio_kg_kg": {
             "anyOf": [
               {

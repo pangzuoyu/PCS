@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T09:42:07.581Z
-> Files: 939 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T13:33:19.448Z
+> Files: 941 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1150,6 +1150,7 @@
 - `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~819 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
+- `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~4448 tok)
 - `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~3102 tok)
@@ -1354,6 +1355,7 @@
 ## pcs-backend/tests/api/v1/
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
+- `test_change_impact_confirm.py` — CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。 (~2805 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)

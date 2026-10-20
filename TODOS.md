@@ -990,3 +990,34 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
 - **发现**：2026-10-20，P9A C lane 自查
 - **严重度**：✅（已被 ADR-0050 取代）
 - **关联**：ADR-0050、TODO-054
+
+---
+
+## TODO-060: `record_type` 存在两套词表（类名 vs 表名）
+
+| URL 空间 | 词表 | 例 |
+|---|---|---|
+| `/change-impact/{record_type}` | **类名**（`RECORD_TYPE_REGISTRY` 的键） | `PipingResult` / `CostEstResult` |
+| `/results/{id}`（PATCH 6 个端点）+ `/locks/{record_type}` | **表名** | `cost_est_results` / `psychro_results` |
+| `record_comments.record_type`（DB 列） | **类名** | `PipingResult` |
+
+⇒ 同一概念（「这条记录是什么类型」）**三处三套写法**。
+
+- **发现**：2026-10-20，P9A-4 D3 实施时（`change_impact.py` 加 `confirm` 端点，
+  必然要选一个词表）。
+- **为什么当时没统一**：D3 的新端点与既有的 `confirm-recalc` **同一个 URL
+  空间** ⇒ 必须跟它一致（类名）；而 D2 的编辑 guard 与 `/locks` 是**另一个
+  URL 空间**，且已在 SPEC §6.21 P9A-LCK-001~006 写死了表名 ⇒ 改它要连带改
+  SPEC 与前端契约。
+- **转换路径存在**：`model.__tablename__` ↔ `RECORD_TYPE_REGISTRY` 双向可换
+  ⇒ 归一不是技术问题，是**要不要现在动**的判断。
+- **风险（不动的代价）**：前端把 `CostEstResult` 传给 `/locks` 会静默落空
+  （锁服务不校验类型 ⇒ 锁写到一个没人读的名字上）；反过来把
+  `cost_est_results` 传给 `/change-impact` ⇒ 404（注册表查不到）。
+  ⇒ 两边都**不会报错给用户看** ⇒ 属「错得安静」的一类。
+- **建议**：随 P9A 前端接 §6.21 时一并归一（前端本来就要按 SPEC 新写这两处
+  调用）⇒ 一次性改 SPEC + 两处后端 + 前端类型定义。**不要**在 D lane 内
+  单方面改后端（会把已发布的契约与 SPEC 对不上）。
+- **严重度**：MEDIUM（当前无调用方 ⇒ 无实际故障；前端接的时候必须一起改）
+- **关联**：ADR-0050（同一形状的词表分叉）、ADR-0048 §⑥、
+  `docs/PCS-UI-SPEC.md` §6.21、`RECORD_TYPE_REGISTRY`（见 TODO-048）

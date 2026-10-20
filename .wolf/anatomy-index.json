@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T09:42:07.581Z",
-    "fileCount": 939,
+    "lastScanned": "2026-10-20T13:33:19.448Z",
+    "fileCount": 941,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7b3135c9353f17001465539652b7023171ccfaee3447b3bde6a526060f1b7fb3",
-    "storeUpdatedAt": "2026-10-20T09:42:07.592Z",
-    "rootHash": "1a32b0b6d7d76a46"
+    "renderedHash": "2235eadfe6dd5184f742249e758e5352558f27770575ebf67579c2270f7a343b",
+    "storeUpdatedAt": "2026-10-20T13:33:19.459Z",
+    "rootHash": "632e087f9cdfeb40"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -34071,6 +34071,182 @@
       "mtimeMs": 1792489327527.0295,
       "updatedAt": "2026-10-20T09:42:07.581Z",
       "source": "hook"
+    },
+    "pcs-backend/app/api/v1/change_impact.py": {
+      "description": "Change Impact API（Sprint 3 + P9A-4 D3）。",
+      "tokens": 3812,
+      "hash": "2ffbf65397e89ce1",
+      "size": 15430,
+      "mtimeMs": 1792503171856.6167,
+      "updatedAt": "2026-10-20T13:32:51.918Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "LatestLineageResponse",
+          "kind": "class",
+          "startLine": 63,
+          "endLine": 70,
+          "tokens": 76
+        },
+        {
+          "name": "ConfirmRecalcResponse",
+          "kind": "class",
+          "startLine": 71,
+          "endLine": 84,
+          "tokens": 162
+        },
+        {
+          "name": "ImpactConfirmResponse",
+          "kind": "class",
+          "startLine": 85,
+          "endLine": 107,
+          "tokens": 263
+        },
+        {
+          "name": "ManualAdjustRequest",
+          "kind": "class",
+          "startLine": 108,
+          "endLine": 124,
+          "tokens": 135
+        },
+        {
+          "name": "_resolve_model",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 134,
+          "tokens": 89
+        },
+        {
+          "name": "_load_record",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 150,
+          "tokens": 153
+        },
+        {
+          "name": "_classify_change",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 195,
+          "tokens": 423
+        },
+        {
+          "name": "_resolve_stale",
+          "kind": "fn",
+          "startLine": 196,
+          "endLine": 269,
+          "tokens": 696
+        },
+        {
+          "name": "confirm_recalc",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 337,
+          "tokens": 654
+        },
+        {
+          "name": "confirm_impact",
+          "kind": "fn",
+          "startLine": 338,
+          "endLine": 372,
+          "tokens": 308
+        },
+        {
+          "name": "manual_adjust_impact",
+          "kind": "fn",
+          "startLine": 373,
+          "endLine": 405,
+          "tokens": 243
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_change_impact_confirm.py": {
+      "description": "CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。",
+      "tokens": 2805,
+      "hash": "8f651a0d54d3bf96",
+      "size": 10690,
+      "mtimeMs": 1792503199392.1772,
+      "updatedAt": "2026-10-20T13:33:19.448Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth_headers",
+          "kind": "fn",
+          "startLine": 25,
+          "endLine": 33,
+          "tokens": 79
+        },
+        {
+          "name": "_make_pipe",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 63,
+          "tokens": 223
+        },
+        {
+          "name": "_stale_pipe_with_lineage",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 91,
+          "tokens": 243
+        },
+        {
+          "name": "test_confirm_and_confirm_recalc_are_separate_endpoints",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 116,
+          "tokens": 252
+        },
+        {
+          "name": "test_unchanged_result_returns_no_change_without_credentials",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 143,
+          "tokens": 298
+        },
+        {
+          "name": "test_changed_result_requires_change_pending_credentials",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 164,
+          "tokens": 226
+        },
+        {
+          "name": "test_confirm_reuses_cia_engine_hash_comparison",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 194,
+          "tokens": 275
+        },
+        {
+          "name": "test_confirm_on_a_non_stale_record_is_409",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 212,
+          "tokens": 200
+        },
+        {
+          "name": "test_manual_adjust_requires_permission_and_writes_audit",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 249,
+          "tokens": 404
+        },
+        {
+          "name": "test_manual_adjust_requires_a_reason",
+          "kind": "fn",
+          "startLine": 250,
+          "endLine": 260,
+          "tokens": 144
+        },
+        {
+          "name": "test_stale_resolution_path_is_recorded_on_both_paths",
+          "kind": "fn",
+          "startLine": 261,
+          "endLine": 283,
+          "tokens": 295
+        }
+      ]
     }
   }
 }

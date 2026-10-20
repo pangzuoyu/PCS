@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.8
+当前版本: V1.9
 发布日期: 2026-10-20
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -667,6 +667,25 @@ text
 │ [批量确认重算]  [全部暂不处理]                │
 └─────────────────────────────────────────────┘
 受影响行橙色左边框 + 警告图标。
+
+6.7.1 变更影响的「确认」动作（P9A-CIA-001 / P9A-CIA-002）
+STALE 记录（上游变更导致本记录结论待复核）有两种结法：
+
+系统判定（默认）	POST /api/v1/change-impact/{record_type}/{record_id}/confirm
+后端按哈希比对分流，两条分支一处都不许前端自己判：
+结果不变	→ 记录回 CHECKED，**免凭证**（不必重新签署）
+结果变化	→ 记录进 CHANGE_PENDING，**要求重新签署**
+人工判定	POST /api/v1/change-impact/{record_type}/{record_id}/manual-adjust
+body {decision: "NO_CHANGE"|"CHANGED", reason: "…"}
+人工覆盖系统判定 ⇒ **限权**（NO_CHANGE 需 CHECKER/SYSTEM_ADMIN）+ **审计**（含 reason）。
+
+⚠️ **两个端点不可合并**：confirm 是系统判定，manual-adjust 是人工判定。
+⚠️ 人工判定的 reason **必填**（空 ⇒ 422）—— 人工判定必须有据可查。
+⚠️ 按钮文案随响应的 decision 分流（NO_CHANGE ⇒「确认：结果未变」；
+CHANGED ⇒「确认：结果已变」+ 提示「须重新签署」）。
+⚠️ **不得自动重试**（会无限循环覆盖）。
+⚠️ record_type 用**类名**（PipingResult / CostEstResult …）——
+⚠️ 与 /results、/locks 的**表名**不是同一套词表（见 TODO-060）。
 
 6.8 InputChecklistPanel
 用途：输入清单仪表盘。
@@ -2126,6 +2145,7 @@ V1.5	2026-10-06	P7 Sprint 4 S4-2/S4-3 落地反馈（docs/PCS-NOTE-SPEC-3.2.4(3)
 V1.6	2026-10-20	P9A 新增 §5.5 参与人员门禁（依据 ADR-0050，用户 2026-10-20 裁决）：①§5.5 新增两种角色口径（全局角色 / 签署职责，后者为 `Project-` 前缀 + 全局角色名的机械派生）与三条门（可创建 / 可审阅 / 可签署）及未参与时的前端表现；②新增项目两态（DRAFT 准备中 / ACTIVE 进行中）与转态前置；③新增 5 个错误码（PROJECT_TASK_NOT_ASSIGNED / PARTICIPANT_NOT_ASSIGNED / PROJECT_NOT_STARTED / PARTICIPANTS_LOCKED / QUALIFICATION_NOT_MET）；④明确 §5.2 记录态门禁与 §5.5 项目内分工门禁**同时**满足才放行；⑤**连带修正**：文件头「当前版本」原为 V1.4，而 §12.4 修订记录已到 V1.5 —— 版本漂移，本次一并校正为 V1.6；⑥本版**不含** ADR-0047 / ADR-0049 承诺要写入的 P9A-OBS-001~004 / P9A-NOT-001~006 条款（至今未写，欠账登记在 ADR-0050「尚未解决」）。	Claude Code
 V1.7	2026-10-20	P9A-4 D1 新增 §6.21 EditLockIndicator（依据 ADR-0048，编辑锁 = Redis 体验层 + DB 正确性层两层锁）：①新增 P9A-LCK-001~005 五条（取锁 / 60s 心跳 / 只读化边界 / 降级横幅 / 与保存冲突的分工）；②§3.2 TopBar 增「编辑锁降级横幅」一行（文案取后端 message 原文，前端不改写）；③明确「他人持锁」只禁用保存、不阻断浏览复制，禁用原因写「谁在改」而非「无权限」；④明确「我拿到锁」不等于「保存一定成功」（保存冲突由 record_hash 比对裁定）。本版不含 ADR-0047 / ADR-0049 承诺的 P9A-OBS-001~004 / P9A-NOT-001~006（仍欠账）。	Claude Code
 V1.8	2026-10-20	P9A-4 D2 补 §6.21 P9A-LCK-006（保存请求的并发基线与 409 契约，依据 ADR-0048 §⑥§⑦）：①PATCH 请求体**必填** expected_hash（可选 expected_updated_at），**不带基线 ⇒ 409**（服务端无法判定并发 ⇒ 不得放行）；②给出 409 响应体全文（仓库统一错误信封 `{code, message, detail, trace_id}`，冲突对象在 `detail.conflict` —— ADR-0048 §⑦ 原文的顶层三字段已按仓库信封归一，ADR 已修订）；③前端按 basis 三值分流文案与动作（record_hash / updated_at / no_baseline），**不得自动重试**；④changed_by / changed_at 为 null 时不得用 updated_at 冒充；⑤「查看差异」靠审计里的 changed_fields（字段名列表）。	Claude Code
+V1.9	2026-10-20	P9A-4 D3 补 §6.7.1 变更影响的「确认」动作（P9A-CIA-001/002，依据 ADR-0048 与 P9-Prep 交付面清单 §3）：①新增两个**不可合并**的端点 —— `confirm`（系统按哈希判定分流：结果不变 ⇒ 免凭证回 CHECKED；结果变化 ⇒ 进 CHANGE_PENDING 要求重新签署）与 `manual-adjust`（人工判定，reason 必填，限权 + 审计）；②明确按钮文案随响应的 decision 分流、不得自动重试；③登记 record_type 词表差（类名 vs 表名，TODO-060）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

@@ -7335,6 +7335,16 @@ export interface components {
          */
         CoolTowerResultUpdateRequest: {
             /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
+            /**
              * Tower Type
              * @description 塔型（COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT）
              */
@@ -7662,6 +7672,11 @@ export interface components {
             /** Scaling Exponent */
             scaling_exponent?: number | null;
             /**
+             * Record Hash
+             * @description record_hash（16 hex；P9A-4 D0 新增的并发令牌）
+             */
+            record_hash?: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description 创建时间
@@ -7673,6 +7688,16 @@ export interface components {
          * @description PATCH /cost-est/results/{id} 请求（partial update）。
          */
         CostEstUpdateRequest: {
+            /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
             /** Estimated Cost */
             estimated_cost?: number | null;
             /** Currency */
@@ -9841,6 +9866,16 @@ export interface components {
          *     ``extra="forbid"``：未知字段 → Pydantic 422，避免 service 层 silent drop。
          */
         FiltrationUpdateRequest: {
+            /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
             /** Filter Type */
             filter_type?: string | null;
             /** Media Type */
@@ -10225,6 +10260,16 @@ export interface components {
          *     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number / 溯源等）
          */
         FlareResultUpdateRequest: {
+            /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
             /**
              * Calc Type
              * @description 计算类型
@@ -12664,6 +12709,16 @@ export interface components {
          *     ``extra="forbid"``：未知字段 → Pydantic 422，避免 service 层 silent drop。
          */
         OpenChannelUpdateRequest: {
+            /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
             /** Channel Type */
             channel_type?: string | null;
             /** Cross Section Json */
@@ -13642,6 +13697,16 @@ export interface components {
          *     溯源 / standard_profile_code / calc_type / coolprop_version 等）。
          */
         PsychroResultUpdateRequest: {
+            /**
+             * Expected Hash
+             * @description 客户端看到的 record_hash（16 hex）；必填，否则 409
+             */
+            expected_hash?: string | null;
+            /**
+             * Expected Updated At
+             * @description 客户端看到的 updated_at（无 hash 令牌时的第二档基线）
+             */
+            expected_updated_at?: string | null;
             /**
              * Humidity Ratio Kg Kg
              * @description 湿度比 kg/kg dry air
