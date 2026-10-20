@@ -443,6 +443,25 @@ async def delete_cool_tower_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠️ **补上完全缺失的项目鉴权**（2026-10-20 P9A-4 D2 修，bug-2039）。
+    # 本端点原先**根本没有** BLOCKER-3 守卫 ⇒ 任何有 DESIGNER 角色的登录
+    # 用户都能软删**别人项目**的冷却塔结果（service 传的 project_id=None
+    # ⇒ 那一步也没有任何隔离）。
+    from sqlalchemy import select as _sa_select
+
+    from app.models.calc import CoolingTowerResult
+    pre_record = (await db.execute(
+        _sa_select(CoolingTowerResult).where(
+            CoolingTowerResult.cooling_tower_id == record_id
+        )
+    )).scalar_one_or_none()
+    if pre_record is None:
+        raise HTTPException(
+            status_code=404, detail="CoolingTowerResult not found"
+        )
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+    )
     ok = await soft_delete_cool_tower_result_service(
         db, record_id=record_id, project_id=None
     )

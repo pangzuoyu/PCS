@@ -660,6 +660,24 @@ async def update_psychro_result(
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     actor_roles_list = list(user.roles)
+    # ⚠️ **先鉴权，再保存**（2026-10-20 P9A-4 D2 修）。
+    # 原先是「保存之后才鉴权」⇒ 无权者能改到**别人项目**的记录
+    # （service 取记录时**不带 project_id** ⇒ 那一步没有任何隔离），
+    # 鉴权只把**响应**变成 404 —— 行已经改了。
+    # ⚠️ 顺带修：D2 的 409 响应带**持锁人身份**（user_id + acquired_at），
+    # 若它在鉴权之前，无权者就能问出「谁在改这条记录」⇒ 顺序必须鉴权在前。
+    from sqlalchemy import select as _sa_select
+
+    from app.models.calc import PsychroResult
+    pre_record = (await db.execute(
+        _sa_select(PsychroResult).where(PsychroResult.psychro_id == record_id)
+    )).scalar_one_or_none()
+    if pre_record is None:
+        raise HTTPException(status_code=404, detail="PsychroResult not found")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=pre_record.project_id,
+        actor_roles=actor_roles_list,
+    )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
         db,
@@ -691,11 +709,6 @@ async def update_psychro_result(
         raise HTTPException(
             status_code=404, detail="PsychroResult not found"
         )
-    # BLOCKER-3 P7-7+: record 级守卫 (SYSTEM_ADMIN bypass)
-    await check_project_access_or_404(
-        db, user_id=user.user_id, project_id=record.project_id,
-        actor_roles=actor_roles_list,
-    )
     # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
     await record_edit_audit(
         db,
