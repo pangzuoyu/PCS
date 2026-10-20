@@ -2209,3 +2209,14 @@
 | 01:12 | Edited docs/PCS-UI-SPEC.md | 3→7 lines | ~47 |
 | 01:13 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md | — | ~647 |
 | 01:15 | P9A Z 收口：SPEC 欠账补写（UI-SPEC V2.1 十条 + P9 SPEC V2.1 §7.2.1 验收登记）+ OpenAPI baseline 滚动 + 通知 500ms 验收 + 修前端生产崩溃（bug-2040） | docs/PCS-UI-SPEC.md · spec/PCS-REQ-2026-002-SPEC-P9*.md · docs/adr/0050*.md · pcs-backend/tests/api/v1/test_notification_list_budget.py · pcs-backend/tests/services/test_workflow_progress_acceptance.py · pcs-backend/docs/openapi-baseline.json · pcs-frontend/src/api/{notifications,todos}.ts · pcs-frontend/src/components/common/NotificationCenter.tsx · pcs-frontend/src/layouts/MainLayout.tsx · pcs-frontend/src/mocks/handlers.ts · pcs-frontend/tests/{layouts/MainLayout,components/common/NotificationCenter,mocks/handlers}.test.tsx · TODOS.md | 完成。后端 5157 passed / 前端 725 passed / 两库 alembic clean / 浏览器回归 10 项全过 | ~95k |
+| 05:44 | Created docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | — | ~7786 |
+| 05:44 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | expanded (+7 lines) | ~406 |
+| 05:44 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | toBeTruthy() → toContain() | ~66 |
+| 05:45 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | expanded (+30 lines) | ~562 |
+| 05:45 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | expanded (+9 lines) | ~606 |
+| 05:46 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | 7→8 lines | ~185 |
+| 05:46 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | modified for() | ~887 |
+| 05:46 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | 9→9 lines | ~64 |
+| 05:46 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | expanded (+35 lines) | ~486 |
+| 05:46 | Edited docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | added optional chaining | ~466 |
+| 07:55 | Created docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | — | ~11556 |

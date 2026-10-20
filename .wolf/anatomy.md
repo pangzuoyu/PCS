@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T17:13:30.078Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T23:55:16.757Z
 > Files: 961 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -301,7 +301,7 @@
 - `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14616 tok)
 - `PCS-PLAN-P9A-5-债项清理.md` — P9A-5 计划：`record_type` 词表归一（TODO-060）+ cost_est 项目隔离（TODO-061） (~1158 tok)
 - `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~3834 tok)
-- `PCS-PLAN-P9B-1-结果记录页与编辑锁.md` — P9B-1 计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1） (~1388 tok)
+- `PCS-PLAN-P9B-1-结果记录页与编辑锁.md` — P9B-1 实施计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1 / §6.22~§6.24） (~10833 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
