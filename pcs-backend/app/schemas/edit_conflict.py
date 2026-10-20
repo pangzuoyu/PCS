@@ -93,6 +93,33 @@ class EditBaselineMixin(BaseModel):
     )
 
 
+class ConflictEnvelope(BaseModel):
+    """**409 冲突的完整响应体**（P9A-5 · SPEC §6.21 P9A-LCK-006）。
+
+    ⚠️ **为什么要有它**：6 个 PATCH 端点原先只声明 `200` / `422` ⇒ 409 的形状
+    **不在 OpenAPI 里**（`ConflictDetail` 也不是 component schema）
+    ⇒ 前端拿不到类型，只能照 SPEC 里的示例手写一份 —— 那正是「同一契约两份
+    清单」，字段一改就静默漂移。
+
+    ⚠️ 形状与仓库统一错误信封一致（`app/core/errors.py::ErrorResponse`：
+    `code` / `message` / `detail` / `trace_id`）；冲突对象在 **`detail.conflict`**
+    （ADR-0048 §⑦ 的原文顶层三字段已按仓库信封归一）。
+    """
+
+    code: str = Field(..., description="错误码（编辑冲突恒为 RECORD_EDIT_CONFLICT）")
+    message: str = Field(..., description="给用户的一句话结论（两种 basis 共用）")
+    detail: ConflictDetailWrapper | None = Field(
+        None, description="详情；编辑冲突时冲突对象在 `conflict`"
+    )
+    trace_id: str = Field(..., description="链路追踪 ID（X-Trace-ID header 同值）")
+
+
+class ConflictDetailWrapper(BaseModel):
+    """`detail` 的形状（只声明编辑冲突用到的那一种）。"""
+
+    conflict: ConflictDetail = Field(..., description="冲突详情（前端按 basis 分流）")
+
+
 #: 需要从业务 payload 里剔除的基线字段名。
 BASELINE_FIELDS: frozenset[str] = frozenset({"expected_hash", "expected_updated_at"})
 
@@ -101,6 +128,8 @@ __all__ = [
     "BASELINE_FIELDS",
     "ConflictBasis",
     "ConflictDetail",
+    "ConflictDetailWrapper",
+    "ConflictEnvelope",
     "EditAuditDetail",
     "EditBaselineMixin",
 ]

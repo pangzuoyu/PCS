@@ -192,52 +192,6 @@ export interface PsychroResultCreateRequest {
   output_json?: Record<string, unknown> | null;    // 出参（业务子结构）
 }
 
-/** PATCH /psychro/results/{record_id} 请求体：业务字段子集（不可改 sign_status / tag_number / 溯源 / standard / calc_type / coolprop_version）。 */
-export interface PsychroResultUpdateRequest {
-  humidity_ratio_kg_kg?: number | null;             // 湿度比 kg/kg dry air
-  dew_point_c?: number | null;                     // 露点温度 °C
-  wet_bulb_c?: number | null;                      // 湿球温度 °C
-  enthalpy_kj_kg?: number | null;                  // 比焓 kJ/kg dry air
-  specific_volume_m3_kg?: number | null;           // 比容 m³/kg dry air
-  sensible_heat_kw?: number | null;                // 显热 kW（cooling_coil 专用）
-  latent_heat_kw?: number | null;                  // 潜热 kW（cooling_coil 专用）
-  input_json?: Record<string, unknown> | null;     // 入参（业务子结构）
-  output_json?: Record<string, unknown> | null;    // 出参（业务子结构）
-}
-
-/** PsychroResult 单条响应（GET /psychro/results/{id} 与 POST 201 body）：溯源 + 12 业务字段 + 时间戳。ORM PK `psychro_id` 重命名为 schema `id`。 */
-export interface PsychroResultResponse {
-  id: string;                                      // UUID（PsychroResult.psychro_id；ORM PK 重命名）
-  project_id: string;                              // UUID
-  workspace_id: string;                            // UUID
-  tag_number: string;
-  standard_profile_code: string;
-  calc_type: PsychroCalcType;
-  coolprop_version: string | null;                 // CoolProp 版本（如 '6.6.0'）；溯源 — service 层从 CoolProp.get_global_param_string("version") 自动填入；缺省 / 失败时兜底 "unknown"
-  sign_status: RecordSignStatus;                   // 签审状态 9 态
-  record_hash: string | null;                      // 16 hex（ADR-0028 §决策 4 reflection）
-  // 10 业务字段
-  humidity_ratio_kg_kg: number | null;
-  dew_point_c: number | null;
-  wet_bulb_c: number | null;
-  enthalpy_kj_kg: number | null;
-  specific_volume_m3_kg: number | null;
-  sensible_heat_kw: number | null;
-  latent_heat_kw: number | null;
-  input_json: Record<string, unknown> | null;
-  output_json: Record<string, unknown> | null;
-  created_at: string;                              // ISO datetime
-  updated_at: string | null;                       // ISO datetime
-}
-
-/** GET /psychro/results 响应：PsychroResultResponse 列表 + 命中条数（受 sign_status_filter 影响）+ 分页回显。 */
-export interface PsychroResultListResponse {
-  items: PsychroResultResponse[];
-  total: number;                                   // 命中条数（默认 DRAFT/CHECKED filter）
-  limit: number;                                   // 分页上限
-  offset: number;                                  // 分页偏移
-}
-
 // ---------------------------------------------------------------------------
 // 饱和水含量（C-17 / P6-4 T4；POST /psychro/saturation-water-content/calculate）
 // api.d.ts 已 regen（P6-5+ G-08 baseline 滚动后），直接 re-export。

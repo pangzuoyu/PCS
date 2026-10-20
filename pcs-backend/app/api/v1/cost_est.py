@@ -52,7 +52,7 @@ from app.schemas.cost_est import (
     SixTenthsRuleCalcRequest,
     SixTenthsRuleCalcResponse,
 )
-from app.schemas.edit_conflict import BASELINE_FIELDS
+from app.schemas.edit_conflict import BASELINE_FIELDS, ConflictEnvelope
 from app.services.cost_est import (  # 8 persist（Task 36）
     # 3 calc（Task 35）
     CepciAdjustmentInput,
@@ -469,7 +469,17 @@ async def get_cost_est_result(
 
 
 @router.patch(
-    "/results/{result_id}", response_model=CostEstResultResponse
+    "/results/{result_id}",
+    response_model=CostEstResultResponse,
+    responses={
+        409: {
+            "model": ConflictEnvelope,
+            "description": (
+                "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；"
+                "前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）"
+            ),
+        }
+    },
 )
 async def update_cost_est_result(
     result_id: uuid.UUID,

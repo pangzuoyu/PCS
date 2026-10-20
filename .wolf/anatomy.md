@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:12:39.369Z
-> Files: 948 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:27:33.838Z
+> Files: 952 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1387,6 +1387,7 @@
 
 ## pcs-backend/tests/architecture/
 
+- `test_edit_conflict_contract.py` — 编辑冲突的 409 契约必须**在 OpenAPI 里**（P9A-5 追加）。 (~962 tok)
 - `test_record_hash_invariant.py` — record_hash 不变式的**集合关系**契约（P9A-4 D0 · ADR-0048 §⑥）。 (~1536 tok)
 
 ## pcs-backend/tests/benchmarks/
@@ -1528,6 +1529,8 @@
 ## pcs-frontend/src/api/
 
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
+- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
+- `locks.ts` — 编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1276 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
 
 ## pcs-frontend/src/components/common/
@@ -1592,6 +1595,7 @@
 ## pcs-frontend/tests/api/
 
 - `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
+- `edit_lock_api.test.ts` — 编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。 (~1452 tok)
 
 ## pcs-frontend/tests/lib/
 

@@ -214,59 +214,6 @@ export interface CostEstCreateRequest {
   scaling_exponent?: number | null;
 }
 
-/** PATCH /cost-est/results/{result_id} 请求体：partial update；所有 9 字段 optional（PATCH 部分更新）；无 sign_status 锁定态门禁。 */
-export interface CostEstUpdateRequest {
-  estimated_cost?: number | null;
-  currency?: string | null;
-  cost_index_year?: number | null;
-  base_cost?: number | null;
-  base_year?: number | null;
-  cepci_index_base?: number | null;
-  cepci_index_target?: number | null;
-  correlation_source?: string | null;
-  scaling_exponent?: number | null;
-}
-
-/** COST_EST 单条响应（GET /cost-est/results/{result_id}）：完整业务字段；无 sign_status / record_hash / updated_at。ORM PK `cost_est_id` 重命名为 schema `result_id`。 */
-export interface CostEstResultResponse {
-  /** 结果 ID（cost_est_id；PK 重命名）。 */
-  result_id: string;
-  /** 设备 UUID（FK → equipment_list）。 */
-  equipment_id: string;
-  /** 估算投资 C₂。 */
-  estimated_cost: number;
-  /** 货币代码。 */
-  currency: string;
-  /** 目标年。 */
-  cost_index_year: number;
-  /** 基准年成本 C₁（可空）。 */
-  base_cost: number | null;
-  /** 基准年（可空）。 */
-  base_year: number | null;
-  /** 基准 CEPCI（可空）。 */
-  cepci_index_base: number | null;
-  /** 目标 CEPCI（可空）。 */
-  cepci_index_target: number | null;
-  /** 关联式来源代码（可空）。 */
-  correlation_source: string | null;
-  /** scaling 指数 n（可空）。 */
-  scaling_exponent: number | null;
-  /** 创建时间（ISO 8601）。 */
-  created_at: string;
-}
-
-/** GET /cost-est/results 响应：CostEstResultResponse 列表 + 命中条数 + 分页回显。 */
-export interface CostEstListResponse {
-  /** CostEstResult 列表。 */
-  items: CostEstResultResponse[];
-  /** 命中条数。 */
-  total: number;
-  /** 分页偏移。 */
-  skip: number;
-  /** 分页上限。 */
-  limit: number;
-}
-
 /** DELETE /cost-est/results/{result_id} 响应：物理删除（无 OBSOLETE 态）；含 result_id + equipment_id + deleted_at。 */
 export interface CostEstDeleteResponse {
   /** 结果 ID（cost_est_id；PK）。 */

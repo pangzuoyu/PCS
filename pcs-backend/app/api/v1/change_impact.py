@@ -72,7 +72,10 @@ class LatestLineageResponse(BaseModel):
 class ConfirmRecalcResponse(BaseModel):
     """`confirm-recalc` 的响应（原 `response_model=dict` ⇒ 裸字段）。"""
 
-    record_type: str = Field(..., description="记录类型（类名）")
+    record_type: str = Field(
+        ...,
+        description="记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）",
+    )
     record_id: str = Field(..., description="记录 ID")
     marked_stale: int = Field(..., description="被标 STALE 的行数")
     propagated: int = Field(..., description="链式传播到的下游数")
@@ -86,7 +89,10 @@ class ConfirmRecalcResponse(BaseModel):
 class ImpactConfirmResponse(BaseModel):
     """`confirm` / `manual-adjust` 的响应。"""
 
-    record_type: str = Field(..., description="记录类型（类名）")
+    record_type: str = Field(
+        ...,
+        description="记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）",
+    )
     record_id: str = Field(..., description="记录 ID")
     decision: Literal["NO_CHANGE", "CHANGED"] = Field(
         ..., description="判定结果：结果不变 / 结果变化"

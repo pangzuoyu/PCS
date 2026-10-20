@@ -31,7 +31,7 @@ from app.api.v1._guard import check_project_access_or_404, check_record_access_o
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
-from app.schemas.edit_conflict import BASELINE_FIELDS
+from app.schemas.edit_conflict import BASELINE_FIELDS, ConflictEnvelope
 from app.schemas.open_channel import (
     CriticalCalcRequest,
     CriticalCalcResponse,
@@ -505,7 +505,17 @@ async def get_open_channel_result(
 
 
 @router.patch(
-    "/results/{result_id}", response_model=OpenChannelResultResponse
+    "/results/{result_id}",
+    response_model=OpenChannelResultResponse,
+    responses={
+        409: {
+            "model": ConflictEnvelope,
+            "description": (
+                "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；"
+                "前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）"
+            ),
+        }
+    },
 )
 async def update_open_channel_result(
     result_id: uuid.UUID,

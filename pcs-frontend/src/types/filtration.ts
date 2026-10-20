@@ -124,54 +124,6 @@ export interface FiltrationCreateRequest extends FiltrationBase {
   filter_type: FilterType;
 }
 
-/** PATCH /filtration/results/{result_id} 请求体：partial update；所有字段 optional（PATCH 部分更新）；service 层白名单校验。 */
-export interface FiltrationUpdateRequest {
-  filter_type?: string | null;
-  media_type?: string | null;
-  area?: number | null;
-  cycle_time?: number | null;
-  pressure_drop?: number | null;
-  cake_resistance_alpha?: number | null;
-  specific_resistance_r0?: number | null;
-  permeability_k?: number | null;
-  porosity_eps?: number | null;
-  filter_velocity?: number | null;
-}
-
-/** FILTRATION 单条响应（GET /filtration/results/{result_id}）：溯源 + FiltrationBase + filter_type + 时间戳。ORM PK `filter_id` 重命名为 schema `result_id`。 */
-export interface FiltrationResultResponse extends FiltrationBase {
-  /** 项目 ID（UUID；isolation key）。 */
-  project_id: string;
-  /** 工作区 ID（UUID）。 */
-  workspace_id: string;
-  /** 位号（maxLength=64, minLength=1）。 */
-  tag_number: string;
-  /** 结果 ID（filter_id；ORM PK 重命名；前端统一用 result_id）。 */
-  result_id: string;
-  /** 过滤类型（回显；ResultResponse 必填）。 */
-  filter_type: string;
-  /** 签审状态 9 态。 */
-  sign_status: RecordSignStatus;
-  /** record_hash（16 hex）。 */
-  record_hash: string | null;
-  /** 创建时间（ISO 8601）。 */
-  created_at: string;
-  /** 更新时间（ISO 8601；可空）。 */
-  updated_at: string | null;
-}
-
-/** GET /filtration/results 响应：FiltrationResultResponse 列表 + 命中条数 + 分页回显。 */
-export interface FiltrationListResponse {
-  /** FiltrationResult 列表。 */
-  items: FiltrationResultResponse[];
-  /** 命中条数（受 include_obsolete 影响）。 */
-  total: number;
-  /** 分页偏移。 */
-  skip: number;
-  /** 分页上限。 */
-  limit: number;
-}
-
 /** DELETE /filtration/results/{result_id} 响应：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status（OBSOLETE）+ deleted_at。 */
 export interface FiltrationDeleteResponse {
   /** 结果 ID（filter_id；PK）。 */

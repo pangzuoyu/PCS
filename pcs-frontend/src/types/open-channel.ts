@@ -139,55 +139,6 @@ export interface OpenChannelCreateRequest extends OpenChannelBase {
   tag_number: string;
 }
 
-/** PATCH /open-channel/results/{result_id} 请求体：partial update；所有字段 optional（PATCH 部分更新）；service 层白名单校验。 */
-export interface OpenChannelUpdateRequest {
-  channel_type?: string | null;
-  cross_section_json?: Record<string, number> | null;
-  flow_rate?: number | null;
-  depth?: number | null;
-  velocity?: number | null;
-  slope?: number | null;
-  critical_depth?: number | null;
-  froude_number?: number | null;
-  manning_n?: number | null;
-  hydraulic_radius?: number | null;
-  jump_type?: string | null;
-  conjugate_depth?: number | null;
-  energy_loss?: number | null;
-}
-
-/** OPEN_CHANNEL 单条响应（GET /open-channel/results/{result_id}）：溯源 + OpenChannelBase + 时间戳。ORM PK `open_channel_id` 重命名为 schema `result_id`。 */
-export interface OpenChannelResultResponse extends OpenChannelBase {
-  /** 项目 ID（UUID；isolation key）。 */
-  project_id: string;
-  /** 工作区 ID（UUID）。 */
-  workspace_id: string;
-  /** 位号（maxLength=64, minLength=1）。 */
-  tag_number: string;
-  /** 结果 ID（open_channel_id；ORM PK 重命名；前端统一用 result_id）。 */
-  result_id: string;
-  /** 签审状态 9 态。 */
-  sign_status: RecordSignStatus;
-  /** record_hash（16 hex）。 */
-  record_hash: string | null;
-  /** 创建时间（ISO 8601）。 */
-  created_at: string;
-  /** 更新时间（ISO 8601；可空）。 */
-  updated_at: string | null;
-}
-
-/** GET /open-channel/results 响应：OpenChannelResultResponse 列表 + 命中条数 + 分页回显。 */
-export interface OpenChannelListResponse {
-  /** OpenChannelResult 列表。 */
-  items: OpenChannelResultResponse[];
-  /** 命中条数（受 include_obsolete 影响）。 */
-  total: number;
-  /** 分页偏移。 */
-  skip: number;
-  /** 分页上限。 */
-  limit: number;
-}
-
 /** DELETE /open-channel/results/{result_id} 响应：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status（OBSOLETE）+ deleted_at。 */
 export interface OpenChannelDeleteResponse {
   /** 结果 ID（open_channel_id；PK）。 */

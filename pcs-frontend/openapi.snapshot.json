@@ -8907,6 +8907,16 @@
               }
             }
           },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -9419,6 +9429,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CoolTowerResultResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
                 }
               }
             }
@@ -10235,6 +10255,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PsychroResultResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
                 }
               }
             }
@@ -14342,6 +14372,16 @@
               }
             }
           },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -14855,6 +14895,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FiltrationResultResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
                 }
               }
             }
@@ -15379,6 +15429,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CostEstResultResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictEnvelope"
                 }
               }
             }
@@ -21099,7 +21159,7 @@
           "record_type": {
             "type": "string",
             "title": "Record Type",
-            "description": "记录类型（类名）"
+            "description": "记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）"
           },
           "record_id": {
             "type": "string",
@@ -21169,6 +21229,139 @@
         "type": "object",
         "title": "ConfirmRequest",
         "description": "设计人提交校核（SPEC §3.2.4(4)）."
+      },
+      "ConflictDetail": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— 不是表名"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 ID"
+          },
+          "your_expected_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Your Expected Hash",
+            "description": "客户端带来的基线 hash（16 hex）"
+          },
+          "current_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Hash",
+            "description": "库中当前 hash（16 hex）"
+          },
+          "changed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed By",
+            "description": "上一次改动者 user_id（取自编辑审计；取不到为 null）"
+          },
+          "changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed At",
+            "description": "上一次改动时间（取自编辑审计的 occurred_at）"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "record_hash",
+              "updated_at",
+              "no_baseline"
+            ],
+            "title": "Basis",
+            "description": "判定依据（三值之一）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "basis"
+        ],
+        "title": "ConflictDetail",
+        "description": "409 里的 `conflict` 对象（ADR-0048 §⑦）。\n\n`basis` 三值让前端能区分「别人改了」（刷新有用）与「记录没基线」\n（刷新没用，应联系管理员）。"
+      },
+      "ConflictDetailWrapper": {
+        "properties": {
+          "conflict": {
+            "$ref": "#/components/schemas/ConflictDetail",
+            "description": "冲突详情（前端按 basis 分流）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conflict"
+        ],
+        "title": "ConflictDetailWrapper",
+        "description": "`detail` 的形状（只声明编辑冲突用到的那一种）。"
+      },
+      "ConflictEnvelope": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "错误码（编辑冲突恒为 RECORD_EDIT_CONFLICT）"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "给用户的一句话结论（两种 basis 共用）"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConflictDetailWrapper"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "详情；编辑冲突时冲突对象在 `conflict`"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "链路追踪 ID（X-Trace-ID header 同值）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "trace_id"
+        ],
+        "title": "ConflictEnvelope",
+        "description": "**409 冲突的完整响应体**（P9A-5 · SPEC §6.21 P9A-LCK-006）。\n\n⚠️ **为什么要有它**：6 个 PATCH 端点原先只声明 `200` / `422` ⇒ 409 的形状\n**不在 OpenAPI 里**（`ConflictDetail` 也不是 component schema）\n⇒ 前端拿不到类型，只能照 SPEC 里的示例手写一份 —— 那正是「同一契约两份\n清单」，字段一改就静默漂移。\n\n⚠️ 形状与仓库统一错误信封一致（`app/core/errors.py::ErrorResponse`：\n`code` / `message` / `detail` / `trace_id`）；冲突对象在 **`detail.conflict`**\n（ADR-0048 §⑦ 的原文顶层三字段已按仓库信封归一）。"
       },
       "CoolTowerResultCreateRequest": {
         "properties": {
@@ -28370,7 +28563,7 @@
           "record_type": {
             "type": "string",
             "title": "Record Type",
-            "description": "记录类型（类名）"
+            "description": "记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）"
           },
           "record_id": {
             "type": "string",

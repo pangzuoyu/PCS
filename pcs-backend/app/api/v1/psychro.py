@@ -50,7 +50,7 @@ from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.models.enums import RecordSignStatus9
-from app.schemas.edit_conflict import BASELINE_FIELDS
+from app.schemas.edit_conflict import BASELINE_FIELDS, ConflictEnvelope
 from app.schemas.psychro import (
     CoolingCoilRequest,
     CoolingCoilResponse,
@@ -643,7 +643,19 @@ async def get_psychro_result(
     return PsychroResultResponse.model_validate(record, from_attributes=True)
 
 
-@router.patch("/results/{record_id}", response_model=PsychroResultResponse)
+@router.patch(
+    "/results/{record_id}",
+    response_model=PsychroResultResponse,
+    responses={
+        409: {
+            "model": ConflictEnvelope,
+            "description": (
+                "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；"
+                "前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）"
+            ),
+        }
+    },
+)
 async def update_psychro_result(
     record_id: uuid.UUID,
     req: PsychroResultUpdateRequest,

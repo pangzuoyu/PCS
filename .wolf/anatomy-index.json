@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T15:12:39.369Z",
-    "fileCount": 948,
+    "lastScanned": "2026-10-20T15:27:33.838Z",
+    "fileCount": 952,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "1d07e5eb6e258f81f5c45dfb0b4558e2d04ddc5f860571e6dc2b568ddb3c31df",
-    "storeUpdatedAt": "2026-10-20T15:12:39.380Z",
-    "rootHash": "c4f35497fad6b473"
+    "renderedHash": "380fe236f6f5a218cb2e6a665656f4815a3e06700fd466bfd5f20260ee0ed651",
+    "storeUpdatedAt": "2026-10-20T15:27:33.851Z",
+    "rootHash": "9c5ab19960b06935"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -34640,6 +34640,146 @@
           "startLine": 100,
           "endLine": 105,
           "tokens": 54
+        }
+      ]
+    },
+    "pcs-backend/tests/architecture/test_edit_conflict_contract.py": {
+      "description": "编辑冲突的 409 契约必须**在 OpenAPI 里**（P9A-5 追加）。",
+      "tokens": 962,
+      "hash": "0f32e7952247ea00",
+      "size": 4206,
+      "mtimeMs": 1792509358396.6223,
+      "updatedAt": "2026-10-20T15:15:58.448Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "openapi",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 37,
+          "tokens": 45
+        },
+        {
+          "name": "test_patch_declares_its_409_response",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 46,
+          "tokens": 98
+        },
+        {
+          "name": "test_patch_409_points_at_the_conflict_envelope",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 56,
+          "tokens": 104
+        },
+        {
+          "name": "test_conflict_detail_basis_is_a_three_value_enum",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 66,
+          "tokens": 108
+        },
+        {
+          "name": "test_conflict_envelope_shape_matches_the_repo_error_envelope",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 80,
+          "tokens": 177
+        },
+        {
+          "name": "test_changed_by_and_changed_at_stay_nullable",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 95,
+          "tokens": 181
+        }
+      ]
+    },
+    "pcs-frontend/tests/api/edit_lock_api.test.ts": {
+      "description": "编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。",
+      "tokens": 1452,
+      "hash": "3b67b14eaab3733d",
+      "size": 5815,
+      "mtimeMs": 1792510015765.527,
+      "updatedAt": "2026-10-20T15:26:55.824Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/errors.ts": {
+      "description": "统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。",
+      "tokens": 689,
+      "hash": "d3b05f2b8a6da549",
+      "size": 3209,
+      "mtimeMs": 1792510033842.6213,
+      "updatedAt": "2026-10-20T15:27:13.892Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 25,
+          "endLine": 31,
+          "tokens": 34
+        },
+        {
+          "name": "isRecord",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 40,
+          "tokens": 63
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 57,
+          "tokens": 146
+        },
+        {
+          "name": "extractConflict",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 77,
+          "tokens": 189
+        },
+        {
+          "name": "conflictKind",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 88,
+          "tokens": 67
+        }
+      ]
+    },
+    "pcs-frontend/src/api/locks.ts": {
+      "description": "编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。",
+      "tokens": 1276,
+      "hash": "89182196706c4496",
+      "size": 5546,
+      "mtimeMs": 1792510053789.7214,
+      "updatedAt": "2026-10-20T15:27:33.838Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isEditableRecordType",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 104,
+          "tokens": 468
+        },
+        {
+          "name": "readLock409",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 121,
+          "tokens": 183
+        },
+        {
+          "name": "PatchBaseline",
+          "kind": "section",
+          "startLine": 122,
+          "endLine": 141,
+          "tokens": 148
         }
       ]
     }

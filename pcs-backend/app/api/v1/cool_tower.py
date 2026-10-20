@@ -49,7 +49,7 @@ from app.schemas.cool_tower import (
     WaterBalanceRequest,
     WaterBalanceResponse,
 )
-from app.schemas.edit_conflict import BASELINE_FIELDS
+from app.schemas.edit_conflict import BASELINE_FIELDS, ConflictEnvelope
 from app.services.cool_tower.cool_tower_persist_service import (  # P6-2 Task 25
     CoolTowerPersistInputError,
     save_cool_tower_result,
@@ -354,7 +354,19 @@ async def get_cool_tower_result(
     return CoolTowerResultResponse.model_validate(record, from_attributes=True)
 
 
-@router.patch("/results/{record_id}", response_model=CoolTowerResultResponse)
+@router.patch(
+    "/results/{record_id}",
+    response_model=CoolTowerResultResponse,
+    responses={
+        409: {
+            "model": ConflictEnvelope,
+            "description": (
+                "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；"
+                "前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）"
+            ),
+        }
+    },
+)
 async def update_cool_tower_result(
     record_id: uuid.UUID,
     req: CoolTowerResultUpdateRequest,

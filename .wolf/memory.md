@@ -2152,3 +2152,7 @@
 | 22:36 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | modified list_cost_est_results_service() | ~304 |
 | 22:54 | Created pcs-backend/tests/alembic/test_p9_007_cost_est_project_id.py | — | ~981 |
 | 23:12 | Edited CLAUDE.md | expanded (+23 lines) | ~269 |
+| 23:15 | Created pcs-backend/tests/architecture/test_edit_conflict_contract.py | — | ~962 |
+| 23:26 | Created pcs-frontend/tests/api/edit_lock_api.test.ts | — | ~1452 |
+| 23:27 | Created pcs-frontend/src/api/errors.ts | — | ~689 |
+| 23:27 | Created pcs-frontend/src/api/locks.ts | — | ~1276 |

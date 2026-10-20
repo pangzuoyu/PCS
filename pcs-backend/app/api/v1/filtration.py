@@ -30,7 +30,7 @@ from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
-from app.schemas.edit_conflict import BASELINE_FIELDS
+from app.schemas.edit_conflict import BASELINE_FIELDS, ConflictEnvelope
 from app.schemas.filtration import (
     ErgunCalcRequest,
     ErgunCalcResponse,
@@ -443,7 +443,17 @@ async def get_filtration_result(
 
 
 @router.patch(
-    "/results/{result_id}", response_model=FiltrationResultResponse
+    "/results/{result_id}",
+    response_model=FiltrationResultResponse,
+    responses={
+        409: {
+            "model": ConflictEnvelope,
+            "description": (
+                "编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；"
+                "前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006）"
+            ),
+        }
+    },
 )
 async def update_filtration_result(
     result_id: uuid.UUID,

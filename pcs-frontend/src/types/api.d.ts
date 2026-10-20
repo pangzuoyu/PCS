@@ -7116,7 +7116,7 @@ export interface components {
         ConfirmRecalcResponse: {
             /**
              * Record Type
-             * @description 记录类型（类名）
+             * @description 记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）
              */
             record_type: string;
             /**
@@ -7157,6 +7157,91 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /**
+         * ConflictDetail
+         * @description 409 里的 `conflict` 对象（ADR-0048 §⑦）。
+         *
+         *     `basis` 三值让前端能区分「别人改了」（刷新有用）与「记录没基线」
+         *     （刷新没用，应联系管理员）。
+         */
+        ConflictDetail: {
+            /**
+             * Record Type
+             * @description 记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— 不是表名
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 ID
+             */
+            record_id: string;
+            /**
+             * Your Expected Hash
+             * @description 客户端带来的基线 hash（16 hex）
+             */
+            your_expected_hash?: string | null;
+            /**
+             * Current Hash
+             * @description 库中当前 hash（16 hex）
+             */
+            current_hash?: string | null;
+            /**
+             * Changed By
+             * @description 上一次改动者 user_id（取自编辑审计；取不到为 null）
+             */
+            changed_by?: string | null;
+            /**
+             * Changed At
+             * @description 上一次改动时间（取自编辑审计的 occurred_at）
+             */
+            changed_at?: string | null;
+            /**
+             * Basis
+             * @description 判定依据（三值之一）
+             * @enum {string}
+             */
+            basis: "record_hash" | "updated_at" | "no_baseline";
+        };
+        /**
+         * ConflictDetailWrapper
+         * @description `detail` 的形状（只声明编辑冲突用到的那一种）。
+         */
+        ConflictDetailWrapper: {
+            /** @description 冲突详情（前端按 basis 分流） */
+            conflict: components["schemas"]["ConflictDetail"];
+        };
+        /**
+         * ConflictEnvelope
+         * @description **409 冲突的完整响应体**（P9A-5 · SPEC §6.21 P9A-LCK-006）。
+         *
+         *     ⚠️ **为什么要有它**：6 个 PATCH 端点原先只声明 `200` / `422` ⇒ 409 的形状
+         *     **不在 OpenAPI 里**（`ConflictDetail` 也不是 component schema）
+         *     ⇒ 前端拿不到类型，只能照 SPEC 里的示例手写一份 —— 那正是「同一契约两份
+         *     清单」，字段一改就静默漂移。
+         *
+         *     ⚠️ 形状与仓库统一错误信封一致（`app/core/errors.py::ErrorResponse`：
+         *     `code` / `message` / `detail` / `trace_id`）；冲突对象在 **`detail.conflict`**
+         *     （ADR-0048 §⑦ 的原文顶层三字段已按仓库信封归一）。
+         */
+        ConflictEnvelope: {
+            /**
+             * Code
+             * @description 错误码（编辑冲突恒为 RECORD_EDIT_CONFLICT）
+             */
+            code: string;
+            /**
+             * Message
+             * @description 给用户的一句话结论（两种 basis 共用）
+             */
+            message: string;
+            /** @description 详情；编辑冲突时冲突对象在 `conflict` */
+            detail?: components["schemas"]["ConflictDetailWrapper"] | null;
+            /**
+             * Trace Id
+             * @description 链路追踪 ID（X-Trace-ID header 同值）
+             */
+            trace_id: string;
         };
         /**
          * CoolTowerResultCreateRequest
@@ -11504,7 +11589,7 @@ export interface components {
         ImpactConfirmResponse: {
             /**
              * Record Type
-             * @description 记录类型（类名）
+             * @description 记录类型（`RECORD_TYPE_REGISTRY` 的键，如 `CostEstResult`）
              */
             record_type: string;
             /**
@@ -24674,6 +24759,15 @@ export interface operations {
                     "application/json": components["schemas"]["FlareResultResponse"];
                 };
             };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -24949,6 +25043,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoolTowerResultResponse"];
+                };
+            };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
                 };
             };
             /** @description Validation Error */
@@ -25401,6 +25504,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PsychroResultResponse"];
+                };
+            };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
                 };
             };
             /** @description Validation Error */
@@ -27532,6 +27644,15 @@ export interface operations {
                     "application/json": components["schemas"]["OpenChannelResultResponse"];
                 };
             };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -27811,6 +27932,15 @@ export interface operations {
                     "application/json": components["schemas"]["FiltrationResultResponse"];
                 };
             };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -28088,6 +28218,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CostEstResultResponse"];
+                };
+            };
+            /** @description 编辑冲突（ADR-0048 §⑦）：冲突对象在 `detail.conflict`；前端按 `basis` 三值分流（SPEC §6.21 P9A-LCK-006） */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEnvelope"];
                 };
             };
             /** @description Validation Error */
