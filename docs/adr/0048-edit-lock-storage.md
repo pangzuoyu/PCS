@@ -403,7 +403,8 @@ commit 之前）。
 ## 尚未解决
 
 1. 🔻 **已由 2026-10-19 裁决收窄为 1 张表**：`cost_est_results` 补 `record_hash` +
-   接 `finalize_calc_record`。**不引入 `row_version`** —— 那会在 `record_hash` 之外
+   接 `finalize_calc_record`（**2026-10-20 由 P9A-4 D0 落地**，见 §⑥ 的
+   实施期裁决 + 迁移 `p9_006`）。**不引入 `row_version`** —— 那会在 `record_hash` 之外
    叠加第二套并发令牌，P9A 实施者每写一个保存路径都要判断「这张表用哪个」，
    正是 bug-180~191 词表分叉的同构问题。同一把钥匙。
    **触发条件（结论可能失效）**：若 P9B 新增 SIM 导入结果的编辑入口，或

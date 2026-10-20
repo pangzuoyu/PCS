@@ -4,71 +4,69 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-20（P9A C lane 收口 + 终审修复）。
+> Read this FIRST when starting a session. Last updated: 2026-10-20（P9A-4 D0 落地）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
 
-### 第 7 轮（本会话）：P9A-3「通知待办」lane（C0→C4）落地 + 终审修复
+### 第 8 轮（本会话）：P9A-4「编辑锁与 CIA」lane 的 **D0**（迁移基座）
 
-9 笔 commit（`397bd52`→`a996577`），全部在 main。
+commit `b4470e0`。计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，绑定 ADR-0048 §⑥。
 
-| task | 产出 |
-|---|---|
-| C0 | `notifications` 表（10 列，`p9_005`）+ 2 个索引 + 21 例 |
-| C1 | `NotificationChannel` 协议 / `InAppChannel` / `NotificationDetail` + 16 例 |
-| **C1b** | **触发接线（用户裁决增补）+ `notify()` 唯一写侧入口** |
-| C2 | Redis pub/sub broadcaster + WS 端点 + 断线兜底 API + `/health` realtime + 21 例 |
-| C3 | ARQ 清理任务（只删已读、`max_tries=2`）+ 9 例 |
-| C4 | 待办实时计算，**不建表** + 14 例（300 交付物 195ms / 重算 12.4ms） |
-| 终审 | fresh reviewer 10 findings → 修 F-1~F-9（bug-2030~2034） |
+- `p9_006` 迁移：`cost_est_results.record_hash` **String(64) NOT NULL default ''**
+  + **回填做进迁移**（不留「记得手工跑脚本」的后门）。
+- **不变式**：6 个 update service 改业务字段后**重算 hash**（原先一律不重算 ⇒
+  ADR-0048 §⑥ 的阶梯永远走「放行」⇒ D2 的 guard 会是空操作）。
+- `calc_lineage`：`apply_record_hash` / `backfill_record_hash` / `finalize` 显式
+  校验（缺列抛明确错，不再靠注释挡）。
+- 守卫：列形状 8 + 不变式/回填 14 + 集合关系契约 7。
 
-**基线**：后端 **5005 passed / 77 skipped / 0 failed**（原 4868，+137）；前端 704 passed；
-两端 typecheck + lint clean；裸字段仍 **71**；两库均在 `p9_005`（head），
-`alembic check` 均 exit 0 且**守门真的跑了**。
+**基线**：后端 **5033 passed / 77 skipped / 0 failed**（上批 5005）；改动文件
+ruff clean；两库均 `p9_006`（head），`alembic check` 均 exit 0 且守门真跑了；
+真库回填实测过（pcs_test seed 1 行 → 迁移 → 拿到 16 hex，与现算值一致）。
 
-### 用户 2026-10-20 的两条裁决（已落地 + 回写 ADR-0049）
-1. 通知写侧**同步**（ADR §① 原「未锁」→ 已回补，含「同一次提交、同一套事务边界」）。
-2. 触发源接线**最小集合**：sign-step 成功 / 退回 / proxy 代录 / 变更单审批。
+**计划的三处被实测否决**（已写回 ADR-0048 §⑥）：① 列宽 `String(64)` 不是
+`String(16)`（16 是**值**长不是列宽，全库 25 张同形）；② `NOT NULL` 不是
+nullable（空串是唯一哨兵，阶梯按 `== ""` 写）；③ 迁移号 `p9_006`
+（计划写的 `p9_004` 已被占）。
 
-### 终审抓到并修掉的（每条都有 RED→GREEN 守卫）
-- **双 commit + 提交前推送** ⇒ phantom notification。改成「只写不提交 → 一次提交 → 再推」。
-- **最后一步 sign-step（转 APPROVED）不通知任何人** ⇒ 补通知版本提交人。
-- **subscribe 失败泄漏 PubSub + Redis 连接**；**pump 遇 Redis 抖动静默死亡**
-  ⇒ 后者让该用户推送**永久失效且不报错**（TODO-047 / bug-2027 同形状）⇒ 自愈重连。
-- **`to_detail` 不兜 ValidationError** ⇒ 将来改 schema 一次，整个列表端点 500。
-- **收件人越权**：原本只看全局角色、不看项目授权 ⇒ 收到带交付物标题的他人项目通知。
+### 第 7 轮：P9A-3「通知待办」lane（C0→C4）落地 + 终审修复
+
+commit `397bd52`→`a996577`。C0 `notifications` 表（`p9_005`）/ C1 通知抽象 /
+C1b 触发接线 / C2 Redis+WS / C3 ARQ 清理 / C4 待办实时计算（不建表）；
+终审修 F-1~F-9（bug-2030~2034）。基线 5005 passed / 77 skipped；
+用户两条裁决（写侧同步 / 触发源最小集合）已回写 ADR-0049。
 
 ---
 
 ## 🚀 Next quest
 
-1. **ADR-0050 暂缓**（`docs/adr/0050-sign-responsibility-and-task-participation.md`，
-   状态 proposed）—— 文档已写完（用户 2026-10-20 的完整目标模型 + 7 条裁决），
-   SPEC 增补在 `docs/PCS-UI-SPEC.md` §5.5（V1.4 → V1.6）。
-   ⚠️ **用户 2026-10-20 裁决「先不做」** ⇒ 本轮**不实施**。
-   ⇒ 再开工时按 ADR-0050 的分期 P1~P6，P1 是纯增量。
-2. **P9A-4「编辑锁与 CIA」lane（D0→D3）** —— **D1 必须在 B 之后**（B 已完成，可开工）。
-   读 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`。D0 迁移与 A/B/C 并行不冲突；
-   注意 `RECORD_TYPE_REGISTRY` 里 `CostEstResult` **没有 `record_hash` 列**（TODO-048）。
+1. **P9A-4「编辑锁与 CIA」lane 的 D1**（D0 已完成）——
+   `app/services/edit_lock.py` + `app/api/v1/locks.py`：
+   `POST /locks/{type}/{id}/acquire|release|renew`，key `lock:edit:{type}:{id}`，
+   TTL 30min（**可注入**，测试传短值）、心跳 60s、compare-and-expire 续期、
+   仅持有者可 release、**Redis 挂 ⇒ 降级放行 + ERROR 日志 + 横幅，不是 503**。
+   ⚠️ TTL 到期行为必须**真等过期**（假时钟 / 查 TTL 都证明不了）。
+   ⚠️ 锁是 UX 层 ⇒ acquire **不得查库**。
+2. **ADR-0050 暂缓**（`docs/adr/0050-…md`，proposed）—— ⚠️ 用户 2026-10-20
+   裁决「先不做」⇒ 不实施；再开工按 P1~P6（P1 纯增量）。
 3. **Z 收口**（OpenAPI 冻结 + 全量回归）—— 等 D lane 完成。
-4. **P9A-1 的遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
-   ⇒ P9A-USR-002/003 只算**代码就绪**，不算验收通过（标「代码就绪，待运维账号」，
-   **不得标「通过」**）。
+4. **P9A-1 遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
+   ⇒ P9A-USR-002/003 只算**代码就绪**，不得标「通过」。
 
 ---
 
 ## Context
 
-- main，工作区干净。**不要建 worktree**（历史事故，见上轮 STATUS）。
-- 两库均在 `p9_005`（head），`alembic check` 均 exit 0。改迁移的纪律见 CLAUDE.md
-  （退出码 **255**；先 `current` vs `heads`；**每库各跑一次**；
-  ⚠️ 闸门在 DB 落后时会 exit 0 但**根本没跑** —— 2026-10-20 又撞了一次）。
+- main，工作区干净。**不要建 worktree**（历史事故）。
+- 两库均在 `p9_006`（head），`alembic check` 均 exit 0。改迁移的纪律见 CLAUDE.md
+  （退出码 **255**；先 `current` vs `heads`；**每库各跑一次**；闸门在 DB 落后时
+  会 exit 0 但**根本没跑** —— 2026-10-20 又撞了一次）。
   `pcs_test` 的跑法：URL 从 `.env` 派生（`DATABASE_URL` 改库名），
   **不要把口令写在命令行**（会被权限分类器拦）。
-- **本机需要真 Redis 才能跑 C2 的跨进程推送测试**：`docker compose up redis`。
+- **本机需要真 Redis 才能跑 C2/D1 的跨进程测试**：`docker compose up redis`。
   没起 Redis 时那批测试会 **skip**（不是绿）—— 看输出别误读。
 - 契约产物由 G-08 钩子在 commit **之后**重生成，而 `git add` 在钩子之前
   ⇒ 偶尔漏提交，commit 后要 `git add -A && git commit --amend --no-edit` 补。
@@ -84,34 +82,29 @@ budget_tokens: 1500
 - **「共用一个 helper」不等于「同一个口径」**。P9A C lane 曾把收件人解析与待办解析
   共用一个 helper，结果**方向相反**（一个解析「全体用户里谁有这角色」、一个解析
   「我有没有这角色」）⇒ 通知越权 + 待办缺项。共用 helper 只防了「抄两份」，
-  没防「同一份用出两个意思」。⇒ 判定函数必须是**同一层**的（都回答「这个人在这项目
-  这工作集上能干什么」）。ADR-0050 §⑤。
-- **计划的前提可能是错的，且「已实现」不等于「被用上」**。计划写「部分索引是 500ms
-  指标的全部支撑」，真库 EXPLAIN 证明**不成立**（ORDER BY created_at ⇒ 排不了序）。
-  ⇒ 「建了索引」≠「被用上了」；空表上的 EXPLAIN 更是什么都证明不了。
-- **同一概念的多份清单会漂移，且漂移是静默的**。全仓三份角色词表实测差集：
-  `VIEWER` 只在两份里、`DATA_ADMIN` 只在一份里（**发不出 token**），交集只剩 4 值，
-  且**没有任何契约测试互相对齐**。⇒ 词表要有单一来源 + 对齐测试。
+  没防「同一份用出两个意思」。⇒ 判定函数必须是**同一层**的。ADR-0050 §⑤。
 - **注释与代码字面冲突，是 bug 的气味**。终审第一个 finding 就是
   「注释写着『本行自身不再 commit』、代码却 commit 了」。
+  注释写下的意图比注释本身更值得当断言用。
 - **守卫测试要能对旧代码变红**。对着旧代码也绿的断言不是守卫 ——
   「notify 不自己提交」对着旧代码也绿（旧的 commit 在调用方），
   真正的守卫必须落在**调用方**的提交次数上，且场景要让通知**真的发出去**。
-
-- **「同一个真相源」不等于「同一个口径」**。收件人解析与待办解析共用了一个
-  helper，却**方向相反**：一个解析「全体用户里谁有这角色」，一个解析
-  「我有没有这角色」⇒ 通知越权、待办缺项。共用 helper 只防了「抄两份」，
-  没防「同一份用出两个意思」。
-- **注释与代码字面冲突，是 bug 的气味**。`_notify_sign_outcome` 里我写着
-  「本行自身不再 commit」，代码却 commit 了 —— 终审第一个 finding 就是它。
-  注释写下的意图比注释本身更值得当断言用。
-- **「守卫测试」要能对旧代码变红**。「notify 不自己提交」那条对着旧代码也绿
-  （旧代码的 commit 在调用方）⇒ 真正的守卫必须落在**调用方**的提交次数上，
-  而且场景要让通知**真的发出去**（没人可通知时第二次 commit 压根不发生）。
-- **实测会推翻计划的前提**。计划写「部分索引是 500ms 指标的全部支撑」，
-  真库 EXPLAIN 证明**不成立**（ORDER BY created_at ⇒ 排不了序 ⇒ 用的是
-  另一个索引）。⇒ 「建了索引」不等于「被用上了」；空表上的 EXPLAIN
-  更是什么都证明不了。
-- **我曾把自己发现的泄漏判成「不是 bug」**（先按「全局 ∪ 项目内」实现，
-  事后才按 `sign_step` 的**实际执行口径**改成「全局 ∩ 项目授权」）。
-  判据应当是**系统实际执行的那条路径**，不是我以为的语义。
+- **计划的前提可能是错的，且「已实现」不等于「被用上」**。计划写「部分索引是 500ms
+  指标的全部支撑」，真库 EXPLAIN 证明**不成立**。⇒ 「建了索引」≠「被用上了」；
+  空表上的 EXPLAIN 更是什么都证明不了。
+- **同一概念的多份清单会漂移，且漂移是静默的**。全仓三份角色词表实测差集：
+  `VIEWER` 只在两份里、`DATA_ADMIN` 只在一份里（**发不出 token**），交集只剩 4 值，
+  且**没有任何契约测试互相对齐**。⇒ 词表要有单一来源 + 对齐测试。
+- **判据应当是「系统实际执行的那条路径」**，不是我以为的语义（我曾把自己发现的
+  越权泄漏判成「不是 bug」）。
+- **（D0）选一个字段当「并发令牌」之前，先查它有没有维护者**。ADR-0048 选
+  `record_hash` 当正确性层，但 6 条编辑路径**一条都不重算** ⇒ 阶梯永远走
+  「放行」⇒ 保护是**空操作**。⇒ 「有这一列」≠「这一列会变」。
+- **（D0）计划给的列形状要用全库实测否决**。计划写 `String(16)`（那是**值**的
+  长度）而全库 25 张同名列都是 `String(64)`；计划写 nullable 而全库都是 NOT NULL
+  （空串是唯一哨兵，阶梯按 `== ""` 写）。⇒ 列形状看**全库分布**。
+- **（D0）Mock 行撑不住依赖 ORM 状态的逻辑**。`compute_record_hash` 读
+  `state.dict` ⇒ 6 个既有单测的 MagicMock 行必须改成**真 ORM 实例**。
+  这不是「为了让测试过」，是 Mock 本来就测不出这条不变式。
+- **（D0）哨兵值不是 None**。`LoaderCallableStatus.NO_VALUE` 会让「取不到值」
+  变成「拿到一个怪东西」⇒ 待 flush 对象的哈希计算直接 TypeError。

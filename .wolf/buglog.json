@@ -3664,6 +3664,46 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "HIGH"
+    },
+    {
+      "id": "bug-2035",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "编辑并发保护形同虚设：record_hash 冻结在创建那一刻，ADR-0048 §⑥ 的阶梯永远走「放行」分支",
+      "file": "pcs-backend/app/services/cool_tower/cool_tower_persist_service.py",
+      "root_cause": "6 条 PATCH 路径的 update service 一律不重算 record_hash（cool_tower_persist_service.py:251 明写「不重新触发 record_hash 计算」；flare / psychro 同款注释；filtration / open_channel / cost_est 连注释都没有）⇒ stored hash 从创建后不再变化 ⇒ 客户端的 expected_hash 与 stored 恒等 ⇒ 阶梯的第一/第二分支都判「放行」⇒ A 改完、B 用同一基线提交，B 静默覆盖 A，丢失更新检测不到。根因是 ADR-0048 §⑥ 隐含假设「record_hash 反映记录当前内容」，而这条假设从未被代码兑现，也没有任何测试盯住。",
+      "fix": "建立不变式：6 个 update service 在业务字段 setattr 之后、commit 之前显式重算 record.record_hash = compute_record_hash(record)。重算只放在编辑路径 —— 不放全局 flush 钩子，因为 compute_record_hash 的 _EXCLUDED_KEYS 不含工作流状态列（sign_status / approval_step 参与哈希），状态流转若也重算会改掉 stored hash ⇒ 客户端基线失效 ⇒ 假 409。两条前提写回 ADR-0048 §⑥。守卫：tests/services/test_record_hash_invariant.py（重算 / 状态流转不动 hash / sign_status 参与哈希）+ tests/architecture/test_record_hash_contract.py（集合关系契约：新加的 PATCH /results 端点必须登记，且重算调用位置必须在 setattr 之后、commit 之前）。",
+      "fix_commit": "b4470e0",
+      "tags": [
+        "p9a",
+        "concurrency",
+        "record_hash",
+        "lost-update",
+        "adr-0048"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2036",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "TypeError: must be real number, not LoaderCallableStatus",
+      "file": "pcs-backend/app/services/calc_lineage.py",
+      "root_cause": "compute_record_hash 读值顺序是 state.dict → committed_state（committed.get(col.key) 兜底）。对**待 flush 的 transient 对象**，committed_state 里存的是 LoaderCallableStatus.NO_VALUE 哨兵而不是 None ⇒ 显式置 None 的 Float 列被当成数字送进 _round_sig ⇒ TypeError。既有缺陷：所有 persist 服务都在 flush **之后**才调 finalize，所以生产路径碰不到；但任何「对象还没落库就求哈希」的调用方都会炸。",
+      "fix": "把 NO_VALUE 归一化成 None 再参与序列化（app/services/calc_lineage.py）。顺带把「必须在 flush 之后算 hash」写进 docstring —— Python 侧默认值（record_hash='' / approval_depth=1）在 flush 时才落进 state.dict，flush 前算出的哈希覆盖的列集合与落库的不一致。守卫：test_compute_record_hash_handles_a_pending_object_with_none_float。",
+      "fix_commit": "b4470e0",
+      "tags": [
+        "p9a",
+        "calc_lineage",
+        "record_hash",
+        "sqlalchemy",
+        "transient-object"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "MEDIUM"
     }
   ]
 }
