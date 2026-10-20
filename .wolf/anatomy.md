@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T00:46:16.114Z
-> Files: 883 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T02:21:01.468Z
+> Files: 909 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -250,6 +250,10 @@
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-2-交付物写面.md (~1733 tok)
 
+## .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-3-通知待办.md (~1066 tok)
+
 ## .vite/vitest/
 
 - `results.json` (~39 tok)
@@ -335,7 +339,7 @@
 - `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~2304 tok)
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3499 tok)
-- `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2128 tok)
+- `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2322 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
@@ -1127,6 +1131,7 @@
 - `p8_011_streams_vocab_constraints.py` — `streams` 的 phase / data_mode / source_type 加 CHECK + 新增 `raw_phase`。 (~1158 tok)
 - `p9_001_users_token_version.py` — P9A 身份迁移：users.token_version + CHECK >= 1。 (~289 tok)
 - `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
+- `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~791 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1140,7 +1145,9 @@
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
+- `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~536 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~604 tok)
+- `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
 - `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7298 tok)
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
@@ -1158,6 +1165,7 @@
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6705 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
+- `ws.py` — WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。 (~1047 tok)
 
 ## pcs-backend/app/core/
 
@@ -1167,12 +1175,13 @@
 
 ## pcs-backend/app/models/
 
-- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~301 tok)
+- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~334 tok)
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5149 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
+- `notification.py` — notifications ORM（ADR-0049 §① 通知建表）。 (~975 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7858 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `record_comment.py` — record_comments ORM（P9A B4c）。 (~631 tok)
@@ -1187,6 +1196,7 @@
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
+- `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~803 tok)
@@ -1201,15 +1211,19 @@
 - `admin_user_service.py` — ADMIN 用户管理的**写入层**（SPEC P9A-ADM-002，ADR-0046 §⑤）。 (~681 tok)
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
+- `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~2156 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2138 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~3841 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~8635 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
+- `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~779 tok)
+- `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~632 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
+- `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1601 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
 
@@ -1217,6 +1231,14 @@
 
 - `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~6229 tok)
 - `htri_excel_parser.py` — HTRI 报表的 **Excel 版**解析。 (~3488 tok)
+
+## pcs-backend/app/services/notifications/
+
+- `__init__.py` — 通知写侧包（ADR-0049 §①）。 (~101 tok)
+- `channel.py` — `NotificationChannel` 协议与 `DeliveryResult`（ADR-0049 §①）。 (~315 tok)
+- `in_app.py` — `InAppChannel` —— 本版唯一的通知通道（ADR-0049 §①）。 (~556 tok)
+- `notify.py` — 通知的**唯一写侧入口**（ADR-0049 §① + 用户 2026-10-20 裁决）。 (~848 tok)
+- `payload.py` — 通知载荷与 `detail_json` 的字段级 schema（ADR-0049 §① / P9A-DLV-010）。 (~722 tok)
 
 ## pcs-backend/app/services/report/
 
@@ -1245,8 +1267,10 @@
 ## pcs-backend/app/workers/
 
 - `ad_sync_tasks.py` — AD 同步的 ARQ 任务（SPEC P9A-USR-002 的「定时任务」）。 (~282 tok)
+- `notification_tasks.py` — 通知保留期清理（ADR-0049 §④ / SPEC P9A-NOT-004，ARQ cron）。 (~332 tok)
 - `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~2890 tok)
 - `report_tasks.py` — ARQ 报表异步生成任务。 (~3693 tok)
+- `worker.py` — ARQ WorkerSettings（Sprint 1 + Sprint 3）。 (~2539 tok)
 
 ## pcs-backend/scripts/
 
@@ -1265,7 +1289,7 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~5533 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~5700 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
@@ -1283,6 +1307,7 @@
 - `test_p8_011_streams_vocab.py` — `streams` 词表 CHECK 的迁移（p8_011）的结构自检。 (~1220 tok)
 - `test_p9_001_users_token_version.py` — P9A 迁移基座的 schema 断言 —— 防「ORM 写了但没迁移」与「迁移写了但 ORM 没跟上」。 (~389 tok)
 - `test_p9_002_workflow_progress.py` — P9A 迁移基座的 schema 断言 —— workflow_progress（SPEC P9A-OBS-001 + ADR-0047）。 (~1500 tok)
+- `test_p9_005_notifications.py` — P9A C0 迁移基座的 schema 断言 —— notifications（ADR-0049 §①/§③）。 (~1611 tok)
 
 ## pcs-backend/tests/api/v1/
 
@@ -1291,7 +1316,7 @@
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
-- `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~3816 tok)
+- `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
@@ -1303,7 +1328,9 @@
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~5783 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
+- `test_todos.py` — P9A C4：待办实时计算（ADR-0049 §② / SPEC P9A-NOT-002）。 (~3325 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
+- `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~3930 tok)
 
 ## pcs-backend/tests/benchmarks/
 
@@ -1342,6 +1369,10 @@
 ## pcs-backend/tests/services/
 
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
+- `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
+- `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
+- `test_notification_triggers.py` — P9A C1b：通知**触发接线**（用户 2026-10-20 裁决的最小集合）。 (~1502 tok)
+- `test_notifications_channel.py` — P9A C1：通知通道抽象（ADR-0049 §①）。 (~2860 tok)
 - `test_record_capabilities.py` — `record_capabilities` 测试（TODO-058 裁决的落地契约）。 (~1308 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
@@ -1383,6 +1414,7 @@
 
 ## pcs-backend/tests/workers/
 
+- `test_notification_cleanup.py` — P9A C3：通知 30 天保留清理（ADR-0049 §④ / SPEC P9A-NOT-004）。 (~893 tok)
 - `test_report_tasks.py` — ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。 (~8192 tok)
 - `test_worker_registers_all_enqueued_tasks.py` — 每个入队的函数都必须在 ARQ worker 注册 —— 2026-10-13 实测发现。 (~1037 tok)
 

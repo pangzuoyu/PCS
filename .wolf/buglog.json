@@ -3499,6 +3499,69 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "MEDIUM"
+    },
+    {
+      "id": "bug-2027",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "asyncio.exceptions.CancelledError：第二个用户连接后，第一个用户的推送静默停止（无报错）",
+      "file": "pcs-backend/app/services/broadcaster.py",
+      "root_cause": "UserSubscriptionRegistry 用**一个** PubSub 订阅所有 channel，多个 pump 任务并发调用同一个 PubSub 的 get_message()。redis-py 的 PubSub 不支持这种并发：任务之间互相抢消息，且一个任务的 cancel 会波及另一个（先到的用户被后到的用户取消）。这与 TODO-047 / ADR-0049 §⑤ 要防的是同一类失败 —— **不报错地停止**。由 test_other_users_connection_does_not_receive 抓到。",
+      "fix": "改成**每用户一个 PubSub**（self._pub_subs: dict[user_id, PubSub]），每个 pump 只读自己的那个；remove/aclose 按用户逐个关闭",
+      "fix_commit": "083a2a6",
+      "tags": [
+        "p9a",
+        "notification",
+        "websocket",
+        "redis",
+        "silent-failure",
+        "concurrency"
+      ],
+      "related_bugs": [
+        "bug-047"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2028",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "sqlalchemy.exc.StatementError: (builtins.TypeError) Object of type UUID is not JSON serializable（仅 SQLite 单测）",
+      "file": "pcs-backend/app/services/notifications/in_app.py",
+      "root_cause": "detail_json 用 Pydantic 的 model_dump() 默认 mode='python'，UUID 原样进 JSONB。SQLite 下 JSONB 走 stdlib json.dumps ⇒ 抛错；PG 下 psycopg 有 UUID 适配器 ⇒ 正常。**单测红、真库绿** —— 与 CLAUDE.md 漂移盲区同一形状（那个是单测绿真库炸，这里反过来）。",
+      "fix": "改用 model_dump(mode='json')，UUID 落库前转字符串；读回时 NotificationDetail.model_validate 再解析回 UUID",
+      "fix_commit": "16702df",
+      "tags": [
+        "p9a",
+        "notification",
+        "jsonb",
+        "sqlite",
+        "cross-dialect",
+        "test-only-failure"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "bug-2029",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "既有测试对 db.commits == 1 的断言会被通知触发点打乱（多一次无条件 commit）",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "通知触发点（P9A C1b）最初写成「无论有没有收件人都 commit」。没人可通知时那次 commit 不产生任何数据变化，却会打乱既有测试对提交次数的断言 —— 而那类断言本意是「这个动作只提交一次」。",
+      "fix": "改成条件提交：仅当 notify/notify_role 真的产出了 DeliveryResult 时才 commit；无收件人时返回空列表、不抛、不提交",
+      "fix_commit": "79206d1",
+      "tags": [
+        "p9a",
+        "notification",
+        "transaction",
+        "test-contract"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "LOW"
     }
   ]
 }

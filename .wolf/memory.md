@@ -1970,3 +1970,69 @@
 | 08:44 | Created pcs-backend/tests/services/test_record_capabilities.py | — | ~1308 |
 | 08:45 | Created pcs-backend/app/services/record_capabilities.py | — | ~922 |
 | 08:46 | Edited pcs-backend/app/services/calc_lineage.py | expanded (+15 lines) | ~247 |
+| 09:01 | Session end: 97 writes across 32 files (progress.md, test_p9_002_workflow_progress.py, enums.py, workflow_progress.py, __init__.py) | 52 reads | ~99333 tok |
+
+## Session: 2026-10-20 09:01
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:03 | Created .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/progress.md | — | ~178 |
+| 09:04 | Created pcs-backend/tests/alembic/test_p9_005_notifications.py | — | ~1611 |
+| 09:04 | Created pcs-backend/app/models/notification.py | — | ~966 |
+| 09:04 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~33 |
+| 09:04 | Edited pcs-backend/app/models/notification.py | 9→10 lines | ~97 |
+| 09:04 | Created pcs-backend/alembic/versions/p9_005_notifications.py | — | ~785 |
+| 09:04 | Edited pcs-backend/alembic/versions/p9_005_notifications.py | added 1 import(s) | ~26 |
+| 09:04 | Edited pcs-backend/alembic/versions/p9_005_notifications.py | inline fix | ~20 |
+| 09:06 | Created pcs-backend/tests/services/test_notifications_channel.py | — | ~2830 |
+| 09:06 | Edited pcs-backend/tests/services/test_notifications_channel.py | 8→7 lines | ~52 |
+| 09:06 | Edited pcs-backend/tests/services/test_notifications_channel.py | modified test_protocol_deliver_takes_exactly_one_argument() | ~75 |
+| 09:06 | Edited pcs-backend/tests/services/test_notifications_channel.py | added 1 import(s) | ~163 |
+| 09:06 | Created pcs-backend/app/services/notifications/__init__.py | — | ~101 |
+| 09:06 | Created pcs-backend/app/services/notifications/payload.py | — | ~722 |
+| 09:06 | Created pcs-backend/app/services/notifications/channel.py | — | ~315 |
+| 09:07 | Created pcs-backend/app/services/notifications/in_app.py | — | ~420 |
+| 09:07 | Edited pcs-backend/app/services/notifications/in_app.py | modified __init__() | ~278 |
+| 09:07 | Edited pcs-backend/tests/services/test_notifications_channel.py | modified test_in_app_channel_satisfies_the_protocol() | ~237 |
+| 09:07 | Edited pcs-backend/app/services/notifications/in_app.py | 11→15 lines | ~192 |
+| 10:00 | Created pcs-backend/tests/services/test_broadcaster.py | — | ~2647 |
+| 10:01 | Created pcs-backend/app/services/broadcaster.py | — | ~2104 |
+| 10:01 | Edited pcs-backend/app/services/broadcaster.py | 1→2 lines | ~37 |
+| 10:01 | Edited pcs-backend/app/services/broadcaster.py | modified __init__() | ~984 |
+| 10:02 | Created pcs-backend/tests/api/v1/test_ws_notifications.py | — | ~3719 |
+| 10:02 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | modified test_ws_accepts_a_valid_token() | ~175 |
+| 10:02 | Created pcs-backend/app/schemas/notification.py | — | ~312 |
+| 10:03 | Created pcs-backend/app/services/notification_query_service.py | — | ~788 |
+| 10:03 | Edited pcs-backend/app/services/notification_query_service.py | now_utc() → now() | ~40 |
+| 10:03 | Edited pcs-backend/app/services/notification_query_service.py | inline fix | ~10 |
+| 10:03 | Created pcs-backend/app/api/v1/notifications.py | — | ~654 |
+| 10:03 | Created pcs-backend/app/api/v1/ws.py | — | ~1047 |
+| 10:03 | Edited pcs-backend/app/api/v1/health.py | modified health() | ~536 |
+| 10:04 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | 4→7 lines | ~97 |
+| 10:08 | Created pcs-backend/tests/services/test_notification_triggers.py | — | ~1502 |
+| 10:08 | Created pcs-backend/app/services/notification_recipients.py | — | ~632 |
+| 10:09 | Created pcs-backend/app/services/notifications/notify.py | — | ~848 |
+| 10:09 | Edited pcs-backend/tests/conftest.py | modified make_user() | ~197 |
+| 10:10 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified test_signer_does_not_notify_themselves() | ~202 |
+| 10:10 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+8 lines) | ~84 |
+| 10:10 | Edited pcs-backend/app/services/deliverable_service.py | modified _matrix_steps() | ~28 |
+| 10:10 | Edited pcs-backend/app/services/deliverable_service.py | modified _notify_sign_outcome() | ~555 |
+| 10:10 | Edited pcs-backend/app/services/deliverable_service.py | 27→23 lines | ~262 |
+| 10:12 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+6 lines) | ~324 |
+| 10:12 | Edited pcs-backend/app/services/deliverable_service.py | modified _notify_proxy_recorded() | ~476 |
+| 10:13 | Created pcs-backend/tests/services/test_change_notice_notification.py | — | ~991 |
+| 10:13 | Edited pcs-backend/app/services/change_notice_service.py | 3→4 lines | ~35 |
+| 10:13 | Edited pcs-backend/app/services/change_notice_service.py | modified _notify_approved() | ~357 |
+| 10:16 | Created pcs-backend/tests/workers/test_notification_cleanup.py | — | ~893 |
+| 10:16 | Created pcs-backend/app/workers/notification_tasks.py | — | ~332 |
+| 10:17 | Edited pcs-backend/app/workers/worker.py | 4→6 lines | ~59 |
+| 10:17 | Edited pcs-backend/app/workers/worker.py | expanded (+10 lines) | ~255 |
+| 10:18 | Created pcs-backend/app/services/todo_service.py | — | ~1516 |
+| 10:18 | Created pcs-backend/app/services/todo_service.py | — | ~1601 |
+| 10:18 | Created pcs-backend/tests/api/v1/test_todos.py | — | ~3325 |
+| 10:20 | Edited docs/adr/0049-notification-and-todo-data-model.md | expanded (+21 lines) | ~214 |
+| 10:20 | Edited docs/adr/0049-notification-and-todo-data-model.md | 4→4 lines | ~22 |
+| 10:21 | Created .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/progress.md | — | ~1138 |
+| 10:35 | **P9A C lane 收口** —— C0 迁移(p9_005,10 列,部分索引) / C1 通道抽象 / **C1b 触发接线(用户裁决增补)** / C2 Redis pub-sub+WS+断线兜底+/health realtime / C3 ARQ 清理(只删已读,max_tries=2) / C4 待办实时计算(不建表) | notifications.py, notifications/*, broadcaster.py, todo_service.py, notification_recipients.py, api/v1/{ws,notifications}.py, workers/notification_tasks.py, ADR-0049 §①回补 | **4986 passed / 77 skipped / 0 failed**(基线 4868,+118),exit 0;裸字段仍 71;G-08 契约门禁过;300 交付物待办 195ms/重算 12.4ms | ~52000 |
+| 10:35 | 修 3 个缺陷并登记 bug-2027~2029 | broadcaster.py(每用户一个 PubSub,原单 PubSub 静默杀掉先到的用户) / in_app.py(UUID 用 mode="json",否则 SQLite 炸真库绿) / deliverable_service.py(通知触发点改成条件 commit) | 3 条 RED→GREEN | ~3200 |
+| 10:35 | **未完成**：`alembic upgrade head` 被权限分类器拦下,用户未跑 ⇒ commit 仍被 PP-5 漂移闸门拦 | .githooks/pre-commit | DB p9_004 vs code head p9_005 | ~200 |
