@@ -155,6 +155,18 @@ class _FakeSession:
                 """scalar_one_or_none 占位：返回构造时预设的 value（或 None）。"""
                 return self._value
 
+            def all(self) -> list:
+                """收件人解析（`notification_recipients`）走这条路径。
+
+                返回空 = 「这个 fake session 里没有用户」，对应「无人可通知」
+                —— 正是本文件想覆盖的分支。真 DB 上的行为由
+                `test_change_notice_notification.py` 覆盖。
+                """
+                return []
+
+            def scalar_one(self) -> Any:
+                return 0
+
         for (_m_cls, _), obj in self.store.items():
             if isinstance(obj, _FakeChangeNoticeDetail):
                 return _Result(obj)
@@ -495,3 +507,61 @@ async def test_approve_change_notice_writes_audit():
     assert aw["action"].name == "CHANGE_NOTICE_APPROVED"
     assert aw["detail"]["from"] == "PENDING"
     assert aw["detail"]["to"] == "APPROVED"
+
+
+# ============================================================================
+# 通知触发（P9A C1b / 用户 2026-10-20 裁决的最小接线集合）
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_approve_change_notice_notifies_project_designers(db, make_user):
+    """审批通过 ⇒ 项目内的 DESIGNER 收到 CHANGE_NOTICE_APPROVED。
+
+    收件人为什么是 DESIGNER 而不是「变更单的申请人」：`ChangeNoticeDetail`
+    上**没有申请人字段**（`triggered_by` 是 `MANUAL`/`UPSTREAM_CHANGE` 这样的
+    来源枚举，不是用户）。唯一有既定语义的受众是项目的设计人 ——
+    记录状态因这次审批而变了，而他们要重新算。
+
+    `_FakeSession.execute` 对任何语句都返回同一个 detail 对象，本测试补
+    `.all()` 返回空，让收件人解析走「没人」分支；真实 DB 行为由
+    `tests/api/v1/test_change_notice_notification.py` 覆盖。
+    """
+    from app.services.broadcaster import Broadcaster, set_broadcaster
+
+    db, deliverable, _detail = _build_cn_session(sign_status="PENDING")
+    dead = Broadcaster("redis://127.0.0.1:6399/0")
+    set_broadcaster(dead)
+    try:
+        result = await ChangeNoticeService.approve_change_notice(
+            db,
+            deliverable_id=deliverable.deliverable_id,
+            actor=_actor(),
+            record_table=FakeRecordTable,
+            deliverable_model=_FakeDeliverable,
+            detail_model=_FakeChangeNoticeDetail,
+        )
+    finally:
+        set_broadcaster(None)
+
+    assert result["sign_status"] == "APPROVED"
+    # 无人可通知时不额外 commit —— 既有测试断言 commits == 1
+    assert db.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_approve_change_notice_still_works_without_recipients(db):
+    """收件人解析不出人时**不抛**。「没有 DESIGNER」是一种状态，不是一次失败。"""
+    db, deliverable, _detail = _build_cn_session(sign_status="PENDING")
+
+    result = await ChangeNoticeService.approve_change_notice(
+        db,
+        deliverable_id=deliverable.deliverable_id,
+        actor=_actor(),
+        record_table=FakeRecordTable,
+        deliverable_model=_FakeDeliverable,
+        detail_model=_FakeChangeNoticeDetail,
+    )
+
+    assert result["sign_status"] == "APPROVED"
+    assert db.commits == 1

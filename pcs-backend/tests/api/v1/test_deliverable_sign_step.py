@@ -28,6 +28,7 @@ from app.models.deliverable import (
 )
 from app.models.enums import DeliverableSignStatus, WorkflowProgressState, WorkflowType
 from app.models.workflow_progress import WorkflowProgress
+from app.models.notification import Notification, NotificationKind
 from app.services.deliverable_service import DeliverableService
 
 pytestmark = pytest.mark.asyncio
@@ -401,3 +402,73 @@ class TestSignStepResponseContract:
             "deliverable_sign_status",
             "signed_at",
         }
+
+
+class TestNotificationTriggers:
+    """P9A C1b：签署事件触发通知（用户 2026-10-20 裁决的最小集合）。
+
+    断言**落库的那一行**而不是「service 调了 notify」——
+    mock 一断就绿，而「接线断了但全绿」正是这条测试最该防的失败。
+    """
+
+    async def _rows(self, db, recipient=None):
+        stmt = select(Notification)
+        if recipient is not None:
+            stmt = stmt.where(Notification.recipient_id == recipient)
+        return (await db.execute(stmt)).scalars().all()
+
+    async def test_sign_notifies_the_next_steps_role(
+        self, client, db_session, project_id, make_user
+    ):
+        """签完第 1 步 ⇒ 第 2 步的角色（REVIEWER）收到 SIGN_COMPLETED。"""
+        reviewer = await make_user("rev", ["REVIEWER"])
+        await make_user("des", ["DESIGNER"])
+        d, v = await _issued(db_session, project_id)
+
+        resp = await _sign(
+            client, _token(subject="des", role="DESIGNER"), d.deliverable_id, v.version_id
+        )
+        assert resp.status_code == 200, resp.text
+
+        rows = await self._rows(db_session)
+        assert [r.recipient_id for r in rows] == [reviewer]
+        assert rows[0].kind == NotificationKind.SIGN_COMPLETED
+        assert str(v.version_id) in rows[0].detail_json["deliverable_version_id"]
+
+    async def test_return_notifies_the_designer_who_was_returned(
+        self, client, db_session, project_id, make_user
+    ):
+        """退回 ⇒ 通知**版本提交人**（要改内容的人），而不是全体 REVIEWER。
+
+        退回的对象是「谁要返工」，所以收件人取 `version.created_by`。
+        """
+        designer = await make_user("des", ["DESIGNER"])
+        d, v = await _issued(db_session, project_id, submitter_id=designer)
+
+        resp = await _sign(
+            client, _token(subject="des", role="DESIGNER"),
+            d.deliverable_id, v.version_id, decision="RETURN",
+        )
+        assert resp.status_code == 200, resp.text
+
+        rows = await self._rows(db_session)
+        assert [r.recipient_id for r in rows] == [designer]
+        assert rows[0].kind == NotificationKind.STEP_RETURNED
+
+    async def test_signer_does_not_notify_themselves(
+        self, client, db_session, project_id, make_user
+    ):
+        """自己签完自己收到通知 = 噪声，且让人误以为还有别人待办。
+
+        ⚠️ 同时断言 REVIEWER **确实**收到了 —— 否则这条在「一个通知都不发」
+        的实现下也会绿，而那正是它最该抓的回归。
+        """
+        designer = await make_user("des", ["DESIGNER"])
+        reviewer = await make_user("rev", ["REVIEWER"])
+        d, v = await _issued(db_session, project_id, submitter_id=designer)
+
+        await _sign(
+            client, _token(subject="des", role="DESIGNER"), d.deliverable_id, v.version_id
+        )
+        assert await self._rows(db_session, recipient=designer) == []
+        assert len(await self._rows(db_session, recipient=reviewer)) == 1

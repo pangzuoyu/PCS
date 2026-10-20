@@ -618,6 +618,14 @@ class DeliverableService:
         )
 
         await db.commit()
+        await cls._notify_sign_outcome(
+            db,
+            deliverable=deliverable,
+            version=version,
+            decision=decision,
+            next_step=next_step,
+            actor_user_id=actor_user_id,
+        )
         return SignStepOutcome(
             deliverable=deliverable,
             version=version,
@@ -627,6 +635,63 @@ class DeliverableService:
             state=state,
             signed_at=now,
         )
+
+    @staticmethod
+    async def _notify_sign_outcome(
+        db: AsyncSession,
+        *,
+        deliverable: Deliverable,
+        version: DeliverableVersion,
+        decision: str,
+        next_step: dict[str, Any] | None,
+        actor_user_id: uuid.UUID,
+    ) -> None:
+        """签署事件的通知触发（用户 2026-10-20 裁决的最小集合）。
+
+        放在 `db.commit()` **之后**：推送与通知行都不该把已提交的签署拖回失败。
+        本行自身不再 commit —— 由调用方的请求级提交收尾。
+        """
+        from app.models.notification import NotificationKind
+        from app.services.notifications.notify import notify, notify_role
+        from app.services.notifications.payload import NotificationDetail
+
+        detail = NotificationDetail(
+            project_id=deliverable.project_id,
+            deliverable_id=deliverable.deliverable_id,
+            deliverable_version_id=version.version_id,
+            actor_id=actor_user_id,
+            workflow_type="SIGN",
+        )
+
+        sent: list = []
+        if decision == "RETURN":
+            # 退回的对象是「谁要返工」= 版本提交人，不是全体复核人。
+            if version.created_by is not None:
+                sent.append(
+                    await notify(
+                        db,
+                        recipient_id=version.created_by,
+                        kind=NotificationKind.STEP_RETURNED,
+                        title=f"「{deliverable.title}」被退回",
+                        body="请修改后重新签发",
+                        detail=detail,
+                    )
+                )
+        elif decision == "SIGN" and next_step is not None:
+            sent = await notify_role(
+                db,
+                role=str(next_step.get("sign_role", "")),
+                kind=NotificationKind.SIGN_COMPLETED,
+                title=f"「{deliverable.title}」待你签署",
+                body="有一份交付物在你的签署步骤上",
+                detail=detail,
+                project_id=deliverable.project_id,
+                exclude_user_ids=(actor_user_id,),
+            )
+        if sent:
+            # 没人可通知时不额外提交 —— 多一次 commit 会打乱既有测试对
+            # 提交次数的断言，且对数据没有任何好处。
+            await db.commit()
 
     @staticmethod
     def _matrix_steps(matrix: SignatureMatrix | None) -> list[dict[str, Any]]:
@@ -805,12 +870,47 @@ class DeliverableService:
 
         await db.commit()
         await db.refresh(attachment)
+        await cls._notify_proxy_recorded(db, deliverable=deliverable, version=version)
         return CustomerApprovalProxyOutcome(
             deliverable=deliverable,
             version=version,
             attachment=attachment,
             signed_at=now,
         )
+
+    @staticmethod
+    async def _notify_proxy_recorded(
+        db: AsyncSession,
+        *,
+        deliverable: Deliverable,
+        version: DeliverableVersion,
+    ) -> None:
+        """代录完成的通知触发（用户 2026-10-20 裁决的最小集合）。
+
+        收件人 = 版本提交人。代录闭合的是**他**的交付物的 CUSTOMER 签署步骤，
+        他是唯一因此状态发生变化的人。`created_by` 为空时不发也不报错 ——
+        「没有明确收件人」是一种状态，不是一次失败。
+        """
+        from app.models.notification import NotificationKind
+        from app.services.notifications.notify import notify
+        from app.services.notifications.payload import NotificationDetail
+
+        if version.created_by is None:
+            return
+        await notify(
+            db,
+            recipient_id=version.created_by,
+            kind=NotificationKind.PROXY_RECORDED,
+            title=f"「{deliverable.title}」客户批准已代录",
+            body="客户批准凭证已登记，签署步骤已闭合",
+            detail=NotificationDetail(
+                project_id=deliverable.project_id,
+                deliverable_id=deliverable.deliverable_id,
+                deliverable_version_id=version.version_id,
+                workflow_type="CUSTOMER_APPROVAL_PROXY",
+            ),
+        )
+        await db.commit()
 
     # ------------------------------------------------------------------
     # 读面（P9A B4d：动作时间线）

@@ -320,6 +320,26 @@ def designer_actor() -> uuid.UUID:
 
 
 @pytest_asyncio.fixture
+async def make_user(db):
+    """用户工厂：`await make_user("zhang", ["REVIEWER"])` → user_id。
+
+    P9A C1b 起需要**真的落一行 users**：通知的 `recipient_id` 有指向
+    `users.user_id` 的外键，而收件人解析（`notification_recipients`）要读
+    `users.roles` 与 `users.status`。
+    """
+
+    async def _make(username: str, roles: list[str], status: str = "ACTIVE") -> uuid.UUID:
+        from app.models.project import User
+
+        u = User(username=username, display_name=username, roles=roles, status=status)
+        db.add(u)
+        await db.flush()
+        return u.user_id
+
+    return _make
+
+
+@pytest_asyncio.fixture
 async def make_asset(db):
     """资产工厂：创建 ConfigAsset + v1 ConfigVersion 并 link。
 

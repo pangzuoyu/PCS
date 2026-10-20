@@ -318,3 +318,59 @@ class TestProxyResponseContract:
 
         assert resp.status_code == 404, resp.text
         assert resp.json()["code"] == "DELIVERABLE_NOT_FOUND"
+
+
+class TestProxyNotificationTrigger:
+    """P9A C1b：代录完成触发 PROXY_RECORDED 通知（最小接线集合之一）。
+
+    收件人 = 版本提交人（设计人）。代录闭合的是**他**的交付物的 CUSTOMER 步骤，
+    他是唯一因此状态发生变化的人。
+    """
+
+    async def test_submitter_is_notified(
+        self, client, auth, db_session, project_id, ldap_ok, credential, make_user
+    ):
+        from app.models.notification import Notification, NotificationKind
+
+        designer = await make_user("des", ["DESIGNER"])
+        d, v = await _pending(db_session, project_id, designer_id=designer)
+
+        resp = await _proxy(client, auth, d.deliverable_id, v.version_id)
+
+        assert resp.status_code == 200, resp.text
+        rows = (
+            await db_session.execute(
+                select(Notification).where(Notification.recipient_id == designer)
+            )
+        ).scalars().all()
+        assert [r.kind for r in rows] == [NotificationKind.PROXY_RECORDED]
+        assert str(d.deliverable_id) in rows[0].detail_json["deliverable_id"]
+
+    async def test_proxy_still_succeeds_when_push_is_degraded(
+        self, client, auth, db_session, project_id, ldap_ok, credential, make_user
+    ):
+        """Redis 挂掉时代录**照常成功**，通知**照常落库**。
+
+        ADR-0049 §⑤ 约束 2：降级要可观测，但推送失败不得把业务请求带崩 ——
+        代录已提交却返 500，用户会以为没录上而重录一次（而 MFA 还会再挡一次）。
+        """
+        from app.models.notification import Notification
+        from app.services.broadcaster import Broadcaster, set_broadcaster
+
+        designer = await make_user("des", ["DESIGNER"])
+        d, v = await _pending(db_session, project_id, designer_id=designer)
+        dead = Broadcaster("redis://127.0.0.1:6399/0")
+        set_broadcaster(dead)
+        try:
+            resp = await _proxy(client, auth, d.deliverable_id, v.version_id)
+        finally:
+            set_broadcaster(None)
+
+        assert resp.status_code == 200, resp.text
+        assert dead.status == "degraded"
+        rows = (
+            await db_session.execute(
+                select(Notification).where(Notification.recipient_id == designer)
+            )
+        ).scalars().all()
+        assert len(rows) == 1, "推送失败时通知仍必须落库 —— 那是真值来源"

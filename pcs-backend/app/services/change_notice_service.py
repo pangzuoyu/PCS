@@ -343,6 +343,7 @@ class ChangeNoticeService:
         )
 
         await db.commit()
+        await cls._notify_approved(db, deliverable=deliverable, detail=detail)
 
         return {
             "deliverable_id": deliverable_id,
@@ -355,6 +356,38 @@ class ChangeNoticeService:
             },
             "record_transition": record_transition,
         }
+
+    @classmethod
+    async def _notify_approved(cls, db, *, deliverable, detail) -> None:
+        """审批通过的通知触发（用户 2026-10-20 裁决的最小接线集合）。
+
+        收件人 = 项目的 DESIGNER。**为什么不是「变更单的申请人」** ——
+        `ChangeNoticeDetail` 上没有申请人字段（`triggered_by` 是
+        `MANUAL`/`UPSTREAM_CHANGE` 这样的来源枚举，不是用户）。唯一有既定
+        语义的受众是项目的设计人：记录状态因这次审批而变了，而他们要重新算。
+
+        无人可通知时不额外 commit —— 多一次提交没有任何数据好处。
+        """
+        from app.models.notification import NotificationKind
+        from app.services.notifications.notify import notify_role
+        from app.services.notifications.payload import NotificationDetail
+
+        sent = await notify_role(
+            db,
+            role="DESIGNER",
+            kind=NotificationKind.CHANGE_NOTICE_APPROVED,
+            title=f"变更单「{getattr(deliverable, 'title', '')}」已批准",
+            body="变更已生效，绑定的记录状态已更新",
+            detail=NotificationDetail(
+                project_id=deliverable.project_id,
+                deliverable_id=deliverable.deliverable_id,
+                workflow_type="CHANGE_NOTICE",
+                reason=detail.reason,
+            ),
+            project_id=deliverable.project_id,
+        )
+        if sent:
+            await db.commit()
 
     @classmethod
     async def _apply_record_resolution(
