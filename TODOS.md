@@ -943,16 +943,42 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
 
 ### 待裁决
 
-签署矩阵的 `sign_role` 到底该对齐哪一套？
+**签署职责是「组织职能」还是「项目分工」？** —— 换句话说，矩阵里的
+`sign_role` 该指哪一套角色词表。
 
-| 选项 | 含义 | 代价 |
-|---|---|---|
-| **A（现状）** | `sign_role` = 全局角色 | 项目内角色词表在签署链路上无消费方；`user_projects.role_in_project` 形同虚设 |
-| B | `sign_role` = 项目内角色 | 改 `sign_step` 的判定口径 ⇒ 矩阵要带项目上下文；AD 同步的全局角色与项目授权的关系要重新定义 |
-| C | 两者都算（全局 ∪ 项目内） | 职责分离被削弱：全局是 REVIEWER 的人可以签 DESIGNER 那一步 |
+#### 三条此前漏掉的事实（2026-10-20 复核时查实）
 
-⚠️ **A 是当前事实，B/C 是行为变更**。B/C 都要动 `sign_step` 与签署矩阵的
-数据契约，属于 Z 收口或下一版的范围，**不在 P9A C lane 内**。
+1. **全局角色实际是**单值**。`ldap_client.resolve_role()` 从组映射里返回
+   **第一个**命中；`ad_sync` 写 `users.roles = [role]`（单元素）；token 只带
+   **一个** `role` claim（`create_access_token(subject, role)`）⇒ 一个
+   「既是设计者又是复核者」的人**登录后只有一个角色**，且映射表里
+   `DESIGNER_GROUP` 排第一 ⇒ 静默取到 DESIGNER。
+2. **`role_in_project` 至今零授权消费方**。`check_user_project_access()`
+   有 `required_role` 参数且会比对 `role_in_project`，但**全仓 4 个调用点
+   没有一个传它** ⇒ 那条比对分支是**死代码**。项目内角色只被存下来、
+   在 `user_projects` 端点响应里显示，从未参与任何鉴权判定。
+3. **矩阵已按项目绑定**（`project_signature_matrix_bindings`：project +
+   module + matrix_id），`sign_step` 时 `deliverable.project_id` **现成**
+   ⇒ 「矩阵要带项目上下文」这个说法**不成立**；且真库 `signature_matrices`
+   **0 行**、后端与前端**都没有矩阵管理端点** ⇒ 改口径**不撞存量数据、
+   不撞界面**。
+
+#### 三个选项与真实代价
+
+| 选项 | `sign_role` 指 | 收益 | 代价 |
+|---|---|---|---|
+| **A（现状）** | 全局角色（token claim） | 零改动；与 `_SIGN_ROLES` 粗筛同源 | 一个人在项目 A 上不能以「复核人」身份签（哪怕他在该项目的 `role_in_project` 是 REVIEWER）；`role_in_project` 继续零消费方；**全局单值**意味着「既是设计者又是复核者」的人只能占一个角色 |
+| **B** | 项目内角色 | 项目分工可表达（这个项目上是复核人、那个项目上是设计人）；`role_in_project` 有了消费方 | 改 `sign_step` 判定口径（1 处比较 + 取值来源）；**项目授权的运营流程成为签署的前置** —— 每个项目每个签署角色都要有人手工 `grant_project_access`；`_SIGN_ROLES` 粗筛与细判的口径要一起复核 |
+| **C** | 全局 ∪ 项目内 | 两种现实都能表达 | **职责分离被削弱**：全局是 REVIEWER 的人可签 DESIGNER 那一步 —— 正是 `can_self_check` 与「不能自己签发自己审」这套机制要防的 |
+
+#### 一个与本条**独立**的潜在缺陷（无论选哪个都该修）
+
+全局角色**单值**这件事本身是个隐患：既是设计者又是复核者的人，登录后只能
+拿一个角色，而映射表顺序让 `DESIGNER_GROUP` 优先 ⇒ **静默降级**为设计者，
+复核那一步**谁都签不了**。修它要动 `resolve_role` + token 的 `role` claim
+（改成列表）+ `current_actor` 的 `_Actor.roles`（已是列表，兼容）。
+
+⚠️ 本条（口径）与那条（单值）是**两件事**：即使裁决维持 A，单值缺陷仍要单独修。
 
 - **发现**：2026-10-20，P9A C lane 自查
 - **严重度**：🟡（行为自洽，语义待定）
