@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T13:33:19.448Z",
-    "fileCount": 941,
+    "lastScanned": "2026-10-20T13:47:32.156Z",
+    "fileCount": 942,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "2235eadfe6dd5184f742249e758e5352558f27770575ebf67579c2270f7a343b",
-    "storeUpdatedAt": "2026-10-20T13:33:19.459Z",
-    "rootHash": "632e087f9cdfeb40"
+    "renderedHash": "e040f19d89fbbdedb588af95e2b1e05b9ce7ff49f191db51c4d2e031c7f4e3b2",
+    "storeUpdatedAt": "2026-10-20T13:47:32.167Z",
+    "rootHash": "e01ea9f77a1a4332"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -34245,6 +34245,52 @@
           "startLine": 261,
           "endLine": 283,
           "tokens": 295
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_edit_acl_order.py": {
+      "description": "编辑端点的**鉴权顺序**守卫 —— P9A-4 D2 修的既有越权洞。",
+      "tokens": 1157,
+      "hash": "92822647410098b4",
+      "size": 4817,
+      "mtimeMs": 1792504052109.3228,
+      "updatedAt": "2026-10-20T13:47:32.156Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 47,
+          "tokens": 26
+        },
+        {
+          "name": "_no_project_access",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 52,
+          "tokens": 33
+        },
+        {
+          "name": "_make_row",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 92,
+          "tokens": 314
+        },
+        {
+          "name": "test_patch_without_project_access_is_404_and_does_not_write",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 120,
+          "tokens": 277
+        },
+        {
+          "name": "test_conflict_detail_is_not_leaked_to_unauthorized_callers",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 140,
+          "tokens": 204
         }
       ]
     }

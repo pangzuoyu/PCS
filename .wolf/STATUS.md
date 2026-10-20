@@ -4,7 +4,7 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-20（P9A-4 D0 落地）。
+> Read this FIRST when starting a session. Last updated: 2026-10-20（D lane 收口 + bug-2039 安全修复）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -13,8 +13,8 @@ budget_tokens: 1500
 
 ### 第 8 轮（本会话）：P9A-4「编辑锁与 CIA」lane **全 lane 完成**（D0→D3）
 
-commit `b4470e0`→`bbb4a37`（4 笔）。计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，
-绑定 ADR-0048。
+commit `b4470e0`→`bbb4a37`（4 笔）+ 安全修复 `b22d0bd`。
+计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，绑定 ADR-0048。
 
 | task | 产出 |
 |---|---|
@@ -23,7 +23,8 @@ commit `b4470e0`→`bbb4a37`（4 笔）。计划 `docs/PCS-PLAN-P9A-4-编辑锁�
 | D2 | 409 契约（共享 guard）+ 编辑审计 + 自检 cron + SPEC P9A-LCK-006 |
 | D3 | CIA 哈希判定分流 `confirm` + 人工判定 `manual-adjust` + SPEC §6.7.1 |
 
-**基线**：后端 **5096 passed / 77 skipped / 0 failed**（D 之前 5005，+91）；
+**基线**：后端 **5102 passed / 77 skipped / 0 failed**（D 之前 5005，D lane +91、
+安全修复 +6）；
 前端 704 passed（未变，前端还没接 §6.21）；两端 typecheck + lint clean；
 裸字段仍 **71**；两库均在 `p9_006`（head），`alembic check` 均 exit 0。
 
@@ -33,26 +34,17 @@ commit `b4470e0`→`bbb4a37`（4 笔）。计划 `docs/PCS-PLAN-P9A-4-编辑锁�
 ③ 迁移号 `p9_006`（计划写的 `p9_004` 已被占）；
 ④ 409 用仓库统一错误信封（ADR §⑦ 的顶层三字段作废 ⇒ 冲突对象进 `detail.conflict`）。
 
-### D0 明细（迁移基座）
+### D2 落地时撞出的**既有越权洞**（bug-2039，HIGH，commit `b22d0bd`）
 
-commit `b4470e0`。计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，绑定 ADR-0048 §⑥。
-
-- `p9_006` 迁移：`cost_est_results.record_hash` **String(64) NOT NULL default ''**
-  + **回填做进迁移**（不留「记得手工跑脚本」的后门）。
-- **不变式**：6 个 update service 改业务字段后**重算 hash**（原先一律不重算 ⇒
-  ADR-0048 §⑥ 的阶梯永远走「放行」⇒ D2 的 guard 会是空操作）。
-- `calc_lineage`：`apply_record_hash` / `backfill_record_hash` / `finalize` 显式
-  校验（缺列抛明确错，不再靠注释挡）。
-- 守卫：列形状 8 + 不变式/回填 14 + 集合关系契约 7。
-
-**基线**：后端 **5033 passed / 77 skipped / 0 failed**（上批 5005）；改动文件
-ruff clean；两库均 `p9_006`（head），`alembic check` 均 exit 0 且守门真跑了；
-真库回填实测过（pcs_test seed 1 行 → 迁移 → 拿到 16 hex，与现算值一致）。
-
-**计划的三处被实测否决**（已写回 ADR-0048 §⑥）：① 列宽 `String(64)` 不是
-`String(16)`（16 是**值**长不是列宽，全库 25 张同形）；② `NOT NULL` 不是
-nullable（空串是唯一哨兵，阶梯按 `== ""` 写）；③ 迁移号 `p9_006`
-（计划写的 `p9_004` 已被占）。
+- `filtration`/`flare`/`psychro` PATCH + `filtration` DELETE：顺序是
+  **「保存 → 鉴权」**，而 service 取记录不带 `project_id` ⇒ 无权用户能改/删
+  **别人项目**的行，鉴权只把**响应**变成 404。
+- `cool_tower` DELETE：**根本没有守卫**。
+- D2 自己引入的**身份泄漏**：409 带持锁人身份，排在鉴权前就能被无权者问出。
+- 修法：预取记录拿 `project_id` → 鉴权 → 才写。守卫测试
+  `tests/api/v1/test_edit_acl_order.py` 6 例（**先 RED 复核**）。
+- **未修的同族**：`CostEstResult` 无 `project_id` ⇒ `cost_est.py` 0 处守卫
+  ⇒ PATCH/DELETE **连守卫都没有** ⇒ **TODO-061**（必须先于 ADR-0050 P5）。
 
 ### 第 7 轮：P9A-3「通知待办」lane（C0→C4）落地 + 终审修复
 
@@ -73,10 +65,12 @@ C1b 触发接线 / C2 Redis+WS / C3 ARQ 清理 / C4 待办实时计算（不建�
 2. **TODO-060**：`record_type` 三处三套词表（`/change-impact` 类名、
    `/results`+`/locks` 表名、`record_comments` 列类名）⇒ 建议随前端接
    §6.21 时一并归一（转换路径存在：`__tablename__` ↔ `RECORD_TYPE_REGISTRY`）。
-3. **Z 收口**（OpenAPI 冻结 + 全量回归）—— D lane 已完成，可开。
-4. **ADR-0050 暂缓**（`docs/adr/0050-…md`，proposed）—— ⚠️ 用户 2026-10-20
+3. **TODO-061（新增，HIGH）**：`CostEstResult` 无项目隔离 ⇒ 随 ADR-0050 P5
+   一起补（先加 `project_id` 列），**否则参与人员门挂上去也是空的**。
+4. **Z 收口**（OpenAPI 冻结 + 全量回归）—— D lane 已完成，可开。
+5. **ADR-0050 暂缓**（`docs/adr/0050-…md`，proposed）—— ⚠️ 用户 2026-10-20
    裁决「先不做」⇒ 不实施；再开工按 P1~P6（P1 纯增量）。
-5. **P9A-1 遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
+6. **P9A-1 遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
    ⇒ P9A-USR-002/003 只算**代码就绪**，不得标「通过」。
 
 ---
@@ -145,3 +139,11 @@ C1b 触发接线 / C2 Redis+WS / C3 ARQ 清理 / C4 待办实时计算（不建�
   （TODO-060）。跨 URL 空间的两套词表是**欠账**，不是「各管一段」。
 - **（D2）性能断言的失败要先复跑再当回归**。D2 那次全量里 todo 的 500ms
   预算挂了（1264ms），单独复跑 198ms ⇒ 满负载下的抖动，不是回归。
+- **守卫的位置比守卫的存在更隐蔽**。鉴权排在保存之后 ⇒ 响应是 404，行已改
+  （bug-2039）。⇒ 任何项目守卫必须在第一次 commit **之前**。**断言 404 不等于
+  没被改** ⇒ 守卫测试的关键断言是「行没变」。用例里的 `expected_hash` 要取
+  **有效值**，否则 409 短路、根本走不到保存那一步（又是一条假绿）。
+  另：URL 前缀写错 ⇒ 404 发生在**路由层** ⇒ 断言全绿却什么都没测。
+- **全量跑测途中改文件 ⇒ 这次结果对改后的代码不作数**。本轮 ruff 在跑测途中
+  重排 import（行为中性，但 `tests/architecture` 会读源文件）⇒ 事后**重跑**
+  受影响面（215 passed）才落账。

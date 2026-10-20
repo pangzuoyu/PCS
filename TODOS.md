@@ -1021,3 +1021,27 @@ P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**�
 - **严重度**：MEDIUM（当前无调用方 ⇒ 无实际故障；前端接的时候必须一起改）
 - **关联**：ADR-0050（同一形状的词表分叉）、ADR-0048 §⑥、
   `docs/PCS-UI-SPEC.md` §6.21、`RECORD_TYPE_REGISTRY`（见 TODO-048）
+
+---
+
+## TODO-061: `CostEstResult` 无 `project_id` ⇒ 其 PATCH/DELETE **完全没有项目隔离**（🔴 高）
+
+- **发现**：2026-10-20，P9A-4 D2 修 bug-2039 时顺带查出来的。
+- **事实**（实测 2026-10-20）：
+  - `app/models/calc.py:1193` `class CostEstResult(Base)` —— **不继承**任何
+    mixin ⇒ **没有 `project_id` / `workspace_id`**，只有 `equipment_id`。
+  - `app/api/v1/cost_est.py` 全文 **0 处** `check_project_access_or_404` /
+    `check_record_access_or_404` ⇒ 任何持 `DESIGNER` 角色的登录用户都能
+    改/删**别人项目的**造价结果。
+- **为什么 D2 没顺手修**：隔离需要一条「这条记录属于哪个项目」的路径。
+  `CostEstResult` 本身答不了 ⇒ 要么补 `project_id` 列（迁移 + 回填 +
+  6 处守卫面），要么经 `equipment_id → Equipment.project_id` 反查。
+  **两者都是设计决策，不属于 D lane 的授权范围** ⇒ 只登记。
+- **不修的代价**：这是本仓目前**唯一一类**「连守卫都不存在」的编辑面
+  （bug-2039 那族至少有守卫，只是顺序错了）⇒ ADR-0050 P5「参与人员门挂
+  24 个创建/审阅端点」之前必须先补，否则**门挂上去也是空的**。
+- **建议**：随 ADR-0050 P5 一起做，且**先补 `project_id` 列**（与
+  ADR-0050「`CostEstResult` 无 `project_id` ⇒ 工作集归属需先补列」是同一笔，
+  两处登记指向同一件事，**只做一次**）。
+- **严重度**：HIGH（真实越权面，非理论）
+- **关联**：bug-2039（守卫顺序族）、ADR-0050 P5、TODO-048

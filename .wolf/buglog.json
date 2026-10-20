@@ -3747,6 +3747,33 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "LOW"
+    },
+    {
+      "id": "bug-2039",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "无权用户 PATCH/DELETE 别人的项目记录：响应是 404，但**行已经被改了/软删了**（require_roles → 保存 → check_project_access_or_404）",
+      "file": "pcs-backend/app/api/v1/{filtration,flare,psychro,cool_tower}.py",
+      "root_cause": "既有守卫的**顺序**错了：项目鉴权写在保存**之后**（2026-10-20 实测 filtration.py PATCH/DELETE、flare.py PATCH、psychro.py PATCH）。而 update/delete service 取记录时**不带 project_id**（`get_filtration_result_service(session, result_id=...)`）⇒ 保存那一步**没有任何项目隔离** ⇒ 鉴权只把响应变成 404，行已落盘。**第二处**：`cool_tower` DELETE **根本没有 BLOCKER-3 守卫**（service 传 `project_id=None`）⇒ 任何持 DESIGNER 的登录用户都能软删别人项目的冷却塔结果。**第三处（本次新引入的）**：D2 的 409 响应带**持锁人身份**（`holder.user_id` + `acquired_at`）⇒ 若排在鉴权之前，无权者能问出「谁在改这条记录」⇒ 身份泄漏。",
+      "fix": "预取记录拿 project_id → 鉴权 → 才写（filtration/flare/psychro PATCH + filtration DELETE）；cool_tower DELETE 补上完全缺失的 `check_record_access_or_404`。404/403 语义与「记录不存在」的响应保持原样（cool_tower 的缺失记录仍 404：service 返回 ok=False 分支未动）。守卫测试 `tests/api/v1/test_edit_acl_order.py` 6 例，**先 RED 复核**（修复前失败于 `assert 99.0 == 1.0` 与 `assert 409 == 404`）。同族但**不在本 lane 修**：`CostEstResult` 无 project_id ⇒ cost_est.py 全文 0 处守卫 ⇒ PATCH/DELETE 连守卫都不存在 ⇒ 登记 TODO-061。",
+      "fix_commit": "b22d0bd",
+      "tags": [
+        "p9a",
+        "p9a-4",
+        "security",
+        "authorization",
+        "blocker-3",
+        "idor",
+        "acl-order",
+        "fake-green"
+      ],
+      "related_bugs": [
+        "bug-2035",
+        "bug-2037",
+        "bug-2038"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
     }
   ]
 }
