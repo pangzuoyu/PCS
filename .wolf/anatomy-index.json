@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T15:27:33.838Z",
-    "fileCount": 952,
+    "lastScanned": "2026-10-20T15:40:22.081Z",
+    "fileCount": 954,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "380fe236f6f5a218cb2e6a665656f4815a3e06700fd466bfd5f20260ee0ed651",
-    "storeUpdatedAt": "2026-10-20T15:27:33.851Z",
-    "rootHash": "9c5ab19960b06935"
+    "renderedHash": "5e5a166f016125a2e36c575e786913b164722ecdccc27ba363ff81e460815d5d",
+    "storeUpdatedAt": "2026-10-20T15:40:22.092Z",
+    "rootHash": "90e9f00560f657ba"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -34780,6 +34780,63 @@
           "startLine": 122,
           "endLine": 141,
           "tokens": 148
+        }
+      ]
+    },
+    "pcs-frontend/src/api/changeImpact.ts": {
+      "description": "变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。",
+      "tokens": 717,
+      "hash": "084c4eb9875d50d1",
+      "size": 3475,
+      "mtimeMs": 1792510706010.614,
+      "updatedAt": "2026-10-20T15:38:26.058Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "impactConclusion",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 83,
+          "tokens": 28
+        }
+      ]
+    },
+    "pcs-frontend/tests/types/no_handwritten_result_types.test.ts": {
+      "description": "防漂移：`src/types/` 的手写类型 vs 生成的契约（P9B-1 Task F0）。",
+      "tokens": 1488,
+      "hash": "c5793d23d25af2c9",
+      "size": 6372,
+      "mtimeMs": 1792510822030.78,
+      "updatedAt": "2026-10-20T15:40:22.081Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "walk",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 79,
+          "tokens": 132
+        },
+        {
+          "name": "generatedSchemaNames",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 85,
+          "tokens": 68
+        },
+        {
+          "name": "handwrittenInterfaces",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 97,
+          "tokens": 101
+        },
+        {
+          "name": "consumerCount",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 162,
+          "tokens": 591
         }
       ]
     }

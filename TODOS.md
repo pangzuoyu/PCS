@@ -1116,3 +1116,41 @@ app/services/cia_engine.py:160    data_lineage.record_type 写的是 cls.__name_
   按 sprint 逐步消化（每个 sprint 顺手补自己那一段）。
 - **严重度**：LOW（存量迁移已跑过，幂等 guard 只影响「重跑同一迁移」的场景）
 - **关联**：`docs/PCS-PLAN-P9A-5-债项清理.md` Task B
+
+---
+
+## TODO-064: 全仓 **57 个**手写类型与生成契约 schema 同名（🟡 长期债，已有棘轮守卫）
+
+2026-10-20 实测（P9B-1 Task F0 顺带发现，**未修**）：
+
+`src/types/*.ts` 里有 **57 个** `export interface` 的名字**出现在
+`openapi.snapshot.json` 的 `components.schemas` 里** ⇒ 同一契约两份手抄。
+
+- **多数有消费方**（如 `HeatResultResponse` 被 `src/api/heat.ts` +
+  `src/mocks/heat.ts` import）⇒ 改它们要连带核对页面与 mocks ⇒ 不是删了就完。
+- ⚠️ **`npm run api:audit-types` 抓不到**：它维护的是一份**手写清单**
+  （10 个类型），结果模块与这批**都不在清单里**
+  ⇒ 「清单外的漂移」没有任何既有自动化会红。
+- 已知的**实质漂移**（不是「可能」）：`CostEstUpdateRequest` 等 6 个
+  `*UpdateRequest` **缺 `expected_hash`**（P9A-4 D2 之后后端必填）
+  ⇒ 按手写类型发请求必然 409。
+
+### 本批做了什么（不是全清）
+
+1. **删掉 6 个可编辑结果模块的 18 个**（`*UpdateRequest` / `*ResultResponse` /
+   `*ListResponse`）—— 全部**零消费方**且已漂移 ⇒ 直接判死，改用生成类型。
+2. **加棘轮守卫** `pcs-frontend/tests/types/no_handwritten_result_types.test.ts`：
+   - 定点：删掉的 18 个名字不许回来；
+   - 棘轮：同名手写类型数量**只许减不许增**（基线 **57**）；
+   - **零消费方 + 同名 ⇒ 直接判死**（除非登记例外）；
+   - 例外表不许变成死水（例外必须仍然存在）。
+   ⇒ 新写一个同名类型会红；修掉旧债会让计数下降。
+
+### 建议
+
+按模块逐个迁（一次一个模块：先 grep 消费方 → 改 import → 跑 vitest +
+typecheck）。优先迁「零消费方」的（它们连棘轮都判死，会直接红），
+其次是有 mocks 的（要同步 fixture 字段）。
+
+- **严重度**：MEDIUM（当前无功能故障；有消费方的那些仍在工作，但少字段时会静默）
+- **关联**：P9B-1 Task F0 · `scripts/audit-handwritten-types.mjs`（清单式审计的盲区）

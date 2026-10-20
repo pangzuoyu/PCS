@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:27:33.838Z
-> Files: 952 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T15:40:22.081Z
+> Files: 954 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1529,6 +1529,7 @@
 ## pcs-frontend/src/api/
 
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
+- `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
 - `locks.ts` — 编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1276 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
@@ -1632,6 +1633,7 @@
 
 ## pcs-frontend/tests/types/
 
+- `no_handwritten_result_types.test.ts` — 防漂移：`src/types/` 的手写类型 vs 生成的契约（P9B-1 Task F0）。 (~1488 tok)
 - `strictColumns.test.ts` — `dataIndex` 闸的自检（2026-10-19，TODO-041）。 (~851 tok)
 
 ## spec/

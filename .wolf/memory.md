@@ -2156,3 +2156,7 @@
 | 23:26 | Created pcs-frontend/tests/api/edit_lock_api.test.ts | — | ~1452 |
 | 23:27 | Created pcs-frontend/src/api/errors.ts | — | ~689 |
 | 23:27 | Created pcs-frontend/src/api/locks.ts | — | ~1276 |
+| 23:38 | Created pcs-frontend/src/api/changeImpact.ts | — | ~717 |
+| 23:38 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~789 |
+| 23:39 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~1074 |
+| 23:40 | Created pcs-frontend/tests/types/no_handwritten_result_types.test.ts | — | ~1488 |
