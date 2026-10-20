@@ -251,6 +251,18 @@ P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；re
 3.2.3 横切观测层
 编号	内容	依据
 P9A-OBS-001	workflow_progress 表：8 字段 + 5 态枚举（PENDING/IN_PROGRESS/COMPLETED/SKIPPED/FAILED）	SUP-008 V1.1 §2.6
+　　⚠️ **依据栏的引用是错的（2026-10-20 勘误）**：SUP-008 §2.6 实为「2.6 新模块：反应器计算」，
+　　§3.2.6 是「新增 reactor_results 表」—— **8 字段的定义在 SUP-008 里根本不存在**。
+　　而 SUP-008 §8.5 另有一个**同名**的 `workflow_progress`（14 字段的「项目作业流程
+　　进度百分比表」，Excel Sheet 2 导入用），与本条的签署步骤观测表**领域不同**。
+　　⇒ 本条取的是观测表；§8.5 那张未落地，将来要建须另起表名。见 `TODOS.md` TODO-052。
+　　⚠️ **实现偏离（2026-10-20，P9A-2 B0 落地）**：实际表为 **10 业务字段** +
+　　`progress_id` 主键 + TimestampMixin 三列。多出 2 列是被 P9A 自己的需求强制的：
+　　`workflow_type`（读 API 的 URL 段 + 三个写入点的区分依据）与 `project_id`
+　　（`workflow_id` 多态、无法 join 回项目，而读 API 要按项目鉴权）。
+　　另有 2 处改名：`step_no`→`step_order`、`step_name`→`step_role`
+　　（与 `SignatureMatrix.steps_json` 的键逐字一致）。**本行的「8 字段」保留为原始设计，
+　　不是要回改的实现目标**；偏差见 `TODOS.md` TODO-053。
 P9A-OBS-002	写入层：签署 / 变更单 / 代录批准状态变更时**同步写**，且写入点必须在 **service 层**	ADR-0047
 	　　⚠️ **不得写在 `app/api/v1/*` 路由处理函数里**（ADR-0047 §① 🔒）。实测依据：
 	　　`StateMachineService.transition()` 今天有 4 条入口，其中 `cia_engine.py:85`

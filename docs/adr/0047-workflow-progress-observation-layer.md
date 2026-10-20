@@ -7,13 +7,32 @@
 - Informed: P9A 实施者、P9B 甘特图组件
 - Supersedes: —
 - Superseded by: —
-- Related: SUP-008 V1.1 §2.6、P9-OPEN-007、SPEC §3.2.3 P9A-OBS-001~004、ADR-0041 §编号预留（故取 0047）
+- Related: SPEC §3.2.3 P9A-OBS-001~004、P9-OPEN-007、ADR-0041 §编号预留（故取 0047）
+- 引用勘误（2026-10-20，决策委员会）：本 ADR 原在 Related 里写「SUP-008 V1.1 §2.6」
+  作为 8 字段定义的出处 —— **该引用是错的**：SUP-008 §2.6 实为「2.6 新模块：反应器计算」，
+  §3.2.6 是「新增 reactor_results 表」，**8 字段的定义在 SUP-008 里根本不存在**。
+  真正的出处是 SPEC §3.2.3 P9A-OBS-001（其自身也误引 SUP-008，见 TODO-052）。
 
 ## 背景
 
 SPEC P9-OPEN-007 要求 P9A 交付 `workflow_progress` 表（8 字段 + 5 态枚举）与读 API，
 并有硬指标「流程状态变更到持久化 ≤ 500ms」。
 全仓 0 命中（`grep -rn "workflow_progress" app/ alembic/`），属绿地方。
+
+### ⚠️ 同名不同表：`SUP-008 V1.1 §8.5` 另有一个 `workflow_progress`
+
+SUP-008 §8.5 的 `CREATE TABLE workflow_progress` 是 **14 字段**的
+**项目作业流程进度百分比表**（`sequence_no / main_workflow_item / progress_percent /
+external_condition_1..5(+_progress) / start_date / completion_date`，
+`UNIQUE(project_id, sequence_no)`），来源是 1216D132 实例 Excel Sheet 2「作业流程」导入。
+
+它与本 ADR 的观测表**领域不同**：那是「项目作业进度」，本表是「签署/变更单/代录的
+工作流步骤状态」。把两个领域塞进一张表，正是本 ADR §后果 那条
+「写入点超出这个数 ⇒ 回本 ADR 修订，不要就地加」的同类错误。
+
+**裁决（2026-10-20，决策委员会）**：本 ADR 采用 SPEC/ADR 的观测表；
+若将来要建 SUP-008 §8.5 那张表，**必须另起表名**（建议 `project_job_progress`），
+**不得复用 `workflow_progress`**。登记见 `TODOS.md` TODO-052。
 
 `app/services/state_machine.py`（404 行）承载状态转移，`StateMachineService.transition()`
 在 `:348` 只做 `await self.session.flush()` —— **它不 commit**。
@@ -119,6 +138,27 @@ SPEC 的 500ms 是**上界**不是目标。异步（ARQ）引入的是「已提�
   **P9A-OBS-001** 落迁移，走 `TimestampMixin` 三列纪律
   （`app/models/mixins.py:34-41`：created_at 带 server_default + timezone、
   updated_at 可空 + `onupdate`、created_by 可空）。
+- **实现偏离（2026-10-20，P9A-2 B0 落地后登记）** —— 上面的「8 字段」是**原始设计**，
+  实际落地为 **10 个业务列** + `progress_id` 主键 + TimestampMixin 三列。
+  多出的两列是被 P9A 自己的需求强制要求的，不是口味：
+  - `workflow_type` —— 读 API 的 URL 段是 `{workflow_type}/{workflow_id}`，
+    且 §① 的三个写入点靠它区分；缺了它，一次签署与一次代录的进度行无法分辨。
+    实现为 3 值 Enum `WorkflowType`（SIGN / CHANGE_NOTICE / CUSTOMER_APPROVAL_PROXY），
+    让「不要就地加第四类工作流」这条约束在**类型层**成立。
+  - `project_id` —— `workflow_id` 是多态的（版本 ID / 交付物 ID），无法 join 回项目，
+    而读 API 要按项目鉴权（越权 404）；这一列是授权的唯一依据。
+  另有两处**改名**：`step_no` → `step_order`、`step_name` → `step_role`，
+  为与 `SignatureMatrix.steps_json` 的键（`step_order` / `sign_role`）逐字一致。
+  ⇒ 下一个实施者读到本段「8 字段」而代码是 10 列时，**代码是对的、本段过时**。
+  偏差登记 `TODOS.md` TODO-053（不回改 SPEC 正文：SPEC 是绑定权威，改它要重走 §7.2 验收；
+  改为在 SPEC §3.2.3 P9A-OBS-001 处加同样的实现偏离注记）。
+- 写入面落在 `app/services/workflow_progress_writer.py`，且**只有一个公开入口**
+  `record_step()`（有测试钉住「不得出现第二个写入口」）；读面是
+  `app/services/workflow_progress_service.py`（`GET /workflow-progress/{type}/{id}`）。
+  ADR-0047 §① 三个写入点的现状：**SIGN ✅ / CUSTOMER_APPROVAL_PROXY ✅ /
+  CHANGE_NOTICE ❌ 未实现** —— `change_notice_service.create_change_notice` 目前直接
+  `raise NotImplementedError`（等 P9A-DLV-007），所以「变更单的创建与自动关闭」
+  今天没有可达触发路径。**这是「不可演示」不是「不采纳」**，登记 TODO-057。
 - 500ms 验收（P9A-OBS-004）用同步写达成，无需异步管道。
 - 读 API 供 P9B 甘特图消费，其响应 schema 必须显式声明（P9A-DLV-010 零裸字段约束）。
 - 3 个写入点若将来超出这个数，说明有第四类工作流被漏登记 —— 届时回本 ADR 修订，

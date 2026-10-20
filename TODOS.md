@@ -658,40 +658,35 @@ Python `str.__hash__` 默认按进程随机加盐（`PYTHONHASHSEED`），多 wo
 
 ---
 
-## TODO-052: `workflow_progress` 表名在仓库里有**两个互不相容的定义**（🔴 未解决，需用户裁决）
+## TODO-052: `workflow_progress` 表名在两个规格里有互不相容的定义（✅ 已裁决 2026-10-20）
 
-2026-10-20 P9A B0 开工前实测发现 —— 两份规格文档各有一张叫 `workflow_progress` 的表，
-**领域完全不同**，而 SPEC 与 ADR 都把对方的章节号当依据引用：
+| 出处 | 字段 | 语义 | 状态 |
+|---|---|---|---|
+| `SUP-008 V1.1 §8.5` | **14**：`sequence_no / main_workflow_item / progress_percent / external_condition_1..5(+_progress) / start_date / completion_date` | **项目作业流程进度百分比表**（Excel Sheet 2「作业流程」导入） | **未落地** |
+| SPEC-P9 `P9A-OBS-001` / ADR-0047 | **8**（实 10，见 TODO-053） | **签署 / 变更单 / 代录的工作流步骤观测表** | **已落地**（P9A-2 B0） |
 
-| 出处 | 字段 | 语义 |
-|---|---|---|
-| `SUP-008 V1.1 §8.5`（CREATE TABLE 原文） | **14 个**：`progress_id / project_id / workspace_id / sequence_no / main_workflow_item / progress_percent / external_condition_1..5(+_progress) / start_date / completion_date`，`UNIQUE(project_id, sequence_no)` | **项目作业流程进度百分比表**（Excel Sheet 2「作业流程」导入用，Sprint 11 的 P9 项目管理前端） |
-| `SPEC-P9 P9-OPEN-007` / `P9A-OBS-001`（+ ADR-0047 采纳） | **8 个**：`workflow_id / step_no / step_name / step_status(5 态) / started_at / completed_at / assignee / result_hash` | **签署 / 变更单 / 代录批准的工作流步骤观测表**（ADR-0047 的 3 个写入点） |
+两者**领域不同**却共用表名。把两个领域塞进一张表，与 ADR-0047 §后果
+「写入点超出这个数 ⇒ 回 ADR 修订，不要就地加」是同类错误。
 
-**引用链是断的**：SPEC P9-OPEN-007 写「详见 SUP-008 V1.1 §2.6 + §8.3.5」，
-ADR-0047 的 Related 字段也写「SUP-008 V1.1 §2.6」—— 但 SUP-008 的 §2.6 实际是
-「2.6 新模块：反应器计算」，§3.2.6 是「新增 reactor_results 表」。**8 字段的定义在
-SUP-008 里根本不存在**（实测 `grep workflow_progress` SUP-008 只有 §8.5 那一处）。
+### 裁决（2026-10-20，决策委员会）
 
-### 本轮（B0）怎么处置的
+1. **本版建后者，不建前者。** ADR-0047 语境下的 `workflow_progress` 是准确的 ——
+   它记录的是「工作流（签署/变更单/代录）的进度」。
+2. **将来若要建 SUP-008 §8.5 那张表，必须另起表名**（建议 `project_job_progress`），
+   **不得复用 `workflow_progress`**。
 
-**只建 SPEC-P9 / ADR-0047 的观测表**（`p9_002_workflow_progress.py`）。
-理由：ADR-0047 §① 的三个写入点只有它能服务；建 SUP-008 那张则 B2/B5 的
-观测写入与读 API 全部落空。SUP-008 §8.5 的作业流程表属 Excel 导入 + 项目管理
-前端（Sprint 11），**不在 P9A 范围**，未建。
+### 已落的两处引用修正（随本次裁决一起完成）
 
-### 未解决的部分
+- **ADR-0047 的 Related 栏原写「SUP-008 V1.1 §2.6」是错的引用** —— §2.6 实为
+  「2.6 新模块：反应器计算」，§3.2.6 是「新增 reactor_results 表」，
+  **8 字段的定义在 SUP-008 里根本不存在**。已在 ADR-0047 头部加「引用勘误」，
+  并在「背景」段新增「同名不同表」小节。
+- **SPEC `P9A-OBS-001` 的「依据」栏有同一个错引用** —— 已在该行下方加勘误注记
+  （**未删改正文**，保留原始表述以留痕）。
 
-1. **要不要建 SUP-008 §8.5 那张表？** 若要，需另议表名（不能默默发现「已有同名表」
-   就复用 —— 那会把两个领域塞进一张表），或裁决合并成一张宽表。
-2. **引用要不要回改**：SPEC P9-OPEN-007 与 ADR-0047 都指向不存在的 SUP-008 §2.6。
-   按 CLAUDE.md「SPEC 是绑定权威，改它要重走 §7.2 验收」的规矩，本轮**没改 SPEC**。
-
-- **发现**：2026-10-20，P9A B lane 开工前 pre-flight
-- **归属**：**交用户裁决**（表名 + 引用修正两件事都不是实施者能定的）
-- **严重度**：MEDIUM（当前**无功能缺陷** —— B lane 自洽；风险是日后有人按 SUP-008
-  §8.5 去改这张表，或反过来把观测数据写进作业流程语义）
-- **关联**：ADR-0047 · SPEC P9A-OBS-001 · `.superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md` 的 `Ruling P1`
+- **发现**：2026-10-20，P9A B0 开工前实测
+- **严重度**：~~🔴~~ → **已关闭**（表名与引用都已定）
+- **关联**：ADR-0047 · TODO-053 · TODO-057
 
 ---
 
@@ -710,8 +705,11 @@ SPEC P9-OPEN-007 / P9A-OBS-001 列 8 字段，P9A B0 建了 **10 个**业务列�
 为与 `SignatureMatrix.steps_json` 的键（`step_order` / `sign_role`）逐字一致，
 写入时不需要翻译层。
 
-**未回改 SPEC** —— SPEC 是绑定权威，改它要重走 §7.2 验收；偏差登记在此，
-待 SPEC 下次修订时一并吸收。
+**不回改 SPEC 正文** —— SPEC 是绑定权威，改它要重走 §7.2 验收；
+改为**在 SPEC §3.2.3 `P9A-OBS-001` 行下方加实现偏离注记**（2026-10-20 已落）——
+「加注记」与「改正文」成本完全不同：前者是记录，后者触发验收重走。
+ADR-0047 §后果 段也已加同一份偏离说明（下一个实施者读到「8 字段」而代码是 10 列时，
+应当知道代码是对的、文档过时）。
 
 - **发现**：2026-10-20，P9A B0
 - **归属**：SPEC 下次修订（P9A 收口时一并处理）
@@ -783,34 +781,86 @@ P9A B4a 的 `POST /records/{module}/{id}/...` **直接以该注册表的键作�
 
 ---
 
-## TODO-057: ADR-0047 §① 的第三个观测写入点（变更单）未实现（P9A B lane 终审登记）
+## TODO-057: ADR-0047 §① 的第三个观测写入点（变更单）未实现（🟡 不可演示，非「不采纳」）
 
 ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个**：
 
 | 工作流 | 写入点 | 状态 |
 |---|---|---|
-| SIGN | `DeliverableService.sign_step` | ✅ 已实现（B2） |
-| CUSTOMER_APPROVAL_PROXY | `DeliverableService.record_customer_approval_proxy` | ✅ 已实现（B3） |
+| SIGN | `DeliverableService.sign_step` | ✅ B2 |
+| CUSTOMER_APPROVAL_PROXY | `DeliverableService.record_customer_approval_proxy` | ✅ B3 |
 | **CHANGE_NOTICE** | 变更单的**创建**与**自动关闭** | ❌ **未实现** |
 
-**核实：这是潜在缺口，不是可达缺陷。** `change_notice_service.create_change_notice`
-当前直接 `raise NotImplementedError`（等 P9A-DLV-007 `SignatureMatrixService`），
-所以「创建」与「自动关闭」今天**没有任何可达路径**能触发。
+### 状态措辞（2026-10-20 决策委员会纠正）
+
+**这是「不可演示」，不是「不采纳」。**
+- 「不采纳」意味着该项从验收清单里消失；
+- 「不可演示」意味着**该项存在、待实现**。
+
+⇒ P9A 整体验收时按「**2/3 已写入，第 3 项待 P9A-DLV-007**」记录，
+**既不得**记作「已写入」，**也不得**记作「不适用」。
+（标错的后果与 TODO-045 同形：清单上看着处理过了，实际没做。）
+
+### 事实
+
+`change_notice_service.create_change_notice` 目前直接 `raise NotImplementedError`
+（等 P9A-DLV-007 `SignatureMatrixService`），所以 ADR §① 指定的两个触发点
+（创建 / 自动关闭）今天**都没有可达路径**。
 
 **为什么不在 `approve_change_notice` 里补**：ADR §① 指定的两个触发点是
 「创建」与「自动关闭」，而 `approve_change_notice` 两者都不是 ——
-它是「批准变更单、变更生效」（交付物 PENDING → APPROVED）。
-在那里加写入 = 写一个不在 ADR 词表里的语义点，
-而 ADR §后果 明写「3 个写入点若超出这个数，说明有第四类工作流被漏登记」。
+它是「批准变更单、变更生效」（交付物 `PENDING → APPROVED`）。
+在那里加写入 = 写一个不在 ADR 词表里的语义点。
 
 **为什么不写占位测试**：永远绿的测试会把「缺一个写入点」伪装成「已覆盖」。
-总纲第二轮处置第 2 条刚删过一个同形的伪测试（`test_abandon_change_semantics_
-verified_first`），不重复同一个错。
+总纲第二轮处置第 2 条刚删过一个同形的伪测试，不重复同一个错。
 
-**解锁后的症状**：变更单在甘特图上永远空白，**且不报错** ——
-与 ADR-0047 立观测层要防的失败（cron 驱动变更系统性隐形）同形。
+### 归属（决策委员会要求确认，二者同时成立，分工不同）
+
+- **前置依赖 = P9A-DLV-007**（`SignatureMatrixService`）：`create_change_notice`
+  卡在它上面，`Deliverable.matrix_id` 是 NOT NULL + FK，
+  而解析 `CHANGE_NOTICE_3_LEVEL` 矩阵的正是这个服务。它不落地，
+  变更单的创建路径不可达 ⇒ 触发条件。
+- **改动落点 = `app/services/change_notice_service.py`**：写入点本身要加在
+  变更单服务里（`create_change_notice` 与自动关闭路径），不是矩阵服务里。
+- ⇒ 归属一句话：**触发看 P9A-DLV-007，改动在变更单服务**。
+  排期跟着 DLV-007，做的时候不要去改矩阵服务。
 
 - **发现**：2026-10-20，P9A B lane 终审（fresh reviewer 提出 HIGH，按后果改判 MEDIUM）
-- **归属**：**P9A-DLV-007（SignatureMatrixService）落地时一并做**；不阻塞 P9A 收口
-- **严重度**：MEDIUM（今天无可达失败）
-- **关联**：ADR-0047 §① · TODO-052（同一批 SPEC 未决项）
+- **严重度**：MEDIUM（今天无可达失败；解锁后的症状是「变更单在甘特图上永远空白
+  **且不报错**」—— 与 ADR-0047 立观测层要防的失败同形）
+- **关联**：ADR-0047 §① · TODO-052 · TODO-058
+
+---
+
+## TODO-058: `RECORD_TYPE_REGISTRY` 的语义未定 + 列完整性无契约（🔴 会继续咬人）
+
+P9A B lane 终审的 CRITICAL 修复（`d669f9b`）只治了**症状**：
+`{module}` 取 `RECORD_TYPE_REGISTRY` 的键，而注册表里混着**列不齐**的表
+（`CostEstResult` / `TwoPhaseResult` 连 `project_id` 都没有），
+于是走到守卫抛 500。修法是「加列检查返 422」。
+
+**那没回答的是：注册表里为什么有这些表？** 两种读法，后果完全不同：
+
+| 语义 | 若成立则 |
+|---|---|
+| A「可参与工作流的记录类型」 | `CostEstResult` / `TwoPhaseResult` **不该在注册表里**（它们无工作流场景） |
+| B「所有结果表的枚举」 | 工作流代码**不该用它做 `{module}` 参数化**，应另建「可工作流模块」清单 |
+
+**不裁决的后果**：任何新的「模块参数化」代码（P9B、或再加一种记录族）
+都会重蹈同一条覆辙，而每次都只能做症状级修复。
+本 lane 的 23 条 RED 失败正说明这个问题比估算的普遍。
+
+### 当前处置（临时，非裁决）
+
+B lane 用「**从 `RecordMixin.__annotations__` 派生的列集**」做能力判定
+（`records_actions.py:resolve_record_model(need_mixin=True)`）：
+派生而非手写清单，是为了让「mixin 加列 ⇒ 所有子类自动进入可用集合」。
+批注走 `need_mixin=False`（任何有 `project_id` 的记录都能留言）。
+**这是能自洽的临时判据，但它回答的是「这张表能不能用」，不是「注册表该有什么」。**
+
+- **发现**：2026-10-20，P9A-2 终审（决策委员会提出，用户未提）
+- **归属**：**P9B 开工前**，或独立技术债
+- **严重度**：🔴 HIGH（不是当前缺陷 —— B lane 已修；是**会重复发生的设计债**：
+  每来一个用 `{module}` 的端点都要重新踩一遍）
+- **关联**：TODO-048（同一注册表的 finalize 语义问题）· TODO-055（键风格不统一）

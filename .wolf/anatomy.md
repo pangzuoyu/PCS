@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T00:24:09.660Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T00:36:43.359Z
 > Files: 880 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -290,7 +290,7 @@
 - `PCS-PLAN-P4-CORE-ENGINE.md` — P4 核心计算引擎（第一批）实施计划 V1.1 (~2992 tok)
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20491 tok)
 - `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14616 tok)
-- `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~8417 tok)
+- `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~3834 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
@@ -333,7 +333,7 @@
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
 - `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~2304 tok)
-- `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1144 tok)
+- `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3499 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2128 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
@@ -1514,4 +1514,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
-- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~4664 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~6554 tok)

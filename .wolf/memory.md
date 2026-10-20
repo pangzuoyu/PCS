@@ -1963,3 +1963,7 @@
 | 07:59 | Edited pcs-backend/tests/api/v1/test_workflow_progress_api.py | modified test_read_api_is_project_scoped() | ~579 |
 | 08:00 | Created pcs-backend/tests/services/test_workflow_progress_acceptance.py | — | ~1176 |
 | 08:24 | Edited pcs-backend/app/services/deliverable_service.py | or_() → append() | ~168 |
+| 08:36 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+19 lines) | ~296 |
+| 08:36 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+21 lines) | ~386 |
+| 08:36 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+12 lines) | ~213 |
+| 08:36 | Edited docs/PCS-PLAN-P9A.md | expanded (+15 lines) | ~211 |

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T00:24:09.660Z",
+    "lastScanned": "2026-10-20T00:36:43.359Z",
     "fileCount": 880,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8329fda6b930c9c0afa7777d87fa7b2f2b254de3cf56a9c5bce56842e0e586c2",
-    "storeUpdatedAt": "2026-10-20T00:24:09.672Z",
-    "rootHash": "08459aa71ed78254"
+    "renderedHash": "f42a1adb52b19a560c138bc142c8dd435bea7329863ff653d2275d8d6a548757",
+    "storeUpdatedAt": "2026-10-20T00:36:43.370Z",
+    "rootHash": "7974de676ca4b8eb"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28182,11 +28182,11 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 4664,
-      "hash": "a2ffe1c31b54a9b7",
-      "size": 31168,
-      "mtimeMs": 1792405274153.495,
-      "updatedAt": "2026-10-19T10:21:14.201Z",
+      "tokens": 6554,
+      "hash": "274709cd7d9269d7",
+      "size": 44922,
+      "mtimeMs": 1792456593279.2515,
+      "updatedAt": "2026-10-20T00:36:33.327Z",
       "source": "hook"
     },
     "docs/adr/0046-user-identity-model-migration.md": {
@@ -28200,11 +28200,11 @@
     },
     "docs/adr/0047-workflow-progress-observation-layer.md": {
       "description": "ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界",
-      "tokens": 1144,
-      "hash": "34825e77d0a92a80",
-      "size": 8503,
-      "mtimeMs": 1792409762358.2903,
-      "updatedAt": "2026-10-19T11:36:02.406Z",
+      "tokens": 1660,
+      "hash": "9b84cd739afd02bd",
+      "size": 11906,
+      "mtimeMs": 1792456582901.971,
+      "updatedAt": "2026-10-20T00:36:22.956Z",
       "source": "hook"
     },
     "docs/adr/0048-edit-lock-storage.md": {
@@ -28236,11 +28236,11 @@
     },
     "docs/PCS-PLAN-P9A.md": {
       "description": "P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁）",
-      "tokens": 8417,
-      "hash": "4a2e23515ed8df71",
-      "size": 43129,
-      "mtimeMs": 1792411316593.9812,
-      "updatedAt": "2026-10-19T12:01:56.646Z",
+      "tokens": 3834,
+      "hash": "56ca053a4818c8aa",
+      "size": 23604,
+      "mtimeMs": 1792456603308.517,
+      "updatedAt": "2026-10-20T00:36:43.359Z",
       "source": "hook"
     },
     "pcs-backend/tests/alembic/test_p9_001_users_token_version.py": {

@@ -38,6 +38,13 @@ budget_tokens: 1500
 （`CHANGE_PENDING → CHECKED` + 恢复 ACTIVE 快照 + 审计 `CHANGE_ABANDONED`）。
 **终审的 fresh reviewer 独立重推了一遍这个判定，结论相同。**
 
+⚠️ 决策委员会追问「`ABANDON_CHANGE` 有没有消费方，否则转发就是转发到空路径」——
+**已核实是完整实现路径，不是空枚举**：`ALLOWED_TRANSITIONS` 有该转移对（`:74`）、
+`TRANSITION_ROLES` 有角色集（`:107`）、`TRANSITION_AUDIT_ACTION` 有审计（`:125`）、
+`transition()` 内有字段写入分支（`:333`）、`SNAPSHOT_RESTORERS` 含它（`:143`），
+且 `_restore_snapshot_if_needed` 在 `transition()` 里**无条件调用**（`:354`）。
+B4b 另有 4 条端到端测试（正常放弃 / 非 CHANGE_PENDING 拒 / 审计 / 理由必填）。
+
 ### 顺带修的既有坏 fixture（bug-192）
 
 `tests/conftest.py` 的 `workspace` fixture 传 `workspace_name=`（模型列叫 `name`）
@@ -58,15 +65,22 @@ budget_tokens: 1500
    D0 迁移与 A/B/C 并行不冲突；注意 `RECORD_TYPE_REGISTRY` 里 `CostEstResult`
    **没有 `record_hash` 列**（TODO-048）。
 
-3. **需要用户裁决的一条**：**TODO-052** —— `workflow_progress` 这个表名在仓库里
-   有**两个互不相容的定义**：SUP-008 §8.5 是 14 字段的「项目作业流程进度百分比表」，
-   SPEC-P9 / ADR-0047 是 8（实 10）字段的「签署步骤观测表」；而 SPEC 与 ADR 都把
-   对方**不存在的章节号**（§2.6 实为「反应器计算」）当依据引用。
-   本 lane 建的是后者。要不要建前者 / 要不要另议表名，需用户定。
+3. **需要用户裁决的一条**：~~TODO-052~~ **已于 2026-10-20 由决策委员会裁决** ——
+   建 SPEC/ADR 的观测表，不建 SUP-008 §8.5 的 14 字段表；将来要建须另起表名
+   （建议 `project_job_progress`）。ADR-0047 的错引用（§2.6 实为「反应器计算」）
+   与 SPEC `P9A-OBS-001` 的同一错引用**均已加勘误注记**。
 
-4. **P9A-1 的遗留项**（未变）：access token 不带 `tv`（停用后在手 access 仍可用至过期）；
+4. **🔴 新登记的 TODO-058（决策委员会提出，用户未提）**：
+   `RECORD_TYPE_REGISTRY` 的**语义**未定 —— 它是「可参与工作流的记录类型」
+   还是「所有结果表的枚举」？终审的 CRITICAL 修复只治了症状（加列检查返 422），
+   没有回答「注册表里为什么有这些表」。不裁决的话，**任何新的 `{module}` 参数化代码
+   都会重蹈覆辙**。P9B 开工前须裁决。
+
+5. **P9A-1 的遗留项**（未变）：access token 不带 `tv`（停用后在手 access 仍可用至过期）；
    AD 同步需服务账号 `LDAP_BIND_DN`/`LDAP_BIND_PASSWORD`/`LDAP_USER_FILTER`/`LDAP_USER_ATTRS` ——
    运维给账号前 P9A-USR-002/003 只算**代码就绪**，不算验收通过。
+   ⚠️ 该区分已写入 `docs/PCS-PLAN-P9A.md` §完成标准（委员会要求），
+   整体验收时标「代码就绪，待运维账号」，**不得标「通过」**。
 
 ---
 

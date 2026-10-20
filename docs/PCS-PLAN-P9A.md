@@ -128,6 +128,21 @@ cd ../pcs-frontend && npm run typecheck && npm run lint && npm run test
 停用用户 refresh 立即 401；workflow_progress 三工作流写入 + 500ms 达标；
 待办/通知 ≤500ms；编辑锁并发正确；OpenAPI 冻结。
 
+⚠️ **P9A-USR-002/003 的验收状态：代码就绪 ≠ 验收通过**（2026-10-20 决策委员会裁决）。
+AD 同步的服务账号（`LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` / `LDAP_USER_FILTER` /
+`LDAP_USER_ATTRS`）由运维提供。账号到位前，离职检测与每日全量同步
+**跑不起来**（同步端点返 503、cron 每晚记一条 WARN 后 no-op），
+因此这两项的**端到端验收不可演示**。
+⇒ P9A 整体验收时这两项标「**代码就绪，待运维账号**」，**不得标「通过」**。
+（与 TODO-045 同一失败模式：本地有、部署无。若不区分，整体验收会误判为通过。）
+
+⚠️ **workflow_progress「三工作流写入」目前只落地 2 个**（2026-10-20）：
+SIGN ✅（B2）/ CUSTOMER_APPROVAL_PROXY ✅（B3）/ **CHANGE_NOTICE ❌** ——
+`change_notice_service.create_change_notice` 直接 `raise NotImplementedError`
+（等 P9A-DLV-007），该工作流的触发点不可达。
+验收时按「**2/3 已写入，第 3 项待 P9A-DLV-007**」记录，**不得**记作「已写入」，
+也**不得**记作「不适用」。见 `TODOS.md` TODO-057。
+
 ## What already exists（复用，未重建）
 
 | 既有物 | 本计划怎么用 |
