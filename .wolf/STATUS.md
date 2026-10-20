@@ -4,169 +4,98 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-19（第 5 轮）。
+> Read this FIRST when starting a session. Last updated: 2026-10-20（P9A B lane 收口）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ 本会话完成
+## ✅ Done
 
-### 第 1~2 轮（前序会话）：P8 契约词表治理 + 类型闸
+### 第 6 轮（本会话）：执行 P9A-2「交付物写面」lane（B0→B5）+ 终审修复
 
-12 个同族缺陷 bug-180~191（词表不在类型里 → 客户端猜 → 猜错 → 生产静默错）已闭环；
-两道编译期闸（`StrictColumns<T>`、词表契约类型 + 双向断言）已补。
-明细见 `.wolf/buglog.json` + commit `c9d937f`→`5b1174c`。
-（该轮 handoff 另存 `/tmp/pcs-handoff-2026-10-19-P8词表治理(bug180-191).md`。）
+11 笔 commit（`a4cf1e5`→`8ae08b9`），全部在 main。落地：
 
-### 第 3 轮（本会话）：P9-Prep 实施计划（编写 + 两轮审查 + 4 项裁决）
+| task | 产出 |
+|---|---|
+| B0 | `workflow_progress` 表（`p9_002`）+ 5 态/3 类枚举 + 16 例 |
+| B1 | `POST /deliverables/{id}/issue`（doc_no 原子分配）+ 15 例 |
+| B2 | `sign-step` + `workflow_progress_writer`（观测**唯一**写入口）+ 26 例 |
+| B3 | `customer-approval/proxy` + `secondary_auth`（MFA 路径 B）+ 16 例 |
+| B4a–d | records 7 端点（`records_actions.py`）+ `record_comments`（`p9_003`）+ 动作时间线 + 51 例 |
+| B5 | `GET /workflow-progress/{type}/{id}` + 500ms 验收（实测值已打印）+ 12 例 |
+| 终审 | `d669f9b` 修 F1 CRITICAL（`{module}` 列不齐 → 500）+ F3（`p9_004` 加宽列）+ F4 |
 
-产出 **1 份计划**：`docs/PCS-PLAN-P9-PREP.md`（1662 行 / 9 task）。
-提交：`60b0d35`（计划）→ `a2744f0`（cerebrum）→ `39e162f`（审查修正 + 裁决）。
+**基线**：后端 **4868 passed / 77 skipped / 0 failed**；前端 **704 passed / 0 failed**；
+两端 typecheck + lint clean；裸字段仍 **71（未上涨）**；两库均在 `p9_004`（head），
+`alembic check` 均 exit 0。
 
-**范围裁决**：SPEC（V2.0）覆盖 P9-Prep/P9A/P9B 三段共 17.5–24 人周。
-只写 P9-Prep —— 后者 4 份 ADR 未定（编辑锁存 DB 还是 Redis、通知建表还是实时算），
-此时写代码级步骤等于写 fiction。**P9A 计划待 ADR 落盘后另写 `docs/PCS-PLAN-P9A.md`。**
+### 🔒 B4 Step 0 的判定（计划里唯一可能造成数据语义错误的地方）
 
-**两轮审查**（`/plan-eng-review` + 专家委员会），共 6 个 issue：
-- ADR-0044 §⑤ 原写「Redis 挂 → 无锁放行」⇒ 静默覆盖 user-stated learning
-  `ekris-redis-lock-degradation`，且 Redis 挂掉会静默丢用户编辑
-  ⇒ 改**两层锁**（Redis 体验层 + `record_hash` 兜底层），§⑥ 粒度、§⑦ 409 契约
-- ADR-0042 §③ 停用门只挂 `/auth/login` ⇒ `/mock-login` 是独立签发路径，
-  无 `tv` claim、不查 users、不写审计 ⇒ 两者共用 `_issue_tokens()`
-- 闸门复用**已存在**的 `scripts/run_gate.py`（cerebrum TODO-050 已立法），
-  不新建 `_alembic_gate.py` —— 原提案的前提（两个 alembic 闸门）经核实是错的：
-  `check_migration_idempotency.py` 是静态解析迁移文件，从不跑 alembic
-- ADR-0044 §⑥「唯一收口」经核实**不成立**：`finalize_calc_record` 不是
-  `record_hash` 唯一写入点，实测 6 条旁路；`updated_at` 带 `onupdate=func.now()`，
-  空 hash 是 pump/pipe/pipe_net 的**常态**路径
+`change_notice_service.approve_change_notice` **不等同** SPEC 的 `abandon-change`：
+它作用于**交付物**、迁移 `PENDING → APPROVED`、审计 `CHANGE_NOTICE_APPROVED`
+= 「批准变更单、变更生效」，与「放弃」**方向相反**。
+`abandon-change` 改为转发既有的 `StateTransition.ABANDON_CHANGE`
+（`CHANGE_PENDING → CHECKED` + 恢复 ACTIVE 快照 + 审计 `CHANGE_ABANDONED`）。
+**终审的 fresh reviewer 独立重推了一遍这个判定，结论相同。**
 
-**4 项裁决（用户）**：MFA 路径 B（AD 密码二次输入 + `SIGN_2FA_FALLBACK`）｜
-mock 会话豁免二次认证（安全依据：生产不挂 mock 路由）｜
-本版不设邮件服务器，预留 `NotificationChannel` 接口｜
-P9-OPEN-004 每日凌晨 / P9-OPEN-006 WebSocket+降级轮询。
+### 顺带修的既有坏 fixture（bug-192）
 
-委员会建议 3（TODO-047 改 TODO-045）**驳回** —— TODO-045/046 已被占用，
-它们是 `##` 级标题，`grep "^### TODO-"` 会漏一半。根因已进 cerebrum。
-
-### 第 4 轮（本会话）：执行 P9-Prep 计划（9 个 task 全部完成）
-
-`docs/PCS-PLAN-P9-PREP.md` inline 执行完毕。产出：
-**闸门** `pcs-backend/scripts/gate_alembic_check.py`（接 `.githooks/pre-commit` 第二段）｜
-**ADR-0046~0049**（用户身份 / 观测层 / 编辑锁 / 通知待办）｜**2 份 note**（P1 端点清单、MFA 决议）｜
-SPEC §2.2.2/§2.2.3/§2.2.4/§2.3/§3.2.2/§3.2.4/§3.2.5/§8/§9 全面回写｜
-Web 开发计划 P9 拆三段｜TODO-047 登记。
-
-**ADR 编号不是 0042~0045** —— ADR-0041 正文预留了「0042 = 解冻机制」「0043+ = 后续接口扩展」，
-本轮从 **0046** 起。两份文档占同一个号就是第二个真相源。
-
-执行中发现并修正了计划/SPEC 的 6 处事实错误（详见 commit 说明与
-`.superpowers/sdd/PCS-PLAN-P9-PREP/progress.md` 的 `Ruling:` 行），其中三处是**会让人验错东西**的：
-① `alembic check` 比对 ORM ↔ **活库**，不读迁移源码 —— 按原计划往 `alembic/versions/`
-放探针会得到假绿；② `for r in app.routes` 在本仓 FastAPI 版本上枚举不到任何 API 路由
-（`_IncludedRouter` 不展开）—— 计划的「唯一可信来源」会产出空清单；
-③ `record_hash` **不是**覆盖全部结果表 —— 29 张里只有 19 张有。
-
-### 第 5 轮（本会话后半）：P9A 实施计划（编写 + 两轮审查）
-
-产出 **`docs/PCS-PLAN-P9A.md` 总纲 + 4 份 lane**（1-身份 / 2-交付物写面 / 3-通知待办 / 4-编辑锁与CIA）。
-经 `/plan-eng-review` + 决策委员会**两轮**，共 16 条 issue 全部处置，`UNRESOLVED: 0`。
-明细见计划末尾 `## GSTACK REVIEW REPORT`。
-
-**开工前勘察推翻了 SPEC 的一个关键假设**：P9A 不是「从零建 34 件事」——
-实测 **8 张交付物 ORM 表 + 4 个 service（约 1900 行，各带约 450 行测试）已存在，
-但无任何 API 出口** ⇒ P9A 主要是接线，真正新建只有 2 表 + 2 列 + 约 16 端点。
-
-四条 lane **各自带自己的迁移**，可并行（卡不到同一个 alembic head 上）。
-唯一强制顺序：**D2 编辑保存路径在 B 之后**。
-
----
-
-## ✅ 基线
-
-后端 **4643 passed / 77 skipped / 0 failed**（P9-Prep 落地后实测，+14 = PP-5 闸门的
-10 个用例 + `run_capture` 的 4 个），前端 **704 passed / 0 failed**。
-两端 lint/typecheck clean。`check-api-drift.sh` → OK / exit 0。
+`tests/conftest.py` 的 `workspace` fixture 传 `workspace_name=`（模型列叫 `name`）
+且漏 `project_id` ⇒ 用它的测试全 TypeError、项目守卫被静默跳过。
+**从没暴露是因为没有任何测试用过它** —— 未被执行的 fixture 与不存在的 fixture
+在测试套件里是同一种东西：全绿。
 
 ---
 
 ## 🚀 Next quest
 
-1. **执行 `docs/PCS-PLAN-P9A-2-交付物写面.md`（B0→B5）** —— A lane（A1→A3）已于
-   2026-10-19 完成（4682 passed），B lane 是下一条。
-   ⚠️ **B4 有阻塞式 Step 0**：`change_notice_service.approve_change_notice` 是否等同
-   SPEC 的 `abandon-change` 必须先读实现判定（approve 与 abandon 是相反动作，
-   接错 = 数据语义错误），**结论写进 commit，无结论不开工**。
-   C/D 两条 lane 与 B 无前置；D2 必须在 B 之后。
+1. **P9A-3「通知待办」lane（C0→C4）** —— 与 A/B/D 无前置，可直接开工。
+   读 `docs/PCS-PLAN-P9A-3-通知待办.md` + `docs/adr/0049-notification-and-todo-data-model.md`。
+   ⚠️ 该 ADR §① 已锁「通知建表 + 待办**实时计算**（不建 `todos` 表）」、
+   §④ 已锁 30 天清理挂 ARQ；§① 的**通知发送**同步/异步**明确未锁**。
 
-2. **P9A-1 的遗留项**：
-   - **access token 不带 `tv`** ⇒ 停用后在手 access 仍可用至过期（默认 30 分钟）。
-     ADR-0046 §⑤ 明写是**已知边界不是已解决**；真要解决需给 access 也加 tv 校验。
-   - **AD 同步需服务账号**：新增 `LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` /
-     `LDAP_USER_FILTER` / `LDAP_USER_ATTRS`。留空 ⇒ 同步端点返 503、
-     cron 每晚记一条 WARN 后 no-op。**运维给账号之前，P9A-USR-002/003 只算代码就绪，
-     不算验收通过**（离���检测与每日全量都跑不起来）。
-   - **`User.roles` 列注释的「7 值」仍不准**：已把 `SYSADMIN` 改成 `SYSTEM_ADMIN`，
-     但清单漏了 `VIEWER`（代码里 `_READ_ROLES` 是 4 值含 VIEWER）。未扩写 ——
-     按「只改自己造成的」原则留待专门一轮。
+2. **P9A-4「编辑锁与 CIA」lane（D0→D3）** —— **D1 必须在 B 之后**（现已完成，可开工）。
+   D0 迁移与 A/B/C 并行不冲突；注意 `RECORD_TYPE_REGISTRY` 里 `CostEstResult`
+   **没有 `record_hash` 列**（TODO-048）。
 
-3. **两件多日工程，别当小任务排**：
-   - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
-     照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
-   - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
+3. **需要用户裁决的一条**：**TODO-052** —— `workflow_progress` 这个表名在仓库里
+   有**两个互不相容的定义**：SUP-008 §8.5 是 14 字段的「项目作业流程进度百分比表」，
+   SPEC-P9 / ADR-0047 是 8（实 10）字段的「签署步骤观测表」；而 SPEC 与 ADR 都把
+   对方**不存在的章节号**（§2.6 实为「反应器计算」）当依据引用。
+   本 lane 建的是后者。要不要建前者 / 要不要另议表名，需用户定。
 
-4. **P9A 计划里的未决项**（详见总纲 §尚未解决）：
-   ① 周期估算可能偏低 —— SPEC 给 4~6 周，但 WebSocket / ARQ 失败注入 / 编辑锁
-   不在原估算里；② `GET /deliverables/{id}/actions` 的数据源未定；
-   ③ `audit_logs` 保留期未裁决（裁决 2 让写入量取决于编辑频率）。
-
+4. **P9A-1 的遗留项**（未变）：access token 不带 `tv`（停用后在手 access 仍可用至过期）；
+   AD 同步需服务账号 `LDAP_BIND_DN`/`LDAP_BIND_PASSWORD`/`LDAP_USER_FILTER`/`LDAP_USER_ATTRS` ——
+   运维给账号前 P9A-USR-002/003 只算**代码就绪**，不算验收通过。
 
 ---
 
 ## Context
 
-- main，工作区除 `.wolf/*`（钩子维护）外干净。**不要建 worktree**（历史事故）。
-- **两库均在 `p8_011`（head）**，`alembic check` 均 exit 0。`pcs_test` 是行为验证库。
-  （此前 STATUS 写的 `p8_010` 是陈旧值。）
-- 改迁移的纪律：`alembic check` 退出码 **255**；先 `current` vs `heads`；
-  **每个库各跑一次**；行为验证上真库。
-- 契约产物（`openapi.json` / `openapi.snapshot.json` / `api.d.ts`）由 G-08 钩子在
-  **commit 之后**重生成，而 `git add` 在钩子之前 ⇒ 偶尔漏提交，
-  手工 `git status` 看一眼。发现不同步时**不要** `git checkout --` 丢弃。
-- 无 CI/CD（单人开发裁决，勿再建议）。本地 gate 走 `.githooks/`（`core.hooksPath`
-  已设），**不是** pre-commit 框架。
-- **提交约定**：本轮 3 个 commit 落在 main（仓库历史线性，且 CLAUDE.md 的 QA 闸门
-  按「main 就是批末」描述）。
+- main，工作区干净。**不要建 worktree**（历史事故，见上轮 STATUS）。
+- 两库均在 `p9_004`（head），`alembic check` 均 exit 0。改迁移的纪律见 CLAUDE.md
+  （退出码 **255**；先 `current` vs `heads`；**每库各跑一次**）。
+  ⚠️ `pcs_test` 的跑法：URL 从 `.env` 派生（`DATABASE_URL` 改库名），
+  **不要把口令写在命令行**（会被权限分类器拦）。
+- 契约产物由 G-08 钩子在 commit **之后**重生成，而 `git add` 在钩子之前
+  ⇒ 偶尔漏提交，commit 后要 `git add -A && git commit --amend --no-edit` 补。
+- 无 CI/CD（单人开发裁决，勿再建议）。本地 gate 走 `.githooks/`。
+- 提交约定：conventional commits，**无 attribution 行**（本仓全局禁用）。
 
 ---
 
 ## 教训（本会话新增）
 
-- **ADR 不得静默覆盖 user-stated learning**。要与既有裁决冲突，ADR 必须**显式引用**
-  并给出**可证伪的作废条件**（「若改判为 (b)，本条作废」）。
-  冲突不必然是错 —— 但**不写**就是错。
-- **裁决要连落地约束一起写**，不只写结论。MFA 路径 B 记四条：审计 action
-  **不得**复用 `SIGN_2FA_OK`（否则审计读成「已上真 MFA」）；路径 B 是过渡态；
-  mock 豁免范围限定**登录层**、函数本身不豁免；邮件预留**不写空壳实现**也不写临时 `if`。
-- **「唯一收口」是断言不是事实**，写进 ADR 前要 grep 验证。
-  本次核实发现 6 条旁路 ⇒ 结论虽不变，论证（与实施者的预期）必须改。
-- **引用编号前先验证编号存在**；断言一批编号空闲时先确认查询没漏级别
-  （`TODOS.md` 混用 `##`/`###` 两种标题级别）。
-- **评审意见要先核实再接受**。本次 6 条里 1 条基于误读（TODO-045 已被占用），
-  1 条基于我的误读（以为有两个 alembic 闸门）。**驳回也要带证据。**
-- **注释防不住已进过记录的 bug**（`alembic check` 的 255 已进 CLAUDE.md）⇒
-  该由代码约束（共享函数 + 单测），不是每次改动补一句提醒。
-- **「验证手段」本身也会是错的，且错得很安静**。本轮三处：
-  ① `alembic check` 不读迁移源码 —— 按「加一条迁移造漂移」验收会拿到**假绿**；
-  ② `app.routes` 不展开 `_IncludedRouter` —— 枚举路由会拿到**空清单**；
-  ③ SPEC §2.2.3 的 `grep app/api/` 在仓库根是**命令没跑成功**，不是「搜过了没有」。
-  ⇒ 写验收步骤时先问「这条命令真的能看到我想看的东西吗」，并**实跑一次看输出**，
-  别照抄形状像对的命令。
-- **计划里的「唯一收口 / 全部覆盖」是断言不是事实**，且实测常比断言小。
-  本轮三处断言各错一半：record_hash 21 张（实 18/29）、唯一写入点（实 6 条旁路）、
-  11 张表有 `updated_at`（实 4 张）。写 ADR 前逐条 grep 验证。
-- **文档里不要硬写会自然变化的数字**。`259 schema / 141 字段` 抄在 SPEC 与脚本
-  docstring 两处，**两份都漂了**（实为 296/158）。权威值应在代码里，文档指向它。
-- **`.superpowers/` 未被 gitignore**，而计划里多个 Step 是 `git add -A` ⇒
-  执行脚手架会被提交。开工前先确认工作区已 ignore。
-
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+- **「注册表里的每个键都能用」是断言不是事实**。`RECORD_TYPE_REGISTRY` 混着几张
+  列不齐的表，解析通过不等于能加载 —— 表现是 500 而非 422。写「X 取注册表的键」
+  时，必须同时写「X 需要哪些列，缺了怎么办」。
+- **未被执行的 fixture 与不存在的 fixture 同一种东西：全绿**。conftest 里放了
+  4 年的 fixture 从没人用过，它就成了一个「看起来有覆盖」的空壳。
+- **Pydantic 的 Rust regex 不支持 look-ahead**：想用 `^(?!\s*$).+$` 拒空白
+  会得到 `SchemaError`（schema 编译失败，整个端点起不来），而不是校验失败。
+  拒空白用 `field_validator`。
+- **角色闸先于模块解析**：断言「模块解析错误码」时必须用对角色的 token，
+  否则先吃 403，断言集被迫放宽而失去信息量。
+- **三次「假绿」同一形状**：新端点的 404/422 断言若只断言状态码，会在
+  **端点不存在时**就绿（FastAPI 对未注册路径也返 404）。⇒ 必须断言 error code。
+  本 lane 因此抓到自己写反的一条测试。
