@@ -15,6 +15,29 @@ ADR-0048 §⑥ 记的教训：`cost_est_results` 曾经「登记在
 （`check_conflict` 不得静默走 `no_baseline` —— 那等于给没保护的东西
 发「无冲突」通行证）。
 
+## 键 = `RECORD_TYPE_REGISTRY` 的键（**不是**表名、**不是**类名）
+
+2026-10-20（P9A-5 Task A / TODO-060）。本表原先用**表名**当键，与
+`/change-impact`、`/records/{module}` 的注册表键分叉 ⇒ 同一个 UI 要同时持
+两套标识，且两套**都不报错**：
+
+- `/locks` 无校验 ⇒ 前端传类名会 **200**，锁写进 `lock:edit:CostEstResult:{id}`，
+  与 `lock:edit:cost_est_results:{id}` **互不可见** ⇒ 两个人用不同拼写可以
+  同时编辑同一条记录 ⇒ 锁形同虚设。
+- `has_conflict_detection("CostEstResult")` 返回 False ⇒ 降级横幅会**错误地**
+  追加「；本次编辑无冲突检测」，而该表其实**有**冲突检测。
+
+⚠️ **为什么不是「类名」**：`RECORD_TYPE_REGISTRY` 的 21 个键里**有 5 个 ≠ 类名**
+（`cv_result` / `restriction_result` / `flare_system_result` /
+`cooling_tower_result` / `psychro_result`）⇒ 「类名」本身不是一套词表。
+⚠️ **为什么不用表名反查**：表名是复数（`cost_est_results`）、注册表键是单数
+（`CostEstResult`）⇒ 反查**对 21 个全部失败**（TODO-060 原写「双向可换」，
+实测为假）。
+
+⇒ 本表的 `model` **从注册表取**（不再是手写的第二份模型清单）；
+契约测试（`tests/api/v1/test_record_type_vocabulary.py`）钉住
+`cap.model is RECORD_TYPE_REGISTRY[key]`。
+
 ## 两张表的区别（别混）
 
 | 常量 | 含义 | 变更时机 |
@@ -35,17 +58,10 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.calc import (
-    CoolingTowerResult,
-    CostEstResult,
-    FiltrationResult,
-    FlareSystemResult,
-    OpenChannelResult,
-    PsychroResult,
-)
 from app.models.enums import AuditAction
 from app.schemas.edit_conflict import ConflictDetail, EditAuditDetail
 from app.services.audit_service import AuditService
+from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +78,12 @@ class UnregisteredTableError(LookupError):
 class TableCapability:
     """一张可编辑表的并发令牌能力（ADR-0048 §⑥）。
 
-    ⚠️ `model` 与 `pk_attr` 也在声明里 —— guard 要**按表**取行，
-    「表名 → 模型 / 主键」若另开一张表，就是同一概念的两份清单（会漂移）。
+    ⚠️ `pk_attr` 必须在声明里 —— **反射猜不出主键叫什么**（6 张表有 6 个不同
+    的主键名：`cooling_tower_id` / `filter_id` / `flare_id` / `open_channel_id` /
+    `psychro_id` / `cost_est_id`）。
+    ⚠️ `model` **必须写成 `RECORD_TYPE_REGISTRY[key]`**（不是手写类名）——
+    否则「表 → 模型」就是同一概念的第二份清单（会漂移），正是本文件
+    docstring 反对的那件事。
     """
 
     model: type
@@ -74,41 +94,42 @@ class TableCapability:
 
 #: 全部有手动编辑端点的结果表（实测：`grep -rn '@router\.\(patch\|put\)' app/api/v1/*.py`）。
 #: ⚠️ **只登记有编辑路径的表** —— 其余表保护的是一个不存在的并发。
+#: ⚠️ 键 = `RECORD_TYPE_REGISTRY` 的键（P9A-5 Task A，TODO-060）。
 TABLE_CAPABILITIES: dict[str, TableCapability] = {
-    "cooling_tower_results": TableCapability(
-        model=CoolingTowerResult,
+    "cooling_tower_result": TableCapability(
+        model=RECORD_TYPE_REGISTRY["cooling_tower_result"],
         pk_attr="cooling_tower_id",
         has_record_hash=True,
         has_updated_at=True,
     ),
-    "filtration_results": TableCapability(
-        model=FiltrationResult,
+    "FiltrationResult": TableCapability(
+        model=RECORD_TYPE_REGISTRY["FiltrationResult"],
         pk_attr="filter_id",
         has_record_hash=True,
         has_updated_at=True,
     ),
-    "flare_system_results": TableCapability(
-        model=FlareSystemResult,
+    "flare_system_result": TableCapability(
+        model=RECORD_TYPE_REGISTRY["flare_system_result"],
         pk_attr="flare_id",
         has_record_hash=True,
         has_updated_at=True,
     ),
-    "open_channel_results": TableCapability(
-        model=OpenChannelResult,
+    "OpenChannelResult": TableCapability(
+        model=RECORD_TYPE_REGISTRY["OpenChannelResult"],
         pk_attr="open_channel_id",
         has_record_hash=True,
         has_updated_at=True,
     ),
-    "psychro_results": TableCapability(
-        model=PsychroResult,
+    "psychro_result": TableCapability(
+        model=RECORD_TYPE_REGISTRY["psychro_result"],
         pk_attr="psychro_id",
         has_record_hash=True,
         has_updated_at=True,
     ),
-    # cost_est_results：P9A-4 D0 刚补上 record_hash，但**没有 updated_at**
+    # CostEstResult：P9A-4 D0 刚补上 record_hash，但**没有 updated_at**
     # ⇒ 退化阶梯对它只有**一档**（record_hash），没有第二档兜底。
-    "cost_est_results": TableCapability(
-        model=CostEstResult,
+    "CostEstResult": TableCapability(
+        model=RECORD_TYPE_REGISTRY["CostEstResult"],
         pk_attr="cost_est_id",
         has_record_hash=True,
         has_updated_at=False,
@@ -143,13 +164,18 @@ class ConflictCheckResult:
 
 
 def capability_of(record_type: str) -> TableCapability:
-    """查表能力。**未登记 ⇒ 抛 `UnregisteredTableError`**（不得静默降级）。"""
+    """查表能力。**未登记 ⇒ 抛 `UnregisteredTableError`**（不得静默降级）。
+
+    ⚠️ `record_type` 是 `RECORD_TYPE_REGISTRY` 的**键**（`CostEstResult`），
+    **不是**表名（`cost_est_results`）—— 见模块 docstring「键」一节。
+    """
     try:
         return TABLE_CAPABILITIES[record_type]
     except KeyError as e:
         raise UnregisteredTableError(
-            f"表 {record_type!r} 未登记并发令牌能力 —— "
-            "登记前不得给它做冲突判定（ADR-0048 §⑥）"
+            f"记录类型 {record_type!r} 未登记并发令牌能力 —— "
+            "登记前不得给它做冲突判定；键必须是 RECORD_TYPE_REGISTRY 的键"
+            "（如 CostEstResult），不是表名（ADR-0048 §⑥ · TODO-060）"
         ) from e
 
 
@@ -311,7 +337,7 @@ async def scan_missing_record_hash(session: AsyncSession) -> dict[str, int]:
     「提交了但没 finalize」的行会**永久**停在 `hash=""` ⇒ 落 no_baseline
     ⇒ 那一行没有并发保护。这是「计算结果已落库但哈希从未生成」的可靠信号。
 
-    返回 {表名: 行数}（全为 0 才是健康）。
+    返回 {注册表键: 行数}（全为 0 才是健康）。
     """
     out: dict[str, int] = {}
     for record_type, cap in TABLE_CAPABILITIES.items():

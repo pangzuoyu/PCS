@@ -92,7 +92,7 @@ async def test_matching_hash_passes(db_session):
     rec = await _make_cool_tower(db_session)
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=rec.record_hash,
         expected_updated_at=None,
@@ -107,7 +107,7 @@ async def test_stale_hash_conflicts_with_basis_record_hash(db_session):
     rec = await _make_cool_tower(db_session, record_hash="1111111111111111")
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash="2222222222222222",
         expected_updated_at=None,
@@ -123,7 +123,7 @@ async def test_missing_baseline_is_no_baseline_not_a_pass(db_session):
     rec = await _make_cool_tower(db_session)
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=None,
@@ -143,7 +143,7 @@ async def test_empty_hash_falls_to_updated_at(db_session):
     rec = await _make_cool_tower(db_session, record_hash="", updated_at=ts)
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=ts,
@@ -157,7 +157,7 @@ async def test_empty_hash_and_stale_updated_at_conflicts(db_session):
     rec = await _make_cool_tower(db_session, record_hash="", updated_at=ts)
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=ts - timedelta(minutes=1),
@@ -176,7 +176,7 @@ async def test_null_updated_at_is_no_baseline_not_equal(db_session):
     assert rec.updated_at is None
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=None,
@@ -190,7 +190,7 @@ async def test_table_without_updated_at_falls_to_no_baseline(db_session):
     rec = await _make_cost_est(db_session, record_hash="")
     r = await check_conflict(
         db_session,
-        record_type="cost_est_results",
+        record_type="CostEstResult",
         record_id=rec.cost_est_id,
         expected_hash="1111111111111111",
         expected_updated_at=None,
@@ -210,7 +210,7 @@ async def test_conflict_basis_has_three_values(db_session):
     rec = await _make_cool_tower(db_session, record_hash="1111111111111111")
     r1 = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash="2222222222222222",
         expected_updated_at=None,
@@ -218,7 +218,7 @@ async def test_conflict_basis_has_three_values(db_session):
     seen.add(r1.conflict.basis)
     r2 = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=None,
@@ -228,7 +228,7 @@ async def test_conflict_basis_has_three_values(db_session):
     rec2 = await _make_cool_tower(db_session, record_hash="", updated_at=ts)
     r3 = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec2.cooling_tower_id,
         expected_hash=None,
         expected_updated_at=ts - timedelta(minutes=1),
@@ -245,7 +245,7 @@ async def test_check_conflict_is_pure(db_session):
     ).scalar_one()
     await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash="2222222222222222",
         expected_updated_at=None,
@@ -273,12 +273,12 @@ async def test_unregistered_table_raises(db_session):
 async def test_capability_map_covers_exactly_the_editable_tables():
     """能力表登记的表 = 有编辑端点的表（不多不少）。"""
     assert set(TABLE_CAPABILITIES) == {
-        "cooling_tower_results",
-        "filtration_results",
-        "flare_system_results",
-        "open_channel_results",
-        "psychro_results",
-        "cost_est_results",
+        "cooling_tower_result",
+        "FiltrationResult",
+        "flare_system_result",
+        "OpenChannelResult",
+        "psychro_result",
+        "CostEstResult",
     }
     for cap in TABLE_CAPABILITIES.values():
         assert cap.has_record_hash is True, "D0 之后 6 张表都有 record_hash"
@@ -295,7 +295,7 @@ async def test_record_edit_audit_writes_changed_fields(db_session):
     rec = await _make_cool_tower(db_session)
     await record_edit_audit(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         user_id=uuid.uuid4(),
         changed_fields=["duty_kw", "fan_power_kw"],
@@ -306,7 +306,7 @@ async def test_record_edit_audit_writes_changed_fields(db_session):
             select(AuditLog).where(AuditLog.action == "RECORD_EDITED")
         )
     ).scalar_one()
-    assert row.resource_type == "cooling_tower_results"
+    assert row.resource_type == "cooling_tower_result"
     assert row.detail_json["changed_fields"] == ["duty_kw", "fan_power_kw"]
     assert row.detail_json["overwrote_stale_baseline"] is False
 
@@ -316,7 +316,7 @@ async def test_overwrote_stale_baseline_writes_an_extra_audit(db_session):
     rec = await _make_cool_tower(db_session)
     await record_edit_audit(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         user_id=uuid.uuid4(),
         changed_fields=["duty_kw"],
@@ -336,7 +336,7 @@ async def test_changed_by_comes_from_the_edit_audit(db_session):
     editor = uuid.uuid4()
     await record_edit_audit(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         user_id=editor,
         changed_fields=["duty_kw"],
@@ -347,7 +347,7 @@ async def test_changed_by_comes_from_the_edit_audit(db_session):
         AuditLog(
             user_id=uuid.uuid4(),
             action="RECORD_TRANSITION",
-            resource_type="cooling_tower_results",
+            resource_type="cooling_tower_result",
             resource_id=str(rec.cooling_tower_id),
         )
     )
@@ -355,7 +355,7 @@ async def test_changed_by_comes_from_the_edit_audit(db_session):
 
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash="2222222222222222",
         expected_updated_at=None,
@@ -370,7 +370,7 @@ async def test_changed_by_is_null_when_no_edit_audit(db_session):
     rec = await _make_cool_tower(db_session, record_hash="1111111111111111")
     r = await check_conflict(
         db_session,
-        record_type="cooling_tower_results",
+        record_type="cooling_tower_result",
         record_id=rec.cooling_tower_id,
         expected_hash="2222222222222222",
         expected_updated_at=None,
@@ -390,5 +390,5 @@ async def test_scan_reports_rows_with_empty_hash(db_session):
     await _make_cool_tower(db_session, record_hash="")
     await _make_cool_tower(db_session, record_hash="1111111111111111")
     out = await scan_missing_record_hash(db_session)
-    assert out["cooling_tower_results"] == 1
-    assert out["cost_est_results"] == 0
+    assert out["cooling_tower_result"] == 1
+    assert out["CostEstResult"] == 0

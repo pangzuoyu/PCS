@@ -38,7 +38,9 @@ class ConflictDetail(BaseModel):
     （刷新没用，应联系管理员）。
     """
 
-    record_type: str = Field(..., description="记录类型（表名）")
+    record_type: str = Field(..., description=(
+        "记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— 不是表名"
+    ))
     record_id: str = Field(..., description="记录 ID")
     your_expected_hash: str | None = Field(
         None, description="客户端带来的基线 hash（16 hex）"

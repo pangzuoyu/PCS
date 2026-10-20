@@ -35,7 +35,9 @@ class LockHolderResponse(BaseModel):
 class LockResponse(BaseModel):
     """三个端点共用的响应体。"""
 
-    record_type: str = Field(..., description="记录类型（表名，如 cost_est_results）")
+    record_type: str = Field(..., description=(
+        "记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— 不是表名"
+    ))
     record_id: str = Field(..., description="记录 ID")
     operation: Literal["acquire", "renew", "release"] = Field(..., description="操作")
     success: bool = Field(..., description="本次操作是否成功")

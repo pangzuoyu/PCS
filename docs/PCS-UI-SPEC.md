@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.9
+当前版本: V2.0
 发布日期: 2026-10-20
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -684,8 +684,14 @@ body {decision: "NO_CHANGE"|"CHANGED", reason: "…"}
 ⚠️ 按钮文案随响应的 decision 分流（NO_CHANGE ⇒「确认：结果未变」；
 CHANGED ⇒「确认：结果已变」+ 提示「须重新签署」）。
 ⚠️ **不得自动重试**（会无限循环覆盖）。
-⚠️ record_type 用**类名**（PipingResult / CostEstResult …）——
-⚠️ 与 /results、/locks 的**表名**不是同一套词表（见 TODO-060）。
+⚠️ record_type 用 `RECORD_TYPE_REGISTRY` 的**键**（`PipingResult` / `CostEstResult` /
+`cooling_tower_result` / `psychro_result` …）—— **与 /locks、/records 同一套**
+（V2.0 归一，原来的「类名 vs 表名」分叉已消除，见 TODO-060）。
+⚠️ **键不总是类名**：`RECORD_TYPE_REGISTRY` 的 21 个键里有 5 个是 snake_case
+（`cv_result` / `restriction_result` / `flare_system_result` /
+`cooling_tower_result` / `psychro_result`）⇒ 前端**不得**用「类名」反推该传什么。
+⚠️ OpenAPI 的 `{record_type}` 参数带 `enum`（`/locks` 三个端点已带）⇒ 取值以
+生成的 `api.d.ts` 为准。
 
 6.8 InputChecklistPanel
 用途：输入清单仪表盘。
@@ -900,7 +906,10 @@ text
 
 P9A-LCK-001 取锁
 进入编辑态 ⇒ POST /api/v1/locks/{record_type}/{record_id}/acquire
-（record_type = 结果表名，如 cost_est_results / psychro_results）。
+（record_type = `RECORD_TYPE_REGISTRY` 的**键**，如 `CostEstResult` /
+`cooling_tower_result` / `psychro_result` —— **不是**表名 `cost_est_results`）。
+⚠️ 未登记的取值 ⇒ **404**（V2.0 起 `/locks` 会校验；原先不校验 ⇒ 前端传错拼写会
+200 成功、锁写进一个**没人读**的命名空间 ⇒ 两个人能同时编辑同一条记录）。
 
 后端响应	前端表现
 200 + success=true	拿到锁 ⇒ 表单可编辑
@@ -964,7 +973,7 @@ text
   "message": "该记录无法安全保存，请刷新后重新编辑",
   "detail": {
     "conflict": {
-      "record_type": "cooling_tower_results",
+      "record_type": "cooling_tower_result",
       "record_id": "…uuid…",
       "your_expected_hash": "…16 hex…",
       "current_hash": "…16 hex…",
@@ -2146,6 +2155,7 @@ V1.6	2026-10-20	P9A 新增 §5.5 参与人员门禁（依据 ADR-0050，用户 2
 V1.7	2026-10-20	P9A-4 D1 新增 §6.21 EditLockIndicator（依据 ADR-0048，编辑锁 = Redis 体验层 + DB 正确性层两层锁）：①新增 P9A-LCK-001~005 五条（取锁 / 60s 心跳 / 只读化边界 / 降级横幅 / 与保存冲突的分工）；②§3.2 TopBar 增「编辑锁降级横幅」一行（文案取后端 message 原文，前端不改写）；③明确「他人持锁」只禁用保存、不阻断浏览复制，禁用原因写「谁在改」而非「无权限」；④明确「我拿到锁」不等于「保存一定成功」（保存冲突由 record_hash 比对裁定）。本版不含 ADR-0047 / ADR-0049 承诺的 P9A-OBS-001~004 / P9A-NOT-001~006（仍欠账）。	Claude Code
 V1.8	2026-10-20	P9A-4 D2 补 §6.21 P9A-LCK-006（保存请求的并发基线与 409 契约，依据 ADR-0048 §⑥§⑦）：①PATCH 请求体**必填** expected_hash（可选 expected_updated_at），**不带基线 ⇒ 409**（服务端无法判定并发 ⇒ 不得放行）；②给出 409 响应体全文（仓库统一错误信封 `{code, message, detail, trace_id}`，冲突对象在 `detail.conflict` —— ADR-0048 §⑦ 原文的顶层三字段已按仓库信封归一，ADR 已修订）；③前端按 basis 三值分流文案与动作（record_hash / updated_at / no_baseline），**不得自动重试**；④changed_by / changed_at 为 null 时不得用 updated_at 冒充；⑤「查看差异」靠审计里的 changed_fields（字段名列表）。	Claude Code
 V1.9	2026-10-20	P9A-4 D3 补 §6.7.1 变更影响的「确认」动作（P9A-CIA-001/002，依据 ADR-0048 与 P9-Prep 交付面清单 §3）：①新增两个**不可合并**的端点 —— `confirm`（系统按哈希判定分流：结果不变 ⇒ 免凭证回 CHECKED；结果变化 ⇒ 进 CHANGE_PENDING 要求重新签署）与 `manual-adjust`（人工判定，reason 必填，限权 + 审计）；②明确按钮文案随响应的 decision 分流、不得自动重试；③登记 record_type 词表差（类名 vs 表名，TODO-060）。	Claude Code
+V2.0	2026-10-20	P9A-5 Task A 归一 `record_type` 词表（TODO-060）：①**全仓只有一套词表** —— `RECORD_TYPE_REGISTRY` 的键，取代此前 `/change-impact`（键）与 `/locks`+`/results`（表名）的分叉；⚠️ 推翻了 V1.9 登记的「§6.7.1 用类名」—— 实测注册表 21 个键里 **5 个 ≠ 类名**（`cv_result`/`restriction_result`/`flare_system_result`/`cooling_tower_result`/`psychro_result`）⇒「类名」不是一套词表；②**破坏性变更**：`/locks/{record_type}` 三端点改为只接受注册表键、**并校验**（未登记 ⇒ 404）。原先完全不校验 ⇒ 传错拼写 200 成功、锁写进 `lock:edit:{错拼写}:{id}`，与正确拼写**互不可见** ⇒ 两个人能同时编辑同一条记录；且 `has_conflict_detection(错拼写)`=False 会让降级横幅**错误地**说「本次编辑无冲突检测」；③`{record_type}` 参数在 OpenAPI 里带 `enum`（前端不必再读 SPEC 源码才知道取值）；④SPEC §6.7.1 与 §6.21 的词表句同步修订。**风格不统一**（3 snake + 3 Pascal）是 `RECORD_TYPE_REGISTRY` 的历史遗留（TODO-055）⇒ 统一风格要动 `/change-impact` 与 `/records/{module}` 两个已发布契约 + 存量 DB 列，本版不做。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

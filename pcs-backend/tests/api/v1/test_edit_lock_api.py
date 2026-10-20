@@ -83,14 +83,14 @@ def _auth(token: str) -> dict[str, str]:
 async def test_acquire_grants_the_lock(client, sample_user_token, lock_service):
     rid = str(uuid.uuid4())
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"
     data = r.json()
     assert data["success"] is True
     assert data["degraded"] is False
-    assert data["record_type"] == "cost_est_results"
+    assert data["record_type"] == "CostEstResult"
     assert data["record_id"] == rid
     assert data["holder"]["user_id"]
 
@@ -101,13 +101,13 @@ async def test_acquire_by_another_user_returns_409_with_holder_info(
     """他人持锁 ⇒ **409 + 持锁人信息**（不是裸 409）。"""
     rid = str(uuid.uuid4())
     r1 = await client.post(
-        f"/api/v1/locks/psychro_results/{rid}/acquire",
+        f"/api/v1/locks/psychro_result/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     assert r1.status_code == 200
 
     r2 = await client.post(
-        f"/api/v1/locks/psychro_results/{rid}/acquire",
+        f"/api/v1/locks/psychro_result/{rid}/acquire",
         headers=_auth(sample_pc_token),
     )
     assert r2.status_code == 409, f"got {r2.status_code}: {r2.text}"
@@ -121,7 +121,7 @@ async def test_holder_info_carries_the_username(client, sample_user_token, lock_
     """持锁人信息带**显示名** ⇒ 前端不必再查一次用户（锁判定不查库）。"""
     rid = str(uuid.uuid4())
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200
@@ -130,7 +130,7 @@ async def test_holder_info_carries_the_username(client, sample_user_token, lock_
 
 async def test_acquire_requires_authentication(client, lock_service):
     rid = str(uuid.uuid4())
-    r = await client.post(f"/api/v1/locks/cost_est_results/{rid}/acquire")
+    r = await client.post(f"/api/v1/locks/CostEstResult/{rid}/acquire")
     assert r.status_code in (401, 403), f"got {r.status_code}"
 
 
@@ -138,7 +138,7 @@ async def test_acquire_writes_an_audit_row(client, sample_user_token, lock_servi
     """ADR-0048 §①：锁的 acquire 写 audit_logs（DB 保留审计留痕）。"""
     rid = str(uuid.uuid4())
     await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     rows = (
@@ -147,7 +147,7 @@ async def test_acquire_writes_an_audit_row(client, sample_user_token, lock_servi
         )
     ).scalars().all()
     assert rows, "acquire 未写审计"
-    assert rows[-1].resource_type == "cost_est_results"
+    assert rows[-1].resource_type == "CostEstResult"
     assert rows[-1].resource_id == rid
 
 
@@ -159,11 +159,11 @@ async def test_acquire_writes_an_audit_row(client, sample_user_token, lock_servi
 async def test_renew_by_the_holder_succeeds(client, sample_user_token, lock_service):
     rid = str(uuid.uuid4())
     await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/renew",
+        f"/api/v1/locks/CostEstResult/{rid}/renew",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"
@@ -176,11 +176,11 @@ async def test_renew_by_another_user_returns_409(
     """他人的心跳不得延长我的锁 ⇒ 409。"""
     rid = str(uuid.uuid4())
     await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/renew",
+        f"/api/v1/locks/CostEstResult/{rid}/renew",
         headers=_auth(sample_pc_token),
     )
     assert r.status_code == 409, f"got {r.status_code}: {r.text}"
@@ -192,18 +192,18 @@ async def test_release_by_another_user_returns_409(
     """非持有者 release ⇒ 409（且**不得**动别人的锁）。"""
     rid = str(uuid.uuid4())
     await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/release",
+        f"/api/v1/locks/CostEstResult/{rid}/release",
         headers=_auth(sample_pc_token),
     )
     assert r.status_code == 409, f"got {r.status_code}: {r.text}"
 
     # 我的锁还在
     r2 = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/renew",
+        f"/api/v1/locks/CostEstResult/{rid}/renew",
         headers=_auth(sample_user_token),
     )
     assert r2.status_code == 200 and r2.json()["success"] is True
@@ -212,11 +212,11 @@ async def test_release_by_another_user_returns_409(
 async def test_release_by_the_holder_succeeds(client, sample_user_token, lock_service):
     rid = str(uuid.uuid4())
     await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/release",
+        f"/api/v1/locks/CostEstResult/{rid}/release",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"
@@ -234,7 +234,7 @@ async def test_redis_down_degrades_with_a_banner_not_503(
     """Redis 不可用 ⇒ **降级放行**（200 + degraded + 横幅），**不是 503**。"""
     rid = str(uuid.uuid4())
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"
@@ -258,7 +258,7 @@ async def test_degraded_acquire_still_works_when_the_audit_fails(
     monkeypatch.setattr(AuditService, "write", _boom)
     rid = str(uuid.uuid4())
     r = await client.post(
-        f"/api/v1/locks/cost_est_results/{rid}/acquire",
+        f"/api/v1/locks/CostEstResult/{rid}/acquire",
         headers=_auth(sample_user_token),
     )
     assert r.status_code == 200, f"got {r.status_code}: {r.text}"

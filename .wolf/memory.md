@@ -2136,3 +2136,12 @@
 | 21:32 | Created pcs-backend/app/api/v1/change_impact.py | — | ~3812 |
 | 21:33 | Created pcs-backend/tests/api/v1/test_change_impact_confirm.py | — | ~2805 |
 | 21:47 | Created pcs-backend/tests/api/v1/test_edit_acl_order.py | — | ~1157 |
+| 22:13 | Created docs/PCS-PLAN-P9A-5-债项清理.md | — | ~1235 |
+| 22:14 | Created docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md | — | ~1481 |
+| 22:14 | Created pcs-backend/tests/api/v1/test_record_type_vocabulary.py | — | ~2180 |
+| 22:16 | Edited pcs-backend/app/services/edit_guard.py | expanded (+23 lines) | ~321 |
+| 22:16 | Edited pcs-backend/app/services/edit_guard.py | 56→61 lines | ~562 |
+| 22:16 | Edited pcs-backend/app/services/edit_guard.py | reduced (-7 lines) | ~64 |
+| 22:16 | Edited pcs-backend/app/services/edit_guard.py | modified capability_of() | ~158 |
+| 22:16 | Edited pcs-backend/app/services/edit_guard.py | inline fix | ~9 |
+| 22:16 | Edited pcs-backend/app/api/v1/locks.py | added error handling | ~612 |

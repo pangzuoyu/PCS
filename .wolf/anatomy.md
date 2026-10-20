@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T13:47:32.156Z
-> Files: 942 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T14:16:46.314Z
+> Files: 945 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -298,7 +298,9 @@
 - `PCS-PLAN-P4-CORE-ENGINE.md` — P4 核心计算引擎（第一批）实施计划 V1.1 (~2992 tok)
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20491 tok)
 - `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14616 tok)
+- `PCS-PLAN-P9A-5-债项清理.md` — P9A-5 计划：`record_type` 词表归一（TODO-060）+ cost_est 项目隔离（TODO-061） (~1158 tok)
 - `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~3834 tok)
+- `PCS-PLAN-P9B-1-结果记录页与编辑锁.md` — P9B-1 计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1） (~1388 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
@@ -1158,7 +1160,7 @@
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~536 tok)
-- `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1602 tok)
+- `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1958 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~604 tok)
 - `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
@@ -1230,7 +1232,7 @@
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
-- `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~2952 tok)
+- `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
@@ -1368,6 +1370,7 @@
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~3944 tok)
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~3206 tok)
 - `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)

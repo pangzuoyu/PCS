@@ -200,11 +200,18 @@ if required_role is not None:
 ⚠️ **键名不一致必须点名**：`RECORD_TYPE_REGISTRY`（`app/services/calc_lineage.py:83-113`）
 的 21 个键里 **16 个 PascalCase + 5 个 snake_case**
 （`cv_result` `restriction_result` `flare_system_result` `cooling_tower_result` `psychro_result`）。
-而 **DB 列存的是 Python 类名**（`app/services/lineage.py:109`
-`record_type=record.__class__.__name__`）⇒ `cv_result` 这个键在
-`record_comments.record_type` 里存的是 `"CvResult"`。
-**路径参数 `{module}` 用注册表键，DB 列用类名** —— 这个不一致会让人把
-`work_set_record_types` 的键写错，ADR 必须写明。
+而 **`record_comments.record_type` 列存的是客户端传的注册表键**
+（`app/api/v1/records_actions.py:514` 写的是路径参数 `module` 本身，
+经 `resolve_record_model()` 校验 ⇒ 只接受注册表键）
+⇒ `cv_result` 这个键在 `record_comments.record_type` 里存的是 **`"cv_result"`，
+不是 `"CvResult"`**。
+⚠️ **本段原文（2026-10-20 写）写成「DB 列存类名」，是事实错误**：
+把 `data_lineage.record_type`（`lineage.py:109` 确实写 `__class__.__name__`）
+与 `record_comments.record_type` 混为一谈。实测同一张库里
+`record_type` 这一列名**至少 3 种存法**（类名 / 表名 / 注册表键）。
+⇒ **路径参数 `{module}` 与 `record_comments` 列都用注册表键**（唯一词表，
+P9A-5 Task A / SPEC V2.0）；`data_lineage` / `record_change_snapshots`
+存类名，属**历史存量**，本轮不动。
 
 ### §⑤ 三个判定函数（**唯一实现**）
 

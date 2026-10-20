@@ -82,7 +82,7 @@ async def test_acquire_grants_lock_to_first_caller(lock_service):
     """第一个调用者拿到锁。"""
     rid = _rid()
     me = uuid.uuid4()
-    r = await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
+    r = await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
     assert r.success is True
     assert r.degraded is False
     assert r.holder is not None and r.holder.user_id == me
@@ -93,10 +93,10 @@ async def test_acquire_returns_holder_info_when_held(lock_service):
     """他人持锁 ⇒ 第二个调用者拿不到，且**拿到持锁人信息**（体验层的全部价值）。"""
     rid = _rid()
     me, other = uuid.uuid4(), uuid.uuid4()
-    await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
+    await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
 
     r = await lock_service.acquire(
-        record_type="cost_est_results", record_id=rid, user_id=other
+        record_type="CostEstResult", record_id=rid, user_id=other
     )
     assert r.success is False
     assert r.holder is not None
@@ -108,8 +108,8 @@ async def test_acquire_is_idempotent_for_the_same_holder(lock_service):
     """同一 holder 重复 acquire 不报错（前端重试 / 幂等刷新）。"""
     rid = _rid()
     me = uuid.uuid4()
-    a = await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
-    b = await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
+    a = await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
+    b = await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
     assert a.success is True and b.success is True
     assert b.holder is not None and b.holder.user_id == me
 
@@ -121,8 +121,8 @@ async def test_two_sessions_one_holder(real_redis):
     b = EditLockService(real_redis)
     try:
         me, other = uuid.uuid4(), uuid.uuid4()
-        r1 = await a.acquire(record_type="psychro_results", record_id=rid, user_id=me)
-        r2 = await b.acquire(record_type="psychro_results", record_id=rid, user_id=other)
+        r1 = await a.acquire(record_type="psychro_result", record_id=rid, user_id=me)
+        r2 = await b.acquire(record_type="psychro_result", record_id=rid, user_id=other)
         assert r1.success is True
         assert r2.success is False
         assert r2.holder is not None and r2.holder.user_id == me
@@ -141,19 +141,19 @@ async def test_renew_extends_ttl_only_for_current_holder(lock_service):
     rid = _rid()
     me, other = uuid.uuid4(), uuid.uuid4()
     await lock_service.acquire(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=2
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=2
     )
     await asyncio.sleep(1)
 
     r = await lock_service.renew(
-        record_type="cost_est_results", record_id=rid, user_id=other, ttl_seconds=60
+        record_type="CostEstResult", record_id=rid, user_id=other, ttl_seconds=60
     )
     assert r.success is False, "他人续期竟然成功了 ⇒ 我的锁会被别人续命"
 
     # 我的锁不该被他的续期延长 ⇒ 2s 后应当过期
     await asyncio.sleep(1.5)
     assert await lock_service.is_held(
-        record_type="cost_est_results", record_id=rid
+        record_type="CostEstResult", record_id=rid
     ) is False
 
 
@@ -162,16 +162,16 @@ async def test_renew_extends_ttl_for_the_holder(lock_service):
     rid = _rid()
     me = uuid.uuid4()
     await lock_service.acquire(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=2
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=2
     )
     await asyncio.sleep(1)
     r = await lock_service.renew(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=30
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=30
     )
     assert r.success is True
     await asyncio.sleep(1.5)
     assert await lock_service.is_held(
-        record_type="cost_est_results", record_id=rid
+        record_type="CostEstResult", record_id=rid
     ) is True, "续期没有延长 TTL"
 
 
@@ -180,11 +180,11 @@ async def test_renew_rejects_expired_lock(lock_service):
     rid = _rid()
     me = uuid.uuid4()
     await lock_service.acquire(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=1
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=1
     )
     await asyncio.sleep(1.5)
     r = await lock_service.renew(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=30
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=30
     )
     assert r.success is False
     assert r.holder is None, "过期后没有持有者"
@@ -203,11 +203,11 @@ async def test_lock_expires_after_ttl_without_heartbeat(lock_service):
     rid = _rid()
     me = uuid.uuid4()
     await lock_service.acquire(
-        record_type="cost_est_results", record_id=rid, user_id=me, ttl_seconds=2
+        record_type="CostEstResult", record_id=rid, user_id=me, ttl_seconds=2
     )
-    assert await lock_service.is_held(record_type="cost_est_results", record_id=rid) is True
+    assert await lock_service.is_held(record_type="CostEstResult", record_id=rid) is True
     await asyncio.sleep(3)
-    assert await lock_service.is_held(record_type="cost_est_results", record_id=rid) is False
+    assert await lock_service.is_held(record_type="CostEstResult", record_id=rid) is False
 
 
 async def test_default_ttl_is_30_minutes():
@@ -230,13 +230,13 @@ async def test_release_is_owner_only(lock_service):
     """非持有者 release ⇒ 不得释放别人的锁。"""
     rid = _rid()
     me, other = uuid.uuid4(), uuid.uuid4()
-    await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
+    await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
 
     r = await lock_service.release(
-        record_type="cost_est_results", record_id=rid, user_id=other
+        record_type="CostEstResult", record_id=rid, user_id=other
     )
     assert r.success is False
-    assert await lock_service.is_held(record_type="cost_est_results", record_id=rid) is True, (
+    assert await lock_service.is_held(record_type="CostEstResult", record_id=rid) is True, (
         "他人的 release 把我的锁释放了"
     )
 
@@ -244,16 +244,16 @@ async def test_release_is_owner_only(lock_service):
 async def test_release_by_owner_frees_the_lock(lock_service):
     rid = _rid()
     me = uuid.uuid4()
-    await lock_service.acquire(record_type="cost_est_results", record_id=rid, user_id=me)
-    r = await lock_service.release(record_type="cost_est_results", record_id=rid, user_id=me)
+    await lock_service.acquire(record_type="CostEstResult", record_id=rid, user_id=me)
+    r = await lock_service.release(record_type="CostEstResult", record_id=rid, user_id=me)
     assert r.success is True
-    assert await lock_service.is_held(record_type="cost_est_results", record_id=rid) is False
+    assert await lock_service.is_held(record_type="CostEstResult", record_id=rid) is False
 
 
 async def test_release_of_a_free_lock_is_a_no_op(lock_service):
     """释放一把不存在的锁 ⇒ 不报错（幂等）。"""
     r = await lock_service.release(
-        record_type="cost_est_results", record_id=_rid(), user_id=uuid.uuid4()
+        record_type="CostEstResult", record_id=_rid(), user_id=uuid.uuid4()
     )
     assert r.success is False
     assert r.holder is None
@@ -272,7 +272,7 @@ async def test_redis_down_warns_and_allows_not_503():
     svc = EditLockService(DEAD_REDIS_URL)
     try:
         r = await svc.acquire(
-            record_type="cost_est_results", record_id=_rid(), user_id=uuid.uuid4()
+            record_type="CostEstResult", record_id=_rid(), user_id=uuid.uuid4()
         )
         assert r.degraded is True
         assert r.success is True, "降级时必须放行（体验层），不能把用户挡在门外"
@@ -287,8 +287,8 @@ async def test_redis_down_degrades_renew_and_release():
     try:
         rid = _rid()
         me = uuid.uuid4()
-        r1 = await svc.renew(record_type="cost_est_results", record_id=rid, user_id=me)
-        r2 = await svc.release(record_type="cost_est_results", record_id=rid, user_id=me)
+        r1 = await svc.renew(record_type="CostEstResult", record_id=rid, user_id=me)
+        r2 = await svc.release(record_type="CostEstResult", record_id=rid, user_id=me)
         assert r1.degraded is True and r2.degraded is True
     finally:
         await svc.aclose()
@@ -305,7 +305,7 @@ async def test_degradation_banner_mentions_no_conflict_detection_for_unguarded_t
     from app.services.edit_guard import GUARDED_TABLES
 
     unguarded = next(
-        (t for t in ("sim_tower_results", "util_results") if t not in GUARDED_TABLES),
+        (t for t in ("sim_tower_result", "util_result") if t not in GUARDED_TABLES),
         None,
     )
     assert unguarded is not None, "本仓的表要么已接上兜底，要么没有编辑路径"
@@ -323,7 +323,7 @@ async def test_degradation_banner_omits_the_warning_for_a_guarded_table():
     """已接上 DB 兜底的表 ⇒ 横幅**不**写「无冲突检测」（否则是假话）。"""
     from app.services.edit_guard import GUARDED_TABLES
 
-    guarded = "cost_est_results"
+    guarded = "CostEstResult"
     assert guarded in GUARDED_TABLES, "D2 接线后 cost_est 必须在 GUARDED_TABLES 里"
     svc = EditLockService(DEAD_REDIS_URL)
     try:
@@ -347,7 +347,7 @@ async def test_banner_clause_follows_the_guarded_table_set():
     svc = EditLockService(DEAD_REDIS_URL)
     try:
         guarded = next(iter(sorted(GUARDED_TABLES)), None)
-        unguarded = "sim_tower_results"  # 无 record_hash 的表
+        unguarded = "sim_tower_result"  # 无 record_hash 的表
         r_guarded = await svc.acquire(
             record_type=guarded or unguarded, record_id=_rid(), user_id=uuid.uuid4()
         )

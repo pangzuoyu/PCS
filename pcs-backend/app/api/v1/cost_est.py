@@ -396,7 +396,7 @@ async def update_cost_est_result(
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
         db,
-        record_type="cost_est_results",
+        record_type="CostEstResult",
         record_id=result_id,
         expected_hash=req.expected_hash,
         expected_updated_at=req.expected_updated_at,
@@ -425,7 +425,7 @@ async def update_cost_est_result(
     # 编辑审计（ADR-0048 §⑦）：changed_fields = **字段名列表**（不含值）
     await record_edit_audit(
         db,
-        record_type="cost_est_results",
+        record_type="CostEstResult",
         record_id=result_id,
         user_id=user.user_id,
         changed_fields=sorted(patch.keys()),

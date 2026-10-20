@@ -91,7 +91,7 @@ async def test_patch_with_stale_hash_is_409(client, sample_user_token):
     assert r.status_code == 409, f"got {r.status_code}: {r.text}"
     conflict = r.json()["detail"]["conflict"]
     assert conflict["basis"] == "record_hash"
-    assert conflict["record_type"] == "cooling_tower_results"
+    assert conflict["record_type"] == "cooling_tower_result"
     assert conflict["record_id"] == rid
     assert conflict["your_expected_hash"] == "0000000000000000"
     assert conflict["current_hash"] != "0000000000000000"
@@ -164,7 +164,7 @@ async def test_successful_edit_writes_the_edit_audit(
     ).scalars().all()
     assert rows, "编辑成功却没写审计"
     assert rows[-1].detail_json["changed_fields"] == ["duty_kw", "fan_power_kw"]
-    assert rows[-1].resource_type == "cooling_tower_results"
+    assert rows[-1].resource_type == "cooling_tower_result"
 
 
 async def test_conflict_after_another_edit_reports_who_changed_it(
