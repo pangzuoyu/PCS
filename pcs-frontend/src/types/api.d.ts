@@ -744,6 +744,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow-progress/{workflow_type}/{workflow_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 工作流节点进度（甘特图数据源）
+         * @description 取一条工作流的节点进度，按 `step_order` 升序。
+         *
+         *     未知工作流 ⇒ **404**，不是空数组 —— 空数组会被甘特图画成「这条流程
+         *     一个节点都没有」，而真相是「你查错了 ID」，两者在界面上长得一样。
+         *
+         *     5 态计数恒定存在（含 0）：甘特图按 5 态上色，缺一态前端要么画不出颜色、
+         *     要么自己编一个，后者就是第二次真相源。
+         */
+        get: operations["get_workflow_progress_api_v1_workflow_progress__workflow_type___workflow_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
         parameters: {
             query?: never;
@@ -18539,6 +18565,70 @@ export interface components {
             formula_ref: string;
         };
         /**
+         * WorkflowProgressItemResponse
+         * @description 单条观测行。字段集合被 `test_item_model_fields_are_pinned` 钉死。
+         */
+        WorkflowProgressItemResponse: {
+            /**
+             * Progress Id
+             * Format: uuid
+             */
+            progress_id: string;
+            /** Step Order */
+            step_order: number;
+            /** Step Role */
+            step_role: string;
+            /**
+             * Step Status
+             * @description PENDING/IN_PROGRESS/COMPLETED/SKIPPED/FAILED
+             */
+            step_status: string;
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * Completed At
+             * @description 终态时间；超时告警按它算
+             */
+            completed_at?: string | null;
+            /** Assignee */
+            assignee?: string | null;
+            /** Result Hash */
+            result_hash?: string | null;
+        };
+        /**
+         * WorkflowProgressResponse
+         * @description 一条工作流的节点进度（甘特图的横轴 = `items` 的 `step_order`）。
+         */
+        WorkflowProgressResponse: {
+            /** Workflow Type */
+            workflow_type: string;
+            /**
+             * Workflow Id
+             * Format: uuid
+             */
+            workflow_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 鉴权与多态查询都靠这一列
+             */
+            project_id: string;
+            /** Total */
+            total: number;
+            /** Pending */
+            pending: number;
+            /** In Progress */
+            in_progress: number;
+            /** Completed */
+            completed: number;
+            /** Skipped */
+            skipped: number;
+            /** Failed */
+            failed: number;
+            /** Items */
+            items: components["schemas"]["WorkflowProgressItemResponse"][];
+        };
+        /**
          * WorkspaceCreate
          * @description 创建工作区请求体（POST /workspaces）。
          *
@@ -20283,6 +20373,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workflow_progress_api_v1_workflow_progress__workflow_type___workflow_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workflow_type: string;
+                workflow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowProgressResponse"];
                 };
             };
             /** @description Validation Error */

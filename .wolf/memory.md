@@ -1959,3 +1959,6 @@
 | 07:38 | Created pcs-backend/app/models/record_comment.py | — | ~631 |
 | 07:49 | Created pcs-backend/tests/api/v1/test_deliverable_actions.py | — | ~2596 |
 | 07:51 | Edited pcs-backend/tests/api/v1/test_deliverable_actions.py | modified test_reading_actions_writes_no_observation_rows() | ~387 |
+| 07:58 | Created pcs-backend/tests/api/v1/test_workflow_progress_api.py | — | ~2246 |
+| 07:59 | Edited pcs-backend/tests/api/v1/test_workflow_progress_api.py | modified test_read_api_is_project_scoped() | ~579 |
+| 08:00 | Created pcs-backend/tests/services/test_workflow_progress_acceptance.py | — | ~1176 |

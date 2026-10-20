@@ -93,6 +93,7 @@ asyncio_default_fixture_loop_scope = "function"
 # （页脚页码那个 bug 就是 extract_text() 全绿、转 PNG 一眼发现的）。
 addopts = "-m 'not visual'"
 markers = [
+    "slow: 慢速验收用例（SPEC 指标类，如 P9A-OBS-004 的 p99）；本地全量跑会执行。",
     "visual: 像素级渲染验证，需 poppler-utils(pdftoppm)。CI 用 `pytest -m visual` 单独跑。",
 ]
 

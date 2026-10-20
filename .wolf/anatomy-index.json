@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T23:51:14.943Z",
-    "fileCount": 878,
+    "lastScanned": "2026-10-20T00:00:33.647Z",
+    "fileCount": 880,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "91db2036b56e86c90bbbaf4762918cde8887fc66e2778ede50034977d43ec075",
-    "storeUpdatedAt": "2026-10-19T23:51:14.954Z",
-    "rootHash": "faac7cdc54604439"
+    "renderedHash": "b206bae6b41a817a1f108cd4c4f82f2135136850d5dba8921dbaba3c4ee65b08",
+    "storeUpdatedAt": "2026-10-20T00:00:33.658Z",
+    "rootHash": "64869bff5a355555"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -29987,6 +29987,98 @@
           "startLine": 226,
           "endLine": 285,
           "tokens": 623
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_workflow_progress_api.py": {
+      "description": "观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。",
+      "tokens": 2564,
+      "hash": "f0cf063485fb075f",
+      "size": 10346,
+      "mtimeMs": 1792454360390.7449,
+      "updatedAt": "2026-10-19T23:59:20.443Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 35,
+          "tokens": 33
+        },
+        {
+          "name": "_url",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 40,
+          "tokens": 58
+        },
+        {
+          "name": "_version",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 85,
+          "tokens": 385
+        },
+        {
+          "name": "_seed",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 107,
+          "tokens": 182
+        },
+        {
+          "name": "TestReadWorkflowProgress",
+          "kind": "class",
+          "startLine": 108,
+          "endLine": 241,
+          "tokens": 1375
+        },
+        {
+          "name": "TestResponseContract",
+          "kind": "class",
+          "startLine": 242,
+          "endLine": 265,
+          "tokens": 296
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_workflow_progress_acceptance.py": {
+      "description": "P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。",
+      "tokens": 1176,
+      "hash": "b797fec675c64234",
+      "size": 5368,
+      "mtimeMs": 1792454433593.2246,
+      "updatedAt": "2026-10-20T00:00:33.647Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_p99",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 53,
+          "tokens": 55
+        },
+        {
+          "name": "_write_then_read",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 91,
+          "tokens": 331
+        },
+        {
+          "name": "test_observed_p99_under_500ms",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 119,
+          "tokens": 242
+        },
+        {
+          "name": "test_all_three_workflow_types_are_writable",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 140,
+          "tokens": 202
         }
       ]
     }
