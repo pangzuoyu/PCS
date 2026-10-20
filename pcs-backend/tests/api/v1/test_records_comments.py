@@ -202,6 +202,27 @@ class TestCommentsAreNotObservation:
         assert rows == []
 
 
+class TestSchemaContract:
+    def test_record_type_column_fits_every_registry_key(self):
+        """列宽必须装得下**注册表里最长的键**。
+
+        ⚠️ 原宽度 30 装不下 `ProjectCalculationStandardProfile`（33 字符）——
+        给这类记录留言会在**入库那一刻**炸，且炸的是 500 而不是 422。
+        这条断言在 `p9_003` 写下时就会红：它是纯元数据检查，不依赖任何数据。
+        """
+        import app.models  # noqa: F401
+        import app.models.record_comment  # noqa: F401
+        from app.db.base import Base
+        from app.services.calc_lineage import RECORD_TYPE_REGISTRY
+
+        longest = max(RECORD_TYPE_REGISTRY, key=len)
+        width = Base.metadata.tables["record_comments"].columns["record_type"].type.length
+        assert width >= len(longest), (
+            f"record_comments.record_type 是 VARCHAR({width})，"
+            f"装不下注册表里最长的键 {longest!r}（{len(longest)} 字符）"
+        )
+
+
 class TestResponseContract:
     async def test_comment_response_has_no_bare_fields(
         self, client, auth, db_session, project_id, workspace

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T00:00:33.647Z",
+    "lastScanned": "2026-10-20T00:24:09.660Z",
     "fileCount": 880,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b206bae6b41a817a1f108cd4c4f82f2135136850d5dba8921dbaba3c4ee65b08",
-    "storeUpdatedAt": "2026-10-20T00:00:33.658Z",
-    "rootHash": "64869bff5a355555"
+    "renderedHash": "8329fda6b930c9c0afa7777d87fa7b2f2b254de3cf56a9c5bce56842e0e586c2",
+    "storeUpdatedAt": "2026-10-20T00:24:09.672Z",
+    "rootHash": "08459aa71ed78254"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21292,47 +21292,47 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 7914,
-      "hash": "8d473429df88e113",
-      "size": 32011,
-      "mtimeMs": 1792451217912.0068,
-      "updatedAt": "2026-10-19T23:06:57.960Z",
+      "tokens": 8635,
+      "hash": "6c1d1a85cd4c5b40",
+      "size": 34955,
+      "mtimeMs": 1792455849613.7625,
+      "updatedAt": "2026-10-20T00:24:09.660Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_utcnow",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 71,
+          "startLine": 64,
+          "endLine": 72,
           "tokens": 54
         },
         {
           "name": "_read_credential",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 98,
+          "startLine": 73,
+          "endLine": 99,
           "tokens": 237
         },
         {
           "name": "SignStepOutcome",
           "kind": "class",
-          "startLine": 99,
-          "endLine": 115,
+          "startLine": 100,
+          "endLine": 116,
           "tokens": 103
         },
         {
           "name": "CustomerApprovalProxyOutcome",
           "kind": "class",
-          "startLine": 116,
-          "endLine": 125,
+          "startLine": 117,
+          "endLine": 126,
           "tokens": 62
         },
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 126,
-          "endLine": 813,
-          "tokens": 6927
+          "startLine": 127,
+          "endLine": 891,
+          "tokens": 7634
         }
       ]
     },

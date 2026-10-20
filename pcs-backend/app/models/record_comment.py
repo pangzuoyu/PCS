@@ -57,8 +57,12 @@ class RecordComment(TimestampMixin, Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.project_id"), index=True
     )
+    # ⚠️ 宽度 50 不是随手取的：`RECORD_TYPE_REGISTRY` 里最长的键是
+    # `ProjectCalculationStandardProfile`（33 字符），按 30 建列时给这类记录
+    # 留言会在**入库那一刻**炸 —— 而且炸的是 500，不是 422。
+    # 50 与 `audit_logs.resource_type` 同宽：两处存的是同一份词表的键。
     record_type: Mapped[str] = mapped_column(
-        String(30), comment="calc_lineage.RECORD_TYPE_REGISTRY 的键，如 PipingResult"
+        String(50), comment="calc_lineage.RECORD_TYPE_REGISTRY 的键，如 PipingResult"
     )
     record_id: Mapped[uuid.UUID] = mapped_column(comment="多态记录主键")
     body: Mapped[str] = mapped_column(Text)

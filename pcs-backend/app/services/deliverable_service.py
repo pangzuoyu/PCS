@@ -816,11 +816,6 @@ class DeliverableService:
     # 读面（P9A B4d：动作时间线）
     # ------------------------------------------------------------------
 
-    #: 动作时间线要并进来的审计 `resource_type`。
-    #: 交付物级动作记交付物 ID；版本级动作（sign-step）记**版本 ID** ——
-    #: 只按交付物 ID 查会把签署历史整段漏掉，而那正是这个端点的主要用途。
-    _ACTION_RESOURCE_TYPES = ("deliverable", "DELIVERABLE", "deliverable_version")
-
     @classmethod
     async def list_actions(
         cls,
@@ -849,24 +844,28 @@ class DeliverableService:
         ).scalars().all()
 
         conditions = [
-            or_(
-                and_(
-                    func.lower(AuditLog.resource_type) == "deliverable",
-                    AuditLog.resource_id == str(deliverable_id),
-                ),
-                and_(
-                    func.lower(AuditLog.resource_type) == "deliverable_version",
-                    AuditLog.resource_id.in_([str(v) for v in version_ids] or [""]),
-                ),
+            and_(
+                func.lower(AuditLog.resource_type) == "deliverable",
+                AuditLog.resource_id == str(deliverable_id),
             )
         ]
+        if version_ids:
+            # 有版本才加第二个分支 —— 没有版本时 `IN ()` 在 PG 里是语法错误，
+            # 塞个空串占位则是「永远不匹配」的哑条件，读代码的人要停下来想一遍
+            # 才敢确认它无害。
+            conditions.append(
+                and_(
+                    func.lower(AuditLog.resource_type) == "deliverable_version",
+                    AuditLog.resource_id.in_([str(v) for v in version_ids]),
+                )
+            )
         total = await db.scalar(
-            select(func.count()).select_from(AuditLog).where(*conditions)
+            select(func.count()).select_from(AuditLog).where(or_(*conditions))
         )
         rows = (
             await db.execute(
                 select(AuditLog)
-                .where(*conditions)
+                .where(or_(*conditions))
                 # occurred_at 秒级粒度 ⇒ 必须带 audit_id 兜底，否则同一秒内的
                 # 多条动作返回顺序不确定，翻页会漏或重（同本文件读面）。
                 .order_by(AuditLog.occurred_at, AuditLog.audit_id)

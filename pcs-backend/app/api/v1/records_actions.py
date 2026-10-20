@@ -40,6 +40,7 @@ from app.models.enums import (
     StateTransition,
     to_value,
 )
+from app.models.mixins import RecordMixin
 from app.models.record_comment import RecordComment
 from app.schemas.records_actions import (
     ApprovalStepRequest,
@@ -73,13 +74,36 @@ router = APIRouter(tags=["records"])
 _COMMENT_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN")
 
 
-def resolve_record_model(module: str) -> type[Any]:
-    """`{module}` 路径段 → ORM 模型。注册表外 ⇒ 422 `RECORD_MODULE_UNKNOWN`。
+#: 9 态工作流写路径依赖的列 = `RecordMixin` 的全部列。
+#: **从 mixin 自己派生**而不是手写清单 —— 手写清单会与 mixin 漂移，
+#: 漂移的表现是「哪天给 mixin 加了列，这里的检查却没跟着变」，
+#: 于是又出现一条「解析成功但加载 500」的路。
+_RECORD_MIXIN_COLUMNS = tuple(RecordMixin.__annotations__)
 
-    422 而不是 404：模块名是**请求形状**的一部分（不是资源 id），
-    404 会让调用方以为「这个记录不存在」而重试同一个错请求。
+
+def resolve_record_model(module: str, *, need_mixin: bool = True) -> type[Any]:
+    """`{module}` 路径段 → ORM 模型。
+
+    两道检查，缺一不可：
+
+    1. **在不在注册表里** —— 不在 ⇒ 422 `RECORD_MODULE_UNKNOWN`。
+       422 而不是 404：模块名是**请求形状**的一部分（不是资源 id），
+       404 会让调用方以为「这个记录不存在」而重试同一个错请求。
+    2. **列够不够** —— `RECORD_TYPE_REGISTRY` 混着几张**列不齐**的表
+       （`CostEstResult` / `TwoPhaseResult` 连 `project_id` 都没有，
+       `ProjectCalculationStandardProfile` 没有 `sign_status`）。
+       只做第 1 道检查的话，它们会一路走到守卫再抛
+       500「Record missing project_id (guard misconfigured)」——
+       把开发者字符串端给用户，且不告诉他真正该说的话：
+       「这种记录不参与 9 态工作流」。
+       ⇒ 422 `RECORD_MODULE_UNSUPPORTED`，**并在报文里点名缺哪些列**。
+
+    Args:
+        need_mixin: True = 该端点建立在 9 态记录上（obsolete / 撤销 /
+            放弃变更 / 送审 / 批步骤）；False = 只需要 `project_id`
+            （批注：任何有归属项目的记录都能留言）。
     """
-    model = RECORD_TYPE_REGISTRY.get(module)
+    model: Any = RECORD_TYPE_REGISTRY.get(module)
     if model is None:
         raise PcsError(
             code="RECORD_MODULE_UNKNOWN",
@@ -89,14 +113,33 @@ def resolve_record_model(module: str) -> type[Any]:
             ),
             status=422,
         )
+    if need_mixin:
+        columns = model.__table__.columns
+        missing = sorted(c for c in _RECORD_MIXIN_COLUMNS if c not in columns)
+        if missing or "project_id" not in columns:
+            missing = sorted({*missing, "project_id"} - set(columns.keys()))
+            raise PcsError(
+                code="RECORD_MODULE_UNSUPPORTED",
+                message=(
+                    f"记录类型 {module!r} 不参与 9 态工作流"
+                    f"（缺列：{', '.join(missing) or '未知'}）；"
+                    f"该端点只适用于继承 RecordMixin 的记录"
+                ),
+                status=422,
+            )
     return model
 
 
 async def _load_record(
-    db: AsyncSession, *, module: str, record_id: uuid.UUID, actor: _Actor
+    db: AsyncSession,
+    *,
+    module: str,
+    record_id: uuid.UUID,
+    actor: _Actor,
+    need_mixin: bool = True,
 ) -> Any:
     """解析模块 → 取行 → 项目鉴权（无权 404）。"""
-    model = resolve_record_model(module)
+    model = resolve_record_model(module, need_mixin=need_mixin)
     record = await db.get(model, record_id)
     if record is None:
         raise PcsError(
@@ -184,8 +227,8 @@ async def obsolete_record(
     「这行曾经存在过、什么时候被谁作废的」要能查。
     """
     require_roles(actor, *_roles_for(StateTransition.OBSOLETE))
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
     model = resolve_record_model(module)
+    await _load_record(db, module=module, record_id=record_id, actor=actor)
     result = await RecordCancellationService.obsolete(
         db,
         record_id=record_id,
@@ -214,8 +257,8 @@ async def request_reversal(
     已对外生效（锁定）的记录只能走变更单，不能走撤销。
     """
     require_roles(actor, *_roles_for(StateTransition.REQUEST_REVERSAL))
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
     model = resolve_record_model(module)
+    await _load_record(db, module=module, record_id=record_id, actor=actor)
     result = await ReversalApprovalService.request_reversal(
         db,
         record_id=record_id,
@@ -248,8 +291,8 @@ async def reversal_decision(
         actor,
         *_roles_for(StateTransition.APPROVE_REVERSAL, StateTransition.REJECT_REVERSAL),
     )
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
     model = resolve_record_model(module)
+    await _load_record(db, module=module, record_id=record_id, actor=actor)
     if body.decision == "APPROVE":
         result = await ReversalApprovalService.approve_reversal(
             db, record_id=record_id, actor=actor, record_table=model
@@ -466,7 +509,11 @@ async def create_comment(
     而观测层一旦不可信就没人再信它 —— 那正是 ADR-0047 立观测层要防的失败。
     """
     require_roles(actor, *_COMMENT_ROLES)
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # 批注**不需要** 9 态列：任何有归属项目的记录都能留言。
+    # need_mixin=False 让「没有 sign_status 的表」也能被留言，而不是被 422 挡掉。
+    record = await _load_record(
+        db, module=module, record_id=record_id, actor=actor, need_mixin=False
+    )
     comment = RecordComment(
         project_id=record.project_id,
         record_type=module,
@@ -501,7 +548,9 @@ async def list_comments(
     只按 created_at 排序时并列行的返回顺序不确定 ⇒ 翻页会漏批注或重复。
     """
     require_roles(actor, *_COMMENT_ROLES)
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await _load_record(
+        db, module=module, record_id=record_id, actor=actor, need_mixin=False
+    )
     conditions = [
         RecordComment.record_type == module,
         RecordComment.record_id == record_id,

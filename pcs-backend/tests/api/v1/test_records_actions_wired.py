@@ -28,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import PipingResult
+from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 from app.models.enums import RecordSignStatus9
 
 pytestmark = pytest.mark.asyncio
@@ -268,17 +269,38 @@ class TestModuleResolution:
         assert resp.status_code == 404, resp.text
         assert resp.json()["code"] == "RECORD_NOT_FOUND"
 
-    async def test_every_registry_module_resolves(self):
-        """`RECORD_TYPE_REGISTRY` 的每个键都必须能被 `{module}` 解析。
+    async def test_registry_splits_into_supported_and_unsupported(self):
+        """注册表的键分两类，端点必须**显式区分**而不是一律放行。
 
-        这条测试存在的意义：注册表与端点的 `{module}` 是同一份词表；
-        若哪天有人往注册表加了一个没接进端点的键，这里会红。
+        ⚠️ 这条测试**曾经写反**：原断言是「每个键都能解析」。
+        那正是 CRITICAL finding 的根源 —— `RECORD_TYPE_REGISTRY` 里混着
+        几张列不齐的表（`CostEstResult` / `TwoPhaseResult` 没有 `project_id`，
+        `ProjectCalculationStandardProfile` 没有 `sign_status`），
+        「都能解析」等于把它们放进会抛 500 的路径。
+
+        现在断言：具备 `RecordMixin` 全列的键解析得到模型；
+        其余的必须抛 422 `RECORD_MODULE_UNSUPPORTED`。
         """
+        from app.core.errors import PcsError
         from app.api.v1.records_actions import resolve_record_model
+        from app.models.mixins import RecordMixin
         from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 
-        for key in RECORD_TYPE_REGISTRY:
-            assert resolve_record_model(key) is RECORD_TYPE_REGISTRY[key], key
+        supported, unsupported = [], []
+        for key, model in RECORD_TYPE_REGISTRY.items():
+            columns = set(model.__table__.columns.keys())
+            if set(RecordMixin.__annotations__) <= columns and "project_id" in columns:
+                supported.append(key)
+                assert resolve_record_model(key) is model, key
+            else:
+                unsupported.append(key)
+                with pytest.raises(PcsError) as exc:
+                    resolve_record_model(key)
+                assert exc.value.code == "RECORD_MODULE_UNSUPPORTED", key
+
+        # 两边都不能为空 —— 空集合说明分类逻辑写死了而不是真在判列
+        assert supported, "没有任何注册表键被判为可用"
+        assert unsupported, "没有任何注册表键被判为不可用（分类可能写死了）"
 
 
 class TestResponseContract:
@@ -329,3 +351,94 @@ class TestResponseContract:
             )
         ).scalars().all()
         assert len(rows) == 1
+
+
+class TestRegistryModuleColumnCoverage:
+    """注册表里**每一个** key 打遍写路径，都不得 500。
+
+    为什么要有这条：`{module}` 直接取 `RECORD_TYPE_REGISTRY` 的键，而该注册表
+    里混着几张**列不齐**的表 —— `CostEstResult` / `TwoPhaseResult` 没有
+    `project_id`，`ProjectCalculationStandardProfile` 没有 `sign_status`。
+    解析成功但加载失败 ⇒ 守卫抛 500「Record missing project_id (guard
+    misconfigured)」—— 把开发者字符串端给用户，且不告诉他「这种记录不支持
+    这套流程」这个真正该说的话。
+
+    逐端点测只会覆盖已写测试的那几个模块；这条覆盖**将来**注册表里出现的
+    每一个 key —— 那才是 500 的实际来源。
+    """
+
+    _ACTIONS = (
+        ("obsolete", {"reason": "x"}),
+        ("request-reversal", {"reason": "x"}),
+        ("reversal-decision", {"decision": "APPROVE"}),
+        ("submit-approval", {"approval_role": "CHECKER"}),
+        ("approval-step", {"decision": "PASS"}),
+        ("abandon-change", {"reason": "x"}),
+    )
+
+    @pytest.mark.parametrize("module", sorted(RECORD_TYPE_REGISTRY))
+    async def test_write_paths_never_500(self, client, auth, approver_auth, module):
+        # 角色闸先于模块解析：撤销裁决要 APPROVER、批步骤要 CHECKER/APPROVER，
+        # 用错角色的 token 会先 403，断言集就得放宽到 403 ——
+        # 而 403 对本测试（防 500）没有信息量。
+        from app.core.security import create_access_token
+
+        checker = {
+            "Authorization": f"Bearer {create_access_token(subject='chk', role='CHECKER')}"
+        }
+        headers_for = {"reversal-decision": approver_auth, "approval-step": checker}
+        for action, body in self._ACTIONS:
+            resp = await client.post(
+                f"/api/v1/records/{module}/{uuid.uuid4()}/{action}",
+                headers=headers_for.get(action, auth), json=body,
+            )
+            assert resp.status_code != 500, (
+                f"{module}/{action} 返回 500 —— 模块解析成功但加载失败"
+            )
+            assert resp.status_code in (404, 422), (
+                f"{module}/{action} 期望 404（列齐但无此记录）或 422（列不齐），"
+                f"实得 {resp.status_code} {resp.text}"
+            )
+
+    @pytest.mark.parametrize("module", sorted(RECORD_TYPE_REGISTRY))
+    async def test_comment_paths_never_500(self, client, auth, module):
+        """批注只需要 `project_id`，但同样不得 500。"""
+        for method, path in (
+            ("post", f"/api/v1/records/{module}/{uuid.uuid4()}/comments"),
+            ("get", f"/api/v1/records/{module}/{uuid.uuid4()}/comments"),
+        ):
+            resp = await (
+                client.post(path, headers=auth, json={"body": "x"})
+                if method == "post"
+                else client.get(path, headers=auth)
+            )
+            assert resp.status_code != 500, f"{module}/comments {method} 返回 500"
+
+    async def test_unsupported_module_names_the_missing_columns(self, client, auth):
+        """422 必须说清**缺哪些列** —— 只说「不支持」等于让用户猜。"""
+        resp = await client.post(
+            f"/api/v1/records/CostEstResult/{uuid.uuid4()}/obsolete",
+            headers=auth, json={"reason": "x"},
+        )
+
+        assert resp.status_code == 422, resp.text
+        body = resp.json()
+        assert body["code"] == "RECORD_MODULE_UNSUPPORTED"
+        assert "project_id" in body["message"]
+
+    async def test_module_missing_sign_status_is_rejected_on_approval(
+        self, client, auth
+    ):
+        """`submit-approval` 需要 `sign_status`/`approval_*`；缺则 422。
+
+        这类模型有 `project_id` 所以能过守卫，不加列检查就会在下一步
+        `AttributeError` ⇒ 500。
+        """
+        resp = await client.post(
+            f"/api/v1/records/ProjectCalculationStandardProfile/"
+            f"{uuid.uuid4()}/submit-approval",
+            headers=auth, json={"approval_role": "CHECKER"},
+        )
+
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["code"] == "RECORD_MODULE_UNSUPPORTED"

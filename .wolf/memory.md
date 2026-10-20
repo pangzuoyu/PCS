@@ -1962,3 +1962,4 @@
 | 07:58 | Created pcs-backend/tests/api/v1/test_workflow_progress_api.py | — | ~2246 |
 | 07:59 | Edited pcs-backend/tests/api/v1/test_workflow_progress_api.py | modified test_read_api_is_project_scoped() | ~579 |
 | 08:00 | Created pcs-backend/tests/services/test_workflow_progress_acceptance.py | — | ~1176 |
+| 08:24 | Edited pcs-backend/app/services/deliverable_service.py | or_() → append() | ~168 |
