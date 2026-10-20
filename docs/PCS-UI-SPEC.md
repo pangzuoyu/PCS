@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.6
+当前版本: V1.7
 发布日期: 2026-10-20
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -219,6 +219,8 @@ Logo	点击回项目总览
 AI	打开 AI 助手抽屉（P10 预留，先禁用并提示）
 用户	用户名 + 角色标签；菜单：个人设置 / 切换主题 / 登出
 门禁：非 FORMAL 工作区时，TopBar 显示橙色横幅“试算工作区 · 数据不可签署”。
+编辑锁：Redis 不可用时（锁接口返回 degraded=true），TopBar 显示橙色横幅，
+文案**取后端 message 原文**，前端不改写、不自行拼接（见 §6.21 P9A-LCK-004）。
 
 3.3 SideNav
 按 P 阶段分组，可折叠。默认展开当前模块所属分组。
@@ -871,6 +873,54 @@ text
        2026-09-15 14:32
        [查看]
 未读左侧蓝点。
+
+6.21 EditLockIndicator
+进入可编辑记录的详情页时取一把编辑锁。编辑锁是**体验层**：让人知道「谁在改」，
+**不是**保存成功的保证（保存冲突由后端的 record_hash 比对裁定，见 P9A-4 D2 契约）。
+本节对应 P9A-LCK-001~005（依据 ADR-0048）。
+
+P9A-LCK-001 取锁
+进入编辑态 ⇒ POST /api/v1/locks/{record_type}/{record_id}/acquire
+（record_type = 结果表名，如 cost_est_results / psychro_results）。
+
+后端响应	前端表现
+200 + success=true	拿到锁 ⇒ 表单可编辑
+200 + degraded=true	Redis 不可用 ⇒ 按 P9A-LCK-004 处理（表单仍可编辑）
+409 + success=false	**他人持锁** ⇒ 表单整体只读，顶部显示
+「{holder.username 或 holder.user_id} 正在编辑（{holder.acquired_at 相对时间}）」，
+禁用保存按钮，Tooltip 写同一句。⚠️ 后端返回 holder 原文，前端不猜、不缓存。
+
+P9A-LCK-002 心跳
+拿到锁后每 60s 调一次 POST /api/v1/locks/{record_type}/{record_id}/renew。
+
+后端响应	前端表现
+200 + success=true	继续编辑
+409	锁已失效（被抢走或已过期）⇒ 表单转只读，提示「编辑锁已失效，请重新进入编辑」。
+⚠️ **不得**自动重试续期（重试仍是 409，且会把失效事实掩盖成网络抖动）。
+⚠️ 页面关闭**不**要求显式 release —— 30min TTL 会自动回收（ADR-0048 §③）。
+正常离开页面可调 release（仅持有者成功）。
+
+P9A-LCK-003 只读化的边界
+他人持锁时**只**禁用保存，不阻断浏览、复制、查看哈希。
+⚠️ 禁用原因写「谁在改」，**不写「无权限」** —— 这是并发提示，不是权限问题
+（把两者混同会让用户去找管理员，而真正该做的是等一下）。
+
+P9A-LCK-004 降级横幅
+后端返回 degraded=true ⇒ TopBar 橙色横幅，文案**取后端 message 原文**：
+
+text
+锁服务不可用，保存时可能冲突；本次编辑无冲突检测
+
+⚠️ 「；本次编辑无冲突检测」这半句由后端按**该表的保存路径是否已接上冲突检测**
+决定（ADR-0048 §⑤）。前端**不得**自行拼接、不得降级成一句全局提示 ——
+用户在无保护状态下编辑，**必须知道**。
+⚠️ 横幅**不阻断**编辑（放行的是体验，拦住并发的是 DB 层）。
+
+P9A-LCK-005 与保存冲突的分工
+前端**不得**把「我拿到了锁」当作「保存一定成功」。
+保存时后端可能返回 409（record_hash 比对出的真冲突），契约见 P9A-4 D2：
+弹窗必须显示「谁在什么时候改了什么字段」（changed_fields），并提供
+「放弃我的修改 / 查看对方版本」两个出口。
 
 7. 模块 UI 规格
 7.1 登录页
@@ -2028,6 +2078,7 @@ V1.3	2026-09-17	P5-4 闭环后追加 §7.11.6 HEAT 详细字段章节：①设�
 V1.4	2026-09-17	P5-3 PSV 泄放工况多选 + SUP-P5-PSV-002 §5.1/5.2 安全阀选型前端部分：①泄放工况由单选 Select 改 mode="multiple"（FIRE/CLOSED_VALVE/REACTION_RUNAWAY/THERMAL_EXPANSION 任意组合勾选），onCalculate 对每个 scenario 并行 POST /api/v1/psv/calculate（Promise.all），取 orifice.actual_area_m2 最大者为主导工况；结果区新增"多工况对比表"（每 scenario 一行：工况/孔口/actual_area_m2/泄放面积/record_hash，max 行高亮"最大（主导）"金标）；②SUP-P5-PSV-002 §5.1 新增"安全阀选型"Collapse（位于"泄放工况"之上），6 字段 UI：阀体型式 Radio.Group（SPRING_LOADED 默认 / BALANCED_BELLOWS / PILOT_OPERATED / RUPTURE_DISC）+ 阀体材料 Select（CARBON_STEEL/SS304/SS316 默认/SS316L/ALLOY）+ 入口尺寸 Select + 出口尺寸 Select + 超压百分比 InputNumber（2%~10%）+ 孔口手动 override Select（API 526 D~T 顺序，可空 → 自动选型）；③§5.2 联动规则前端实现：阀体型式 ∈ {PILOT_OPERATED, RUPTURE_DISC} → 黄色 Alert 警告 + 提交按钮 disabled；blowdown_fraction 越界 → 前端阻止；orifice_override < 计算孔口（ORIFICE_ORDER 索引）→ 计算后阻止提交；④§4.2 G7/G8/G9 错误码前端解析（后端 extra='ignore' 静默兼容，等后端契约扩展后自动激活）：PSV_PILOT_OPERATED_NOT_SUPPORTED / PSV_RUPTURE_DISC_NOT_SUPPORTED / PSV_ORIFICE_OVERRIDE_TOO_SMALL；⑤types/psv.ts 新增 PsvValveType / PsvBodyMaterial 枚举 + 3 新字段（valve_type/body_material/orifice_override）扩展 PsvCalculateRequest；⑥SPEC SUP-P5-PSV-002 V1.0 状态：待评审（本批次仅落地前端部分，后端契约扩展待 SPEC 评审通过后启动）。	Claude Code
 V1.5	2026-10-06	P7 Sprint 4 S4-2/S4-3 落地反馈（docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md）：①§7.14「结论」枚举由 3 档（合格/警告/不合格）扩为 4 档，追加「不可判」UNVERDICTABLE，语义为「判不了」而非「不合格」，且与不合格一并阻断确认门禁（fail-closed：把不可判并入合格会让 §3.2.4(4) 的确认门禁形同虚设，一个从未被测量的值能拿到「已确认」）；②同批登记 pcs-backend/app/api/v1/supplier.py 的 5 条端点实际发布在 `/api/v1/equipment/...` 而非本 SPEC 早期描述的 `/api/v1/equipment-list/...`（后者是另一个已挂载 router，按 SPEC 写的客户端会 404，且该 404 与「设备不存在」不可区分），登记见 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` 关联的 SPEC-ADD-002；③Excel 批量导入端点（S4-1 裁决不实现）已在 SPEC 侧标注删除线。	Claude Code
 V1.6	2026-10-20	P9A 新增 §5.5 参与人员门禁（依据 ADR-0050，用户 2026-10-20 裁决）：①§5.5 新增两种角色口径（全局角色 / 签署职责，后者为 `Project-` 前缀 + 全局角色名的机械派生）与三条门（可创建 / 可审阅 / 可签署）及未参与时的前端表现；②新增项目两态（DRAFT 准备中 / ACTIVE 进行中）与转态前置；③新增 5 个错误码（PROJECT_TASK_NOT_ASSIGNED / PARTICIPANT_NOT_ASSIGNED / PROJECT_NOT_STARTED / PARTICIPANTS_LOCKED / QUALIFICATION_NOT_MET）；④明确 §5.2 记录态门禁与 §5.5 项目内分工门禁**同时**满足才放行；⑤**连带修正**：文件头「当前版本」原为 V1.4，而 §12.4 修订记录已到 V1.5 —— 版本漂移，本次一并校正为 V1.6；⑥本版**不含** ADR-0047 / ADR-0049 承诺要写入的 P9A-OBS-001~004 / P9A-NOT-001~006 条款（至今未写，欠账登记在 ADR-0050「尚未解决」）。	Claude Code
+V1.7	2026-10-20	P9A-4 D1 新增 §6.21 EditLockIndicator（依据 ADR-0048，编辑锁 = Redis 体验层 + DB 正确性层两层锁）：①新增 P9A-LCK-001~005 五条（取锁 / 60s 心跳 / 只读化边界 / 降级横幅 / 与保存冲突的分工）；②§3.2 TopBar 增「编辑锁降级横幅」一行（文案取后端 message 原文，前端不改写）；③明确「他人持锁」只禁用保存、不阻断浏览复制，禁用原因写「谁在改」而非「无权限」；④明确「我拿到锁」不等于「保存一定成功」（保存冲突由 record_hash 比对裁定）。本版不含 ADR-0047 / ADR-0049 承诺的 P9A-OBS-001~004 / P9A-NOT-001~006（仍欠账）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

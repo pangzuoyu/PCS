@@ -299,7 +299,8 @@ class UserStatus(str, enum.Enum):
 class AuditAction(str, enum.Enum):
     """audit_logs.action 标准值。
 
-    P0 + P1 完整集合（Issue 6 锁定，38 项）。所有值 ≤50 字符
+    P0 + P1 完整集合（Issue 6 锁定，40 项 —— 2026-10-20 P9A-4 D1 增
+    EDIT_LOCK_ACQUIRED / EDIT_LOCK_RELEASED）。所有值 ≤50 字符
     （test_audit_action_max_length_50 断言）。DB 字段类型 String(50)，
     零 migration 成本。
     """
@@ -322,6 +323,10 @@ class AuditAction(str, enum.Enum):
     RECORD_CREATED = "RECORD_CREATED"
     RECORD_UPDATED = "RECORD_UPDATED"
     RECORD_OBSOLETED = "RECORD_OBSOLETED"
+    # === 编辑锁（P9A-4 D1 · ADR-0048 §①）===
+    # ⚠️ **renew 不写审计** —— 60s 一次的心跳会把 audit_logs 灌爆。
+    EDIT_LOCK_ACQUIRED = "EDIT_LOCK_ACQUIRED"
+    EDIT_LOCK_RELEASED = "EDIT_LOCK_RELEASED"
     TAG_NUMBER_RELEASED = "TAG_NUMBER_RELEASED"  # P1.2 编号回滚
 
     # === CONFIG 元数据（F-P0-001 R1 / P7 Sprint 3 Issue 6）===

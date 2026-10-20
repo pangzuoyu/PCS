@@ -10,6 +10,7 @@ from app.api.v1.config import router as config_router
 from app.api.v1.cool_tower import router as cool_tower_router  # P6-2 Task 25
 from app.api.v1.cost_est import router as cost_est_router  # P6-3 Task 36
 from app.api.v1.cv import router as cv_router  # P6-1 Task 10
+from app.api.v1.deliverables import router as deliverables_router  # P1-7+ D 模块
 from app.api.v1.equip_lib import router as equip_lib_router
 from app.api.v1.equip_list import router as equip_list_router  # P7-Sprint 1 S1-4b
 from app.api.v1.filtration import router as filtration_router  # P6-3 Task 34
@@ -19,23 +20,23 @@ from app.api.v1.health import router as health_router
 from app.api.v1.heat import router as heat_router  # P5-4-5
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
+from app.api.v1.locks import router as locks_router  # P9A-4 D1 · ADR-0048 §①⑤
 from app.api.v1.meta import router as meta_router
 from app.api.v1.notifications import router as notifications_router  # P9A-NOT-001/005
-from app.api.v1.ws import router as notifications_ws_router  # P9A-NOT-006 / ADR-0049 §⑤
 from app.api.v1.open_channel import router as open_channel_router  # P6-3 Task 32
 from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
-from app.api.v1.report import router as report_router
-from app.api.v1.report_builder import router as report_builder_router
 from app.api.v1.pipe_net import router as pipe_net_router
+from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
 from app.api.v1.psychro import router as psychro_router  # P6-2 Task 26
 from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
 from app.api.v1.records_actions import router as records_actions_router
-from app.api.v1.workflow_progress import router as workflow_progress_router
+from app.api.v1.report import router as report_router
+from app.api.v1.report_builder import router as report_builder_router
 from app.api.v1.restriction import router as restriction_router  # P6-1 Task 14
 from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
@@ -44,12 +45,12 @@ from app.api.v1.stream_symbols import router as stream_symbols_router
 from app.api.v1.streams import router as streams_router
 from app.api.v1.supplier import router as supplier_router  # P7-Sprint 4 S4-1
 from app.api.v1.thermosiphon import router as thermosiphon_router  # P5-0-1b T1
-from app.api.v1.util import router as util_router  # P7-Sprint 1 S1-5b
-from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.user_projects import router as user_projects_router  # P7-7+ BLOCKER-3
-from app.api.v1.deliverables import router as deliverables_router  # P1-7+ D 模块
+from app.api.v1.util import router as util_router  # P7-Sprint 1 S1-5b
 from app.api.v1.vessel import router as vessel_router  # P5-1-4
+from app.api.v1.workflow_progress import router as workflow_progress_router
 from app.api.v1.workspaces import router as workspaces_router
+from app.api.v1.ws import router as notifications_ws_router  # P9A-NOT-006 / ADR-0049 §⑤
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
@@ -63,6 +64,7 @@ api_router.include_router(workflow_progress_router)
 api_router.include_router(lineage_router)
 api_router.include_router(meta_router)
 api_router.include_router(notifications_router)
+api_router.include_router(locks_router)  # P9A-4 D1
 api_router.include_router(notifications_ws_router)
 api_router.include_router(change_impact_router)
 api_router.include_router(config_router)

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T09:10:13.593Z",
-    "fileCount": 929,
+    "lastScanned": "2026-10-20T09:21:13.667Z",
+    "fileCount": 935,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5d5dd47a7e43b8f8b1123d7d5f07f22d8d2b428e01a97d0dc4c5433d10028fa9",
-    "storeUpdatedAt": "2026-10-20T09:10:13.604Z",
-    "rootHash": "680017337a37b7a8"
+    "renderedHash": "3332363a7511fadf7fe4150fffe97ff6ea851be6fc43f57c1a7da42aab88de0d",
+    "storeUpdatedAt": "2026-10-20T09:21:13.678Z",
+    "rootHash": "fae34e6c56dd1917"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12766,11 +12766,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5149,
-      "hash": "cc44487ac74006db",
-      "size": 23109,
-      "mtimeMs": 1792451143275.711,
-      "updatedAt": "2026-10-19T23:05:43.326Z",
+      "tokens": 5203,
+      "hash": "7160702803ca15c5",
+      "size": 23346,
+      "mtimeMs": 1792487908754.389,
+      "updatedAt": "2026-10-20T09:18:28.801Z",
       "source": "hook",
       "symbols": [
         {
@@ -12889,91 +12889,91 @@
           "name": "AuditAction",
           "kind": "class",
           "startLine": 299,
-          "endLine": 429,
-          "tokens": 1405
+          "endLine": 433,
+          "tokens": 1458
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 430,
-          "endLine": 443,
+          "startLine": 434,
+          "endLine": 447,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 444,
-          "endLine": 457,
+          "startLine": 448,
+          "endLine": 461,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 458,
-          "endLine": 471,
+          "startLine": 462,
+          "endLine": 475,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 472,
-          "endLine": 482,
+          "startLine": 476,
+          "endLine": 486,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 483,
-          "endLine": 493,
+          "startLine": 487,
+          "endLine": 497,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 494,
-          "endLine": 503,
+          "startLine": 498,
+          "endLine": 507,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 504,
-          "endLine": 518,
+          "startLine": 508,
+          "endLine": 522,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 519,
-          "endLine": 529,
+          "startLine": 523,
+          "endLine": 533,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 530,
-          "endLine": 552,
+          "startLine": 534,
+          "endLine": 556,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 553,
-          "endLine": 567,
+          "startLine": 557,
+          "endLine": 571,
           "tokens": 114
         },
         {
           "name": "WorkflowType",
           "kind": "class",
-          "startLine": 568,
-          "endLine": 586,
+          "startLine": 572,
+          "endLine": 590,
           "tokens": 149
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 587,
-          "endLine": 607,
+          "startLine": 591,
+          "endLine": 611,
           "tokens": 184
         }
       ]
@@ -13417,11 +13417,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 1549,
-      "hash": "b69fae1e0db68b11",
-      "size": 5466,
-      "mtimeMs": 1791802335210.026,
-      "updatedAt": "2026-10-12T10:52:15.262Z",
+      "tokens": 1783,
+      "hash": "99db41151d6f2f62",
+      "size": 6316,
+      "mtimeMs": 1792487921750.383,
+      "updatedAt": "2026-10-20T09:18:41.796Z",
       "source": "hook"
     },
     "pcs-backend/scripts/p7_s3_003_backfill_config_audit.py": {
@@ -31582,11 +31582,11 @@
     },
     "pcs-backend/app/main.py": {
       "description": "FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。",
-      "tokens": 1440,
-      "hash": "7c239a85b1b25934",
-      "size": 6286,
-      "mtimeMs": 1792478513241.1213,
-      "updatedAt": "2026-10-20T06:41:53.288Z",
+      "tokens": 1469,
+      "hash": "65b88b0140796f82",
+      "size": 6388,
+      "mtimeMs": 1792487922369.3826,
+      "updatedAt": "2026-10-20T09:18:42.416Z",
       "source": "hook",
       "symbols": [
         {
@@ -31600,14 +31600,14 @@
           "name": "_close_redis_connections",
           "kind": "fn",
           "startLine": 76,
-          "endLine": 97,
-          "tokens": 186
+          "endLine": 99,
+          "tokens": 215
         },
         {
           "name": "create_app",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 153,
+          "startLine": 100,
+          "endLine": 155,
           "tokens": 541
         }
       ]
@@ -33333,6 +33333,441 @@
           "startLine": 439,
           "endLine": 606,
           "tokens": 1702
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_edit_lock.py": {
+      "description": "编辑锁（Redis 层）测试 —— P9A-4 D1（ADR-0048 §①~⑤）。",
+      "tokens": 3260,
+      "hash": "20e63d1e9c887efd",
+      "size": 13264,
+      "mtimeMs": 1792487660514.063,
+      "updatedAt": "2026-10-20T09:14:20.567Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_redis_up",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 51,
+          "tokens": 62
+        },
+        {
+          "name": "real_redis",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 58,
+          "tokens": 46
+        },
+        {
+          "name": "lock_service",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 66,
+          "tokens": 41
+        },
+        {
+          "name": "_rid",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 75,
+          "tokens": 63
+        },
+        {
+          "name": "test_acquire_grants_lock_to_first_caller",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 86,
+          "tokens": 112
+        },
+        {
+          "name": "test_acquire_returns_holder_info_when_held",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 101,
+          "tokens": 154
+        },
+        {
+          "name": "test_acquire_is_idempotent_for_the_same_holder",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 111,
+          "tokens": 132
+        },
+        {
+          "name": "test_two_sessions_one_holder",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 133,
+          "tokens": 235
+        },
+        {
+          "name": "test_renew_extends_ttl_only_for_current_holder",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 154,
+          "tokens": 190
+        },
+        {
+          "name": "test_renew_extends_ttl_for_the_holder",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 172,
+          "tokens": 170
+        },
+        {
+          "name": "test_renew_rejects_expired_lock",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 192,
+          "tokens": 185
+        },
+        {
+          "name": "test_lock_expires_after_ttl_without_heartbeat",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 207,
+          "tokens": 152
+        },
+        {
+          "name": "test_default_ttl_is_30_minutes",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 213,
+          "tokens": 54
+        },
+        {
+          "name": "test_heartbeat_is_60_seconds",
+          "kind": "fn",
+          "startLine": 214,
+          "endLine": 223,
+          "tokens": 88
+        },
+        {
+          "name": "test_release_is_owner_only",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 238,
+          "tokens": 147
+        },
+        {
+          "name": "test_release_by_owner_frees_the_lock",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 247,
+          "tokens": 118
+        },
+        {
+          "name": "test_release_of_a_free_lock_is_a_no_op",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 261,
+          "tokens": 130
+        },
+        {
+          "name": "test_redis_down_warns_and_allows_not_503",
+          "kind": "fn",
+          "startLine": 262,
+          "endLine": 278,
+          "tokens": 154
+        },
+        {
+          "name": "test_redis_down_degrades_renew_and_release",
+          "kind": "fn",
+          "startLine": 279,
+          "endLine": 291,
+          "tokens": 137
+        },
+        {
+          "name": "test_degradation_banner_mentions_no_conflict_detection_for_cost_est",
+          "kind": "fn",
+          "startLine": 292,
+          "endLine": 306,
+          "tokens": 130
+        },
+        {
+          "name": "test_banner_clause_follows_the_guarded_table_set",
+          "kind": "fn",
+          "startLine": 307,
+          "endLine": 339,
+          "tokens": 356
+        },
+        {
+          "name": "test_acquire_does_not_consult_database",
+          "kind": "fn",
+          "startLine": 340,
+          "endLine": 355,
+          "tokens": 157
+        }
+      ]
+    },
+    "pcs-backend/app/services/edit_guard.py": {
+      "description": "编辑冲突 guard 的**能力声明**（ADR-0048 §⑥）。",
+      "tokens": 798,
+      "hash": "7658bc06736e7c74",
+      "size": 4066,
+      "mtimeMs": 1792487717043.2212,
+      "updatedAt": "2026-10-20T09:15:17.093Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UnregisteredTableError",
+          "kind": "class",
+          "startLine": 34,
+          "endLine": 42,
+          "tokens": 54
+        },
+        {
+          "name": "TableCapability",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 71,
+          "tokens": 325
+        },
+        {
+          "name": "capability_of",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 82,
+          "tokens": 98
+        },
+        {
+          "name": "has_conflict_detection",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 96,
+          "tokens": 87
+        }
+      ]
+    },
+    "pcs-backend/app/services/edit_lock.py": {
+      "description": "编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。",
+      "tokens": 2813,
+      "hash": "07ccb0c216143081",
+      "size": 11971,
+      "mtimeMs": 1792487796414.3538,
+      "updatedAt": "2026-10-20T09:16:36.463Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "LockHolder",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 113,
+          "tokens": 32
+        },
+        {
+          "name": "LockState",
+          "kind": "class",
+          "startLine": 114,
+          "endLine": 131,
+          "tokens": 112
+        },
+        {
+          "name": "EditLockService",
+          "kind": "class",
+          "startLine": 132,
+          "endLine": 291,
+          "tokens": 1658
+        },
+        {
+          "name": "_parse_iso",
+          "kind": "fn",
+          "startLine": 292,
+          "endLine": 305,
+          "tokens": 102
+        },
+        {
+          "name": "get_edit_lock",
+          "kind": "fn",
+          "startLine": 306,
+          "endLine": 315,
+          "tokens": 78
+        },
+        {
+          "name": "set_edit_lock",
+          "kind": "fn",
+          "startLine": 316,
+          "endLine": 334,
+          "tokens": 114
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/lock.py": {
+      "description": "编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。",
+      "tokens": 404,
+      "hash": "429be0679b3771f6",
+      "size": 1939,
+      "mtimeMs": 1792487892367.3938,
+      "updatedAt": "2026-10-20T09:18:12.415Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/api/v1/locks.py": {
+      "description": "编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。",
+      "tokens": 1602,
+      "hash": "158f034d81484400",
+      "size": 6490,
+      "mtimeMs": 1792487901979.3914,
+      "updatedAt": "2026-10-20T09:18:22.026Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 71,
+          "tokens": 177
+        },
+        {
+          "name": "_write_lock_audit",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 110,
+          "tokens": 275
+        },
+        {
+          "name": "acquire_edit_lock",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 150,
+          "tokens": 303
+        },
+        {
+          "name": "renew_edit_lock",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 181,
+          "tokens": 230
+        },
+        {
+          "name": "release_edit_lock",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 217,
+          "tokens": 262
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_edit_lock_api.py": {
+      "description": "编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。",
+      "tokens": 2367,
+      "hash": "74cf9fcda86ca624",
+      "size": 8862,
+      "mtimeMs": 1792488073617.1836,
+      "updatedAt": "2026-10-20T09:21:13.667Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_redis_up",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 48,
+          "tokens": 78
+        },
+        {
+          "name": "lock_service",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 62,
+          "tokens": 97
+        },
+        {
+          "name": "dead_lock_service",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 73,
+          "tokens": 64
+        },
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 82,
+          "tokens": 74
+        },
+        {
+          "name": "test_acquire_grants_the_lock",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 97,
+          "tokens": 151
+        },
+        {
+          "name": "test_acquire_by_another_user_returns_409_with_holder_info",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 119,
+          "tokens": 212
+        },
+        {
+          "name": "test_holder_info_carries_the_username",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 130,
+          "tokens": 111
+        },
+        {
+          "name": "test_acquire_requires_authentication",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 136,
+          "tokens": 68
+        },
+        {
+          "name": "test_acquire_writes_an_audit_row",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 158,
+          "tokens": 220
+        },
+        {
+          "name": "test_renew_by_the_holder_succeeds",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 172,
+          "tokens": 137
+        },
+        {
+          "name": "test_renew_by_another_user_returns_409",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 188,
+          "tokens": 142
+        },
+        {
+          "name": "test_release_by_another_user_returns_409",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 211,
+          "tokens": 207
+        },
+        {
+          "name": "test_release_by_the_holder_succeeds",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 230,
+          "tokens": 186
+        },
+        {
+          "name": "test_redis_down_degrades_with_a_banner_not_503",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 247,
+          "tokens": 172
+        },
+        {
+          "name": "test_degraded_acquire_still_works_when_the_audit_fails",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 266,
+          "tokens": 178
+        },
+        {
+          "name": "test_lock_service_singleton_is_shared",
+          "kind": "fn",
+          "startLine": 267,
+          "endLine": 270,
+          "tokens": 39
         }
       ]
     }

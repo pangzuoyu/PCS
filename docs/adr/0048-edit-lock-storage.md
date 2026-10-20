@@ -7,7 +7,7 @@
 - Informed: P9A 实施者、P9B 并发控制前端
 - Supersedes: —
 - Superseded by: —
-- Related: P9-OPEN-009、SPEC §3.2.5 P9A-LCK-001~005、SPEC §3.2.2 `P9A-ADM-001/002`（停用入口，2026-10-19 补）、
+- Related: P9-OPEN-009、SPEC **§6.21 EditLockIndicator**（P9A-LCK-001~005，2026-10-20 D1 补写 —— 此前这条引用指向的条款**根本不存在**）、SPEC §3.2.2 `P9A-ADM-001/002`（停用入口，2026-10-19 补）、
   **ekris-redis-lock-degradation（2026-04-09，user-stated）—— 见 §⑤ 的显式关系声明**、
   ADR-0041 §编号预留（故取 0048）、`TODOS.md` TODO-048（`RECORD_TYPE_REGISTRY` 名不副实）
 
@@ -99,6 +99,16 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > **前端要求**：Redis 降级横幅不能是全局一句话。对 `cost_est_results` 的记录，
 > 横幅须额外提示「**本次编辑无冲突检测**」（而不是让用户以为有 DB 兜底）。
 > 这不是可选的措辞优化 —— 用户在无保护状态下编辑，**必须知道**。
+>
+> **🔻 2026-10-20 D1 落地口径（实现说明）**：横幅里「本次编辑无冲突检测」这半句
+> 由 **`GUARDED_TABLES`（`app/services/edit_guard.py`）**决定 —— 即「该表的
+> 保存路径**已接上** DB 层冲突检测」，**不是**「该表有 record_hash 列」。
+>
+> 理由：横幅是给用户的**事实陈述**。D1 阶段 D2 还没接线 ⇒ 此刻**任何**表的
+> 保存路径都没有冲突检出能力 ⇒ 所有表都带这半句（对 `cost_est_results`
+> 而言这与本节的要求一致）。D2 接线后该表被登记进 `GUARDED_TABLES` ⇒
+> 横幅自动精确化。**D2 落地时须回本节修订**（本节「对 `cost_est_results`
+> 须额外提示」在 D2 之后不再成立）。
 
 告警走日志 ERROR + P9B 前端顶栏横幅。
 

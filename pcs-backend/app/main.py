@@ -83,11 +83,13 @@ async def _close_redis_connections() -> None:
 
     from app.api.v1 import ws as ws_mod
     from app.services.broadcaster import get_broadcaster
+    from app.services.edit_lock import get_edit_lock
 
     log = logging.getLogger(__name__)
     for label, closer in (
         ("broadcaster", get_broadcaster().aclose()),
         ("ws registry", ws_mod.get_registry().aclose()),
+        ("edit lock", get_edit_lock().aclose()),
     ):
         try:
             await closer

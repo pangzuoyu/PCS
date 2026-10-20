@@ -2114,3 +2114,17 @@
 | 17:01 | Edited docs/adr/0048-edit-lock-storage.md | expanded (+12 lines) | ~174 |
 | 17:02 | Edited .superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/progress.md | expanded (+49 lines) | ~755 |
 | 17:10 | Edited docs/adr/0048-edit-lock-storage.md | 2→3 lines | ~55 |
+| 17:14 | Created pcs-backend/tests/services/test_edit_lock.py | — | ~3334 |
+| 17:14 | Edited pcs-backend/tests/services/test_edit_lock.py | modified test_banner_clause_follows_the_guarded_table_set() | ~308 |
+| 17:15 | Created pcs-backend/app/services/edit_guard.py | — | ~798 |
+| 17:15 | Created pcs-backend/app/services/edit_lock.py | — | ~2734 |
+| 17:16 | Edited pcs-backend/app/services/edit_lock.py | expanded (+10 lines) | ~148 |
+| 17:18 | Created pcs-backend/app/schemas/lock.py | — | ~404 |
+| 17:18 | Created pcs-backend/app/api/v1/locks.py | — | ~1602 |
+| 17:18 | Edited pcs-backend/app/models/enums.py | 2→6 lines | ~76 |
+| 17:18 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~55 |
+| 17:18 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~29 |
+| 17:18 | Edited pcs-backend/app/main.py | added 1 import(s) | ~115 |
+| 17:19 | Created pcs-backend/tests/api/v1/test_edit_lock_api.py | — | ~2254 |
+| 17:19 | Edited pcs-backend/tests/api/v1/test_edit_lock_api.py | modified test_degraded_acquire_still_works_when_the_audit_fails() | ~178 |
+| 17:21 | Edited pcs-backend/tests/api/v1/test_edit_lock_api.py | modified test_holder_info_carries_the_username() | ~131 |
