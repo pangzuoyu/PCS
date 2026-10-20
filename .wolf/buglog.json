@@ -3704,6 +3704,49 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "MEDIUM"
+    },
+    {
+      "id": "bug-2037",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "cost_est 的响应体不暴露 record_hash ⇒ 前端拿不到并发基线",
+      "file": "pcs-backend/app/schemas/cost_est.py",
+      "root_cause": "P9A-4 D0 给 cost_est_results 补了 record_hash 列（ORM + 迁移 + 回填都做了），但只补了**表**没补**响应 schema** —— CostEstResultResponse 里根本没有 record_hash 字段。⇒ 其余 5 张表的响应早就有该字段（cool_tower/filtration/flare/open_channel/psychro 的 schema 里都在），唯独 cost_est 没有。⇒ 后果：D2 的并发契约对 cost_est 不可用（前端 GET 拿不到基线 ⇒ PATCH 必被 409 no_baseline 拦下 ⇒ 该表变成「完全不可编辑」）。",
+      "fix": "CostEstResultResponse 补 record_hash 字段（str | None，描述写明「P9A-4 D0 新增的并发令牌」）。守卫：tests/api/v1/test_edit_conflict.py::test_cost_est_patch_uses_the_same_contract 断言「创建响应的 record_hash 非空」且「带基线的 PATCH 走 200」。",
+      "fix_commit": "4cd0560",
+      "tags": [
+        "p9a",
+        "p9a-4",
+        "cost_est",
+        "record_hash",
+        "openapi",
+        "contract-gap"
+      ],
+      "related_bugs": [
+        "bug-2035"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "bug-2038",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "ADR-0048 §⑦ 写的 409 响应体形状（顶层 error_code/message/conflict）与本仓统一错误信封（code/message/detail/trace_id）不符",
+      "file": "docs/adr/0048-edit-lock-storage.md",
+      "root_cause": "ADR §⑦ 的响应体是在**没有核对本仓错误信封**的情况下写的 —— 本仓全部 4xx/5xx 都走 app/core/errors.py::ErrorResponse（{code, message, detail, trace_id}，全局异常处理器产出），而 ADR 描述的是另一套顶层三字段。⇒ 照 ADR 字面实现 ⇒ 前端要解析**两种**错误信封 ⇒ 必有一处漏解析（且漏的那处症状是「409 没弹窗、错误信息丢失」）。",
+      "fix": "实现按仓库信封归一（冲突对象放 detail.conflict），ADR §⑦ 同步修订并写明更正理由；message 改成通用措辞（两种 basis 共用），分流靠 basis。SPEC §6.21 P9A-LCK-006 给出 409 响应体全文。",
+      "fix_commit": "4cd0560",
+      "tags": [
+        "p9a",
+        "p9a-4",
+        "adr-0048",
+        "error-envelope",
+        "doc-vs-code"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "LOW"
     }
   ]
 }

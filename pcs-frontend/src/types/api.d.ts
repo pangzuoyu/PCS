@@ -1110,10 +1110,63 @@ export interface paths {
          * Confirm Recalc
          * @description 强制触发 CIA 扫描 + 传播 + 设备联动。
          *
+         *     ⚠️ **这是 P1 已交付的传播触发器**，**没有**哈希判定分流（那是
+         *     `confirm` 端点，P9A-CIA-001）。两者语义不同，不可合并。
+         *
          *     BLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权
          *     (先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).
          */
         post: operations["confirm_recalc_api_v1_change_impact__record_type___record_id__confirm_recalc_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-impact/{record_type}/{record_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Impact
+         * @description **哈希判定分流**（P9A-CIA-001）：确认一条 STALE 记录。
+         *
+         *     - 结果**不变** ⇒ `STALE_RESOLVED_NO_CHANGE`，记录回 CHECKED ⇒ **免凭证**
+         *       （不必重新签署）。
+         *     - 结果**变化** ⇒ 记录进 `CHANGE_PENDING` ⇒ **要求重新签署**。
+         */
+        post: operations["confirm_impact_api_v1_change_impact__record_type___record_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/change-impact/{record_type}/{record_id}/manual-adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manual Adjust Impact
+         * @description **人工判定**结掉 STALE（P9A-CIA-002）。
+         *
+         *     与 `confirm` 的区别：`confirm` 由**系统**按哈希判定；`manual-adjust` 由
+         *     **人**判定 ⇒ 走同一套状态机转移（⇒ 同样的限权 + 审计），但判定依据是
+         *     `reason`（**必填**）⇒ 事后能看出「凭什么人工这么判」。
+         *
+         *     ⚠️ 端点此前**不存在**（P9-Prep 交付面清单 §3 裁决 2）。
+         */
+        post: operations["manual_adjust_impact_api_v1_change_impact__record_type___record_id__manual_adjust_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7051,6 +7104,44 @@ export interface components {
          */
         ConfigStatus: "DRAFT" | "PENDING" | "APPROVED" | "PUBLISHED" | "OBSOLETE";
         /**
+         * ConfirmRecalcResponse
+         * @description `confirm-recalc` 的响应（原 `response_model=dict` ⇒ 裸字段）。
+         */
+        ConfirmRecalcResponse: {
+            /**
+             * Record Type
+             * @description 记录类型（类名）
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 ID
+             */
+            record_id: string;
+            /**
+             * Marked Stale
+             * @description 被标 STALE 的行数
+             */
+            marked_stale: number;
+            /**
+             * Propagated
+             * @description 链式传播到的下游数
+             */
+            propagated: number;
+            /**
+             * Equipment Affected
+             * @description 受影响的设备数
+             */
+            equipment_affected: number;
+            /** @description 最新血缘摘要 */
+            latest_lineage?: components["schemas"]["LatestLineageResponse"] | null;
+            /**
+             * Note
+             * @description 不在 CIA 范围时的说明
+             */
+            note?: string | null;
+        };
+        /**
          * ConfirmRequest
          * @description 设计人提交校核（SPEC §3.2.4(4)）.
          */
@@ -11395,6 +11486,64 @@ export interface components {
             thermal_breathing_factor: number;
         };
         /**
+         * ImpactConfirmResponse
+         * @description `confirm` / `manual-adjust` 的响应。
+         */
+        ImpactConfirmResponse: {
+            /**
+             * Record Type
+             * @description 记录类型（类名）
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 ID
+             */
+            record_id: string;
+            /**
+             * Decision
+             * @description 判定结果：结果不变 / 结果变化
+             * @enum {string}
+             */
+            decision: "NO_CHANGE" | "CHANGED";
+            /**
+             * Basis
+             * @description 判定依据
+             * @enum {string}
+             */
+            basis: "record_hash" | "full_hash" | "no_baseline" | "manual";
+            /**
+             * Sign Status
+             * @description 转移后的 9 态 sign_status
+             */
+            sign_status: string;
+            /**
+             * Requires Re Approval
+             * @description True = 已进 CHANGE_PENDING，须走签署链重新批准
+             */
+            requires_re_approval: boolean;
+            /**
+             * Stale Resolution Path
+             * @description 结掉 STALE 的路径（写进记录的 stale_resolution_path 列）
+             */
+            stale_resolution_path: string;
+            /**
+             * Current Hash
+             * @description 记录当前的 record_hash
+             */
+            current_hash?: string | null;
+            /**
+             * Baseline Hash
+             * @description 基线 hash（血缘里的）
+             */
+            baseline_hash?: string | null;
+            /**
+             * Message
+             * @description 给用户的一句话结论
+             */
+            message: string;
+        };
+        /**
          * ImportHtriResponse
          * @description POST /heat/import-htri 响应。
          */
@@ -11835,6 +11984,27 @@ export interface components {
             formula_ref: string;
         };
         /**
+         * LatestLineageResponse
+         * @description 血缘摘要。
+         */
+        LatestLineageResponse: {
+            /**
+             * Lineage Id
+             * @description data_lineage.lineage_id
+             */
+            lineage_id: string;
+            /**
+             * Source
+             * @description 血缘来源（CALC / CIA / USER …）
+             */
+            source: string;
+            /**
+             * Change Summary
+             * @description 变更摘要
+             */
+            change_summary?: string | null;
+        };
+        /**
          * LockHolderResponse
          * @description 锁的持有者（体验层的全部价值：让人知道「谁在改」）。
          */
@@ -12135,6 +12305,25 @@ export interface components {
              * @description 创建时间
              */
             created_at: string;
+        };
+        /**
+         * ManualAdjustRequest
+         * @description `manual-adjust` 的请求体。
+         *
+         *     ⚠️ `reason` **必填**：人工判定必须有据可查（审计里要能看出凭什么）。
+         */
+        ManualAdjustRequest: {
+            /**
+             * Decision
+             * @description 人工判定：结果不变 / 结果变化
+             * @enum {string}
+             */
+            decision: "NO_CHANGE" | "CHANGED";
+            /**
+             * Reason
+             * @description 人工判定的依据（必填，写入审计）
+             */
+            reason: string;
         };
         /**
          * Margins
@@ -21324,9 +21513,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConfirmRecalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_impact_api_v1_change_impact__record_type___record_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_type: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImpactConfirmResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manual_adjust_impact_api_v1_change_impact__record_type___record_id__manual_adjust_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_type: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualAdjustRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImpactConfirmResponse"];
                 };
             };
             /** @description Validation Error */

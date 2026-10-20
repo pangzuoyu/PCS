@@ -2927,7 +2927,7 @@
           "change-impact"
         ],
         "summary": "Confirm Recalc",
-        "description": "强制触发 CIA 扫描 + 传播 + 设备联动。\n\nBLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权\n(先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).",
+        "description": "强制触发 CIA 扫描 + 传播 + 设备联动。\n\n⚠️ **这是 P1 已交付的传播触发器**，**没有**哈希判定分流（那是\n`confirm` 端点，P9A-CIA-001）。两者语义不同，不可合并。\n\nBLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权\n(先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).",
         "operationId": "confirm_recalc_api_v1_change_impact__record_type___record_id__confirm_recalc_post",
         "parameters": [
           {
@@ -2972,9 +2972,155 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Confirm Recalc Api V1 Change Impact  Record Type   Record Id  Confirm Recalc Post"
+                  "$ref": "#/components/schemas/ConfirmRecalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/change-impact/{record_type}/{record_id}/confirm": {
+      "post": {
+        "tags": [
+          "change-impact"
+        ],
+        "summary": "Confirm Impact",
+        "description": "**哈希判定分流**（P9A-CIA-001）：确认一条 STALE 记录。\n\n- 结果**不变** ⇒ `STALE_RESOLVED_NO_CHANGE`，记录回 CHECKED ⇒ **免凭证**\n  （不必重新签署）。\n- 结果**变化** ⇒ 记录进 `CHANGE_PENDING` ⇒ **要求重新签署**。",
+        "operationId": "confirm_impact_api_v1_change_impact__record_type___record_id__confirm_post",
+        "parameters": [
+          {
+            "name": "record_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Type"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpactConfirmResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/change-impact/{record_type}/{record_id}/manual-adjust": {
+      "post": {
+        "tags": [
+          "change-impact"
+        ],
+        "summary": "Manual Adjust Impact",
+        "description": "**人工判定**结掉 STALE（P9A-CIA-002）。\n\n与 `confirm` 的区别：`confirm` 由**系统**按哈希判定；`manual-adjust` 由\n**人**判定 ⇒ 走同一套状态机转移（⇒ 同样的限权 + 审计），但判定依据是\n`reason`（**必填**）⇒ 事后能看出「凭什么人工这么判」。\n\n⚠️ 端点此前**不存在**（P9-Prep 交付面清单 §3 裁决 2）。",
+        "operationId": "manual_adjust_impact_api_v1_change_impact__record_type___record_id__manual_adjust_post",
+        "parameters": [
+          {
+            "name": "record_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Type"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualAdjustRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpactConfirmResponse"
                 }
               }
             }
@@ -20908,6 +21054,68 @@
         "title": "ConfigStatus",
         "description": "配置资产状态（P2 Sprint 1.2 / SUP-001 §2.1 锁定）。\n\n5 态：DRAFT → PENDING → APPROVED → PUBLISHED → OBSOLETE。\nDRAFT 和 APPROVED 支持跳过审批的 OBSOLETE。"
       },
+      "ConfirmRecalcResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型（类名）"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 ID"
+          },
+          "marked_stale": {
+            "type": "integer",
+            "title": "Marked Stale",
+            "description": "被标 STALE 的行数"
+          },
+          "propagated": {
+            "type": "integer",
+            "title": "Propagated",
+            "description": "链式传播到的下游数"
+          },
+          "equipment_affected": {
+            "type": "integer",
+            "title": "Equipment Affected",
+            "description": "受影响的设备数"
+          },
+          "latest_lineage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestLineageResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "最新血缘摘要"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "不在 CIA 范围时的说明"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "marked_stale",
+          "propagated",
+          "equipment_affected"
+        ],
+        "title": "ConfirmRecalcResponse",
+        "description": "`confirm-recalc` 的响应（原 `response_model=dict` ⇒ 裸字段）。"
+      },
       "ConfirmRequest": {
         "properties": {
           "reason": {
@@ -28110,6 +28318,97 @@
         "title": "HydraulicsInputSchema",
         "description": "hydraulics 输入（对应 VesselHydraulicsInput 物理量）。"
       },
+      "ImpactConfirmResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型（类名）"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 ID"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "NO_CHANGE",
+              "CHANGED"
+            ],
+            "title": "Decision",
+            "description": "判定结果：结果不变 / 结果变化"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "record_hash",
+              "full_hash",
+              "no_baseline",
+              "manual"
+            ],
+            "title": "Basis",
+            "description": "判定依据"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "转移后的 9 态 sign_status"
+          },
+          "requires_re_approval": {
+            "type": "boolean",
+            "title": "Requires Re Approval",
+            "description": "True = 已进 CHANGE_PENDING，须走签署链重新批准"
+          },
+          "stale_resolution_path": {
+            "type": "string",
+            "title": "Stale Resolution Path",
+            "description": "结掉 STALE 的路径（写进记录的 stale_resolution_path 列）"
+          },
+          "current_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Hash",
+            "description": "记录当前的 record_hash"
+          },
+          "baseline_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Hash",
+            "description": "基线 hash（血缘里的）"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "给用户的一句话结论"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "decision",
+          "basis",
+          "sign_status",
+          "requires_re_approval",
+          "stale_resolution_path",
+          "message"
+        ],
+        "title": "ImpactConfirmResponse",
+        "description": "`confirm` / `manual-adjust` 的响应。"
+      },
       "ImportHtriResponse": {
         "properties": {
           "calc_id": {
@@ -28750,6 +29049,39 @@
         "title": "KodSizingResponse",
         "description": "FLARE_SYS kod_sizing 响应（KOD + Water Seal 综合）。\n\n字段：\n\n- kod: KOD 子结果（KodInfo；API 521 §5.15.3）\n- water_seal: Water Seal 子结果（WaterSealInfo；API 521 §5.15.5）\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code\n- formula_ref: 综合公式溯源标记 \"API_521_§5.15.3+§5.15.5\""
       },
+      "LatestLineageResponse": {
+        "properties": {
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id",
+            "description": "data_lineage.lineage_id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "血缘来源（CALC / CIA / USER …）"
+          },
+          "change_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Summary",
+            "description": "变更摘要"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lineage_id",
+          "source"
+        ],
+        "title": "LatestLineageResponse",
+        "description": "血缘摘要。"
+      },
       "LockHolderResponse": {
         "properties": {
           "user_id": {
@@ -29255,6 +29587,32 @@
         ],
         "title": "ManningCalcResponse",
         "description": "POST /open-channel/manning/calculate 响应（201）。\n\n额外含：result_id / record_hash / sign_status / created_at。"
+      },
+      "ManualAdjustRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "NO_CHANGE",
+              "CHANGED"
+            ],
+            "title": "Decision",
+            "description": "人工判定：结果不变 / 结果变化"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reason",
+            "description": "人工判定的依据（必填，写入审计）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "title": "ManualAdjustRequest",
+        "description": "`manual-adjust` 的请求体。\n\n⚠️ `reason` **必填**：人工判定必须有据可查（审计里要能看出凭什么）。"
       },
       "Margins": {
         "properties": {

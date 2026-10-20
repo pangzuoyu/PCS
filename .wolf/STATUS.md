@@ -11,7 +11,29 @@ budget_tokens: 1500
 
 ## ✅ Done
 
-### 第 8 轮（本会话）：P9A-4「编辑锁与 CIA」lane 的 **D0**（迁移基座）
+### 第 8 轮（本会话）：P9A-4「编辑锁与 CIA」lane **全 lane 完成**（D0→D3）
+
+commit `b4470e0`→`bbb4a37`（4 笔）。计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，
+绑定 ADR-0048。
+
+| task | 产出 |
+|---|---|
+| D0 | `p9_006`：`cost_est_results.record_hash`（String(64) NOT NULL）+ 回填做进迁移 + **「编辑后重算 hash」不变式**（原先 6 条路径都不重算 ⇒ D2 的 guard 会是空操作） |
+| D1 | Redis 编辑锁三端点（acquire/renew/release）+ 降级放行 + SPEC §6.21 P9A-LCK-001~005 |
+| D2 | 409 契约（共享 guard）+ 编辑审计 + 自检 cron + SPEC P9A-LCK-006 |
+| D3 | CIA 哈希判定分流 `confirm` + 人工判定 `manual-adjust` + SPEC §6.7.1 |
+
+**基线**：后端 **5096 passed / 77 skipped / 0 failed**（D 之前 5005，+91）；
+前端 704 passed（未变，前端还没接 §6.21）；两端 typecheck + lint clean；
+裸字段仍 **71**；两库均在 `p9_006`（head），`alembic check` 均 exit 0。
+
+**计划被实测否决的四处**（均已写回 ADR-0048 / SPEC）：
+① 列宽 `String(64)` 不是 `String(16)`（16 是**值**长不是列宽）；
+② `NOT NULL` 不是 nullable（空串是唯一哨兵，阶梯按 `== ""` 写）；
+③ 迁移号 `p9_006`（计划写的 `p9_004` 已被占）；
+④ 409 用仓库统一错误信封（ADR §⑦ 的顶层三字段作废 ⇒ 冲突对象进 `detail.conflict`）。
+
+### D0 明细（迁移基座）
 
 commit `b4470e0`。计划 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`，绑定 ADR-0048 §⑥。
 
@@ -43,17 +65,18 @@ C1b 触发接线 / C2 Redis+WS / C3 ARQ 清理 / C4 待办实时计算（不建�
 
 ## 🚀 Next quest
 
-1. **P9A-4「编辑锁与 CIA」lane 的 D1**（D0 已完成）——
-   `app/services/edit_lock.py` + `app/api/v1/locks.py`：
-   `POST /locks/{type}/{id}/acquire|release|renew`，key `lock:edit:{type}:{id}`，
-   TTL 30min（**可注入**，测试传短值）、心跳 60s、compare-and-expire 续期、
-   仅持有者可 release、**Redis 挂 ⇒ 降级放行 + ERROR 日志 + 横幅，不是 503**。
-   ⚠️ TTL 到期行为必须**真等过期**（假时钟 / 查 TTL 都证明不了）。
-   ⚠️ 锁是 UX 层 ⇒ acquire **不得查库**。
-2. **ADR-0050 暂缓**（`docs/adr/0050-…md`，proposed）—— ⚠️ 用户 2026-10-20
+1. **前端接 §6.21 / §6.7.1**（P9B 的活，D lane 只做了后端 + SPEC）——
+   编辑锁 UI（取锁 / 60s 心跳 / 他人持锁只读化 / 降级横幅）、409 弹窗
+   （按 basis 三值分流文案）、PATCH **回传 expected_hash**、ChangeImpactPanel
+   的「确认」动作。⚠️ **后端契约已就位（SPEC V1.9）但前端一行都还没写** ——
+   在前端接之前，那 6 个 PATCH 端点对前端是**不可用**的（不带基线 ⇒ 409）。
+2. **TODO-060**：`record_type` 三处三套词表（`/change-impact` 类名、
+   `/results`+`/locks` 表名、`record_comments` 列类名）⇒ 建议随前端接
+   §6.21 时一并归一（转换路径存在：`__tablename__` ↔ `RECORD_TYPE_REGISTRY`）。
+3. **Z 收口**（OpenAPI 冻结 + 全量回归）—— D lane 已完成，可开。
+4. **ADR-0050 暂缓**（`docs/adr/0050-…md`，proposed）—— ⚠️ 用户 2026-10-20
    裁决「先不做」⇒ 不实施；再开工按 P1~P6（P1 纯增量）。
-3. **Z 收口**（OpenAPI 冻结 + 全量回归）—— 等 D lane 完成。
-4. **P9A-1 遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
+5. **P9A-1 遗留项**（未变）：access token 不带 `tv`；AD 同步需运维服务账号
    ⇒ P9A-USR-002/003 只算**代码就绪**，不得标「通过」。
 
 ---
