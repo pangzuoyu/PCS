@@ -59,7 +59,7 @@ _RECORD_TYPE_PATH = Path(
         "记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— "
         "**不是**表名（`cost_est_results`），全仓只有这一套词表（TODO-060）"
     ),
-    openapi_extra={"enum": sorted(TABLE_CAPABILITIES)},
+    json_schema_extra={"enum": sorted(TABLE_CAPABILITIES)},
 )
 
 _409 = {
@@ -122,7 +122,7 @@ async def _write_lock_audit(
     *,
     action: AuditAction,
     user_id: uuid.UUID,
-    record_type: Annotated[str, _RECORD_TYPE_PATH],
+    record_type: str,
     record_id: str,
     success: bool,
     degraded: bool,
@@ -235,7 +235,7 @@ async def renew_edit_lock(
     responses=_409,
 )
 async def release_edit_lock(
-    record_type: str,
+    record_type: Annotated[str, _RECORD_TYPE_PATH],
     record_id: str,
     response: Response,
     user: Annotated[_Actor, Depends(current_actor)],

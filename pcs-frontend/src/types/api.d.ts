@@ -1067,6 +1067,8 @@ export interface paths {
          *     ⚠️ **他人的心跳不得延长我的锁**（§②）—— 不是持有者 ⇒ 409。
          *     ⚠️ **本端点不碰数据库**（连 session 都不开）：续期是纯 Redis 操作，
          *     且不写审计（60s 一次的心跳会把 audit_logs 灌爆）。
+         *     ⚠️ `_require_editable_record_type` 查的是**内存里的能力表**，不是 DB
+         *     ⇒ 加了它不违反「不碰数据库」。
          */
         post: operations["renew_edit_lock_api_v1_locks__record_type___record_id__renew_post"];
         delete?: never;
@@ -12033,7 +12035,7 @@ export interface components {
         LockResponse: {
             /**
              * Record Type
-             * @description 记录类型（表名，如 cost_est_results）
+             * @description 记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— 不是表名
              */
             record_type: string;
             /**
@@ -21371,7 +21373,8 @@ export interface operations {
                 authorization?: string | null;
             };
             path: {
-                record_type: string;
+                /** @description 记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— **不是**表名（`cost_est_results`），全仓只有这一套词表（TODO-060） */
+                record_type: "CostEstResult" | "FiltrationResult" | "OpenChannelResult" | "cooling_tower_result" | "flare_system_result" | "psychro_result";
                 record_id: string;
             };
             cookie?: never;
@@ -21414,7 +21417,8 @@ export interface operations {
                 authorization?: string | null;
             };
             path: {
-                record_type: string;
+                /** @description 记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— **不是**表名（`cost_est_results`），全仓只有这一套词表（TODO-060） */
+                record_type: "CostEstResult" | "FiltrationResult" | "OpenChannelResult" | "cooling_tower_result" | "flare_system_result" | "psychro_result";
                 record_id: string;
             };
             cookie?: never;
@@ -21457,7 +21461,8 @@ export interface operations {
                 authorization?: string | null;
             };
             path: {
-                record_type: string;
+                /** @description 记录类型：`RECORD_TYPE_REGISTRY` 的键（如 `CostEstResult`）—— **不是**表名（`cost_est_results`），全仓只有这一套词表（TODO-060） */
+                record_type: "CostEstResult" | "FiltrationResult" | "OpenChannelResult" | "cooling_tower_result" | "flare_system_result" | "psychro_result";
                 record_id: string;
             };
             cookie?: never;

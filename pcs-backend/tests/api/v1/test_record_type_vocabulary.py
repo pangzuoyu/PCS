@@ -211,6 +211,37 @@ async def test_degraded_message_does_not_falsely_say_no_conflict_detection(
 
 
 # ---------------------------------------------------------------------------
+# 2b. 契约产物里必须带 enum（前端不必读 SPEC 源码才知道传什么）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "operation", ["acquire", "renew", "release"], ids=["acquire", "renew", "release"]
+)
+async def test_openapi_exposes_the_vocabulary_as_an_enum(operation):
+    """`{record_type}` 的 schema 必须带 `enum` = 已登记的键。
+
+    ⚠️ 实测踩过的坑：`Path(openapi_extra={...})` 会把 enum 嵌成
+    `schema.openapi_extra.enum` ⇒ **不合法的 OpenAPI**，生成器看不见
+    （`api.d.ts` 里 0 命中）⇒ 必须用 `json_schema_extra`（合并进 schema）。
+    ⇒ 本例钉的是「生成的 OpenAPI 里 `schema.enum` 存在」，
+    而不是「源码里写了某个参数」—— 后者对着错的那个写法也是绿的。
+    """
+    from app.main import app
+
+    path = f"/api/v1/locks/{{record_type}}/{{record_id}}/{operation}"
+    prm = app.openapi()["paths"][path]["post"]["parameters"][0]
+    assert prm["name"] == "record_type"
+    schema = prm["schema"]
+    assert set(schema.get("enum", [])) == EXPECTED_KEYS, (
+        f"{path} 的 record_type 没有正确的 enum：{schema.get('enum')}"
+    )
+    assert "openapi_extra" not in schema, (
+        "enum 被嵌进了 schema.openapi_extra ⇒ 生成器看不见（假契约）"
+    )
+
+
+# ---------------------------------------------------------------------------
 # 3. 接线契约：6 个 PATCH 传的字面量必须都在能力表里
 # ---------------------------------------------------------------------------
 
