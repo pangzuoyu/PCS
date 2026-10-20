@@ -4,8 +4,12 @@ import { BellOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
-import { NotificationCenter, type Notification } from '../components/common/NotificationCenter';
-import { DEV_BEARER } from '../constants/env';
+import { NotificationCenter } from '../components/common/NotificationCenter';
+import {
+  notificationsApi,
+  type NotificationItem,
+} from '../api/notifications';
+import { todosApi, type TodoItem } from '../api/todos';
 
 const { Header, Content, Sider } = Layout;
 
@@ -91,18 +95,29 @@ export default function MainLayout() {
   const nav = useNavigate();
   const location = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    void fetch('/api/v1/notifications', {
-      headers: { Authorization: DEV_BEARER },
-    })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((j: Notification[]) => setNotifications(j))
+    // ⚠️ **走 axios 实例**（`api`）而不是裸 `fetch`：
+    // ① 实例带 token 拦截器 + 401 清会话；② 响应形状**逐字取契约**
+    // （`{items, unread_count}`）—— 原来的裸 fetch 把响应**当数组**用
+    // （`as Notification[]` 是类型断言，运行时零检查）⇒ 生产构建下
+    // `notifications.filter` 抛 TypeError ⇒ **整个壳崩**（TODO-065）。
+    void notificationsApi
+      .list()
+      .then((res) => {
+        setNotifications(res.items);
+        setUnreadCount(res.unread_count);
+      })
+      .catch(() => {/* offline */});
+    // 待办**实时计算**（不落库）⇒ 每次挂载现拉，不缓存。
+    void todosApi
+      .list()
+      .then((res) => setTodos(res.items))
       .catch(() => {/* offline */});
   }, []);
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
 
   const selectedKeys = findSelectedKeys(location.pathname);
   const openKeys = selectedKeys.length > 1 ? [selectedKeys[0]] : [];
@@ -155,9 +170,19 @@ export default function MainLayout() {
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
         notifications={notifications}
+        todos={todos}
+        unreadCount={unreadCount}
         onItemClick={(id) => {
-          // 简单点击行为：标记为已读（前端 mock）
-          setNotifications((prev) => prev.map((n) => (n.notification_id === id ? { ...n, unread: false } : n)));
+          // 标已读是**幂等**的服务端动作 ⇒ 标完**重新拉列表**，
+          // 不要就地改本地 `read_at`（那会让计数与真值漂移）。
+          void notificationsApi
+            .markRead(id)
+            .then(() => notificationsApi.list())
+            .then((res) => {
+              setNotifications(res.items);
+              setUnreadCount(res.unread_count);
+            })
+            .catch(() => {/* offline */});
         }}
       />
     </Layout>

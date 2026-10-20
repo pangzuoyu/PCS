@@ -1,76 +1,81 @@
 /**
- * NotificationCenter — 通知中心（P45-1-13 / Task 18）。
+ * NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。
  *
- * SPEC §6.20 + plan P45-1-13：
+ * SPEC §6.20（本轮扩写）+ §6.22：
  * - 右侧 Drawer，宽 420px
  * - 分组 tabs：待办 / 变更 / 系统 / 全部
- * - 消息结构：[类型 tag] 标题 + 摘要 + 时间 + [查看] 按钮
- * - 未读左侧蓝点
+ * - 消息结构：kind tag + 标题 + 正文 + 时间 + [查看]；未读左侧蓝点
  *
- * Props（SPEC 锁定）：
- *   open: boolean
- *   onClose: () => void
- *   notifications?: Notification[]
- *   onItemClick?: (notification_id: string) => void
+ * ⚠️ **数据形状逐字取契约**（`NotificationItemResponse` / `TodoResponse`）：
+ * `kind` / `title` / `body` / `created_at` / `read_at` / `detail`。
+ * ⚠️ **未读判定 = `read_at` 为 null**；红点数字 = 响应的 `unread_count`
+ * （**不是**前端数 `items` —— 列表是分页的）。
+ * ⚠️ **四个分组的来源**（SPEC §6.20 的来源表）：
+ * 待办 ← `GET /todos`（**不是**通知）· 变更 ← `kind = CHANGE_NOTICE_APPROVED` ·
+ * 系统 ← 其余三种 kind · 全部 ← 全部**通知**（不含待办）。
  */
 import { useMemo, useState } from 'react';
 import { Badge, Button, Drawer, Empty, List, Space, Tabs, Tag, Typography } from 'antd';
 
-export type NotificationCategory = 'todo' | 'change' | 'system';
-export type NotificationKind = 'CHANGE' | 'TODO' | 'SYSTEM' | 'INFO';
+import {
+  CHANGE_NOTICE_KIND,
+  NOTIFICATION_KIND_COLOR,
+  NOTIFICATION_KIND_LABEL,
+  isUnread,
+  type NotificationItem,
+} from '../../api/notifications';
+import type { TodoItem } from '../../api/todos';
 
-export interface Notification {
-  notification_id: string;
-  category: NotificationCategory;
-  kind: NotificationKind;
-  title: string;
-  summary?: string;
-  issued_at: string;
-  unread?: boolean;
-}
+type TabKey = 'todo' | 'change' | 'system' | 'all';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  notifications?: Notification[];
+  /** 契约形状的通知条目。 */
+  notifications?: NotificationItem[];
+  /** 契约形状的待办条目（实时计算，不落库）。 */
+  todos?: TodoItem[];
+  /** 未读总数（取 `GET /notifications` 的 `unread_count`）。 */
+  unreadCount?: number;
   onItemClick?: (notification_id: string) => void;
+  onTodoClick?: (todo: TodoItem) => void;
 }
-
-const KIND_COLOR: Record<NotificationKind, string> = {
-  CHANGE: 'orange',
-  TODO: 'blue',
-  SYSTEM: 'default',
-  INFO: 'cyan',
-};
-
-const KIND_LABEL: Record<NotificationKind, string> = {
-  CHANGE: '变更',
-  TODO: '待办',
-  SYSTEM: '系统',
-  INFO: '信息',
-};
-
-const CATEGORY_LABEL: Record<NotificationCategory | 'all', string> = {
-  todo: '待办',
-  change: '变更',
-  system: '系统',
-  all: '全部',
-};
 
 export function NotificationCenter({
   open,
   onClose,
   notifications = [],
+  todos = [],
+  unreadCount,
   onItemClick,
+  onTodoClick,
 }: Props): JSX.Element {
-  const [activeTab, setActiveTab] = useState<'all' | NotificationCategory>('all');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
 
-  const filtered = useMemo(() => {
-    if (activeTab === 'all') return notifications;
-    return notifications.filter((n) => n.category === activeTab);
-  }, [notifications, activeTab]);
+  const changeItems = useMemo(
+    () => notifications.filter((n) => n.kind === CHANGE_NOTICE_KIND),
+    [notifications],
+  );
+  const systemItems = useMemo(
+    () => notifications.filter((n) => n.kind !== CHANGE_NOTICE_KIND),
+    [notifications],
+  );
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const counts: Record<TabKey, number> = {
+    todo: todos.length,
+    change: changeItems.length,
+    system: systemItems.length,
+    all: notifications.length,
+  };
+
+  const visible: Record<TabKey, NotificationItem[]> = {
+    todo: [],
+    change: changeItems,
+    system: systemItems,
+    all: notifications,
+  };
+
+  const badgeCount = unreadCount ?? notifications.filter(isUnread).length;
 
   return (
     <Drawer
@@ -86,47 +91,68 @@ export function NotificationCenter({
       <Tabs
         data-testid="notification-tabs"
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as 'all' | NotificationCategory)}
+        onChange={(k) => setActiveTab(k as TabKey)}
         items={[
-          {
-            key: 'todo',
-            label: CATEGORY_LABEL.todo,
-          },
-          {
-            key: 'change',
-            label: CATEGORY_LABEL.change,
-          },
-          {
-            key: 'system',
-            label: CATEGORY_LABEL.system,
-          },
+          { key: 'todo', label: `待办（${counts.todo}）` },
+          { key: 'change', label: `变更（${counts.change}）` },
+          { key: 'system', label: `系统（${counts.system}）` },
           {
             key: 'all',
             label: (
-              <Badge count={unreadCount} offset={[6, -2]} size="small">
-                {CATEGORY_LABEL.all}
+              <Badge count={badgeCount} offset={[6, -2]} size="small">
+                全部
               </Badge>
             ),
           },
         ]}
       />
 
-      {filtered.length === 0 ? (
+      {activeTab === 'todo' ? (
+        todos.length === 0 ? (
+          <Empty description="暂无待办" data-testid="notification-empty" />
+        ) : (
+          <List
+            data-testid="todo-list"
+            size="small"
+            dataSource={todos}
+            renderItem={(t: TodoItem) => (
+              <List.Item data-testid="todo-item" data-version-id={t.version_id}>
+                <Space direction="vertical" size={2} style={{ flex: 1 }}>
+                  <Typography.Text strong data-testid="todo-title">
+                    {t.title}
+                  </Typography.Text>
+                  <Typography.Text type="secondary" data-testid="todo-step-role">
+                    第 {t.step_order} 步 · {t.step_role}
+                  </Typography.Text>
+                </Space>
+                <Button
+                  type="link"
+                  size="small"
+                  data-testid="todo-go"
+                  onClick={() => onTodoClick?.(t)}
+                >
+                  去签署
+                </Button>
+              </List.Item>
+            )}
+          />
+        )
+      ) : visible[activeTab].length === 0 ? (
         <Empty description="暂无通知" data-testid="notification-empty" />
       ) : (
         <List
           data-testid="notification-list"
           size="small"
-          dataSource={filtered}
+          dataSource={visible[activeTab]}
           renderItem={(n) => (
             <List.Item
               data-testid="notification-item"
               data-notification-id={n.notification_id}
-              data-unread={n.unread ? 'true' : 'false'}
+              data-unread={isUnread(n) ? 'true' : 'false'}
               style={{ alignItems: 'flex-start' }}
             >
               <Space align="start" style={{ width: '100%' }}>
-                {n.unread && (
+                {isUnread(n) && (
                   <span
                     data-testid="notification-unread-dot"
                     aria-label="未读"
@@ -142,18 +168,18 @@ export function NotificationCenter({
                 )}
                 <Space direction="vertical" size={2} style={{ flex: 1 }}>
                   <Space>
-                    <Tag color={KIND_COLOR[n.kind]} data-testid="notification-kind">
-                      {KIND_LABEL[n.kind]}
+                    <Tag color={NOTIFICATION_KIND_COLOR[n.kind]} data-testid="notification-kind">
+                      {NOTIFICATION_KIND_LABEL[n.kind] ?? n.kind}
                     </Tag>
                     <Typography.Text strong>{n.title}</Typography.Text>
                   </Space>
-                  {n.summary && (
+                  {n.body && (
                     <Typography.Text type="secondary" data-testid="notification-summary">
-                      {n.summary}
+                      {n.body}
                     </Typography.Text>
                   )}
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {n.issued_at}
+                    {n.created_at}
                   </Typography.Text>
                 </Space>
                 <Button

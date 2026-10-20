@@ -1,16 +1,20 @@
 /**
- * NotificationCenter 测试（P45-1-13 / Task 18）。
+ * NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。
  *
- * 覆盖（SPEC §6.20 + plan P45-1-13）：
+ * 覆盖（SPEC §6.20 + §6.22）：
  * - open=false：Drawer 不显示
  * - open=true：Drawer 宽 420px + 标题「通知中心」
  * - 4 个 tab：待办 / 变更 / 系统 / 全部
- * - 通知项渲染：类型 tag + 标题 + 摘要 + 时间 + [查看] 按钮
- * - 未读蓝点
- * - tab 切换过滤
+ * - 通知项渲染：kind tag + 标题 + 正文 + 时间 + [查看] 按钮
+ * - 未读蓝点（判据 = **`read_at` 为 null**，不是自造的 `unread` 布尔）
+ * - tab 切换过滤（**分组来源**：变更 ← `CHANGE_NOTICE_APPROVED`；系统 ← 其余 kind；
+ *   待办 ← `GET /todos`，**不是**通知）
  * - 空通知：Empty 占位
  * - [查看] → onItemClick
  * - 关闭按钮 → onClose
+ *
+ * ⚠️ fixture **逐字取契约**（`NotificationItemResponse` / `TodoResponse`）——
+ * 前一版用的是**组件自造形状**，而那正是漂移源（TODO-065）。
  *
  * antd Drawer 通过 portal 渲染到 document.body；用 document / screen 查询
  * 而不是 container.querySelector。
@@ -18,36 +22,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-import { NotificationCenter, type Notification } from '../../../src/components/common/NotificationCenter';
+import { NotificationCenter } from '../../../src/components/common/NotificationCenter';
+import type { NotificationItem } from '../../../src/api/notifications';
+import type { TodoItem } from '../../../src/api/todos';
 
-const notifications: Notification[] = [
+const notifications: NotificationItem[] = [
   {
     notification_id: 'n1',
-    category: 'change',
-    kind: 'CHANGE',
+    kind: 'CHANGE_NOTICE_APPROVED',
     title: '物流 S-101 流量已变更',
-    summary: '影响 3 条下游记录',
-    issued_at: '2026-09-15 14:32',
-    unread: true,
+    body: '影响 3 条下游记录',
+    detail: null,
+    created_at: '2026-09-15 14:32',
+    read_at: null,
   },
   {
     notification_id: 'n2',
-    category: 'todo',
-    kind: 'TODO',
+    kind: 'SIGN_COMPLETED',
     title: '校核待处理',
-    summary: 'Rev C 待你校核',
-    issued_at: '2026-09-15 13:00',
+    body: 'Rev C 待你校核',
+    detail: null,
+    created_at: '2026-09-15 13:00',
+    read_at: '2026-09-15 13:05',
   },
   {
     notification_id: 'n3',
-    category: 'system',
-    kind: 'SYSTEM',
+    kind: 'PROXY_RECORDED',
     title: '系统升级完成',
-    issued_at: '2026-09-15 10:00',
+    body: '',
+    detail: null,
+    created_at: '2026-09-15 10:00',
+    read_at: '2026-09-15 10:30',
   },
 ];
 
-describe('NotificationCenter — 渲染 (P45-1-13)', () => {
+const todos: TodoItem[] = [
+  {
+    deliverable_id: 'd1',
+    version_id: 'v1',
+    project_id: 'p1',
+    step_order: 2,
+    step_role: 'CHECKER',
+    title: '物流 S-101 计算书待校核',
+  },
+];
+
+describe('NotificationCenter — 渲染 (P45-1-13 / P9A 契约重绑)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -93,16 +113,16 @@ describe('NotificationCenter — 通知项', () => {
     expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(3);
   });
 
-  it('通知项含 kind tag + 标题 + 摘要 + 时间', () => {
+  it('通知项含 kind tag + 标题 + 正文 + 时间', () => {
     render(<NotificationCenter open onClose={() => {}} notifications={notifications} />);
     const items = document.querySelectorAll('[data-testid="notification-item"]');
-    expect(items[0].textContent).toContain('变更');
+    expect(items[0].textContent).toContain('变更已批准');
     expect(items[0].textContent).toContain('物流 S-101 流量已变更');
     expect(items[0].textContent).toContain('影响 3 条下游记录');
     expect(items[0].textContent).toContain('2026-09-15 14:32');
   });
 
-  it('未读项左侧蓝点', () => {
+  it('未读项左侧蓝点（判据 = read_at 为 null）', () => {
     render(<NotificationCenter open onClose={() => {}} notifications={notifications} />);
     const dots = document.querySelectorAll('[data-testid="notification-unread-dot"]');
     expect(dots.length).toBe(1);
@@ -110,9 +130,22 @@ describe('NotificationCenter — 通知项', () => {
     expect(item).toBeTruthy();
     expect(item?.getAttribute('data-notification-id')).toBe('n1');
   });
+
+  it('红点数取传入的 unreadCount（不是前端数 items）', () => {
+    render(
+      <NotificationCenter
+        open
+        onClose={() => {}}
+        notifications={notifications}
+        unreadCount={7}
+      />,
+    );
+    // 契约的 unread_count 是**全量未读数**，与当前 items 无关
+    expect(screen.getByTestId('notification-tabs').textContent).toContain('7');
+  });
 });
 
-describe('NotificationCenter — tab 切换', () => {
+describe('NotificationCenter — tab 切换（分组来源）', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -122,25 +155,44 @@ describe('NotificationCenter — tab 切换', () => {
     expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(3);
   });
 
-  it('点击「变更」tab → 仅显示变更类', () => {
+  it('点击「变更」tab → 仅 kind=CHANGE_NOTICE_APPROVED', () => {
     render(<NotificationCenter open onClose={() => {}} notifications={notifications} />);
     const tabs = screen.getByTestId('notification-tabs');
     const changeTab = Array.from(tabs.querySelectorAll('.ant-tabs-tab')).find(
-      (el) => el.textContent === '变更',
+      (el) => el.textContent?.startsWith('变更'),
     );
     expect(changeTab).toBeTruthy();
     fireEvent.click(changeTab!);
     expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(1);
   });
 
-  it('点击「待办」tab → 仅显示待办类', () => {
+  it('点击「系统」tab → 其余两种 kind', () => {
     render(<NotificationCenter open onClose={() => {}} notifications={notifications} />);
     const tabs = screen.getByTestId('notification-tabs');
+    const systemTab = Array.from(tabs.querySelectorAll('.ant-tabs-tab')).find(
+      (el) => el.textContent?.startsWith('系统'),
+    );
+    fireEvent.click(systemTab!);
+    expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(2);
+  });
+
+  it('点击「待办」tab → 渲染 todos（**不是**通知）', () => {
+    render(
+      <NotificationCenter
+        open
+        onClose={() => {}}
+        notifications={notifications}
+        todos={todos}
+      />,
+    );
+    const tabs = screen.getByTestId('notification-tabs');
     const todoTab = Array.from(tabs.querySelectorAll('.ant-tabs-tab')).find(
-      (el) => el.textContent === '待办',
+      (el) => el.textContent?.startsWith('待办'),
     );
     fireEvent.click(todoTab!);
-    expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(1);
+    expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(0);
+    expect(document.querySelectorAll('[data-testid="todo-item"]').length).toBe(1);
+    expect(screen.getByTestId('todo-title').textContent).toContain('物流 S-101 计算书待校核');
   });
 });
 

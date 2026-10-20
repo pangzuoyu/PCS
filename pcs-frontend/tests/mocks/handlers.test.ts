@@ -12,9 +12,9 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import Ajv from "ajv";
+import Ajv, { type AnySchema } from "ajv";
 
-import { handlers, devOnlyMockHandlers } from "../../src/mocks/handlers";
+import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
 import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedStreams } from "../../src/mocks/seed/streams";
 
@@ -269,5 +269,108 @@ describe("端点补齐（TODO-040）", () => {
     expect(schema.enum ?? [], "category 应在契约里是枚举").toEqual(
       expect.arrayContaining(["CATEGORY_1", "CATEGORY_6"]),
     );
+  });
+});
+
+/**
+ * 通知 / 待办的 mock 响应体 ↔ OpenAPI（TODO-065 的守卫）。
+ *
+ * ## 为什么必须是守卫
+ *
+ * 此前 `/api/v1/notifications` 的 mock 返回**前端自造数组**
+ * （`category` / `summary` / `issued_at` / `unread`），而真端点返回
+ * `{items, unread_count}` ⇒ mock 把漂移**藏住** ⇒ 生产构建下
+ * `MainLayout` 整个壳崩（`notifications.filter is not a function`）。
+ *
+ * ⇒ 这条断言把「mock 的响应体形状 == 契约」钉死。
+ * ⚠️ **形状对了不等于内容对了** —— 所以还钉「kind 四值」「unread_count
+ * 与 `read_at === null` 的条数一致」两条**内容**断言。
+ */
+describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
+  function validatePath(path: string, data: unknown) {
+    const op = openapi.paths[path]?.get;
+    if (!op) throw new Error(`no OpenAPI op for ${path}`);
+    const schemaJson = op.responses["200"].content["application/json"].schema;
+    const schema = (schemaJson.$ref
+      ? inlineRefs(resolveRef(openapi, schemaJson.$ref), openapi)
+      : inlineRefs(schemaJson, openapi)) as AnySchema;
+    const validate = ajv.compile(schema);
+    const ok = validate(data);
+    expect(ok, `${path} 形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  }
+
+  it("GET /api/v1/notifications 的响应体符合契约（{items, unread_count}）", () => {
+    const data = buildNotificationList();
+    validatePath("/api/v1/notifications", data);
+    expect(Array.isArray(data.items)).toBe(true);
+    expect(typeof data.unread_count).toBe("number");
+  });
+
+  it("通知 kind 取值在契约枚举内，且四类都覆盖", () => {
+    const data = buildNotificationList();
+    const kinds = new Set(data.items.map((n) => n.kind));
+    // 后端 NotificationKind 四值 —— mock 不得自造第五类
+    expect([...kinds].sort()).toEqual([
+      "CHANGE_NOTICE_APPROVED",
+      "PROXY_RECORDED",
+      "SIGN_COMPLETED",
+      "STEP_RETURNED",
+    ]);
+  });
+
+  it("unread_count 与 read_at === null 的条数一致（前端红点不能另算）", () => {
+    const data = buildNotificationList();
+    const actual = data.items.filter((n) => n.read_at === null).length;
+    expect(data.unread_count).toBe(actual);
+  });
+
+  it("GET /api/v1/todos 的响应体符合契约（{items, total}）", () => {
+    const data = buildTodoList();
+    validatePath("/api/v1/todos", data);
+    expect(data.total).toBe(data.items.length);
+  });
+
+  it("devOnly ∩ 契约 的端点清单是**棘轮**（新增即红 ⇒ 必须一并加校验）", () => {
+    // ⚠️ 这条防的是**一类**漂移，不是一个端点：
+    // 端点起初是 mock-only（没有契约）⇒ 归入「没有契约可漂移」名单；
+    // 后来后端交付了真端点（契约里有了）⇒ 它**不再是** mock-only，
+    // 但名单不会自己更新 ⇒ mock 继续返自造形状 ⇒ 漂移被藏住 ⇒
+    // 生产构建才炸（TODO-065 就是这么发生的：`/notifications`）。
+    //
+    // ⇒ 本清单是**棘轮**：devOnly 里出现**新的**契约端点 ⇒ 本条红 ⇒
+    // 作者必须给它的响应体加契约类型标注 / ajv 校验，然后才更新本清单。
+    const paths = [...new Set(devOnlyMockHandlers.map((h) =>
+      (h as { info?: { path?: string } }).info?.path))];
+    const inContract = paths.filter((p) => p && openapi.paths[p]).sort();
+    expect(inContract).toEqual([
+      "/api/v1/audit-logs",
+      "/api/v1/auth/me",
+      "/api/v1/common/allowable-stress",
+      "/api/v1/common/heating-value/calculate",
+      "/api/v1/common/materials/search",
+      "/api/v1/common/safety",
+      "/api/v1/config-audit",
+      "/api/v1/config/assets",
+      "/api/v1/cv/calculate",
+      "/api/v1/equipment-deletion-audit",
+      "/api/v1/heat/import-htri",
+      "/api/v1/notifications",
+      "/api/v1/pipe-classes",
+      "/api/v1/psv/calculate",
+      "/api/v1/psychro/saturation-water-content/calculate",
+      "/api/v1/sep-equip/calculate",
+      "/api/v1/todos",
+      "/api/v1/util/energy-summary/aggregate",
+      "/api/v1/util/heat-exchange-items",
+      "/api/v1/vessel/calculate",
+      "/api/v1/workspaces",
+    ]);
+  });
+
+  it("两个 mock 端点都已注册", () => {
+    const paths = new Set(devOnlyMockHandlers.map((h) =>
+      (h as { info?: { path?: string } }).info?.path));
+    expect(paths.has("/api/v1/notifications")).toBe(true);
+    expect(paths.has("/api/v1/todos")).toBe(true);
   });
 });

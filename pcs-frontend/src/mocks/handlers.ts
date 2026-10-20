@@ -12,12 +12,18 @@
  * ## 哪些 fixture 有契约、哪些没有（2026-10-18，评审 #24）
  *
  * 30 个 mock 端点里只有 **24 个在 OpenAPI 里**，另外 6 个是刻意 mock-only
- * （`auth/mock-login`、`pms`、`bedd`、`pipe-line-list`、`notifications`、
+ * （`auth/mock-login`、`pms`、`bedd`、`pipe-line-list`、
  * `config/assets/{id}/revisions`）—— 它们**没有契约可漂移**，标注不了也不该标注。
- * 那 6 个端点的数据归 `seed/` 或本文件的 `Notification[]`/`RevVersion[]`
- * （来自组件自有类型，不来自 OpenAPI）。
+ * 那 5 个端点的数据归 `seed/` 或本文件的 `RevVersion[]`（组件自有类型）。
  *
- * 有契约的 24 个里，可标注的响应体一律用**生成的 OpenAPI 类型**标注。
+ * ⚠️ **`notifications` 已于 2026-10-21（P9A 收口）从 mock-only 名单里划掉** ——
+ * P9A 交付了真的 `GET /notifications`（契约里有）⇒ 它**不再是**「没有契约可漂移」
+ * 的那类。此前它返回**前端自造数组**（`category`/`summary`/`issued_at`/`unread`）
+ * ⇒ 把「真端点返回 `{items, unread_count}`」这个漂移**藏住了** ⇒
+ * 生产构建下 `MainLayout` 整个壳崩（TODO-065）。
+ * ⇒ 现在通知 / 待办的 mock 一律**取契约类型**。
+ *
+ * 有契约的那些里，可标注的响应体一律用**生成的 OpenAPI 类型**标注。
  * 标注之前它们全是裸字面量：docstring 写着「OpenAPI drift 校验覆盖」，
  * 可那个校验只比 `required` 数组（`scripts/check-api-drift.sh:64`），
  * 字段**改名**与**改类型**都照过 —— 覆盖范围比那句话写的小得多。
@@ -48,7 +54,12 @@ import {
 import { seedAssets } from "./seed/config";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
 import type { RevVersion } from "../components/common/RevTimeline";
-import type { Notification } from "../components/common/NotificationCenter";
+// ⚠️ 通知 / 待办的 mock **取契约类型**，不取组件自有类型 ——
+// 组件自有类型是漂移源（TODO-065）。
+type NotificationItem = components["schemas"]["NotificationItemResponse"];
+type NotificationList = components["schemas"]["NotificationListResponse"];
+type Todo = components["schemas"]["TodoResponse"];
+type TodoList = components["schemas"]["TodoListResponse"];
 
 /** JWT 守卫 — 无 token → 401 */
 function isAuthed(req: Request): boolean {
@@ -217,10 +228,20 @@ const devOnlyMockHandlers = [
     return HttpResponse.json(body);
   }),
 
-  // === 通知中心 ===
+  // === 通知中心（P9A 收口：改回**契约形状**）===
+  // ⚠️ 原先这里返回 `seedNotifications`（**前端自造的数组**）⇒ 把
+  // 「真实端点返回 `{items, unread_count}`」这个漂移**藏住了** ⇒
+  // 生产构建（MSW 被 tree-shake 移除）下 `MainLayout` 整个壳崩
+  // （TODO-065）。⇒ mock 必须与真端点**同形**。
   http.get("/api/v1/notifications", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedNotifications);
+    return HttpResponse.json(buildNotificationList());
+  }),
+
+  // === 我的待办（P9A 收口 · SPEC §6.22 · 实时计算，不落库）===
+  http.get("/api/v1/todos", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(buildTodoList());
   }),
 
   // === 资产版本历史（RevTimeline）===
@@ -439,14 +460,47 @@ const mockPsvStandardProfile: StandardProfileResponse = {
   updated_at: '2026-09-17T00:00:00Z',
 };
 
-/** 通知 seed — 5 条覆盖 3 类（todo/change/system）+ 2 条未读 */
-const seedNotifications: Notification[] = [
-  { notification_id: 'n-001', category: 'todo', kind: 'TODO', title: 'S-101 待你校核', summary: 'alice 已提交物流 S-101 的校核请求', issued_at: '2026-09-16T04:00:00Z', unread: true },
-  { notification_id: 'n-002', category: 'todo', kind: 'TODO', title: 'P-2001 管道设计校核', summary: '管道计算结果等待复核', issued_at: '2026-09-16T03:30:00Z', unread: true },
-  { notification_id: 'n-003', category: 'change', kind: 'CHANGE', title: 'S-101 流量变更', summary: '流量 1000 → 1100 kg/h，影响 3 条计算', issued_at: '2026-09-16T04:30:00Z' },
-  { notification_id: 'n-004', category: 'change', kind: 'CHANGE', title: '上游 HAZOP 报告更新', summary: 'SAFE-001 假设数据需重审', issued_at: '2026-09-15T22:00:00Z' },
-  { notification_id: 'n-005', category: 'system', kind: 'SYSTEM', title: '系统维护通知', summary: '今晚 22:00 数据库例行维护', issued_at: '2026-09-15T18:00:00Z' },
+/**
+ * 通知 seed — **契约形状**（`NotificationItemResponse`）。
+ *
+ * ⚠️ P9A 收口前这里是**前端自造形状**（`category` / `summary` / `issued_at` /
+ * `unread`），与真端点的 `{items, unread_count}` **完全不同** ⇒
+ * mock 把漂移藏住，生产构建必崩（TODO-065）。
+ * ⇒ mock 与真端点**必须同形**：mock 是契约的**替身**，不是它的装饰。
+ *
+ * 四种 kind 各覆盖一条；前两条未读（`read_at` 为 null）。
+ */
+const seedNotifications: NotificationItem[] = [
+  { notification_id: '11111111-1111-1111-1111-111111111101', kind: 'SIGN_COMPLETED', title: 'Rev C 已签署', body: '校核 alice 已签署物流 S-101 的校核请求', detail: null, created_at: '2026-10-20T04:00:00Z', read_at: null },
+  { notification_id: '11111111-1111-1111-1111-111111111102', kind: 'STEP_RETURNED', title: 'P-2001 管道设计被退回', body: '管道计算结果等待复核', detail: null, created_at: '2026-10-20T03:30:00Z', read_at: null },
+  { notification_id: '11111111-1111-1111-1111-111111111103', kind: 'CHANGE_NOTICE_APPROVED', title: 'S-101 流量变更已批准', body: '流量 1000 → 1100 kg/h，影响 3 条计算', detail: null, created_at: '2026-10-20T04:30:00Z', read_at: '2026-10-20T05:00:00Z' },
+  { notification_id: '11111111-1111-1111-1111-111111111104', kind: 'PROXY_RECORDED', title: '客户批准已代录', body: '代理 alice 代录了客户批准', detail: null, created_at: '2026-10-19T22:00:00Z', read_at: '2026-10-19T23:00:00Z' },
+  { notification_id: '11111111-1111-1111-1111-111111111105', kind: 'SIGN_COMPLETED', title: '签署流程完成', body: '今晚 22:00 数据库例行维护', detail: null, created_at: '2026-10-19T18:00:00Z', read_at: '2026-10-19T19:00:00Z' },
 ];
+
+/** 待办 seed — **契约形状**（`TodoResponse`）；实时计算的结果，不落库。 */
+const seedTodos: Todo[] = [
+  { deliverable_id: '22222222-2222-2222-2222-222222222201', version_id: '33333333-3333-3333-3333-333333333301', project_id: '00000000-0000-0000-0000-000000000001', step_order: 2, step_role: 'CHECKER', title: '物流 S-101 计算书待校核' },
+  { deliverable_id: '22222222-2222-2222-2222-222222222202', version_id: '33333333-3333-3333-3333-333333333302', project_id: '00000000-0000-0000-0000-000000000001', step_order: 3, step_role: 'APPROVER', title: '管道 P-2001 计算书待批准' },
+];
+
+/**
+ * 通知列表响应体（**契约形状**）。
+ *
+ * ⚠️ 导出是为了让 `tests/mocks/handlers.test.ts` 能拿 ajv 把它**对着契约校验**
+ * —— handler 返回什么就得是什么形状，不能靠「约定」。
+ */
+export function buildNotificationList(): NotificationList {
+  return {
+    items: seedNotifications,
+    unread_count: seedNotifications.filter((n) => n.read_at === null).length,
+  };
+}
+
+/** 待办列表响应体（**契约形状**）；导出同上，理由相同。 */
+export function buildTodoList(): TodoList {
+  return { items: seedTodos, total: seedTodos.length };
+}
 
 /** Rev seed — 4 个 Rev 字母覆盖 ISSUED_FOR_DESIGN/REVIEW/CONSTRUCTION/USE */
 const seedRevisions: (RevVersion & { asset_id: string })[] = [
