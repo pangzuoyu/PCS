@@ -19,6 +19,7 @@ from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.ad_sync_tasks import sync_ad_users  # P9A-USR-002
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
+from app.workers.notification_tasks import cleanup_old_notifications  # P9A-NOT-004
 from app.workers.report_builder_tasks import execute_definition_task
 from app.workers.report_tasks import (
     generate_report_task,
@@ -146,6 +147,8 @@ class WorkerSettings:
         # P9A-USR-002：AD 同步每日凌晨。漏注册的症状是「同步从未发生」
         # 且没有任何报错 —— ARQ 对未注册的函数名不报错。
         sync_ad_users,
+        # P9A-NOT-004：通知 30 天清理（ADR-0049 §④）。同样漏注册即静默失效。
+        cleanup_old_notifications,
     ]
     # ⚠️ **必须是 `CronJob` 实例，不是 dict**（2026-10-13 修）。
     # arq 0.28 的 `Worker.__init__` 直接校验类型，dict 会让 worker
@@ -192,6 +195,16 @@ class WorkerSettings:
                 microsecond=0, run_at_startup=False, unique=True,
                 job_id=None, timeout_s=None, keep_result_s=3600,
                 keep_result_forever=False, max_tries=1),
+        # P9A-NOT-004：通知 30 天保留清理（ADR-0049 §④）。每日 03:41。
+        # ⚠️ `max_tries=2` 而**不是**既有的 1：一次瞬时连接抖动不该让清理
+        #   永久失效，而永久失效的症状是「30 天后通知还在，且没人知道」——
+        #   与漏注册同一个失败形状。
+        CronJob(name="cleanup-old-notifications",
+                coroutine=cleanup_old_notifications,
+                month=None, day=None, weekday=None, hour=3, minute=41, second=0,
+                microsecond=0, run_at_startup=False, unique=True,
+                job_id=None, timeout_s=None, keep_result_s=3600,
+                keep_result_forever=False, max_tries=2),
     ]
     # ⚠️ **ADR-P8-004 裁决的 `max_tries=3` 原先只写在注释里**，
     # 实际从没设过 —— 而 ARQ 的重试上限**只**从这里来
