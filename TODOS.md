@@ -718,3 +718,65 @@ SPEC P9-OPEN-007 / P9A-OBS-001 列 8 字段，P9A B0 建了 **10 个**业务列�
 - **严重度**：LOW（多出的 2 列都被读 API 实际使用，删了会破项目鉴权；
   不存在「文档说有、实现没有」的功能缺口）
 - **关联**：TODO-052 · ADR-0047 · P9A-OBS-001
+
+---
+
+## TODO-054: 记录侧「多级批准」的角色链无定义来源（P9A B4b 裁决登记）
+
+`RecordMixin` 只有 `approval_step` / `approval_depth` / `approval_role` 三个标量列；
+`project_templates.default_config_json` 的 `record_approval_config` 只有一句注释、
+**无消费方**（`grep record_approval_config app/` 仅命中那一句）。
+
+**P9A B4b 的裁决**（不发明需求）：
+- `approval_role` 由 `POST /records/{module}/{id}/submit-approval` 请求体指定
+  （7 值词表逐字取自 `app/models/project.py:154`），并保持到终态；
+- 「多级批准」表达为**同一待批角色逐级批 N 次**，`approval_depth` 由请求体给出；
+- 每一步只允许 `record.approval_role` 那个角色批（403 `APPROVAL_ROLE_MISMATCH`）；
+- `can_self_check` 在记录侧无配置源 ⇒ 取**最强形式**：提交人不能把
+  `approval_role` 设成自己的角色（403 `APPROVAL_SELF_REVIEW_FORBIDDEN`）。
+  宽松形式（只在配置说 false 时才拒）在没有配置源时**永远不成立 = 没有防护**。
+
+**待定**：`record_approval_config` 的真实结构由谁定义（项目模板？硬编码 4 级链？
+沿用 `SignatureMatrix.steps_json`？）。定了之后 `submit-approval` 应改为**推导**
+而不是显式输入。
+
+- **发现**：2026-10-20，P9A B4b 开工前
+- **归属**：P9B 或独立一轮（**不阻塞 P9A**：当前形态自洽且有测试）
+- **严重度**：MEDIUM（批准链退化为「同角色批 N 次」，与 SPEC 可能的「多角色链」
+  不同；每一步仍留痕、可追溯，只是不区分人）
+- **关联**：TODO-053 · ADR-0047
+
+---
+
+## TODO-055: `RECORD_TYPE_REGISTRY` 的键风格不统一（P9A B4a 登记）
+
+`app/services/calc_lineage.py:68` 的注册表键混用两种风格：
+`PipingResult` / `PumpResult`（类名）与 `cv_result` / `flare_system_result`（蛇形）。
+
+P9A B4a 的 `POST /records/{module}/{id}/...` **直接以该注册表的键作为 URL 段**
+（唯一真值源，不另起映射表），所以这个不统一现在**暴露在 API 形状上**：
+同一个概念在 URL 里可能写成 `/records/PipingResult/...` 也可能是
+`/records/cv_result/...`。
+
+**未改的理由**：改键名会让 `finalize_calc_record` 等既有调用方一起断，
+而 P9A 的范围是「接线」不是「重构注册表」。
+
+- **发现**：2026-10-20，P9A B4a
+- **归属**：独立一轮（改注册表键 + 全部调用方 + 迁移注释同步）
+- **严重度**：LOW（功能无缺陷 —— 两种写法都能解析；代价是 URL 形状不统一）
+- **关联**：TODO-048（同一注册表的另一处语义问题）
+
+---
+
+## TODO-056: `NumberingTemplate.segments_json` 的 ORM 标注是错的（`Mapped[dict]`）
+
+真实内容是**列表**（P2 计划设计 §3.5 的示例 `["project_no","-","doc_type","-","seq"]`），
+但模型标注成 `Mapped[dict]`。P9A B1 的 `_allocate_doc_no` 因此在自己的代码里用
+`Any` 绕过（改那个标注会牵动别的消费者，且不在 P9A 范围）。
+
+按 CLAUDE.md「发现无关缺陷要说、不要顺手改」登记在此。
+下一个碰这个字段的人请顺手改掉标注并补一条断言（内容是 list）。
+
+- **发现**：2026-10-20，P9A B1
+- **归属**：独立修复（一个标注 + 一条断言）
+- **严重度**：LOW（无运行期缺陷；只误导 mypy 与下一个消费者）
