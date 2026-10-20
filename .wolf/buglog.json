@@ -3562,6 +3562,108 @@
       "occurrences": 1,
       "last_seen": "2026-10-20",
       "severity": "LOW"
+    },
+    {
+      "id": "bug-2030",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "越权：无该项目授权的人收到了该项目的变更单通知（通知体含 deliverable title 与 project_id）",
+      "file": "pcs-backend/app/services/notification_recipients.py",
+      "root_cause": "resolve_role_recipients 的全局角色分支不看项目授权 —— 只按 users.roles 圈人。结果：全局角色是 DESIGNER、但没有该项目的 user_projects 有效授权的人，也会收到该项目的通知。同一函数还是待办侧角色判定的单一来源，于是**通知侧与待办侧口径不对称**（待办按 user_projects 圈人，通知不圈）—— 症状是「待办里没有他，通知里有他」，而两边各自都「正常」。第二层问题：项目内 role_in_project 参与匹配，但 sign_step 实际拿 token 的全局角色比（不匹配就 403），于是会通知/列出**点了必然 403** 的人。",
+      "fix": "收件人 = 全局角色命中 **且**（给了 project_id 时）有该项目的有效 user_projects 授权。移除项目内角色分支 —— 签署矩阵的 sign_role 是全局角色，项目侧只校验成员身份。同步修正 todo_service.compute_todos 的角色集（原先是 全局 ∪ 项目内）。新增 3 条测试：test_recipient_without_project_access_does_not_get_project_notifications / test_project_role_alone_does_not_match / test_todo_does_not_list_items_the_user_cannot_sign。",
+      "fix_commit": "851f3a1",
+      "tags": [
+        "p9a",
+        "notification",
+        "authorization",
+        "idor",
+        "role-semantics",
+        "drift"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2031",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "sign_step 提交了 2 次 —— 通知行与业务变更不在同一个事务",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "sign_step 先 commit 业务变更，再调 _notify_sign_outcome，而后者自己又 commit 一次通知行。两个真相源：业务变更已落库、通知行还没落库 —— 两者之间进程挂掉 ⇒ 变更发生了但没人被告知。更糟的是推送在第二次 commit **之前**发生 ⇒ commit 失败时用户已经收到一条会被回滚的通知（phantom notification），点进去 404。旁证：作者自己写的注释「本行自身不再 commit —— 由调用方的请求级提交收尾」与实际代码字面冲突。",
+      "fix": "拆成两步：notify()/notify_role() 只写（flush）并返回待推送载荷，**不推不提交**；调用方写完通知行后**一次** commit，提交成功后才 publish() 推送。三个触发点（sign_step / 代录 / 变更单审批）统一改造。新增守卫：test_sign_step_commits_exactly_once（并让通知真的发出去，否则断言对着旧代码也绿）、test_notify_writes_the_row_but_does_not_commit、test_publish_is_a_separate_step_from_writing、test_commit_failure_leaves_no_phantom_push。",
+      "fix_commit": "851f3a1",
+      "tags": [
+        "p9a",
+        "notification",
+        "transaction",
+        "phantom-notification",
+        "correctness"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2032",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "最后一步 sign-step（交付物转 APPROVED）不通知任何人",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "_notify_sign_outcome 的分支是 `elif decision == \"SIGN\" and next_step is not None` ⇒ 最后一步（next_step 为 None）整段被跳过。用户 2026-10-20 裁决的最小接线集合写的是「sign-step 成功」，字面包含最后一步；而同类的代录路径明确通知了 version.created_by，唯独最后一步没有对应通知。",
+      "fix": "补 `elif decision == \"SIGN\" and next_step is None` 分支 → 通知版本提交人（他等的就是 APPROVED 这个结果），kind 用 SIGN_COMPLETED、标题「已批准」。新增守卫 test_last_step_sign_notifies_the_submitter。",
+      "fix_commit": "851f3a1",
+      "tags": [
+        "p9a",
+        "notification",
+        "missing-case",
+        "correctness"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2033",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "Redis 抖动后订阅 pump 静默死亡，该用户推送永久失效且不报错",
+      "file": "pcs-backend/app/services/broadcaster.py",
+      "root_cause": "_pump 在 get_message 抛异常时 `return` —— pump 结束，但 _tasks[user_id] 仍引用那个已完成的 task，后续 add() 因 `user_id in self._tasks` 而**不重建**订阅 ⇒ 该用户的推送永久失效。症状与 TODO-047 / bug-2027 同形状：不报错地停止。而且 publisher 侧的 status 仍是 ok，/health 的 realtime 字段也看不出异常（§⑥ 只承诺发布侧）。",
+      "fix": "pump 遇异常不再 return，改为 _reconnect()：关掉死掉的 PubSub、退避重连（1s→2s→…→30s 上限）并重建订阅；期间用户断开则停止重连。",
+      "fix_commit": "851f3a1",
+      "tags": [
+        "p9a",
+        "websocket",
+        "redis",
+        "silent-failure",
+        "self-heal"
+      ],
+      "related_bugs": [
+        "bug-047",
+        "bug-2027"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2034",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "subscribe 失败后 PubSub 及其 Redis 连接泄漏；后续 add 也无法重试",
+      "file": "pcs-backend/app/services/broadcaster.py",
+      "root_cause": "add() 里 pubsub.subscribe() 抛错时，下面两行赋值不执行 ⇒ pubsub 对象没人持有，但 aioredis PubSub 内部持有 Redis 连接 ⇒ 浏览器在断线重连循环里每次尝试泄漏一个连接，几分钟后 Too many open connections。另一半：若把半成品 PubSub 留在 _pub_subs[user_id]，后续 add 会以为已订阅而跳过 ⇒ 该用户永远收不到推送。",
+      "fix": "add() 的 subscribe 包在 try/except BaseException 里：失败则 aclose() 掉刚建的 PubSub 再抛，且不留下任何半成品条目。新增守卫 test_failed_subscribe_does_not_leak_the_pubsub / test_failed_subscribe_leaves_registry_clean_for_retry。",
+      "fix_commit": "851f3a1",
+      "tags": [
+        "p9a",
+        "websocket",
+        "redis",
+        "resource-leak"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "HIGH"
     }
   ]
 }

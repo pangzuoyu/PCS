@@ -62,15 +62,24 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["recipient_id"], ["users.user_id"]),
         sa.PrimaryKeyConstraint("notification_id"),
     )
-    # ⚠️ postgresql_where 不能省 —— 这是 ADR-0049 §③ 的硬要求。
+    # ⚠️ postgresql_where 不能省 —— 未读计数（铃铛红点）靠它。
+    #
+    # ⚠️ **但它不是 500ms 指标的全部支撑**（ADR-0049 §③ 原措辞已被 2026-10-20
+    # 真库实测修正）：断线兜底**列表**带 `ORDER BY created_at DESC LIMIT n`，
+    # 部分索引是 `(recipient_id, read_at)` ⇒ **排不了序** ⇒ planner 选的是
+    # 下面那个 `(recipient_id, created_at)`。实测：
+    #   Index Scan Backward using ix_notifications_recipient_created
+    #   Filter: (read_at IS NULL)   Rows Removed by Filter: 49
+    #   Execution Time: 0.026 ms（2000 行，事务内灌数据后 EXPLAIN ANALYZE）
+    # ⇒ **两个索引各有各的用处，都必须进迁移。**
     op.create_index(
         "ix_notifications_recipient_unread",
         "notifications",
         ["recipient_id", "read_at"],
         postgresql_where=sa.text("read_at IS NULL"),
     )
-    # 断线兜底（ADR-0049 §⑤ 约束 1）：`GET /notifications?after=<last_seen>`
-    # 按 created_at 范围翻页。
+    # 断线兜底列表（ADR-0049 §⑤ 约束 1）：按 created_at 倒序翻页。
+    # 真正扛住 500ms 的是**这个**索引。
     op.create_index(
         "ix_notifications_recipient_created",
         "notifications",

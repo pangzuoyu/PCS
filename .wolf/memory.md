@@ -2036,3 +2036,22 @@
 | 10:35 | **P9A C lane 收口** —— C0 迁移(p9_005,10 列,部分索引) / C1 通道抽象 / **C1b 触发接线(用户裁决增补)** / C2 Redis pub-sub+WS+断线兜底+/health realtime / C3 ARQ 清理(只删已读,max_tries=2) / C4 待办实时计算(不建表) | notifications.py, notifications/*, broadcaster.py, todo_service.py, notification_recipients.py, api/v1/{ws,notifications}.py, workers/notification_tasks.py, ADR-0049 §①回补 | **4986 passed / 77 skipped / 0 failed**(基线 4868,+118),exit 0;裸字段仍 71;G-08 契约门禁过;300 交付物待办 195ms/重算 12.4ms | ~52000 |
 | 10:35 | 修 3 个缺陷并登记 bug-2027~2029 | broadcaster.py(每用户一个 PubSub,原单 PubSub 静默杀掉先到的用户) / in_app.py(UUID 用 mode="json",否则 SQLite 炸真库绿) / deliverable_service.py(通知触发点改成条件 commit) | 3 条 RED→GREEN | ~3200 |
 | 10:35 | **未完成**：`alembic upgrade head` 被权限分类器拦下,用户未跑 ⇒ commit 仍被 PP-5 漂移闸门拦 | .githooks/pre-commit | DB p9_004 vs code head p9_005 | ~200 |
+| 14:30 | Edited pcs-backend/app/services/notification_recipients.py | modified resolve_role_recipients() | ~520 |
+| 14:31 | Edited pcs-backend/app/services/notification_recipients.py | modified resolve_role_recipients() | ~544 |
+| 14:31 | Edited pcs-backend/app/services/todo_service.py | modified my_roles() | ~229 |
+| 14:31 | Edited pcs-backend/app/services/todo_service.py | 2→6 lines | ~45 |
+| 14:31 | Edited pcs-backend/app/services/todo_service.py | 5→8 lines | ~75 |
+| 14:33 | Edited .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/progress.md | expanded (+15 lines) | ~229 |
+| 14:37 | Edited pcs-backend/app/services/notifications/notify.py | modified notify() | ~680 |
+| 14:40 | Edited pcs-backend/app/services/broadcaster.py | modified __init__() | ~1643 |
+| 14:41 | Edited pcs-backend/app/services/notification_query_service.py | added error handling | ~224 |
+| 14:41 | Edited pcs-backend/app/main.py | expanded (+7 lines) | ~156 |
+| 14:41 | Edited pcs-backend/app/main.py | added error handling | ~194 |
+| 14:42 | Edited .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/progress.md | expanded (+34 lines) | ~583 |
+| 14:46 | Edited docs/adr/0049-notification-and-todo-data-model.md | expanded (+22 lines) | ~287 |
+| 14:46 | Edited pcs-backend/alembic/versions/p9_005_notifications.py | expanded (+9 lines) | ~262 |
+| 14:47 | Edited pcs-backend/app/services/notifications/notify.py | expanded (+12 lines) | ~262 |
+| 14:47 | Edited pcs-backend/app/services/broadcaster.py | modified remove() | ~252 |
+| 14:56 | Edited pcs-backend/tests/test_schema.py | 2→4 lines | ~79 |
+| 15:05 | **P9A C lane 终审修复**（fresh reviewer 10 findings，9 条已修 F-1~F-9）—— ① 事务边界：notify() 只写不提交，调用方**一次** commit 后才 publish()（原两次 commit + 提交前推送 ⇒ phantom notification）② 最后一步 sign-step（转 APPROVED）补通知提交人 ③ subscribe 失败关 PubSub 不泄漏 ④ pump 遇 Redis 抖动自愈重连（原静默 return ⇒ 推送永久失效且不报错）⑤ to_detail 兜 ValidationError（否则旧 schema 让整个列表端点 500）⑥ lifespan 关 Redis 连接 ⑦ 收件人=**全局角色 ∩ 项目授权**（原按全局角色圈人 ⇒ 越权泄漏 bug-2030）⑧ tripwire 移 tests/architecture ⑨ registry 加锁 | notify.py, broadcaster.py, notification_recipients.py, todo_service.py, deliverable_service.py, change_notice_service.py, notification_query_service.py, main.py | 全部 RED→GREEN；新增 bug-2031~2034 + TODO-059（矩阵 sign_role 口径） | ~41000 |
+| 15:05 | **ADR-0049 §③ 索引实测修正** —— 真库 EXPLAIN（事务内灌 2000 行→ROLLBACK）证明：计划原文「部分索引是 500ms 指标的全部支撑」**不成立**，列表查询带 ORDER BY created_at ⇒ 用的是 ix_notifications_recipient_created（0.026ms），部分索引只服务未读计数 | ADR-0049 §③, p9_005 迁移 docstring, models/notification.py | 两个索引都保留，措辞改成实测事实 | ~2600 |

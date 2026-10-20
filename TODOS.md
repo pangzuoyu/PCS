@@ -896,3 +896,64 @@ ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个
 - **发现**：2026-10-20，P9A-2 终审（决策委员会提出，用户裁决）
 - **严重度**：~~🔴~~ → **已关闭**（语义定 + 谓词落地 + 契约测试）
 - **关联**：TODO-048（同一注册表的 finalize 语义，已在其 docstring 澄清）· TODO-055（键风格不统一）
+
+---
+
+## TODO-059: 签署矩阵的 `sign_role` 是**全局角色**，与 `user_projects.role_in_project` 语义不对称（🟡 需产品裁决）
+
+- **发现**：2026-10-20，P9A C lane（C4 待办实时计算）自查越权面时暴露
+- **严重度**：🟡 已知不对称 —— **当前行为是自洽的**（见下），但口径本身待裁决
+- **关联**：TODO-054（记录侧多级批准的角色链无定义来源，同一根因：角色词表有两个来源）
+
+### 事实
+
+签署矩阵的 `sign_role` 与 **token 的 role claim**（`users.roles`）比较：
+
+```
+app/services/deliverable_service.py
+  sign_role = str(step.get("sign_role", ""))
+  if sign_role != actor_role:      # actor_role = current_actor().role = 全局角色
+      raise PcsError(code="SIGN_STEP_ROLE_MISMATCH", status=403)
+```
+
+而项目那一侧（`app/api/v1/deliverables.py::_authorize` →
+`check_project_access_or_404`）**只校验成员身份**，不看角色。
+
+⇒ **「能签第 N 步」= 有 `user_projects` 有效授权 且 全局角色 == `step.sign_role`**。
+
+### 为什么这是问题
+
+`user_projects.role_in_project` 存在（DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER），
+但**签署矩阵不读它**。于是一个「全局 DESIGNER、项目内 REVIEWER」的人：
+
+- 在项目 A 上**签不了** REVIEWER 那一步（403 `SIGN_STEP_ROLE_MISMATCH`）
+- 在项目 A 上却**被当成** REVIEWER 之外的角色处理
+
+「项目内角色」这套词表在签署链路上**实际上没有消费方**。
+
+### 本 lane 的处置（已落地）
+
+P9A C1b / C4 的通知收件人与待办**都按全局角色 ∩ 项目授权**算，与
+`sign_step` 实际执行的口径一致。理由：按项目内角色圈人，会通知 / 列出那些
+**点了必然 403** 的人 ——「待办里有，点进去说你不是」比没有待办更坏。
+
+代码留痕：`app/services/todo_service.py::compute_todos` 的 docstring、
+`app/services/notification_recipients.py::resolve_role_recipients` 的 docstring、
+`tests/api/v1/test_todos.py::test_todo_does_not_list_items_the_user_cannot_sign`。
+
+### 待裁决
+
+签署矩阵的 `sign_role` 到底该对齐哪一套？
+
+| 选项 | 含义 | 代价 |
+|---|---|---|
+| **A（现状）** | `sign_role` = 全局角色 | 项目内角色词表在签署链路上无消费方；`user_projects.role_in_project` 形同虚设 |
+| B | `sign_role` = 项目内角色 | 改 `sign_step` 的判定口径 ⇒ 矩阵要带项目上下文；AD 同步的全局角色与项目授权的关系要重新定义 |
+| C | 两者都算（全局 ∪ 项目内） | 职责分离被削弱：全局是 REVIEWER 的人可以签 DESIGNER 那一步 |
+
+⚠️ **A 是当前事实，B/C 是行为变更**。B/C 都要动 `sign_step` 与签署矩阵的
+数据契约，属于 Z 收口或下一版的范围，**不在 P9A C lane 内**。
+
+- **发现**：2026-10-20，P9A C lane 自查
+- **严重度**：🟡（行为自洽，语义待定）
+- **关联**：TODO-054

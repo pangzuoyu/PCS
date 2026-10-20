@@ -138,8 +138,30 @@ class NotificationChannel(Protocol):
   ⚠️ **现有索引里没有任何按用户/角色的索引** —— 待办查询要先按
   「当前用户有权的 project」缩小集合。若这一步走的是 `user_projects`，
   P9A 需确认那条路径有可用索引，否则 500ms 达不到。
-- 通知（建表）：`ix_notifications_recipient_unread (recipient_id, read_at)`
-  部分索引 `WHERE read_at IS NULL`。这是 500ms 指标的全部支撑 —— **该索引必须进迁移**。
+- 通知（建表）：**两个**索引，都必须进迁移。
+
+  | 索引 | 服务的查询 | 实测 |
+  |---|---|---|
+  | `ix_notifications_recipient_created (recipient_id, created_at)` | 断线兜底**列表**（`GET /notifications`，`ORDER BY created_at DESC LIMIT n`） | Index Scan Backward，**0.026 ms** / 2000 行 |
+  | `ix_notifications_recipient_unread (recipient_id, read_at)` 部分索引 `WHERE read_at IS NULL` | **未读计数**（铃铛红点，不排序） | 部分索引，未排序时优于全表扫 |
+
+  ⚠️ **2026-10-20 真库实测修正了本节的原措辞**。原文写「该索引是 500ms 指标的
+  **全部**支撑」—— 实测**不成立**：列表查询带 `ORDER BY created_at DESC`，
+  而部分索引是 `(recipient_id, read_at)`，**排不了序**，于是 planner 选了
+  能提供顺序的那个索引（`Rows Removed by Filter: 49`）。真正扛住 500ms 的是
+  `(recipient_id, created_at)` 那个。
+
+  ⇒ 两个索引**各有各的用处**，都要进迁移；不是「一个索引全包」。
+
+  ⚠️ **30 天清理用不了部分索引**（其前导列是 `recipient_id`，而清理不按人筛）。
+  实测它走 `ix_notifications_recipient_created` 的 index skip scan（PG 18），
+  0.044 ms / 2000 行。**刻意不加第三个索引**：清理是每日一次的低频任务，
+  表规模是「每年几千行」量级，一次范围扫描毫秒级；加索引要付写入开销与
+  schema 复杂度，换不来可观测的收益（与 D7 裁决同一条理由）。
+
+  > 实测方法：事务内灌 2000 行 → `EXPLAIN (ANALYZE, BUFFERS)` → `ROLLBACK`。
+  > 开发库常态是空表，**空表上的 EXPLAIN 不能区分「缺索引」与「数据少」**
+  > （CLAUDE.md 漂移盲区读法③的同一条理由）。
 
 ### ④ 🔻 通知保留 30 天清理：ARQ 任务 + 失败路径覆盖
 

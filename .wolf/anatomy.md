@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T02:21:01.468Z
-> Files: 909 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T06:56:04.731Z
+> Files: 910 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -252,7 +252,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9A-3-通知待办/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-3-通知待办.md (~1066 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-3-通知待办.md (~1651 tok)
 
 ## .vite/vitest/
 
@@ -339,7 +339,7 @@
 - `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~2304 tok)
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3499 tok)
-- `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2322 tok)
+- `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
@@ -1131,7 +1131,11 @@
 - `p8_011_streams_vocab_constraints.py` — `streams` 的 phase / data_mode / source_type 加 CHECK + 新增 `raw_phase`。 (~1158 tok)
 - `p9_001_users_token_version.py` — P9A 身份迁移：users.token_version + CHECK >= 1。 (~289 tok)
 - `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
-- `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~791 tok)
+- `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~918 tok)
+
+## pcs-backend/app/
+
+- `main.py` — FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。 (~1440 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1211,19 +1215,19 @@
 - `admin_user_service.py` — ADMIN 用户管理的**写入层**（SPEC P9A-ADM-002，ADR-0046 §⑤）。 (~681 tok)
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
-- `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~2156 tok)
+- `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2138 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
-- `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~779 tok)
-- `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~632 tok)
+- `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~938 tok)
+- `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~808 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
-- `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1601 tok)
+- `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1705 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
 
@@ -1237,7 +1241,7 @@
 - `__init__.py` — 通知写侧包（ADR-0049 §①）。 (~101 tok)
 - `channel.py` — `NotificationChannel` 协议与 `DeliveryResult`（ADR-0049 §①）。 (~315 tok)
 - `in_app.py` — `InAppChannel` —— 本版唯一的通知通道（ADR-0049 §①）。 (~556 tok)
-- `notify.py` — 通知的**唯一写侧入口**（ADR-0049 §① + 用户 2026-10-20 裁决）。 (~848 tok)
+- `notify.py` — 通知的**唯一写侧入口**（ADR-0049 §① + 用户 2026-10-20 裁决）。 (~1217 tok)
 - `payload.py` — 通知载荷与 `detail_json` 的字段级 schema（ADR-0049 §① / P9A-DLV-010）。 (~722 tok)
 
 ## pcs-backend/app/services/report/
@@ -1296,7 +1300,7 @@
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3335 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3389 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
 - `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~1228 tok)

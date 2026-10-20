@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T02:21:01.468Z",
-    "fileCount": 909,
+    "lastScanned": "2026-10-20T06:56:04.731Z",
+    "fileCount": 910,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d62b8872db3144c390b15238b14d85d771eea98fe5072abb761a800c23887bdd",
-    "storeUpdatedAt": "2026-10-20T02:21:01.479Z",
-    "rootHash": "3baaa7a3b9e7c5b6"
+    "renderedHash": "3504dd690befa2c575180c6e56858276705298b49defa93bf70572e879ec096d",
+    "storeUpdatedAt": "2026-10-20T06:56:04.743Z",
+    "rootHash": "1e2e2101a69fefd0"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17410,11 +17410,11 @@
     },
     "pcs-backend/tests/test_schema.py": {
       "description": "V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。",
-      "tokens": 3335,
-      "hash": "d704bd4163468d60",
-      "size": 13296,
-      "mtimeMs": 1792449198373.0613,
-      "updatedAt": "2026-10-19T22:33:18.422Z",
+      "tokens": 3389,
+      "hash": "3928b43bc654ca70",
+      "size": 13558,
+      "mtimeMs": 1792479364680.6152,
+      "updatedAt": "2026-10-20T06:56:04.731Z",
       "source": "hook",
       "symbols": [
         {
@@ -17435,70 +17435,70 @@
           "name": "test_table_count",
           "kind": "fn",
           "startLine": 24,
-          "endLine": 90,
-          "tokens": 1083
+          "endLine": 93,
+          "tokens": 1137
         },
         {
           "name": "test_required_tables_present",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 165,
+          "startLine": 94,
+          "endLine": 168,
           "tokens": 612
         },
         {
           "name": "test_equipment_type_codes_composite_unique",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 172,
+          "startLine": 169,
+          "endLine": 175,
           "tokens": 112
         },
         {
           "name": "test_equipment_list_composite_fk_to_equipment_type_codes",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 182,
+          "startLine": 176,
+          "endLine": 185,
           "tokens": 149
         },
         {
           "name": "test_record_mixin_columns_present",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 200,
+          "startLine": 186,
+          "endLine": 203,
           "tokens": 159
         },
         {
           "name": "test_recordsignstatus_enum_has_9_values",
           "kind": "fn",
-          "startLine": 201,
-          "endLine": 224,
+          "startLine": 204,
+          "endLine": 227,
           "tokens": 192
         },
         {
           "name": "test_fk_violation_raises",
           "kind": "fn",
-          "startLine": 225,
-          "endLine": 255,
+          "startLine": 228,
+          "endLine": 258,
           "tokens": 310
         },
         {
           "name": "_response_schema_name",
           "kind": "fn",
-          "startLine": 256,
-          "endLine": 280,
+          "startLine": 259,
+          "endLine": 283,
           "tokens": 218
         },
         {
           "name": "test_pipe_code_endpoints_declare_response_schema",
           "kind": "fn",
-          "startLine": 281,
-          "endLine": 300,
+          "startLine": 284,
+          "endLine": 303,
           "tokens": 203
         },
         {
           "name": "test_response_schema_is_registered_in_components",
           "kind": "fn",
-          "startLine": 301,
-          "endLine": 315,
+          "startLine": 304,
+          "endLine": 318,
           "tokens": 169
         }
       ]
@@ -28218,11 +28218,11 @@
     },
     "docs/adr/0049-notification-and-todo-data-model.md": {
       "description": "ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算",
-      "tokens": 2322,
-      "hash": "7623f0fce8dc6ff6",
-      "size": 16886,
-      "mtimeMs": 1792462819351.7488,
-      "updatedAt": "2026-10-20T02:20:19.405Z",
+      "tokens": 2557,
+      "hash": "976f28c439e0804e",
+      "size": 18482,
+      "mtimeMs": 1792478797110.534,
+      "updatedAt": "2026-10-20T06:46:37.160Z",
       "source": "hook"
     },
     "docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md": {
@@ -30180,11 +30180,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9A-3-通知待办/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-3-通知待办.md",
-      "tokens": 1066,
-      "hash": "e5d84a224e88396e",
-      "size": 7572,
-      "mtimeMs": 1792462861413.0706,
-      "updatedAt": "2026-10-20T02:21:01.468Z",
+      "tokens": 1651,
+      "hash": "8e74fc1b58d55aa7",
+      "size": 11562,
+      "mtimeMs": 1792478564675.8894,
+      "updatedAt": "2026-10-20T06:42:44.725Z",
       "source": "hook"
     },
     "pcs-backend/tests/alembic/test_p9_005_notifications.py": {
@@ -30351,25 +30351,25 @@
     },
     "pcs-backend/alembic/versions/p9_005_notifications.py": {
       "description": "P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。",
-      "tokens": 791,
-      "hash": "710e20ee2510bb51",
-      "size": 3495,
-      "mtimeMs": 1792458290780.0493,
-      "updatedAt": "2026-10-20T01:04:50.829Z",
+      "tokens": 918,
+      "hash": "96301aa633c8eb62",
+      "size": 4150,
+      "mtimeMs": 1792478801817.5337,
+      "updatedAt": "2026-10-20T06:46:41.864Z",
       "source": "hook",
       "symbols": [
         {
           "name": "upgrade",
           "kind": "fn",
           "startLine": 40,
-          "endLine": 80,
-          "tokens": 466
+          "endLine": 89,
+          "tokens": 592
         },
         {
           "name": "downgrade",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 87,
+          "startLine": 90,
+          "endLine": 96,
           "tokens": 69
         }
       ]
@@ -30718,11 +30718,11 @@
     },
     "pcs-backend/app/services/broadcaster.py": {
       "description": "Redis pub/sub 实时推送（ADR-0049 §⑤）。",
-      "tokens": 2156,
-      "hash": "87650fc3dd3ff86a",
-      "size": 9340,
-      "mtimeMs": 1792461703773.303,
-      "updatedAt": "2026-10-20T02:01:43.822Z",
+      "tokens": 3013,
+      "hash": "a41bd594ac76e2a8",
+      "size": 13093,
+      "mtimeMs": 1792478867149.5154,
+      "updatedAt": "2026-10-20T06:47:47.199Z",
       "source": "hook",
       "symbols": [
         {
@@ -30743,28 +30743,28 @@
           "name": "Broadcaster",
           "kind": "class",
           "startLine": 70,
-          "endLine": 110,
-          "tokens": 394
+          "endLine": 113,
+          "tokens": 427
         },
         {
           "name": "UserSubscriptionRegistry",
           "kind": "class",
-          "startLine": 111,
-          "endLine": 209,
-          "tokens": 1092
+          "startLine": 114,
+          "endLine": 285,
+          "tokens": 1916
         },
         {
           "name": "get_broadcaster",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 218,
+          "startLine": 286,
+          "endLine": 294,
           "tokens": 65
         },
         {
           "name": "set_broadcaster",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 223,
+          "startLine": 295,
+          "endLine": 299,
           "tokens": 40
         }
       ]
@@ -30945,11 +30945,11 @@
     },
     "pcs-backend/app/services/notification_query_service.py": {
       "description": "通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。",
-      "tokens": 779,
-      "hash": "92a37c065550baef",
-      "size": 3297,
-      "mtimeMs": 1792461792085.84,
-      "updatedAt": "2026-10-20T02:03:12.138Z",
+      "tokens": 938,
+      "hash": "5ecb1c335b008220",
+      "size": 4148,
+      "mtimeMs": 1792478493689.2092,
+      "updatedAt": "2026-10-20T06:41:33.754Z",
       "source": "hook",
       "symbols": [
         {
@@ -30970,8 +30970,8 @@
           "name": "to_detail",
           "kind": "fn",
           "startLine": 81,
-          "endLine": 86,
-          "tokens": 66
+          "endLine": 104,
+          "tokens": 225
         }
       ]
     },
@@ -31161,50 +31161,57 @@
     },
     "pcs-backend/app/services/notification_recipients.py": {
       "description": "角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。",
-      "tokens": 632,
-      "hash": "80c6272c0682a86f",
-      "size": 3147,
-      "mtimeMs": 1792462134876.7915,
-      "updatedAt": "2026-10-20T02:08:54.927Z",
+      "tokens": 808,
+      "hash": "41679cdd64887cd9",
+      "size": 4362,
+      "mtimeMs": 1792477884809.784,
+      "updatedAt": "2026-10-20T06:31:24.857Z",
       "source": "hook",
       "symbols": [
         {
           "name": "resolve_role_recipients",
           "kind": "fn",
           "startLine": 39,
-          "endLine": 79,
-          "tokens": 367
+          "endLine": 98,
+          "tokens": 544
         }
       ]
     },
     "pcs-backend/app/services/notifications/notify.py": {
       "description": "通知的**唯一写侧入口**（ADR-0049 §① + 用户 2026-10-20 裁决）。",
-      "tokens": 848,
-      "hash": "cb39611a598cac7a",
-      "size": 3846,
-      "mtimeMs": 1792462141016.825,
-      "updatedAt": "2026-10-20T02:09:01.070Z",
+      "tokens": 1217,
+      "hash": "13fa63f72226cdac",
+      "size": 6162,
+      "mtimeMs": 1792478826395.5308,
+      "updatedAt": "2026-10-20T06:47:06.458Z",
       "source": "hook",
       "symbols": [
         {
           "name": "notify",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 58,
-          "tokens": 145
+          "startLine": 51,
+          "endLine": 87,
+          "tokens": 297
         },
         {
           "name": "notify_role",
           "kind": "fn",
-          "startLine": 59,
-          "endLine": 91,
-          "tokens": 239
+          "startLine": 88,
+          "endLine": 124,
+          "tokens": 270
+        },
+        {
+          "name": "publish",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 136,
+          "tokens": 114
         },
         {
           "name": "_push",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 106,
+          "startLine": 137,
+          "endLine": 151,
           "tokens": 162
         }
       ]
@@ -31365,47 +31372,47 @@
     },
     "pcs-backend/app/services/todo_service.py": {
       "description": "待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。",
-      "tokens": 1601,
-      "hash": "82770ddf3d919ca7",
-      "size": 6638,
-      "mtimeMs": 1792462701753.9497,
-      "updatedAt": "2026-10-20T02:18:21.819Z",
+      "tokens": 1705,
+      "hash": "093562be3b381ea8",
+      "size": 7271,
+      "mtimeMs": 1792477897714.7341,
+      "updatedAt": "2026-10-20T06:31:37.761Z",
       "source": "hook",
       "symbols": [
         {
           "name": "TodoItem",
           "kind": "class",
-          "startLine": 46,
-          "endLine": 56,
+          "startLine": 50,
+          "endLine": 60,
           "tokens": 53
         },
         {
           "name": "current_step",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 66,
+          "startLine": 61,
+          "endLine": 70,
           "tokens": 80
         },
         {
           "name": "my_roles",
           "kind": "fn",
-          "startLine": 67,
-          "endLine": 80,
-          "tokens": 129
+          "startLine": 71,
+          "endLine": 91,
+          "tokens": 203
         },
         {
           "name": "_my_project_ids",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 94,
+          "startLine": 92,
+          "endLine": 105,
           "tokens": 134
         },
         {
           "name": "compute_todos",
           "kind": "fn",
-          "startLine": 95,
-          "endLine": 187,
-          "tokens": 874
+          "startLine": 106,
+          "endLine": 200,
+          "tokens": 867
         }
       ]
     },
@@ -31550,6 +31557,38 @@
           "startLine": 349,
           "endLine": 370,
           "tokens": 199
+        }
+      ]
+    },
+    "pcs-backend/app/main.py": {
+      "description": "FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。",
+      "tokens": 1440,
+      "hash": "7c239a85b1b25934",
+      "size": 6286,
+      "mtimeMs": 1792478513241.1213,
+      "updatedAt": "2026-10-20T06:41:53.288Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "lifespan",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 75,
+          "tokens": 455
+        },
+        {
+          "name": "_close_redis_connections",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 97,
+          "tokens": 186
+        },
+        {
+          "name": "create_app",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 153,
+          "tokens": 541
         }
       ]
     }
