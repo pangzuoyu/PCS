@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T23:55:16.757Z",
+    "lastScanned": "2026-10-21T00:43:31.767Z",
     "fileCount": 961,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "1c7049fe6de6bc97a3950bbf452d8147782807d9573458bae184f41dbf36e194",
-    "storeUpdatedAt": "2026-10-20T23:55:16.768Z",
-    "rootHash": "063ac7877ac3188e"
+    "renderedHash": "f40edb4c977085e05a1ffa6d308987c8fcb067f56e21010b723871b960843479",
+    "storeUpdatedAt": "2026-10-21T00:43:31.778Z",
+    "rootHash": "9d2c5ee1243c9d24"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -34354,11 +34354,11 @@
     },
     "docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md": {
       "description": "P9B-1 实施计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1 / §6.22~§6.24）",
-      "tokens": 10833,
-      "hash": "ccf01ddfa0daa283",
-      "size": 58282,
-      "mtimeMs": 1792540516593.6926,
-      "updatedAt": "2026-10-20T23:55:16.757Z",
+      "tokens": 12788,
+      "hash": "a269f04ffcc5674e",
+      "size": 69614,
+      "mtimeMs": 1792543411715.3418,
+      "updatedAt": "2026-10-21T00:43:31.767Z",
       "source": "hook"
     },
     "pcs-backend/tests/api/v1/test_record_type_vocabulary.py": {

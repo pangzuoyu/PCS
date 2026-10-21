@@ -39,7 +39,11 @@ CIA 哈希判定分流。**bug-2039（越权洞）** 同期修复。
 1. **P9B-1（下一条 lane）**：前端接 §6.21 / §6.7.1 —— 编辑锁 UI（取锁 / 60s 心跳 /
    他人持锁只读化 / 降级横幅）、409 弹窗（按 basis 三值分流）、PATCH 回传
    `expected_hash`、ChangeImpactPanel 的「确认」动作、**6 个结果页**（从零建）。
-   计划 `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`，F0（api 层）已落地。
+   计划 `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md` —— **已过 `/plan-eng-review`
+   + 决策委员会复审**（2026-10-21，commit `86bc4fc`），**T0~T7 七个任务可直接开工**。
+   ⚠️ 计划里两条最容易漏的：**基线分三档**（hash 空 ⇒ 退到 `expected_updated_at`；
+   两档皆无 ⇒ 该行不可编辑）+ **基线时间戳原样透传**（过 `new Date()` ⇒ 微秒丢失
+   ⇒ 每次假 409）。这两条都有守卫测试（RF-8 / RF-9 / RF-13）。
    ⚠️ 计划表里的 `record_type` **写错了 3 个**（写 `CoolingTowerResult` 等类名，
    实际注册表键是 `cooling_tower_result` 等 snake_case）⇒ 以
    `src/api/locks.ts::EDITABLE_RECORD_TYPES` 为准。
