@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-21T00:43:31.767Z",
+    "lastScanned": "2026-10-21T00:52:14.743Z",
     "fileCount": 961,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f40edb4c977085e05a1ffa6d308987c8fcb067f56e21010b723871b960843479",
-    "storeUpdatedAt": "2026-10-21T00:43:31.778Z",
-    "rootHash": "9d2c5ee1243c9d24"
+    "renderedHash": "5f6f6b43a11f367d2aaff08b9075a8b8e95d98980e6ba29e01249751a8124911",
+    "storeUpdatedAt": "2026-10-21T00:52:14.755Z",
+    "rootHash": "d5450892b53c9369"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12351,11 +12351,11 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 3771,
-      "hash": "523e5c7801825568",
-      "size": 20172,
-      "mtimeMs": 1791899696310.11,
-      "updatedAt": "2026-10-13T13:54:56.364Z",
+      "tokens": 4601,
+      "hash": "abacf33db19150d3",
+      "size": 25425,
+      "mtimeMs": 1792543934693.3784,
+      "updatedAt": "2026-10-21T00:52:14.743Z",
       "source": "hook"
     },
     "TODOS.md": {

@@ -10,7 +10,7 @@ Web 版工艺计算平台：模拟数据导入 → 工艺计算 → 校审签章
 |---|---|
 | 前端 | React 18 + TypeScript + Vite + Ant Design 5 + Zustand |
 | 后端 | FastAPI 0.115 + SQLAlchemy 2.0 (async) + Alembic + Pydantic v2 |
-| 数据库 | PostgreSQL 16 + Redis 7 |
+| 数据库 | PostgreSQL 18 + Redis 7 |
 | 鉴权 | LDAP（authlib + ldap3 + PyJWT） |
 | 工艺计算 | `chemicals` / `fluids` / `thermo`（ChEDL 生态，本地 vendored） |
 | 工程规范 | HG/T 20570.6 / ASME B31.3 / Crane TP-410 / Idelchik Handbook |
@@ -104,11 +104,11 @@ cd pcs-backend
 DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
     uv run alembic upgrade head
 DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
-    uv run pytest -q                # baseline 3269 passed / 74 skipped
+    uv run pytest -q                # baseline 5157 passed / 77 skipped
 uv run ruff check .               # 0 错为目标
 
 # 前端（pcs-frontend/）
-npx vitest run                     # baseline 548 passed / 54 files
+npx vitest run                     # baseline 725 passed / 75 files
 npx tsc --noEmit                   # 0 错为目标
 npx eslint src/ tests/            # 0 错为目标
 
@@ -144,9 +144,23 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 | **P6-9** | **Behr grid 查表 + 双线性插值 PICKUP（3 commits active）**：工艺室第三批交付 v3 修复 OPEN-P6-6A-9.5（Katz 5-param 失败二次，废弃 4-param / 5-param / Behr 3-param 经验公式拟合，改用查表 + 双线性插值）；general + high_acid grid 7 T × 4 P = 56 节点；服务代码升级 `_calc_behr_water_content_lb_per_mmscf` 返回 `(w, warnings)` 元组，T≥60°F grid 查表 + 双线性插值，T<60°F 保留 Bukacek 1990；XLS E20 残差 1.29% < 5% 容差；pytest 84/84 PASS；OPEN-P6-6A-9.5 代码侧闭环（工艺 + 代码 双闭环）；OPEN-P6-4-4 fixture 修复 v2 一致性校验 | **CLOSED 2026-09-29** |
 | **P6-9-PICKUP-2** | **ce-code-review P5+P6 修复批（5 commits active）**：架构组 2026-10-31 接受 "NOT READY TO MERGE" 裁决；CRITICAL F1 lean-glycol else-branch + F2 SGR 公式反转（GPSA §20.4 Eq.20-5）+ F3 C-24 reconciliation service x 显式 + consistency check + F4 t_wall_mm → t_wall_m 单位歧义；HIGH F1 nielsen dead code + F2 `_USE_XLS_CD_Y_CR` feature flag 接入；MEDIUM F3 untracked test file commit；3513+ passed（1 pre-existing T2 fail 豁免）+ ruff 0 new errors；OPEN 队列影响：OPEN-P6-4-4 ⚠️ partial closure + OPEN-P6-9-PICKUP-2-1/2 新增 F2/t_wall 复盘 + OPEN-P6-6A-10 工艺室 2026-11-15 关闭 | **CLOSED 2026-11-15** |
 | **P6-9-PICKUP-4** | **ce-code-review P5+P6 残留 debt 闭环（4 commits active）**：9 pre-existing pytest failures 修复（psychro schema drift + 4 类 DB drift，`f9f1360`）+ 5 ruff errors 清零（calibrate_behr_coefficients.py rebase）+ 21 LOW/INFO 项 4 维分类（5 PROCo + 8 HYG + 6 DOC + 2 REF，`15b6edd`/`6271db7`）+ 工艺室 2026-11-15 交付对账预留位（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1/2 等 5 项状态字段 + 前置条件，`b15512a`）；3515 passed / ruff 0 errors / vitest 548 持平 / G-08 drift=0；下游推荐 P6-9-PICKUP-5（工艺对账 + 重构 ~2.0 天）+ P6-9-PICKUP-6（HYG+DOC 14 项 ~1.0 天）；ce-code-review P5+P6 summary 详见 [`docs/P6-9-PICKUP-4.md`](./docs/P6-9-PICKUP-4.md) | **CLOSED 2026-09-30** |
+| **P8** | **报表生成 + REPORT_BUILDER（17 个端点）**：`/report/generate` + `/report/{id}/download\|hash\|status` + `/report/verify/{id}`（二维码验签）+ `/report/styles` 四操作（增 / 改 / 激活 / 修订）+ `/report-builder/{datasources,definitions}`（定义 CRUD + publish / obsolete + 异步 execute + 执行状态轮询）；前端 4 页（`ReportDefinitionListPage` / `ReportDefinitionEditorPage` / `ReportExecutePage` / `ReportStylePage`）+ ARQ 异步渲染 worker + 报告样式 5 态版本链 | **CLOSED 2026-10-13** |
+| **P9A** | **P9 后端 lane（四条 lane 全闭环 + Z 收口）**：**A 身份**（`users.token_version` + 停用即刻作废 + AD 同步 cron + `/admin/users` 三端点）· **B 交付物写面 + 观测层**（`issue` / `sign-step` / `customer-approval/proxy` + records 9 端点 + 批注 + `workflow_progress` 同步写与读 API）· **C 通知待办**（`notifications` 建表 + `NotificationChannel` 抽象 + WS 推送走 Redis pub/sub + ARQ 30 天清理 + 待办实时计算）· **D 编辑锁 + CIA**（Redis 锁三端点 + 降级放行 + 409 契约与编辑审计 + `cost_est` 补 `record_hash` + CIA 哈希判定分流）· **Z 收口**（OpenAPI 冻结至 `p9_007`：239 paths / 334 schemas / 0 删除；裸字段仍 71） | **CLOSED 2026-10-21** |
 
 ### ⏳ 待启动批次
 
+- **P9B-1（下一条）**：前端接 SPEC §6.21 / §6.7.1 —— 编辑锁 UI（取锁 / 60s 心跳 /
+  他人持锁只读化 / 降级横幅）、409 弹窗（按 `basis` 三值分流）、PATCH 回传
+  `expected_hash`、CIA 确认动作、**6 类结果记录页**（从零建）。计划
+  [`docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`](./docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md)
+  已过 `/plan-eng-review` + 决策委员会复审，**T0~T7 七个任务可直接开工**。
+  ⚠️ 计划里最容易漏的两条：**基线分三档**（`record_hash` 空 ⇒ 退到
+  `expected_updated_at`；两档皆无 ⇒ 该行不可编辑）+ **基线时间戳原样透传**
+  （过 `new Date()` ⇒ 微秒丢失 ⇒ 每次假 409）。
+- **P9B-2 / P9B-3**：签署流程前端（操作栏 / 批注 / 状态时间线）· ADMIN 前端
+  （用户管理 / 审计日志）· 系统参数 · 物流手动创建向导 + 校对 UI
+  ⇒ 另两条欠账见 [`TODOS.md`](./TODOS.md) TODO-065（交付物进度聚合端点）/
+  TODO-066（按项目守卫的编辑审计读端点）
 - **P6-7**（OPEN-P6-6A-6 后续）：glycol dehydration service 4 子模块扩展（reboiler / stripping / full column / lean glycol）+ T9 CONFIG 典型工况范围已就位
 - **OPEN-P6-6A-9.1~9.4**（P6-6B 工程团队接管）：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
 - **OPEN-P6-6A-10**（P6-6B 工程团队接管）：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
@@ -169,10 +183,33 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 - **PSV 火灾泄放**（P6-6A-5 C-21）：API 521 §3.4 default 43192 + AS 1210 §4.4 path (a) 7.2×10⁴ 液化 + fire_case coeff/exp 双字段（Ruling 15 闭环）；path (b) gas/vapor + Jet fire 110,000 W/m² 待 OPEN-P6-6A-10
 - **限制孔板（Restriction）**（P6-6A-4/7 C-19）：Cd/Y_cr^0.5 + Newton/bisection sizing inverse POST API + Y_cr@r_c 物理修正（bug-105）
 - **血缘与哈希**：record_hash 数值规范化 16 hex + DataLineage 只追加 + finalize_calc_record 统一收口
-- **前端模块**（P4.5 批 3 + P6-5 补课）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 + 加热值（`HeatingValuePage`）/ FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导 / PSYCHRO 饱和水含量（`SaturationWaterContentPage`）/ CV 控制阀（`CvComputePage`，含 Masonelian fl 3 字段）；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格；vitest 548 passed / 54 files
-- **状态机双轨**：记录级 9 态机（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE，StateMachineService.transition 驱动）+ 资源级 5 态机（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE，ConfigStateMachine 驱动公司模板 + 项目级轻量状态机）
+- **前端模块**（P4.5 批 3 + P6-5 补课 + P8 报表 + P9A 通知/待办）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 + 加热值（`HeatingValuePage`）/ FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导 / PSYCHRO 饱和水含量（`SaturationWaterContentPage`）/ CV 控制阀（`CvComputePage`，含 Masonelian fl 3 字段）/ **P8 报表 4 页**（`ReportDefinitionListPage` / `ReportDefinitionEditorPage` / `ReportExecutePage` / `ReportStylePage`）；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格 + NotificationCenter（待办 / 变更 / 系统 / 全部 四分组，红点取契约 `unread_count`）；**vitest 725 passed / 75 files**
+- **报表与计算书生成**（P8）：`POST /report/generate` 走 ARQ 异步渲染 →
+  `GET /report/{id}/status` 轮询 → `/download` / `/hash` 取件 →
+  `/report/verify/{id}` 二维码验签；**报表样式 5 态版本链**（增 / 改 / 激活 / 修订，
+  激活态唯一）+ REPORT_BUILDER 定义（数据源 → 字段 → 过滤 → 排序 → 分组 → 样式）→
+  异步执行 → 执行状态轮询
+- **用户身份模型**（P9A-A · ADR-0046）：`users` 表落地（uuid5 派生 ⇒ 主键）+
+  `token_version`（停用 / 改角色 ⇒ **在手令牌即刻失效**）+ LDAP 登录共用签发路径 +
+  AD 同步（每日凌晨 cron + 离职检测）与 `/admin/users`（列表 / 停用 / 手动同步）
+- **交付物签署写面**（P9A-B · ADR-0047）：`issue`（原子 `doc_no` 分配）/
+  `sign-step` / `customer-approval/proxy`（代录 + 二次认证）+ 记录侧 9 端点
+  （提交审批 / 审批步 / 弃用 / 请求撤销 / 撤销裁决 / 放弃变更 + 批注）
+- **观测层**（P9A-B · ADR-0047）：`workflow_progress` **同步写 + 同事务**
+  （写入层锁在 service 层 ⇒ cron 驱动的状态变更也**不隐形**）+ 读 API
+  （`GET /workflow-progress/{type}/{id}`）+ 5 态枚举
+- **通知与待办**（P9A-C · ADR-0049）：`notifications` 建表（部分索引）+ 通道抽象
+  （`NotificationChannel`，只有 `deliver()` 一个方法）+ WS 推送走 **Redis pub/sub**
+  （跨进程正确）+ 30 天 ARQ 清理 + **待办实时计算**（不建表 —— 真值是
+  「签署矩阵当前步骤 × 当前用户角色」）
+- **编辑锁（两层）**（P9A-D · ADR-0048）：**体验层** Redis 锁三端点
+  （acquire / renew / release，30min TTL，Redis 挂了 ⇒ **降级放行** + 橙色横幅）；
+  **正确性层** `record_hash` 16 hex 比对 ⇒ 保存冲突返 **409**
+  （按 `basis` 三值分流：`record_hash` / `updated_at` / `no_baseline`）+ 编辑审计
+  （`changed_fields` 字段名列表）
+- **状态机双轨**（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE，StateMachineService.transition 驱动）+ 资源级 5 态机（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE，ConfigStateMachine 驱动公司模板 + 项目级轻量状态机）
 - **配置资产**：公司管号模板 / 管架 / 流股符号三资源均挂 ConfigAsset（V1.4 §0.5 INT-OPEN-01），走 fork → project → 5 态机全流程；FMT-9 条规则验证 + PSV-22 字段完整闭环
-- **OpenAPI 契约门禁 G-08**：3 阶段 regen + 1 阶段 baseline 一致性（`pcs-backend/scripts/gate_08_openapi_contract.sh`），163 paths / 207 schemas / 0 drift；pre-commit 自动跑
+- **OpenAPI 契约门禁 G-08**：3 阶段 regen + 1 阶段 baseline 一致性（`pcs-backend/scripts/gate_08_openapi_contract.sh`），**239 paths / 334 schemas / 0 drift**（baseline 已滚动至 P9A 终态 `p9_007`）；pre-commit 自动跑
 - **文档完整度**（P5 批 h LOW/INFO 滚动 + P6-6A SPEC V1.11→V1.12 wording-only 6 修订）：38 个 `docs(p5c-low)` commit 闭环 105 项公共 API docstring；V1.12 wording 增补 C-16 12 result fields + C-19 Rulings 12/13 闭环链 + C-17 OPEN ID fix + C-21 OPEN-P6-6A-10 新立 + ATT-02 标题同步
 
 ### Backlog（OPEN 队列）
@@ -194,6 +231,11 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 - **物流与设备连接**（ADR-0019~0022）：设备是物流间的转换函数，不是一条物流的内部环节；出口物流由设备计算自动创建（`source_type=DEVICE_CALCULATED`，`sign_status=DRAFT`）
 - **位号终身唯一**：管道号 / 设备位号一旦分配终身占用（含 OBSOLETE），永不释放复用
 - **实质变更**：以重算后 record_hash 是否变化为准，不以上游数据是否变动为准
+- **并发保护两层**（ADR-0048）：**体验层** = Redis 编辑锁（让人知道「谁在改」，Redis 挂了 ⇒
+  降级放行 + 横幅）；**正确性层** = `record_hash` 比对（真冲突由后端裁定）。
+  ⚠️ **保存必须带基线**（`expected_hash`）—— 不带 ⇒ 409：放行等于「保护可以不存在」
+- **观测层写入点锁在 service 层**（ADR-0047）：cron 驱动的状态变更也必须留下观测行
+  ⇒ 写在 API 层会让 cron 驱动的变更在观测层**系统性隐形**（不报错、不告警）
 - **三处历史**：变更前快照 / 交付物版本绑定 / 审计日志（废除 xxx_History 快照流水表）
 
 详见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)。
