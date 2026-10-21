@@ -33,6 +33,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
 import MainLayout from '../../src/layouts/MainLayout';
+import { useDegradation } from '../../src/store/degradation';
 
 /** 契约形状（`components['schemas']['NotificationListResponse']`）。 */
 const CONTRACT_RESPONSE = {
@@ -60,6 +61,7 @@ describe('MainLayout — 通知接线（TODO-065）', () => {
   afterAll(() => server.close());
   beforeEach(() => {
     vi.clearAllMocks();
+    useDegradation.setState({ message: null });
   });
 
   it('后端返回契约形状时不得崩（红点取 unread_count，未读取 read_at）', async () => {
@@ -74,5 +76,52 @@ describe('MainLayout — 通知接线（TODO-065）', () => {
     await waitFor(() => {
       expect(screen.getByTestId('notif-badge').textContent).toContain('1');
     });
+  });
+});
+
+
+/**
+ * 降级横幅（SPEC §6.21 P9A-LCK-004 · RF-6）。
+ *
+ * ⚠️ **横幅不阻断任何操作** —— 放行的是**体验**，拦住并发的是 DB 层的
+ * `record_hash` 比对 ⇒ 降级时编辑**照常**可用。
+ *
+ * ⚠️ **文案取后端 message 原文** —— 「；本次编辑无冲突检测」这半句由后端按
+ * **该表的保存路径是否已接上冲突检测**决定（ADR-0048 §⑤）
+ * ⇒ 前端**不得**自行拼接、不得降级成一句全局提示。
+ */
+describe('MainLayout — 降级横幅（RF-6）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    useDegradation.setState({ message: null });
+  });
+
+  it('degraded ⇒ 顶栏出现横幅，且文案**原样**取后端 message', async () => {
+    useDegradation.setState({
+      message: '锁服务不可用，保存时可能冲突；本次编辑无冲突检测',
+    });
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('degradation-banner')).toBeTruthy());
+    expect(screen.getByTestId('degradation-banner').textContent).toContain(
+      '本次编辑无冲突检测',
+    );
+    // ⚠️ **不阻断**：壳照常渲染（通知铃铛仍在）
+    expect(screen.getByTestId('notif-badge')).toBeTruthy();
+  });
+
+  it('无降级 ⇒ **不渲染**横幅（不是渲染一句自造全局提示）', async () => {
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
+    expect(screen.queryByTestId('degradation-banner')).toBeNull();
   });
 });

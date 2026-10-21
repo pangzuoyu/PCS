@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button, Layout, Menu, Space, Typography } from 'antd';
+import { Alert, Badge, Button, Layout, Menu, Space, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ import {
   type NotificationItem,
 } from '../api/notifications';
 import { todosApi, type TodoItem } from '../api/todos';
+import { useDegradation } from '../store/degradation';
 
 const { Header, Content, Sider } = Layout;
 
@@ -106,6 +107,8 @@ export default function MainLayout() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  // ⚠️ 降级横幅的文案取**后端 message 原文**（前端不拼接、不自造）。
+  const degradationMessage = useDegradation((s) => s.message);
 
   useEffect(() => {
     // ⚠️ **走 axios 实例**（`api`）而不是裸 `fetch`：
@@ -157,6 +160,15 @@ export default function MainLayout() {
           <Button onClick={onLogout}>登出</Button>
         </Space>
       </Header>
+      {degradationMessage && (
+        <Alert
+          type="warning"
+          showIcon
+          data-testid="degradation-banner"
+          message={degradationMessage}
+          style={{ margin: '8px 24px 0' }}
+        />
+      )}
       <Layout>
         <Sider width={220} style={{ overflow: 'auto' }}>
           <Menu

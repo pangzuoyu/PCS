@@ -166,9 +166,9 @@ export const seedChangeImpact: { source: ChangeSource; records: AffectedRecord[]
     changed_at: '2026-09-16T04:30:00Z',
   },
   records: [
-    { record_id: 'pipe-p-1001', record_type: 'PIPE', tag_number: 'P-1001', result_label: '压降 8.5 → 9.2 kPa' },
-    { record_id: 'pipe-p-1002', record_type: 'PIPE', tag_number: 'P-1002', result_label: '压降 12.0 → 12.8 kPa' },
-    { record_id: 'pump-pu-301', record_type: 'PUMP', tag_number: 'PU-301', result_label: '扬程 24.5 → 25.3 m' },
+    { record_id: 'pipe-p-1001', record_type: 'PipingResult', tag_number: 'P-1001', result_label: '压降 8.5 → 9.2 kPa' },
+    { record_id: 'pipe-p-1002', record_type: 'PipingResult', tag_number: 'P-1002', result_label: '压降 12.0 → 12.8 kPa' },
+    { record_id: 'pump-pu-301', record_type: 'PumpResult', tag_number: 'PU-301', result_label: '扬程 24.5 → 25.3 m' },
   ],
 };
 

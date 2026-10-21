@@ -32,6 +32,7 @@ import { ApprovalStepBar, type ApprovalStep } from '../../components/common/Appr
 import { ConflictResolver, type Conflict } from '../../components/common/ConflictResolver';
 import { LineageGraph, type LineageNode, type LineageEdge } from '../../components/common/LineageGraph';
 import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../../components/common/ChangeImpactPanel';
+import { changeImpactApi } from '../../api/changeImpact';
 import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
 import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
 import { streamPhaseColor, streamPhaseLabel, type Stream } from '../../types/stream';
@@ -219,7 +220,18 @@ export function StreamDetailPage({
         {changeImpact && (
           <Col span={24}>
             <Card title="变更影响" size="small" data-testid="stream-detail-change-impact">
-              <ChangeImpactPanel changeSource={changeImpact.source} affectedRecords={changeImpact.records} />
+              <ChangeImpactPanel
+                changeSource={changeImpact.source}
+                affectedRecords={changeImpact.records}
+                // ⚠️ **两个端点，不合并**（SPEC §6.7.1）：系统判定 confirm /
+                // 人工判定 manual-adjust。`record_type` 已是注册表键 ⇒ 后端不 404。
+                onConfirmSystem={(recordType, recordId) =>
+                  changeImpactApi.confirm(recordType, recordId)
+                }
+                onManualAdjust={(recordType, recordId, decision, reason) =>
+                  changeImpactApi.manualAdjust(recordType, recordId, { decision, reason })
+                }
+              />
             </Card>
           </Col>
         )}
