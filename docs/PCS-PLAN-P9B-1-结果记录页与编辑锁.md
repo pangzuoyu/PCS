@@ -1220,3 +1220,209 @@ T3/T4/T5/T6 都改 `MainLayout.tsx` / `App.tsx` / `handlers.ts` ⇒ 同目录冲
 ⚠️ 顺带核实：后端 `*UpdateRequest` 是 `extra="ignore"` ⇒ 多余字段
 （如展开整个 `baseline` 带出的 `disabled` / `reason`）会被**静默丢弃**、不会 422
 ⇒ 但那是**依赖后端策略**的做法 ⇒ T3 改为**显式构造请求体**（只带两个基线 key）。
+
+
+---
+
+## 执行记录（2026-10-21 · T0~T7 完成 + 最终评审）
+> 本节是**执行时的裁决与修正**（原样搬自 ledger `.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`，
+> 该目录在收口时按 skill 要求删除 ⇒ 记录落在这里，**随仓库分发**）。
+
+### 逐任务结果
+```
+Task 0: complete (commits a963a76..34134ae, tests: uv run pytest -q → 5165 passed, 77 skipped, 4 deselected, 1 xfailed, 84 warnings in 417.53s (0:06:57))
+Task 1: complete (commits 34134ae..46b7704, tests: npm run test →    Duration  28.50s (transform 3.87s, setup 17.99s, collect 79.86s, tests 303.70s, environment 47.25s, prepare 8.29s))
+Task 2: complete (commits 46b7704..5c28b11, tests: npm run test →    Duration  29.37s (transform 4.62s, setup 19.12s, collect 85.70s, tests 302.43s, environment 50.41s, prepare 9.66s))
+Task 3: complete (commits 5c28b11..a51445a, tests: npm run test →    Duration  36.41s (transform 4.35s, setup 19.20s, collect 86.53s, tests 344.62s, environment 51.06s, prepare 9.43s))
+Task 4: complete (commits a51445a..ebecd0d, tests: npm run test →    Duration  38.72s (transform 5.48s, setup 22.87s, collect 101.51s, tests 355.77s, environment 60.71s, prepare 10.89s))
+Task 5: complete (commits ebecd0d..aa32c10, tests: npm run test →    Duration  38.44s (transform 4.32s, setup 21.12s, collect 93.28s, tests 368.85s, environment 55.55s, prepare 10.22s))
+Task 6: complete (commits aa32c10..2ddd85a, tests: npm run test →    Duration  38.24s (transform 5.02s, setup 20.76s, collect 97.03s, tests 360.88s, environment 57.11s, prepare 10.27s))
+Task 7: complete (commits 2ddd85a..ed58075, tests: npm run test →    Duration  38.01s (transform 4.37s, setup 21.34s, collect 93.73s, tests 352.76s, environment 55.37s, prepare 9.81s))
+```
+
+### 裁决（Ruling 1~11）
+#### Rulings
+
+### Ruling 1 —— `CommonResultRow` 的状态列降为可选 + 可编辑判据按「有无状态列」分流
+
+- **事实**：生成的契约里 `CostEstResultResponse` 的字段只有
+  `result_id / equipment_id / estimated_cost / currency / cost_index_year /
+  base_cost? / base_year? / cepci_index_base? / cepci_index_target? /
+  correlation_source? / scaling_exponent? / record_hash? / project_id / created_at`
+  —— **无** `sign_status` / `workspace_id` / `tag_number` / `updated_at`。
+  后端 `app/models/calc.py:1193` 的 `CostEstResult` 注释明写
+  「仍**不补** `workspace_id` / `sign_status` / `updated_at` —— 本表的设计是
+  『1:1 跟随设备、状态跟设备』」。
+- **裁决**：
+  1. `CommonResultRow` 只把 6 个模块**共有**的列设为必填（`project_id` /
+     `record_hash?` / `created_at`），`sign_status` / `workspace_id` /
+     `tag_number` / `updated_at` 设为**可选** ⇒ 6 个响应类型全部可赋值给它。
+  2. 可编辑判据抽成 `isRowEditable(sign_status)`：
+     `sign_status == null` ⇒ 该模块**没有状态列**（cost_est）⇒ 后端也**没有**
+     状态门禁 ⇒ 可编辑；否则 `isEditableSignStatus(sign_status)`
+     （`DRAFT` / `CHANGE_PENDING`）。
+     实测依据：只有 `cool_tower` / `filtration` / `flare` / `open_channel` /
+     `psychro` 五个 persist service 有 `*_PERSIST_SIGN_STATUS_LOCKED`
+     （`cost_est` 没有）。
+  3. `useEditBaseline` 的 `canEdit` **仍是必填参数** ⇒ 漏传仍是编译错误。
+- **为什么不用「给后端补 4 列」**：计划 D5 裁决「本批后端只加 `current_version_id`」；
+  补 4 列 = 迁移 + 契约 + 语义变更（且 cost_est 的设计就是「状态跟设备」，
+  补了就是**两套状态源**）⇒ 远超本批范围。
+- **代价**：若将来 cost_est 真的引入状态列，前端判据自动走「有 sign_status」
+  分支 ⇒ **无需改动**；实际代价接近 0。
+
+### Ruling 2 —— T0 用 service 层一次批量查询代替 `selectinload(Deliverable.versions)`
+
+- **事实**：`Deliverable` ORM **没有** `versions` 关系
+  （`app/models/deliverable.py` 只有 `DeliverableVersion.deliverable_id` 这个 FK，
+  全仓 `deliverable.py` 无一处 `relationship()`）⇒ 计划写的
+  `selectinload(Deliverable.versions)` **跑不起来**。
+- **裁决**：不新增 ORM relationship（新增会改变 `Deliverable` 删除时的级联语义，
+  且 `lazy` 策略漏配就是 async 下的 `MissingGreenlet`）⇒ 改为 service 层
+  **一次批量**查 `deliverable_versions`（`WHERE deliverable_id IN (...)`）+ 显式装配
+  `current_version_id`。
+- **验收不变**：查询数 = 计数 + 交付物 + 版本 = **3**（计划要求 ≤ 3），
+  且 `v.rev == d.current_rev` 的断言保留。
+- **代价**：多一个 service 方法；版本表变大时这一次会拉该页交付物的全部版本行
+  （本批交付物量级小，可接受）。
+
+### Ruling 3 —— 卸载释放改用 `fetch(keepalive)`，**不用** `sendBeacon`
+
+- **事实**：后端 `POST /locks/{rt}/{id}/release` 依赖 `current_actor`
+  （`app/api/v1/config.py:483`）= **`Authorization: Bearer` 头**，
+  **无** cookie、**无** query 参数、**不读** body 里的 `user_id`
+  （持有者身份取自 JWT 的 `user_id`）。
+- ⇒ `navigator.sendBeacon` **无法带 Authorization 头** ⇒ 计划里
+  「页面卸载用 sendBeacon 释放」这条**必然 401** ⇒ 永远不生效
+  ⇒ 锁白占 30min —— 正是 RF-10 要治的病。
+- **裁决**：改用
+  `fetch(url, {method:'POST', keepalive:true, headers:{Authorization:'Bearer <token>'}})`。
+  `keepalive` 正是浏览器为「卸载期间发请求」提供的机制（卸载**不取消** keepalive
+  请求）⇒ 计划的目的（RF-10）达成，机制被修正。
+  计划里「不得在 beforeunload 里用普通 fetch」的顾虑针对的是**不带 keepalive**
+  的 fetch。
+- **代价**：测试从「断言 `sendBeacon` 被调用」改成「断言 keepalive POST +
+  Authorization 头」；若某浏览器不实现 keepalive，退化为普通 fetch
+  （可能被取消 ⇒ 退回 30min TTL 回收，与今天一致）。
+
+### Ruling 4 —— `PatchBaseline.expected_hash` 改可选，「漏传基线」由编译错误降级为运行时 409
+
+- **事实**：计划 T1 把 `expected_hash` 从 `locks.ts` 的**必填**改为 `records.ts` 的
+  **可选**（三档基线必需）⇒ `recordsApi.patch` 的 body 类型不再强制基线。
+- **裁决**：接受（三档基线的必然要求）⇒ 但**用测试守住**：
+  T1 断言请求体含 `expected_hash`；T2 的 RF-13 断言**穿过展开**后仍是
+  `expected_hash`（不是 `expectedHash`）。
+- **代价**：多两处断言；换「漏传基线」从编译期挪到测试期（这是三档基线换来的
+  必然代价，测试守住即可）。
+
+### Ruling 5 —— 工作区：**不建 worktree**，直接在 `main` 上提交
+
+- **事实**：计划 Global Constraints 第 9 条明写「⚠️ **不要建 worktree**
+  （本仓历史事故，见 `.wolf/STATUS.md`）」；项目 `CLAUDE.md` 重复同一条警告
+  （曾发生 worktree 被删导致会话永久无法 Edit/Bash 的事故）。
+- **裁决**：按计划与项目规则，在 `main` 上直接实现并按计划逐任务提交
+  （本仓既有批次的历史做法：commit 直接落 main）。
+- **代价**：无隔离分支可回退；靠每个任务的 commit 边界 + git 回退兜底。
+Task 0: complete (commits a963a76..34134ae, tests: uv run pytest -q → 5165 passed, 77 skipped, 4 deselected, 1 xfailed, 84 warnings in 417.53s (0:06:57))
+Task 1: complete (commits 34134ae..46b7704, tests: npm run test →    Duration  28.50s (transform 3.87s, setup 17.99s, collect 79.86s, tests 303.70s, environment 47.25s, prepare 8.29s))
+
+### Ruling 6 —— 列表的偏移参数名逐模块不同 ⇒ `recordsApi.list` 按 base 翻译
+
+- **事实**：后端 6 个列表端点的偏移 query 参数**两种拼法各 3 个**：
+  - `offset` —— cool-tower / flare / psychro
+  - `skip` —— filtration / open-channel / cost-est
+  （计划只提到「**响应信封**的分页字段名不同」，没提**请求参数名**也不同。）
+- **裁决**：`recordsApi.list` 的入参统一叫 `offset`，由 api 层按 `base`
+  翻译成 `skip` / `offset` 再发；`RESULT_OFFSET_PARAMS`（记录域的单一来源）
+  逐模块声明。
+- **为什么不用「调用方自己传对」**：传错**不报错**（后端忽略不认识的 query 参数）
+  ⇒ 结果是**静默停在第一页** ⇒ 翻页看起来「没反应」⇒ 这种错最难查。
+- **代价**：多一张映射表（由 `RESULT_BASES` 派生 ⇒ 不会漂移）。
+
+### 最终整支评审（opus · 范围 `a963a76..ed58075`）
+```
+---
+
+# 最终评审（2026-10-21 · a3104b1f02eab6bbf · opus）
+
+评审范围 `a963a76..ed58075`（10 个 commit）。结论：**1 Critical + 5 Important +
+8 Minor + 9 条「Declined to judge」**。
+RF 表 13 行**逐行核对**：12 行满足，RF-10「部分满足」（缺口 = Important ③，已修）。
+
+## 已修（Critical + Important）—— 每个都先 RED 后 GREEN
+
+Final: fixed Critical（编辑抽屉**每个可编辑字段都显示空白**：antd 的 `Form.Item name`
+用**表单 store 的值**覆盖了子元素自己的 `value`，而抽屉从不 `setFieldsValue` ⇒
+store 为空 ⇒ 全空；且请求体仍是对的 ⇒ 浏览器 QA 断言请求体时看不见）
+—— `tests/pages/results/result_page.test.tsx`「打开抽屉 ⇒ 每个可编辑字段显示记录里的值」
+RED（`expected '' to be '100'`）→ GREEN，suite 86 files / 818 passed
+
+Final: fixed Important ②（409「放弃并刷新」不把新 hash 交回列表 ⇒ 下一次编辑必 409
+假冲突）—— 同文件「409 ⇒ 放弃并刷新 ⇒ 列表那一行的哈希变成服务端的新值」RED→GREEN，
+suite 818/818
+
+Final: fixed Important ③（SPA 导航让抽屉静默卸载 ⇒ 锁白占 30min；`pagehide` 只在
+**文档**卸载时触发）—— 同文件「组件卸载 ⇒ 调 release」RED→GREEN，suite 818/818
+（⚠️ 只在**确实持锁**时释放：StrictMode 的 cleanup 会在 acquire 落地前跑，
+无条件释放会与随后的 acquire 抢跑）
+
+Final: fixed Important ④（`RealtimeStatusBanner` **没有任何宿主** ⇒ SPEC §6.23
+实际没交付；组件只活在测试里 = 假绿形状）—— `tests/layouts/MainLayout.test.tsx`
+「realtime=degraded ⇒ 顶栏出现横幅，且说「仍可收到通知」」RED→GREEN，suite 818/818
+
+Final: fixed Important ⑤（交付物列表 `pagination={false}` + 硬编码 `limit: 100`
+⇒ 超额静默截断、用户以为「就这些」）—— `tests/pages/deliverables/deliverable_progress.test.tsx`
+「列表分页（不得静默截断到前 100 条）」RED→GREEN，suite 818/818
+
+Final: fixed Important ⑥（变更影响判定失败 = 静默 no-op + 未捕获 promise rejection）
+—— `tests/components/common/ChangeImpactPanel.test.tsx`「判定失败必须明说」RED→GREEN，
+suite 818/818
+
+Final: fixed 附带（buglog 里 bug-2042 / bug-2043 的 `fix_commit` 是**悬空 SHA**
+`49f6b08`（被 amend 掉、只存在于不可达对象）⇒ 改成 `ed58075`）
+
+## Deferred minors（不进修复批 —— 每条要单独一个测试与一次改动）
+
+Final: minor (deferred): 「联系管理员」按钮在生产里是**死的**（`onContact` 可选，
+唯一的生产调用方省略了它）—— `EditConflictModal.tsx:101`
+Final: minor (deferred): `editableFieldDefs` 从 `columns` 派生 ⇒ `editableFields` 里
+漏掉的字段会**静默**从表单消失 —— 缺一条「editableFields ⊆ columns」的守卫
+Final: minor (deferred): 降级横幅成功后**不消失**（`onDegraded(null)` 从不被调）
+⇒ 一次 Redis 抖动把警告钉到会话结束 —— `useEditLock.ts:114`
+Final: minor (deferred): `enabled` 翻 false 时状态不复位 ⇒ 换一条记录会短暂显示
+上一条的「他人正在编辑 / 锁已失效」—— `useEditLock.ts:70`
+Final: minor (deferred): 卸载释放路径硬编码 `/api/v1/locks/...`（应取
+`api.defaults.baseURL`）—— `ResultEditDrawer.tsx:121`
+Final: minor (deferred): `api/audit.ts` 的 `listRecordEdits` 与 `auditApi.listAuditLogs`
+**完全重复**（同端点同响应类型）⇒ 只多一个名字
+Final: minor (deferred): `WorkflowProgressPanel` 把 403 / 404 / 网络错误都映射成
+同一句 `errorDescription` ⇒ 404 被读成「无权限」—— `WorkflowProgressPanel.tsx:74`
+
+## 评审「Declined to judge」的裁决（逐条）
+
+Final: Ruling: 「全局 20s 单测超时是上一批遗留、与本计划无关」—— 不动 —— 它是
+**负载**问题（实测 3.8~8.5s 的真耗时卡在 5s 线上下），已在本批实测通过
+（86 files / 818 passed 无偶发红）—— 代价：若别的机器更慢，仍可能假红
+Final: Ruling: 「antd Drawer/Table 在 jsdom 里随行数线性变慢」—— 不动 ——
+**测试环境**开销（真浏览器走 CSS 过渡，不阻塞交互），已记进 QA 报告附注 ——
+代价：单文件仍要 ~20s
+Final: Ruling: 「409 弹窗的 onCancel = 放弃并刷新（破坏性动作绑在 X 上）」—— 保留 ——
+本计划把这两个出口**定义为**破坏性的（RF-2：必须留「刷新后重试」的出口），
+属设计而非缺陷 —— 代价：误点 X 会丢编辑 ⇒ 已由「有未保存修改时弹确认」覆盖
+Final: Ruling: 「`onSaved` 只同步 `record_hash`、不同步字段值（保存后表格里
+还是旧值）」—— 保留 —— 本计划给 `onSaved` 的签名就是 `{record_hash}`，
+字段值刷新属**另批**的事 —— 代价：保存后表格的字段列需刷新才准
+Final: Ruling: 「第三档 `no_baseline` 的行不可编辑」—— 保留 —— 本计划的
+「事实基础」明确要这段**防御性代码」（`cost_est_results` 的空 hash 行会命中）——
+代价：dev 库当前无此类行 ⇒ 这段代码暂无真实数据可走
+Final: Ruling: 「`project_id` 取 `constants/env.ts` 的单项目假设」—— 保留 ——
+本计划的「尚未解决的问题」已列，多项目属 P9B-2 —— 代价：多项目部署时列表为空
+Final: Ruling: 「无 WebSocket 订阅；`/health` 的 realtime 只读」—— 保留 ——
+但**修正**评审的 Important ④：§6.23 的**横幅**本批已补上宿主（bug-2047 已修），
+「只读 /health」现在是真的了 —— 代价：仍无 WS 订阅 ⇒ 通知仍是轮询
+Final: Ruling: 「`cost_est` 无 `sign_status` ⇒ 恒可编辑」—— 保留 —— P9B-1
+Ruling 1，已核后端该表**无状态门禁** —— 代价：将来给它加状态列时前端自动分流
+Final: Ruling: 「`.gstack/` 报告不入 git」—— 保留 —— 仓库**设计如此**
+（`CLAUDE.md` 有记录：截图体积大）⇒ 关键结论已同步进 `TODOS.md` 与提交信息 ——
+代价：报告无法随仓库分发给同事
+```

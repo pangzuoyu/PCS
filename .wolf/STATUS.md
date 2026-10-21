@@ -1,43 +1,57 @@
 ---
 description: session handoff, regenerate with /handoff when a quest finishes
-budget_tokens: 1500
+budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-21（P9B-1 完成 + 3 个 bug 修复）。
+> Read this FIRST when starting a session. Last updated: 2026-10-21（P9B-1 完成 + 最终评审修复）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
 
-### 第 10 轮（本会话）：**P9B-1**（结果记录页 + 编辑锁前端）—— T0~T7 全完成
+### 第 10 轮：**P9B-1**（结果记录页 + 编辑锁前端）—— T0~T7 全完成
 
-计划 `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`（已过 `/plan-eng-review` + 决策委员会复审）。
-commit `34134ae` → `2ddd85a`（+ 收口笔）。
+计划 `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`。commit `34134ae` → `2ddd85a`。
 
-| 产出 | 内容 |
-|---|---|
-| **后端 T0** | `DeliverableResponse.current_version_id`（一次批量查版本，**禁 N+1**）⇒ 契约重生成 |
-| **T1** | `src/api/records.ts`（记录域**单一来源**：词表 / `PatchBaseline` / `RESULT_BASES` / `recordsApi`）；`locks.ts` 归并；`audit.ts` 加 `listRecordEdits` |
-| **T2** | 三档基线 hook（RF-8/9/13）+ 编辑锁 hook（60s 心跳、**不重试**）+ 锁指示器 + 409 弹窗（按 basis 分流） |
-| **T3** | **通用结果页 + 6 个类型化模块描述符 + 编辑抽屉**（6 条路由 + 菜单）⇒ 6 类结果记录**从零建**（此前前端零页面、零 PATCH） |
-| **T4** | 顶栏降级横幅（文案取后端原文、**不阻断**）+ `ChangeImpactPanel` 的**注册表键归一** + 系统/人工两个判定动作 |
-| **T5** | 观测进度 / 待办 / 实时状态三个面板（§6.22~§6.24）；待办 tab 换成 `TodoPanel` |
-| **T6** | 交付物进度页（**只 SIGN**，行展开才拉进度，空状态三态） |
-| **T7** | QA gate：浏览器回归 10 项全过 + MSW 三场景 + Playwright E2E 一条（409 分流） |
+产出：**后端** `DeliverableResponse.current_version_id`（禁 N+1）· **前端**
+`records.ts` 单一来源 · 三档基线 + 编辑锁 hook（60s 心跳、不重试）·
+**通用结果页 + 6 个模块描述符 + 编辑抽屉**（6 类结果记录从零建）· 顶栏降级横幅 ·
+变更影响的注册表键归一 · 观测/待办/实时三面板 · 交付物进度页 · QA gate
+（浏览器回归 10 项 + MSW 三场景 + Playwright 一条）。
 
-**基线**：后端 **5165 passed / 77 skipped**（+8）；前端 **809 passed / 86 files**（+84 / +11 files）；
-两端 typecheck + lint clean；契约前后端一致。
-浏览器回归报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md`（本地，不进仓库）。
+基线：前端 809 passed / 86 files；后端 5165 passed / 77 skipped；契约一致。
+报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md`（本地）。
 
-### 本会话修的 3 个 bug
+本会话另修 bug-2041（HIGH · `p9_006` 在**全新库**上崩 ⇒ CI 红灯）、
+bug-2042（HIGH · 降级 store 的 `setMessage` 是**空函数**）、
+bug-2043（HIGH · 跨结果页残留上一模块的行）。
+
+### 第 11 轮：**最终整支评审**（opus，范围 `a963a76..ed58075`）
+
+结论 **1 Critical + 5 Important + 8 Minor**。Critical + Important **已修**
+（commit `20a3cc6`），8 条 Minor 延后（`TODOS.md` **TODO-067**）。
 
 | bug | 级别 | 一句话 |
 |---|---|---|
-| **bug-2041** | HIGH | `p9_006` 迁移在**全新库**上 `alembic upgrade head` 崩（ORM 后加的 `project_id` 列把老迁移打破）⇒ CI api-drift 红灯 |
-| **bug-2042** | HIGH | 降级 store 的 `setMessage` 是**空函数** ⇒ 顶栏横幅**永远不出现**（计划原文的代码片段就有这个洞） |
-| **bug-2043** | HIGH | 跨结果页切换**残留上一模块的行** + 一排 undefined 主键 ⇒ React 重复 key 18 次 |
+| **bug-2044** | **CRITICAL** | 编辑抽屉**每个可编辑字段都显示空白** —— `Form.Item name` 用**表单 store 的值**覆盖了 `value`，而抽屉从不 `setFieldsValue` ⇒ store 空 ⇒ 全空。⚠️ **请求体仍是对的** ⇒ QA 断言请求体时看不见 |
+| **bug-2045** | IMPORTANT | 409「放弃并刷新」不把新 hash 交回列表 ⇒ 下一次编辑必 409（假冲突） |
+| **bug-2046** | IMPORTANT | SPA 导航让抽屉静默卸载 ⇒ 锁白占 30min（`pagehide` 只在**文档**卸载时触发） |
+| **bug-2047** | IMPORTANT | `RealtimeStatusBanner` **没有任何宿主** ⇒ SPEC §6.23 实际没交付（组件只活在测试里 = 假绿） |
+| **bug-2048** | IMPORTANT | 交付物列表 `pagination={false}` + 硬编码 `limit:100` ⇒ 超额**静默截断** |
+| **bug-2049** | IMPORTANT | 变更影响判定失败 = 静默 no-op + **未捕获的 promise rejection** |
+
+⚠️ **评审的 RF 表 13 行逐行核对**：12 行满足，RF-10「部分满足」（缺口 = bug-2046，已修）。
+⚠️ **教训**：bug-2044 说明「断言请求体」**不等于**「断言界面」⇒ UI 的断言要落在
+**渲染出来的值**上。
+
+### P9B-2 计划已写好（**未执行**）
+
+`docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` —— T0~T7：两个后端前置
+（TODO-065 聚合进度端点 / TODO-066 编辑审计读端点）+ 记录操作栏 + 批注面板 +
+状态时间线 + ADMIN 用户管理 + 审计日志（查询 + 导出）。
+⚠️ **尚未过 `/plan-eng-review`** ⇒ 开工前建议过一轮。
 
 ---
 
