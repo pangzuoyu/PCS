@@ -25,6 +25,7 @@ import {
   type NotificationItem,
 } from '../../api/notifications';
 import type { TodoItem } from '../../api/todos';
+import { TodoPanel } from './TodoPanel';
 
 type TabKey = 'todo' | 'change' | 'system' | 'all';
 
@@ -108,35 +109,9 @@ export function NotificationCenter({
       />
 
       {activeTab === 'todo' ? (
-        todos.length === 0 ? (
-          <Empty description="暂无待办" data-testid="notification-empty" />
-        ) : (
-          <List
-            data-testid="todo-list"
-            size="small"
-            dataSource={todos}
-            renderItem={(t: TodoItem) => (
-              <List.Item data-testid="todo-item" data-version-id={t.version_id}>
-                <Space direction="vertical" size={2} style={{ flex: 1 }}>
-                  <Typography.Text strong data-testid="todo-title">
-                    {t.title}
-                  </Typography.Text>
-                  <Typography.Text type="secondary" data-testid="todo-step-role">
-                    第 {t.step_order} 步 · {t.step_role}
-                  </Typography.Text>
-                </Space>
-                <Button
-                  type="link"
-                  size="small"
-                  data-testid="todo-go"
-                  onClick={() => onTodoClick?.(t)}
-                >
-                  去签署
-                </Button>
-              </List.Item>
-            )}
-          />
-        )
+        /* ⚠️ 待办 tab 的内容源是 **`GET /todos`**（不是通知）——
+           SPEC §6.20 的分组来源表；且**待办与通知不得合并成一个列表**。 */
+        <TodoPanel items={todos} onOpen={onTodoClick} />
       ) : visible[activeTab].length === 0 ? (
         <Empty description="暂无通知" data-testid="notification-empty" />
       ) : (

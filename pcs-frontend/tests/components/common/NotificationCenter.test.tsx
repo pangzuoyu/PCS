@@ -191,7 +191,8 @@ describe('NotificationCenter — tab 切换（分组来源）', () => {
     );
     fireEvent.click(todoTab!);
     expect(document.querySelectorAll('[data-testid="notification-item"]').length).toBe(0);
-    expect(document.querySelectorAll('[data-testid="todo-item"]').length).toBe(1);
+    // ⚠️ 待办 tab 的内容源是 `GET /todos`（**不是**通知）⇒ 渲染 TodoPanel
+    expect(document.querySelectorAll('[data-testid="todo-panel"]').length).toBe(1);
     expect(screen.getByTestId('todo-title').textContent).toContain('物流 S-101 计算书待校核');
   });
 });
