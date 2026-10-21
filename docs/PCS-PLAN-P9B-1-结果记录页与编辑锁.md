@@ -77,7 +77,8 @@ MSW（node 与 browser 两用）+ Playwright（e2e/ 已装）。
 | **RF-9** | **时间戳过 `new Date()`** —— 微秒被截成毫秒 ⇒ 每次假 409 | 基线里的时间戳**原样透传**响应字符串 | T1 / T2 / T3 |
 | **RF-10** | **抽屉关闭白占锁 30min** ⇒ 同事看到「张三 正在编辑」而张三 已走 | 抽屉关闭即 release；未保存修改先弹确认；页面卸载用 `sendBeacon` | T3 |
 | **RF-11** | **`record_type` 传分类词**（"PIPE"）⇒ `/locks` / `/change-impact` 404 | 数据层只放注册表键；展示分类走「键 → UI 表示」映射表 + fallback | T4 |
-| **RF-12** | **禁用原因不分类** ⇒ 用户以为是自己没权限 | Tooltip 区分「无权限」与「无基线（联系管理员）」两类 | T2 / T3 |
+| **RF-12** | **禁用原因不分类** ⇒ 用户以为是自己没权限 | Tooltip 区分「状态不可编辑」与「无基线（联系管理员）」两类 | T2 / T3 |
+| **RF-13** | **基线字段名在中间层漂移**（`expected_hash` → `expectedHash`）⇒ ⚠️ **TypeScript 不报错**（实测 2026-10-21 编译通过）⇒ 请求体缺基线 ⇒ **每次保存 409 `no_baseline`** | 中间层与请求体**同一套 snake_case 字段名**；**测试断言请求体**（不是 hook 返回值） | T1 / T2 / T3 |
 
 ---
 
@@ -194,7 +195,7 @@ P9A-4 D0~D3 的契约）。
 | 文件 | 职责 |
 |---|---|
 | `src/api/records.ts` | 记录域单一来源：`EditableRecordType` + `EDITABLE_RECORD_TYPES` + `PatchBaseline` + `RESULT_BASES` + `recordsApi`（list/get/patch） |
-| `src/hooks/useEditBaseline.ts` | **三档基线判定**（hash / updated_at / 两档皆无）⇒ `{disabled, reason, expectedHash, expectedUpdatedAt}` |
+| `src/hooks/useEditBaseline.ts` | **三档基线判定**（hash / updated_at / 两档皆无）⇒ `{disabled, reason, expected_hash?, expected_updated_at?}`（⚠️ 与 `PatchBaseline` **同一套 snake_case 字段名** ⇒ 展开即兼容，见 RF-13） |
 | `src/hooks/useEditLock.ts` | 取锁 → 60s 心跳 → 失效转只读；release（best-effort） |
 | `src/components/common/EditLockIndicator.tsx` | 锁状态（他人持锁 / 失效） |
 | `src/components/common/EditConflictModal.tsx` | 409 弹窗，按 `basis` 三值 + `unknown` 兜底分流 |
@@ -305,7 +306,11 @@ P9A-4 D0~D3 的契约）。
   ] as const;
   export type EditableRecordType = (typeof EDITABLE_RECORD_TYPES)[number];
 
-  /** 并发基线（SPEC §6.21 P9A-LCK-006）。 */
+  /** 并发基线（SPEC §6.21 P9A-LCK-006）。
+   *  ⚠️ **字段名必须是 snake_case**（与后端请求体逐字一致）——
+   *  中间层（`EditBaseline`）也用**同一套名字** ⇒ 展开即兼容，无需转换。
+   *  ⚠️ 可选性（两个都可选）**类型层表达不了**「至少一档」⇒ 由**运行时**保证
+   *  （`useEditBaseline` 的 `disabled === false` ⇒ 至少一档有值，见 T2）。 */
   export interface PatchBaseline {
     expected_hash?: string;          // ⚠️ 一档
     expected_updated_at?: string;    // ⚠️ 二档（原样透传，**不过 Date**）
@@ -321,8 +326,13 @@ P9A-4 D0~D3 的契约）。
   };
 
   export const recordsApi = {
-    list: <TList>(base: string, params: { project_id: string; limit?: number; offset?: number }) =>
-      api.get<TList>(base, { params }).then((r) => r.data),
+    /** ⚠️ 返回类型只约束**信封的公共部分** `{items, total}` ——
+     *  6 个模块的分页字段名**不同**（`limit/offset` vs `skip/limit`）
+     *  ⇒ **不消费分页字段**，偏移自己算。 */
+    list: <T>(base: string, params: { project_id: string; limit?: number; offset?: number }) =>
+      api.get<{ items: T[]; total: number } & Record<string, unknown>>(
+        base, { params },
+      ).then((r) => r.data),
     get: <TRes>(base: string, id: string) =>
       api.get<TRes>(`${base}/${id}`).then((r) => r.data),
     /** ⚠️ 6 个模块**同构**（OpenAPI 实测：6 个 *UpdateRequest 都带基线字段）
@@ -332,9 +342,10 @@ P9A-4 D0~D3 的契约）。
     ) => api.patch<TRes>(`${base}/${id}`, body).then((r) => r.data),
   };
   ```
-  ⚠️ **`PatchBaseline` 两个字段都可选** —— 可选性由**类型层表达不了**
-  （三档判定在运行时），但**签名必须允许「只带一档」**。
-  ⇒ 「必须带至少一档」由 `useEditBaseline` 的返回值类型保证（见 T2）。
+  ⚠️ **基线字段名在中间层漂移 ⇒ TypeScript 不报错 ⇒ 运行时每次保存 409**
+  （实测 2026-10-21：`{...changed, ...baseline}` 里的 `expectedHash` **编译通过**，
+  但请求体没有 `expected_hash` ⇒ 后端 `expected_hash is None` ⇒ 409 `no_baseline`）
+  ⇒ 这就是 **RF-13**，守卫见 T2/T3 的「穿过展开」的断言。
 
 - [ ] **Step 1：写失败测试** `tests/api/records_api.test.ts`（MSW `setupServer`）
 
@@ -415,19 +426,32 @@ P9A-4 D0~D3 的契约）。
   // src/hooks/useEditBaseline.ts —— **三档基线判定的唯一实现**
   export type EditBaselineReason =
     | 'ok'                 // 有可用基线
-    | 'no-permission'      // 用户无该记录的编辑权限
+    | 'no-permission'      // 当前状态不可编辑（sign_status 锁定态）
     | 'no-baseline';       // 两档皆无 ⇒ 无法安全编辑
 
-  export interface EditBaseline {
+  /** ⚠️ **继承 `PatchBaseline` ⇒ 字段名逐字相同（snake_case）** ——
+   *  展开即类型兼容，不需要转换函数。
+   *  ⚠️ 若这里改用 camelCase（`expectedHash`），**TypeScript 不会报错**
+   *  （实测 2026-10-21 编译通过）⇒ 请求体缺 `expected_hash`
+   *  ⇒ **每次保存 409 no_baseline** ⇒ 见 RF-13。 */
+  export interface EditBaseline extends PatchBaseline {
     disabled: boolean;
     reason: EditBaselineReason;
-    expectedHash?: string;        // ⚠️ 原样透传
-    expectedUpdatedAt?: string;   // ⚠️ 原样透传，**不过 Date**
   }
+
+  /** 可编辑的签署态 —— **本批 `canEdit` 的唯一判据**（见补充 1）。
+   *  ⚠️ 后端只允许 `DRAFT` / `CHANGE_PENDING` 可 PATCH（`*_PERSIST_SIGN_STATUS_LOCKED`）。 */
+  export const EDITABLE_SIGN_STATUSES = ['DRAFT', 'CHANGE_PENDING'] as const;
+  export function isEditableSignStatus(signStatus: string): boolean {
+    return (EDITABLE_SIGN_STATUSES as readonly string[]).includes(signStatus);
+  }
+
   export function useEditBaseline(record: {
     record_hash?: string | null;
     updated_at?: string | null;
-    canEdit?: boolean;            // 由角色/项目权限判定
+    /** ⚠️ **必填** = `isEditableSignStatus(record.sign_status)`。
+     *  忘了传 = **编译错误**（不是运行时默认 true ⇒ 漏判 sign_status）。 */
+    canEdit: boolean;
   }): EditBaseline;
 
   // src/hooks/useEditLock.ts
@@ -454,42 +478,69 @@ P9A-4 D0~D3 的契约）。
 
   ```ts
   it('hash 非空 ⇒ expected_hash', () => {
-    const b = useEditBaseline({ record_hash: 'a3f9c21d8b7e6f50' });
-    expect(b.expectedHash).toBe('a3f9c21d8b7e6f50');
+    const b = useEditBaseline({ record_hash: 'a3f9c21d8b7e6f50', canEdit: true });
+    expect(b.expected_hash).toBe('a3f9c21d8b7e6f50');
     expect(b.disabled).toBe(false);
   });
 
   it('hash 空 + 有 updated_at ⇒ 退到第二档（expected_updated_at）', () => {
     const raw = '2026-10-20T10:22:31.123456+08:00';
-    const b = useEditBaseline({ record_hash: '', updated_at: raw });
-    expect(b.expectedUpdatedAt).toBe(raw);   // ⚠️ 逐字（RF-9）
-    expect(b.expectedHash).toBeUndefined();
+    const b = useEditBaseline({ record_hash: '', updated_at: raw, canEdit: true });
+    expect(b.expected_updated_at).toBe(raw);   // ⚠️ 逐字（RF-9）
+    expect(b.expected_hash).toBeUndefined();
     expect(b.disabled).toBe(false);
   });
 
   it('两档皆无 ⇒ disabled + reason=no-baseline（**不是** no-permission）', () => {
-    const b = useEditBaseline({ record_hash: '', updated_at: null });
+    const b = useEditBaseline({ record_hash: '', updated_at: null, canEdit: true });
     expect(b.disabled).toBe(true);
     expect(b.reason).toBe('no-baseline');
   });
 
-  it('无编辑权限 ⇒ disabled + reason=no-permission（与 no-baseline **可区分**）', () => {
+  it('canEdit=false ⇒ disabled + reason=no-permission（与 no-baseline **可区分**）', () => {
     const b = useEditBaseline({ record_hash: 'a3f9c21d8b7e6f50', canEdit: false });
     expect(b.reason).toBe('no-permission');
   });
+
+  it('**disabled=false ⇒ 至少一档基线存在**（运行时保证，类型层表达不了）', () => {
+    const b = useEditBaseline({ record_hash: 'a3f9c21d8b7e6f50', canEdit: true });
+    expect(b.disabled).toBe(false);
+    expect(b.expected_hash || b.expected_updated_at).toBeTruthy();
+  });
+
+  it('**RF-13：基线字段名穿过展开后仍是 expected_hash**（TS 不拦 ⇒ 必测）', async () => {
+    // ⚠️ 这条是 P1 的守卫：`{...changed, ...baseline}` 里的字段名若漂成
+    // `expectedHash`，**TypeScript 编译通过**（实测 2026-10-21）⇒
+    // 请求体缺 `expected_hash` ⇒ **每次保存 409 no_baseline**。
+    // ⇒ 断言**请求体**（不是 hook 的返回值）。
+    const b = useEditBaseline({ record_hash: 'a3f9c21d8b7e6f50', canEdit: true });
+    await recordsApi.patch('/cost-est/results', 'r1', { ...{ estimated_cost: 35 }, ...b });
+    expect((lastBody as Record<string, unknown>).expected_hash).toBe('a3f9c21d8b7e6f50');
+    expect((lastBody as Record<string, unknown>).expectedHash).toBeUndefined();
+  });
   ```
+
+  ⚠️ **`canEdit` 的来源（本批唯一的判据）**：
+  `canEdit = isEditableSignStatus(record.sign_status)`
+  （`DRAFT` / `CHANGE_PENDING` 可编辑，其余 7 态不可编辑）。
+  - ⚠️ **不检查项目权限** —— 后端 `check_project_access_or_404` 已做，
+    前端重复检查会与后端口径不一致。
+  - ⚠️ **不检查签署职责** —— ADR-0050 的范围，本批不做。
+  - ⚠️ **`canEdit` 是必填参数**（不是可选 + 默认值）⇒ 调用方忘了传
+    `isEditableSignStatus(...)` 就是**编译错误**，而不是运行时默默放行
+    （可选 + 默认 `true` ⇒ 漏判 sign_status ⇒ RF-7 静默失效）。
 
 - [ ] **Step 2：跑测试确认失败** ⇒ **FAIL**
 
 - [ ] **Step 3：实现 `useEditBaseline`**
 
   ```ts
-  export function useEditBaseline({ record_hash, updated_at, canEdit = true }: Args): EditBaseline {
+  export function useEditBaseline({ record_hash, updated_at, canEdit }: Args): EditBaseline {
     if (!canEdit) return { disabled: true, reason: 'no-permission' };
     const hash = (record_hash ?? '').trim();
-    if (hash) return { disabled: false, reason: 'ok', expectedHash: hash };
+    if (hash) return { disabled: false, reason: 'ok', expected_hash: hash };
     const ts = updated_at ?? null;
-    if (ts) return { disabled: false, reason: 'ok', expectedUpdatedAt: ts };   // ⚠️ 原样
+    if (ts) return { disabled: false, reason: 'ok', expected_updated_at: ts };   // ⚠️ 原样
     return { disabled: true, reason: 'no-baseline' };
   }
   ```
@@ -623,7 +674,7 @@ P9A-4 D0~D3 的契约）。
 
   it('他人持锁 ⇒ 只禁用保存，浏览 / 复制 / 查看哈希仍可用（RF-3）', ...);
 
-  it('两档皆无 ⇒ 编辑按钮禁用 + Tooltip 说「联系管理员」而**不是**「无权限」（RF-12）', ...);
+  it('两档皆无 ⇒ 编辑按钮禁用 + Tooltip 说「联系管理员」；状态锁定 ⇒ 说「当前状态 X 不可编辑」（两类原因**可区分**，RF-12）', ...);
 
   it('抽屉关闭 ⇒ 调 release（RF-10）', async () => {
     ... fireEvent.click(closeBtn); await waitFor(() => expect(releaseCalled).toBe(true));
@@ -664,7 +715,26 @@ P9A-4 D0~D3 的契约）。
     `sign_status` 列用 `StateBadge`；数值列用 `NumericCell`
   - 分页：antd Table 的 `pagination` ⇒ 走 `limit`/`offset`（后端已支持，
     ⚠️ **两种信封的偏移字段名不同** ⇒ 只用 `items` + `total`，偏移自己算）
-  - 每行 [编辑] ⇒ 打开 `ResultEditDrawer`
+  - **每行的 [编辑] 按钮**（RF-7，补充 3）：
+    ```tsx
+    const editable = isEditableSignStatus(row.sign_status);   // ⚠️ 唯一判据
+    <Button disabled={!editable} title={editable ? undefined : `当前状态 ${row.sign_status} 不可编辑`}>
+      编辑
+    </Button>
+    ```
+    ⚠️ **在渲染按钮时就禁用**，**不是**打开抽屉后才检查 ⇒ 点禁用按钮
+    不该有任何反应（否则用户已经进了编辑态才发现不能改）。
+  - **`onSaved` 的处理**（RF-1，补充 2）：
+    ```tsx
+    const onSaved = (updated: { record_hash: string }) => {
+      setRecords((prev) => prev.map((r) =>
+        String(r[module.pk]) === String(id) ? { ...r, record_hash: updated.record_hash } : r,
+      ));
+    };
+    ```
+    ⚠️ **就地更新本地 state**，**不得重新拉整个列表**（那是浪费请求，
+    也会让滚动位置与分页跳变）。
+    ⚠️ 不更新 ⇒ 第二次保存仍带旧 hash ⇒ **必 409**（RF-1 静默失效）。
 
 - [ ] **Step 5：实现 `ResultEditDrawer.tsx`**
   ```tsx
@@ -677,18 +747,34 @@ P9A-4 D0~D3 的契约）。
   }
   ```
   流程：
-  1. **打开时**：`const baseline = useEditBaseline({ record_hash, updated_at, canEdit })`
-     ⇒ 三档判定在此完成（RF-8）
+  1. **打开时**：`const baseline = useEditBaseline({
+       record_hash, updated_at,
+       canEdit: isEditableSignStatus(record.sign_status),   // ⚠️ 唯一判据（补充 1）
+     })` ⇒ 三档判定在此完成（RF-8）
   2. `const lock = useEditLock({ recordType, recordId, enabled: open, onDegraded })`
   3. 顶部 `<EditLockIndicator state={lock.state} />`
   4. `baseline.disabled` ⇒ **禁用保存** + Tooltip：
-     - `no-permission` ⇒ 「你无此记录的编辑权限」
+     - `no-permission` ⇒ 「当前状态 {sign_status} 不可编辑」
+       （⚠️ 这是**状态**门禁，不是权限门禁；别写成「无权限」）
      - `no-baseline` ⇒ 「该记录缺少并发校验基线，无法安全编辑，请联系管理员」
      （**两类原因文案可区分**，RF-12）
   5. 表单：字段由 `module.editableFields` 渲染
-  6. 保存：`recordsApi.patch(base, id, { ...changed, ...baseline })`
-     ⇒ ⚠️ **只带判定出来的那一档**（`expectedHash` 或 `expectedUpdatedAt`），
-     **原样透传**（RF-9）
+  6. 保存：**显式**构造请求体（**不要**直接展开整个 `baseline`）：
+     ```ts
+     const body = {
+       ...changed,
+       expected_hash: baseline.expected_hash,
+       expected_updated_at: baseline.expected_updated_at,   // ⚠️ undefined 会被 JSON.stringify 省略
+     };
+     await recordsApi.patch(base, id, body);
+     ```
+     ⇒ ⚠️ **只带判定出来的那一档**，**原样透传**（RF-9）
+     ⇒ ⚠️ **不要**用 `{...changed, ...baseline}` 展开整个对象：会把
+     `disabled` / `reason` 也塞进请求体（后端 `extra="ignore"` 会静默丢弃，
+     但那依赖后端策略；显式构造是**不依赖**策略的做法）。
+     ⇒ ⚠️ **RF-13**：字段名必须是 `expected_hash`（snake_case）。
+     **TypeScript 不拦这个**（实测 2026-10-21 编译通过）⇒ 靠 T2/T3 的
+     「断言请求体」的测试兜底。
   7. 成功 ⇒ `onSaved({ record_hash: res.record_hash })`（**RF-1**）+ `message.success`
   8. 409 ⇒ `extractConflict(err)` ⇒ 打开 `EditConflictModal`（⚠️ **不自动重试**）
   9. `lock.readOnly` ⇒ 禁用「保存」（**只禁保存**，不禁浏览）
@@ -696,8 +782,15 @@ P9A-4 D0~D3 的契约）。
       - 有未保存修改 ⇒ 弹确认「你有未保存的修改，确认关闭将放弃修改并释放编辑锁」
         ⇒ 取消 ⇒ **保持抽屉打开**
       - ⇒ `await lock.release()`（**best-effort**：所有错误忽略，不弹窗）
-      - 页面卸载路径 ⇒ `navigator.sendBeacon('/api/v1/locks/{rt}/{id}/release', ...)`
-        （⚠️ **不得**在 `beforeunload` 里用普通 fetch —— 浏览器可能取消它）
+      - 页面卸载路径 ⇒
+        ```ts
+        navigator.sendBeacon(
+          `/api/v1/locks/${recordType}/${recordId}/release`,
+          new Blob([JSON.stringify({ user_id: currentUserId })], { type: 'application/json' }),
+        );
+        ```
+        ⚠️ body 用 **Blob + `application/json`**（不用普通 fetch —— `beforeunload`
+        里的 fetch 可能被浏览器取消）；⚠️ **不得**在 `beforeunload` 里用普通 fetch。
 
 - [ ] **Step 6：接 6 条路由 + 菜单**
   ```tsx
@@ -787,6 +880,11 @@ P9A-4 D0~D3 的契约）。
   | 7 | `tests/components/common/ChangeImpactPanel.test.tsx:25-27, 62` | 3 个 fixture + 1 条断言 ⇒ 改注册表键 | 机械 |
 
   ⚠️ **映射表的语义（RF-11）**：
+  - **只包含本批涉及的 6 个注册表键**（`CostEstResult` / `FiltrationResult` /
+    `OpenChannelResult` / `cooling_tower_result` / `flare_system_result` /
+    `psychro_result`）—— 其余 15 个注册表键**走 fallback**。
+    理由：本批只做这 6 个结果页；其余键的 UI 表示在**它们自己的批次**做
+    （一次填 21 个 = 本批不需要的工作量，且那 15 个键的显示名没人核对过）。
   - key = **注册表键**（`PipingResult` / `PumpResult` / …）
   - value = **UI 表示**（图标 / 颜色 / 显示名）—— **value 不得是分类词**
     （⛔ `{ PipingResult: 'PIPE' }` 就是**第 8 套词表**，与 TODO-060 的方向相反）
@@ -1090,3 +1188,35 @@ T5（面板）→ T6（宿主页）→ T7（QA）。T2~T6 都依赖 T1 的类型
 T3/T4/T5/T6 都改 `MainLayout.tsx` / `App.tsx` / `handlers.ts` ⇒ 同目录冲突。
 
 **Outside voice**：跳过（用户未要求；codex 未装）。
+
+### 决策委员会复审（2026-10-21 · 8 条裁决全部落进正文）
+
+| # | 级别 | 裁决 | 落点 |
+|---|---|---|---|
+| **P1 必修 1** | P1 | `EditBaseline` 字段名统一为 **`expected_hash` / `expected_updated_at`** ⇒ `EditBaseline extends PatchBaseline` | T1 / T2 / T3 + **RF-13** |
+| 补充 1 | P2 | `canEdit` 的来源 = **`sign_status ∈ {DRAFT, CHANGE_PENDING}`**（不查项目权限、不查签署职责）⇒ `canEdit` 改为**必填参数** | T2 / T3 |
+| 补充 2 | P2 | 父组件用 `onSaved` 的 `record_hash` **就地更新本地 state**，**不重拉列表** | T3 Step 4 |
+| 补充 3 | P2 | `sign_status` 检查在**渲染 [编辑] 按钮时**，不是打开抽屉后 | T3 Step 4 |
+| 补充 4 | P2 | 映射表**只含本批 6 个注册表键**，其余 15 个走 fallback | T4 Step 4 |
+| 补充 5 | P2 | `PatchBaseline` 的「至少一档」由**运行时**保证（类型层表达不了）⇒ 测试断言 `disabled=false ⇒ 至少一档存在` | T2 Step 1 |
+| 补充 6 | P2 | `recordsApi.list` 返回类型约束为 `{ items: T[]; total: number }`（分页字段名两种，**不消费**） | T1 |
+| 补充 7 | P3 | `sendBeacon` 的 body 用 **Blob + `application/json`** | T3 Step 5 |
+
+⚠️ **委员会 P1 的机制判定被实测修正（2026-10-21）**：
+委员会判定「`{...changed, ...baseline}` **一定编译失败**」⇒ 实测
+`npx tsc --noEmit --strict` **通过（exit 0）**。
+
+⇒ 真实后果**不是**「编译卡住实施者」，而是**更坏的**：
+**编译绿 ⇒ 运行时每次保存必 409 `no_baseline`**（请求体里是 `expectedHash`，
+后端找 `expected_hash` ⇒ 基线缺失 ⇒ `check_conflict` 走 `expected_hash is None`）。
+⇒ 这正是本仓最怕的形状（类型系统不拦 ⇒ 假绿 ⇒ 运行时才炸），
+且它会**绕过** T1 的既有守卫（那条测的是**直接调用** `recordsApi.patch` 传对了 key，
+不是走 `EditBaseline` 展开的那条路径）。
+
+⇒ 因此修法**不变**（字段名统一），但**必须补一条穿过展开的守卫**
+（断言**请求体**含 `expected_hash`、不含 `expectedHash`）⇒ 已作为 **RF-13**
+进 Review Focus 表 + T2 Step 1 的测试。
+
+⚠️ 顺带核实：后端 `*UpdateRequest` 是 `extra="ignore"` ⇒ 多余字段
+（如展开整个 `baseline` 带出的 `disabled` / `reason`）会被**静默丢弃**、不会 422
+⇒ 但那是**依赖后端策略**的做法 ⇒ T3 改为**显式构造请求体**（只带两个基线 key）。
