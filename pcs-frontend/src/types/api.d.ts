@@ -8715,6 +8715,11 @@ export interface components {
              * @description 当前 Rev：A/B/0/1/AS-BUILT/X
              */
             current_rev: string;
+            /**
+             * Current Version Id
+             * @description 当前 Rev 对应的版本行 id（`rev == current_rev` 的那条）。没有版本行 / 没有同 Rev 的版本 ⇒ null。⚠️ Rev 是自由文本，前端不能靠猜 —— 签署工作流的 workflow_id 要的是版本 id
+             */
+            current_version_id?: string | null;
             /** Version Purpose */
             version_purpose: string;
             /** Sign Status */

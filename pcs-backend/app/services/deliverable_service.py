@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
@@ -175,6 +176,58 @@ class DeliverableService:
             )
         ).scalars().all()
         return list(rows), int(total or 0)
+
+    @classmethod
+    async def current_version_ids(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverables: Sequence[Deliverable],
+    ) -> dict[uuid.UUID, uuid.UUID]:
+        """一批交付物的「当前版本 id」= **`rev == current_rev`** 的那条版本行。
+
+        ⚠️ **一次查询**（`deliverable_id IN (...)`）—— 序列化时逐行查版本就是
+        N+1（行数一多，查询数跟着线性涨）。
+        ⚠️ 传**行**而不是 id：判据需要 `current_rev`，而它住在交付物行上
+        ⇒ 传行就**不用**再查一次交付物表（查询数仍是 3：计数 + 交付物 + 版本）。
+        ⚠️ 匹配不到（没有版本行 / 没有同 Rev 的版本）⇒ **不进 dict**
+        ⇒ 调用方 `.get()` 得 None（**不猜**「最近的那个」）。
+
+        Args:
+            deliverables: 已查出的交付物行（**不要**在这里再查一遍）。
+
+        Returns:
+            `{deliverable_id: version_id}` —— 只含**匹配上**的。
+        """
+        if not deliverables:
+            return {}
+        revs = {d.deliverable_id: d.current_rev for d in deliverables}
+        rows = (
+            await db.execute(
+                select(
+                    DeliverableVersion.deliverable_id,
+                    DeliverableVersion.version_id,
+                    DeliverableVersion.rev,
+                )
+                .where(
+                    DeliverableVersion.deliverable_id.in_(
+                        list(revs.keys())
+                    )
+                )
+                # ⚠️ 必须带 tiebreaker：deliverable_versions 上**没有**
+                # (deliverable_id, rev) 唯一约束 ⇒ 同一 Rev 可能有多行版本
+                # ⇒ 不排序时「取哪一行」不确定，列表每次返回的 version_id 可能不同。
+                .order_by(
+                    DeliverableVersion.created_at,
+                    DeliverableVersion.version_id,
+                )
+            )
+        ).all()
+        out: dict[uuid.UUID, uuid.UUID] = {}
+        for deliverable_id, version_id, rev in rows:
+            if rev == revs.get(deliverable_id) and deliverable_id not in out:
+                out[deliverable_id] = version_id
+        return out
 
     @classmethod
     async def get_or_404(

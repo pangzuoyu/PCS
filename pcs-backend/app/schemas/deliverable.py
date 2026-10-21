@@ -35,6 +35,14 @@ class DeliverableResponse(BaseModel):
     doc_no_mode: str
     title: str
     current_rev: str = Field(description="当前 Rev：A/B/0/1/AS-BUILT/X")
+    current_version_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "当前 Rev 对应的版本行 id（`rev == current_rev` 的那条）。"
+            "没有版本行 / 没有同 Rev 的版本 ⇒ null。"
+            "⚠️ Rev 是自由文本，前端不能靠猜 —— 签署工作流的 workflow_id 要的是版本 id"
+        ),
+    )
     version_purpose: str
     sign_status: str
     matrix_id: uuid.UUID | None = None

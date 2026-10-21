@@ -124,8 +124,19 @@ async def list_deliverables(
         limit=limit,
         offset=offset,
     )
+    # ⚠️ 一次批量查版本（禁 N+1）⇒ 列表的查询数不随行数增长。
+    current_versions = await DeliverableService.current_version_ids(
+        db, deliverables=items
+    )
     return DeliverableListResponse(
-        items=[DeliverableResponse.model_validate(i) for i in items],
+        items=[
+            DeliverableResponse.model_validate(i).model_copy(
+                update={
+                    "current_version_id": current_versions.get(i.deliverable_id)
+                }
+            )
+            for i in items
+        ],
         total=total,
     )
 
@@ -146,7 +157,14 @@ async def get_deliverable(
     deliverable = await DeliverableService.get_or_404(
         db, deliverable_id=deliverable_id
     )
-    return DeliverableResponse.model_validate(deliverable)
+    current_versions = await DeliverableService.current_version_ids(
+        db, deliverables=[deliverable]
+    )
+    return DeliverableResponse.model_validate(deliverable).model_copy(
+        update={
+            "current_version_id": current_versions.get(deliverable.deliverable_id)
+        }
+    )
 
 
 @router.get(
