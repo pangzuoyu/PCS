@@ -17,6 +17,14 @@ import Ajv, { type AnySchema } from "ajv";
 import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
 import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedStreams } from "../../src/mocks/seed/streams";
+import {
+  seedCoolTowerResults,
+  seedCostEstResults,
+  seedFiltrationResults,
+  seedFlareResults,
+  seedOpenChannelResults,
+  seedPsychroResults,
+} from "../../src/mocks/seed/results";
 
 const openapiPath = resolve(__dirname, "../../openapi.snapshot.json");
 const openapi = JSON.parse(readFileSync(openapiPath, "utf8"));
@@ -351,12 +359,19 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/common/safety",
       "/api/v1/config-audit",
       "/api/v1/config/assets",
+      // P9B-1：6 类结果记录的列表端点（2026-10-21 加入 ⇒ 棘轮同步）
+      "/api/v1/cool-tower/results",
+      "/api/v1/cost-est/results",
       "/api/v1/cv/calculate",
       "/api/v1/equipment-deletion-audit",
+      "/api/v1/filtration/results",
+      "/api/v1/flare/results",
       "/api/v1/heat/import-htri",
       "/api/v1/notifications",
+      "/api/v1/open-channel/results",
       "/api/v1/pipe-classes",
       "/api/v1/psv/calculate",
+      "/api/v1/psychro/results",
       "/api/v1/psychro/saturation-water-content/calculate",
       "/api/v1/sep-equip/calculate",
       "/api/v1/todos",
@@ -365,6 +380,22 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/vessel/calculate",
       "/api/v1/workspaces",
     ]);
+  });
+
+  it("6 类结果记录的列表 mock 响应体符合契约（P9B-1）", () => {
+    // ⚠️ 棘轮新增了 6 条**契约端点** ⇒ 必须一并加 ajv 校验
+    // （否则「有契约可漂移」却没校验 = 漂移被藏住 = bug-2040 重演）。
+    const cases: Array<[string, unknown]> = [
+      ["/api/v1/cool-tower/results", { items: seedCoolTowerResults, total: seedCoolTowerResults.length, offset: 0, limit: 100 }],
+      ["/api/v1/filtration/results", { items: seedFiltrationResults, total: seedFiltrationResults.length, skip: 0, limit: 50 }],
+      ["/api/v1/flare/results", { items: seedFlareResults, total: seedFlareResults.length, offset: 0, limit: 100 }],
+      ["/api/v1/open-channel/results", { items: seedOpenChannelResults, total: seedOpenChannelResults.length, skip: 0, limit: 50 }],
+      ["/api/v1/psychro/results", { items: seedPsychroResults, total: seedPsychroResults.length, offset: 0, limit: 100 }],
+      ["/api/v1/cost-est/results", { items: seedCostEstResults, total: seedCostEstResults.length, skip: 0, limit: 50 }],
+    ];
+    for (const [path, data] of cases) {
+      validatePath(path, data);
+    }
   });
 
   it("两个 mock 端点都已注册", () => {

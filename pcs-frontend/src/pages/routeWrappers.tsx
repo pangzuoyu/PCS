@@ -334,3 +334,16 @@ export type {
   SymbolMapping,
   ToxicityClass,
 };
+
+// === P9B-1 结果记录（SPEC §6.21 · 通用页 + 6 个模块描述符） ===
+import { ResultListPage } from './results/ResultListPage';
+import { moduleByRecordType } from './results/resultModules';
+import type { EditableRecordType } from '../api/records';
+
+/**
+ * 6 类结果记录共用**一个**页面 ⇒ 路由只传 `recordType`，
+ * 其余（路径 / 主键 / 字段清单）由 `resultModules.ts` 的描述符决定。
+ */
+export function ResultListRoute({ module }: { module: EditableRecordType }): JSX.Element {
+  return <ResultListPage module={moduleByRecordType(module)} />;
+}

@@ -53,6 +53,15 @@ import {
 } from "./seed/streams";
 import { seedAssets } from "./seed/config";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
+import {
+  SCENARIO,
+  seedCoolTowerResults,
+  seedCostEstResults,
+  seedFiltrationResults,
+  seedFlareResults,
+  seedOpenChannelResults,
+  seedPsychroResults,
+} from "./seed/results";
 import type { RevVersion } from "../components/common/RevTimeline";
 // ⚠️ 通知 / 待办的 mock **取契约类型**，不取组件自有类型 ——
 // 组件自有类型是漂移源（TODO-065）。
@@ -60,6 +69,45 @@ type NotificationItem = components["schemas"]["NotificationItemResponse"];
 type NotificationList = components["schemas"]["NotificationListResponse"];
 type Todo = components["schemas"]["TodoResponse"];
 type TodoList = components["schemas"]["TodoListResponse"];
+
+/**
+ * 「保存冲突」三种 basis 的 409 信封（**按记录 id** 驱动 —— 浏览器 QA 可复现）。
+ *
+ * ⚠️ 信封形状取仓库统一格式 `{code, message, detail, trace_id}`，
+ * 冲突对象在 `detail.conflict`（前端 `extractConflict` 按此取）。
+ */
+function conflictByScenario(recordId: string): {
+  code: string;
+  message: string;
+  detail: { conflict: Record<string, unknown> };
+  trace_id: string;
+} | null {
+  const basis =
+    recordId === SCENARIO.conflictHash
+      ? "record_hash"
+      : recordId === SCENARIO.conflictUpdatedAt
+        ? "updated_at"
+        : recordId === SCENARIO.conflictNoBaseline
+          ? "no_baseline"
+          : null;
+  if (!basis) return null;
+  return {
+    code: "RECORD_EDIT_CONFLICT",
+    message: "该记录无法安全保存，请刷新后重新编辑",
+    detail: {
+      conflict: {
+        record_type: "cooling_tower_result",
+        record_id: recordId,
+        your_expected_hash: "a3f9c21d8b7e6f50",
+        current_hash: "ffffffffffffffff",
+        changed_by: "李四",
+        changed_at: "2026-10-20T11:00:00Z",
+        basis,
+      },
+    },
+    trace_id: "mock-trace-1",
+  };
+}
 
 /** JWT 守卫 — 无 token → 401 */
 function isAuthed(req: Request): boolean {
@@ -732,8 +780,144 @@ devOnlyMockHandlers.push(
       offset: 0,
     });
   }),
-);
 
+  // === P9B-1 结果记录（SPEC §6.21）===
+  //
+  // ⚠️ **响应体取契约类型**（seed 已用 `satisfies components['schemas'][...]`
+  // 标注）⇒ 形状对不上契约时**编译期**就红（bug-2040 的正确修法）。
+  //
+  // ⚠️ **偏移参数名两种拼法**（后端实测）：`offset`（cool-tower / flare /
+  // psychro）vs `skip`（filtration / open-channel / cost-est）⇒ mock 两种都认。
+
+  http.get("/api/v1/cool-tower/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedCoolTowerResults, total: seedCoolTowerResults.length, offset: 0, limit: 100 });
+  }),
+  http.get("/api/v1/filtration/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedFiltrationResults, total: seedFiltrationResults.length, skip: 0, limit: 50 });
+  }),
+  http.get("/api/v1/flare/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedFlareResults, total: seedFlareResults.length, offset: 0, limit: 100 });
+  }),
+  http.get("/api/v1/open-channel/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedOpenChannelResults, total: seedOpenChannelResults.length, skip: 0, limit: 50 });
+  }),
+  http.get("/api/v1/psychro/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedPsychroResults, total: seedPsychroResults.length, offset: 0, limit: 100 });
+  }),
+  http.get("/api/v1/cost-est/results", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedCostEstResults, total: seedCostEstResults.length, skip: 0, limit: 50 });
+  }),
+
+  // PATCH：⚠️ 回**新的** `record_hash`（前端靠它刷新基线 —— RF-1）。
+  // ⚠️ 三个「冲突场景」由**记录 id** 驱动（浏览器 QA 可复现）。
+  http.patch("/api/v1/cool-tower/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedCoolTowerResults.find((r) => r.id === params.id);
+    return HttpResponse.json({ ...(base ?? seedCoolTowerResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+  http.patch("/api/v1/filtration/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedFiltrationResults.find((r) => r.result_id === params.id);
+    return HttpResponse.json({ ...(base ?? seedFiltrationResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+  http.patch("/api/v1/flare/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedFlareResults.find((r) => r.id === params.id);
+    return HttpResponse.json({ ...(base ?? seedFlareResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+  http.patch("/api/v1/open-channel/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedOpenChannelResults.find((r) => r.result_id === params.id);
+    return HttpResponse.json({ ...(base ?? seedOpenChannelResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+  http.patch("/api/v1/psychro/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedPsychroResults.find((r) => r.id === params.id);
+    return HttpResponse.json({ ...(base ?? seedPsychroResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+  http.patch("/api/v1/cost-est/results/:id", async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const conflict = conflictByScenario(String(params.id));
+    if (conflict) return HttpResponse.json(conflict, { status: 409 });
+    const body = (await request.json()) as Record<string, unknown>;
+    const base = seedCostEstResults.find((r) => r.result_id === params.id);
+    return HttpResponse.json({ ...(base ?? seedCostEstResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+
+  // === P9B-1 编辑锁（SPEC §6.21 P9A-LCK-001~005）===
+  //
+  // ⚠️ 三个「锁场景」由**记录 id** 驱动：
+  //   `scenario-locked`   ⇒ acquire 409（他人持锁）
+  //   `scenario-degraded` ⇒ acquire 200 + degraded=true（Redis 不可用）
+  http.post("/api/v1/locks/:recordType/:recordId/:op", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const recordId = String(params.recordId);
+    const op = String(params.op);
+    const holder = {
+      user_id: "00000000-0000-0000-0000-0000000000ff",
+      acquired_at: "2026-10-20T10:22:31+08:00",
+      username: "张三",
+    };
+    if (op === "acquire" && recordId === SCENARIO.locked) {
+      return HttpResponse.json(
+        {
+          record_type: String(params.recordType),
+          record_id: recordId,
+          operation: op,
+          success: false,
+          holder,
+          ttl_seconds: 1800,
+          degraded: false,
+          message: null,
+        },
+        { status: 409 },
+      );
+    }
+    if (op === "acquire" && recordId === SCENARIO.degraded) {
+      return HttpResponse.json({
+        record_type: String(params.recordType),
+        record_id: recordId,
+        operation: op,
+        success: true,
+        holder,
+        ttl_seconds: 1800,
+        degraded: true,
+        message: "锁服务不可用，保存时可能冲突；本次编辑无冲突检测",
+      });
+    }
+    return HttpResponse.json({
+      record_type: String(params.recordType),
+      record_id: recordId,
+      operation: op,
+      success: true,
+      holder,
+      ttl_seconds: 1800,
+      degraded: false,
+      message: null,
+    });
+  }),
+);
 /** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift
  * 校验只针对这一组，devOnlyMockHandlers 通过拼接传入 setupWorker。 */
 export const handlers = [

@@ -44,6 +44,7 @@ import {
   CoolingWaterRoute,
   EnergySummaryAggregateRoute,
   AuditLogRoute,
+  ResultListRoute,
 } from './pages/routeWrappers';
 
 const router = createBrowserRouter([
@@ -111,6 +112,14 @@ const router = createBrowserRouter([
 
       // Audit Query（F-P2-009 Sprint 3 / Issue 7）
       { path: 'audit/logs', element: <AuditLogRoute /> },
+
+      // P9B-1 结果记录（SPEC §6.21：通用页 + 6 个模块描述符）
+      { path: 'results/cool-tower', element: <ResultListRoute module="cooling_tower_result" /> },
+      { path: 'results/filtration', element: <ResultListRoute module="FiltrationResult" /> },
+      { path: 'results/flare', element: <ResultListRoute module="flare_system_result" /> },
+      { path: 'results/open-channel', element: <ResultListRoute module="OpenChannelResult" /> },
+      { path: 'results/psychro', element: <ResultListRoute module="psychro_result" /> },
+      { path: 'results/cost-est', element: <ResultListRoute module="CostEstResult" /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

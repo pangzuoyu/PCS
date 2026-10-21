@@ -64,6 +64,14 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/report/definitions', label: '报表定义' },
     { key: '/report/styles', label: '报表样式' },
   ]),
+  group('结果记录', 'results', [
+    { key: '/results/cool-tower', label: '冷却塔结果' },
+    { key: '/results/filtration', label: '过滤结果' },
+    { key: '/results/flare', label: '火炬系统结果' },
+    { key: '/results/open-channel', label: '明渠结果' },
+    { key: '/results/psychro', label: '湿空气结果' },
+    { key: '/results/cost-est', label: '成本估算结果' },
+  ]),
   group('审计', 'audit', [
     { key: '/audit/logs', label: 'Audit Query (F-P2-009)' },
   ]),
