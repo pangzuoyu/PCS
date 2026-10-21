@@ -71,6 +71,11 @@ export function useEditLock({
     if (!enabled) return;
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+    // ⚠️ 「我们**确实**持锁」的标志 —— 卸载时据此决定要不要释放。
+    // ⚠️ **即使 `cancelled` 也要置位**：StrictMode 的 cleanup 会在 acquire
+    // 落地**之前**跑（那时还没持锁 ⇒ 不能释放，否则会与随后的 acquire 抢跑）；
+    // 但 acquire 落地后我们**确实**持锁 ⇒ 最终卸载时必须释放。
+    let held = false;
 
     const stopRenew = () => {
       if (timer !== null) {
@@ -109,20 +114,24 @@ export function useEditLock({
     void editLockApi
       .acquire(recordType, recordId)
       .then((res) => {
-        if (cancelled) return;
         // ⚠️ 降级优先于「拿没拿到锁」：Redis 挂了 ⇒ 放行 + 横幅。
         if (res.degraded) {
-          setState({ status: 'degraded', message: res.message ?? null });
-          degradedRef.current?.(res.message ?? null);
+          if (!cancelled) {
+            setState({ status: 'degraded', message: res.message ?? null });
+            degradedRef.current?.(res.message ?? null);
+          }
           return;
         }
         if (!res.success) {
           // 他人持锁（409，响应体仍是 LockResponse，带 holder）。
           // ⚠️ **不起心跳**：我们没持锁 ⇒ 续期只会 409 ⇒ 把「他人持锁」
           // 冲成「锁已失效」（两种状态的用户可见文案完全不同）。
-          setState({ status: 'blocked', holder: res.holder ?? null });
+          if (!cancelled) setState({ status: 'blocked', holder: res.holder ?? null });
           return;
         }
+        // ⚠️ **先记「持锁」，再看 cancelled**（见上面 `held` 的注释）。
+        held = true;
+        if (cancelled) return;
         setState({ status: 'held', ttlSeconds: res.ttl_seconds });
         startRenew();
       })
@@ -134,6 +143,18 @@ export function useEditLock({
     return () => {
       cancelled = true;
       stopRenew();
+      // ⚠️ **卸载也要释放锁**（RF-10）：SPA 导航（点菜单换页）会让抽屉**静默卸载**
+      // ⇒ 只清心跳 ⇒ 锁白占 30min ⇒ 同事看到「张三 正在编辑」而张三 已走
+      // （`pagehide` 只在**文档**卸载时触发，覆盖不到 SPA 路由切换）。
+      //
+      // ⚠️ 只在**确实持锁**时释放：没拿到锁时释放是空操作，而无条件释放会与
+      // StrictMode 的「cleanup → 重新 acquire」抢跑（可能把刚拿到的锁放掉）。
+      if (held) {
+        held = false;
+        void editLockApi.release(recordType, recordId).catch(() => {
+          // best-effort：失败一律忽略（锁靠 30min TTL 回收）
+        });
+      }
     };
   }, [recordType, recordId, enabled]);
 

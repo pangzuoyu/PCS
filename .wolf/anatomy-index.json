@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-21T03:43:36.944Z",
-    "fileCount": 992,
+    "lastScanned": "2026-10-21T10:46:14.609Z",
+    "fileCount": 995,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "fb065d8a401073b7a449501b8ced6ded70b9b6f93458a5673db5a1677743f28b",
-    "storeUpdatedAt": "2026-10-21T03:43:36.956Z",
-    "rootHash": "051b85cfc7f05f8d"
+    "renderedHash": "ee05d25277ac931f255b55d48b2b432eef16efac37a342b008db4d01bf908676",
+    "storeUpdatedAt": "2026-10-21T10:46:14.621Z",
+    "rootHash": "d285720f1adaf4a0"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13837,33 +13837,33 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 1795,
-      "hash": "e7bd715b6f0e0ac6",
-      "size": 6922,
-      "mtimeMs": 1792514560253.0747,
-      "updatedAt": "2026-10-20T16:42:40.309Z",
+      "tokens": 2427,
+      "hash": "470128461b98127b",
+      "size": 9654,
+      "mtimeMs": 1792579455152.191,
+      "updatedAt": "2026-10-21T10:44:15.209Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
-          "startLine": 18,
-          "endLine": 77,
-          "tokens": 595
+          "startLine": 21,
+          "endLine": 91,
+          "tokens": 718
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 90,
+          "startLine": 92,
+          "endLine": 104,
           "tokens": 96
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 190,
-          "tokens": 923
+          "startLine": 105,
+          "endLine": 255,
+          "tokens": 1378
         }
       ]
     },
@@ -34944,11 +34944,11 @@
     },
     "pcs-frontend/tests/layouts/MainLayout.test.tsx": {
       "description": "MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。",
-      "tokens": 664,
-      "hash": "22b3c418f6f7474c",
-      "size": 2931,
-      "mtimeMs": 1792514723573.7314,
-      "updatedAt": "2026-10-20T16:45:23.622Z",
+      "tokens": 1638,
+      "hash": "a57264a77d107fb3",
+      "size": 7306,
+      "mtimeMs": 1792579290185.6096,
+      "updatedAt": "2026-10-21T10:41:30.252Z",
       "source": "hook"
     },
     "pcs-frontend/src/api/notifications.ts": {
@@ -35256,11 +35256,11 @@
     },
     "pcs-frontend/src/hooks/useEditLock.ts": {
       "description": "编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。",
-      "tokens": 1206,
-      "hash": "136a8e9b984d9a68",
-      "size": 5380,
-      "mtimeMs": 1792548660408.7607,
-      "updatedAt": "2026-10-21T02:11:00.461Z",
+      "tokens": 1439,
+      "hash": "6787e8e60016007d",
+      "size": 6700,
+      "mtimeMs": 1792579134070.963,
+      "updatedAt": "2026-10-21T10:38:54.127Z",
       "source": "hook",
       "symbols": [
         {
@@ -35281,8 +35281,8 @@
           "name": "useEditLock",
           "kind": "fn",
           "startLine": 58,
-          "endLine": 152,
-          "tokens": 797
+          "endLine": 173,
+          "tokens": 1030
         }
       ]
     },
@@ -35407,11 +35407,11 @@
     },
     "pcs-frontend/src/pages/results/ResultEditDrawer.tsx": {
       "description": "ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。",
-      "tokens": 2506,
-      "hash": "4923278b9832211c",
-      "size": 10185,
-      "mtimeMs": 1792549358495.575,
-      "updatedAt": "2026-10-21T02:22:38.544Z",
+      "tokens": 2821,
+      "hash": "e2661fae12c394ea",
+      "size": 11976,
+      "mtimeMs": 1792579103819.8855,
+      "updatedAt": "2026-10-21T10:38:23.871Z",
       "source": "hook",
       "symbols": [
         {
@@ -35432,8 +35432,8 @@
           "name": "ResultEditDrawer",
           "kind": "fn",
           "startLine": 69,
-          "endLine": 284,
-          "tokens": 1942
+          "endLine": 311,
+          "tokens": 2257
         }
       ]
     },
@@ -35471,11 +35471,11 @@
     },
     "pcs-frontend/tests/pages/results/result_page.test.tsx": {
       "description": "通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。",
-      "tokens": 4380,
-      "hash": "bdc9666004f4cfa2",
-      "size": 17689,
-      "mtimeMs": 1792553498972.6436,
-      "updatedAt": "2026-10-21T03:31:39.020Z",
+      "tokens": 5747,
+      "hash": "ea4e2ee77d9a2c6c",
+      "size": 23815,
+      "mtimeMs": 1792579149904.5017,
+      "updatedAt": "2026-10-21T10:39:09.959Z",
       "source": "hook",
       "symbols": [
         {
@@ -35483,21 +35483,21 @@
           "kind": "fn",
           "startLine": 37,
           "endLine": 109,
-          "tokens": 612
+          "tokens": 618
         },
         {
           "name": "conflictEnvelope",
           "kind": "fn",
           "startLine": 110,
-          "endLine": 184,
-          "tokens": 678
+          "endLine": 197,
+          "tokens": 866
         },
         {
           "name": "openEditor",
           "kind": "fn",
-          "startLine": 185,
-          "endLine": 423,
-          "tokens": 2700
+          "startLine": 198,
+          "endLine": 554,
+          "tokens": 3871
         }
       ]
     },
@@ -35614,28 +35614,28 @@
     },
     "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
       "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。",
-      "tokens": 2040,
-      "hash": "ac923fdfbc800fa7",
-      "size": 8062,
-      "mtimeMs": 1792552419770.7617,
-      "updatedAt": "2026-10-21T03:13:39.820Z",
+      "tokens": 2319,
+      "hash": "f2b7ac3daaa7deb3",
+      "size": 9251,
+      "mtimeMs": 1792579313531.1897,
+      "updatedAt": "2026-10-21T10:41:53.581Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
       "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。",
-      "tokens": 1074,
-      "hash": "3cb52296c30c1403",
-      "size": 4349,
-      "mtimeMs": 1792552441435.983,
-      "updatedAt": "2026-10-21T03:14:01.486Z",
+      "tokens": 1266,
+      "hash": "a546388fa9db0d3d",
+      "size": 5185,
+      "mtimeMs": 1792579488537.7844,
+      "updatedAt": "2026-10-21T10:44:48.586Z",
       "source": "hook",
       "symbols": [
         {
           "name": "DeliverableProgressPage",
           "kind": "fn",
           "startLine": 39,
-          "endLine": 127,
-          "tokens": 708
+          "endLine": 146,
+          "tokens": 900
         }
       ]
     },
@@ -35674,6 +35674,84 @@
       "mtimeMs": 1792554216892.6506,
       "updatedAt": "2026-10-21T03:43:36.944Z",
       "source": "hook"
+    },
+    "docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md": {
+      "description": "P9B-2 实施计划：签署流程前端 + ADMIN 前端（SPEC §6.3 / §6.17~§6.19 / §7.19 / §7.20）",
+      "tokens": 14672,
+      "hash": "7fb078ada1563fc0",
+      "size": 77799,
+      "mtimeMs": 1792578621895.6516,
+      "updatedAt": "2026-10-21T10:30:21.947Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/health.ts": {
+      "description": "健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。",
+      "tokens": 189,
+      "hash": "fd02471895cec13b",
+      "size": 889,
+      "mtimeMs": 1792579417480.4724,
+      "updatedAt": "2026-10-21T10:43:37.529Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/common/ChangeImpactPanel.tsx": {
+      "description": "ChangeImpactPanel — 变更影响分析面板（P45-1-8 / Task 13）。",
+      "tokens": 3965,
+      "hash": "bf693222be624761",
+      "size": 16071,
+      "mtimeMs": 1792579574560.145,
+      "updatedAt": "2026-10-21T10:46:14.609Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "errorMessage",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 50,
+          "tokens": 59
+        },
+        {
+          "name": "ChangeSource",
+          "kind": "section",
+          "startLine": 51,
+          "endLine": 59,
+          "tokens": 55
+        },
+        {
+          "name": "AffectedRecord",
+          "kind": "section",
+          "startLine": 60,
+          "endLine": 76,
+          "tokens": 122
+        },
+        {
+          "name": "RecordTypePresentation",
+          "kind": "section",
+          "startLine": 77,
+          "endLine": 108,
+          "tokens": 324
+        },
+        {
+          "name": "presentationOf",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 112,
+          "tokens": 41
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 113,
+          "endLine": 140,
+          "tokens": 233
+        },
+        {
+          "name": "ChangeImpactPanel",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 438,
+          "tokens": 2706
+        }
+      ]
     }
   }
 }

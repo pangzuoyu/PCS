@@ -200,4 +200,31 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(screen.getByTestId('deliverable-progress-panel').textContent).not.toContain('变更单');
     expect(screen.getByTestId('deliverable-progress-panel').textContent).not.toContain('代录');
   });
+
+  /**
+   * ⚠️ **列表必须分页**（最终评审 Important ⑤）。
+   *
+   * 此前是 `pagination={false}` + 硬编码 `limit: 100` ⇒ 交付物超过 100 个时
+   * **只显示前 100 个，且没有任何提示** ⇒ 用户以为「就这些」。
+   */
+  it('⚠️ 列表**分页**（不得静默截断到前 100 条）', async () => {
+    const seen: Array<{ limit: string | null; offset: string | null }> = [];
+    server.use(
+      http.get('/api/v1/deliverables', ({ request }) => {
+        const url = new URL(request.url);
+        seen.push({
+          limit: url.searchParams.get('limit'),
+          offset: url.searchParams.get('offset'),
+        });
+        return HttpResponse.json({ items: DELIVERABLES, total: 250 });
+      }),
+    );
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-001')).toBeTruthy());
+    // ⚠️ 必须有分页控件（否则 >100 条的交付物被静默截断）
+    expect(document.querySelector('.ant-pagination')).toBeTruthy();
+    // ⚠️ 请求必须带 limit / offset（可翻页）
+    expect(seen[0]?.limit).toBeTruthy();
+    expect(seen[0]?.offset).toBe('0');
+  });
 });

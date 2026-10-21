@@ -3830,7 +3830,7 @@
       "file": "pcs-frontend/src/store/degradation.ts",
       "root_cause": "`create<DegradationState>(() => ({ message: null, setMessage: () => {} }))` —— 初始化函数**没接 `set`**，于是 `setMessage` 是个**空函数** ⇒ 降级文案**永远存不进 store** ⇒ 横幅永远不渲染。⚠️ 计划的「Produces」代码片段里就是这个写法（照抄 `useAuth` 的 `create((set) => …)` 却写成 `create(() => …)`）。⚠️ **单测为什么没抓到**：`MainLayout.test.tsx` 直接 `useDegradation.setState({ message })` ⇒ 绕过了 `setMessage` ⇒ 把 bug 彻底掩盖。⚠️ 症状是「横幅不出现」而不是「文案不对」⇒ 只断言文案的测试也照样绿。",
       "fix": "`create((set) => ({ message: null, setMessage: (message) => set({ message }) }))`。守卫**只走 `setMessage`**：新增 `pcs-frontend/tests/store/degradation.test.ts`（3 例：setMessage 真写状态 / setMessage(null) 清空 / 订阅链收到变化）；`MainLayout.test.tsx` 也改成 `useDegradation.getState().setMessage(...)` ⇒ 不再绕过。浏览器复测：横幅出现，文案**逐字**取后端 message，且保存按钮**不被禁用**（RF-6「横幅不阻断」）。",
-      "fix_commit": "49f6b08",
+      "fix_commit": "ed58075",
       "tags": [
         "p9b",
         "frontend",
@@ -3852,7 +3852,7 @@
       "file": "pcs-frontend/src/pages/results/ResultListPage.tsx + src/pages/routeWrappers.tsx",
       "root_cause": "React Router **复用同类型的组件实例** ⇒ `ResultListPage` 的 `records` state 留着上一页的行；而新模块的 `module.pk`（主键名）**不同**（cool-tower 用 `id`、filtration 用 `result_id`）⇒ 旧行取不到主键 ⇒ `String(row[module.pk])` = 'undefined' ⇒ 一排相同 key。⚠️ 换模块时旧数据没清空（effect 里没有 `setRecords([])`）⇒ 旧行一直活到新 fetch 回来。⚠️ **单测为什么没抓到**：T3 的用例只渲染**一个**模块（cool-tower）⇒ 跨模块切换这条路径**根本没被走到**。",
       "fix": "三层：① `routeWrappers.tsx` 给 `<ResultListPage key={module} …>` ⇒ 换模块 = 整页重建（state 干净）；② 页面在 effect 开头 `setRecords([])`（换模块先清空，不等 fetch）；③ `rowKey` 取不到主键时**用行号兜底**（不再产生重复 key）。守卫：`tests/pages/results/result_page.test.tsx` 新增「跨模块切换」用例（断言表格里**只有**新模块的行 + **零**重复 key 警告），先 RED 后 GREEN 已实测（回退修法 ⇒ 4 行 ≠ 1 行 ⇒ 红）。浏览器复测：0 重复 key，表格只剩新模块的行。",
-      "fix_commit": "49f6b08",
+      "fix_commit": "ed58075",
       "tags": [
         "p9b",
         "frontend",

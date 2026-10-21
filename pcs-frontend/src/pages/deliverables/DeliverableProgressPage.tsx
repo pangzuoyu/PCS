@@ -40,13 +40,18 @@ export function DeliverableProgressPage(): JSX.Element {
   const [items, setItems] = useState<Deliverable[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // ⚠️ **分页**（最终评审 Important ⑤）：此前是 `pagination={false}` +
+  // 硬编码 `limit: 100` ⇒ 交付物超过 100 个时**只显示前 100 个、没有任何提示**
+  // ⇒ 用户以为「就这些」。⇒ 走 limit/offset（后端上限 500）。
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     void api
       .get<DeliverableList>('/deliverables', {
-        params: { project_id: PROJECT_ID, limit: 100, offset: 0 },
+        params: { project_id: PROJECT_ID, limit: pageSize, offset: (page - 1) * pageSize },
       })
       .then((res) => {
         if (cancelled) return;
@@ -65,7 +70,7 @@ export function DeliverableProgressPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, pageSize]);
 
   const columns: ColumnsType<Deliverable> = [
     { title: '编号', dataIndex: 'doc_no', key: 'doc_no' },
@@ -91,7 +96,22 @@ export function DeliverableProgressPage(): JSX.Element {
         columns={columns}
         dataSource={items}
         loading={loading}
-        pagination={false}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          pageSizeOptions: [20, 50, 100, 200],
+          onChange: (nextPage: number, nextSize: number) => {
+            // ⚠️ 改页长时回到第 1 页（否则会落到一个不存在的页）
+            if (nextSize !== pageSize) {
+              setPageSize(nextSize);
+              setPage(1);
+              return;
+            }
+            setPage(nextPage);
+          },
+        }}
         scroll={{ x: 'max-content' }}
         expandable={{
           expandedRowRender: (row) => {
@@ -118,7 +138,6 @@ export function DeliverableProgressPage(): JSX.Element {
           },
         }}
       />
-      <span style={{ display: 'none' }}>{total}</span>
     </div>
   );
 }

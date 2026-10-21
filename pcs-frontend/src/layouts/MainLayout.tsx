@@ -10,6 +10,8 @@ import {
   type NotificationItem,
 } from '../api/notifications';
 import { todosApi, type TodoItem } from '../api/todos';
+import { healthApi } from '../api/health';
+import { RealtimeStatusBanner } from '../components/common/RealtimeStatusBanner';
 import { useDegradation } from '../store/degradation';
 
 const { Header, Content, Sider } = Layout;
@@ -112,6 +114,40 @@ export default function MainLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   // ⚠️ 降级横幅的文案取**后端 message 原文**（前端不拼接、不自造）。
   const degradationMessage = useDegradation((s) => s.message);
+  // ⚠️ **实时推送状态**（SPEC §6.23）—— 数据源是 `GET /health` 的
+  // `realtime` / `realtime_reason`。
+  // ⚠️ 这条横幅必须有**宿主** ⇒ 组件只活在测试里 = 功能没交付
+  // （最终评审 Important ④）⇒ 挂在顶栏，与降级横幅并列。
+  const [realtime, setRealtime] = useState<{
+    status: 'ok' | 'degraded';
+    reason: string | null;
+  }>({ status: 'ok', reason: null });
+
+  useEffect(() => {
+    // ⚠️ `/health` **始终 200**（后端约定）⇒ 只在**请求本身失败**时保持
+    // 「ok」（不显示横幅）—— 拿不到状态**不等于**降级。
+    let cancelled = false;
+    const load = (): void => {
+      void healthApi
+        .get()
+        .then((h) => {
+          if (cancelled) return;
+          setRealtime({
+            status: h.realtime === 'degraded' ? 'degraded' : 'ok',
+            reason: h.realtime_reason ?? null,
+          });
+        })
+        .catch(() => {
+          // offline / 未登录 ⇒ 不显示横幅（不是「已关闭」）
+        });
+    };
+    load();
+    const timer = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     // ⚠️ **走 axios 实例**（`api`）而不是裸 `fetch`：
@@ -172,6 +208,12 @@ export default function MainLayout() {
           style={{ margin: '8px 24px 0' }}
         />
       )}
+      {/* ⚠️ 实时推送降级（SPEC §6.23）—— 与「编辑锁降级」是**两回事**：
+          一个是 Redis pub/sub 不可达（通知改轮询），一个是锁服务不可用
+          （并发检测降级）。**都不阻断任何操作**。 */}
+      <div style={{ margin: '8px 24px 0' }}>
+        <RealtimeStatusBanner realtime={realtime.status} reason={realtime.reason} />
+      </div>
       <Layout>
         <Sider width={220} style={{ overflow: 'auto' }}>
           <Menu

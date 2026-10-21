@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-21T03:43:36.944Z
-> Files: 992 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-21T10:46:14.609Z
+> Files: 995 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -307,6 +307,7 @@
 - `PCS-PLAN-P9A-5-债项清理.md` — P9A-5 计划：`record_type` 词表归一（TODO-060）+ cost_est 项目隔离（TODO-061） (~1158 tok)
 - `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~3834 tok)
 - `PCS-PLAN-P9B-1-结果记录页与编辑锁.md` — P9B-1 实施计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1 / §6.22~§6.24） (~12788 tok)
+- `PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` — P9B-2 实施计划：签署流程前端 + ADMIN 前端（SPEC §6.3 / §6.17~§6.19 / §7.19 / §7.20） (~14672 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
@@ -1541,6 +1542,7 @@
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~856 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
+- `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
@@ -1549,6 +1551,7 @@
 
 ## pcs-frontend/src/components/common/
 
+- `ChangeImpactPanel.tsx` — ChangeImpactPanel — 变更影响分析面板（P45-1-8 / Task 13）。 (~3965 tok)
 - `EditConflictModal.tsx` — EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。 (~1092 tok)
 - `EditLockIndicator.tsx` — EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。 (~527 tok)
 - `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
@@ -1561,11 +1564,11 @@
 ## pcs-frontend/src/hooks/
 
 - `useEditBaseline.ts` — 三档并发基线判定（P9B-1 · SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑥）。 (~824 tok)
-- `useEditLock.ts` — 编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。 (~1206 tok)
+- `useEditLock.ts` — 编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。 (~1439 tok)
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1795 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~2427 tok)
 
 ## pcs-frontend/src/lib/
 
@@ -1598,7 +1601,7 @@
 
 ## pcs-frontend/src/pages/deliverables/
 
-- `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。 (~1074 tok)
+- `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。 (~1266 tok)
 
 ## pcs-frontend/src/pages/report/
 
@@ -1612,7 +1615,7 @@
 
 ## pcs-frontend/src/pages/results/
 
-- `ResultEditDrawer.tsx` — ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。 (~2506 tok)
+- `ResultEditDrawer.tsx` — ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。 (~2821 tok)
 - `ResultListPage.tsx` — ResultListPage —— 通用结果列表页（P9B-1 · SPEC §6.21）。 (~1574 tok)
 - `resultModules.ts` — 6 个可编辑结果模块的**类型化描述符**（P9B-1 · SPEC §6.21）。 (~3362 tok)
 
@@ -1656,7 +1659,7 @@
 
 ## pcs-frontend/tests/layouts/
 
-- `MainLayout.test.tsx` — MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。 (~664 tok)
+- `MainLayout.test.tsx` — MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。 (~1638 tok)
 
 ## pcs-frontend/tests/lib/
 
@@ -1673,7 +1676,7 @@
 
 ## pcs-frontend/tests/pages/deliverables/
 
-- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2040 tok)
+- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2319 tok)
 
 ## pcs-frontend/tests/pages/pipe_class/
 
@@ -1686,7 +1689,7 @@
 
 ## pcs-frontend/tests/pages/results/
 
-- `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~4380 tok)
+- `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~5747 tok)
 
 ## pcs-frontend/tests/pages/sim/
 

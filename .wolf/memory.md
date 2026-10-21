@@ -2295,3 +2295,28 @@
 | 11:19 | Created pcs-frontend/e2e/result_edit_conflict.spec.ts | — | ~518 |
 | 11:31 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | CSS: id, result_id, tag_number | ~83 |
 | 11:43 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md | — | ~1567 |
+| 18:30 | Created docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md | — | ~15650 |
+| 18:32 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | expanded (+114 lines) | ~1172 |
+| 18:32 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | added 1 condition(s) | ~161 |
+| 18:36 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | CSS: value | ~388 |
+| 18:36 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | setForm() → getFieldsValue() | ~241 |
+| 18:37 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | removed 10 lines | ~12 |
+| 18:38 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | setField() → setDirty() | ~214 |
+| 18:38 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | CSS: record_hash | ~224 |
+| 18:38 | Edited pcs-frontend/src/hooks/useEditLock.ts | added 3 condition(s) | ~832 |
+| 18:39 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | 13→17 lines | ~213 |
+| 18:41 | Edited pcs-frontend/tests/layouts/MainLayout.test.tsx | expanded (+16 lines) | ~193 |
+| 18:41 | Edited pcs-frontend/tests/layouts/MainLayout.test.tsx | added nullish coalescing | ~487 |
+| 18:41 | Edited pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | added optional chaining | ~474 |
+| 18:43 | Created pcs-frontend/src/api/health.ts | — | ~189 |
+| 18:43 | Edited pcs-frontend/src/layouts/MainLayout.tsx | added 2 import(s) | ~68 |
+| 18:44 | Edited pcs-frontend/src/layouts/MainLayout.tsx | added nullish coalescing | ~314 |
+| 18:44 | Edited pcs-frontend/src/layouts/MainLayout.tsx | expanded (+6 lines) | ~148 |
+| 18:44 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | modified DeliverableProgressPage() | ~312 |
+| 18:44 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added 1 condition(s) | ~133 |
+| 18:44 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | 5→4 lines | ~8 |
+| 18:44 | Edited pcs-frontend/src/components/common/ChangeImpactPanel.tsx | added error handling | ~195 |
+| 18:45 | Edited pcs-frontend/src/components/common/ChangeImpactPanel.tsx | added error handling | ~199 |
+| 18:45 | Edited pcs-frontend/src/components/common/ChangeImpactPanel.tsx | added optional chaining | ~128 |
+| 18:45 | Edited pcs-frontend/src/components/common/ChangeImpactPanel.tsx | 1→4 lines | ~65 |
+| 18:46 | Edited pcs-frontend/src/components/common/ChangeImpactPanel.tsx | expanded (+14 lines) | ~122 |

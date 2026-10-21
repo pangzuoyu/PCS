@@ -33,6 +33,20 @@ import { Alert, Button, Card, Checkbox, Input, List, Modal, Select, Space, Tag, 
 import { WarningOutlined } from '@ant-design/icons';
 
 import type { ImpactConfirmResponse } from '../../api/changeImpact';
+import { extractPcsError } from '../../api/errors';
+
+/**
+ * 从异常里取出**可给人看的**一句话。
+ *
+ * ⚠️ 取后端 `message` **原文**（不自己拼）⇒ 与仓库的错误信封一致
+ * （`{code, message, detail, trace_id}`）。
+ */
+function errorMessage(err: unknown): string {
+  const envelope = extractPcsError(err);
+  if (envelope?.message) return envelope.message;
+  if (envelope?.code) return envelope.code;
+  return '操作失败，请重试';
+}
 
 export interface ChangeSource {
   /** 变更源描述（如「物流 S-101 · 流量 50 → 60 m³/h」） */
@@ -139,6 +153,9 @@ export function ChangeImpactPanel({
   const [manualTarget, setManualTarget] = useState<{ recordType: string; recordId: string } | null>(null);
   const [manualDecision, setManualDecision] = useState<'NO_CHANGE' | 'CHANGED'>('NO_CHANGE');
   const [manualReason, setManualReason] = useState('');
+  // ⚠️ **判定失败要说出口**（最终评审 Important ⑥）。
+  // 此前没有它 ⇒ 403/409/500 时界面毫无变化 + 未捕获的 promise rejection。
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const allSelected = useMemo(
     () =>
@@ -177,10 +194,18 @@ export function ChangeImpactPanel({
   /** 系统判定 —— **不自动重试**（会无限循环覆盖）。 */
   async function handleConfirmSystem(recordType: string, recordId: string): Promise<void> {
     if (!onConfirmSystem) return;
-    const res = await onConfirmSystem(recordType, recordId);
-    // ⚠️ 文案随**响应**的 decision 分流（前端不自己先判）。
-    if (res?.decision === 'NO_CHANGE' || res?.decision === 'CHANGED') {
-      setDecisions((prev) => ({ ...prev, [recordId]: res.decision }));
+    setActionError(null);
+    try {
+      const res = await onConfirmSystem(recordType, recordId);
+      // ⚠️ 文案随**响应**的 decision 分流（前端不自己先判）。
+      if (res?.decision === 'NO_CHANGE' || res?.decision === 'CHANGED') {
+        setDecisions((prev) => ({ ...prev, [recordId]: res.decision }));
+      }
+    } catch (err: unknown) {
+      // ⚠️ **失败必须说出口**（最终评审 Important ⑥）：403（DESIGNER 调
+      // manual-adjust 是设计如此）/ 409 / 500 时，界面毫无变化 ⇒ 用户以为
+      // 「点了没反应」，而控制台还多一条**未捕获的 promise rejection**。
+      setActionError(errorMessage(err));
     }
   }
 
@@ -194,16 +219,22 @@ export function ChangeImpactPanel({
   async function submitManualAdjust(): Promise<void> {
     if (!manualTarget || !onManualAdjust) return;
     if (manualReason.trim() === '') return;
-    const res = await onManualAdjust(
-      manualTarget.recordType,
-      manualTarget.recordId,
-      manualDecision,
-      manualReason.trim(),
-    );
-    if (res?.decision === 'NO_CHANGE' || res?.decision === 'CHANGED') {
-      setDecisions((prev) => ({ ...prev, [manualTarget.recordId]: res.decision }));
+    setActionError(null);
+    try {
+      const res = await onManualAdjust(
+        manualTarget.recordType,
+        manualTarget.recordId,
+        manualDecision,
+        manualReason.trim(),
+      );
+      if (res?.decision === 'NO_CHANGE' || res?.decision === 'CHANGED') {
+        setDecisions((prev) => ({ ...prev, [manualTarget.recordId]: res.decision }));
+      }
+      setManualTarget(null);
+    } catch (err: unknown) {
+      // ⚠️ **失败时弹窗不关**（用户刚填的理由不该被吞掉）⇒ 只显示错误。
+      setActionError(errorMessage(err));
     }
-    setManualTarget(null);
   }
 
   return (
@@ -235,6 +266,20 @@ export function ChangeImpactPanel({
         }
         style={{ marginBottom: 16 }}
       />
+
+      {/* ⚠️ **判定失败的提示**（Important ⑥）—— 失败必须说出口，
+          否则用户只看到「点了没反应」。文案取后端 `message` 原文。 */}
+      {actionError && (
+        <Alert
+          type="error"
+          showIcon
+          closable
+          data-testid="change-impact-error"
+          message={actionError}
+          onClose={() => setActionError(null)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <div
         style={{

@@ -299,3 +299,66 @@ describe('ChangeImpactPanel — 系统判定 / 人工判定（SPEC §6.7.1）', 
     expect(onManualAdjust).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * ⚠️ **失败的判定必须说出口**（最终评审 Important ⑥）。
+ *
+ * 此前 `handleConfirmSystem` / `submitManualAdjust` 直接 `await` 回调
+ * **没有 try/catch** ⇒ 403（DESIGNER 调 manual-adjust 是**设计如此**）、
+ * 409、500 时：
+ * - 界面**毫无变化**（按钮文案不变 ⇒ 用户以为「点了没反应」）；
+ * - 控制台出现**未捕获的 promise rejection**。
+ *
+ * ⇒ 违反「失败方向：拿不到就明说」的全局约束。
+ */
+describe('ChangeImpactPanel — 判定失败必须明说（Important ⑥）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('系统判定失败（403）⇒ 显示错误提示，且**不产生未捕获的 rejection**', async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    const onConfirmSystem = vi.fn().mockRejectedValue({
+      response: { data: { code: 'FORBIDDEN', message: '无权限执行此操作' } },
+    });
+    try {
+      const { container } = render(
+        <ChangeImpactPanel
+          changeSource={source}
+          affectedRecords={records}
+          onConfirmSystem={onConfirmSystem}
+        />,
+      );
+      fireEvent.click(container.querySelector('[data-testid="confirm-system"]')!);
+      await waitFor(() => expect(screen.getByTestId('change-impact-error')).toBeTruthy());
+      expect(screen.getByTestId('change-impact-error').textContent).toContain('无权限');
+      // ⚠️ **不得**有未捕获的 rejection
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('人工判定失败 ⇒ 显示错误提示，且弹窗**不**关闭（用户输入不丢）', async () => {
+    const onManualAdjust = vi.fn().mockRejectedValue({
+      response: { data: { code: 'CONFLICT', message: '该记录已被他人修改' } },
+    });
+    render(
+      <ChangeImpactPanel
+        changeSource={source}
+        affectedRecords={records}
+        onManualAdjust={onManualAdjust}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('manual-adjust-r1'));
+    const reasonBox = await waitFor(() => screen.getByTestId('manual-adjust-reason'));
+    fireEvent.change(reasonBox, { target: { value: '已核对' } });
+    fireEvent.click(screen.getByTestId('manual-adjust-ok'));
+    await waitFor(() => expect(screen.getByTestId('change-impact-error')).toBeTruthy());
+    // ⚠️ 弹窗仍在（用户刚填的理由不该被吞掉）
+    expect(screen.getByTestId('manual-adjust-ok')).toBeTruthy();
+  });
+});

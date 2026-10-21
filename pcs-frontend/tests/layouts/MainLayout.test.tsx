@@ -54,7 +54,23 @@ const CONTRACT_RESPONSE = {
 const server = setupServer(
   http.get('/api/v1/notifications', () => HttpResponse.json(CONTRACT_RESPONSE)),
   http.get('/api/v1/todos', () => HttpResponse.json({ items: [], total: 0 })),
+  // ⚠️ `/health` 的 `realtime` —— 顶栏实时状态横幅的数据源（SPEC §6.23）。
+  // **默认可变** ⇒ 各用例可改；`realtime=degraded` 时顶栏必须出现横幅。
+  http.get('/api/v1/health', () =>
+    HttpResponse.json({
+      status: 'ok',
+      database: 'up',
+      realtime: healthState.realtime,
+      realtime_reason: healthState.realtime_reason,
+    }),
+  ),
 );
+
+/** `/health` 的 realtime 状态（可变 ⇒ 各用例自己设）。 */
+let healthState: { realtime: string; realtime_reason: string | null } = {
+  realtime: 'ok',
+  realtime_reason: null,
+};
 
 describe('MainLayout — 通知接线（TODO-065）', () => {
   beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
@@ -125,5 +141,49 @@ describe('MainLayout — 降级横幅（RF-6）', () => {
     );
     await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
     expect(screen.queryByTestId('degradation-banner')).toBeNull();
+  });
+});
+
+/**
+ * 实时状态横幅（SPEC §6.23 · 最终评审 Important ④）。
+ *
+ * ## 为什么这条测试存在
+ *
+ * `RealtimeStatusBanner` 组件**写好了、有测试**，却**没有任何宿主**渲染它
+ * ⇒ §6.23 实际上**没交付**（组件只活在测试里 —— 本仓最怕的「假绿」形状）。
+ *
+ * ⇒ 顶栏（`MainLayout`）必须读 `/health` 的 `realtime` / `realtime_reason`
+ * 并在 degraded 时渲染横幅。
+ */
+describe('MainLayout —— 实时状态横幅（SPEC §6.23）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    healthState = { realtime: 'ok', realtime_reason: null };
+  });
+
+  it('realtime=degraded ⇒ 顶栏出现横幅，且说「仍可收到通知」（不得说「已关闭」）', async () => {
+    healthState = { realtime: 'degraded', realtime_reason: 'redis_unavailable' };
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('realtime-status-banner')).toBeTruthy());
+    const text = screen.getByTestId('realtime-status-banner').textContent ?? '';
+    expect(text).toContain('仍可收到通知');
+    expect(text).not.toContain('已关闭');
+    // ⚠️ `realtime_reason` 走**枚举映射** ⇒ 不得把原始英文码当文案
+    expect(text).not.toContain('redis_unavailable');
+  });
+
+  it('realtime=ok ⇒ **不渲染**横幅', async () => {
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
+    expect(screen.queryByTestId('realtime-status-banner')).toBeNull();
   });
 });

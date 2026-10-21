@@ -15,7 +15,7 @@
  * ⚠️ 断言**请求体**（不是 hook 返回值）—— RF-13 只有这样抓得到。
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
@@ -105,6 +105,7 @@ const ROW_FILTER = {
 
 let lastBody: Record<string, unknown> | null = null;
 let releaseCalls = 0;
+let acquireCalls = 0;
 let lockBlocked = false;
 
 function conflictEnvelope(basis: 'record_hash' | 'updated_at' | 'no_baseline') {
@@ -134,6 +135,15 @@ const server = setupServer(
   http.get('/api/v1/filtration/results', () =>
     HttpResponse.json({ items: ROWS, total: ROWS.length, skip: 0, limit: 50 }),
   ),
+  // ⚠️ **详情**端点（`recordsApi.get`）—— 409 后的「放弃并刷新」用它取服务端新值。
+  // 此刻**没有**它 ⇒ `onUnhandledRequest: 'error'` 会让刷新静默失败
+  // （抽屉的 catch 吞掉）⇒ 列表的 hash 永远不更新（Important ② 的根因之一）。
+  http.get('/api/v1/cool-tower/results/:id', ({ params }) => {
+    const found = ROWS.find((r) => r.id === params.id);
+    if (!found) return HttpResponse.json({ detail: 'not found' }, { status: 404 });
+    // 服务端此刻的哈希（与 PATCH 成功后的响应一致）
+    return HttpResponse.json({ ...found, record_hash: NEW_HASH });
+  }),
   http.patch('/api/v1/cool-tower/results/:id', async ({ request, params }) => {
     lastBody = (await request.json()) as Record<string, unknown>;
     if (params.id === ROW_CONFLICT_HASH.id) {
@@ -149,6 +159,7 @@ const server = setupServer(
   }),
   http.post('/api/v1/locks/:recordType/:recordId/:op', ({ params }) => {
     if (params.op === 'release') releaseCalls += 1;
+    if (params.op === 'acquire') acquireCalls += 1;
     if (params.op === 'acquire' && (lockBlocked || params.recordId === ROW_LOCKED.id)) {
       return HttpResponse.json(
         {
@@ -206,6 +217,7 @@ describe('ResultListPage —— 列表渲染与编辑入口', () => {
   beforeEach(() => {
     lastBody = null;
     releaseCalls = 0;
+    acquireCalls = 0;
     lockBlocked = false;
     ROWS = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
   });
@@ -254,6 +266,7 @@ describe('ResultEditDrawer —— 保存 / 基线 / 409', () => {
   beforeEach(() => {
     lastBody = null;
     releaseCalls = 0;
+    acquireCalls = 0;
     lockBlocked = false;
     ROWS = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
   });
@@ -321,6 +334,7 @@ describe('ResultEditDrawer —— 关闭与释放锁（RF-10）', () => {
   beforeEach(() => {
     lastBody = null;
     releaseCalls = 0;
+    acquireCalls = 0;
     lockBlocked = false;
     ROWS = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
   });
@@ -388,6 +402,7 @@ describe('ResultListPage —— 跨模块切换', () => {
   beforeEach(() => {
     lastBody = null;
     releaseCalls = 0;
+    acquireCalls = 0;
     lockBlocked = false;
     ROWS = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
   });
@@ -422,5 +437,126 @@ describe('ResultListPage —— 跨模块切换', () => {
     } finally {
       spy.mockRestore();
     }
+  }, SLOW_TIMEOUT);
+});
+
+/**
+ * **最终评审（2026-10-21）抓到的 Critical + 两条 Important**。
+ *
+ * ## Critical：抽屉里的输入框**显示的不是抽屉的值**
+ *
+ * `Form.Item` 带 `name={field.key}` ⇒ antd/rc-field-form 会用**表单 store 的值**
+ * 覆盖子元素自己的 `value` prop（`rc-field-form/lib/Field.js`：
+ * `valueProps = { value: storeValue }`；`antd/lib/form/FormItem`：
+ * `childProps = { ...mergedChildren.props, ...mergedControl }`）。
+ *
+ * 而抽屉**从不**调 `form.setFieldsValue(...)`（没有 form 实例、没有
+ * `initialValues`）⇒ store 是空的 ⇒ `storeValue === undefined`
+ * ⇒ **每个可编辑输入框都渲染成空白**，哪怕记录里有值。
+ *
+ * ⚠️ **为什么浏览器 QA 没抓到**：QA 断言的是**请求体**
+ * （`{"tower_type":"COUNTERFLOW","duty_kw":123,…}`）—— 而 antd 仍会把
+ * `onChange` 串起来 ⇒ 手工改过的值能进请求体 ⇒ **体对、界面空**。
+ * ⇒ 断言必须落在**渲染出来的值**上。
+ */
+describe('ResultEditDrawer —— 输入框显示记录里的值（最终评审 Critical）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    lastBody = null;
+    releaseCalls = 0;
+    acquireCalls = 0;
+    lockBlocked = false;
+    ROWS = [ROW_DRAFT];
+  });
+
+  it('打开抽屉 ⇒ 每个可编辑字段显示记录里的值（不是空白）', async () => {
+    await openEditor(0);
+    await waitFor(() =>
+      expect((screen.getByTestId('field-duty_kw') as HTMLInputElement).value).toBe('100'),
+    );
+    expect((screen.getByTestId('field-tower_type') as HTMLInputElement).value).toBe(
+      'COUNTERFLOW',
+    );
+  }, SLOW_TIMEOUT);
+
+  it('409 ⇒ [放弃我的修改并刷新] ⇒ 输入框回到**服务端**的值', async () => {
+    ROWS = [ROW_CONFLICT_HASH];
+    await openEditor(0);
+    // 先改一个值（模拟用户输入）
+    fireEvent.change(screen.getByTestId('field-duty_kw'), { target: { value: '123' } });
+    fireEvent.click(screen.getByTestId('result-save'));
+    await waitFor(() => expect(screen.getByTestId('edit-conflict-modal')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('conflict-refresh'));
+    // 服务端返回的是 ROW_CONFLICT_HASH 原值 100（handler 见下）
+    await waitFor(() =>
+      expect((screen.getByTestId('field-duty_kw') as HTMLInputElement).value).toBe('100'),
+    );
+  }, SLOW_TIMEOUT);
+});
+
+/**
+ * Important ②：409 刷新后**不把新 hash 交回列表** ⇒ 下一次编辑必 409（假冲突）。
+ *
+ * `discardAndRefresh` 只更新了抽屉内部的 `currentHash`，**没调** `onSaved`
+ * ⇒ 列表里的 `record_hash` 还是冲突前那个 ⇒ 关闭抽屉再打开同一条 ⇒
+ * 用旧基线保存 ⇒ 后端 409 `record_hash` —— 用户什么都没做错。
+ */
+describe('ResultListPage —— 409 刷新后列表的 hash 必须更新（Important ②）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    lastBody = null;
+    releaseCalls = 0;
+    acquireCalls = 0;
+    lockBlocked = false;
+    ROWS = [ROW_CONFLICT_HASH];
+  });
+
+  it('409 ⇒ [放弃我的修改并刷新] ⇒ 列表那一行的哈希变成服务端的新值', async () => {
+    await openEditor(0);
+    fireEvent.click(screen.getByTestId('result-save'));
+    await waitFor(() => expect(screen.getByTestId('edit-conflict-modal')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('conflict-refresh'));
+    // 列表单元格里的短哈希必须换成新值（ffff…ffff）
+    await waitFor(() =>
+      expect(screen.getByText(/ffff…ffff/)).toBeTruthy(),
+    );
+  }, SLOW_TIMEOUT);
+});
+
+/**
+ * Important ③：**SPA 导航**（点菜单换页）会让抽屉所在页面静默卸载
+ * ⇒ 只清了心跳定时器、**没释放锁** ⇒ 同事看到「张三 正在编辑」**30 分钟**。
+ *
+ * ⚠️ `pagehide` 只在**文档**卸载时触发 ⇒ 覆盖不到 SPA 路由切换。
+ */
+describe('ResultEditDrawer —— 页面卸载（SPA 导航）也要释放锁（Important ③）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    lastBody = null;
+    releaseCalls = 0;
+    acquireCalls = 0;
+    lockBlocked = false;
+    ROWS = [ROW_DRAFT];
+  });
+
+  it('组件卸载 ⇒ 调 release（不是只清心跳）', async () => {
+    const { unmount } = render(<ResultListPage module={MODULE} />);
+    await waitFor(() =>
+      expect(screen.getAllByTestId('result-edit-button').length).toBe(ROWS.length),
+    );
+    fireEvent.click(screen.getAllByTestId('result-edit-button')[0]);
+    await waitFor(() => expect(screen.getByTestId('result-edit-drawer')).toBeTruthy());
+    // ⚠️ **必须等锁真的拿到**（acquire 的响应被客户端处理完）⇒ 否则卸载时
+    // 还没持锁 ⇒ 无从释放（那正是「只在持锁时释放」这条守卫的用意）。
+    await waitFor(() => expect(acquireCalls).toBeGreaterThan(0));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    unmount();
+    await waitFor(() => expect(releaseCalls).toBeGreaterThan(0));
   }, SLOW_TIMEOUT);
 });

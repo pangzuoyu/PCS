@@ -74,7 +74,15 @@ export function ResultEditDrawer({
   onSaved,
 }: Props): JSX.Element {
   const id = String(record[module.pk] ?? '');
-  const [form, setForm] = useState<Record<string, unknown>>({});
+  // ⚠️ **表单由 antd 的 form store 托管**（不是本组件的 `useState`）。
+  //
+  // 理由（最终评审 Critical）：`Form.Item` 带 `name` 时，rc-field-form 会用
+  // **store 的值**覆盖子元素自己的 `value` prop
+  // （`rc-field-form/lib/Field.js`：`valueProps = { value: storeValue }`）。
+  // 而此前抽屉**从不**调 `setFieldsValue` ⇒ store 是空的 ⇒
+  // `storeValue === undefined` ⇒ **每个输入框都渲染成空白**，
+  // 哪怕记录里有值（⚠️ 而请求体仍是对的 ⇒ QA 断言请求体时看不出来）。
+  const [antdForm] = Form.useForm();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -87,11 +95,12 @@ export function ResultEditDrawer({
 
   useEffect(() => {
     if (!open) return;
-    setForm(initialForm(module, record));
+    // ⚠️ **必须写进 form store**，否则输入框显示的是空值（见上）。
+    antdForm.setFieldsValue(initialForm(module, record));
     setDirty(false);
     setErrorMsg(null);
     setCurrentHash(record.record_hash ?? '');
-  }, [open, module, record]);
+  }, [open, module, record, antdForm]);
 
   const baseline = useEditBaseline({
     record_hash: currentHash,
@@ -130,11 +139,6 @@ export function ResultEditDrawer({
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [open, module.recordType, id]);
 
-  function setField(key: string, value: unknown): void {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setDirty(true);
-  }
-
   async function save(): Promise<void> {
     setSaving(true);
     setErrorMsg(null);
@@ -143,8 +147,10 @@ export function ResultEditDrawer({
       // 展开会把 `disabled` / `reason` 也塞进去（后端 `extra="ignore"` 会
       // 静默丢弃，但那依赖后端策略）⇒ 显式构造是**不依赖**策略的做法。
       const body: Record<string, unknown> = {};
+      // ⚠️ 值取 **form store**（不是本组件的 state）—— store 才是输入框显示的东西。
+      const values = antdForm.getFieldsValue();
       for (const field of editableFieldDefs(module)) {
-        const value = form[field.key];
+        const value = values[field.key];
         if (value !== undefined) body[field.key] = value;
       }
       // ⚠️ **只带判定出来的那一档**，且**原样透传**（RF-9）。
@@ -186,8 +192,16 @@ export function ResultEditDrawer({
         id,
       );
       setCurrentHash(fresh.record_hash ?? '');
-      setForm(initialForm(module, fresh as CommonResultRow & Record<string, unknown>));
+      // ⚠️ **写回 form store**（不是本组件的 state）—— 否则输入框仍显示
+      // 用户刚才输入的**已被丢弃**的值，而保存会发服务端的值 ⇒ 静默写错值。
+      antdForm.setFieldsValue(
+        initialForm(module, fresh as CommonResultRow & Record<string, unknown>),
+      );
       setDirty(false);
+      // ⚠️ **把新 hash 交回列表**（Important ②）：只更新抽屉内部的基线是不够的
+      // —— 列表里的 `record_hash` 还是冲突前那个 ⇒ 关闭再打开同一条 ⇒
+      // 用旧基线保存 ⇒ 后端 409 `record_hash`（用户什么都没做错）。
+      onSaved({ record_hash: fresh.record_hash ?? '' });
     } catch {
       // 拿不到就保持原样（不静默清空用户的输入）
     }
@@ -251,22 +265,21 @@ export function ResultEditDrawer({
       {errorMsg && (
         <Alert type="error" showIcon message={errorMsg} data-testid="result-save-error" />
       )}
-      <Form layout="vertical" style={{ marginTop: 16 }}>
+      {/* ⚠️ **不要**给 `InputNumber` / `Input` 传 `value` prop** ——
+          `Form.Item name` 会用 store 的值**覆盖**它（store 空 ⇒ 显示空白）。
+          值一律由 store 托管（打开时 `setFieldsValue`，保存时 `getFieldsValue`）。 */}
+      <Form
+        form={antdForm}
+        layout="vertical"
+        onValuesChange={() => setDirty(true)}
+        style={{ marginTop: 16 }}
+      >
         {editableFieldDefs(module).map((field) => (
           <Form.Item key={field.key} label={field.label} name={field.key}>
             {field.kind === 'number' ? (
-              <InputNumber
-                data-testid={`field-${field.key}`}
-                value={form[field.key] as number | undefined}
-                onChange={(v) => setField(field.key, v)}
-                style={{ width: '100%' }}
-              />
+              <InputNumber data-testid={`field-${field.key}`} style={{ width: '100%' }} />
             ) : (
-              <Input
-                data-testid={`field-${field.key}`}
-                value={(form[field.key] as string | undefined) ?? ''}
-                onChange={(e) => setField(field.key, e.target.value)}
-              />
+              <Input data-testid={`field-${field.key}`} />
             )}
           </Form.Item>
         ))}
