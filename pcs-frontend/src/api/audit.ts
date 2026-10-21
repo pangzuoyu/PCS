@@ -95,3 +95,20 @@ export const auditApi = {
     return api.get('/config-audit', { params }).then((r) => r.data);
   },
 };
+
+/**
+ * 编辑审计（SPEC §6.21 P9A-LCK-006「查看差异」的来源）。
+ *
+ * ⚠️ `/audit-logs` **限 SYSTEM_ADMIN** ⇒ 普通 DESIGNER 拿到 409 弹窗却
+ * **看不到差异** ⇒ 弹窗必须优雅降级（「无权查看差异（需系统管理员）」）
+ * ⇒ **TODO-066**（按项目守卫的编辑审计读端点，归属 P9B-2）。
+ *
+ * ⚠️ `changed_fields`（**字段名列表**，不是值）在 `detail_json` 里。
+ */
+export function listRecordEdits(params: {
+  resource_type: string;
+  resource_id: string;
+  limit?: number;
+}): Promise<AuditLogListResponse> {
+  return api.get('/audit-logs', { params }).then((r) => r.data);
+}

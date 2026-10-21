@@ -1,5 +1,5 @@
 /**
- * 编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。
+ * 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。
  *
  * 端点（后端 `app/api/v1/locks.py`）：
  * - `POST /locks/{record_type}/{record_id}/acquire` —— 取锁
@@ -10,38 +10,26 @@
  * `cooling_tower_result` …），**不是表名**（`cost_est_results`）。全仓只有
  * 这一套词表（P9A-5 Task A / SPEC V2.0）；后端会校验，传表名 ⇒ 404。
  * 键不总是类名：注册表 21 键里 5 个是 snake_case。
+ * ⚠️ 词表与基线类型**住在 `records.ts`**（记录域的单一来源）⇒ 本文件
+ * 只管「锁操作」，依赖方向 **locks → records**（单向，无循环）。
  *
  * ⚠️ **类型全部来自生成的 `api.d.ts`，不手写**（`src/api/reportBuilder.ts`
  * 的规矩）：手写的 `src/types/*.ts` 已经漂移过一次
  * （6 个 `*UpdateRequest` 缺 `expected_hash`）。
  */
 import { api } from './client';
+import { EDITABLE_RECORD_TYPES, type EditableRecordType } from './records';
 import type { components } from '../types/api';
 
 export type LockResponse = components['schemas']['LockResponse'];
 export type LockHolderResponse = components['schemas']['LockHolderResponse'];
 export type ConflictEnvelope = components['schemas']['ConflictEnvelope'];
 
-/**
- * 6 张有编辑路径的表 —— 与后端 `edit_guard.TABLE_CAPABILITIES` 同源。
- *
- * ⚠️ **这份清单是「写进 URL 的那一份」**：后端 `TABLE_CAPABILITIES` 是判定依据，
- * 这里是给调用方选值用的。⚠️ 两者不同步时**后端会 404**（不是静默错锁），
- * 且 `tests/api/edit_lock_api.test.ts` 会红。
- */
-export const EDITABLE_RECORD_TYPES = [
-  'CostEstResult',
-  'FiltrationResult',
-  'OpenChannelResult',
-  'cooling_tower_result',
-  'flare_system_result',
-  'psychro_result',
-] as const;
-
-export type EditableRecordTypeName = (typeof EDITABLE_RECORD_TYPES)[number];
+export { EDITABLE_RECORD_TYPES };
+export type { EditableRecordType };
 
 /** 判断一个值是不是合法的 `record_type`（后端不接受时**提前**拦，别等 404）。 */
-export function isEditableRecordType(value: string): value is EditableRecordTypeName {
+export function isEditableRecordType(value: string): value is EditableRecordType {
   return (EDITABLE_RECORD_TYPES as readonly string[]).includes(value);
 }
 
@@ -106,30 +94,3 @@ async function readLock409(err: unknown): Promise<LockResponse | null> {
   return data as LockResponse;
 }
 
-/**
- * 6 类结果记录的 PATCH —— **必须带并发基线**。
- *
- * ⚠️ 这个模块只先落 `cost_est`（本批 Task F0/F1 的验证对象）；其余 5 类
- * 在 Task F2 建页面时按同一形状补齐（`patchCoolingTower` 等）。
- * ⚠️ **签名里 `expected_hash` 必填**（不是可选）：漏了就是 409，而症状是
- * 「保存总是失败」，不指向漏传 ⇒ 用类型把它变成编译期错误。
- */
-export interface PatchBaseline {
-  /** 客户端看到的 record_hash（SPEC §6.21 P9A-LCK-006）。 */
-  expected_hash: string;
-  /** 无 hash 令牌时的第二档基线（cost_est 没有 updated_at ⇒ 不需要）。 */
-  expected_updated_at?: string;
-}
-
-export const editRecordApi = {
-  patchCostEst: (
-    resultId: string,
-    body: components['schemas']['CostEstUpdateRequest'] & PatchBaseline,
-  ) =>
-    api
-      .patch<components['schemas']['CostEstResultResponse']>(
-        `/cost-est/results/${resultId}`,
-        body,
-      )
-      .then((r) => r.data),
-};

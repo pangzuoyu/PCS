@@ -8,24 +8,24 @@
  * 一旦漏传，**每个**编辑请求都会 409，而症状是「保存总是失败」，
  * 不指向「漏了基线」⇒ 必须有一条测试直接断言「基线确实在请求体里」。
  *
+ * ⚠️ **P9B-1 T1 归并**：那两条 PATCH 用例测的是「**基线**」而不是「**锁**」
+ * ⇒ 已迁到 `tests/api/records_api.test.ts`（记录域的单一来源在 `records.ts`）
+ * ⇒ 本文件只留锁（acquire / renew / release）与冲突信封解析。
+ *
  * 断言方式：用 MSW node server 拦真实请求，把 body 捕获进闭包变量
  * （仿 `tests/pages/util/cooling_water.test.tsx` 的既有套路）。
  *
  * ⚠️ **不要 mock api 模块**：那会把这组测试变成「测 mock 的行为」。
  * 这里 mock 的是**服务端**，被测的是**我们发出去的 body**。
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
-import { editLockApi, editRecordApi } from '../../src/api/locks';
+import { editLockApi } from '../../src/api/locks';
 import { extractConflict } from '../../src/api/errors';
 
 const RECORD_ID = '11111111-2222-3333-4444-555555555555';
-const CURRENT_HASH = 'a3f9c21d8b7e6f50';
-
-type Captured = { path: string; body: unknown } | null;
-let lastRequest: Captured = null;
 
 const LOCK_RESPONSE = {
   record_type: 'CostEstResult',
@@ -46,28 +46,6 @@ const server = setupServer(
   http.post('/api/v1/locks/:recordType/:recordId/:op', ({ params }) =>
     HttpResponse.json({ ...LOCK_RESPONSE, operation: params.op }),
   ),
-  http.patch('/api/v1/cost-est/results/:id', async ({ request }) => {
-    lastRequest = {
-      path: new URL(request.url).pathname,
-      body: await request.json(),
-    };
-    return HttpResponse.json({
-      result_id: RECORD_ID,
-      equipment_id: 'e-1',
-      estimated_cost: 35,
-      currency: 'USD',
-      cost_index_year: 2019,
-      base_cost: null,
-      base_year: null,
-      cepci_index_base: null,
-      cepci_index_target: null,
-      correlation_source: null,
-      scaling_exponent: null,
-      record_hash: 'new-hash-1234',
-      project_id: 'p-1',
-      created_at: '2026-10-20T10:22:31Z',
-    });
-  }),
   // 一个恒定 409 的端点，供 extractConflict 测试用
   http.post('/api/v1/conflict-probe', () =>
     HttpResponse.json(
@@ -95,9 +73,6 @@ const server = setupServer(
 describe('编辑锁 / 编辑保存的请求契约（P9B-1 F0）', () => {
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
   afterAll(() => server.close());
-  beforeEach(() => {
-    lastRequest = null;
-  });
 
   it('acquire 用注册表键当 record_type（不是表名）', async () => {
     const res = await editLockApi.acquire('CostEstResult', RECORD_ID);
@@ -110,29 +85,6 @@ describe('编辑锁 / 编辑保存的请求契约（P9B-1 F0）', () => {
     expect(renew.operation).toBe('renew');
     const release = await editLockApi.release('CostEstResult', RECORD_ID);
     expect(release.operation).toBe('release');
-  });
-
-  it('⚠️ PATCH 必须带 expected_hash —— 漏了后端一律 409', async () => {
-    await editRecordApi.patchCostEst(RECORD_ID, {
-      estimated_cost: 35,
-      expected_hash: CURRENT_HASH,
-    });
-    expect(lastRequest).not.toBeNull();
-    const body = lastRequest!.body as Record<string, unknown>;
-    // ⚠️ 这条断言就是整组测试存在的理由
-    expect(body.expected_hash).toBe(CURRENT_HASH);
-  });
-
-  it('PATCH 的业务字段与基线字段**不混**（基线不落进业务 payload）', async () => {
-    await editRecordApi.patchCostEst(RECORD_ID, {
-      estimated_cost: 35,
-      currency: 'EUR',
-      expected_hash: CURRENT_HASH,
-    });
-    const body = lastRequest!.body as Record<string, unknown>;
-    expect(body).toMatchObject({ estimated_cost: 35, currency: 'EUR' });
-    // 基线字段是独立的顶层字段（ADR-0048 §⑥ 的契约）
-    expect(body.expected_updated_at).toBeUndefined();
   });
 
   it('extractConflict 从 409 信封里取出 detail.conflict', async () => {
