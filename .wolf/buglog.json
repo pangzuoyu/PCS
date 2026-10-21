@@ -3866,6 +3866,131 @@
       "occurrences": 1,
       "last_seen": "2026-10-21",
       "severity": "HIGH"
+    },
+    {
+      "id": "bug-2044",
+      "error_message": "编辑抽屉打开后**每个可编辑字段都是空白**（记录里有值也显示空），而保存的请求体却是**对的**（浏览器 QA 断言请求体时没发现）",
+      "file": "pcs-frontend/src/pages/results/ResultEditDrawer.tsx",
+      "root_cause": "`Form.Item` 带 `name={field.key}` ⇒ rc-field-form 用**表单 store 的值**覆盖子元素自己的 `value` prop（`rc-field-form/lib/Field.js`：`valueProps = { value: storeValue }`；`antd/lib/form/FormItem`：`childProps = { ...mergedChildren.props, ...mergedControl }`）。抽屉**从不**调 `form.setFieldsValue`（无 form 实例、无 initialValues）⇒ store 为空 ⇒ `storeValue === undefined` ⇒ 全部渲染成空白。⚠️ onChange 仍被 antd 串起来 ⇒ 请求体正确 ⇒ **界面错、体对**，QA 断言请求体时看不见。",
+      "fix": "值一律由 antd form store 托管：`Form.useForm()` + 打开时 `setFieldsValue(initialForm(...))` + 保存时 `getFieldsValue()`；**不再**给 InputNumber/Input 传 `value` prop（传了也会被 store 覆盖）。连带修好「409 放弃并刷新后输入框仍显示已丢弃的值」（刷新要写回 store）。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "antd",
+        "form-store",
+        "silent-data-loss",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "CRITICAL",
+      "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2045",
+      "error_message": "409「放弃我的修改并刷新」之后，**列表里的 record_hash 仍是冲突前的旧值** ⇒ 关闭抽屉再打开同一条 ⇒ 用旧基线保存 ⇒ 后端 409 `record_hash`（用户什么都没做错）",
+      "file": "pcs-frontend/src/pages/results/ResultEditDrawer.tsx",
+      "root_cause": "`discardAndRefresh` 只更新了抽屉**内部**的 `currentHash`，**没调** `onSaved` ⇒ 父级 `ResultListPage` 的 `records` 里那条行的 `record_hash` 没变 ⇒ 列表的「编辑」入口下次用的还是旧基线。",
+      "fix": "刷新成功后调 `onSaved({ record_hash: fresh.record_hash ?? '' })` ⇒ 父级就地更新该行的哈希（与保存成功路径同一条链）。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "conflict",
+        "stale-baseline",
+        "rf-1",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "IMPORTANT",
+      "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2046",
+      "error_message": "SPA 导航（点菜单换页）让编辑抽屉**静默卸载** ⇒ 锁**没被释放** ⇒ 同事看到「张三 正在编辑」持续 30 分钟（TTL 才回收）",
+      "file": "pcs-frontend/src/hooks/useEditLock.ts",
+      "root_cause": "`useEditLock` 的 effect cleanup 只清了心跳定时器；释放锁只挂在 `pagehide`（**文档**卸载）事件上 ⇒ 覆盖不到 React Router 的路由切换。",
+      "fix": "effect cleanup 在**确实持锁**时 best-effort release。⚠️ 只在持锁时释放：StrictMode 的 cleanup 会在 acquire 落地**之前**跑，无条件释放会与随后的 acquire 抢跑（可能把刚拿到的锁放掉）。为此把「已持锁」的标志从 state 挪到 effect 内的局部变量，并在 `cancelled` 判断**之前**置位。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "edit-lock",
+        "rf-10",
+        "spa-navigation",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "IMPORTANT",
+      "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2047",
+      "error_message": "`RealtimeStatusBanner` 组件写好了、也有测试，却**没有任何页面渲染它** ⇒ SPEC §6.23 实际**没交付**（组件只活在测试里）",
+      "file": "pcs-frontend/src/components/common/RealtimeStatusBanner.tsx + src/layouts/MainLayout.tsx",
+      "root_cause": "P9B-1 的 T5 只产出了面板与组件，**没有指定宿主**；T6 的宿主页只挂了 `WorkflowProgressPanel`。组件自带的测试在隔离环境渲染它 ⇒ 全绿 ⇒ 缺失不可见（**假绿**形状）。QA 报告里「本批只读 /health 的 realtime」的说法与代码不符。",
+      "fix": "新增 `src/api/health.ts`（`GET /health` 的 `realtime` / `realtime_reason`）+ 挂到 `MainLayout` 顶栏（60s 轮询，degraded 时渲染横幅）。⚠️ 拿不到状态**不等于**降级 ⇒ 请求失败时保持「ok」（不显示横幅，也不得说「已关闭」）。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "spec-6-23",
+        "no-host",
+        "false-green",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "IMPORTANT",
+      "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2048",
+      "error_message": "交付物进度页 `pagination={false}` + 硬编码 `limit: 100` ⇒ 交付物超过 100 个时**只显示前 100 个且无任何提示**",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "root_cause": "列表请求写死 `limit: 100, offset: 0`，表格关掉分页 ⇒ 超额部分**静默丢弃** ⇒ 用户以为「就这些」。",
+      "fix": "走 limit/offset 的真分页（page/pageSize state + antd `pagination` 受控），并删掉那个只为消费 `total` 而存在的 `display:none` span。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "pagination",
+        "silent-truncation",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "IMPORTANT",
+      "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2049",
+      "error_message": "变更影响的「系统判定 / 人工判定」失败时是**静默 no-op** + 控制台一条**未捕获的 promise rejection**",
+      "file": "pcs-frontend/src/components/common/ChangeImpactPanel.tsx",
+      "root_cause": "`handleConfirmSystem` / `submitManualAdjust` 直接 `await` 回调**没有 try/catch** ⇒ 403（DESIGNER 调 manual-adjust 是**设计如此**，`changeImpact.ts:50` 有注）/ 409 / 500 时：界面毫无变化（用户以为「点了没反应」），且 rejection 未被处理 ⇒ 违反「失败方向：拿不到就明说」。",
+      "fix": "两处都 try/catch ⇒ 渲染错误提示（文案取后端 `message` 原文，`extractPcsError`）；人工判定失败时**弹窗不关**（用户刚填的理由不该被吞掉）。",
+      "fix_commit": "20a3cc6",
+      "tags": [
+        "p9b-1",
+        "frontend",
+        "change-impact",
+        "unhandled-rejection",
+        "error-direction",
+        "review-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "IMPORTANT",
+      "timestamp": "2026-10-21T00:00:00.000Z"
     }
   ]
 }
