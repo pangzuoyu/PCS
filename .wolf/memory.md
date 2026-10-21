@@ -2231,3 +2231,67 @@
 | 08:51 | Edited README.md | 1→3 lines | ~425 |
 | 08:51 | Edited README.md | expanded (+12 lines) | ~202 |
 | 08:52 | Edited README.md | 2→7 lines | ~102 |
+| 09:04 | Session end: 62 writes across 17 files (PCS-UI-SPEC.md, 0050-sign-responsibility-and-task-participation.md, test_workflow_progress_acceptance.py, test_notification_list_budget.py, PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md) | 8 reads | ~50177 tok |
+
+## Session: 2026-10-21 09:04
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:11 | Created .superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md | — | ~1397 |
+| 09:12 | Created pcs-backend/tests/api/v1/test_deliverables_current_version.py | — | ~2542 |
+| 09:12 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | get_version() → get() | ~49 |
+| 09:15 | Edited pcs-backend/app/schemas/deliverable.py | expanded (+8 lines) | ~99 |
+| 09:15 | Edited pcs-backend/app/services/deliverable_service.py | modified current_version_ids() | ~534 |
+| 09:15 | Edited pcs-backend/app/services/deliverable_service.py | added 1 import(s) | ~24 |
+| 09:16 | Edited pcs-backend/app/api/v1/deliverables.py | expanded (+11 lines) | ~198 |
+| 09:16 | Edited pcs-backend/app/api/v1/deliverables.py | expanded (+7 lines) | ~116 |
+| 09:17 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | 3→2 lines | ~35 |
+| 09:21 | Created pcs-frontend/tests/api/records_api.test.ts | — | ~1543 |
+| 09:43 | Edited pcs-backend/alembic/versions/p9_006_cost_est_record_hash.py | modified _backfill_record_hash() | ~713 |
+| 09:43 | Created pcs-backend/tests/alembic/test_p9_006_backfill_schema_drift.py | — | ~1473 |
+| 09:44 | Edited pcs-backend/tests/alembic/test_p9_006_backfill_schema_drift.py | 8→10 lines | ~106 |
+| 09:45 | Edited pcs-backend/tests/alembic/test_p9_006_backfill_schema_drift.py | 10→11 lines | ~125 |
+| 09:55 | Edited pcs-frontend/tests/api/records_api.test.ts | expanded (+8 lines) | ~228 |
+| 09:55 | Edited pcs-frontend/tests/api/records_api.test.ts | expanded (+14 lines) | ~250 |
+| 09:55 | Created pcs-frontend/src/api/records.ts | — | ~1079 |
+| 09:55 | Edited pcs-frontend/src/api/locks.ts | modified isEditableRecordType() | ~402 |
+| 09:55 | Edited pcs-frontend/src/api/locks.ts | modified readLock409() | ~139 |
+| 09:56 | Edited pcs-frontend/src/api/audit.ts | modified listRecordEdits() | ~294 |
+| 09:56 | Edited pcs-frontend/tests/api/edit_lock_api.test.ts | 22→26 lines | ~260 |
+| 09:56 | Edited pcs-frontend/tests/api/edit_lock_api.test.ts | removed 24 lines | ~19 |
+| 10:06 | Created pcs-frontend/tests/hooks/useEditBaseline.test.ts | — | ~1294 |
+| 10:06 | Created pcs-frontend/tests/hooks/useEditLock.test.tsx | — | ~1877 |
+| 10:07 | Created pcs-frontend/tests/components/common/EditLockIndicator.test.tsx | — | ~607 |
+| 10:07 | Created pcs-frontend/tests/components/common/EditConflictModal.test.tsx | — | ~1399 |
+| 10:07 | Created pcs-frontend/src/hooks/useEditBaseline.ts | — | ~824 |
+| 10:08 | Created pcs-frontend/src/hooks/useEditLock.ts | — | ~1160 |
+| 10:08 | Created pcs-frontend/src/components/common/EditLockIndicator.tsx | — | ~527 |
+| 10:08 | Created pcs-frontend/src/components/common/EditConflictModal.tsx | — | ~1092 |
+| 10:08 | Edited pcs-frontend/tests/components/common/EditConflictModal.test.tsx | CSS: code, message, status | ~203 |
+| 10:08 | Edited pcs-frontend/tests/components/common/EditConflictModal.test.tsx | 3→4 lines | ~20 |
+| 10:08 | Edited pcs-frontend/tests/components/common/EditConflictModal.test.tsx | expanded (+16 lines) | ~220 |
+| 10:11 | Edited pcs-frontend/src/hooks/useEditLock.ts | modified if() | ~229 |
+| 10:16 | Created pcs-frontend/src/pages/results/resultModules.ts | — | ~3362 |
+| 10:17 | Created pcs-frontend/src/store/degradation.ts | — | ~182 |
+| 10:17 | Created pcs-frontend/src/pages/results/ResultEditDrawer.tsx | — | ~2473 |
+| 10:17 | Created pcs-frontend/src/pages/results/ResultListPage.tsx | — | ~1521 |
+| 10:18 | Created pcs-frontend/tests/pages/results/result_page.test.tsx | — | ~3197 |
+| 10:18 | Edited pcs-frontend/src/pages/results/resultModules.ts | inline fix | ~22 |
+| 10:21 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | 13→18 lines | ~124 |
+| 10:21 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | 11→15 lines | ~143 |
+| 10:22 | Edited pcs-frontend/src/pages/results/ResultEditDrawer.tsx | modified requestClose() | ~75 |
+| 10:30 | Created pcs-frontend/src/mocks/seed/results.ts | — | ~2332 |
+| 10:37 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | expanded (+7 lines) | ~136 |
+| 11:02 | Created pcs-frontend/tests/components/common/WorkflowProgressPanel.test.tsx | — | ~1613 |
+| 11:02 | Created pcs-frontend/tests/components/common/TodoPanel.test.tsx | — | ~575 |
+| 11:02 | Created pcs-frontend/tests/components/common/RealtimeStatusBanner.test.tsx | — | ~499 |
+| 11:03 | Created pcs-frontend/src/components/common/WorkflowProgressPanel.tsx | — | ~1656 |
+| 11:03 | Created pcs-frontend/src/components/common/TodoPanel.tsx | — | ~787 |
+| 11:04 | Created pcs-frontend/src/components/common/RealtimeStatusBanner.tsx | — | ~381 |
+| 11:09 | Created pcs-frontend/src/components/common/workflowTabs.ts | — | ~288 |
+| 11:13 | Created pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | — | ~2040 |
+| 11:14 | Created pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | — | ~1074 |
+| 11:14 | Created pcs-frontend/src/mocks/seed/deliverables.ts | — | ~699 |
+| 11:19 | Created pcs-frontend/e2e/result_edit_conflict.spec.ts | — | ~518 |
+| 11:31 | Edited pcs-frontend/tests/pages/results/result_page.test.tsx | CSS: id, result_id, tag_number | ~83 |
+| 11:43 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md | — | ~1567 |

@@ -95,6 +95,14 @@ const ROW_CONFLICT_NO_BASELINE = row({
  */
 let ROWS: CoolTowerRow[] = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
 
+/** 另一个模块的行（主键名是 `result_id`）—— 用于跨模块切换的守卫。 */
+const ROW_FILTER = {
+  ...ROW_DRAFT,
+  id: undefined,
+  result_id: '33333333-3333-3333-3333-333333333333',
+  tag_number: 'F-001',
+} as unknown as CoolTowerRow & { result_id: string };
+
 let lastBody: Record<string, unknown> | null = null;
 let releaseCalls = 0;
 let lockBlocked = false;
@@ -121,6 +129,10 @@ function conflictEnvelope(basis: 'record_hash' | 'updated_at' | 'no_baseline') {
 const server = setupServer(
   http.get('/api/v1/cool-tower/results', () =>
     HttpResponse.json({ items: ROWS, total: ROWS.length, offset: 0, limit: 50 }),
+  ),
+  // 另一个模块的列表端点（主键名 `result_id`）—— 跨模块切换的守卫用
+  http.get('/api/v1/filtration/results', () =>
+    HttpResponse.json({ items: ROWS, total: ROWS.length, skip: 0, limit: 50 }),
   ),
   http.patch('/api/v1/cool-tower/results/:id', async ({ request, params }) => {
     lastBody = (await request.json()) as Record<string, unknown>;
@@ -347,6 +359,68 @@ describe('ResultEditDrawer —— 关闭与释放锁（RF-10）', () => {
       expect((init.headers as Record<string, string>).Authorization).toContain('Bearer');
     } finally {
       fetchSpy.mockRestore();
+    }
+  }, SLOW_TIMEOUT);
+});
+
+
+/**
+ * 跨模块切换的守卫（P9B-1 · 浏览器 QA 实测发现的 bug）。
+ *
+ * ## 症状
+ *
+ * 从「冷却塔结果」切到「过滤结果」⇒ 表格里**留着冷却塔的行**，
+ * 且它们的 `data-row-key` 是 **undefined** ⇒ React 报
+ * 「two children with the same key」**18 次**（一排 undefined 主键）。
+ *
+ * ## 根因
+ *
+ * React Router **复用同类型的组件实例** ⇒ `records` state 留着上一页的行；
+ * 而新模块的 `module.pk`（主键名）不同（`id` vs `result_id`）⇒
+ * 旧行取不到主键 ⇒ undefined ⇒ 重复 key。
+ *
+ * ⇒ 修法：`routeWrappers` 里给 `<ResultListPage key={module} …>`（换模块 =
+ * 整页重建）+ 页面在换模块时先清空 + `rowKey` 兜底。
+ */
+describe('ResultListPage —— 跨模块切换', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    lastBody = null;
+    releaseCalls = 0;
+    lockBlocked = false;
+    ROWS = [ROW_DRAFT, ROW_CHECKED, ROW_NO_BASELINE, ROW_LOCKED];
+  });
+
+  it('换模块 ⇒ 不残留上一模块的行、且不产生重复 React key', async () => {
+    const keyErrors: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      keyErrors.push(String(args[0]));
+    });
+    try {
+      const { rerender } = render(
+        <ResultListPage module={moduleByRecordType('cooling_tower_result')} />,
+      );
+      await waitFor(() =>
+        expect(screen.getAllByTestId('result-edit-button').length).toBe(ROWS.length),
+      );
+
+      // 切到另一个模块（主键名不同：id → result_id）
+      ROWS = [ROW_FILTER];
+      rerender(<ResultListPage module={moduleByRecordType('FiltrationResult')} />);
+
+      await waitFor(() =>
+        expect(screen.getAllByTestId('result-edit-button').length).toBe(1),
+      );
+      // ⚠️ 表格里**只有**新模块的行（旧的冷却塔行不得残留）
+      const rowKeys = Array.from(document.querySelectorAll('tbody tr[data-row-key]')).map(
+        (el) => el.getAttribute('data-row-key'),
+      );
+      expect(rowKeys).toEqual([ROW_FILTER.result_id]);
+      // ⚠️ 一个重复 key 都不能有
+      expect(keyErrors.filter((e) => e.includes('same key'))).toEqual([]);
+    } finally {
+      spy.mockRestore();
     }
   }, SLOW_TIMEOUT);
 });

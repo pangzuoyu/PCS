@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-21T00:52:14.743Z",
-    "fileCount": 961,
+    "lastScanned": "2026-10-21T03:43:36.944Z",
+    "fileCount": 992,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5f6f6b43a11f367d2aaff08b9075a8b8e95d98980e6ba29e01249751a8124911",
-    "storeUpdatedAt": "2026-10-21T00:52:14.755Z",
-    "rootHash": "d5450892b53c9369"
+    "renderedHash": "fb065d8a401073b7a449501b8ced6ded70b9b6f93458a5673db5a1677743f28b",
+    "storeUpdatedAt": "2026-10-21T03:43:36.956Z",
+    "rootHash": "051b85cfc7f05f8d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13499,11 +13499,11 @@
     },
     "pcs-frontend/src/api/audit.ts": {
       "description": "Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7).",
-      "tokens": 720,
-      "hash": "0d19d76d91c6d015",
-      "size": 2576,
-      "mtimeMs": 1790978890765.0298,
-      "updatedAt": "2026-10-02T22:08:10.813Z",
+      "tokens": 856,
+      "hash": "40bf5b911602a219",
+      "size": 3240,
+      "mtimeMs": 1792547766847.275,
+      "updatedAt": "2026-10-21T01:56:06.895Z",
       "source": "hook",
       "symbols": [
         {
@@ -13552,8 +13552,15 @@
           "name": "EquipmentDeletionAuditListResponse",
           "kind": "section",
           "startLine": 76,
-          "endLine": 97,
-          "tokens": 202
+          "endLine": 107,
+          "tokens": 276
+        },
+        {
+          "name": "listRecordEdits",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 114,
+          "tokens": 60
         }
       ]
     },
@@ -21273,160 +21280,195 @@
     },
     "pcs-backend/app/schemas/deliverable.py": {
       "description": "交付物 API schema（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 848,
-      "hash": "bcf706801a5ad9ef",
-      "size": 3689,
-      "mtimeMs": 1791345262706.8809,
-      "updatedAt": "2026-10-07T03:54:22.764Z",
+      "tokens": 1181,
+      "hash": "969066edbea5ffe5",
+      "size": 5206,
+      "mtimeMs": 1792545348291.6555,
+      "updatedAt": "2026-10-21T01:15:48.343Z",
       "source": "hook",
       "symbols": [
         {
           "name": "DeliverableResponse",
           "kind": "class",
           "startLine": 20,
-          "endLine": 46,
-          "tokens": 236
+          "endLine": 54,
+          "tokens": 315
         },
         {
           "name": "DeliverableListResponse",
           "kind": "class",
-          "startLine": 47,
-          "endLine": 56,
+          "startLine": 55,
+          "endLine": 64,
           "tokens": 52
         },
         {
           "name": "DeliverableVersionResponse",
           "kind": "class",
-          "startLine": 57,
-          "endLine": 75,
+          "startLine": 65,
+          "endLine": 83,
           "tokens": 147
         },
         {
           "name": "RecordBindingResponse",
           "kind": "class",
-          "startLine": 76,
-          "endLine": 90,
+          "startLine": 84,
+          "endLine": 98,
           "tokens": 100
         },
         {
           "name": "DeliverableSnapshotResponse",
           "kind": "class",
-          "startLine": 91,
-          "endLine": 106,
-          "tokens": 146
+          "startLine": 99,
+          "endLine": 115,
+          "tokens": 147
+        },
+        {
+          "name": "DeliverableActionRow",
+          "kind": "class",
+          "startLine": 116,
+          "endLine": 132,
+          "tokens": 132
+        },
+        {
+          "name": "TodoResponse",
+          "kind": "class",
+          "startLine": 133,
+          "endLine": 143,
+          "tokens": 83
+        },
+        {
+          "name": "TodoListResponse",
+          "kind": "class",
+          "startLine": 144,
+          "endLine": 149,
+          "tokens": 40
         }
       ]
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 9647,
-      "hash": "682ae4dc493cb065",
-      "size": 39079,
-      "mtimeMs": 1792462326347.3127,
-      "updatedAt": "2026-10-20T02:12:06.400Z",
+      "tokens": 10510,
+      "hash": "551361476dcc6b91",
+      "size": 42923,
+      "mtimeMs": 1792545359158.6816,
+      "updatedAt": "2026-10-21T01:15:59.212Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_utcnow",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 72,
+          "startLine": 67,
+          "endLine": 75,
           "tokens": 54
         },
         {
           "name": "_read_credential",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 99,
+          "startLine": 76,
+          "endLine": 102,
           "tokens": 237
         },
         {
           "name": "SignStepOutcome",
           "kind": "class",
-          "startLine": 100,
-          "endLine": 116,
+          "startLine": 103,
+          "endLine": 119,
           "tokens": 103
         },
         {
           "name": "CustomerApprovalProxyOutcome",
           "kind": "class",
-          "startLine": 117,
-          "endLine": 126,
+          "startLine": 120,
+          "endLine": 129,
           "tokens": 62
         },
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 127,
-          "endLine": 991,
-          "tokens": 8646
+          "startLine": 130,
+          "endLine": 1070,
+          "tokens": 9463
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
-      "description": "交付物读端点（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 3102,
-      "hash": "38c711541ff73b4e",
-      "size": 13081,
-      "mtimeMs": 1792451254268.6326,
-      "updatedAt": "2026-10-19T23:07:34.319Z",
+      "description": "交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。",
+      "tokens": 4223,
+      "hash": "0eb9b020484967c9",
+      "size": 18014,
+      "mtimeMs": 1792545365490.696,
+      "updatedAt": "2026-10-21T01:16:05.545Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 85,
+          "startLine": 74,
+          "endLine": 98,
           "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 124,
-          "tokens": 346
+          "startLine": 99,
+          "endLine": 148,
+          "tokens": 440
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 143,
-          "tokens": 170
+          "startLine": 149,
+          "endLine": 174,
+          "tokens": 239
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 165,
+          "startLine": 175,
+          "endLine": 196,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 203,
+          "startLine": 197,
+          "endLine": 234,
           "tokens": 364
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 243,
+          "startLine": 235,
+          "endLine": 274,
           "tokens": 382
         },
         {
           "name": "sign_step",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 288,
+          "startLine": 275,
+          "endLine": 319,
           "tokens": 441
         },
         {
           "name": "proxy_customer_approval",
           "kind": "fn",
-          "startLine": 289,
-          "endLine": 336,
-          "tokens": 514
+          "startLine": 320,
+          "endLine": 373,
+          "tokens": 556
+        },
+        {
+          "name": "list_deliverable_actions",
+          "kind": "fn",
+          "startLine": 374,
+          "endLine": 428,
+          "tokens": 558
+        },
+        {
+          "name": "list_todos",
+          "kind": "fn",
+          "startLine": 429,
+          "endLine": 456,
+          "tokens": 234
         }
       ]
     },
@@ -32428,32 +32470,32 @@
     },
     "pcs-backend/alembic/versions/p9_006_cost_est_record_hash.py": {
       "description": "P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。",
-      "tokens": 806,
-      "hash": "3761c165d9cecf09",
-      "size": 3899,
-      "mtimeMs": 1792486172029.9312,
-      "updatedAt": "2026-10-20T08:49:32.080Z",
+      "tokens": 1161,
+      "hash": "3520b664ae357f00",
+      "size": 5659,
+      "mtimeMs": 1792546996066.7317,
+      "updatedAt": "2026-10-21T01:43:16.121Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_backfill_record_hash",
           "kind": "fn",
           "startLine": 51,
-          "endLine": 75,
-          "tokens": 221
+          "endLine": 106,
+          "tokens": 572
         },
         {
           "name": "upgrade",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 95,
-          "tokens": 138
+          "startLine": 107,
+          "endLine": 126,
+          "tokens": 142
         },
         {
           "name": "downgrade",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 103,
+          "startLine": 127,
+          "endLine": 134,
           "tokens": 51
         }
       ]
@@ -34726,11 +34768,11 @@
     },
     "pcs-frontend/tests/api/edit_lock_api.test.ts": {
       "description": "编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。",
-      "tokens": 1452,
-      "hash": "3b67b14eaab3733d",
-      "size": 5815,
-      "mtimeMs": 1792510015765.527,
-      "updatedAt": "2026-10-20T15:26:55.824Z",
+      "tokens": 1274,
+      "hash": "350a17ef4a2b53b1",
+      "size": 5169,
+      "mtimeMs": 1792547786495.3901,
+      "updatedAt": "2026-10-21T01:56:26.547Z",
       "source": "hook"
     },
     "pcs-frontend/src/api/errors.ts": {
@@ -34780,34 +34822,27 @@
       ]
     },
     "pcs-frontend/src/api/locks.ts": {
-      "description": "编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。",
-      "tokens": 1276,
-      "hash": "89182196706c4496",
-      "size": 5546,
-      "mtimeMs": 1792510053789.7214,
-      "updatedAt": "2026-10-20T15:27:33.838Z",
+      "description": "编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。",
+      "tokens": 941,
+      "hash": "eb75b1d3035074ad",
+      "size": 4024,
+      "mtimeMs": 1792547752094.1868,
+      "updatedAt": "2026-10-21T01:55:52.145Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isEditableRecordType",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 104,
-          "tokens": 468
+          "startLine": 32,
+          "endLine": 87,
+          "tokens": 467
         },
         {
           "name": "readLock409",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 121,
-          "tokens": 183
-        },
-        {
-          "name": "PatchBaseline",
-          "kind": "section",
-          "startLine": 122,
-          "endLine": 141,
-          "tokens": 148
+          "startLine": 88,
+          "endLine": 97,
+          "tokens": 116
         }
       ]
     },
@@ -34984,6 +35019,660 @@
       "size": 3771,
       "mtimeMs": 1792516410030.2957,
       "updatedAt": "2026-10-20T17:13:30.077Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md",
+      "tokens": 1310,
+      "hash": "913914dd34596dfb",
+      "size": 7657,
+      "mtimeMs": 1792545113475.6917,
+      "updatedAt": "2026-10-21T01:11:53.525Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_deliverables_current_version.py": {
+      "description": "交付物「当前版本 id」（P9B-1 Task T0）。",
+      "tokens": 2582,
+      "hash": "06cf2bd5d9bc6669",
+      "size": 9997,
+      "mtimeMs": 1792545425495.8115,
+      "updatedAt": "2026-10-21T01:17:05.547Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 44,
+          "tokens": 50
+        },
+        {
+          "name": "_make_matrix",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 63,
+          "tokens": 136
+        },
+        {
+          "name": "_make_deliverable",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 93,
+          "tokens": 252
+        },
+        {
+          "name": "_make_version",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 111,
+          "tokens": 147
+        },
+        {
+          "name": "TestCurrentVersionId",
+          "kind": "class",
+          "startLine": 112,
+          "endLine": 177,
+          "tokens": 736
+        },
+        {
+          "name": "TestCurrentVersionIdOverHttp",
+          "kind": "class",
+          "startLine": 178,
+          "endLine": 262,
+          "tokens": 973
+        }
+      ]
+    },
+    "pcs-frontend/tests/api/records_api.test.ts": {
+      "description": "记录域 API 客户端的**请求契约**（P9B-1 Task T1）。",
+      "tokens": 1821,
+      "hash": "1de88626e9cd5fb2",
+      "size": 7676,
+      "mtimeMs": 1792547708563.9197,
+      "updatedAt": "2026-10-21T01:55:08.613Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/alembic/test_p9_006_backfill_schema_drift.py": {
+      "description": "p9_006 的回填必须在「ORM 比迁移先加了列」的 schema 上也能跑。",
+      "tokens": 1530,
+      "hash": "786f7ec4bf2ca119",
+      "size": 6308,
+      "mtimeMs": 1792547126281.6306,
+      "updatedAt": "2026-10-21T01:45:26.337Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_migration_module",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 70,
+          "tokens": 91
+        },
+        {
+          "name": "legacy_schema_engine",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 126,
+          "tokens": 627
+        },
+        {
+          "name": "test_backfill_runs_when_orm_declares_a_column_the_db_lacks",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 137,
+          "tokens": 104
+        },
+        {
+          "name": "test_backfill_fills_record_hash",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 151,
+          "tokens": 146
+        },
+        {
+          "name": "test_backfill_is_idempotent",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 170,
+          "tokens": 196
+        }
+      ]
+    },
+    "pcs-frontend/src/api/records.ts": {
+      "description": "记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。",
+      "tokens": 1079,
+      "hash": "bcb4607d9fd3ed3e",
+      "size": 5022,
+      "mtimeMs": 1792547728843.0457,
+      "updatedAt": "2026-10-21T01:55:28.893Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PatchBaseline",
+          "kind": "section",
+          "startLine": 48,
+          "endLine": 89,
+          "tokens": 392
+        },
+        {
+          "name": "RecordListParams",
+          "kind": "section",
+          "startLine": 90,
+          "endLine": 129,
+          "tokens": 296
+        }
+      ]
+    },
+    "pcs-frontend/tests/hooks/useEditBaseline.test.ts": {
+      "description": "三档基线判定的守卫（P9B-1 Task T2）。",
+      "tokens": 1294,
+      "hash": "bd36fa7100e273f3",
+      "size": 5472,
+      "mtimeMs": 1792548389583.7861,
+      "updatedAt": "2026-10-21T02:06:29.632Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/hooks/useEditLock.test.tsx": {
+      "description": "编辑锁 hook 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-001~005）。",
+      "tokens": 1877,
+      "hash": "7e92885bede75bdf",
+      "size": 7344,
+      "mtimeMs": 1792548406231.2249,
+      "updatedAt": "2026-10-21T02:06:46.281Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "lockResponse",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 221,
+          "tokens": 1621
+        }
+      ]
+    },
+    "pcs-frontend/tests/components/common/EditLockIndicator.test.tsx": {
+      "description": "EditLockIndicator 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-003）。",
+      "tokens": 607,
+      "hash": "2f4e6d65a21d94bc",
+      "size": 2568,
+      "mtimeMs": 1792548423435.667,
+      "updatedAt": "2026-10-21T02:07:03.488Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/EditConflictModal.test.tsx": {
+      "description": "409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。",
+      "tokens": 1613,
+      "hash": "cf6290b20f09ef96",
+      "size": 6587,
+      "mtimeMs": 1792548519552.9407,
+      "updatedAt": "2026-10-21T02:08:39.605Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/hooks/useEditBaseline.ts": {
+      "description": "三档并发基线判定（P9B-1 · SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑥）。",
+      "tokens": 824,
+      "hash": "9960ea8a729e98ee",
+      "size": 3929,
+      "mtimeMs": 1792548472496.8674,
+      "updatedAt": "2026-10-21T02:07:52.543Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EditBaseline",
+          "kind": "section",
+          "startLine": 39,
+          "endLine": 52,
+          "tokens": 117
+        },
+        {
+          "name": "isEditableSignStatus",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 65,
+          "tokens": 106
+        },
+        {
+          "name": "isRowEditable",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 70,
+          "tokens": 47
+        },
+        {
+          "name": "EditBaselineArgs",
+          "kind": "section",
+          "startLine": 71,
+          "endLine": 87,
+          "tokens": 120
+        },
+        {
+          "name": "useEditBaseline",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 100,
+          "tokens": 132
+        }
+      ]
+    },
+    "pcs-frontend/src/hooks/useEditLock.ts": {
+      "description": "编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。",
+      "tokens": 1206,
+      "hash": "136a8e9b984d9a68",
+      "size": 5380,
+      "mtimeMs": 1792548660408.7607,
+      "updatedAt": "2026-10-21T02:11:00.461Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UseEditLockArgs",
+          "kind": "section",
+          "startLine": 31,
+          "endLine": 39,
+          "tokens": 62
+        },
+        {
+          "name": "UseEditLockResult",
+          "kind": "section",
+          "startLine": 40,
+          "endLine": 57,
+          "tokens": 105
+        },
+        {
+          "name": "useEditLock",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 152,
+          "tokens": 797
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/EditLockIndicator.tsx": {
+      "description": "EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。",
+      "tokens": 527,
+      "hash": "745208a68ac76977",
+      "size": 2395,
+      "mtimeMs": 1792548492489.3323,
+      "updatedAt": "2026-10-21T02:08:12.538Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "relativeTime",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 41,
+          "tokens": 125
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 42,
+          "endLine": 45,
+          "tokens": 13
+        },
+        {
+          "name": "EditLockIndicator",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 71,
+          "tokens": 192
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/EditConflictModal.tsx": {
+      "description": "EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。",
+      "tokens": 1092,
+      "hash": "20efee2646c1e33b",
+      "size": 4634,
+      "mtimeMs": 1792548504342.6018,
+      "updatedAt": "2026-10-21T02:08:24.390Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 28,
+          "endLine": 37,
+          "tokens": 74
+        },
+        {
+          "name": "isForbidden",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 43,
+          "tokens": 62
+        },
+        {
+          "name": "EditConflictModal",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 135,
+          "tokens": 723
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/results/resultModules.ts": {
+      "description": "6 个可编辑结果模块的**类型化描述符**（P9B-1 · SPEC §6.21）。",
+      "tokens": 3362,
+      "hash": "3dd8add7214aee72",
+      "size": 13428,
+      "mtimeMs": 1792549139003.4106,
+      "updatedAt": "2026-10-21T02:18:59.053Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CommonResultRow",
+          "kind": "section",
+          "startLine": 43,
+          "endLine": 53,
+          "tokens": 74
+        },
+        {
+          "name": "ResultFieldDef",
+          "kind": "section",
+          "startLine": 54,
+          "endLine": 62,
+          "tokens": 51
+        },
+        {
+          "name": "ResultModuleDef",
+          "kind": "section",
+          "startLine": 63,
+          "endLine": 306,
+          "tokens": 2654
+        },
+        {
+          "name": "moduleByRecordType",
+          "kind": "fn",
+          "startLine": 307,
+          "endLine": 313,
+          "tokens": 76
+        },
+        {
+          "name": "editableFieldDefs",
+          "kind": "fn",
+          "startLine": 314,
+          "endLine": 318,
+          "tokens": 57
+        }
+      ]
+    },
+    "pcs-frontend/src/store/degradation.ts": {
+      "description": "降级横幅的全局状态（P9B-1 · SPEC §6.21 P9A-LCK-004）。",
+      "tokens": 182,
+      "hash": "daba507c441e40c8",
+      "size": 985,
+      "mtimeMs": 1792549025058.1196,
+      "updatedAt": "2026-10-21T02:17:05.107Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/results/ResultEditDrawer.tsx": {
+      "description": "ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。",
+      "tokens": 2506,
+      "hash": "4923278b9832211c",
+      "size": 10185,
+      "mtimeMs": 1792549358495.575,
+      "updatedAt": "2026-10-21T02:22:38.544Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 47,
+          "endLine": 56,
+          "tokens": 85
+        },
+        {
+          "name": "initialForm",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 68,
+          "tokens": 104
+        },
+        {
+          "name": "ResultEditDrawer",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 284,
+          "tokens": 1942
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/results/ResultListPage.tsx": {
+      "description": "ResultListPage —— 通用结果列表页（P9B-1 · SPEC §6.21）。",
+      "tokens": 1574,
+      "hash": "9c21b08d6f76b0c7",
+      "size": 6273,
+      "mtimeMs": 1792549271457.7598,
+      "updatedAt": "2026-10-21T02:21:11.510Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 31,
+          "endLine": 39,
+          "tokens": 40
+        },
+        {
+          "name": "ResultEditButton",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 80,
+          "tokens": 275
+        },
+        {
+          "name": "ResultListPage",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 194,
+          "tokens": 933
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/results/result_page.test.tsx": {
+      "description": "通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。",
+      "tokens": 4380,
+      "hash": "bdc9666004f4cfa2",
+      "size": 17689,
+      "mtimeMs": 1792553498972.6436,
+      "updatedAt": "2026-10-21T03:31:39.020Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "row",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 109,
+          "tokens": 612
+        },
+        {
+          "name": "conflictEnvelope",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 184,
+          "tokens": 678
+        },
+        {
+          "name": "openEditor",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 423,
+          "tokens": 2700
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/seed/results.ts": {
+      "description": "6 类可编辑结果记录的 seed（P9B-1 · SPEC §6.21）。",
+      "tokens": 2332,
+      "hash": "dc58f58d061a7244",
+      "size": 8528,
+      "mtimeMs": 1792549856277.537,
+      "updatedAt": "2026-10-21T02:30:56.327Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/WorkflowProgressPanel.test.tsx": {
+      "description": "WorkflowProgressPanel 的守卫（P9B-1 Task T5 · SPEC §6.24）。",
+      "tokens": 1613,
+      "hash": "f24a9fd4478c9acf",
+      "size": 6218,
+      "mtimeMs": 1792551743289.4019,
+      "updatedAt": "2026-10-21T03:02:23.340Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/TodoPanel.test.tsx": {
+      "description": "TodoPanel 的守卫（P9B-1 Task T5 · SPEC §6.22）。",
+      "tokens": 575,
+      "hash": "e74a764ec2d4e521",
+      "size": 2427,
+      "mtimeMs": 1792551756488.1785,
+      "updatedAt": "2026-10-21T03:02:36.548Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/RealtimeStatusBanner.test.tsx": {
+      "description": "RealtimeStatusBanner 的守卫（P9B-1 Task T5 · SPEC §6.23）。",
+      "tokens": 499,
+      "hash": "e0e4bd47e3953880",
+      "size": 2184,
+      "mtimeMs": 1792551768773.9727,
+      "updatedAt": "2026-10-21T03:02:48.829Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/common/WorkflowProgressPanel.tsx": {
+      "description": "WorkflowProgressPanel —— 一条工作流的步骤进度（P9B-1 · SPEC §6.24）。",
+      "tokens": 1656,
+      "hash": "eadf3cd5d63de7b9",
+      "size": 6527,
+      "mtimeMs": 1792551814458.2214,
+      "updatedAt": "2026-10-21T03:03:34.524Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "WorkflowTab",
+          "kind": "section",
+          "startLine": 42,
+          "endLine": 66,
+          "tokens": 244
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 67,
+          "endLine": 71,
+          "tokens": 21
+        },
+        {
+          "name": "WorkflowProgressPanel",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 185,
+          "tokens": 1012
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/TodoPanel.tsx": {
+      "description": "TodoPanel —— 我的待办（P9B-1 · SPEC §6.22 · ADR-0049 §②）。",
+      "tokens": 787,
+      "hash": "33c86cd97ff5a2dc",
+      "size": 3293,
+      "mtimeMs": 1792551834416.9004,
+      "updatedAt": "2026-10-21T03:03:54.478Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 20,
+          "endLine": 26,
+          "tokens": 38
+        },
+        {
+          "name": "TodoPanel",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 103,
+          "tokens": 592
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/RealtimeStatusBanner.tsx": {
+      "description": "RealtimeStatusBanner —— 通知实时推送的状态与降级（P9B-1 · SPEC §6.23）。",
+      "tokens": 381,
+      "hash": "70c2ad48948f3d50",
+      "size": 1826,
+      "mtimeMs": 1792551845365.726,
+      "updatedAt": "2026-10-21T03:04:05.432Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/common/workflowTabs.ts": {
+      "description": "工作流类型 tab 的**词表**（P9B-1 · SPEC §6.24）。",
+      "tokens": 288,
+      "hash": "28740a61d5194405",
+      "size": 1242,
+      "mtimeMs": 1792552159424.1396,
+      "updatedAt": "2026-10-21T03:09:19.476Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
+      "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。",
+      "tokens": 2040,
+      "hash": "ac923fdfbc800fa7",
+      "size": 8062,
+      "mtimeMs": 1792552419770.7617,
+      "updatedAt": "2026-10-21T03:13:39.820Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
+      "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。",
+      "tokens": 1074,
+      "hash": "3cb52296c30c1403",
+      "size": 4349,
+      "mtimeMs": 1792552441435.983,
+      "updatedAt": "2026-10-21T03:14:01.486Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DeliverableProgressPage",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 127,
+          "tokens": 708
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/seed/deliverables.ts": {
+      "description": "交付物的 seed（P9B-1 · SPEC §6.24 · 交付物进度页）。",
+      "tokens": 699,
+      "hash": "4e57ab0a79def857",
+      "size": 2684,
+      "mtimeMs": 1792552490179.7207,
+      "updatedAt": "2026-10-21T03:14:50.229Z",
+      "source": "hook"
+    },
+    "pcs-frontend/e2e/result_edit_conflict.spec.ts": {
+      "description": "编辑冲突 409 分流（Playwright e2e · P9B-1 T7）。",
+      "tokens": 518,
+      "hash": "605ef21a2b78164d",
+      "size": 2374,
+      "mtimeMs": 1792552765570.9175,
+      "updatedAt": "2026-10-21T03:19:25.620Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "gotoCoolTower",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 59,
+          "tokens": 378
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md": {
+      "description": "QA 报告 — PCS 前端 P9B-1（结果记录页 + 编辑锁）",
+      "tokens": 1469,
+      "hash": "f02e4a52ed0aa34e",
+      "size": 9147,
+      "mtimeMs": 1792554216892.6506,
+      "updatedAt": "2026-10-21T03:43:36.944Z",
       "source": "hook"
     }
   }

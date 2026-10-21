@@ -345,7 +345,12 @@ import type { EditableRecordType } from '../api/records';
  * 其余（路径 / 主键 / 字段清单）由 `resultModules.ts` 的描述符决定。
  */
 export function ResultListRoute({ module }: { module: EditableRecordType }): JSX.Element {
-  return <ResultListPage module={moduleByRecordType(module)} />;
+  // ⚠️ **`key` 必须带**：React Router 复用同类型的组件实例 ⇒ 从一个结果页
+  // 切到另一个时，`records` state 会**留着上一页的行**，而新页面的
+  // `module.pk`（主键名）不同 ⇒ 旧行的主键取不到 ⇒ **一排 undefined 主键**
+  // ⇒ React 报「two children with the same key」⇒ 表格还短暂显示**别的模块的行**。
+  // ⇒ `key` 让换模块 = 整页重建（state 干净）。
+  return <ResultListPage key={module} module={moduleByRecordType(module)} />;
 }
 
 // === P9B-1 交付物进度（SPEC §6.24 · 观测面板的宿主）===

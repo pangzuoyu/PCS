@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-21T00:52:14.743Z
-> Files: 961 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-21T03:43:36.944Z
+> Files: 992 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -164,6 +164,7 @@
 - `qa-report-pcs-frontend-2026-10-02-sprint2-batch.md` — QA Report: pcs-frontend 2026-10-02 Sprint 2 批末 (~1014 tok)
 - `qa-report-pcs-frontend-2026-10-13-report-builder.md` — QA 报告 — P8 REPORT_BUILDER 前端（b10–b12 / c6 第一批） (~926 tok)
 - `qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md` — QA 报告 — pcs-frontend — P9A Z 收口（2026-10-21） (~606 tok)
+- `qa-report-pcs-frontend-2026-10-21-p9b-1.md` — QA 报告 — PCS 前端 P9B-1（结果记录页 + 编辑锁） (~1469 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -258,6 +259,10 @@
 ## .superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-4-编辑锁与CIA.md (~1399 tok)
+
+## .superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md (~1310 tok)
 
 ## .vite/vitest/
 
@@ -1140,7 +1145,7 @@
 - `p9_001_users_token_version.py` — P9A 身份迁移：users.token_version + CHECK >= 1。 (~289 tok)
 - `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
 - `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~918 tok)
-- `p9_006_cost_est_record_hash.py` — P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。 (~806 tok)
+- `p9_006_cost_est_record_hash.py` — P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。 (~1161 tok)
 - `p9_007_cost_est_project_id.py` — P9A-5 Task B：cost_est_results 补 project_id（项目隔离键）。 (~1191 tok)
 
 ## pcs-backend/app/
@@ -1157,7 +1162,7 @@
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
-- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~3102 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~4223 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
@@ -1212,7 +1217,7 @@
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
-- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
+- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1181 tok)
 - `edit_conflict.py` — 编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。 (~775 tok)
 - `lock.py` — 编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。 (~404 tok)
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
@@ -1233,7 +1238,7 @@
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~10510 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
@@ -1354,6 +1359,7 @@
 - `test_p9_001_users_token_version.py` — P9A 迁移基座的 schema 断言 —— 防「ORM 写了但没迁移」与「迁移写了但 ORM 没跟上」。 (~389 tok)
 - `test_p9_002_workflow_progress.py` — P9A 迁移基座的 schema 断言 —— workflow_progress（SPEC P9A-OBS-001 + ADR-0047）。 (~1500 tok)
 - `test_p9_005_notifications.py` — P9A C0 迁移基座的 schema 断言 —— notifications（ADR-0049 §①/§③）。 (~1611 tok)
+- `test_p9_006_backfill_schema_drift.py` — p9_006 的回填必须在「ORM 比迁移先加了列」的 schema 上也能跑。 (~1530 tok)
 - `test_p9_006_cost_est_record_hash.py` — P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。 (~1558 tok)
 - `test_p9_007_cost_est_project_id.py` — `p9_007`（cost_est_results 补 project_id）的迁移形状断言 —— P9A-5 Task B。 (~981 tok)
 
@@ -1367,6 +1373,7 @@
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
+- `test_deliverables_current_version.py` — 交付物「当前版本 id」（P9B-1 Task T0）。 (~2582 tok)
 - `test_edit_acl_order.py` — 编辑端点的**鉴权顺序**守卫 —— P9A-4 D2 修的既有越权洞。 (~1157 tok)
 - `test_edit_conflict.py` — 编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。 (~2340 tok)
 - `test_edit_lock_api.py` — 编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。 (~2367 tok)
@@ -1519,6 +1526,7 @@
 - `cooling_water.spec.ts` — P7-6B CoolingWaterPage 端到端测试 (Playwright / R1 §7.2 9 类水). (~966 tok)
 - `energy_summary.spec.ts` — P7 Sprint 2 T5 EnergySummaryAggregatePage 端到端测试 (Playwright / R1 §7). (~1139 tok)
 - `fixtures.ts` — Playwright e2e fixtures (F-P2-009 Sprint 3 / Issue 7). (~306 tok)
+- `result_edit_conflict.spec.ts` — 编辑冲突 409 分流（Playwright e2e · P9B-1 T7）。 (~518 tok)
 
 ## pcs-frontend/scripts/
 
@@ -1530,18 +1538,30 @@
 
 ## pcs-frontend/src/api/
 
-- `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
+- `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~856 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
-- `locks.ts` — 编辑锁 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1276 tok)
+- `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
+- `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
 - `todos.ts` — 待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。 (~182 tok)
 
 ## pcs-frontend/src/components/common/
 
+- `EditConflictModal.tsx` — EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。 (~1092 tok)
+- `EditLockIndicator.tsx` — EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。 (~527 tok)
 - `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
+- `RealtimeStatusBanner.tsx` — RealtimeStatusBanner —— 通知实时推送的状态与降级（P9B-1 · SPEC §6.23）。 (~381 tok)
 - `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~2752 tok)
+- `TodoPanel.tsx` — TodoPanel —— 我的待办（P9B-1 · SPEC §6.22 · ADR-0049 §②）。 (~787 tok)
+- `WorkflowProgressPanel.tsx` — WorkflowProgressPanel —— 一条工作流的步骤进度（P9B-1 · SPEC §6.24）。 (~1656 tok)
+- `workflowTabs.ts` — 工作流类型 tab 的**词表**（P9B-1 · SPEC §6.24）。 (~288 tok)
+
+## pcs-frontend/src/hooks/
+
+- `useEditBaseline.ts` — 三档并发基线判定（P9B-1 · SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑥）。 (~824 tok)
+- `useEditLock.ts` — 编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。 (~1206 tok)
 
 ## pcs-frontend/src/layouts/
 
@@ -1559,7 +1579,9 @@
 
 ## pcs-frontend/src/mocks/seed/
 
+- `deliverables.ts` — 交付物的 seed（P9B-1 · SPEC §6.24 · 交付物进度页）。 (~699 tok)
 - `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~1043 tok)
+- `results.ts` — 6 类可编辑结果记录的 seed（P9B-1 · SPEC §6.21）。 (~2332 tok)
 
 ## pcs-frontend/src/pages/
 
@@ -1574,6 +1596,10 @@
 - `AssetListPage.tsx` — AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。 (~2590 tok)
 - `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3906 tok)
 
+## pcs-frontend/src/pages/deliverables/
+
+- `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。 (~1074 tok)
+
 ## pcs-frontend/src/pages/report/
 
 - `definitionBody.ts` — 定义体 ⇄ 编辑态的纯函数转换。 (~1072 tok)
@@ -1584,6 +1610,12 @@
 - `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3851 tok)
 - `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
 
+## pcs-frontend/src/pages/results/
+
+- `ResultEditDrawer.tsx` — ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。 (~2506 tok)
+- `ResultListPage.tsx` — ResultListPage —— 通用结果列表页（P9B-1 · SPEC §6.21）。 (~1574 tok)
+- `resultModules.ts` — 6 个可编辑结果模块的**类型化描述符**（P9B-1 · SPEC §6.21）。 (~3362 tok)
+
 ## pcs-frontend/src/pages/sim/
 
 - `StreamDetailPage.tsx` — StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。 (~2378 tok)
@@ -1593,6 +1625,10 @@
 
 - `EnergySummaryAggregatePage.tsx` — EnergySummaryAggregatePage — 综合能耗聚合 UI（P7 Sprint 2 T5 / R1 §7）。 (~3359 tok)
 
+## pcs-frontend/src/store/
+
+- `degradation.ts` — 降级横幅的全局状态（P9B-1 · SPEC §6.21 P9A-LCK-004）。 (~182 tok)
+
 ## pcs-frontend/src/types/
 
 - `stream.ts` — Stream 类型定义（P45-3-1 / Task 28）。 (~1025 tok)
@@ -1601,11 +1637,22 @@
 ## pcs-frontend/tests/api/
 
 - `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
-- `edit_lock_api.test.ts` — 编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。 (~1452 tok)
+- `edit_lock_api.test.ts` — 编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。 (~1274 tok)
+- `records_api.test.ts` — 记录域 API 客户端的**请求契约**（P9B-1 Task T1）。 (~1821 tok)
 
 ## pcs-frontend/tests/components/common/
 
+- `EditConflictModal.test.tsx` — 409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。 (~1613 tok)
+- `EditLockIndicator.test.tsx` — EditLockIndicator 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-003）。 (~607 tok)
 - `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~2283 tok)
+- `RealtimeStatusBanner.test.tsx` — RealtimeStatusBanner 的守卫（P9B-1 Task T5 · SPEC §6.23）。 (~499 tok)
+- `TodoPanel.test.tsx` — TodoPanel 的守卫（P9B-1 Task T5 · SPEC §6.22）。 (~575 tok)
+- `WorkflowProgressPanel.test.tsx` — WorkflowProgressPanel 的守卫（P9B-1 Task T5 · SPEC §6.24）。 (~1613 tok)
+
+## pcs-frontend/tests/hooks/
+
+- `useEditBaseline.test.ts` — 三档基线判定的守卫（P9B-1 Task T2）。 (~1294 tok)
+- `useEditLock.test.tsx` — 编辑锁 hook 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-001~005）。 (~1877 tok)
 
 ## pcs-frontend/tests/layouts/
 
@@ -1624,6 +1671,10 @@
 
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
 
+## pcs-frontend/tests/pages/deliverables/
+
+- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2040 tok)
+
 ## pcs-frontend/tests/pages/pipe_class/
 
 - `PipeClassListPage.test.tsx` — PipeClassListPage 测试（P45-3-2 / Task 29；2026-10-19 按契约重写）。 (~1893 tok)
@@ -1632,6 +1683,10 @@
 
 - `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
 - `ReportStylePage.test.tsx` — 样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在， (~1250 tok)
+
+## pcs-frontend/tests/pages/results/
+
+- `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~4380 tok)
 
 ## pcs-frontend/tests/pages/sim/
 

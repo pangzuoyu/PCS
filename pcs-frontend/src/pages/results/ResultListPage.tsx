@@ -90,6 +90,9 @@ export function ResultListPage({ module }: Props): JSX.Element {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    // ⚠️ 换模块时**先清空**旧行：否则会短暂渲染「上一模块的行 + 本模块的
+    // 主键名」⇒ 主键取不到 ⇒ React 重复 key 警告 + 表格显示错模块的数据。
+    setRecords([]);
     void recordsApi
       .list<ResultRow>(module.base, {
         project_id: PROJECT_ID,
@@ -164,7 +167,10 @@ export function ResultListPage({ module }: Props): JSX.Element {
     <div data-testid="result-list-page" data-module={module.recordType}>
       <PageHeader title={module.title} actions={<span />} />
       <Table<ResultRow>
-        rowKey={(row) => String(row[module.pk])}
+        // ⚠️ 主键取不到时**用行号兜底**（不产生重复 key）：
+        // 正常路径下每个模块的行都带自己的主键；取不到只可能是「状态里
+        // 混进了别的模块的行」（见 routeWrappers 的 `key` 注释）。
+        rowKey={(row, index) => String(row[module.pk] ?? `row-${index}`)}
         columns={columns}
         dataSource={records}
         loading={loading}

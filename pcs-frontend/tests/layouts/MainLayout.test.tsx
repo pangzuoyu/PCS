@@ -98,9 +98,11 @@ describe('MainLayout — 降级横幅（RF-6）', () => {
   });
 
   it('degraded ⇒ 顶栏出现横幅，且文案**原样**取后端 message', async () => {
-    useDegradation.setState({
-      message: '锁服务不可用，保存时可能冲突；本次编辑无冲突检测',
-    });
+    // ⚠️ **走 `setMessage`**（生产代码用的正是它）—— 直接 `setState` 会
+    // 把「setMessage 是空函数」那个 bug 彻底掩盖（浏览器 QA 实测踩过）。
+    useDegradation.getState().setMessage(
+      '锁服务不可用，保存时可能冲突；本次编辑无冲突检测',
+    );
     render(
       <MemoryRouter>
         <MainLayout />

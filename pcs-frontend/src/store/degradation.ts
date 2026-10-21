@@ -20,7 +20,17 @@ export interface DegradationState {
   setMessage: (message: string | null) => void;
 }
 
-export const useDegradation = create<DegradationState>(() => ({
+/**
+ * ⚠️ **`setMessage` 必须真的写状态** —— 之前的写法是
+ * `create(() => ({ message: null, setMessage: () => {} }))`
+ * ⇒ `setMessage` 是个**空函数** ⇒ 降级文案**永远存不进去**
+ * ⇒ 顶栏横幅**永远不出现**（浏览器 QA 实测：锁返回 degraded=true，
+ * 横幅不出现）。
+ *
+ * ⚠️ 单测若直接 `setState({message})` 会**把这个 bug 掩盖掉**
+ * ⇒ 守卫必须**走 `setMessage` 这条路**（见 `tests/store/degradation.test.ts`）。
+ */
+export const useDegradation = create<DegradationState>((set) => ({
   message: null,
-  setMessage: () => {},
+  setMessage: (message) => set({ message }),
 }));

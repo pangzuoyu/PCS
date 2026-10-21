@@ -3799,6 +3799,73 @@
       "occurrences": 1,
       "last_seen": "2026-10-21",
       "severity": "CRITICAL"
+    },
+    {
+      "id": "bug-2041",
+      "timestamp": "2026-10-21T00:00:00.000Z",
+      "error_message": "CI（api-drift job）在全新库上 `alembic upgrade head` 失败：sqlalchemy.exc.ProgrammingError: (psycopg.errors.UndefinedColumn) column cost_est_results.project_id does not exist（触发 commit a963a76，早于 P9B-1 开工）",
+      "file": "pcs-backend/alembic/versions/p9_006_cost_est_record_hash.py",
+      "root_cause": "p9_006（给 cost_est_results 补 record_hash）的回填用 **ORM 实体**查询（`select(CostEstResult)`）⇒ SELECT 会带上 ORM 声明的**全部**列，**包括 project_id** —— 而那一列由**下一个**迁移 p9_007 才添加 ⇒ 迁移跑到自己这一半时，那一列还不存在。⚠️ **只在全新库上出现**：dev 库在 p9_006 写好之前（commit b4470e0）就已经应用过它，那时 ORM 的 CostEstResult 还没有 project_id（那是后来的 2b45d7b 才加的）⇒ 本仓 CLAUDE.md 说的「漂移盲区：迁移改了 schema 而 ORM 未跟随时，单测照绿、真库会炸」的又一例，且是**反向**形状：ORM 先加了列、迁移后加 ⇒ 老迁移被追溯性地打破。⚠️ CI 只跑全新库 ⇒ 本地全绿、CI 全红。",
+      "fix": "回填按 **DB 实际列**裁剪 SELECT（缺列用 defer ⇒ 不 SELECT、也不会被访问触发懒加载），**不写死**「排除 project_id」—— 写死的话下一个迁移再加一列就会原地复发。同时把 `_backfill_record_hash()` 改成接受 conn 参数（原为无参、调 op.get_bind()）⇒ 测试能直接喂一个「p9_006 时刻的 schema」的连接，不必起 alembic 上下文。守卫（先 RED 后 GREEN）：pcs-backend/tests/alembic/test_p9_006_backfill_schema_drift.py —— 用没有 project_id 的 schema 喂回填函数，修复前 RED 于 `no such column: cost_est_results.project_id`（与 CI 同一形状），修复后 3 passed。实测：隔离 schema 上 alembic upgrade head 走到 p9_007 (head)；check-api-drift.sh OK；check_migration_idempotency.py 0 violations；后端全量 5168 passed / 77 skipped。",
+      "fix_commit": "e88d604",
+      "tags": [
+        "p9a",
+        "backend",
+        "alembic",
+        "migration",
+        "orm-drift",
+        "fresh-db-only",
+        "ci-red",
+        "partial-select"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2042",
+      "timestamp": "2026-10-21T00:00:00.000Z",
+      "error_message": "浏览器 QA：编辑锁返回 degraded=true 后，顶栏**没有**降级横幅（`document.querySelector('[data-testid=\"degradation-banner\"]')` 为 null）—— 而单元测试全绿",
+      "file": "pcs-frontend/src/store/degradation.ts",
+      "root_cause": "`create<DegradationState>(() => ({ message: null, setMessage: () => {} }))` —— 初始化函数**没接 `set`**，于是 `setMessage` 是个**空函数** ⇒ 降级文案**永远存不进 store** ⇒ 横幅永远不渲染。⚠️ 计划的「Produces」代码片段里就是这个写法（照抄 `useAuth` 的 `create((set) => …)` 却写成 `create(() => …)`）。⚠️ **单测为什么没抓到**：`MainLayout.test.tsx` 直接 `useDegradation.setState({ message })` ⇒ 绕过了 `setMessage` ⇒ 把 bug 彻底掩盖。⚠️ 症状是「横幅不出现」而不是「文案不对」⇒ 只断言文案的测试也照样绿。",
+      "fix": "`create((set) => ({ message: null, setMessage: (message) => set({ message }) }))`。守卫**只走 `setMessage`**：新增 `pcs-frontend/tests/store/degradation.test.ts`（3 例：setMessage 真写状态 / setMessage(null) 清空 / 订阅链收到变化）；`MainLayout.test.tsx` 也改成 `useDegradation.getState().setMessage(...)` ⇒ 不再绕过。浏览器复测：横幅出现，文案**逐字**取后端 message，且保存按钮**不被禁用**（RF-6「横幅不阻断」）。",
+      "fix_commit": "49f6b08",
+      "tags": [
+        "p9b",
+        "frontend",
+        "zustand",
+        "store",
+        "no-op-function",
+        "test-masked-bug",
+        "browser-qa-caught"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "HIGH"
+    },
+    {
+      "id": "bug-2043",
+      "timestamp": "2026-10-21T00:00:00.000Z",
+      "error_message": "浏览器 QA：从「冷却塔结果」切到「过滤结果」⇒ 表格里**留着冷却塔的行**，`data-row-key` 全是 **undefined**，React 报「two children with the same key」**18 次**（一排 undefined 主键）",
+      "file": "pcs-frontend/src/pages/results/ResultListPage.tsx + src/pages/routeWrappers.tsx",
+      "root_cause": "React Router **复用同类型的组件实例** ⇒ `ResultListPage` 的 `records` state 留着上一页的行；而新模块的 `module.pk`（主键名）**不同**（cool-tower 用 `id`、filtration 用 `result_id`）⇒ 旧行取不到主键 ⇒ `String(row[module.pk])` = 'undefined' ⇒ 一排相同 key。⚠️ 换模块时旧数据没清空（effect 里没有 `setRecords([])`）⇒ 旧行一直活到新 fetch 回来。⚠️ **单测为什么没抓到**：T3 的用例只渲染**一个**模块（cool-tower）⇒ 跨模块切换这条路径**根本没被走到**。",
+      "fix": "三层：① `routeWrappers.tsx` 给 `<ResultListPage key={module} …>` ⇒ 换模块 = 整页重建（state 干净）；② 页面在 effect 开头 `setRecords([])`（换模块先清空，不等 fetch）；③ `rowKey` 取不到主键时**用行号兜底**（不再产生重复 key）。守卫：`tests/pages/results/result_page.test.tsx` 新增「跨模块切换」用例（断言表格里**只有**新模块的行 + **零**重复 key 警告），先 RED 后 GREEN 已实测（回退修法 ⇒ 4 行 ≠ 1 行 ⇒ 红）。浏览器复测：0 重复 key，表格只剩新模块的行。",
+      "fix_commit": "49f6b08",
+      "tags": [
+        "p9b",
+        "frontend",
+        "react-router",
+        "state-leak",
+        "duplicate-keys",
+        "browser-qa-caught",
+        "test-coverage-gap"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-21",
+      "severity": "HIGH"
     }
   ]
 }
