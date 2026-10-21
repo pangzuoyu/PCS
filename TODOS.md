@@ -1215,3 +1215,26 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
 **触发条件：P9B-2 做签署流程前端（批注/状态时间线）时一并做** —— 那时编辑审计
 的展示面更大。
 **归属：** P9B-2。**关联：** SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑦。
+
+## TODO-067: P9B-1 最终评审的 **7 条 deferred minor**（🟡 延后到 P9B-2 顺手做）
+
+**What:** P9B-1 的最终整支评审（2026-10-21，范围 `a963a76..ed58075`）报出
+1 Critical + 5 Important + 8 Minor。Critical 与 Important **已修**（commit
+`20a3cc6`，见 `.wolf/buglog.json` 的 bug-2044~2049）；下面 7 条 Minor 按
+「每个都要一个测试 + 一次改动」的规矩**延后**：
+
+| # | 事项 | 位置 |
+|---|---|---|
+| 1 | 「联系管理员」按钮在生产里是**死的**（`onContact` 可选，唯一的生产调用方省略了它）⇒ `basis=no_baseline` 时点它**没反应** | `EditConflictModal.tsx:101` |
+| 2 | `editableFieldDefs` 从 `columns` 派生 ⇒ `editableFields` 里漏掉的字段会**静默**从表单消失（无错误、无测试）⇒ 缺一条「`editableFields ⊆ columns`」的守卫 | `resultModules.ts:314` |
+| 3 | 降级横幅成功后**不消失**（`onDegraded(null)` 从不被调）⇒ 一次 Redis 抖动把警告钉到会话结束 | `useEditLock.ts:114` |
+| 4 | `enabled` 翻 false 时状态不复位 ⇒ 换一条记录会短暂显示上一条的「他人正在编辑 / 锁已失效」 | `useEditLock.ts:70` |
+| 5 | 卸载释放的路径硬编码 `/api/v1/locks/...`（应取 `api.defaults.baseURL`）—— 那是**卸载期间唯一必须成功**的路径 | `ResultEditDrawer.tsx:121` |
+| 6 | `api/audit.ts` 的 `listRecordEdits` 与 `auditApi.listAuditLogs` **完全重复**（同端点同响应类型）⇒ 只多一个名字 | `api/audit.ts:108` |
+| 7 | `WorkflowProgressPanel` 把 403 / 404 / 网络错误都映射成同一句 `errorDescription` ⇒ **404 被读成「无权限」** | `WorkflowProgressPanel.tsx:74` |
+
+**Why:** 评审的 skill 明确「Minor 进 ledger 延后，不进修复批」⇒ 一次一个测试 +
+一次改动，混进来会让这批的修复面失控。
+
+**归属：** P9B-2（顺手做，不单独排期）。**关联：** P9B-1 最终评审 ledger
+`.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`。
