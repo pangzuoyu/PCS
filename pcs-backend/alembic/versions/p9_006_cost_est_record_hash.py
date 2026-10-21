@@ -48,24 +48,55 @@ branch_labels = None
 depends_on = None
 
 
-def _backfill_record_hash() -> int:
+def _backfill_record_hash(conn) -> int:
     """按当前内容回填 `cost_est_results.record_hash`（幂等）。返回处理行数。
 
     ⚠️ 复用 `app.services.calc_lineage.apply_record_hash`（它调
     `compute_record_hash`）—— **单一来源**，迁移里不复制哈希算法。
+
+    ⚠️ `conn` 由调用方传入（`upgrade()` 传 `op.get_bind()`）—— 这样**测试**
+    能直接喂一个「p9_006 时刻的 schema」的连接，不必起 alembic 上下文。
     """
+    from sqlalchemy import inspect as sa_inspect
     from sqlalchemy import select
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import Session, defer
 
     from app.models.calc import CostEstResult
     from app.services.calc_lineage import apply_record_hash
 
-    conn = op.get_bind()
+    # ⚠️ **只读此刻 DB 里已存在的列**（2026-10-21 修 CI 红灯）。
+    #
+    # 事故：CI（api-drift job）在**全新库**上 `alembic upgrade head` 失败 ——
+    #   `psycopg.errors.UndefinedColumn: column cost_est_results.project_id
+    #    does not exist`
+    # 根因：本函数原来用 **ORM 实体**查询（`select(CostEstResult)`）⇒ SELECT
+    # 会带上 ORM 声明的**全部**列，**包括 `project_id`** —— 而那一列由**下一个**
+    # 迁移 `p9_007` 才添加 ⇒ 迁移跑到自己这一半时，那一列还不存在。
+    #
+    # ⚠️ 这个 bug **只**在全新库上出现：dev 库在 `p9_006` 写好之前就已经应用过
+    # 它（那时 ORM 的 `CostEstResult` 还没有 `project_id`）⇒ 本仓 CLAUDE.md 说的
+    # 「漂移盲区：单测照绿、真库会炸」的又一例。
+    #
+    # ⇒ 下面按 **DB 实际列**裁剪 SELECT，**不写死**「排除 project_id」
+    # （写死的话，下一个迁移再加一列就会原地复发）。
+    existing = {c["name"] for c in sa_inspect(conn).get_columns("cost_est_results")}
+    missing = [
+        attr.key
+        for attr in sa_inspect(CostEstResult).column_attrs
+        if attr.key not in existing
+    ]
+
     # ⚠️ Session 复用 alembic 的连接：外部事务已开启 ⇒ session 走 SAVEPOINT，
     # `commit()` 只释放 savepoint（数据留在 alembic 的事务里，由 alembic 提交）。
     session = Session(bind=conn)
     try:
-        rows = session.execute(select(CostEstResult)).scalars().all()
+        stmt = select(CostEstResult)
+        if missing:
+            # deferred 列不参与 SELECT ⇒ 也不会被访问（访问会触发懒加载 ⇒ 列不存在）
+            stmt = stmt.options(
+                *[defer(getattr(CostEstResult, key)) for key in missing]
+            )
+        rows = session.execute(stmt).scalars().all()
         n = apply_record_hash(rows)
         session.commit()
         return n
@@ -90,7 +121,7 @@ def upgrade() -> None:
             comment="SHA-256 截断 16 hex；与 RecordMixin 同语义（P9A-4 D0 扩展）",
         ),
     )
-    _backfill_record_hash()
+    _backfill_record_hash(op.get_bind())
 
 
 def downgrade() -> None:
