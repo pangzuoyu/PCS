@@ -347,3 +347,9 @@ import type { EditableRecordType } from '../api/records';
 export function ResultListRoute({ module }: { module: EditableRecordType }): JSX.Element {
   return <ResultListPage module={moduleByRecordType(module)} />;
 }
+
+// === P9B-1 交付物进度（SPEC §6.24 · 观测面板的宿主）===
+import { DeliverableProgressPage } from './deliverables/DeliverableProgressPage';
+export function DeliverableProgressRoute(): JSX.Element {
+  return <DeliverableProgressPage />;
+}

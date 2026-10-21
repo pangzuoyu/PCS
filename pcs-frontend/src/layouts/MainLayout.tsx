@@ -73,6 +73,9 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/results/psychro', label: '湿空气结果' },
     { key: '/results/cost-est', label: '成本估算结果' },
   ]),
+  group('交付物', 'deliverables', [
+    { key: '/deliverables/progress', label: '签署进度' },
+  ]),
   group('审计', 'audit', [
     { key: '/audit/logs', label: 'Audit Query (F-P2-009)' },
   ]),

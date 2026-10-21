@@ -45,6 +45,7 @@ import {
   EnergySummaryAggregateRoute,
   AuditLogRoute,
   ResultListRoute,
+  DeliverableProgressRoute,
 } from './pages/routeWrappers';
 
 const router = createBrowserRouter([
@@ -120,6 +121,9 @@ const router = createBrowserRouter([
       { path: 'results/open-channel', element: <ResultListRoute module="OpenChannelResult" /> },
       { path: 'results/psychro', element: <ResultListRoute module="psychro_result" /> },
       { path: 'results/cost-est', element: <ResultListRoute module="CostEstResult" /> },
+
+      // P9B-1 交付物进度（SPEC §6.24）
+      { path: 'deliverables/progress', element: <DeliverableProgressRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

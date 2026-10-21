@@ -49,11 +49,27 @@ const STEP_STATUS_STYLE: Record<
 interface Props {
   workflowType: WorkflowType;
   workflowId: string;
+  /**
+   * 空态文案（宿主可定制）。
+   *
+   * ⚠️ **空态与「请求失败」是两回事**（SPEC §6.24 的宿主三态：
+   * ① 尚未签发 ② 签署流程尚未开始 ③ 无权限）⇒ 失败走 `errorDescription`，
+   * **不得**也渲染成「暂无步骤记录」（那是**说谎**）。
+   */
+  emptyDescription?: string;
+  /** 请求失败（403 / 404 / 网络）时的文案。 */
+  errorDescription?: string;
 }
 
-export function WorkflowProgressPanel({ workflowType, workflowId }: Props): JSX.Element {
+export function WorkflowProgressPanel({
+  workflowType,
+  workflowId,
+  emptyDescription = '该工作流暂无步骤记录',
+  errorDescription = '无法读取该工作流的进度',
+}: Props): JSX.Element {
   const [data, setData] = useState<ProgressResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,8 +82,11 @@ export function WorkflowProgressPanel({ workflowType, workflowId }: Props): JSX.
         if (!cancelled) setData(res.data);
       })
       .catch(() => {
-        // ⚠️ 拿不到就明说（空态），**不得**静默当成「无步骤」
-        if (!cancelled) setData(null);
+        // ⚠️ 拿不到就**明说失败**（与「无步骤」是两回事）
+        if (!cancelled) {
+          setData(null);
+          setFailed(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -112,7 +131,11 @@ export function WorkflowProgressPanel({ workflowType, workflowId }: Props): JSX.
         <Empty
           data-testid="workflow-progress-empty"
           description={
-            loading ? '加载中…' : '该工作流暂无步骤记录'
+            loading
+              ? '加载中…'
+              : failed
+                ? errorDescription
+                : emptyDescription
           }
         />
       ) : (

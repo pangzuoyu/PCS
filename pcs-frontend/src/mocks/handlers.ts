@@ -53,6 +53,7 @@ import {
 } from "./seed/streams";
 import { seedAssets } from "./seed/config";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
+import { seedDeliverables, seedWorkflowProgress } from "./seed/deliverables";
 import {
   SCENARIO,
   seedCoolTowerResults,
@@ -863,6 +864,25 @@ devOnlyMockHandlers.push(
     const body = (await request.json()) as Record<string, unknown>;
     const base = seedCostEstResults.find((r) => r.result_id === params.id);
     return HttpResponse.json({ ...(base ?? seedCostEstResults[0]), ...body, record_hash: "ffffffffffffffff" });
+  }),
+
+
+  // === P9B-1 交付物进度（SPEC §6.24）===
+  http.get("/api/v1/deliverables", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ items: seedDeliverables, total: seedDeliverables.length });
+  }),
+  http.get("/api/v1/deliverables/:deliverableId/versions", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json([]);
+  }),
+  http.get("/api/v1/workflow-progress/:workflowType/:workflowId", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      ...seedWorkflowProgress,
+      workflow_type: String(params.workflowType),
+      workflow_id: String(params.workflowId),
+    });
   }),
 
   // === P9B-1 编辑锁（SPEC §6.21 P9A-LCK-001~005）===

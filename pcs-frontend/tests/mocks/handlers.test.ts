@@ -17,6 +17,7 @@ import Ajv, { type AnySchema } from "ajv";
 import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
 import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedStreams } from "../../src/mocks/seed/streams";
+import { seedDeliverables } from "../../src/mocks/seed/deliverables";
 import {
   seedCoolTowerResults,
   seedCostEstResults,
@@ -363,6 +364,8 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/cool-tower/results",
       "/api/v1/cost-est/results",
       "/api/v1/cv/calculate",
+      // P9B-1：交付物进度页的列表端点（2026-10-21 加入 ⇒ 棘轮同步）
+      "/api/v1/deliverables",
       "/api/v1/equipment-deletion-audit",
       "/api/v1/filtration/results",
       "/api/v1/flare/results",
@@ -396,6 +399,11 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     for (const [path, data] of cases) {
       validatePath(path, data);
     }
+  });
+
+  it("GET /api/v1/deliverables 的响应体符合契约（P9B-1）", () => {
+    const data = { items: seedDeliverables, total: seedDeliverables.length };
+    validatePath("/api/v1/deliverables", data);
   });
 
   it("两个 mock 端点都已注册", () => {
