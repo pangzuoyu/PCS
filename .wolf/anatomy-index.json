@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-25T23:28:06.814Z",
-    "fileCount": 1001,
+    "lastScanned": "2026-10-25T23:38:19.418Z",
+    "fileCount": 1004,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a63b13f4174d3d857444b7f3c3b2a054e69eea40b4dfe54148b9f397cf122974",
-    "storeUpdatedAt": "2026-10-25T23:28:06.825Z",
-    "rootHash": "c3475793e486191e"
+    "renderedHash": "54945f98ed56f4a96493bbdc3877fb57534dae20fef249903e5086e29f071473",
+    "storeUpdatedAt": "2026-10-25T23:38:19.430Z",
+    "rootHash": "2053ee698ea46306"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21767,33 +21767,33 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 4204,
-      "hash": "c84e747c0d3c85c7",
-      "size": 16814,
-      "mtimeMs": 1792462418377.741,
-      "updatedAt": "2026-10-20T02:13:38.425Z",
+      "tokens": 4872,
+      "hash": "a6dcca665fe9d037",
+      "size": 19440,
+      "mtimeMs": 1792971032946.286,
+      "updatedAt": "2026-10-25T23:30:32.996Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ChangeType",
           "kind": "class",
-          "startLine": 40,
-          "endLine": 51,
+          "startLine": 46,
+          "endLine": 57,
           "tokens": 96
         },
         {
           "name": "TriggeredBy",
           "kind": "class",
-          "startLine": 52,
-          "endLine": 62,
+          "startLine": 58,
+          "endLine": 68,
           "tokens": 76
         },
         {
           "name": "ChangeNoticeService",
           "kind": "class",
-          "startLine": 63,
-          "endLine": 437,
-          "tokens": 3723
+          "startLine": 69,
+          "endLine": 495,
+          "tokens": 4305
         }
       ]
     },
@@ -35921,6 +35921,296 @@
       "size": 1412,
       "mtimeMs": 1792970886767.1792,
       "updatedAt": "2026-10-25T23:28:06.813Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_change_notice_service.py": {
+      "description": "P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。",
+      "tokens": 6694,
+      "hash": "b845b4f06554884b",
+      "size": 25829,
+      "mtimeMs": 1792970964395.2766,
+      "updatedAt": "2026-10-25T23:29:24.449Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 29
+        },
+        {
+          "name": "_actor",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 52,
+          "tokens": 24
+        },
+        {
+          "name": "_make_changed_record",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 81,
+          "tokens": 244
+        },
+        {
+          "name": "test_change_type_seven_values_contract",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 93,
+          "tokens": 166
+        },
+        {
+          "name": "test_triggered_by_two_values_contract",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 105,
+          "tokens": 126
+        },
+        {
+          "name": "_FakeDeliverable",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 115,
+          "tokens": 69
+        },
+        {
+          "name": "_FakeChangeNoticeDetail",
+          "kind": "class",
+          "startLine": 116,
+          "endLine": 122,
+          "tokens": 56
+        },
+        {
+          "name": "_FakeRecord",
+          "kind": "class",
+          "startLine": 123,
+          "endLine": 133,
+          "tokens": 109
+        },
+        {
+          "name": "FakeRecordTable",
+          "kind": "class",
+          "startLine": 134,
+          "endLine": 139,
+          "tokens": 27
+        },
+        {
+          "name": "_FakeSession",
+          "kind": "class",
+          "startLine": 140,
+          "endLine": 230,
+          "tokens": 936
+        },
+        {
+          "name": "_build_record_signing_session",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 237,
+          "tokens": 70
+        },
+        {
+          "name": "_build_cn_session",
+          "kind": "fn",
+          "startLine": 238,
+          "endLine": 268,
+          "tokens": 340
+        },
+        {
+          "name": "test_create_change_notice_creates_both_rows",
+          "kind": "fn",
+          "startLine": 269,
+          "endLine": 321,
+          "tokens": 488
+        },
+        {
+          "name": "test_create_change_notice_writes_audit",
+          "kind": "fn",
+          "startLine": 322,
+          "endLine": 346,
+          "tokens": 226
+        },
+        {
+          "name": "test_create_change_notice_second_for_other_record_ok",
+          "kind": "fn",
+          "startLine": 347,
+          "endLine": 381,
+          "tokens": 319
+        },
+        {
+          "name": "test_create_change_notice_same_record_twice_rejected",
+          "kind": "fn",
+          "startLine": 382,
+          "endLine": 416,
+          "tokens": 312
+        },
+        {
+          "name": "test_create_change_notice_rejects_non_changed_record",
+          "kind": "fn",
+          "startLine": 417,
+          "endLine": 436,
+          "tokens": 209
+        },
+        {
+          "name": "test_create_change_notice_record_not_found",
+          "kind": "fn",
+          "startLine": 437,
+          "endLine": 462,
+          "tokens": 287
+        },
+        {
+          "name": "test_record_state_validation_rejects_non_changed",
+          "kind": "fn",
+          "startLine": 463,
+          "endLine": 475,
+          "tokens": 138
+        },
+        {
+          "name": "test_record_state_validation_record_not_found",
+          "kind": "fn",
+          "startLine": 476,
+          "endLine": 492,
+          "tokens": 163
+        },
+        {
+          "name": "test_apply_record_resolution_changes_changed_to_checked",
+          "kind": "fn",
+          "startLine": 493,
+          "endLine": 512,
+          "tokens": 189
+        },
+        {
+          "name": "test_apply_record_resolution_rejects_non_changed",
+          "kind": "fn",
+          "startLine": 513,
+          "endLine": 527,
+          "tokens": 142
+        },
+        {
+          "name": "test_apply_record_resolution_record_not_found",
+          "kind": "fn",
+          "startLine": 528,
+          "endLine": 547,
+          "tokens": 193
+        },
+        {
+          "name": "test_approve_change_notice_changes_pending_to_approved",
+          "kind": "fn",
+          "startLine": 548,
+          "endLine": 566,
+          "tokens": 181
+        },
+        {
+          "name": "test_approve_change_notice_double_approval_rejected",
+          "kind": "fn",
+          "startLine": 567,
+          "endLine": 583,
+          "tokens": 168
+        },
+        {
+          "name": "test_approve_change_notice_not_found",
+          "kind": "fn",
+          "startLine": 584,
+          "endLine": 606,
+          "tokens": 212
+        },
+        {
+          "name": "test_approve_change_notice_writes_audit",
+          "kind": "fn",
+          "startLine": 607,
+          "endLine": 648,
+          "tokens": 452
+        },
+        {
+          "name": "test_approve_change_notice_notifies_project_designers",
+          "kind": "fn",
+          "startLine": 649,
+          "endLine": 683,
+          "tokens": 346
+        },
+        {
+          "name": "test_approve_change_notice_still_works_without_recipients",
+          "kind": "fn",
+          "startLine": 684,
+          "endLine": 699,
+          "tokens": 160
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_change_notice_observation.py": {
+      "description": "变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。",
+      "tokens": 1476,
+      "hash": "d0201dac35b1991d",
+      "size": 5847,
+      "mtimeMs": 1792970998247.7607,
+      "updatedAt": "2026-10-25T23:29:58.297Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 42,
+          "tokens": 41
+        },
+        {
+          "name": "_make_changed_record",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 56,
+          "tokens": 105
+        },
+        {
+          "name": "_create_notice",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 69,
+          "tokens": 113
+        },
+        {
+          "name": "_observation_rows",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 85,
+          "tokens": 134
+        },
+        {
+          "name": "test_create_writes_one_pending_observation_row",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 106,
+          "tokens": 216
+        },
+        {
+          "name": "test_create_observation_failure_rolls_back_the_change_notice",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 135,
+          "tokens": 259
+        },
+        {
+          "name": "test_approve_marks_observation_completed",
+          "kind": "fn",
+          "startLine": 136,
+          "endLine": 156,
+          "tokens": 203
+        },
+        {
+          "name": "test_approve_failure_writes_no_observation",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 168,
+          "tokens": 136
+        }
+      ]
+    },
+    ".git/COMMIT_MSG_T2T3.txt": {
+      "description": "",
+      "tokens": 247,
+      "hash": "b55dacc964dedebc",
+      "size": 1707,
+      "mtimeMs": 1792971499361.3088,
+      "updatedAt": "2026-10-25T23:38:19.417Z",
       "source": "hook"
     }
   }

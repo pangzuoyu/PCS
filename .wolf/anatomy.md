@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:28:06.814Z
-> Files: 1001 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:38:19.418Z
+> Files: 1004 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -132,6 +132,7 @@
 
 - `COMMIT_MSG_T1_PLAN.txt` (~135 tok)
 - `COMMIT_MSG_T1.txt` (~200 tok)
+- `COMMIT_MSG_T2T3.txt` (~247 tok)
 
 ## .githooks/
 
@@ -1248,7 +1249,7 @@
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4872 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~10590 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
@@ -1450,6 +1451,8 @@
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
+- `test_change_notice_observation.py` — 变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。 (~1476 tok)
+- `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~6694 tok)
 - `test_edit_guard.py` — 编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。 (~3662 tok)
 - `test_edit_lock.py` — 编辑锁（Redis 层）测试 —— P9A-4 D1（ADR-0048 §①~⑤）。 (~3260 tok)
 - `test_notification_triggers.py` — P9A C1b：通知**触发接线**（用户 2026-10-20 裁决的最小集合）。 (~1502 tok)

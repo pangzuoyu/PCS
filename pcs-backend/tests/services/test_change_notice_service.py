@@ -22,8 +22,16 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 
+from app.models.calc import ReliefResult
 from app.models.deliverable import ChangeNoticeDetail, Deliverable
+from app.models.enums import (
+    DeliverableSignStatus,
+    RecordSignStatus9,
+    ReliefScenario,
+)
+from app.models.system import AuditLog
 from app.services.change_notice_service import (
     ChangeNoticeService,
     ChangeType,
@@ -40,6 +48,30 @@ class _Actor:
 
 def _actor() -> _Actor:
     return _Actor(user_id=uuid.uuid4(), role="REVIEWER")
+
+
+async def _make_changed_record(
+    db, *, project_id: uuid.UUID, sign_status: str = "CHANGED"
+) -> ReliefResult:
+    """一条业务记录（真库行）。
+
+    用 `ReliefResult`（`RecordMixin` 族）当记录：它是本仓少数几个
+    必填列很少的记录表 —— 只差 `project_id` / `workspace_id` /
+    `source_equipment_id` / `relief_scenario` 四个。
+
+    ⚠️ 单测跑的是内存 SQLite，**外键不强制** ⇒ 不必先建
+    `projects` / `workspaces` 行。
+    """
+    rec = ReliefResult(
+        project_id=project_id,
+        workspace_id=uuid.uuid4(),
+        source_equipment_id=uuid.uuid4(),
+        relief_scenario=ReliefScenario.FIRE,
+        sign_status=RecordSignStatus9(sign_status),
+    )
+    db.add(rec)
+    await db.flush()
+    return rec
 
 
 # ============================================================================
@@ -234,90 +266,189 @@ def _build_cn_session(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("change_type", list(ChangeType))
-async def test_create_change_notice_is_not_implemented(change_type):
-    """变更单**必须**绑定签署矩阵，矩阵消费方未实现 —— 函数显式拒绝。
+async def test_create_change_notice_creates_both_rows(db, project_id, change_type):
+    """建单 ⇒ **真库**里两行齐活（deliverables + change_notice_details）。
 
-    7 种 change_type 逐一覆盖：它们是 API 边界上的契约，P9A 落地后必须全部
-    仍然可发起变更单。
+    ⚠️ 这批用例必须用**真 DB**（内存 SQLite）：要看见 DB 层的约束 ——
+    `deliverables.matrix_id` NOT NULL（矩阵没绑 ⇒ 插不进去）、
+    `uq_deliverables_scope`、`uq_deliverables_doc_no`。
+    原来的假 DB（`_FakeSession`）只断言内存对象 ⇒ 结构性问题一律看不见
+    （P9A-DLV-009 的「假 DB 把结构性问题藏起来」）。
+
+    7 种 change_type 逐一覆盖：它们是 API 边界上的契约，全部必须能发起。
     """
-    db, rec = _build_record_signing_session(sign_status="CHANGED")
+    rec = await _make_changed_record(db, project_id=project_id)
 
-    with pytest.raises(NotImplementedError) as exc_info:
-        await ChangeNoticeService.create_change_notice(
-            db,
-            project_id=uuid.uuid4(),
-            record_id=rec.record_id,
-            change_type=change_type,
-            reason="test",
-            triggered_by=TriggeredBy.MANUAL,
-            actor=_actor(),
-            record_table=FakeRecordTable,
-        )
-    # 消息要指明真正的堵点，而不是「未实现」三个字了事 ——
-    # 否则下一个人还得再查一轮才知道该等什么。
-    msg = str(exc_info.value)
-    assert "matrix" in msg
-    assert "P9A-DLV-007" in msg
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=change_type,
+        reason="管径修正",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
 
+    assert result["deliverable_id"]
+    assert result["doc_no"].startswith("CN-")
+    assert result["detail"]["change_type"] == change_type.value
 
-@pytest.mark.asyncio
-async def test_create_change_notice_writes_nothing_before_raising():
-    """拒绝发生在任何副作用之前 —— 假 DB 的 added / commits 必须仍为空。"""
-    db, rec = _build_record_signing_session(sign_status="CHANGED")
-    db.register_class_map(_FakeDeliverable, Deliverable)
-    db.register_class_map(_FakeChangeNoticeDetail, ChangeNoticeDetail)
-
-    with pytest.raises(NotImplementedError):
-        await ChangeNoticeService.create_change_notice(
-            db,
-            project_id=uuid.uuid4(),
-            record_id=rec.record_id,
-            change_type=ChangeType.DATA_CORRECTION,
-            reason="管径修正",
-            triggered_by=TriggeredBy.MANUAL,
-            actor=_actor(),
-            record_table=FakeRecordTable,
-        )
-    assert db.added == [], "拒绝前不允许写入任何对象"
-    assert db.commits == 0, "拒绝前不允许提交"
-
-
-@pytest.mark.asyncio
-async def test_create_change_notice_writes_no_audit():
-    """拒绝时不得产生 CHANGE_NOTICE_CREATED 审计。
-
-    真正写审计的是第 3 步（构造 Deliverable 之后），现在不可达。P9A 落地时
-    这条要改回「写了」，别顺手删掉。
-    """
-    db, rec = _build_record_signing_session(sign_status="CHANGED")
-    from app.services import audit_service as audit_mod
-
-    audit_writes: list[dict] = []
-
-    async def _capture(self, *, action, resource_type, resource_id, user_id, detail):
-        audit_writes.append(
-            {"action": action, "resource_type": resource_type,
-             "resource_id": resource_id, "user_id": user_id, "detail": detail}
-        )
-
-    orig_write = audit_mod.AuditService.write
-    audit_mod.AuditService.write = _capture  # type: ignore[assignment]
-    try:
-        with pytest.raises(NotImplementedError):
-            await ChangeNoticeService.create_change_notice(
-                db,
-                project_id=uuid.uuid4(),
-                record_id=rec.record_id,
-                change_type=ChangeType.PROCESS_CHANGE,
-                reason="工艺调整",
-                triggered_by=TriggeredBy.UPSTREAM_CHANGE,
-                actor=_actor(),
-                record_table=FakeRecordTable,
+    row = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == result["deliverable_id"]
             )
-    finally:
-        audit_mod.AuditService.write = orig_write  # type: ignore[assignment]
+        )
+    ).scalar_one()
+    assert row.deliverable_type == "CHANGE_NOTICE"
+    # ⚠️ 矩阵必须绑上 —— 否则变更单建出来了也**签不了**
+    assert row.matrix_id is not None
+    assert row.sign_status == DeliverableSignStatus.PENDING
 
-    assert audit_writes == []
+    detail = (
+        await db.execute(
+            select(ChangeNoticeDetail).where(
+                ChangeNoticeDetail.deliverable_id == result["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+    assert detail.change_type == change_type.value
+    assert detail.reason == "管径修正"
+    assert detail.source_record_type == "ReliefResult"
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_writes_audit(db, project_id):
+    """建单 ⇒ 写一条 CHANGE_NOTICE_CREATED 审计（原来这条断言是「不写」）。"""
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.PROCESS_CHANGE,
+        reason="工艺调整",
+        triggered_by=TriggeredBy.UPSTREAM_CHANGE,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    audits = (
+        await db.execute(
+            select(AuditLog).where(AuditLog.action == "CHANGE_NOTICE_CREATED")
+        )
+    ).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].detail_json["change_type"] == ChangeType.PROCESS_CHANGE.value
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_second_for_other_record_ok(db, project_id):
+    """⚠️ 同项目的**第二张**变更单要能建出来（RF-8）。
+
+    `uq_deliverables_scope` = (project_id, deliverable_type, scope_type,
+    scope_value) ⇒ 用 PROJECT_ALL/ALL 的话第二张直接撞唯一约束。
+    """
+    rec_a = await _make_changed_record(db, project_id=project_id)
+    rec_b = await _make_changed_record(db, project_id=project_id)
+
+    a = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec_a.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="a",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+    b = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec_b.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="b",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    assert a["deliverable_id"] != b["deliverable_id"]
+    assert a["doc_no"] != b["doc_no"]
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_same_record_twice_rejected(db, project_id):
+    """⚠️ 同一条记录的**第二张**变更单 ⇒ 409（明说，不是约束报错）。
+
+    `doc_no` 由记录派生 ⇒ 同记录不能再建；这条业务约束是 doc_no 唯一约束的
+    副产品 ⇒ 已登记待 SPEC 确认。
+    """
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="a",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    with pytest.raises(PcsError) as exc_info:
+        await ChangeNoticeService.create_change_notice(
+            db,
+            project_id=project_id,
+            record_id=rec.relief_id,
+            change_type=ChangeType.DATA_CORRECTION,
+            reason="b",
+            triggered_by=TriggeredBy.MANUAL,
+            actor=_actor(),
+            record_table=ReliefResult,
+        )
+    assert exc_info.value.status == 409
+    assert exc_info.value.code == "CHANGE_NOTICE_ALREADY_EXISTS"
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_rejects_non_changed_record(db, project_id):
+    """记录不是 CHANGED ⇒ 422（既有契约不变，只是现在**真库**上也成立）。"""
+    rec = await _make_changed_record(db, project_id=project_id, sign_status="CHECKED")
+
+    with pytest.raises(PcsError) as exc_info:
+        await ChangeNoticeService.create_change_notice(
+            db,
+            project_id=project_id,
+            record_id=rec.relief_id,
+            change_type=ChangeType.DATA_CORRECTION,
+            reason="x",
+            triggered_by=TriggeredBy.MANUAL,
+            actor=_actor(),
+            record_table=ReliefResult,
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.code == "CHANGE_NOTICE_BAD_STATE"
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_record_not_found(db, project_id):
+    """记录不存在 ⇒ 404。"""
+    with pytest.raises(PcsError) as exc_info:
+        await ChangeNoticeService.create_change_notice(
+            db,
+            project_id=project_id,
+            record_id=uuid.uuid4(),
+            change_type=ChangeType.DATA_CORRECTION,
+            reason="x",
+            triggered_by=TriggeredBy.MANUAL,
+            actor=_actor(),
+            record_table=ReliefResult,
+        )
+    assert exc_info.value.status == 404
+    assert exc_info.value.code == "CHANGE_NOTICE_RECORD_NOT_FOUND"
 
 
 # ---------------------------------------------------------------------------

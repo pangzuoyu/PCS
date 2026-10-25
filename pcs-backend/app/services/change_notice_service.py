@@ -32,11 +32,15 @@ from app.models.enums import (
     AuditAction,
     DeliverableSignStatus,
     RecordSignStatus9,
+    WorkflowProgressState,
+    WorkflowType,
 )
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
 from app.services.notifications.notify import publish
 from app.services.notifications.payload import NotificationPayload
+from app.services.signature_matrix_service import SignatureMatrixService
+from app.services.workflow_progress_writer import record_step
 
 
 class ChangeType(str, enum.Enum):
@@ -143,23 +147,21 @@ class ChangeNoticeService:
         actor: Any,
         record_table: type | None = None,
     ) -> dict[str, Any]:
-        """创建变更单。
+        """创建变更单（ADR-0008）。
 
-        ⚠️ **本函数目前不可用，会直接抛 NotImplementedError。**
+        ## 三处「不得不」
 
-        变更单必须绑定签署矩阵（`Deliverable.matrix_id` 是 NOT NULL + FK →
-        `signature_matrices`），而矩阵的 `steps_json` 至今没有消费方 ——
-        `SignatureMatrixService` 归 **P9A-DLV-007**（P9 SPEC V1.3 任务表）。
-        库里 `signature_matrices` 恒为 0 行，代码里也没有任何地方创建矩阵。
-
-        原先这里写死 `matrix_id=None`，靠 ORM 的 `Mapped[uuid.UUID]`（推断
-        `nullable=False`）**只在真库上**才会炸。测试一直绿是因为那 5 个测试用
-        假 DB（`db.added` / `_FakeDeliverable`），只断言内存对象被构造出来，
-        结构上观察不到 DB 层的 NOT NULL。留着一个「看着是好的、接个 API 路由
-        上去就 500」的哑雷，不如显式拒绝。
-
-        下面的实现是 P9A 落地时的参照，其中第 1 步的校验（404 / 422）与
-        `approve` 均与矩阵无关、可原样保留。
+        1. **签署矩阵**：变更单是交付物子类型，`Deliverable.matrix_id` 是
+           NOT NULL + FK ⇒ 必须绑矩阵。矩阵从哪来由
+           `SignatureMatrixService.ensure_change_notice_matrix` 惰性建行
+           （`signature_matrices` 表原本恒 0 行且全仓无创建方 —— 没有它，
+           变更单这条路根本走不通）。
+        2. **scope 逐单唯一**：`uq_deliverables_scope` =
+           (project_id, deliverable_type, scope_type, scope_value)
+           ⇒ 用 PROJECT_ALL/ALL 的话，**同一项目的第二张变更单插不进去**。
+           ⇒ 改用 CUSTOM + `CHANGE_NOTICE:{记录表名}:{记录ID}`。
+        3. **观测写入点 2a**（ADR-0047 §①）：创建即写一行 CHANGE_NOTICE /
+           PENDING —— 「流程已发起、尚未关闭」，不是 COMPLETED。
 
         Args:
             db: 异步 Session
@@ -169,28 +171,22 @@ class ChangeNoticeService:
             reason: 变更原因（人类可读）
             triggered_by: MANUAL / UPSTREAM_CHANGE
             actor: 触发者（带 user_id）
-            record_table: 业务记录 ORM 模型（用于查 sign_status；测试可注入 mock）
+            record_table: 业务记录 ORM 模型（用于查 sign_status）
 
         Returns:
-            dict 形如 {"deliverable_id": ..., "detail": {...}, "title": ...,
-                       "doc_no": ...}（轻量 DTO，避免 ORM 跨 Session 误用）
+            dict 形如 {"deliverable_id": ..., "workflow_id": ..., "matrix_id": ...,
+                       "detail": {...}, "title": ..., "doc_no": ...}
+            （轻量 DTO，避免 ORM 跨 Session 误用）
 
         Raises:
-            NotImplementedError: 总是抛 —— 见上方说明，等 P9A-DLV-007
             PcsError 404 if record_id not found
             PcsError 422 if record.sign_status != "CHANGED"
+            PcsError 409 if 该记录已有变更单
         """
-        raise NotImplementedError(
-            "变更单必须绑定签署矩阵（Deliverable.matrix_id 是 NOT NULL + FK → "
-            "signature_matrices），而 SignatureMatrix.steps_json 的消费方尚未实现 "
-            "—— 等 P9A-DLV-007 SignatureMatrixService 落地后，"
-            "在下方解析 CHANGE_NOTICE_3_LEVEL 矩阵并写入 matrix_id。"
-        )
-
-        # ---- 以下为 P9A 落地时的参照实现，目前不可达 ----
         # 1. 校验：record 必须存在且为 CHANGED 状态
         if record_table is not None:
             await cls._check_record_charged(db, record_id, record_table)
+            record_type_name = record_table.__name__
         else:
             # 无 record_table：占位路径（不阻断；测试可 mock）
             record_sign_status = await cls._load_record_sign_status(
@@ -202,13 +198,41 @@ class ChangeNoticeService:
                     code="CHANGE_NOTICE_BAD_STATE",
                     status=422,
                 )
+            record_type_name = ""
 
-        # 2. 创建 deliverables 行（deliverable_type=CHANGE_NOTICE）
+        # 2. scope：逐单唯一（见 docstring 第 2 点）
+        scope_value = f"CHANGE_NOTICE:{record_type_name}:{record_id}"
+
+        # 3. 同一条记录已有变更单 ⇒ 409（明说，不是撞唯一约束）
+        #    `doc_no` 由记录派生 ⇒ 同记录本来也建不出第二张。
+        existing = (
+            await db.execute(
+                select(Deliverable).where(
+                    Deliverable.project_id == project_id,
+                    Deliverable.deliverable_type == "CHANGE_NOTICE",
+                    Deliverable.scope_value == scope_value,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise PcsError(
+                f"记录 {record_id} 已有变更单 {existing.doc_no}"
+                f"（一条记录同时只有一张变更单）",
+                code="CHANGE_NOTICE_ALREADY_EXISTS",
+                status=409,
+            )
+
+        # 4. 签署矩阵（惰性建行 —— 没有它变更单建不出来）
+        matrix = await SignatureMatrixService.ensure_change_notice_matrix(
+            db, project_id=project_id
+        )
+
+        # 5. 创建 deliverables 行（deliverable_type=CHANGE_NOTICE）
         deliverable = Deliverable(
             project_id=project_id,
             deliverable_type="CHANGE_NOTICE",
-            scope_type="PROJECT_ALL",
-            scope_value="ALL",
+            scope_type="CUSTOM",
+            scope_value=scope_value,
             # 简化编号；接 doc_no 模板后改由模板生成（无任务号，登记在 TODOS.md）
             doc_no=f"CN-{record_id.hex[:8].upper()}",
             doc_no_mode="MANUAL",
@@ -216,11 +240,12 @@ class ChangeNoticeService:
             current_rev="0",
             version_purpose="ISSUED_FOR_CHANGE",
             sign_status=DeliverableSignStatus.PENDING,
+            matrix_id=matrix.matrix_id,
         )
         db.add(deliverable)
         await db.flush()
 
-        # 3. 创建 1:1 扩展 change_notice_details
+        # 6. 创建 1:1 扩展 change_notice_details
         detail = ChangeNoticeDetail(
             deliverable_id=deliverable.deliverable_id,
             change_type=change_type.value,
@@ -231,7 +256,21 @@ class ChangeNoticeService:
         db.add(detail)
         await db.flush()
 
-        # 4. 写 audit
+        # 7. ⚠️ **观测写入点 2a：变更单的「创建」**（ADR-0047 §① 🔒 service 层）
+        #    写 PENDING：流程已发起、尚未关闭（不是 COMPLETED —— 那是关闭时写的）。
+        #    `record_step` 不 commit ⇒ 与建单同一事务（观测写失败 ⇒ 建单回滚）。
+        await record_step(
+            session=db,
+            project_id=project_id,
+            workflow_type=WorkflowType.CHANGE_NOTICE,
+            workflow_id=deliverable.deliverable_id,
+            step_order=1,
+            step_role="CHANGE_NOTICE",
+            state=WorkflowProgressState.PENDING,
+            actor_user_id=getattr(actor, "user_id", None),
+        )
+
+        # 8. 写 audit
         await AuditService(db).write(
             action=AuditAction.CHANGE_NOTICE_CREATED,
             resource_type="DELIVERABLE",
@@ -248,9 +287,12 @@ class ChangeNoticeService:
 
         await db.commit()
 
-        # 5. 返回轻量 DTO
+        # 9. 返回轻量 DTO
         return {
             "deliverable_id": deliverable.deliverable_id,
+            # 观测工作流的 id —— 与 SIGN 不同类（那是版本 id）
+            "workflow_id": deliverable.deliverable_id,
+            "matrix_id": matrix.matrix_id,
             "project_id": project_id,
             "deliverable_type": "CHANGE_NOTICE",
             "version_purpose": "ISSUED_FOR_CHANGE",
@@ -328,6 +370,20 @@ class ChangeNoticeService:
 
         # 审批通过：deliverable PENDING → APPROVED
         deliverable.sign_status = DeliverableSignStatus.APPROVED
+
+        # ⚠️ **观测写入点 2b：变更单的「自动关闭」**（ADR-0047 §① 🔒）
+        #    变更单 APPROVED ⇒ 它作为业务流程**结束** ⇒ 观测行标 COMPLETED。
+        #    必须在**同一个事务**里（与业务状态同生共死）。
+        await record_step(
+            session=db,
+            project_id=deliverable.project_id,
+            workflow_type=WorkflowType.CHANGE_NOTICE,
+            workflow_id=deliverable_id,
+            step_order=1,
+            step_role="CHANGE_NOTICE",
+            state=WorkflowProgressState.COMPLETED,
+            actor_user_id=getattr(actor, "user_id", None),
+        )
 
         # 写 audit
         await AuditService(db).write(

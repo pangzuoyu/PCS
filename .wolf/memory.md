@@ -2349,3 +2349,11 @@
 | 07:25 | Edited pcs-backend/app/services/signature_matrix_service.py | modified isinstance() | ~376 |
 | 07:27 | Created .git/COMMIT_MSG_T1_PLAN.txt | — | ~144 |
 | 07:28 | Created .git/COMMIT_MSG_T1.txt | — | ~214 |
+| 07:29 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_create_change_notice_creates_both_rows() | ~1744 |
+| 07:29 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified _actor() | ~402 |
+| 07:29 | Created pcs-backend/tests/services/test_change_notice_observation.py | — | ~1492 |
+| 07:29 | Edited pcs-backend/tests/services/test_change_notice_observation.py | removed 4 lines | ~4 |
+| 07:30 | Edited pcs-backend/app/services/change_notice_service.py | modified create_change_notice() | ~1810 |
+| 07:30 | Edited pcs-backend/app/services/change_notice_service.py | 10→14 lines | ~162 |
+| 07:30 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+14 lines) | ~186 |
+| 07:38 | Created .git/COMMIT_MSG_T2T3.txt | — | ~263 |
