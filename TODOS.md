@@ -786,7 +786,7 @@ P9A B4a 的 `POST /records/{module}/{id}/...` **直接以该注册表的键作�
 
 ---
 
-## TODO-057: ADR-0047 §① 的第三个观测写入点（变更单）未实现（🟡 不可演示，非「不采纳」）
+## ✅ DONE —— TODO-057: ADR-0047 §① 的第三个观测写入点（变更单）（2026-10-26 落地，P9A-DLV-007 同批）
 
 ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个**：
 
@@ -794,9 +794,42 @@ ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个
 |---|---|---|
 | SIGN | `DeliverableService.sign_step` | ✅ B2 |
 | CUSTOMER_APPROVAL_PROXY | `DeliverableService.record_customer_approval_proxy` | ✅ B3 |
-| **CHANGE_NOTICE** | 变更单的**创建**与**自动关闭** | ❌ **未实现** |
+| **CHANGE_NOTICE** | 变更单的**创建**与**自动关闭** | ✅ **2026-10-26** |
 
-### 状态措辞（2026-10-20 决策委员会纠正）
+### 落地了什么（commit `da299fb` + `3b7e99b`）
+
+- **矩阵有了**（前置）：`SignatureMatrixService.ensure_change_notice_matrix`
+  惰性建内置模板 `CHANGE_NOTICE_3_LEVEL`（3 级：校核/审核/审定）+ 项目绑定
+  ⇒ `signature_matrices` 不再恒 0 行。
+- **创建路径可达**：`create_change_notice` 不再抛 `NotImplementedError` ——
+  建 `deliverables`（`matrix_id` 非空）+ `change_notice_details` + 审计。
+- **写入点 2a（创建）**：写一行 `CHANGE_NOTICE` / **PENDING**
+  （流程已发起、尚未关闭），`workflow_id` = **变更单自己的 deliverable_id**
+  （不是版本 id）。
+- **写入点 2b（自动关闭）**：`approve_change_notice` 把该行改成 **COMPLETED**
+  （`completed_at` 非空）。审批失败（404/409）**不写**观测。
+- **同一事务**：观测写与业务变更同生共死（观测写失败 ⇒ 建单回滚）。
+
+### 口径（写进 SPEC 验收记录的那句）
+
+**CHANGE_NOTICE 工作流只写 1 行**（`step_order=1`，`step_role='CHANGE_NOTICE'`），
+不是矩阵的 N 行。变更单的**签署步骤**已由 SIGN 工作流观测
+（`workflow_id` = 版本 id）⇒ 再写一份就是同一事实的两个来源。
+⇒ 变更单的 3 级校审在**签发之前**不可见（那时它还没有版本行）—— 与真相一致。
+
+### 遗留（**本条关闭，但下列各项另立条目**）
+
+- 变更单仍**无 HTTP 入口** ⇒ TODO-068；
+- 「一条记录同时只有一张变更单」是**新增业务约束**（`doc_no` 唯一约束的副产品）
+  ⇒ TODO-069；
+- `signature_matrices` **无管理面**（项目自定义矩阵建不了）⇒ TODO-070；
+- `project_signature_matrix_bindings` **缺 (project_id, module) 唯一约束**
+  ⇒ TODO-071（bug-2052）；
+- `steps_json` **校验器**（部分跳过目前只记 WARNING 日志）⇒ TODO-072。
+
+### 历史（保留当时的判断，勿删）
+
+#### 状态措辞（2026-10-20 决策委员会纠正）
 
 **这是「不可演示」，不是「不采纳」。**
 - 「不采纳」意味着该项从验收清单里消失；
@@ -807,9 +840,9 @@ ADR-0047 §① 列了**三个**工作流写入点，P9A B lane 只落了**两个
 （标错的后果与 TODO-045 同形：清单上看着处理过了，实际没做。）
 ✅ **该措辞已落到验收记录** —— `spec/PCS-REQ-2026-002-SPEC-P9 …` **V2.1 §7.2.1
 P9A 验收状态**：该行状态 = **部分（2/3）**，并写明「记 2/3，第 3 项待
-P9A-DLV-007」。**本条仍未闭环**（P9A-DLV-007 未做）。
+P9A-DLV-007」。**已于 2026-10-26 更新为 3/3**（P9A-DLV-007 落地）。
 
-### 事实
+#### 事实（2026-10-20 实测，已过时）
 
 `change_notice_service.create_change_notice` 目前直接 `raise NotImplementedError`
 （等 P9A-DLV-007 `SignatureMatrixService`），所以 ADR §① 指定的两个触发点
@@ -823,7 +856,7 @@ P9A-DLV-007」。**本条仍未闭环**（P9A-DLV-007 未做）。
 **为什么不写占位测试**：永远绿的测试会把「缺一个写入点」伪装成「已覆盖」。
 总纲第二轮处置第 2 条刚删过一个同形的伪测试，不重复同一个错。
 
-### 归属（决策委员会要求确认，二者同时成立，分工不同）
+#### 归属（决策委员会要求确认，二者同时成立，分工不同）
 
 - **前置依赖 = P9A-DLV-007**（`SignatureMatrixService`）：`create_change_notice`
   卡在它上面，`Deliverable.matrix_id` 是 NOT NULL + FK，
@@ -835,9 +868,9 @@ P9A-DLV-007」。**本条仍未闭环**（P9A-DLV-007 未做）。
   排期跟着 DLV-007，做的时候不要去改矩阵服务。
 
 - **发现**：2026-10-20，P9A B lane 终审（fresh reviewer 提出 HIGH，按后果改判 MEDIUM）
-- **严重度**：MEDIUM（今天无可达失败；解锁后的症状是「变更单在甘特图上永远空白
-  **且不报错**」—— 与 ADR-0047 立观测层要防的失败同形）
-- **关联**：ADR-0047 §① · TODO-052 · TODO-058
+- **严重度**：MEDIUM → **已解除**（症状「变更单在甘特图上永远空白**且不报错**」
+  不再成立）
+- **关联**：ADR-0047 §① · TODO-052 · TODO-058 · TODO-068~072
 
 ---
 
@@ -1238,3 +1271,75 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
 
 **归属：** P9B-2（顺手做，不单独排期）。**关联：** P9B-1 最终评审 ledger
 `.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`。
+
+## TODO-068: 变更申请**无 HTTP 入口**（变更单只能由 service 层建）🟡
+
+**What:** 加 `POST /change-notices`（建变更单）+ 相应的读端点，让 SPEC §6.3 的
+「变更申请」按钮真的能点。
+
+**Why:** P9A-DLV-007 把 `create_change_notice` 落地了（2026-10-26），但
+**没有 API 路由调用它**（`grep -rn create_change_notice app/` 只有服务自己）
+⇒ 变更单这条路仍然只能从代码走，界面上发起不了。
+连带：变更单的**签署**也缺入口（`DeliverableService.sign_step` 有 service 层，
+但变更单不是走交付物签发流程建的，没有版本行）。
+
+**Pros:** 变更单闭环可演示；ADR-0047 的第三个写入点从「服务层可达」变成
+「用户可达」。
+
+**Cons:** 权限模型（谁能对哪条记录发起变更）+ 请求 schema + 契约 + 前端按钮。
+
+**归属：** 下一轮（与 P9B-2 的签署流程前端同批更划算）。
+**关联：** TODO-057（已闭环）· P9A-DLV-007 · SPEC §6.3。
+
+## TODO-069: 「一条记录同时只有一张变更单」是**新增业务约束**（未经 SPEC 确认）🟡
+
+**What:** 确认或改口径。当前实现：`create_change_notice` 发现该记录已有变更单
+⇒ 409 `CHANGE_NOTICE_ALREADY_EXISTS`。
+
+**Why:** 这条约束是 **`uq_deliverables_doc_no` 的副产品**（`doc_no` 由
+`record_id` 派生 ⇒ 同记录建第二张会撞唯一约束），**不是** SPEC 写过的业务规则。
+两个连带问题：
+1. **已取消的变更单也会挡住再次建单**（实现只查「有没有」，不查状态）
+   ⇒ 一次取消就再也发不起了；
+2. `doc_no` 取 `record_id` 前 8 位 hex ⇒ 同项目内两条记录撞前 8 位的概率
+   极低但非零（2⁻³²/对）⇒ 撞了就是未捕获的 IntegrityError（500）。
+
+**归属：** SPEC 下次修订时确认口径；实现侧至少要把「已取消的变更单」放行。
+**关联：** TODO-057 · ADR-0008。
+
+## TODO-070: `signature_matrices` **无管理面**（项目自定义矩阵建不了）🟡
+
+**What:** 矩阵只能由 `SignatureMatrixService` 惰性建**内置**模板
+（`CHANGE_NOTICE_3_LEVEL`），项目**自定义**矩阵没有任何创建/编辑入口。
+
+**Why:** `signature_matrices` 原本恒 0 行且全仓无创建方；本批只补了「内置模板
++ 项目绑定」这一条最小路径。⇒ **交付物的签发路径同样受阻**（项目想用自己的
+矩阵做签发，做不到）。
+
+**归属：** 独立一轮（管理面 = CRUD + 权限 + 前端页）。
+**关联：** TODO-057 · ADR-0008 · SUP-005。
+
+## TODO-071: `project_signature_matrix_bindings` 缺 (project_id, module) 唯一约束 🟡
+
+**What:** 表上只有 PK + 两个索引，**没有** `(project_id, module)` 唯一约束
+（ORM 注释却写着「一个项目同一模块只能绑定一个矩阵」）。
+
+**Why:** `SignatureMatrixService._ensure_binding` 靠「先查后建」保证幂等
+⇒ 并发下两个事务各建一行 ⇒ 同一项目同一模块绑到**两个**矩阵 ⇒
+「谁该签这一步」又变成两个真相源（与 bug-2050 同形）。
+
+**代价：** 加约束 = 改迁移 ⇒ 必须在**全新库**上验（CI 会跑）+ 两个库各跑一次
+`alembic check`（退出码 255 才算检出）。
+
+**归属：** 独立一轮（迁移批）。**关联：** bug-2052 · TODO-057。
+
+## TODO-072: `steps_json` **校验器**缺失（部分跳过目前只记日志）🟡
+
+**What:** `SignatureMatrixService.parse_steps` 对**部分**坏数据是「跳过 + WARNING
+日志」；调用方拿不到结构化的跳过计数（接口签名是 `-> list[MatrixStep]`）。
+
+**Why:** 「签署少了一道校审」比报错更危险 —— 日志不是可靠的通知渠道，
+运维不一定会看。根治办法是**入库前校验**（矩阵管理面写 `steps_json` 时
+校验形状，坏数据根本进不来）。
+
+**归属：** 与 TODO-070（矩阵管理面）同批。**关联：** TODO-057 · 计划 R-2。

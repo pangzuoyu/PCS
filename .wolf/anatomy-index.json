@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-25T23:38:19.418Z",
+    "lastScanned": "2026-10-25T23:42:12.162Z",
     "fileCount": 1004,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "54945f98ed56f4a96493bbdc3877fb57534dae20fef249903e5086e29f071473",
-    "storeUpdatedAt": "2026-10-25T23:38:19.430Z",
-    "rootHash": "2053ee698ea46306"
+    "renderedHash": "e830cd212b1d6a8e1a891581eb474e96931494dd2cc3af7adb556fa32ff203ed",
+    "storeUpdatedAt": "2026-10-25T23:42:12.174Z",
+    "rootHash": "591a28b8b6604554"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 10310,
-      "hash": "2ee96dfb6f0a2aa3",
-      "size": 68556,
-      "mtimeMs": 1792514215775.3887,
-      "updatedAt": "2026-10-20T16:36:55.827Z",
+      "tokens": 11439,
+      "hash": "84308cb64dc3713b",
+      "size": 75816,
+      "mtimeMs": 1792971664234.0508,
+      "updatedAt": "2026-10-25T23:41:04.288Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -28251,11 +28251,11 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 7663,
-      "hash": "5817867abd586f02",
-      "size": 51810,
-      "mtimeMs": 1792514176457.277,
-      "updatedAt": "2026-10-20T16:36:16.511Z",
+      "tokens": 7944,
+      "hash": "a29ebca24ed60a9a",
+      "size": 53763,
+      "mtimeMs": 1792971732113.9124,
+      "updatedAt": "2026-10-25T23:42:12.162Z",
       "source": "hook"
     },
     "docs/adr/0046-user-identity-model-migration.md": {

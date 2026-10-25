@@ -1,6 +1,6 @@
 P9 工作流与权限开发规格说明书（修订版）
 文件标识：PCS-REQ-2026-002-SPEC-P9
-当前版本：V2.1（V2.0 + P9A Z 收口验收登记，2026-10-21；V1.3 → V2.0 结构性重排，2026-10-07）
+当前版本：V2.2（V2.1 + P9A-DLV-007 / TODO-057 落地登记，2026-10-26；V2.0 + P9A Z 收口验收登记，2026-10-21；V1.3 → V2.0 结构性重排，2026-10-07）
 修订依据：架构审查结论（2026-10-07）+ TODOS.md 实证核销（2026-10-06/07）
 修订性质：破坏性重排——V1.3 的"前端集成阶段"定位作废，改为 P9-Prep → P9A（后端）→ P9B（前端）三段式
 
@@ -170,9 +170,9 @@ P9A-DLV-003	doc_no 编号引擎：段解析 + scope 原子序号分配	P1 计划
 P9A-DLV-004	交付物快照绑定：仅 CHECKED 可绑定、record_hash 固化、AFFECTED 判定	P1 计划 1.2
 P9A-DLV-005	变更单：deliverable_type=CHANGE_NOTICE 创建/签署/自动关闭绑定记录	P1 计划 1.2
 P9A-DLV-006	变更前快照服务：进入 STALE/CHANGE_PENDING 时保存、放弃/撤销时恢复	P1 计划 1.2
-P9A-DLV-007	SignatureMatrixService：steps_json 消费方，矩阵步骤推进、角色判定、动态列数	SUP-005（当前未落地）
+P9A-DLV-007	SignatureMatrixService：steps_json 消费方，矩阵步骤推进、角色判定、动态列数	SUP-005　**✅ 2026-10-26 落地**（P9A-DLV-007 + TODO-057 同批，commit `da299fb` / `3b7e99b`）。⚠️ **实现偏离**：①「矩阵步骤推进、角色判定」**早在 P9A B2 就已落地**（`DeliverableService.sign_step`），本项真正补的是**「矩阵从哪来」**——`signature_matrices` 原本恒 0 行且全仓无创建方 ⇒ 变更单（`matrix_id` NOT NULL + FK）建不出来；②「动态列数」是前端行为（`SignatureMatrix.tsx` 按 `steps.length` 出列）；③本项**不含**把 `sign_step` 的角色判定抽进新服务（会动已验收的签署路径）。落地内容：`SignatureMatrixService.parse_steps`（`steps_json` 的**唯一**解析口）+ `ensure_change_notice_matrix`（惰性建内置模板 `CHANGE_NOTICE_3_LEVEL` + 项目绑定）
 P9A-DLV-008	代录客户批准后端：凭证附件存储（PDF/JPG/PNG/EML ≤20MB）+ 二次认证 + 审计 CUSTOMER_APPROVAL_PROXIED	ADR-0007
-P9A-DLV-009	bug-145：ChangeNoticeService.create_change_notice 写死 matrix_id=None，但 Deliverable.matrix_id NOT NULL 带 FK → 真库必 500。**2026-10-08 已部分处置**：函数改为显式 `raise NotImplementedError`（不再留「接个 API 路由就 500」的哑雷），5 个 happy-path 测试改为断言拒绝 + 无副作用 + 不写审计。**功能本身仍待 P9A-DLV-007 的矩阵消费方**。
+P9A-DLV-009	bug-145：ChangeNoticeService.create_change_notice 写死 matrix_id=None，但 Deliverable.matrix_id NOT NULL 带 FK → 真库必 500。**2026-10-08 已部分处置**：函数改为显式 `raise NotImplementedError`（不再留「接个 API 路由就 500」的哑雷），5 个 happy-path 测试改为断言拒绝 + 无副作用 + 不写审计。**✅ 2026-10-26 已真正修复**（随 P9A-DLV-007 落地，commit `3b7e99b`）：`create_change_notice` 落地并绑定矩阵；**那 5 个假 DB 用例已改成真库用例**（假 DB 结构上看不见 DB 层的 NOT NULL / 唯一约束 —— 这正是「测试根本不碰数据库」这条根因）。⚠️ **仍无 HTTP 入口**（TODO-068）—— service 层可达，界面发起点。
 P9A-DLV-010	**新端点响应 schema 零裸字段**（硬约束，阻塞 P9B）。每个新端点的响应模型必须显式
 	声明结构；不得用 `response: object` 或裸 `dict` 敷衍。交付证据 = 覆盖率闸裸字段数不上涨
 	（基线 71 保持不变）	P9B 4.2 前端纪律
@@ -520,7 +520,7 @@ P9 整体完成	（原标准）	P9-Prep + P9A + P9B 三段验收全过
 | 交付物全套端点可用 | **通过** | OpenAPI 冻结件含 deliverables 6 端点（issue / sign-step / customer-approval/proxy / versions / snapshot / actions）+ records 9 端点；测试见 `tests/api/v1/test_deliverable_sign_step.py` 等 |
 | AD 同步端到端跑通 | **代码就绪，待运维账号** | `POST /admin/users/sync` 已发布；服务账号（`LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` / `LDAP_USER_FILTER` / `LDAP_USER_ATTRS`）到位前端点返 503、每日 cron 记一条 WARN 后 no-op ⇒ **端到端验收不可演示，不得标「通过」** |
 | 停用用户 refresh 立即 401 | **通过** | `tests/api/v1/test_admin_users.py::test_disabled_user_refresh_returns_401`（含登录建行 → 可见 → 停用 → refresh 401 的完整验收链） |
-| workflow_progress 三工作流写入 | **部分（2/3）** | SIGN ✅ / CUSTOMER_APPROVAL_PROXY ✅ / **CHANGE_NOTICE ❌** —— `change_notice_service.create_change_notice` 直接 `raise NotImplementedError`（等 P9A-DLV-007）⇒ 该工作流的触发点今天不可达。记「2/3，第 3 项待 P9A-DLV-007」（TODO-057） |
+| workflow_progress 三工作流写入 | **通过（3/3）** | SIGN ✅ / CUSTOMER_APPROVAL_PROXY ✅ / **CHANGE_NOTICE ✅（2026-10-26 落地）** —— `change_notice_service.create_change_notice` 不再 `raise NotImplementedError`：建单写 **PENDING**（写入点 2a）、`approve_change_notice` 写 **COMPLETED**（写入点 2b），`workflow_id` = **变更单自己的 deliverable_id**（不是版本 id）。守卫：`tests/services/test_change_notice_observation.py`（4 例，含「观测写失败 ⇒ 建单整体回滚」的同事务断言）。⚠️ 口径：**CHANGE_NOTICE 工作流只写 1 行**（`step_order=1`）—— 变更单的签署步骤已由 SIGN 工作流观测，再写一份就是同一事实的两个来源。⚠️ **仍无 HTTP 入口**（TODO-068）⇒ 「用户可达」未达成，但「写入点可达」已达成（SPEC §7.2 的验收标准是**写入**，非「界面可发起」） |
 | workflow_progress ≤500ms | **通过** | `tests/services/test_workflow_progress_acceptance.py::test_observed_p99_under_500ms` —— 三类工作流**逐类**实测 p99（**2026-10-21 修了参数化**：原实现把 `WorkflowType.SIGN` 写死在写入与查询两处 ⇒ 三个用例其实只跑了一类） |
 | 待办 ≤500ms | **通过** | `tests/api/v1/test_todos.py::test_todo_sql_and_parse_both_within_budget`（300 个待签交付物，分段计时） |
 | 通知 ≤500ms | **通过（本轮才补上的验收）** | `tests/api/v1/test_notification_list_budget.py`（表内 2800 行 / 目标收件人 800 条 / 未读 300；含 `?after=` 断线补齐路径）。⚠️ **收口前全仓无任何通知性能断言** —— 标准写了、代码实现了，但没人证明达标 |
@@ -555,9 +555,11 @@ P9 整体完成	（原标准）	P9-Prep + P9A + P9B 三段验收全过
 
 **仍未闭环（不占 P9A 验收，但必须跟着走）**
 
-- **P9A-DLV-007**：`SignatureMatrixService` + `change_notice_service` 的
-  `create_change_notice` 仍是 `NotImplementedError` ⇒ workflow_progress 三工作流
-  只能记 2/3（TODO-057）。
+- **P9A-DLV-007**：✅ **已于 2026-10-26 落地**（`SignatureMatrixService` +
+  `create_change_notice` + 两个观测写入点）⇒ workflow_progress 三工作流
+  **3/3**（TODO-057 已闭环）。⚠️ 遗留：变更单**无 HTTP 入口**（TODO-068）、
+  「一条记录一张变更单」的业务约束待 SPEC 确认（TODO-069）、
+  矩阵**无管理面**（TODO-070）。
 - **ADR-0050 P1~P6**：签署职责与任务参与（`users.token_version` 之外的整条签署门禁
   线）**用户 2026-10-20 裁决「先不做」** ⇒ 不实施；再开工按 P1~P6（P1 纯增量）。
 - **P9B（前端）**：本轮**未做**。`docs/PCS-UI-SPEC.md` §6.21 / §6.7.1 的前端
@@ -611,3 +613,4 @@ V1.2	2026-08-29	ADR-0019/0022 物流手动创建	联合项目组
 V1.3	2026-09-03	SUP-008 V1.1 workflow_progress	联合项目组
 V2.0	2026-10-07	架构审查后结构性重排：拆 P9-Prep/P9A/P9B；新增后端交付物子系统规格；补 4 份 ADR 前置；补 notifications/todos/workflow_progress 三表；补 token_version 条目；MFA 升级硬阻塞；工作量 5.5–7.5 → 17.5–24 人周；周期 3 周 → 9–12 周；依赖 P1,P7 → P7 收口 + P9-Prep	架构审查
 V2.1	2026-10-21	P9A Z 收口（**纯追加，不改任何绑定正文**）：①新增 **§7.2.1 P9A 验收状态**（实测状态表 + 门禁实测 + 「本轮补的三件事」+「仍未闭环」）—— ⚠️ §7.2 原表**不改**：验收标准是绑定权威，改它要重走 §7.2 验收；状态表的取值只有「通过 / 代码就绪待运维账号 / 部分（记明缺哪一项）」三档，**不得**把「代码就绪」记成「通过」、**不得**把「部分」记成「已写入」或「不适用」；②**TODO-053 偏离的处置在此登记**：§3.2.3 `P9A-OBS-001` 的「8 字段」**保留原文不改**（它是原始设计，不是实现目标），实际 10 业务列 + 2 处改名以**行下注记 + ADR-0047 §后果**双重登记；③补记 ADR-0047 §后果 / ADR-0049 §⑥ 承诺的 `P9A-OBS-001~004` / `P9A-NOT-001~006` 十条前端条款已写进 `docs/PCS-UI-SPEC.md` **V2.1**（§6.22 / §6.23 / §6.24 + §6.20 扩写）；④OpenAPI baseline 滚动至 `p9_007` 终态（+60 path / +105 schema / 0 删除），裸字段仍 71	Claude Code
+V2.2	2026-10-26	P9A-DLV-007 + TODO-057 落地（**纯追加 + 状态更新，不改绑定正文**）：①§3.2.1 `P9A-DLV-007` 行补落地登记与**实现偏离**（矩阵步骤推进/角色判定早于 B2 落地，本项真正补的是「矩阵从哪来」+ 解析收敛；不含抽 `sign_step` 的角色判定）；②`P9A-DLV-009`（bug-145）标记**真正修复**（假 DB 用例已改真库）；③§7.2.1「workflow_progress 三工作流写入」由 **部分（2/3）** 改为 **通过（3/3）**，并写明口径「CHANGE_NOTICE 工作流只写 1 行」与遗留「无 HTTP 入口」；④「仍未闭环」段同步更新 —— ⚠️ §7.2 原表**不改**（验收标准是绑定权威）	PCS

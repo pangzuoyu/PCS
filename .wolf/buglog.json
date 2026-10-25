@@ -2605,20 +2605,24 @@
       "error_message": "sqlite3.IntegrityError: NOT NULL constraint failed: deliverables.matrix_id —— ChangeNoticeService.create_change_notice 写死 matrix_id=None",
       "file": "pcs-backend/app/services/change_notice_service.py",
       "root_cause": "**`Deliverable.matrix_id` 是 NOT NULL 且带 FK，不是可空字段**（ORM 侧 `Mapped[uuid.UUID]`\n非 Optional → 推断 `nullable=False`；真库 `information_schema` 实测 `is_nullable=NO`），\n而 `create_change_notice` 写死 `matrix_id=None`（原第 191 行注释「SIM-39 接\nCHANGE_NOTICE_3_LEVEL 矩阵」）。INSERT 必然触发 NOT NULL 违例。\n\n**根因不是「占位值忘了改」，而是矩阵消费方根本不存在**：`SignatureMatrix.steps_json`\n至今无 service / 无 API / 无 seed，真库 `signature_matrices` 恒为 0 行。\nP9 SPEC V1.3 任务表已把它排为 **`P9A-DLV-007` SignatureMatrixService**。\n\n## 为什么测试一直绿（这一条比原记录更值得记）\n\n**原记录称「create_change_notice 无任何测试」是错的** —— 有 5 个测试调它\n（`tests/services/test_change_notice_service.py`）。真实情况更糟：\n**那些测试用的是假 DB**（`_FakeSession` / `_FakeDeliverable`，断言 `db.added`\n里的内存对象），**结构上不可能观察到 DB 层的 NOT NULL**。\n\n即同一个失效模式换了件衣服 —— 上次（bug-143/146）是「测试库由 ORM metadata 建，\n看不见迁移漂移」，这次是「测试根本不碰数据库」。两者都产出一片绿，\n而真库上那条路径是断的。\n\n**发现路径**：2026-10-07 复核本条时，`ls tests/ | grep change_notice` 只看了顶层，\n漏了 `tests/services/` 子目录。",
-      "fix": "**不在本次修功能 —— 功能归 P9A-DLV-007。** 本次把哑雷变成显式路障：\n\n1. `create_change_notice` 开头 `raise NotImplementedError`，消息指明真正的堵点\n   （矩阵 NOT NULL + P9A-DLV-007），不留「看着是好的、接个 API 路由上去就 500」\n   的路径。下方实现原样保留并标注「P9A 落地时的参照」。\n2. 5 个 happy-path 测试改为断言「拒绝」，并加两条关键断言：**拒绝前 `db.added`\n   为空、`db.commits == 0`**（无副作用）、**不产生 CHANGE_NOTICE_CREATED 审计**。\n3. 原 422 / 404 两条校验经 stub 已不可达，改为直接测底层 `_check_record_charged`，\n   让 P9A 继承这份覆盖。\n4. 清掉两处悬空的 `SIM-39` 引用 —— 该编号在仓库里被复用了至少 4 次\n   （不可靠流守卫 / 记录弃用 / 状态机审计 / 这里的矩阵与 doc_no），\n   指着一个**已关闭且不同范围**的任务。\n\n**为什么选「显式拒绝」而不是「把 matrix_id 放宽为可空」**：SPEC 的设计意图是\n「没有矩阵就无法签署」，放宽等于把设计约束降级成软约束；且 P9A 反正要落这个消费方。\n\n**当前影响（复核后下调）**：`ChangeNoticeService` **无任何 API 路由调用**，\n真库 `deliverables` / `change_notice_details` 均为 0 行 —— 是**未接线的死路径**，\n不是「线上 500」。",
-      "fix_commit": "104cb21",
+      "fix": "**不在本次修功能 —— 功能归 P9A-DLV-007。** 本次把哑雷变成显式路障：\n\n1. `create_change_notice` 开头 `raise NotImplementedError`，消息指明真正的堵点\n   （矩阵 NOT NULL + P9A-DLV-007），不留「看着是好的、接个 API 路由上去就 500」\n   的路径。下方实现原样保留并标注「P9A 落地时的参照」。\n2. 5 个 happy-path 测试改为断言「拒绝」，并加两条关键断言：**拒绝前 `db.added`\n   为空、`db.commits == 0`**（无副作用）、**不产生 CHANGE_NOTICE_CREATED 审计**。\n3. 原 422 / 404 两条校验经 stub 已不可达，改为直接测底层 `_check_record_charged`，\n   让 P9A 继承这份覆盖。\n4. 清掉两处悬空的 `SIM-39` 引用 —— 该编号在仓库里被复用了至少 4 次\n   （不可靠流守卫 / 记录弃用 / 状态机审计 / 这里的矩阵与 doc_no），\n   指着一个**已关闭且不同范围**的任务。\n\n**为什么选「显式拒绝」而不是「把 matrix_id 放宽为可空」**：SPEC 的设计意图是\n「没有矩阵就无法签署」，放宽等于把设计约束降级成软约束；且 P9A 反正要落这个消费方。\n\n**当前影响（复核后下调）**：`ChangeNoticeService` **无任何 API 路由调用**，\n真库 `deliverables` / `change_notice_details` 均为 0 行 —— 是**未接线的死路径**，\n不是「线上 500」。\n\n---\n\n## 2026-10-26 真正修复（P9A-DLV-007 · TODO-057）\n\n上面的「显式拒绝」是**路障**，不是修复。现在路障拆掉了：\n\n1. 新增 `SignatureMatrixService`（`app/services/signature_matrix_service.py`）：\n   - `parse_steps` —— `steps_json` 的**唯一**解析口（排序 / 坏项跳过 /\n     缺省补齐 / 全非法 ⇒ 422 `SIGNATURE_MATRIX_INVALID`）；\n   - `ensure_change_notice_matrix` —— 项目缺矩阵时**惰性建**内置模板\n     `CHANGE_NOTICE_3_LEVEL` + 建项目绑定（`signature_matrices` 从此不再\n     恒 0 行）。\n2. `create_change_notice` 落地（不再抛 `NotImplementedError`）：取矩阵 →\n   写 `deliverables`（`matrix_id` 非空）+ `change_notice_details` +\n   审计 + 观测行（ADR-0047 写入点 2a）。\n3. **假 DB 的用例全部改成真库用例**（内存 SQLite）：原来那 5 个用例用的\n   `_FakeSession` 结构上**不可能**看见 DB 层的 NOT NULL / 唯一约束 ——\n   「测试根本不碰数据库」这条根因被真正拔掉。\n\nfix_commit: 3b7e99b（真实修复）；104cb21 是当时的「显式拒绝」路障。",
+      "fix_commit": "3b7e99b",
       "tags": [
-        "p7-sprint5",
-        "p1-d-module",
         "deliverable",
+        "fixed",
+        "latent",
         "not-null",
+        "p1-d-module",
+        "p7-sprint5",
+        "p9a-dlv-007",
         "signing-matrix",
-        "latent"
+        "todo-057"
       ],
       "occurrences": 1,
       "last_seen": "2026-10-07T00:00:00+08:00",
       "related_bugs": [
-        "bug-143"
+        "bug-143",
+        "bug-2050"
       ]
     },
     {
@@ -3991,6 +3995,67 @@
       "last_seen": "2026-10-21",
       "severity": "IMPORTANT",
       "timestamp": "2026-10-21T00:00:00.000Z"
+    },
+    {
+      "id": "bug-2050",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "签署矩阵的 steps_json 有**两份解析实现** ⇒ 签署路径与变更单路径可能给出不同的步骤",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "`DeliverableService._matrix_steps` 自己解析 `steps_json`（只筛 dict + 按 `step_order` 排序，缺项按 0 排），而变更单路径需要自己的解析。**两份实现 = 两个真相源**：坏数据在两处的处理不同（旧实现把缺 `step_order` 的项排到第 1 步，新实现跳过它）。「谁该签这一步」在不同入口下不一致 ⇒ 同一份矩阵配置在签署与变更单两条路上给出不同结果。",
+      "fix": "解析收敛到 `SignatureMatrixService.parse_steps`（唯一解析口），`_matrix_steps` 改为委托它并转回 dict。行为变化：全部非法的矩阵从「静默当空」改为 422 `SIGNATURE_MATRIX_INVALID`；`can_self_check` 缺省在解析时补齐（与 `sign_step` 既有默认等价）。",
+      "fix_commit": "da299fb",
+      "tags": [
+        "p9a-dlv-007",
+        "signing-matrix",
+        "duplicate-implementation",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-145"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2051",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "G-08 契约门禁在批末报 baseline 漂移（P9B-1 批末没滚 baseline）",
+      "file": "pcs-backend/docs/openapi-baseline.json",
+      "root_cause": "`deliverables` 响应加了 `current_version_id`（P9B-1），`docs/openapi.json` 已重新生成，但 `openapi-baseline.json` **没跟着滚**⇒ 批末 `gate_08_openapi_contract.sh --check-baseline` 报漂移。漂移内容与本批无关（是上一批遗留）。",
+      "fix": "批末滚动 baseline（`cp openapi.json openapi-baseline.json`）并提交；门禁复跑通过。本批（P9A-DLV-007 / TODO-057）**未改契约** ——`openapi.json` 重新生成后与仓库版本逐字一致。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "contract-gate",
+        "baseline",
+        "p9b-1",
+        "process-gap"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2052",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "project_signature_matrix_bindings 缺 (project_id, module) 唯一约束（ORM 注释与 DB 实际不符）",
+      "file": "pcs-backend/app/models/deliverable.py",
+      "root_cause": "`ProjectSignatureMatrixBinding` 的注释写「一个项目同一模块只能绑定一个矩阵」，但**表上既没有 (project_id, module) 唯一约束，ORM 也没声明**（迁移 `dd47298c9c38` 只建了 PK + 两个索引）。`SignatureMatrixService._ensure_binding` 靠「先查后建」保证幂等 ——并发下两个事务可以各建一行 ⇒ 同一项目同一模块绑到两个矩阵，「谁该签这一步」又变成两个真相源。",
+      "fix": "**未修**（不属本批范围）：要加唯一约束就是改迁移 ⇒ 全新库验证（CI 会在全新库上跑）+ 两库各跑一次 `alembic check`。已登记进 `TODOS.md`。",
+      "fix_commit": "",
+      "tags": [
+        "signing-matrix",
+        "missing-constraint",
+        "concurrency",
+        "open"
+      ],
+      "related_bugs": [
+        "bug-2050"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }

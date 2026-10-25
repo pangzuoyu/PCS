@@ -494,3 +494,31 @@ git commit -m "feat(TODO-057): ADR-0047 写入点 2b（变更单自动关闭时�
    与 ADR-0050 落地时可能要改。
 5. **`signature_matrices` 仍无管理面** ⇒ 矩阵只能由本服务惰性建**内置**模板，
    项目自定义矩阵**建不了**（⇒ 交付物签发路径同样受阻）⇒ 登记。
+
+---
+
+## 执行结果（2026-10-26 完成）
+
+| 任务 | 状态 | commit |
+|---|---|---|
+| T1 `SignatureMatrixService` + `_matrix_steps` 收敛 | ✅ | `da299fb` |
+| T2 `create_change_notice` 落地 + 写观测（2a） | ✅ | `3b7e99b` |
+| T3 `approve_change_notice` 写观测（2b） | ✅ | `3b7e99b` |
+| T4 收口 | ✅ | 本提交 |
+
+**与计划的偏差**（裁决见 ledger）：
+
+1. **R-2 的「`skipped` 计数」改为日志**：计划的 Interfaces 把 `parse_steps` 定为
+   `-> list[MatrixStep]`（无计数），二者不可兼得 ⇒ 保持接口不变，改用
+   `logger.warning` 输出跳过计数（「可观测」成立，调用方契约不变）。
+2. **T2/T3 合并为一个 commit**：两者改的是同一个文件（`change_notice_service.py`），
+   拆开需要交互式分块暂存（不可用）⇒ 合并提交，内容与计划一致。
+3. **`_matrix_steps` 的错误语义变了**（计划未明说）：全部非法的矩阵从「静默当空」
+   改为 422 `SIGNATURE_MATRIX_INVALID`；空矩阵仍返回 `[]`（越界仍按 404）。
+
+**验收结果**：
+
+- 后端全量：**5188 passed / 77 skipped**（基线 5168，+20）
+- `alembic check`（开发库 `pcs`）：exit 0，无漂移（本批**未改迁移**）
+- `gate_08_openapi_contract.sh --check-baseline`：exit 0（baseline 顺带滚了
+  P9B-1 遗留的漂移 —— `current_version_id`；本批**未改契约**）

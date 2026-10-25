@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:38:19.418Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:42:12.162Z
 > Files: 1004 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~915 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~4601 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~10310 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~11439 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -1725,4 +1725,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
-- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~7663 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~7944 tok)
