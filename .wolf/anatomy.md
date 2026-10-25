@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-21T10:46:14.609Z
-> Files: 995 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:28:06.814Z
+> Files: 1001 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -127,6 +127,11 @@
 ## .code-review-graph/
 
 - `.gitignore` — Git ignore rules (~38 tok)
+
+## .git/
+
+- `COMMIT_MSG_T1_PLAN.txt` (~135 tok)
+- `COMMIT_MSG_T1.txt` (~200 tok)
 
 ## .githooks/
 
@@ -260,6 +265,10 @@
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-4-编辑锁与CIA.md (~1399 tok)
 
+## .superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md (~428 tok)
+
 ## .superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md (~1310 tok)
@@ -305,6 +314,7 @@
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20491 tok)
 - `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14616 tok)
 - `PCS-PLAN-P9A-5-债项清理.md` — P9A-5 计划：`record_type` 词表归一（TODO-060）+ cost_est 项目隔离（TODO-061） (~1158 tok)
+- `PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md` — P9A-DLV-007 + TODO-057 实施计划：签署矩阵的取得 + 变更单的观测写入点 (~4934 tok)
 - `PCS-PLAN-P9A.md` — P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁） (~3834 tok)
 - `PCS-PLAN-P9B-1-结果记录页与编辑锁.md` — P9B-1 实施计划：结果记录页 + 编辑锁前端（SPEC §6.21 / §6.7.1 / §6.22~§6.24） (~12788 tok)
 - `PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` — P9B-2 实施计划：签署流程前端 + ADMIN 前端（SPEC §6.3 / §6.17~§6.19 / §7.19 / §7.20） (~14672 tok)
@@ -1239,7 +1249,7 @@
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~10510 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~10590 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
@@ -1249,6 +1259,7 @@
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
+- `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~2453 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1705 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
@@ -1446,6 +1457,7 @@
 - `test_record_capabilities.py` — `record_capabilities` 测试（TODO-058 裁决的落地契约）。 (~1308 tok)
 - `test_record_hash_invariant.py` — record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。 (~3104 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
+- `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~2589 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)

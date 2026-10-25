@@ -56,6 +56,7 @@ from app.services.notifications.notify import publish
 from app.services.notifications.payload import NotificationPayload
 from app.services.numbering_service import NumberingService
 from app.services.secondary_auth import verify_secondary_auth
+from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.workflow_progress_writer import record_step
 
 #: `segments_json` 里已登记的占位符（P2 计划设计 §3.5 的示例段名）。
@@ -767,16 +768,23 @@ class DeliverableService:
 
     @staticmethod
     def _matrix_steps(matrix: SignatureMatrix | None) -> list[dict[str, Any]]:
-        """取矩阵步骤，按 `step_order` 升序。
+        """取矩阵步骤，按 `step_order` 升序（**委托给唯一解析口**）。
 
-        `steps_json` 的键序不保证（它是一个 JSON 数组，写入方爱怎么排怎么排），
-        而签署推进完全依赖顺序 ⇒ 必须显式排序，不能靠数组下标。
-        矩阵缺失或步骤为空 ⇒ 空列表（调用方按越界处理）。
+        ⚠️ **不再自己解析 `steps_json`** —— 签署路径与变更单路径必须对同一份
+        配置给出**同一组步骤**（RF-2）。解析规则集中在
+        `SignatureMatrixService.parse_steps`：排序、坏项跳过、缺省补齐、
+        全非法时报 422 `SIGNATURE_MATRIX_INVALID`。
         """
-        if matrix is None or not matrix.steps_json:
-            return []
-        steps = [s for s in matrix.steps_json if isinstance(s, dict)]
-        return sorted(steps, key=lambda s: s.get("step_order", 0))
+        return [
+            {
+                "step_order": s.step_order,
+                "sign_role": s.sign_role,
+                "required": s.required,
+                "can_self_check": s.can_self_check,
+                "can_skip": s.can_skip,
+            }
+            for s in SignatureMatrixService.parse_steps(matrix)
+        ]
 
     @classmethod
     async def _assert_step_order(

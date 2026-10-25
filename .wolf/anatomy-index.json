@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-21T10:46:14.609Z",
-    "fileCount": 995,
+    "lastScanned": "2026-10-25T23:28:06.814Z",
+    "fileCount": 1001,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ee05d25277ac931f255b55d48b2b432eef16efac37a342b008db4d01bf908676",
-    "storeUpdatedAt": "2026-10-21T10:46:14.621Z",
-    "rootHash": "d285720f1adaf4a0"
+    "renderedHash": "a63b13f4174d3d857444b7f3c3b2a054e69eea40b4dfe54148b9f397cf122974",
+    "storeUpdatedAt": "2026-10-25T23:28:06.825Z",
+    "rootHash": "c3475793e486191e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21347,47 +21347,47 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 10510,
-      "hash": "551361476dcc6b91",
-      "size": 42923,
-      "mtimeMs": 1792545359158.6816,
-      "updatedAt": "2026-10-21T01:15:59.212Z",
+      "tokens": 10590,
+      "hash": "eae475787051f4c8",
+      "size": 43201,
+      "mtimeMs": 1792970691256.426,
+      "updatedAt": "2026-10-25T23:24:51.305Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_utcnow",
           "kind": "fn",
-          "startLine": 67,
-          "endLine": 75,
+          "startLine": 68,
+          "endLine": 76,
           "tokens": 54
         },
         {
           "name": "_read_credential",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 102,
+          "startLine": 77,
+          "endLine": 103,
           "tokens": 237
         },
         {
           "name": "SignStepOutcome",
           "kind": "class",
-          "startLine": 103,
-          "endLine": 119,
+          "startLine": 104,
+          "endLine": 120,
           "tokens": 103
         },
         {
           "name": "CustomerApprovalProxyOutcome",
           "kind": "class",
-          "startLine": 120,
-          "endLine": 129,
+          "startLine": 121,
+          "endLine": 130,
           "tokens": 62
         },
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 130,
-          "endLine": 1070,
-          "tokens": 9463
+          "startLine": 131,
+          "endLine": 1078,
+          "tokens": 9523
         }
       ]
     },
@@ -35752,6 +35752,176 @@
           "tokens": 2706
         }
       ]
+    },
+    "docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md": {
+      "description": "P9A-DLV-007 + TODO-057 实施计划：签署矩阵的取得 + 变更单的观测写入点",
+      "tokens": 4934,
+      "hash": "ae80be1c5474a96d",
+      "size": 28460,
+      "mtimeMs": 1792582641044.555,
+      "updatedAt": "2026-10-21T11:37:21.098Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_signature_matrix_service.py": {
+      "description": "签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。",
+      "tokens": 2589,
+      "hash": "1c6c4e8bf09b5236",
+      "size": 10764,
+      "mtimeMs": 1792970705254.6904,
+      "updatedAt": "2026-10-25T23:25:05.307Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_matrix",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 57,
+          "tokens": 145
+        },
+        {
+          "name": "test_parse_steps_sorts_by_step_order",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 71,
+          "tokens": 145
+        },
+        {
+          "name": "test_parse_steps_empty_matrix",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 77,
+          "tokens": 58
+        },
+        {
+          "name": "test_parse_steps_skips_broken_items",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 101,
+          "tokens": 233
+        },
+        {
+          "name": "test_parse_steps_all_broken_raises",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 110,
+          "tokens": 95
+        },
+        {
+          "name": "test_parse_steps_defaults",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 120,
+          "tokens": 121
+        },
+        {
+          "name": "test_role_for_step",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 133,
+          "tokens": 113
+        },
+        {
+          "name": "test_parse_steps_logs_skipped_count",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 160,
+          "tokens": 242
+        },
+        {
+          "name": "test_ensure_creates_builtin_template_and_binding",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 185,
+          "tokens": 254
+        },
+        {
+          "name": "test_ensure_is_idempotent",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 206,
+          "tokens": 194
+        },
+        {
+          "name": "test_ensure_is_project_scoped",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 239,
+          "tokens": 315
+        },
+        {
+          "name": "test_deliverable_matrix_steps_delegates_to_parse_steps",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 264,
+          "tokens": 219
+        },
+        {
+          "name": "test_deliverable_matrix_steps_all_broken_raises",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 276,
+          "tokens": 111
+        },
+        {
+          "name": "test_deliverable_matrix_steps_empty_matrix_is_empty_list",
+          "kind": "fn",
+          "startLine": 277,
+          "endLine": 281,
+          "tokens": 67
+        }
+      ]
+    },
+    "pcs-backend/app/services/signature_matrix_service.py": {
+      "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
+      "tokens": 2453,
+      "hash": "2e53eaba3e8fad86",
+      "size": 10471,
+      "mtimeMs": 1792970733665.5515,
+      "updatedAt": "2026-10-25T23:25:33.723Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "MatrixStep",
+          "kind": "class",
+          "startLine": 59,
+          "endLine": 74,
+          "tokens": 108
+        },
+        {
+          "name": "SignatureMatrixService",
+          "kind": "class",
+          "startLine": 75,
+          "endLine": 270,
+          "tokens": 1918
+        }
+      ]
+    },
+    ".superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md",
+      "tokens": 428,
+      "hash": "1f26d550e7354fdf",
+      "size": 2662,
+      "mtimeMs": 1792970646555.02,
+      "updatedAt": "2026-10-25T23:24:06.606Z",
+      "source": "hook"
+    },
+    ".git/COMMIT_MSG_T1_PLAN.txt": {
+      "description": "",
+      "tokens": 135,
+      "hash": "a8a0d7e0156f7ea6",
+      "size": 994,
+      "mtimeMs": 1792970874272.8838,
+      "updatedAt": "2026-10-25T23:27:54.329Z",
+      "source": "hook"
+    },
+    ".git/COMMIT_MSG_T1.txt": {
+      "description": "",
+      "tokens": 200,
+      "hash": "7eec91b39079e6e9",
+      "size": 1412,
+      "mtimeMs": 1792970886767.1792,
+      "updatedAt": "2026-10-25T23:28:06.813Z",
+      "source": "hook"
     }
   }
 }
