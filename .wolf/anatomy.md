@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:42:12.162Z
-> Files: 1004 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:43:09.067Z
+> Files: 1005 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -133,6 +133,7 @@
 - `COMMIT_MSG_T1_PLAN.txt` (~135 tok)
 - `COMMIT_MSG_T1.txt` (~200 tok)
 - `COMMIT_MSG_T2T3.txt` (~247 tok)
+- `COMMIT_MSG_T4.txt` (~253 tok)
 
 ## .githooks/
 

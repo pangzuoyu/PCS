@@ -4025,7 +4025,7 @@
       "file": "pcs-backend/docs/openapi-baseline.json",
       "root_cause": "`deliverables` 响应加了 `current_version_id`（P9B-1），`docs/openapi.json` 已重新生成，但 `openapi-baseline.json` **没跟着滚**⇒ 批末 `gate_08_openapi_contract.sh --check-baseline` 报漂移。漂移内容与本批无关（是上一批遗留）。",
       "fix": "批末滚动 baseline（`cp openapi.json openapi-baseline.json`）并提交；门禁复跑通过。本批（P9A-DLV-007 / TODO-057）**未改契约** ——`openapi.json` 重新生成后与仓库版本逐字一致。",
-      "fix_commit": "PENDING",
+      "fix_commit": "d44f590",
       "tags": [
         "contract-gate",
         "baseline",
