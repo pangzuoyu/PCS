@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:43:09.067Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-25T23:43:42.700Z
 > Files: 1005 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -269,7 +269,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md (~428 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md (~754 tok)
 
 ## .superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/
 

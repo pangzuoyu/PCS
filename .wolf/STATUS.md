@@ -4,54 +4,44 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-21（P9B-1 完成 + 最终评审修复）。
+> Read this FIRST when starting a session. Last updated: 2026-10-26（P9A-DLV-007 + TODO-057 落地）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
 
-### 第 10 轮：**P9B-1**（结果记录页 + 编辑锁前端）—— T0~T7 全完成
+### 第 12 轮：**P9A-DLV-007 + TODO-057**（签署矩阵的取得 + 变更单的观测写入点）
 
-计划 `docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`。commit `34134ae` → `2ddd85a`。
+计划 `docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md`（含执行结果段）。commit
+`56e91ae` → `2bb7e81`。
 
-产出：**后端** `DeliverableResponse.current_version_id`（禁 N+1）· **前端**
-`records.ts` 单一来源 · 三档基线 + 编辑锁 hook（60s 心跳、不重试）·
-**通用结果页 + 6 个模块描述符 + 编辑抽屉**（6 类结果记录从零建）· 顶栏降级横幅 ·
-变更影响的注册表键归一 · 观测/待办/实时三面板 · 交付物进度页 · QA gate
-（浏览器回归 10 项 + MSW 三场景 + Playwright 一条）。
+产出：**后端**
+- `SignatureMatrixService`（新）—— `parse_steps` 是 `steps_json` 的**唯一**解析口
+  （排序 / 坏项跳过+日志 / 缺省补齐 / 全非法 ⇒ 422 `SIGNATURE_MATRIX_INVALID`）；
+  `ensure_change_notice_matrix` **惰性建**内置模板 `CHANGE_NOTICE_3_LEVEL`（3 级
+  校核/审核/审定）+ 项目绑定 ⇒ `signature_matrices` 不再恒 0 行。
+- `DeliverableService._matrix_steps` 改为调它（消除第二份解析 ⇒ bug-2050）。
+- `ChangeNoticeService.create_change_notice` **落地**（不再 `NotImplementedError`）：
+  绑矩阵 + `deliverables`(matrix_id 非空) + `change_notice_details` + 审计 +
+  **观测写入点 2a**（CHANGE_NOTICE / PENDING，`workflow_id` = 变更单的 deliverable_id）。
+- `approve_change_notice` 写**观测写入点 2b**（APPROVED ⇒ COMPLETED + completed_at）；
+  审批失败不写观测。观测写与业务变更**同一事务**。
 
-基线：前端 809 passed / 86 files；后端 5165 passed / 77 skipped；契约一致。
-报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-21-p9b-1.md`（本地）。
+**测试**：3 个「断言 NotImplementedError」的假 DB 用例**改写成真库用例**（内存 SQLite）
++ 新增 `tests/services/test_change_notice_observation.py`（4 例，含同事务回滚断言）。
+后端全量 **5188 passed / 77 skipped**（基线 5168）；`alembic check`（pcs）exit 0；
+`gate_08_openapi_contract.sh --check-baseline` exit 0（baseline 顺带滚了 P9B-1 的
+遗留漂移 `current_version_id`）。
 
-本会话另修 bug-2041（HIGH · `p9_006` 在**全新库**上崩 ⇒ CI 红灯）、
-bug-2042（HIGH · 降级 store 的 `setMessage` 是**空函数**）、
-bug-2043（HIGH · 跨结果页残留上一模块的行）。
+**登记**：SPEC **V2.2**（§7.2.1「三工作流写入」部分 2/3 ⇒ **通过 3/3** + DLV-007
+实现偏离注记）· `TODOS.md` TODO-057 **闭环** + 新增 **TODO-068~072** ·
+`.wolf/buglog.json` bug-145 收尾 + 新增 bug-2050/2051/2052 ·
+cerebrum 新增「假 DB 看不见 DB 层约束」「同一份配置只能有一份解析实现」。
 
-### 第 11 轮：**最终整支评审**（opus，范围 `a963a76..ed58075`）
+### 上一轮：**P9B-1**（结果记录页 + 编辑锁前端）—— 已完成
 
-结论 **1 Critical + 5 Important + 8 Minor**。Critical + Important **已修**
-（commit `20a3cc6`），8 条 Minor 延后（`TODOS.md` **TODO-067**）。
-
-| bug | 级别 | 一句话 |
-|---|---|---|
-| **bug-2044** | **CRITICAL** | 编辑抽屉**每个可编辑字段都显示空白** —— `Form.Item name` 用**表单 store 的值**覆盖了 `value`，而抽屉从不 `setFieldsValue` ⇒ store 空 ⇒ 全空。⚠️ **请求体仍是对的** ⇒ QA 断言请求体时看不见 |
-| **bug-2045** | IMPORTANT | 409「放弃并刷新」不把新 hash 交回列表 ⇒ 下一次编辑必 409（假冲突） |
-| **bug-2046** | IMPORTANT | SPA 导航让抽屉静默卸载 ⇒ 锁白占 30min（`pagehide` 只在**文档**卸载时触发） |
-| **bug-2047** | IMPORTANT | `RealtimeStatusBanner` **没有任何宿主** ⇒ SPEC §6.23 实际没交付（组件只活在测试里 = 假绿） |
-| **bug-2048** | IMPORTANT | 交付物列表 `pagination={false}` + 硬编码 `limit:100` ⇒ 超额**静默截断** |
-| **bug-2049** | IMPORTANT | 变更影响判定失败 = 静默 no-op + **未捕获的 promise rejection** |
-
-⚠️ **评审的 RF 表 13 行逐行核对**：12 行满足，RF-10「部分满足」（缺口 = bug-2046，已修）。
-⚠️ **教训**：bug-2044 说明「断言请求体」**不等于**「断言界面」⇒ UI 的断言要落在
-**渲染出来的值**上。
-
-### P9B-2 计划已写好（**未执行**）
-
-`docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` —— T0~T7：两个后端前置
-（TODO-065 聚合进度端点 / TODO-066 编辑审计读端点）+ 记录操作栏 + 批注面板 +
-状态时间线 + ADMIN 用户管理 + 审计日志（查询 + 导出）。
-⚠️ **尚未过 `/plan-eng-review`** ⇒ 开工前建议过一轮。
+见 `docs/PCS-PLAN-P9B-1-…` 与 git log；deferred minor 记在 TODO-067。
 
 ---
 
@@ -59,12 +49,13 @@ bug-2043（HIGH · 跨结果页残留上一模块的行）。
 
 1. **P9B-2**：签署流程前端（操作栏 / 批注 / 状态时间线）+ ADMIN 前端（用户管理 /
    审计日志）+ **两个后端前置**（**TODO-065** 聚合端点 `GET /deliverables/{id}/progress`、
-   **TODO-066** 按项目守卫的编辑审计读端点）⇒ 这两条**都已在 `TODOS.md` 登记**，
-   触发条件写在条目里。
+   **TODO-066** 按项目守卫的编辑审计读端点）。
+   ⚠️ 计划 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` **尚未过 `/plan-eng-review`**。
 2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
-3. **P9A-DLV-007**（TODO-057）：`SignatureMatrixService` +
-   `change_notice_service.create_change_notice`（现 `NotImplementedError`）
-   ⇒ workflow_progress 三工作流只能记 2/3。
+3. **P9A-DLV-007 的遗留**（本批新登记）：
+   TODO-068 变更申请**无 HTTP 入口** · TODO-069「一条记录一张变更单」待 SPEC 确认
+   · TODO-070 矩阵**无管理面** · TODO-071 bindings 缺唯一约束（bug-2052，改迁移
+   ⇒ 全新库验）· TODO-072 `steps_json` 校验器。
 4. **ADR-0050**：用户 2026-10-20 裁决「先不做」⇒ 再开工按 P1~P6。
 5. **P9A-1 遗留**（未变）：access token 不带 `tv`；AD 同步需运维服务账号。
 
@@ -72,34 +63,28 @@ bug-2043（HIGH · 跨结果页残留上一模块的行）。
 
 ## Context
 
-- main，工作区干净。**不要建 worktree**（历史事故）。
-- 两库均在 `p9_007`（head），`alembic check` 均 exit 0（**每个库各跑一次**）。
-  改迁移的纪律见 CLAUDE.md（退出码 **255**；先 `current` vs `heads`）。
-  `pcs_test` 的跑法：URL 从 `.env` 派生，**不要把口令写在命令行**。
-- **本机需要真 Redis** 才能跑锁的跨进程测试：`docker compose up redis`。
-  没起 Redis 时那批测试会 **skip**（不是绿）。
+- main，工作区干净（`.wolf/*` 由钩子持续更新）。**不要建 worktree**（历史事故）。
+- 两库均在 `p9_007`（head）。本批**未改迁移** ⇒ 无漂移风险。
+  改迁移的纪律见 CLAUDE.md（退出码 **255**；先 `current` vs `heads`；
+  `pcs_test` 的跑法：URL 从 `.env` 派生，**不要把口令写在命令行**）。
+- ⚠️ **CI 现在是活的**（`.github/workflows/check-api-drift.yml`）⇒ 改了迁移必须
+  在**全新库**上验（bug-2041 就是 dev 库看不见、只有 CI 全新库炸）。
+- **Redis**：跨进程/锁的测试需要真 Redis —— `docker compose up -d redis`
+  （本会话已起；没起时那批测试**红**而不是 skip）。
 - 契约产物由 G-08 钩子在 commit **之后**重生成，而 `git add` 在钩子之前
   ⇒ 偶尔漏提交，commit 后要 `git add -A && git commit --amend --no-edit` 补。
-- ⚠️ **CI 现在是活的**（`.github/workflows/check-api-drift.yml`）⇒ **改了迁移必须
-  在全新库上验**（本会话的 bug-2041 就是 dev 库看不见、只有 CI 全新库炸）。
-  本机没权限建库 ⇒ 用**隔离 schema** 验（`search_path` + `alembic upgrade head`）。
-- 无 CI/CD 的历史裁决已**部分过期**（CI 存在且会跑）；但**不要新增流水线**。
 - 提交约定：conventional commits，**无 attribution 行**（本仓全局禁用）。
-- ⚠️ commit message 里用 `!` `（）` 会被 shell 吃掉 —— 长消息写文件后
+  ⚠️ commit message 里用 `!` `（）` 会被 shell 吃掉 —— 长消息写文件后
   `git commit -F <file>`。
+- 无 CI/CD 的历史裁决已**部分过期**（CI 存在且会跑）；但**不要新增流水线**。
 
 ---
 
-## 教训（本会话新增 4 条，已进 cerebrum）
+## 教训（本会话新增 2 条，已进 cerebrum）
 
-- **zustand 的初始化函数要把 `set` 接上**：`create(() => ({ …, setMessage: () => {} }))`
-  ⇒ setter 是**空函数** ⇒ 状态永远存不进去 ⇒ 症状是「横幅不出现」而不是
-  「文案不对」。⚠️ **单测直接 `setState` 会彻底掩盖它** ⇒ 守卫必须走 setter。
-- **React Router 复用同类型组件实例 ⇒ state 会泄漏到下一个实例**：换模块时旧行
-  留着，而新模块的主键名不同 ⇒ 取不到主键 ⇒ 一排 undefined key。⇒ 换「模块」
-  这种**数据形状变了**的场景要 `key={module}`（整页重建）+ 换时先清空。
-- **只测一个实例 ⇒ 跨实例那条路径根本没被走到**：本会话的跨模块 bug 就是
-  「单模块用例全绿」漏出来的。⇒ 通用组件**至少测两种形状**。
-- **迁移里跑 ORM 查询 ⇒ ORM 后加的列会把老迁移打破**（且**只在全新库**炸）：
-  dev 库在迁移写好之前就应用过它 ⇒ 天然免疫。⇒ 迁移里**不要**用 ORM 实体查询
-  整表（要按**此刻 DB 实际存在的列**裁剪 SELECT）。
+- **假 DB 看不见 DB 层约束**：`_FakeSession` 断言内存对象 ⇒ NOT NULL / 唯一约束
+  / 外键**一条都观察不到** ⇒ bug-145 的 5 个用例测出来是绿的。⇒ 验「DB 层拒绝」
+  必须用**真库**（内存 SQLite，注意它**不强制外键**）。
+- **同一份配置只能有一份解析实现**：`steps_json` 曾有两份解析（签署路径 + 变更单
+  路径）⇒ 坏数据处理不同 ⇒ 「谁该签这一步」在不同入口不一致。⇒ 解析收敛到
+  唯一入口；配置数据要**显式排序** + **坏数据不静默**。

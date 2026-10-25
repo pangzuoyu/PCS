@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-25T23:43:09.067Z",
+    "lastScanned": "2026-10-25T23:43:42.700Z",
     "fileCount": 1005,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "feb7d3b2280d21952ad3ac2c3c256156827ba98a56a9b5f1a42b7549fdf1b437",
-    "storeUpdatedAt": "2026-10-25T23:43:09.080Z",
-    "rootHash": "898c6d52c192ab11"
+    "renderedHash": "2209788686648a7f32f6dbc1e7c73b34711e631853a77adf1f5b5a05b0e5389c",
+    "storeUpdatedAt": "2026-10-25T23:43:42.711Z",
+    "rootHash": "b5a7935f1b6f448e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -35898,11 +35898,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md",
-      "tokens": 428,
-      "hash": "1f26d550e7354fdf",
-      "size": 2662,
-      "mtimeMs": 1792970646555.02,
-      "updatedAt": "2026-10-25T23:24:06.606Z",
+      "tokens": 754,
+      "hash": "b3462e79ec551e58",
+      "size": 4506,
+      "mtimeMs": 1792971822645.686,
+      "updatedAt": "2026-10-25T23:43:42.700Z",
       "source": "hook"
     },
     ".git/COMMIT_MSG_T1_PLAN.txt": {
