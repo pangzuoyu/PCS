@@ -2435,3 +2435,16 @@
 | 18:30 | Edited TODOS.md | expanded (+6 lines) | ~83 |
 | 18:30 | Edited TODOS.md | 4→8 lines | ~100 |
 | 18:30 | Edited docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md | inline fix | ~101 |
+| 18:54 | Edited pcs-backend/app/api/v1/_guard.py | modified require_project_role() | ~518 |
+| 18:54 | Edited pcs-backend/app/api/v1/signature_matrices.py | 4→4 lines | ~27 |
+| 19:01 | Created pcs-frontend/src/api/signatureMatrices.ts | — | ~816 |
+| 19:01 | Created pcs-frontend/src/api/changeNotices.ts | — | ~714 |
+| 19:01 | Created pcs-frontend/src/pages/deliverables/SignatureMatrixPage.tsx | — | ~3742 |
+| 19:02 | Created pcs-frontend/src/pages/results/ChangeNoticeAction.tsx | — | ~1407 |
+| 19:03 | Edited pcs-frontend/src/App.tsx | 2→3 lines | ~24 |
+| 19:03 | Created pcs-frontend/src/mocks/signatureMatrices.ts | — | ~1919 |
+| 19:04 | Created pcs-frontend/src/mocks/changeNotices.ts | — | ~1166 |
+| 19:05 | Created pcs-frontend/tests/api/signature_matrices_api.test.ts | — | ~1650 |
+| 19:05 | Created pcs-frontend/tests/api/change_notices_api.test.ts | — | ~1146 |
+| 19:05 | Created pcs-frontend/tests/pages/deliverables/signature_matrix_page.test.tsx | — | ~881 |
+| 19:05 | Created pcs-frontend/tests/pages/results/change_notice_action.test.tsx | — | ~492 |

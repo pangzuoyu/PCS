@@ -36,6 +36,24 @@ budget_tokens: 1200
 TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补记 +
 新增 bug-2055~2059 · UI-SPEC §6.3 修订注记（变更申请按钮该挂 CHANGED）。
 
+### 第 13 轮续二：**P9A-DLV-011 收尾批**（用户「解决未解决的问题」）
+
+- **矩阵绑定权限**（用户裁决「**只有项目负责人能绑**」）⇒ 三层判定：全局角色 +
+  项目授权 + 项目内角色 = **新增的 `PROJECT_LEAD`**（依据校审层级 SPEC §2.1.2
+  「项目负责人（新增）」；`role_in_project` **无 DB CHECK 约束 ⇒ 不需要迁移**）。
+  ⚠️ 这是全仓**唯一**按项目内角色鉴权的守卫（例外已写进 docstring）。
+- **ADR-0002 vs ADR-0008 的「变更单驳回」矛盾** ⇒ 裁决 **ADR-0008 管辖**
+  （单据回 DRAFT、**记录保持 CHANGED**）；「重改」路径 = **撤销 → 重来**
+  （request-reversal → approve-reversal 恢复快照 → CHECKED ⇒ 再 initiate-change）
+  ⇒ 已由 `test_rejected_notice_can_be_reworked_via_reversal` 端到端钉住；
+  两份 ADR 各加**修订记录**。
+- **前端两个缺口闭环**（TODO-079 + TODO-083）：矩阵管理页
+  `/deliverables/signature-matrices` + 结果记录行上的变更动作（**按状态只给一个
+  按钮**：变更申请 / 提交变更完成 / 创建变更单）。
+- 顺带**更正 UI-SPEC §6.3 的错误登记**（本批第一次写错了按钮归属）。
+- 新登记 **TODO-085**（矩阵修改的申请+双审未实现）· **TODO-086**（重走后绑定
+  哈希漂移）。
+
 ### 第 13 轮续：**P9A-DLV-011 整批评审**（`3f68722`）—— 3 CRITICAL + 8 IMPORTANT 全修
 
 - **C-1** `PUT /signature-matrices/{id}` 每次真实修改都 500（`updated_at` 是服务端
@@ -76,7 +94,12 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
    **TODO-066** 按项目守卫的编辑审计读端点）。
    ⚠️ 计划 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` **尚未过 `/plan-eng-review`**。
 2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
-3. **本批遗留**（TODO-073~080 · 082 · 083）：变更单编号改走编号模板 · 矩阵名唯一
+3. **本批遗留**（TODO-073~078 · 080 · 082 · 084 · 085 · 086）：变更单编号改走编号
+   模板 · 矩阵名唯一约束 · `change_resolved_by` 语义（状态机与 ADR-0002 冲突）·
+   工作区门禁只覆盖本批端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash ·
+   多记录变更 · **`locked_by_deliverable` 死闸门**（TODO-082）· **矩阵修改的申请 +
+   双审**（TODO-085）· **重走后绑定哈希漂移**（TODO-086）· 4 条 minor（TODO-084）。
+   ⇒ TODO-079（矩阵前端）与 TODO-083（变更单前端入口）**已闭环**。
    约束 · `change_resolved_by` 语义（状态机与 ADR-0002 冲突）· 工作区门禁只覆盖本批
    端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash · 多记录变更 ·
    **矩阵管理前端**（TODO-079）+ **变更单前端入口**（TODO-083）·

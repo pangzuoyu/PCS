@@ -15,7 +15,7 @@
  *    是**两回事**，混同会让用户找错人。
  */
 import { useEffect, useState } from 'react';
-import { Button, Table, Tooltip } from 'antd';
+import { Button, Space, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
@@ -26,6 +26,7 @@ import { recordsApi } from '../../api/records';
 import { useEditBaseline, isRowEditable } from '../../hooks/useEditBaseline';
 import { PROJECT_ID } from '../../constants/env';
 import { ResultEditDrawer } from './ResultEditDrawer';
+import { ChangeNoticeAction } from './ChangeNoticeAction';
 import type { CommonResultRow, ResultModule } from './resultModules';
 
 /** 行 = 公共字段 + 该模块自己的字段（主键名逐模块不同 ⇒ 只能动态取）。 */
@@ -118,6 +119,20 @@ export function ResultListPage({ module }: Props): JSX.Element {
     };
   }, [module.base, page, pageSize]);
 
+  /**
+   * 变更动作成功后**就地更新**行的 `sign_status`（不重拉列表）。
+   *
+   * ⚠️ 必须更新：状态不变 ⇒ 按钮还停在旧状态 ⇒ 用户能对同一条记录连点两次
+   * ⇒ 第二次必 409。
+   */
+  function onStatusChanged(recordId: string, nextStatus: string): void {
+    setRecords((prev) =>
+      prev.map((r) =>
+        String(r[module.pk]) === recordId ? { ...r, sign_status: nextStatus } : r,
+      ),
+    );
+  }
+
   // ⚠️ 保存成功后**就地更新**本地 state（不重拉列表）：只改 `record_hash`
   // ⇒ 下一次保存带的是**新**基线（RF-1）。
   function onSaved(updated: { record_hash: string }): void {
@@ -159,7 +174,15 @@ export function ResultListPage({ module }: Props): JSX.Element {
     title: '操作',
     key: '__actions',
     render: (_: unknown, row: ResultRow) => (
-      <ResultEditButton row={row} onEdit={setEditing} />
+      <Space size="small">
+        <ResultEditButton row={row} onEdit={setEditing} />
+        {/* ⚠️ 变更动作**按状态只给一个**（见 ChangeNoticeAction 的说明） */}
+        <ChangeNoticeAction
+          module={module}
+          row={row}
+          onStatusChange={onStatusChanged}
+        />
+      </Space>
     ),
   });
 
@@ -167,10 +190,12 @@ export function ResultListPage({ module }: Props): JSX.Element {
     <div data-testid="result-list-page" data-module={module.recordType}>
       <PageHeader title={module.title} actions={<span />} />
       <Table<ResultRow>
-        // ⚠️ 主键取不到时**用行号兜底**（不产生重复 key）：
+        // ⚠️ 主键取不到时**用整行内容兜底**（不产生重复 key）：
         // 正常路径下每个模块的行都带自己的主键；取不到只可能是「状态里
         // 混进了别的模块的行」（见 routeWrappers 的 `key` 注释）。
-        rowKey={(row, index) => String(row[module.pk] ?? `row-${index}`)}
+        // ⚠️ **不用行号兜底**：antd 5.29 起 `rowKey` 函数的 `index` 参数
+        // 已弃用（控制台报错），而且它**本来就不保证稳定**。
+        rowKey={(row) => String(row[module.pk] ?? JSON.stringify(row))}
         columns={columns}
         dataSource={records}
         loading={loading}

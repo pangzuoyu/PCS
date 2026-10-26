@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T10:30:31.144Z",
-    "fileCount": 1020,
+    "lastScanned": "2026-10-26T11:05:58.556Z",
+    "fileCount": 1030,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "bf2512a34c724fffc62e808004c526a2a328a16f18c63a6d3d6f4b591de392cc",
-    "storeUpdatedAt": "2026-10-26T10:30:31.155Z",
-    "rootHash": "0c3b5e8630d46959"
+    "renderedHash": "f286a6fa88eea4bed23505d8e10fcd998d6ecb0c9e0188e5832d0e49370980df",
+    "storeUpdatedAt": "2026-10-26T11:05:58.567Z",
+    "rootHash": "90f68088b1fdaa14"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13819,18 +13819,18 @@
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 1070,
-      "hash": "a5884ec14aaf35e0",
-      "size": 3882,
-      "mtimeMs": 1790978919504.6006,
-      "updatedAt": "2026-10-02T22:08:39.558Z",
+      "tokens": 1443,
+      "hash": "0396ac6c8be76f92",
+      "size": 5237,
+      "mtimeMs": 1793012590331.0408,
+      "updatedAt": "2026-10-26T11:03:10.384Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 119,
+          "startLine": 138,
+          "endLine": 144,
           "tokens": 38
         }
       ]
@@ -16145,26 +16145,40 @@
     },
     "pcs-backend/app/api/v1/_guard.py": {
       "description": "API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。",
-      "tokens": 602,
-      "hash": "f4cf8366ed600465",
-      "size": 2472,
-      "mtimeMs": 1791081153383.6235,
-      "updatedAt": "2026-10-04T02:32:33.430Z",
+      "tokens": 1599,
+      "hash": "a670e4bdbe975f27",
+      "size": 7358,
+      "mtimeMs": 1793012060662.446,
+      "updatedAt": "2026-10-26T10:54:20.718Z",
       "source": "hook",
       "symbols": [
         {
           "name": "check_project_access_or_404",
           "kind": "fn",
-          "startLine": 23,
-          "endLine": 51,
+          "startLine": 24,
+          "endLine": 52,
           "tokens": 250
         },
         {
           "name": "check_record_access_or_404",
           "kind": "fn",
-          "startLine": 52,
-          "endLine": 72,
+          "startLine": 53,
+          "endLine": 73,
           "tokens": 176
+        },
+        {
+          "name": "require_formal_project_workspace",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 124,
+          "tokens": 470
+        },
+        {
+          "name": "require_project_role",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 181,
+          "tokens": 518
         }
       ]
     },
@@ -36511,11 +36525,11 @@
     },
     "pcs-backend/app/api/v1/signature_matrices.py": {
       "description": "签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。",
-      "tokens": 2396,
-      "hash": "57574a866df2a8bb",
-      "size": 9927,
-      "mtimeMs": 1792983693887.4197,
-      "updatedAt": "2026-10-26T03:01:33.941Z",
+      "tokens": 2394,
+      "hash": "444ef79ded3ece32",
+      "size": 9918,
+      "mtimeMs": 1793012069077.4023,
+      "updatedAt": "2026-10-26T10:54:29.122Z",
       "source": "hook",
       "symbols": [
         {
@@ -36899,6 +36913,190 @@
           "tokens": 202
         }
       ]
+    },
+    "pcs-frontend/src/api/signatureMatrices.ts": {
+      "description": "签署矩阵管理 API 客户端（TODO-070 · P9A-DLV-011 T3 的前端面）。",
+      "tokens": 816,
+      "hash": "c27ff21f13471365",
+      "size": 3392,
+      "mtimeMs": 1793012474002.1702,
+      "updatedAt": "2026-10-26T11:01:14.050Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "MatrixListParams",
+          "kind": "section",
+          "startLine": 45,
+          "endLine": 83,
+          "tokens": 382
+        }
+      ]
+    },
+    "pcs-frontend/src/api/changeNotices.ts": {
+      "description": "变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。",
+      "tokens": 714,
+      "hash": "0642a4ef56cb662e",
+      "size": 3213,
+      "mtimeMs": 1793012480263.1611,
+      "updatedAt": "2026-10-26T11:01:20.311Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/deliverables/SignatureMatrixPage.tsx": {
+      "description": "SignatureMatrixPage —— 签署矩阵管理面（TODO-079 · P9A-DLV-011 T3 的前端）。",
+      "tokens": 3742,
+      "hash": "cdf7500a975046a3",
+      "size": 14359,
+      "mtimeMs": 1793012504892.1287,
+      "updatedAt": "2026-10-26T11:01:44.937Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StepFormValue",
+          "kind": "section",
+          "startLine": 60,
+          "endLine": 67,
+          "tokens": 40
+        },
+        {
+          "name": "MatrixFormValue",
+          "kind": "section",
+          "startLine": 68,
+          "endLine": 87,
+          "tokens": 139
+        },
+        {
+          "name": "SignatureMatrixPage",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 442,
+          "tokens": 3170
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/results/ChangeNoticeAction.tsx": {
+      "description": "ChangeNoticeAction —— 结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。",
+      "tokens": 1407,
+      "hash": "a79119f70ce3c75e",
+      "size": 5664,
+      "mtimeMs": 1793012555498.072,
+      "updatedAt": "2026-10-26T11:02:35.554Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 37,
+          "endLine": 43,
+          "tokens": 46
+        },
+        {
+          "name": "NoticeFormValue",
+          "kind": "section",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 21
+        },
+        {
+          "name": "ReasonFormValue",
+          "kind": "section",
+          "startLine": 49,
+          "endLine": 59,
+          "tokens": 60
+        },
+        {
+          "name": "ChangeNoticeAction",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 166,
+          "tokens": 998
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/signatureMatrices.ts": {
+      "description": "签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。",
+      "tokens": 1919,
+      "hash": "c174ead2d22d20b5",
+      "size": 7300,
+      "mtimeMs": 1793012604840.0295,
+      "updatedAt": "2026-10-26T11:03:24.889Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isAuthed",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 181,
+          "tokens": 1325
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/changeNotices.ts": {
+      "description": "变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。",
+      "tokens": 1166,
+      "hash": "e20619b94aa05090",
+      "size": 4553,
+      "mtimeMs": 1793012666599.5657,
+      "updatedAt": "2026-10-26T11:04:26.647Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isAuthed",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 34,
+          "tokens": 30
+        },
+        {
+          "name": "currentStatus",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 38,
+          "tokens": 40
+        },
+        {
+          "name": "action",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 114,
+          "tokens": 845
+        }
+      ]
+    },
+    "pcs-frontend/tests/api/signature_matrices_api.test.ts": {
+      "description": "签署矩阵管理 API 客户端的**请求契约**（TODO-079 · P9A-DLV-011 T3 的前端）。",
+      "tokens": 1650,
+      "hash": "398fc5d9e6ca8591",
+      "size": 6191,
+      "mtimeMs": 1793012735303.508,
+      "updatedAt": "2026-10-26T11:05:35.353Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/api/change_notices_api.test.ts": {
+      "description": "变更单闭环 API 客户端的**请求契约**（TODO-083 · P9A-DLV-011 T4 的前端）。",
+      "tokens": 1146,
+      "hash": "70e439bb407afa52",
+      "size": 4303,
+      "mtimeMs": 1793012742369.696,
+      "updatedAt": "2026-10-26T11:05:42.416Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/deliverables/signature_matrix_page.test.tsx": {
+      "description": "签署矩阵管理页的守卫（TODO-079 · P9A-DLV-011 T3 的前端）。",
+      "tokens": 881,
+      "hash": "f90bae9f5cc02d8e",
+      "size": 3573,
+      "mtimeMs": 1793012752059.9504,
+      "updatedAt": "2026-10-26T11:05:52.105Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/results/change_notice_action.test.tsx": {
+      "description": "结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。",
+      "tokens": 492,
+      "hash": "c0ac54be0db1b8d0",
+      "size": 2127,
+      "mtimeMs": 1793012758508.1174,
+      "updatedAt": "2026-10-26T11:05:58.556Z",
+      "source": "hook"
     }
   }
 }

@@ -1467,15 +1467,23 @@ submit-approval / approval-step / deliverables 的 issue / sign-step），
 ⚠️ 现在的「一条记录一张变更单」规则（TODO-069）也要跟着调整。
 **归属：** 独立一轮。
 
-## TODO-079: 矩阵管理面**没有前端**（用户 2026-10-26 裁决「只做后端」）🟡
+## ✅ DONE —— TODO-079: 矩阵管理面**没有前端**（2026-10-26 落地）
 
-**What:** 矩阵的 6 个管理端点已就绪，但**前端没有矩阵管理页**。
+**落地**（P9A-DLV-011 收尾批）：
+- 新页 `src/pages/deliverables/SignatureMatrixPage.tsx`（路由
+  `/deliverables/signature-matrices`，菜单「交付物 → 签署矩阵」）：
+  矩阵列表（名称 / 模块 / 文档类型 / 版本目的 / 状态 / **签署步骤序列**）+
+  新建 / 编辑（**动态步骤编辑器**：序号 / 签署角色 / 必签 / 可自校 / 可跳过）+
+  **绑定到当前项目**（项目 × 模块 → 矩阵）+ 解绑。
+- API 客户端 `src/api/signatureMatrices.ts`（类型**全部**取生成的 OpenAPI 类型）。
+- MSW handlers `src/mocks/signatureMatrices.ts`（**有状态**：建/改/绑/解绑真的改
+  内存态 ⇒ 人工验收能看出变化）。
+- 测试：`tests/api/signature_matrices_api.test.ts`（请求契约 5 例）+
+  `tests/pages/deliverables/signature_matrix_page.test.tsx`（渲染 / 步骤显示 /
+  错误条 3 例）。
 
-**Why:** 用户裁决本批只做后端（前端属 P9B lane）。⇒ 项目负责人目前只能靠
-curl 管理矩阵。
-
-**How:** P9B 批次里加一个「签署矩阵」页（列表 / 编辑步骤 / 绑定项目）。
-**归属：** P9B（与 P9B-2 同批更划算）。
+**为什么现在做**：用户 2026-10-26 裁决「只有项目负责人能绑」⇒ 绑定成了**治理
+动作** ⇒ 没有界面就等于「只有 curl 能治理」⇒ 本批补上。
 
 ## TODO-080: P9A-DLV-007 评审的 **3 条 deferred minor** 🟡
 
@@ -1527,20 +1535,27 @@ TODO-080 第 2 条同批做）；②改造成 `close_on_approved` 的薄包装�
 
 **归属：** 独立一轮。**关联：** TODO-069 · TODO-078。
 
-## TODO-083: 变更单闭环**没有前端入口**（评审「不予判定」第 6 条的提示）🟡
+## ✅ DONE —— TODO-083: 变更单闭环**没有前端入口**（2026-10-26 落地）
 
-**What:** P9A-DLV-011 补的 3 个后端端点（`initiate-change` / `apply-change` /
-`change-notice`）**前端一个入口都没有** ⇒ 用户仍然只能用 curl 发起变更。
+**落地**（P9A-DLV-011 收尾批）：
+- 结果记录页（P9B-1 的 `ResultListPage`）每行新增**变更动作**
+  `src/pages/results/ChangeNoticeAction.tsx`：**按 `sign_status` 只给一个按钮**
+  —— CHECKED → 「变更申请」（initiate-change）/ CHANGE_PENDING → 「提交变更完成」
+  （apply-change）/ CHANGED → 「创建变更单」（change-notice）⇒ 三个端点是**一条
+  状态机**，同时显示三个按钮 = 让用户去撞 409。
+- 建变更单的弹窗带**变更类型**（7 值 + 中文标签）+ 变更原因。
+- 成功后**就地更新行状态**（不重拉列表）⇒ 按钮不会停在旧状态让人连点两次。
+- API 客户端 `src/api/changeNotices.ts` + MSW handlers
+  `src/mocks/changeNotices.ts`（**状态机真的走**：状态不对 ⇒ 409）。
+- 测试：`tests/api/change_notices_api.test.ts`（3 例）+
+  `tests/pages/results/change_notice_action.test.tsx`（4 例）。
 
-**Why:** TODO-079 只覆盖**矩阵管理页**（列 / 编辑步骤 / 绑定项目），
-**没提**「发起变更 / 建变更单 / 签变更单」这三个界面动作 ⇒ 按 TODO 排期
-做完 P9B-2 前端，**变更单仍然没法用**。
+⚠️ **顺带更正 UI-SPEC §6.3 的登记**：本批第一次登记写成「『变更申请』按钮应挂到
+CHANGED 态」—— **错了**（把「变更申请 = 建变更单」搞混）。真相：UI-SPEC 表的
+三个按钮与后端三个端点**一一对应**（「关闭凭证」= 建变更单）⇒ **表不用改**，
+只有措辞（「提交变更批准」→ 前端用「提交变更完成」）登记待修订。
 
-**How:** P9B 批次里加「发起变更」入口（记录详情页的「变更申请」按钮，
-UI-SPEC §6.3 已修订为挂在 **CHANGED** 态）+ 变更单详情页（3 级签署进度）。
-⚠️ UI-SPEC §6.3 的修订注记已写明按钮位置（CHANGED 而非 CHECKED）。
-
-**归属：** P9B-2（与 TODO-079 同批更划算）。**关联：** TODO-079 · TODO-068。
+**关联：** TODO-079 · TODO-068 · UI-SPEC §6.3。
 
 ## TODO-084: P9A-DLV-011 评审的 **5 条 deferred minor** 🟡
 
@@ -1549,9 +1564,41 @@ UI-SPEC §6.3 已修订为挂在 **CHANGED** 态）+ 变更单详情页（3 级�
 | 1 | 变更单响应里的 `sign_status` 是**硬编码**的 `PENDING`（不是从 DB 行读）⇒ 若建单没真把交付物推进到 PENDING，响应仍报 PENDING 而实际行是 DRAFT（sign-step 会 409） | `app/api/v1/records_actions.py` |
 | 2 | `create_change_notice` 的 service 层**不校验** `project_id` 与记录所属项目一致（端点层传的是 `record.project_id`，今天是对的，但 service 是对外入口） | `app/services/change_notice_service.py` |
 | 3 | 矩阵**全部非法**时待办**静默消失**且**一条日志都没有**（`parse_steps` 只在「部分跳过」时 WARNING，全非法直接抛） | `app/services/todo_service.py` |
-| 4 | **ADR-0002 与 ADR-0008 在「驳回」上矛盾**：ADR-0002 说记录回 CHANGE_PENDING 重改，ADR-0008 说绑定记录保持 CHANGED ⇒ 代码只跟 ADR-0008，**这个矛盾没被登记** | `docs/adr/0002-*` vs `docs/adr/0008-*` |
+| 4 | ~~**ADR-0002 与 ADR-0008 在「驳回」上矛盾**~~ ⇒ **2026-10-26 已裁决**：ADR-0008 管辖（记录保持 CHANGED），ADR-0002 那半句被取代（「重改」走**撤销 → 重来**，已由 `test_rejected_notice_can_be_reworked_via_reversal` 钉住）；两份 ADR 均已加**修订记录** | `docs/adr/0002-*` / `docs/adr/0008-*` |
 | 5 | `initiate-change` / `apply-change` 复用 `ObsoleteRequest`（只含 `reason`）⇒ 契约里「发起变更」的入参类型名叫 `ObsoleteRequest` | `app/schemas/records_actions.py` |
 
 **归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** 评审 ledger
 `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
 的「Deferred minors」段。
+
+## TODO-085: 改签署矩阵的**申请 + 双重审批**未实现（校审层级 SPEC 的规则）🟡
+
+**What:** `spec/校审层级可配置化增补规格说明书.md` §2.3 写明：「项目进行中：
+修改签署矩阵需**项目负责人提出申请，审核+审定双重审批**」。本批只落了
+**「只有项目负责人能绑」这一层**（用户 2026-10-26 裁决），**没有**「申请 →
+审核 → 审定」的流程。
+
+**Why:** 直接改 = 改了矩阵立刻生效 ⇒ 与 SPEC 的「双重审批」不符。
+
+**How:** ①把「绑定/解绑」改成「**提交变更申请**」（写一条申请行，状态
+DRAFT → 审核 → 审定 → 才真正改绑定）；②或先明确「矩阵修改走审批」是否
+**本项目要**（PCS 的矩阵多数是全局模板 + 项目绑定，项目级覆写少 ⇒ 流程
+成本可能大于收益）。⇒ **需业务裁决**，不自行发明流程。
+
+**归属：** 独立一轮。**关联：** TODO-070 · `spec/校审层级可配置化增补规格说明书.md`。
+
+## TODO-086: 重走变更后，变更单的**绑定哈希**不再等于记录当前哈希 🟡
+
+**What:** `deliverable_record_bindings.record_hash` / `old_record_hash_before_change`
+是**建单那一刻**的哈希。若走「撤销 → 重来」（ADR-0002 §修订记录 2026-10-26
+的裁决路径），记录的数据会先被**恢复快照**再被重做 ⇒ 记录哈希变了，而绑定
+行仍写着**旧**哈希 ⇒ 关闭凭证说的不是被关的那条数据。
+
+**Why:** 变更单的**全部价值**就是「谁、为什么、凭什么关闭」—— 哈希对不上，
+凭证就不可信。而 `close_on_approved` 今天**不校验**哈希（与 TODO-077 同源：
+`apply-change` 不要求 hash 变化）⇒ 漂移**无人发现**。
+
+**How:** 在**重新 `apply-change`**（记录再次变 CHANGED）时刷新该记录名下
+**未关闭**变更单的绑定哈希（新 `record_hash` = 记录当前哈希，新
+`old_record_hash_before_change` = 本次 `apply-change` 的 BEFORE_CHANGE 快照哈希）
+⇒ 并加守卫测试。**归属：** 独立一轮。**关联：** TODO-077 · ADR-0002 修订记录。

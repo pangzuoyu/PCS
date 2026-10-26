@@ -358,3 +358,9 @@ import { DeliverableProgressPage } from './deliverables/DeliverableProgressPage'
 export function DeliverableProgressRoute(): JSX.Element {
   return <DeliverableProgressPage />;
 }
+
+// === TODO-079 签署矩阵管理面（P9A-DLV-011 T3 的前端）===
+import { SignatureMatrixPage } from './deliverables/SignatureMatrixPage';
+export function SignatureMatrixRoute(): JSX.Element {
+  return <SignatureMatrixPage />;
+}

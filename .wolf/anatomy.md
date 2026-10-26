@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T10:30:31.144Z
-> Files: 1020 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T11:05:58.556Z
+> Files: 1030 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1178,7 +1178,7 @@
 ## pcs-backend/app/api/v1/
 
 - `__init__.py` (~1783 tok)
-- `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~602 tok)
+- `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~1599 tok)
 - `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~819 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
@@ -1205,7 +1205,7 @@
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5099 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
-- `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~2396 tok)
+- `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~2394 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6705 tok)
@@ -1569,18 +1569,20 @@
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~1070 tok)
+- `App.tsx` — router — renders form (~1443 tok)
 
 ## pcs-frontend/src/api/
 
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~856 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
+- `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
 - `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
+- `signatureMatrices.ts` — 签署矩阵管理 API 客户端（TODO-070 · P9A-DLV-011 T3 的前端面）。 (~816 tok)
 - `todos.ts` — 待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。 (~182 tok)
 
 ## pcs-frontend/src/components/common/
@@ -1610,9 +1612,11 @@
 
 ## pcs-frontend/src/mocks/
 
+- `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
 - `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~9899 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
+- `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
 
 ## pcs-frontend/src/mocks/seed/
 
@@ -1636,6 +1640,7 @@
 ## pcs-frontend/src/pages/deliverables/
 
 - `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。 (~1266 tok)
+- `SignatureMatrixPage.tsx` — SignatureMatrixPage —— 签署矩阵管理面（TODO-079 · P9A-DLV-011 T3 的前端）。 (~3742 tok)
 
 ## pcs-frontend/src/pages/report/
 
@@ -1649,6 +1654,7 @@
 
 ## pcs-frontend/src/pages/results/
 
+- `ChangeNoticeAction.tsx` — ChangeNoticeAction —— 结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1407 tok)
 - `ResultEditDrawer.tsx` — ResultEditDrawer —— 通用编辑抽屉（P9B-1 · SPEC §6.21 P9A-LCK-001~006）。 (~2821 tok)
 - `ResultListPage.tsx` — ResultListPage —— 通用结果列表页（P9B-1 · SPEC §6.21）。 (~1574 tok)
 - `resultModules.ts` — 6 个可编辑结果模块的**类型化描述符**（P9B-1 · SPEC §6.21）。 (~3362 tok)
@@ -1674,8 +1680,10 @@
 ## pcs-frontend/tests/api/
 
 - `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
+- `change_notices_api.test.ts` — 变更单闭环 API 客户端的**请求契约**（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1146 tok)
 - `edit_lock_api.test.ts` — 编辑锁 / 编辑冲突的**请求契约**（P9B-1 Task F0）。 (~1274 tok)
 - `records_api.test.ts` — 记录域 API 客户端的**请求契约**（P9B-1 Task T1）。 (~1821 tok)
+- `signature_matrices_api.test.ts` — 签署矩阵管理 API 客户端的**请求契约**（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1650 tok)
 
 ## pcs-frontend/tests/components/common/
 
@@ -1711,6 +1719,7 @@
 ## pcs-frontend/tests/pages/deliverables/
 
 - `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2319 tok)
+- `signature_matrix_page.test.tsx` — 签署矩阵管理页的守卫（TODO-079 · P9A-DLV-011 T3 的前端）。 (~881 tok)
 
 ## pcs-frontend/tests/pages/pipe_class/
 
@@ -1723,6 +1732,7 @@
 
 ## pcs-frontend/tests/pages/results/
 
+- `change_notice_action.test.tsx` — 结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。 (~492 tok)
 - `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~5747 tok)
 
 ## pcs-frontend/tests/pages/sim/

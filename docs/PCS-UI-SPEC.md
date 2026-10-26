@@ -568,17 +568,25 @@ REVERSAL_PENDING	撤销批准 / 撤销驳回
 OBSOLETE	只读
 按钮权限由 Can 包裹。
 
-⚠️ **2026-10-26 修订登记（P9A-DLV-011）**：「变更申请」按钮的**状态归属**与
-实现不符 —— 本表把它列在 **CHECKED**，而 ADR-0002 的 CHANGED 生命周期是
-`CHECKED --initiate-change--> CHANGE_PENDING --apply-change--> CHANGED`，
-变更单的建单端点要求记录**已是 CHANGED**（`POST /records/{module}/{id}/change-notice`
-⇒ 非 CHANGED 返 422 `CHANGE_NOTICE_BAD_STATE`）。
-⇒ **按钮应挂在 CHANGED 态**（在 CHECKED 态挂它 ⇒ 点下去必 422）。
-按 UI-SPEC 自己的规则（「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」），
-此处**只加注记不改表**（改动走 UI-SPEC 下次修订）。
-⚠️ 另：`CHANGE_PENDING` 态的「提交变更批准」对应后端 `apply-change`
-（CHANGE_PENDING → CHANGED）—— **名字对不上**（后端叫 apply-change，
-前端叫「提交变更批准」）⇒ 一并登记待修订。
+⚠️ **2026-10-26 修订登记（P9A-DLV-011 · 2026-10-26 二次更正）**：
+本表的**三个按钮与后端三个端点是**一一对应**的，实现照此落地：
+
+| UI-SPEC 按钮 | 状态 | 后端端点 | 状态迁移 |
+|---|---|---|---|
+| 变更申请 | CHECKED | `POST /records/{module}/{id}/initiate-change` | CHECKED → CHANGE_PENDING |
+| 提交变更批准 | CHANGE_PENDING | `POST /records/{module}/{id}/apply-change` | CHANGE_PENDING → CHANGED |
+| 关闭凭证 | CHANGED | `POST /records/{module}/{id}/change-notice` | 建变更单（3 级矩阵签署） |
+
+⚠️ **二次更正的缘由**：本登记**第一次**写成「『变更申请』按钮应挂到 CHANGED
+态」—— **那是错的**（把「变更申请 = 建变更单」搞混了）。真相是：
+「变更申请」= **发起变更**（CHECKED 态，本表本来就对），而**建变更单**对应
+本表 CHANGED 行已有的「**关闭凭证**」⇒ **本表不需要改**。
+⚠️ 唯一真需要登记的是**名字**：`CHANGE_PENDING` 态的「提交变更批准」对应后端
+`apply-change`（CHANGE_PENDING → CHANGED = 「校核完成，等变更单关闭」）
+—— 「批准」二字易读成「批准变更」⇒ 前端实现改用后端语义命名
+「**提交变更完成**」，UI-SPEC 的措辞留待下次修订。
+⚠️ 另：`CHANGED` 态的「发起撤销」对应 `POST /records/{module}/{id}/request-reversal`
+（CHANGED → REVERSAL_PENDING）—— 已有端点，本次未做前端入口。
 
 6.4 HashBadge
 用途：显示 record_hash。

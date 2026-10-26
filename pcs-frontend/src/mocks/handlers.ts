@@ -43,6 +43,8 @@ type SaturationWaterContentResponse = components["schemas"]["SaturationWaterCont
 type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
 
 import { heatHandlers } from "./heat";
+import { signatureMatrixHandlers } from "./signatureMatrices";
+import { changeNoticeHandlers } from "./changeNotices";
 import { metaSeed, MOCK_TOKEN } from "./seed/meta";
 import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/common";
 import { seedPipeClasses } from "./seed/pipe-classes";
@@ -941,6 +943,21 @@ devOnlyMockHandlers.push(
 /** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift
  * 校验只针对这一组，devOnlyMockHandlers 通过拼接传入 setupWorker。 */
 export const handlers = [
+  // === 健康检查（SPEC §6.23 / P9A-NOT-006）===
+  // ⚠️ 此前**没有 mock** ⇒ 每个页面都报一次 404（控制台红）⇒ `MainLayout`
+  // 的实时状态横幅永远拿不到数据。
+  // ⚠️ 放**契约组**（不是 dev-only）：`/health` **本来就在契约里**
+  // ⇒ 它不是「没有契约可漂移」的那类（棘轮清单也不必动）。
+  http.get("/api/v1/health", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      status: "ok",
+      database: "up",
+      realtime: "available",
+      realtime_reason: null,
+    });
+  }),
+
   http.get("/api/v1/meta/enums", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER", message: "..." }, { status: 401 });
     return HttpResponse.json(metaSeed.enums);
@@ -976,5 +993,12 @@ export const handlers = [
   }),
 ];
 
+// === TODO-079 签署矩阵管理面（P9A-DLV-011 T3 的前端）===
+// ⚠️ 这组端点**已在 OpenAPI 契约里**（P9A-DLV-011 交付）⇒ mock 形状必须与
+// 契约一致（`components['schemas'][...]`）⇒ 放在 `handlers` 组（参与 drift
+// 校验），不是 dev-only。
 export const mockAuthToken = MOCK_TOKEN;
 export { devOnlyMockHandlers };
+
+/** 契约端点（参与 OpenAPI drift 校验）：meta 5 端点 + 签署矩阵 + 变更单。 */
+export const contractHandlers = [...handlers, ...signatureMatrixHandlers, ...changeNoticeHandlers];

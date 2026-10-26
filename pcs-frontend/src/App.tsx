@@ -46,6 +46,7 @@ import {
   AuditLogRoute,
   ResultListRoute,
   DeliverableProgressRoute,
+  SignatureMatrixRoute,
 } from './pages/routeWrappers';
 
 const router = createBrowserRouter([
@@ -124,6 +125,7 @@ const router = createBrowserRouter([
 
       // P9B-1 交付物进度（SPEC §6.24）
       { path: 'deliverables/progress', element: <DeliverableProgressRoute /> },
+  { path: 'deliverables/signature-matrices', element: <SignatureMatrixRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

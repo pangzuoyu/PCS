@@ -15,6 +15,8 @@ import { resolve } from "node:path";
 import Ajv, { type AnySchema } from "ajv";
 
 import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
+import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
+import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
@@ -145,10 +147,34 @@ describe("meta seed fixture 形状 ↔ OpenAPI", () => {
 
 describe("MSW handlers 注册 ↔ OpenAPI paths", () => {
   it("每个 handler 注册路径都在 OpenAPI 列出", () => {
-    for (const h of handlers) {
+    // ⚠️ **三组都要查**（TODO-079 / TODO-083 新增了两组契约端点的 handler）
+    // —— 只查 `handlers` 的话，新组的路径打错字**永远不会被发现**。
+    for (const h of [...handlers, ...signatureMatrixHandlers, ...changeNoticeHandlers]) {
       const path = (h as { info?: { path?: string } }).info?.path;
       expect(path, "handler missing path").toBeDefined();
-      expect(openapi.paths[path!], `OpenAPI missing ${path}`).toBeDefined();
+      // ⚠️ **MSW 用 `:param`，OpenAPI 用 `{param}`** ⇒ 比之前必须先归一
+      // （否则带路径参数的端点永远「不在 OpenAPI 里」）。
+      const normalized = path!.replace(/:([A-Za-z0-9_]+)/g, "{$1}");
+      expect(openapi.paths[normalized], `OpenAPI missing ${normalized}`).toBeDefined();
+    }
+  });
+
+  it("签署矩阵 / 变更单的契约端点都注册了 handler", () => {
+    const paths = new Set(
+      [...signatureMatrixHandlers, ...changeNoticeHandlers].map((h) =>
+        (h as { info?: { path?: string } }).info?.path,
+      ),
+    );
+    for (const p of [
+      "/api/v1/signature-matrices",
+      "/api/v1/signature-matrices/:matrix_id",
+      "/api/v1/projects/:project_id/signature-matrices",
+      "/api/v1/projects/:project_id/signature-matrices/:module",
+      "/api/v1/records/:module/:record_id/initiate-change",
+      "/api/v1/records/:module/:record_id/apply-change",
+      "/api/v1/records/:module/:record_id/change-notice",
+    ]) {
+      expect(paths.has(p), `missing handler for ${p}`).toBe(true);
     }
   });
 
@@ -337,6 +363,17 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     const data = buildTodoList();
     validatePath("/api/v1/todos", data);
     expect(data.total).toBe(data.items.length);
+  });
+
+  it("GET /api/v1/health 的响应体符合契约（status/database/realtime/realtime_reason）", () => {
+    // ⚠️ `/health` 此前**没有 mock** ⇒ 每个页面都报 404（控制台红）⇒ 补上。
+    // 形状取契约（HealthResponse：4 个字段**全部必填**）。
+    validatePath("/api/v1/health", {
+      status: "ok",
+      database: "up",
+      realtime: "available",
+      realtime_reason: null,
+    });
   });
 
   it("devOnly ∩ 契约 的端点清单是**棘轮**（新增即红 ⇒ 必须一并加校验）", () => {

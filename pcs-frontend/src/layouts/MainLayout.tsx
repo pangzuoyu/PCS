@@ -77,6 +77,7 @@ const MENU_ITEMS: MenuItem[] = [
   ]),
   group('交付物', 'deliverables', [
     { key: '/deliverables/progress', label: '签署进度' },
+    { key: '/deliverables/signature-matrices', label: '签署矩阵' },
   ]),
   group('审计', 'audit', [
     { key: '/audit/logs', label: 'Audit Query (F-P2-009)' },

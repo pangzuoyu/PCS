@@ -11323,7 +11323,7 @@ export interface components {
             project_id: string;
             /**
              * Role In Project
-             * @description 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)
+             * @description 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD)
              */
             role_in_project: string;
         };
