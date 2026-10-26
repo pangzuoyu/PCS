@@ -389,6 +389,19 @@ COVERAGE: 31/31 路径有测试计划（100%）  |  GAPS: 0  |  E2E: 2 条（T10
 | 57 个手写类型与生成 schema 同名的长期债 | TODO-064（有棘轮守卫）⇒ 本批不碰 |
 | 迁移幂等守门的历史盲区（93 个文件） | TODO-063 ⇒ 本批**不改迁移**，不动历史 |
 
+### 该在代码里放 ASCII 图的位置（图 = 文档的一部分，不是装饰）
+
+| 文件 | 放什么图 |
+|---|---|
+| `app/api/v1/record_edits.py` | **授权链**：请求 → `resolve_record_model(need_mixin=False)` → 取记录 → 项目守卫 → 审计查询 ⇒ 为什么授权靠记录不靠审计行 |
+| `app/services/signature_matrix_service.py::resolve_project_matrix` | **矩阵解析**：项目 × module → 绑定 → 矩阵（ACTIVE?）→ 步骤链 ⇒ 批准链从哪来 |
+| `app/api/v1/records_actions.py`（`submit-approval`） | **批准链推进**：submit ⇒ 第 1 步角色；PASS ⇒ 推进到下一步；末步 ⇒ CHECKED |
+| `app/services/deliverable_service.py::progress_sections` | **两类工作流的 id 语义**：SIGN = 版本 id / CUSTOMER_APPROVAL_PROXY = 交付物 id ⇒ 一条批量查询 ⇒ 两段 |
+| `src/components/common/RecordActions.tsx` | **按钮的来源**：`meta/state-machine` → `allowed[状态]` → 角色/前置条件 ⇒ 禁用 ⇒ 端点映射 |
+| `src/components/common/WorkflowProgressPanel.tsx` | **两种模式**：自拉（既有）／受控（聚合端点喂数据）⇒ 何时发请求 |
+| `src/api/audit.ts` | **审计类客户端归一**：新端点（按项目守卫）vs 旧端点（SYSTEM_ADMIN）⇒ 谁用哪个 |
+| `src/pages/deliverables/DeliverableProgressPage.tsx` | **一行展开要发几个请求**（1 聚合 + 0 分段）+ 两段各自的空态 |
+
 ### 并行化策略（**本仓禁 worktree** ⇒ 顺序执行）
 
 ⚠️ **本仓不用 git worktree**（`.wolf/STATUS.md` 记的历史事故：worktree 被删 ⇒
