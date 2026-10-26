@@ -4326,6 +4326,91 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2066",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "矩阵绑定权限比用户裁决宽：项目内 VIEWER / CHECKER / REVIEWER 也能绑定签署矩阵",
+      "file": "pcs-backend/app/api/v1/signature_matrices.py",
+      "root_cause": "绑定端点只调 `check_project_access_or_404`（只问「有没有访问权」）⇒ 任何有效授权都算 ⇒ 一个只读成员能决定「本项目谁该签这一步」。⚠️ 用户 2026-10-26 直接裁决「**只有项目负责人能绑**」⇒ 上一版按「不是 VIEWER」放行是**放宽**，与裁决相反。",
+      "fix": "新增 `require_project_role`（白名单形态）+ `_BIND_PROJECT_ROLES = (\"PROJECT_LEAD\",)`；`VALID_PROJECT_ROLES` 增 `PROJECT_LEAD`（项目负责人，依据校审层级 SPEC §2.1.2；`role_in_project` 列**无 DB CHECK 约束** ⇒ 不需要迁移）。测试参数化覆盖 5 个角色 + 变异验证。",
+      "fix_commit": "80cbfa1",
+      "tags": [
+        "p9a-dlv-011",
+        "signature-matrix",
+        "authorization",
+        "rbac",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2064"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2067",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "ADR-0002 与 ADR-0008 在「变更单驳回」上互相矛盾，且矛盾未登记",
+      "file": "docs/adr/0002-changed-lifecycle-and-change-notice.md",
+      "root_cause": "ADR-0002 说「变更单驳回则记录回 CHANGE_PENDING 重改」，ADR-0008 说「被驳回则回 DRAFT，绑定记录保持 CHANGED」—— 两份 accepted ADR 字面互斥（2026-10-26 评审发现 ⇒ TODO-084 第 4 条）。",
+      "fix": "裁决 **ADR-0008 管辖**（驳回的是「单据」不是「校核结论」）；两份 ADR 各加**修订记录**（不改决定正文）；「重改」的落地路径 = **撤销 → 重来**，并由 `test_rejected_notice_can_be_reworked_via_reversal` 端到端钉住。",
+      "fix_commit": "80cbfa1",
+      "tags": [
+        "p9a-dlv-011",
+        "adr",
+        "change-notice",
+        "doc-drift",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2068",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "HIGH",
+      "error_message": "新增的 MSW handler 没注册进 browser worker ⇒ 前端页面显示「矩阵列表加载失败」",
+      "file": "pcs-frontend/src/mocks/browser.ts",
+      "root_cause": "新 handler 只加到了 `handlers.ts` 里一个**没人用的**导出（`contractHandlers`）⇒ `src/mocks/browser.ts` 的 `setupWorker(...)` 并未包含它们 ⇒ dev 环境的请求**没有 mock 兜底** ⇒ 请求失败 ⇒ 页面显示错误条。⚠️ 浏览器 QA 才抓到（单测各自建 server，看不到注册表）。",
+      "fix": "`src/mocks/browser.ts` 显式注册 `signatureMatrixHandlers` + `changeNoticeHandlers`；并把 `tests/mocks/handlers.test.ts` 的「handler 路径 ↔ OpenAPI」检查**扩到新两组**（含 MSW `:param` → OpenAPI `{param}` 归一）⇒ 路径打错字以后会被单测抓住。",
+      "fix_commit": "5133265",
+      "tags": [
+        "p9a-dlv-011",
+        "frontend",
+        "msw",
+        "mock",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2040"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2069",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "`GET /api/v1/health` 从来没有 MSW mock ⇒ 前端**每个页面**都报一次 404（控制台红）",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "root_cause": "`MainLayout` 的实时状态横幅调 `healthApi.get()` ⇒ `/health` **已在契约里**（P9A-NOT-006）但 mock 里**没有对应 handler** ⇒ 请求落到 vite ⇒ 404。",
+      "fix": "补契约形状的 mock（4 字段全必填：status/database/realtime/realtime_reason），放**契约组**（`handlers`）而非 dev-only ⇒ 棘轮清单不动；并加 ajv 校验。",
+      "fix_commit": "5133265",
+      "tags": [
+        "p9a-dlv-011",
+        "frontend",
+        "msw",
+        "health",
+        "mock",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }
