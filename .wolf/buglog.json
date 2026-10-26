@@ -4716,6 +4716,28 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2085",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "工作区类型门禁只挂在「创建变更单」一个端点 ⇒ UI-SPEC §5.3 的其余三类（提交批准 / 创建交付物 / 签署）**绕过前端就能做**",
+      "file": "pcs-backend/app/api/v1/_guard.py",
+      "root_cause": "`require_formal_project_workspace`（fail-open 版）此前只在 `POST /records/{module}/{id}/change-notice` 被调用 ⇒ UI-SPEC §5.3 的门禁清单覆盖**四类**操作（提交批准 / 创建交付物 / 创建变更单 / 签署）⇒ 其余三类在 API 层**没有**对应守卫。而「后端 403 为兜底」是 UI-SPEC **自己**写的 ⇒ 绕过前端就能在个人草稿区送审、签发交付物、签字。",
+      "fix": "**已修（2026-10-27，TODO-076）**：门禁挂到 UI-SPEC §5.3 的**全部**四类操作 —— `records_actions.py` 的 `submit-approval` / `approval-step`；`deliverables.py` 的 `issue` / `sign-step` / `customer-approval/proxy` ⇒ 非 FORMAL 一律 **403 `WORKSPACE_TYPE_NOT_ALLOWED`**。⇒ **两条放行（fail-open）分支显式化**：各有**一条测试**钉住（项目不存在 / 工作区行不存在 ⇒ **放行**，是有意的选择：历史项目没挂工作区 ⇒ 不是个人草稿区 ⇒ 不因缺元数据挡掉正常操作）。测试：**新增** `tests/api/v1/test_workspace_type_guard.py`（9 例）。⚠️ 顺带：`_guard.py` 原先抛 **core 变体** `PcsError` ⇒ `except service.PcsError` 捕不到 ⇒ 改成抛 **service 变体**（子类 ⇒ 两种 `except` 都捕得到）；同类残留登记 **TODO-089**（全仓还有 ~20 个模块抛 core 变体 ⇒ 55 处 `except` 是潜在漏网）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "workspace",
+        "authorization",
+        "ui-spec",
+        "todo-076",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2079"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }

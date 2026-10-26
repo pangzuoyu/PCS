@@ -21,7 +21,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1._guard import check_project_access_or_404
+from app.api.v1._guard import (
+    check_project_access_or_404,
+    require_formal_project_workspace,
+)
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.models.deliverable import Deliverable
@@ -248,6 +251,10 @@ async def issue_deliverable(
     """
     require_roles(actor, *_ISSUE_ROLES)
     await _authorize(db, actor, deliverable_id)
+    # ⚠️ **工作区门禁**（UI-SPEC §5.3「创建交付物」）：个人草稿区里的交付物
+    #    没有工程效力，却会占用签署流程 ⇒ 403（TODO-076）。
+    deliverable_row = await DeliverableService.get_or_404(db, deliverable_id=deliverable_id)
+    await require_formal_project_workspace(db, project_id=deliverable_row.project_id)
     version = await DeliverableService.issue(
         db,
         deliverable_id=deliverable_id,
@@ -289,6 +296,10 @@ async def sign_step(
     """
     require_roles(actor, *_SIGN_ROLES)
     await _authorize(db, actor, deliverable_id)
+    # ⚠️ **工作区门禁**（UI-SPEC §5.3「签署」）：个人草稿区里不许签
+    #    （TODO-076）。
+    deliverable_row = await DeliverableService.get_or_404(db, deliverable_id=deliverable_id)
+    await require_formal_project_workspace(db, project_id=deliverable_row.project_id)
     outcome = await DeliverableService.sign_step(
         db,
         deliverable_id=deliverable_id,
@@ -336,6 +347,10 @@ async def proxy_customer_approval(
     """
     require_roles(actor, *_ISSUE_ROLES)
     await _authorize(db, actor, deliverable_id)
+    # ⚠️ **工作区门禁**（UI-SPEC §5.3「签署」）：代录客户批准也是签署的一步
+    #    ⇒ 个人草稿区里不许做（TODO-076）。
+    deliverable_row = await DeliverableService.get_or_404(db, deliverable_id=deliverable_id)
+    await require_formal_project_workspace(db, project_id=deliverable_row.project_id)
     outcome = await DeliverableService.record_customer_approval_proxy(
         db,
         deliverable_id=deliverable_id,

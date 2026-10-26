@@ -349,6 +349,9 @@ async def submit_approval(
     """
     require_roles(actor, *_roles_for(StateTransition.SUBMIT_FOR_CHECK))
     record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # ⚠️ **工作区门禁**（UI-SPEC §5.3「提交批准」）：个人草稿区里的送审没有
+    #    工程效力，却会占用签署流程 ⇒ 403（TODO-076）。
+    await require_formal_project_workspace(db, project_id=record.project_id)
     if body.approval_role == actor.role:
         raise PcsError(
             code="APPROVAL_SELF_REVIEW_FORBIDDEN",
@@ -399,6 +402,9 @@ async def approval_step(
     """
     require_roles(actor, *_roles_for(StateTransition.PASS_CHECK))
     record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # ⚠️ **工作区门禁**（UI-SPEC §5.3「提交批准」）：批这一步也是批准流程的一环
+    #    ⇒ 个人草稿区里不许批（TODO-076）。
+    await require_formal_project_workspace(db, project_id=record.project_id)
     if to_value(record.sign_status) != RecordSignStatus9.IN_APPROVAL.value:
         raise PcsError(
             code="APPROVAL_NOT_ACTIVE",

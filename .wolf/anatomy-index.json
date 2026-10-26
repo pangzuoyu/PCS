@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:37:18.613Z",
-    "fileCount": 1047,
+    "lastScanned": "2026-10-26T16:45:20.300Z",
+    "fileCount": 1048,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8c587b5b724e45dbc3f9b2e70ed5d0480ac8e9641f63afa44cc62b5bf74566ef",
-    "storeUpdatedAt": "2026-10-26T16:37:18.624Z",
-    "rootHash": "735d50f99e4b724b"
+    "renderedHash": "431f00a0840761f25228d0e06a4153d54f41dc91b38b374aef1eb6e0bc5be377",
+    "storeUpdatedAt": "2026-10-26T16:45:20.311Z",
+    "rootHash": "d888646a4a949391"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37730,6 +37730,108 @@
           "startLine": 74,
           "endLine": 81,
           "tokens": 52
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_workspace_type_guard.py": {
+      "description": "**工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。",
+      "tokens": 2300,
+      "hash": "e9959c64ecadb2ba",
+      "size": 9359,
+      "mtimeMs": 1793033120254.2463,
+      "updatedAt": "2026-10-26T16:45:20.300Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 60,
+          "tokens": 57
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 79,
+          "tokens": 155
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 93,
+          "tokens": 116
+        },
+        {
+          "name": "_make_deliverable",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 133,
+          "tokens": 355
+        },
+        {
+          "name": "test_submit_approval_requires_formal_workspace",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 147,
+          "tokens": 150
+        },
+        {
+          "name": "test_approval_step_requires_formal_workspace",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 162,
+          "tokens": 158
+        },
+        {
+          "name": "test_deliverable_issue_requires_formal_workspace",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 176,
+          "tokens": 155
+        },
+        {
+          "name": "test_sign_step_requires_formal_workspace",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 195,
+          "tokens": 214
+        },
+        {
+          "name": "test_guard_allows_when_the_project_does_not_exist",
+          "kind": "fn",
+          "startLine": 196,
+          "endLine": 207,
+          "tokens": 106
+        },
+        {
+          "name": "test_guard_allows_when_the_workspace_row_is_missing",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 227,
+          "tokens": 185
+        },
+        {
+          "name": "test_guard_rejects_a_non_formal_workspace",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 236,
+          "tokens": 118
+        },
+        {
+          "name": "test_guard_allows_a_formal_workspace",
+          "kind": "fn",
+          "startLine": 237,
+          "endLine": 242,
+          "tokens": 64
+        },
+        {
+          "name": "test_no_deliverable_is_bound_to_a_non_formal_project",
+          "kind": "fn",
+          "startLine": 243,
+          "endLine": 255,
+          "tokens": 129
         }
       ]
     }

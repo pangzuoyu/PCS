@@ -100,9 +100,12 @@ async def require_formal_project_workspace(
 
     ⚠️ **本守卫只覆盖本批端点** —— 全端点的工作区门禁仍缺（已登记 TODOS.md）。
     """
-    from app.core.errors import PcsError
+    # ⚠️ 用 **service 变体**（`app/services/exceptions.py::PcsError`，它是 core
+    #    变体的**子类**）⇒ `except core.PcsError` 与 `except service.PcsError`
+    #    **都捕得到**（TODO-080 第 3 条的统一方向：抛出方用**子类**）。
     from app.models.enums import WorkspaceType
     from app.models.project import Project, Workspace
+    from app.services.exceptions import PcsError
 
     project = await db.get(Project, project_id)
     if project is None or project.workspace_id is None:
@@ -113,11 +116,11 @@ async def require_formal_project_workspace(
         return
     if workspace.workspace_type != WorkspaceType.FORMAL.value:
         raise PcsError(
-            code="WORKSPACE_TYPE_NOT_ALLOWED",
-            message=(
+            (
                 f"当前工作区类型 {workspace.workspace_type}，只允许在 FORMAL "
-                f"工作区创建变更单（UI-SPEC §5.3）"
+                f"工作区做本操作（UI-SPEC §5.3）"
             ),
+            code="WORKSPACE_TYPE_NOT_ALLOWED",
             status=403,
         )
 
@@ -152,8 +155,9 @@ async def require_project_role(
 
     ⚠️ SYSTEM_ADMIN 全局 bypass（与 `check_project_access_or_404` 一致）。
     """
-    from app.core.errors import PcsError
+    # ⚠️ 同上：用 **service 变体**（core 变体的子类）⇒ 两种 `except` 都捕得到。
     from app.models.project import UserProject
+    from app.services.exceptions import PcsError
 
     if actor_roles and "SYSTEM_ADMIN" in actor_roles:
         return
@@ -171,10 +175,10 @@ async def require_project_role(
         return
     if row.role_in_project not in allowed_roles:
         raise PcsError(
-            code="PROJECT_ROLE_FORBIDDEN",
-            message=(
+            (
                 f"你在项目 {project_id} 内的角色是 {row.role_in_project}，"
                 f"这个动作只允许 {'/'.join(allowed_roles)}"
             ),
+            code="PROJECT_ROLE_FORBIDDEN",
             status=403,
         )

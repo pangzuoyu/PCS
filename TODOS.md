@@ -1466,35 +1466,42 @@ api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs
 **归属：** 已闭环。**关联：** ADR-0002（关闭凭证的「谁」）· ADR-0008
 （APPROVED ⇒ 系统自动关记录并写 `change_resolved_by`）· TODO-069。
 
-## TODO-076: 工作区类型门禁只覆盖本批端点（全端点仍缺）🟡
+## ✅ DONE —— TODO-076: 工作区类型门禁覆盖 UI-SPEC §5.3 的**全部**四类操作（2026-10-27 落地）
 
-**What:** 工作区门禁目前只挂在
-`POST /records/{module}/{id}/change-notice` 上。
+**原症状：** 工作区门禁（`require_formal_project_workspace`）只挂在
+`POST /records/{module}/{id}/change-notice` 一个端点上 ⇒ UI-SPEC §5.3 的门禁
+清单里的其余三类（**提交批准 / 创建交付物 / 签署**）在 API 层**没有**对应守卫
+⇒ 「后端 403 为兜底」（UI-SPEC 自己写的）落空 ⇒ **绕过前端就能做**。
 
-> ⚠️ **2026-10-26 更名**：本批用的守卫原名 `require_formal_workspace`
-> （`app/api/v1/_guard.py`）与 `app/api/deps.py` 里**已存在的同名** FastAPI
-> 依赖撞名 ⇒ 已改名 **`require_formal_project_workspace`**（按项目查工作区）。
-> 两个函数语义**不同**（见下），撞名会让后面的人 import 错。
+### 落地
 
-**Why:** UI-SPEC §5.3 的门禁清单覆盖**提交批准 / 创建交付物 / 创建变更单 /
-签署** ⇒ 其余三类在 API 层**没有**对应守卫（前端有，但「后端 403 为兜底」是
-UI-SPEC 自己写的 ⇒ 后端缺 ⇒ 绕过前端就能做）。
+- 门禁挂到 UI-SPEC §5.3 的**全部**四类操作：
 
-**⚠️ 本守卫是 fail-open 的**（`require_formal_project_workspace`）：
+| 操作 | 端点 |
+|---|---|
+| 提交批准 | `POST /records/{module}/{id}/submit-approval` · `/approval-step` |
+| 创建交付物 | `POST /deliverables/{id}/issue` |
+| 创建变更单 | `POST /records/{module}/{id}/change-notice`（原有） |
+| 签署 | `POST /deliverables/{id}/sign-step` · `/customer-approval/proxy` |
 
-| 情况 | 本守卫 | `deps.require_formal_workspace`（fail-closed） |
-|---|---|---|
-| 项目不存在 / 没挂工作区 | **放行** | 404 |
-| 工作区行不存在 | **放行** | 404 |
-| 工作区不是 FORMAL | 403 | 403 |
+  ⇒ 非 FORMAL 工作区一律 **403 `WORKSPACE_TYPE_NOT_ALLOWED`**。
+- **两条放行（fail-open）分支显式化**：本守卫在「项目不存在 / 没挂工作区」与
+  「工作区行不存在」时**放行**（**有意**：历史项目没挂工作区 ⇒ 不是个人草稿区
+  ⇒ 不该因缺元数据把正常操作挡掉）⇒ 现在**各有**一条测试钉住（放行是**有意
+  的选择**，不是漏网；哪天有人改成 fail-closed，测试会红）。
+- 测试（**新增** `tests/api/v1/test_workspace_type_guard.py`，9 例）：四个端点
+  各一条 403 用例 · 两条放行分支各一条 · 门禁本体（非 FORMAL ⇒ 403 /
+  FORMAL ⇒ 放行）· 反向对照。
 
-「放行」是**有意的**（历史项目没挂工作区 ⇒ 不是个人草稿区 ⇒ 不该因缺元数据
-挡掉正常操作）⇒ 但这是**两条 fail-open 分支**，与「门禁覆盖面」一起登记。
+### 顺带修：`app/api/v1/_guard.py` 抛的异常变体
 
-**How:** 把 `require_formal_project_workspace` 挂到其余写端点上（records 的
-submit-approval / approval-step / deliverables 的 issue / sign-step），
-并补守卫测试；同时把两条 fail-open 分支显式化（要么改 fail-closed，要么写
-明「为什么放行」并加测试钉住）。**归属：** 独立一轮。
+`_guard.py` 此前抛的是 **core 变体** `PcsError` ⇒ 而仓里的 `except PcsError`
+**多半**捕的是 **service 变体**（TODO-080 第 3 条把 service 变体做成了 core
+变体的**子类** ⇒ `except service.PcsError` **捕不到** core 变体抛出的错误）⇒
+⇒ 改成抛 **service 变体**（子类 ⇒ 两种 `except` 都捕得到）。
+⚠️ **同类残留见 TODO-089**（全仓还有 ~20 个模块抛 core 变体）。
+
+**归属：** 已闭环。**关联：** UI-SPEC §5.3 · bug-2085 · TODO-089。
 
 ## ✅ DONE —— TODO-077: `apply-change` 不要求 hash 变化（2026-10-26 落地）
 
@@ -1660,6 +1667,31 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 
 **归属：** 独立一轮（要改 3 条既有迁移的幂等检查 ⇒ 改历史迁移要谨慎）。
 **关联：** CLAUDE.md「测试前检查 · 漂移盲区」· bug-147 · `p8_008`。
+
+## TODO-089: 两个 `PcsError` 变体的统一只做了一半（`except service` 捕不到 core 抛的）🟡
+
+**What:** TODO-080 第 3 条把 service 变体做成了 core 变体的**子类**
+（`app/services/exceptions.py::PcsError(CorePcsError)`）⇒
+`except core.PcsError` **两个都捕得到** ✔。
+⚠️ 但**反方向不成立**：`except service.PcsError` **捕不到 core 变体抛出的
+错误** ⇒ 而**抛出方**仍有约 20 个模块用的是 **core 变体**
+（`app/services/deliverable_service.py` / `admin_user_service.py` /
+`secondary_auth.py` / `events.py` / `notification_query_service.py` /
+`workflow_progress_service.py` / `token_issuer.py` / `ldap_client.py` /
+`supplier/*` …）。
+
+**Why:** ⇒ 全仓 **55** 处 `except PcsError`（在**用 service 变体**的模块里）
+**都可能漏掉**被它们包住的代码抛出的 **core 变体**错误 ⇒ 业务错误（404/409/
+422）**静默变成 500**（与 bug-2079 同一族，只是方向相反）。
+
+**How:** ①**规则**（即刻生效）：**抛出方一律用 service 变体**（它是子类 ⇒ 两种
+`except` 都捕得到）—— 本批已把 `app/api/v1/_guard.py` 改掉；②**彻底修**：
+把两个类**合并成一个**（一个类 + 一个能同时吃两种调用风格的签名：
+`PcsError(code, message, ...)` 与 `PcsError(message, *, code=...)`），或把
+core 抛出方全部换成 service 变体 ⇒ **独立一轮**（动 ~20 个模块 + 几十处调用
+风格 ⇒ 风险不小）。
+
+**归属：** 独立一轮。**关联：** bug-2079（TODO-080 第 3 条）· bug-2085。
 
 ## TODO-082: `locked_by_deliverable` 门是**死代码**（永远 False）🟡
 
