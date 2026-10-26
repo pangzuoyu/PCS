@@ -67,9 +67,13 @@ async + pytest。
 7. **前端不得自行推导「某角色能不能审阅 / 能不能签」**（SPEC §5.5.1）⇒ 能力从
    `GET /meta/state-machine` 的 `allowed_roles` 与 `GET /meta/permissions` 的
    `frontend_behavior` 读，**不硬编码 ACL**。
-8. **交付物级签署写面（`issue` / `sign-step` / `customer-approval/proxy`）本批不做**
-   ⇒ `signature_matrices` **恒为 0 行**且全仓无创建方 ⇒ `sign-step` 无矩阵可推。
-   见「事实基础」的 R-1。
+8. ⚠️ **交付物级签署写面（`issue` / `sign-step` / `customer-approval/proxy`）本批
+   要做**（R-11）—— ⚠️ 这条**推翻了 2026-10-21 的原文**（当时的理由是
+   「`signature_matrices` 恒 0 行且全仓无创建方」⇒ **该前提已失效**：矩阵管理面
+   与变更单链路都已交付）⇒ 详见「2026-10-27 复审裁决」节。
+   ⇒ **连带**：**记录级**批准链也改由**项目绑定的 `module='RECORD'` 矩阵**推导
+   （R-17）⇒ 「矩阵没绑 ⇒ 送不了审」是**有意的**（响亮失败），上线前每个项目
+   都要绑一份 RECORD 矩阵（管理 UI 已有）。
 9. 提交约定：conventional commits，**无 attribution 行**。长 commit message 写文件后
    `git commit -F <file>`（`!` `（）` 会被 shell 吃掉）。
 10. ⚠️ **不要建 worktree**（本仓历史事故，见 `.wolf/STATUS.md`）。
