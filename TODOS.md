@@ -1666,30 +1666,38 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
   两库 `pcs` / `pcs_test` 各跑一次 `alembic check` ⇒ **exit 0**（`current` 均
   `p9_011` = head）。
 
-## TODO-089: 两个 `PcsError` 变体的统一只做了一半（`except service` 捕不到 core 抛的）🟡
+## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 
-**What:** TODO-080 第 3 条把 service 变体做成了 core 变体的**子类**
-（`app/services/exceptions.py::PcsError(CorePcsError)`）⇒
-`except core.PcsError` **两个都捕得到** ✔。
-⚠️ 但**反方向不成立**：`except service.PcsError` **捕不到 core 变体抛出的
-错误** ⇒ 而**抛出方**仍有约 20 个模块用的是 **core 变体**
-（`app/services/deliverable_service.py` / `admin_user_service.py` /
-`secondary_auth.py` / `events.py` / `notification_query_service.py` /
-`workflow_progress_service.py` / `token_issuer.py` / `ldap_client.py` /
-`supplier/*` …）。
+**原症状：** TODO-080 第 3 条只把 service 变体做成了 core 变体的**子类**
+⇒ `except core.PcsError` 两个都捕得到 ✔，但**反方向不成立**：
+`except service.PcsError` **捕不到** core 变体抛出的错误 ⇒ 全仓 **55** 处
+`except PcsError` 都是**潜在漏网** ⇒ 业务错误（404/409/422）**静默变成 500**
+（bug-2079 同一族，方向相反）。
 
-**Why:** ⇒ 全仓 **55** 处 `except PcsError`（在**用 service 变体**的模块里）
-**都可能漏掉**被它们包住的代码抛出的 **core 变体**错误 ⇒ 业务错误（404/409/
-422）**静默变成 500**（与 bug-2079 同一族，只是方向相反）。
+**落地：两个类 → 一个类（别名）**
 
-**How:** ①**规则**（即刻生效）：**抛出方一律用 service 变体**（它是子类 ⇒ 两种
-`except` 都捕得到）—— 本批已把 `app/api/v1/_guard.py` 改掉；②**彻底修**：
-把两个类**合并成一个**（一个类 + 一个能同时吃两种调用风格的签名：
-`PcsError(code, message, ...)` 与 `PcsError(message, *, code=...)`），或把
-core 抛出方全部换成 service 变体 ⇒ **独立一轮**（动 ~20 个模块 + 几十处调用
-风格 ⇒ 风险不小）。
+- `app/core/errors.py::PcsError` 现在**同时**吃**两种**调用风格：
+  - **service 风格** `PcsError("消息", code="X", status=404, details={...})`
+    ⇒ 缺省 `code=PCS_ERROR` / `status=422`；
+  - **core 风格** `PcsError("CODE", "消息", 404, {...})` 或
+    `PcsError(code="X", message="消息")` ⇒ 缺省 `status=400`（历史 core 变体）。
+  - **status 缺省优先级**：显式传入 → **子类自己声明的** `status` 类属性
+    （`WorkspaceNotFoundError` → 404 …）→ core 风格 400 / service 风格 422。
+  - `details` 与 `detail` 是**同一份数据的两个名字**（`details` 是 service 变体
+    的历史字段名）。
+- `app/services/exceptions.py::PcsError` 现在是**同一个类的别名**
+  （`PcsError = CorePcsError`）⇒ `except` 哪一个 import 都**捕得到全部**
+  ⇒ 30 多个 service 子类（`PreconditionViolation` / `Psv*` / `Workspace*` …）
+  **原地继承**，各自的 `code` / `status` 类属性**保持不变**。
+- 全局异常处理器**从 2 个减到 1 个**（`_service_pcs` 删除）⇒ core / service
+  两种抛出方走**同一条**渲染路径 ⇒ 响应信封必然一致。
+  ⚠️ 副作用（**是修复不是回归**）：service 抛出的 401/403 现在**也**走
+  RBAC 审计 + per-IP 限流（此前它们绕过这条路径 ⇒ 授权拒绝**没留痕**）。
+- **测试**（**新增** `tests/core/test_pcs_error_unified.py`，13 例）：两个名字
+  是同一个类（RF-1/RF-2）· 两种风格的缺省值（RF-3/RF-4）· 子类的
+  `code`/`status` 不被合并覆盖（RF-5/RF-6）· `str(exc)` 仍是 message。
 
-**归属：** 独立一轮。**关联：** bug-2079（TODO-080 第 3 条）· bug-2085。
+**归属：** 已闭环。**关联：** bug-2079（TODO-080 第 3 条）· bug-2085。
 
 ## ✅ DONE —— TODO-082: 两道「已对外生效」的门换成**真实可判定**的条件（2026-10-27 落地）
 
@@ -1730,9 +1738,20 @@ core 抛出方全部换成 service 变体 ⇒ **独立一轮**（动 ~20 个模�
 生效」⇒ 之后**普通撤销**（request-reversal）会被拒 ⇒ 只能走 **CHANGE_REVERSAL
 反向变更单**。
 
-**遗留（TODO-090）**：`locked_by_deliverable` 列现在**没有任何写入方**、也不再
-是门禁（仍被记录读端原样上报）⇒ 要么在「交付物发布」时写它（审计标记），要么
-删列（16 张表 + 数据字典）⇒ 独立一轮。
+**✅ 已知代价的「逃生口」已钉住（2026-10-27）**：代价不能只是「告知」——
+必须证明**替代路径真的通**（否则代价 = 死路）。新增
+`tests/services/test_change_reversal_escape_hatch.py`（1 例，**端到端**）：
+记录被 APPROVED 的交付物绑定（已对外生效）⇒ ①普通撤销被拒（409
+`REVERSAL_LOCKED_USE_CHANGE_REVERSAL`，**消息点名** `CHANGE_REVERSAL`）·
+②直接弃用被拒（409 `RECORD_BOUND_USE_CHANGE_NOTICE`，**消息点名**
+`RECORD_CANCELLATION`）· ③**CHANGE_REVERSAL 反向变更单建得出来**（不撞
+409/422）· ④签完 ⇒ 记录回 `CHECKED`。
+⚠️ 顺带查清的一件事：`close_on_approved` **只关记录**，**不**把单推成
+APPROVED（那是 `sign_step` 的动作）⇒ 「已对外生效」的真相仍是
+`deliverables.sign_status == APPROVED` ⇒ TODO-090 的标记也照这个判据写。
+
+**遗留（TODO-090，已闭环 ⇒ 见下条）**：`locked_by_deliverable` 列 ⇒ 选**写成
+审计标记**（不删列）。
 
 **顺带修（bug-2088）**：迁移假用例时发现，记录弃用的**审计 `resource_id`** 用
 的是 `getattr(rec, "record_id", "")` ⇒ 而各表的**主键列名不同** ⇒ 在别的表上
@@ -1786,23 +1805,33 @@ G-08 契约门禁 4 阶段 exit 0。
 **关联：** 评审 ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
 的「Deferred minors」段。
 
-## TODO-090: `locked_by_deliverable` 列**彻底没人用了**（写入方与门禁都没了）🟡
+## ✅ DONE —— TODO-090: `locked_by_deliverable` 列**写成审计标记**（2026-10-27 落地）
 
-**What:** TODO-082 把两道「已对外生效」的门换成**真实可判定**的条件
-（`DeliverableService.is_record_effectively_published`）⇒ `records.
-locked_by_deliverable` 这一列**既没有写入方**、**也不再是门禁** ⇒ 记录读端
-（`GET /records/{module}` 等）仍把它**原样上报**（恒为 False）⇒ 前端拿到的
-是一个**永远为假的字段**。
+**原症状：** TODO-082 把两道「已对外生效」的门换成**真实可判定**的条件
+⇒ 该列**既没有写入方**、**也不再是门禁** ⇒ 记录读端（`GET /records/{module}`）
+把它**原样上报**（恒为 False）⇒ 前端拿到的是一个**永远为假的字段**。
 
-**Why:** 它是**数据字典**里声明的字段（`PCS-DICT-ALL-003 V3.6` /
-`spec/两层签署与变更管理增补规格说明书.md`）⇒ 直接删列会**与字典脱节**
-（且要动 16 张表 + 一堆迁移）⇒ 但留着不动 ⇒ 它就是一个**装饰字段**。
+**裁决：写它（不删列）** —— 选项①（审计标记）。
 
-**How:** 二选一 —— ①在「交付物发布 / 变更单签完」时把绑定记录该列置 True
-（作为**审计标记**，门禁仍走真实判据）⇒ 需确认「哪些交付物算对外生效」；
-②删列（16 张表 + 字典 + 读端字段）⇒ 独立一轮。
+**落地**
 
-**归属：** 独立一轮。**关联：** TODO-082 · ADR-0009 · 数据字典 V3.6。
+- `ChangeNoticeService.close_on_approved`（变更单**签完** ⇒ 关记录那步）在关
+  记录时写 `record.locked_by_deliverable = True`。
+  ⚠️ **判据与门禁完全一致**：只有当**这张单已经 APPROVED**（真实路径 =
+  `sign_step` 签完最后一步 ⇒ 先把单推成 APPROVED ⇒ 再调本方法）才写 True
+  ⇒ 列与 `is_record_effectively_published` 判的是**同一个事实** ⇒
+  **不会分叉**（单子还 PENDING ⇒ 不写 ⇒ 列说「没生效」而门禁也说「没生效」）。
+  ⚠️ APPROVED 是**终态**（作废只认 DRAFT/PENDING 的单）⇒ 写 True 之后
+  **不会**回退 ⇒ 列**不会**变成「陈旧的 True」。
+- 门禁**仍然**走 `is_record_effectively_published`（**不拿这一列当判据**）——
+  列是**派生标记**，查询才是**真相** ⇒ 直接改 DB 改不动门禁。
+- 列注释改成「已被 APPROVED 的交付物绑定（=已对外生效）；变更单批准时写
+  True」（`app/models/mixins.py`）；数据字典 `PCS-DICT-ALL-003 V3.6` 同步。
+- **测试**（`tests/services/test_change_notice_close_real_db.py`）：单子
+  APPROVED ⇒ 写 True；单子还 PENDING ⇒ **不**写（列与门禁一致）。
+
+**归属：** 已闭环。**关联：** TODO-082 · ADR-0009 · 数据字典 V3.6。
+
 
 ## ✅ DONE —— TODO-085: 矩阵修改的**申请 + 双审** —— 本项目**不做**（业务裁决，2026-10-27）
 
