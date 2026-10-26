@@ -1634,39 +1634,37 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 
 **归属：** 已闭环。**关联：** bug-2058 · TODO-080。
 
-## TODO-088: 全新隔离 schema 上跑迁移会**漏建** 6 条约束（幂等检查**只按名字**查）🟡
+## ✅ DONE —— TODO-088: 6 条约束按 **schema** 补齐（2026-10-27 落地）
 
-**What:** 在**隔离 schema**（`options=-csearch_path=<schema>`）上从零跑
-`alembic upgrade head` ⇒ 建出来的 schema **缺** 6 条 ORM 声明的约束：
+**原症状：** 在**隔离 schema**（`options=-csearch_path=<schema>`）上从零跑
+`alembic upgrade head` ⇒ 建出来的 schema **缺** 6 条 ORM 声明的约束
+（`ck_streams_phase` / `ck_streams_data_mode` / `ck_streams_source_type` /
+`uq_report_definitions_project_name` / `uq_report_styles_scope_version` /
+`future_dated_forbidden_chk`）⇒ 那个 schema 上的 `alembic check` 报 6 条
+**假漂移**（`add_constraint`：ORM 要、DB 没有）。
 
-| 约束 | 表 |
-|---|---|
-| `future_dated_forbidden_chk` | `project_calculation_standard_profiles` |
-| `uq_report_definitions_project_name` | `report_definitions` |
-| `uq_report_styles_scope_version` | `report_styles` |
-| `ck_streams_data_mode` / `ck_streams_phase` / `ck_streams_source_type` | `streams` |
+**根因：** `p8_001` / `p8_008` / `p8_009` / `p8_011` 里那几条约束的**幂等检查**
+写的是 `SELECT 1 FROM pg_constraint WHERE conname = '<名字>'` ⇒ **只按名字查，
+不分 schema** ⇒ 而 `pg_constraint` 是**每库**不是**每 schema** ⇒ 同一个库里
+**别的 schema**（例如 `public`）已有同名列 ⇒ **跳过建约束** ⇒ ⇒ 本 schema
+永远拿不到。
 
-⇒ 在那个隔离 schema 上跑 `alembic check` ⇒ **exit 255 + 6 条「add_constraint」**
-⇒ 看着像「ORM 与迁移漂移」，其实**不是**。
+⚠️ **两类后果**：①隔离 schema 验证 ⇒ 6 条**假漂移**（真·全新**数据库**没有
+别的 schema ⇒ 约束**会**建出来 ⇒ CI 不受影响）；②**任何「按 schema 部署」的库**
+（多租户 / 影子 schema）⇒ 约束**根本没装** ⇒ DB 层的安全网缺失。
 
-**Why（根因）：** `p8_001` / `p8_008` / `p8_009` 的幂等检查写成
-`SELECT 1 FROM pg_constraint WHERE conname = '<名字>'` ⇒ **`pg_constraint`
-是「每库」不是「每 schema」** ⇒ 同一个库里**别的 schema**（例如 `public`）
-已有同名列 ⇒ **跳过建约束** ⇒ 隔离 schema 永远拿不到这 6 条。
-⚠️ **真·全新数据库**（CI 的 fresh Postgres）里没有别的 schema ⇒ 约束**会**建出来
-⇒ CI 不受影响 ⇒ 只有**本地用隔离 schema 验证**时会看到这 6 条假漂移。
+**落地**
 
-**How:** ①把那 3 条迁移的幂等检查改成**按 schema 过滤**
-（`connamespace = to_regnamespace(current_schema())`）；②或本地验证时**逐条对照**
-这 6 个约束是否存在，别把 `alembic check` 的 exit 255 当成真漂移。
-
-⚠️ **别照字面「修」**：CLAUDE.md 写明过「`remove_constraint` 的字面意思与正确处置
-**恰好相反** —— 实测那些条全是「DB 有安全网、ORM 漏声明」⇒ 照字面删会把 DB 保护
-删掉」。这 6 条**反过来**（ORM 声明了、隔离 schema 没有）⇒ 照字面「加」会写出一条
-**重复**的迁移。
-
-**归属：** 独立一轮（要改 3 条既有迁移的幂等检查 ⇒ 改历史迁移要谨慎）。
-**关联：** CLAUDE.md「测试前检查 · 漂移盲区」· bug-147 · `p8_008`。
+- **迁移 `p9_011`**（**不改历史** —— 改已应用的迁移会让「重放」得到不同结果）：
+  判据改成 `connamespace = current_schema()::regnamespace` ⇒ **当前 schema**
+  里没有就补上、有就跳过（幂等）⇒ 已有的 schema（`pcs` / `pcs_test`）**全部
+  跳过**；缺约束的 schema **补上**。
+- ⚠️ 三条 `ck_streams_*` 的取值**直接引用 ORM 枚举**（`app/models/enums.py` 是
+  唯一来源）⇒ 不会与契约漂移（硬编码一份就是 bug-187~191 那一族）。
+- **验证**：全新隔离 schema 从零 `alembic upgrade head` ⇒ **p9_011 (head)** ⇒
+  6 条约束**全部在** ⇒ `alembic check` **exit 0**（此前 exit 255 + 6 条假漂移）；
+  两库 `pcs` / `pcs_test` 各跑一次 `alembic check` ⇒ **exit 0**（`current` 均
+  `p9_011` = head）。
 
 ## TODO-089: 两个 `PcsError` 变体的统一只做了一半（`except service` 捕不到 core 抛的）🟡
 

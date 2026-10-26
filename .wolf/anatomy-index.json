@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:58:29.318Z",
-    "fileCount": 1050,
+    "lastScanned": "2026-10-26T22:03:44.570Z",
+    "fileCount": 1051,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "664c4c6042a223df394286d243a2975f58154da18fb0f08b7dd73e7c35e3a293",
-    "storeUpdatedAt": "2026-10-26T16:58:29.329Z",
-    "rootHash": "f096f99fe05ef3fa"
+    "renderedHash": "cee251294ae0eb673ae01179416f8fef20732bc3c03f0211e4defb861674e5cc",
+    "storeUpdatedAt": "2026-10-26T22:03:44.581Z",
+    "rootHash": "f330907a6c03dcd7"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37924,6 +37924,45 @@
           "startLine": 79,
           "endLine": 160,
           "tokens": 728
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p9_011_schema_aware_constraints.py": {
+      "description": "把 6 条约束**按 schema** 补齐（TODO-088）。",
+      "tokens": 1208,
+      "hash": "974220b853e0ad69",
+      "size": 5425,
+      "mtimeMs": 1793052224521.3958,
+      "updatedAt": "2026-10-26T22:03:44.570Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_stream_check_targets",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 107,
+          "tokens": 186
+        },
+        {
+          "name": "_add_if_missing",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 126,
+          "tokens": 149
+        },
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 132,
+          "tokens": 54
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 141,
+          "tokens": 94
         }
       ]
     }

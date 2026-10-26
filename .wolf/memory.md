@@ -2481,3 +2481,4 @@
 | 00:45 | Created pcs-backend/tests/api/v1/test_workspace_type_guard.py | — | ~2300 |
 | 00:50 | Created pcs-backend/tests/services/test_record_publication_gate.py | — | ~2044 |
 | 00:58 | Created pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx | — | ~1429 |
+| 06:03 | Created pcs-backend/alembic/versions/p9_011_schema_aware_constraints.py | — | ~1208 |

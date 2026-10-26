@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:58:29.318Z
-> Files: 1050 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:03:44.570Z
+> Files: 1051 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1178,6 +1178,7 @@
 - `p9_008_project_matrix_binding_unique.py` — P9A-DLV-011 T2：`project_signature_matrix_bindings` 加 (project_id, module) 唯一约束。 (~532 tok)
 - `p9_009_numbering_template_name_unique.py` — P9A-DLV-011 收官批：`numbering_templates.template_name` 加唯一约束（TODO-073）。 (~471 tok)
 - `p9_010_matrix_name_status_unique.py` — P9A-DLV-011 收官批：`signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）。 (~546 tok)
+- `p9_011_schema_aware_constraints.py` — 把 6 条约束**按 schema** 补齐（TODO-088）。 (~1208 tok)
 
 ## pcs-backend/app/
 
