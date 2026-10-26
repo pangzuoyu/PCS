@@ -4854,7 +4854,7 @@
       "error_message": "TODO-082 的「已知代价」只被**告知**，没被**证明**：变更单批准后记录走不了普通撤销 ⇒ 若 CHANGE_REVERSAL 这条替代路**不通**，用户就撞**死路**",
       "file": "pcs-backend/tests/services/test_change_reversal_escape_hatch.py",
       "root_cause": "TODO-082 把「已对外生效」的判据换成真实可判定条件 ⇒ 门**真的会触发** ⇒ 变更单一批准，该记录就**再也走不了**普通撤销（409 `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`）/ 直接弃用（409 `RECORD_BOUND_USE_CHANGE_NOTICE`）⇒ 裁决时把这条代价「告知」了用户，但仓里**没有任何用例**证明**替代路径真的通**（CHANGE_REVERSAL 反向变更单能不能建、能不能签完）⇒ 代价可能是**死路**而没人知道。",
-      "fix": "**已修（2026-10-27）**：新增**端到端**用例 `tests/services/test_change_reversal_escape_hatch.py` —— 记录被 APPROVED 的交付物绑定 ⇒ ①普通撤销被拒（消息**点名** `CHANGE_REVERSAL`）· ②直接弃用被拒（消息**点名** `RECORD_CANCELLATION`）· ③**CHANGE_REVERSAL 反向变更单建得出来**（不撞 409/422）· ④签完 ⇒ 记录回 `CHECKED`。⚠️ 顺带查清：`close_on_approved` **只关记录**、**不**把单推成 APPROVED（那是 `sign_step` 的动作）⇒ 「已对外生效」的真相仍是 `deliverables.sign_status == APPROVED` ⇒ TODO-090 的派生标记也照这个判据写（否则列与门禁**两个真相**）。",
+      "fix": "**已修（2026-10-27）**：新增**端到端**用例 `tests/services/test_change_reversal_escape_hatch.py` —— 记录被 APPROVED 的交付物绑定 ⇒ ①普通撤销被拒（消息**点名** `CHANGE_REVERSAL`）· ②直接弃用被拒（消息**点名** `RECORD_CANCELLATION`）· ③**CHANGE_REVERSAL 反向变更单建得出来**（不撞 409/422）· ④签完 ⇒ 记录回 `CHECKED`。⚠️ 顺带查清：`close_on_approved` **只关记录**、**不**把单推成 APPROVED（那是 `sign_step` 的动作）⇒ 「已对外生效」的真相仍是 `deliverables.sign_status == APPROVED` ⇒ TODO-090 的派生标记也照这个判据写（否则列与门禁**两个真相**）。 ⚠️ **业务裁决（用户 2026-10-27）**：**「已对外生效（CHECKED）的记录**直接**建不了 CHANGE_REVERSAL 单」是**正确的**（不是缺陷）—— `create_change_notice` 继续要求记录处于 **CHANGED**；「撤回已发布内容」的正确路径 = **先发起一次变更**（把数据改回原值）⇒ CHANGED ⇒ 再开反向变更单走正常 3 级矩阵 ⇒ **反转本身就是一次变更**；⚠️ **不得**加「允许对 CHECKED 记录开反向单」的特例（那等于给已发布记录开一条绕过 3 级校审的后门）。",
       "fix_commit": "ab207b6",
       "tags": [
         "change-notice",

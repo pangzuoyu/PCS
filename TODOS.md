@@ -1750,6 +1750,15 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 APPROVED（那是 `sign_step` 的动作）⇒ 「已对外生效」的真相仍是
 `deliverables.sign_status == APPROVED` ⇒ TODO-090 的标记也照这个判据写。
 
+**✅ 业务裁决（用户 2026-10-27）**：**「已对外生效（CHECKED）的记录**直接**建不了
+CHANGE_REVERSAL 单」是**正确的**，不是缺陷** ⇒ ①`create_change_notice` 继续要求
+记录处于 **CHANGED**（不许为已发布记录开反向单）；②「撤回一次已发布的内容」的正
+确路径 = **先发起一次变更**（把数据改回原值）⇒ 记录进 CHANGED ⇒ 再开
+**CHANGE_REVERSAL** 反向变更单走正常的 3 级矩阵 ⇒ **反转本身就是一次变更**；
+③**别**为此加「允许对 CHECKED 记录开反向单」的特例 —— 那等于给已发布记录开一条
+**绕过 3 级校审**的后门（与 TODO-078 记录的「作废不关记录」是同一条原则：
+**单据的效力只能来自它自己的审批**）。
+
 **遗留（TODO-090，已闭环 ⇒ 见下条）**：`locked_by_deliverable` 列 ⇒ 选**写成
 审计标记**（不删列）。
 

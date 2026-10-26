@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T22:59:18.464Z",
+    "lastScanned": "2026-10-26T23:01:09.585Z",
     "fileCount": 1057,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5968ab50b4fcc6914a0d1d3ef24adf21ccc9c75c2f32c35f8e78078363793e28",
-    "storeUpdatedAt": "2026-10-26T22:59:18.476Z",
-    "rootHash": "bbd7c8b489b30031"
+    "renderedHash": "f1e8541d6d7a0ebf03d20121c1ca226f29dfda6d67f68fa213f5dc5182c32f1e",
+    "storeUpdatedAt": "2026-10-26T23:01:09.596Z",
+    "rootHash": "9389352ef2724149"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 18586,
-      "hash": "e03ad18544c6f3ff",
-      "size": 123350,
-      "mtimeMs": 1793054595096.901,
-      "updatedAt": "2026-10-26T22:43:15.146Z",
+      "tokens": 18682,
+      "hash": "2e5e08519d52d1f1",
+      "size": 124145,
+      "mtimeMs": 1793055669534.7795,
+      "updatedAt": "2026-10-26T23:01:09.585Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {

@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:59:18.464Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T23:01:09.585Z
 > Files: 1057 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~915 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~4601 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~18586 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~18682 tok)
 
 ## .claude/worktrees/s4-0-events/
 
