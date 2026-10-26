@@ -46,46 +46,44 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import inspect
+from sqlalchemy.orm import MappedColumn
 
-# 快照**不**采集的列（归属 / 审计 / 状态机流程列）。
-# ⚠️ `record_hash` **不在**这里 —— 它是要恢复的「数据指纹」。
+from app.models.mixins import RecordMixin, TimestampMixin
+
+def _mixin_columns(*mixins: type) -> set[str]:
+    """mixin 上声明的列名（`mapped_column` 那些）。
+
+    ⚠️ `project_id` / `workspace_id` 是 `declared_attr` ⇒ **不在**这里 ⇒
+    另行补进跳过集。
+    """
+    names: set[str] = set()
+    for mixin in mixins:
+        for attr, value in vars(mixin).items():
+            if isinstance(value, MappedColumn):
+                # ⚠️ 用**属性名**（mixin 里的属性名 == 列名；`declared_attr`
+                #    不在这里 —— 它们在 `vars()` 里不是 MappedColumn）
+                names.add(attr)
+    return names
+
+
+#: 快照**不**采集的列 = **自动**从 mixin 推导（状态机流程列 / 审计列 / 归属列）。
+#:
+#: ⚠️ **为什么自动推导而不是手写清单**（TODO-087 的遗留风险）：
+#: 手写清单 ⇒ 将来给 `RecordMixin` 加一个流程列（比如 `review_closed_at`）⇒
+#: **忘了**加进清单 ⇒ 快照会把它一起存 ⇒ 恢复时把**流程状态**也回滚 ⇒ 与当前
+#: 状态打架 ⇒ 且**没有任何测试会红**（清单是数据，不是断言）。
+#: ⇒ 自动推导 ⇒ 新列**默认**被跳过 ⇒ 想要快照它必须**显式**放行。
+#:
+#: ⚠️ 例外（**业务数据**，要快照）：
+#: - `record_hash` —— 变更前的数据指纹（TODO-077 的判据要比它）；
+#: - `tag_number` —— 位号（业务标识）。
+_MIXIN_SNAPSHOT_EXCEPTIONS = frozenset({"record_hash", "tag_number"})
+
+#: 快照**不**采集的列（归属 / 审计 / 状态机流程列）。
 SNAPSHOT_SKIP_COLUMNS: frozenset[str] = frozenset(
-    {
-        # 归属
-        "project_id",
-        "workspace_id",
-        # 审计时间戳
-        "created_at",
-        "created_by",
-        "updated_at",
-        # 状态机 / 签署流程
-        "sign_status",
-        "approval_step",
-        "approval_depth",
-        "approval_role",
-        "locked_by_deliverable",
-        # 变更流程（ADR-0002）
-        "change_pending_since",
-        "change_resolved_by",
-        "change_resolved_at",
-        "change_abandoned_at",
-        "change_abandoned_reason",
-        # 作废流程（ADR-0009）
-        "obsoleted_reason",
-        "obsoleted_by",
-        "obsoleted_at",
-        "obsoleted_via_deliverable_id",
-        # 撤销流程（ADR-0010）
-        "reversal_requested_at",
-        "reversal_requested_by",
-        "reversal_reason",
-        "reversal_approved_by",
-        "reversal_approved_at",
-        # 计算血缘审计（ADR-0031）
-        "stale_resolution_path",
-        "hash_changed",
-        "changed_fields",
-    }
+    (_mixin_columns(TimestampMixin, RecordMixin) - _MIXIN_SNAPSHOT_EXCEPTIONS)
+    # `project_id` / `workspace_id` 是 `declared_attr` ⇒ 不在 mixin 列里 ⇒ 补上
+    | {"project_id", "workspace_id"}
 )
 
 

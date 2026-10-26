@@ -66,6 +66,55 @@ async def _make_record(db, project: Project) -> ReliefResult:
     return rec
 
 
+async def test_snapshot_skip_list_covers_every_mixin_column():
+    """⚠️ 守卫：`RecordMixin` / `TimestampMixin` 上的每一列，要么在跳过集里、
+    要么在**显式放行**名单里。
+
+    ⇒ 将来给 mixin 加一列（流程列 / 审计列）⇒ **忘了**加进跳过集 ⇒ 测试
+    变红 ⇒ 不会出现「快照把流程状态一起回滚」这种**没人发现**的 bug。
+    """
+    from app.models.mixins import RecordMixin, TimestampMixin
+
+    from app.services.record_snapshot_codec import (
+        _MIXIN_SNAPSHOT_EXCEPTIONS,
+        SNAPSHOT_SKIP_COLUMNS,
+        _mixin_columns,
+    )
+
+    mixin_columns = _mixin_columns(TimestampMixin, RecordMixin)
+    uncovered = mixin_columns - SNAPSHOT_SKIP_COLUMNS - _MIXIN_SNAPSHOT_EXCEPTIONS
+    assert uncovered == set(), (
+        f"这些 mixin 列既不在跳过集里、也没被显式放行 ⇒ 会被快照：{sorted(uncovered)}"
+    )
+
+
+async def test_flow_columns_are_not_snapshotted(db):
+    """⚠️ 流程列**不进快照**（恢复时会把「当前处于哪个状态」一起回滚）。
+
+    ⚠️ `approval_depth` 曾在手写清单里**漏掉** ⇒ 它被快照了 ⇒ 恢复会把批准
+    深度一起回滚 ⇒ ⇒ 清单改成**从 mixin 自动推导**（新增流程列默认被跳过）。
+    """
+    project = await _make_project(db)
+    rec = await _make_record(db, project)
+
+    data = capture_record_data(rec)
+
+    for col in (
+        "sign_status",
+        "approval_step",
+        "approval_depth",
+        "approval_role",
+        "locked_by_deliverable",
+        "change_pending_since",
+        "change_resolved_at",
+        "change_resolved_by",
+        "stale_resolution_path",
+        "hash_changed",
+        "changed_fields",
+    ):
+        assert col not in data, f"流程列 {col} 不该进快照"
+
+
 async def test_capture_record_data_captures_business_columns(db):
     """RF-1：快照**装着**记录的业务数据（不是空 dict）。"""
     project = await _make_project(db)
