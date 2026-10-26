@@ -2415,3 +2415,5 @@
 | 08:22 | Created pcs-backend/tests/api/v1/test_change_notice_api.py | — | ~3566 |
 | 08:37 | Created .git/COMMIT_MSG_T4.txt | — | ~341 |
 | 10:03 | Created .git/COMMIT_MSG_T5.txt | — | ~358 |
+| 09:05 | **P9A-DLV-011 落地（TODO-068~072 全闭环）**：T1 建单 = 交付物 + 版本行 + 记录 binding；T2 迁移 p9_008（矩阵绑定唯一约束，全新 schema 验过）；T3 矩阵管理面 6 端点 + steps_json 严格校验；T4 变更单闭环 3 端点（initiate/apply/change-notice）+ sign_step 最后一步自动关记录 + 驳回可再签发；另修上一批评审 IMPORTANT（todo_service 第二份 steps_json 解析）；SPEC V2.3 · TODO-068~072 闭环 + 073~080 · bug-2055~2059 | change_notice_service.py · deliverable_service.py · signature_matrix_service.py · records_actions.py · signature_matrices.py · 5 个测试文件 · p9_008 迁移 | 6 commits（9da0810→559d608）；后端 5225 passed；前端 818 passed；两库 alembic check exit 0；契约门禁 exit 0 | ~0 |
+| 10:05 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+12 lines) | ~245 |

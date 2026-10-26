@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T02:03:08.228Z",
+    "lastScanned": "2026-10-26T02:05:03.598Z",
     "fileCount": 1019,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c23c2c53ed49519a4663cf41d7822213d2767e5f63d8c2b6a268c10f5d9a79a1",
-    "storeUpdatedAt": "2026-10-26T02:03:08.240Z",
-    "rootHash": "43ac82c235825bf5"
+    "renderedHash": "797920288346fbf29add9d43496bc8dae8401f381cf796d4ed3ba08ebe2020ab",
+    "storeUpdatedAt": "2026-10-26T02:05:03.609Z",
+    "rootHash": "ba00665d6d19c657"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21767,11 +21767,11 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 7153,
-      "hash": "48ee9a0d973fc3e6",
-      "size": 29225,
-      "mtimeMs": 1792973974038.7402,
-      "updatedAt": "2026-10-26T00:19:34.084Z",
+      "tokens": 7266,
+      "hash": "8fd91d777717a8e1",
+      "size": 29882,
+      "mtimeMs": 1792980303548.8772,
+      "updatedAt": "2026-10-26T02:05:03.598Z",
       "source": "hook",
       "symbols": [
         {
@@ -21792,8 +21792,8 @@
           "name": "ChangeNoticeService",
           "kind": "class",
           "startLine": 76,
-          "endLine": 711,
-          "tokens": 6541
+          "endLine": 722,
+          "tokens": 6654
         }
       ]
     },

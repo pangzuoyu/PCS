@@ -408,6 +408,18 @@ class ChangeNoticeService:
     ) -> dict[str, Any]:
         """审批变更单 + 自动联动绑定记录 CHANGED → CHECKED（spec V1.0 §4）。
 
+        ⚠️ **已弃用（P9A-DLV-011 T4，2026-10-26）** —— **不要**用它做审批：
+        它**不查矩阵、不查步骤、不查角色** ⇒ 谁调用谁就能把变更单直接批准
+        ⇒ 3 级矩阵形同虚设（bug-2058）。
+
+        ⇒ 变更单的关闭路径现在是**签署流程的终点**：
+        `DeliverableService.sign_step` 签完最后一步 ⇒ `close_on_approved`
+        ⇒ 记录 CHANGED → CHECKED + `change_resolved_by` + 观测 COMPLETED
+        （ADR-0008「系统自动」）。
+
+        本方法保留是因为**既有测试**引用它；它没有 HTTP 入口。
+        ⇒ 删除或改造见 `TODOS.md` TODO-081。
+
         联动逻辑：
         - 变更单 PENDING → APPROVED
         - 绑定记录 CHANGED → CHECKED + change_resolved_by = actor.user_id

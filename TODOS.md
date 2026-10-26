@@ -1460,3 +1460,20 @@ curl 管理矩阵。
 
 **归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** P9A-DLV-007 评审
 ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md`。
+
+## TODO-081: `approve_change_notice` 是**绕过矩阵的第二条关闭路径** 🟡
+
+**What:** `ChangeNoticeService.approve_change_notice`（PENDING → APPROVED +
+关记录 + 观测 COMPLETED）仍留在代码里，只被**既有测试**引用，**没有 HTTP 入口**。
+
+**Why:** 它**不查矩阵、不查步骤、不查角色**（bug-2058）⇒ 谁调用谁就能直接
+批准变更单 ⇒ 与新的关闭路径（`sign_step` 最后一步 ⇒ `close_on_approved`）
+**并存两条语义不同的关闭路径** ⇒ 将来有人「顺手调一下 service」就绕过了
+3 级校审。
+
+**How:** 二选一 —— ①删掉（连带改写 4 个引用它的 fake 测试为真库用例，
+TODO-080 第 2 条同批做）；②改造成 `close_on_approved` 的薄包装（**统一**到
+签署流程的终点，参数只留 `deliverable_id` + `actor`）。
+⇒ 在此之前，方法 docstring 已标「已弃用，不要用它做审批」。
+
+**归属：** 独立一轮（与 TODO-080 第 2 条同批）。**关联：** bug-2058 · TODO-080。
