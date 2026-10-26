@@ -81,10 +81,9 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
    端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash · 多记录变更 ·
    **矩阵管理前端**（TODO-079）+ **变更单前端入口**（TODO-083）·
    **`locked_by_deliverable` 死闸门**（TODO-082）· 评审 deferred minor。
-   ⚠️ 另有 **8 条 minor** 未修（M-3 硬编码 sign_status / M-4 service 不校验
-   project_id / M-5 todo_service 缺日志 / M-7 **ADR-0002 vs ADR-0008 驳回矛盾** /
-   M-8 复用 `ObsoleteRequest`）⇒ 见 ledger
-   `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-…/progress.md` 的「Deferred minors」。
+   ⚠️ 另有 **5 条 minor** 未修 ⇒ 已登记 **TODO-084**（M-3 硬编码 sign_status /
+   M-4 service 不校验 project_id / M-5 todo_service 缺日志 /
+   M-7 **ADR-0002 vs ADR-0008 驳回矛盾** / M-8 复用 `ObsoleteRequest`）。
 4. **ADR-0050**：用户 2026-10-20 裁决「先不做」⇒ 再开工按 P1~P6。
 5. **P9A-1 遗留**（未变）：access token 不带 `tv`；AD 同步需运维服务账号。
 

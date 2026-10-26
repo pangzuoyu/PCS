@@ -1541,3 +1541,17 @@ UI-SPEC §6.3 已修订为挂在 **CHANGED** 态）+ 变更单详情页（3 级�
 ⚠️ UI-SPEC §6.3 的修订注记已写明按钮位置（CHANGED 而非 CHECKED）。
 
 **归属：** P9B-2（与 TODO-079 同批更划算）。**关联：** TODO-079 · TODO-068。
+
+## TODO-084: P9A-DLV-011 评审的 **5 条 deferred minor** 🟡
+
+| # | 事项 | 位置 |
+|---|---|---|
+| 1 | 变更单响应里的 `sign_status` 是**硬编码**的 `PENDING`（不是从 DB 行读）⇒ 若建单没真把交付物推进到 PENDING，响应仍报 PENDING 而实际行是 DRAFT（sign-step 会 409） | `app/api/v1/records_actions.py` |
+| 2 | `create_change_notice` 的 service 层**不校验** `project_id` 与记录所属项目一致（端点层传的是 `record.project_id`，今天是对的，但 service 是对外入口） | `app/services/change_notice_service.py` |
+| 3 | 矩阵**全部非法**时待办**静默消失**且**一条日志都没有**（`parse_steps` 只在「部分跳过」时 WARNING，全非法直接抛） | `app/services/todo_service.py` |
+| 4 | **ADR-0002 与 ADR-0008 在「驳回」上矛盾**：ADR-0002 说记录回 CHANGE_PENDING 重改，ADR-0008 说绑定记录保持 CHANGED ⇒ 代码只跟 ADR-0008，**这个矛盾没被登记** | `docs/adr/0002-*` vs `docs/adr/0008-*` |
+| 5 | `initiate-change` / `apply-change` 复用 `ObsoleteRequest`（只含 `reason`）⇒ 契约里「发起变更」的入参类型名叫 `ObsoleteRequest` | `app/schemas/records_actions.py` |
+
+**归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** 评审 ledger
+`.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
+的「Deferred minors」段。
