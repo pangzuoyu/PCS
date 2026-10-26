@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:03:44.570Z
-> Files: 1051 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:49:47.883Z
+> Files: 1056 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~915 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~4601 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~13423 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~18586 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -1225,7 +1225,7 @@
 ## pcs-backend/app/core/
 
 - `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2817 tok)
-- `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
+- `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~3052 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
 ## pcs-backend/app/models/
@@ -1237,6 +1237,7 @@
 - `deliverable.py` — 交付物 ORM 模型（P5-3 报告/文档输出）。 (~2950 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5203 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
+- `mixins.py` — ORM mixin 集合（公用字段 + 状态机 hook）。 (~1382 tok)
 - `notification.py` — notifications ORM（ADR-0049 §① 通知建表）。 (~975 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7858 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
@@ -1272,11 +1273,12 @@
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~9820 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~10750 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~12027 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
+- `exceptions.py` — PCS service 层统一异常。 (~1750 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
 - `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~938 tok)
 - `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~808 tok)
@@ -1449,6 +1451,10 @@
 
 - `test_report_perf.py` — SPEC §3.3.1 性能指标 —— **绝对阈值断言**。 (~915 tok)
 
+## pcs-backend/tests/core/
+
+- `test_pcs_error_unified.py` — **全仓只有一个 `PcsError`**（TODO-089）。 (~1134 tok)
+
 ## pcs-backend/tests/db/
 
 - `test_server_generated_columns.py` — 服务端生成列：为什么必须 `await db.refresh(row)`（TODO-049）。 (~1364 tok)
@@ -1483,12 +1489,13 @@
 
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
-- `test_change_notice_close_real_db.py` — 变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。 (~2385 tok)
+- `test_change_notice_close_real_db.py` — 变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。 (~3056 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
 - `test_change_notice_numbering.py` — 变更单的**可读编号**（TODO-073）。 (~1393 tok)
 - `test_change_notice_observation.py` — 变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。 (~1476 tok)
 - `test_change_notice_project_guard.py` — 变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。 (~1063 tok)
 - `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~8472 tok)
+- `test_change_reversal_escape_hatch.py` — 「已对外生效」的**逃生口**：CHANGE_REVERSAL 反向变更单（TODO-082 的已知代价）。 (~1988 tok)
 - `test_deliverable_create_version_row.py` — `DeliverableService.create_version_row` 的守卫（P9A-DLV-011 · T1）。 (~1196 tok)
 - `test_edit_guard.py` — 编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。 (~3662 tok)
 - `test_edit_lock.py` — 编辑锁（Redis 层）测试 —— P9A-4 D1（ADR-0048 §①~⑤）。 (~3260 tok)
@@ -1753,7 +1760,7 @@
 ## pcs-frontend/tests/pages/results/
 
 - `change_notice_action.test.tsx` — 结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。 (~492 tok)
-- `change_notice_cancel.test.tsx` — 变更单的「**作废**」入口（TODO-085 之后的前端接线项）。 (~1429 tok)
+- `change_notice_cancel.test.tsx` — 变更单的「**作废**」入口（TODO-085 之后的前端接线项）。 (~1459 tok)
 - `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~5747 tok)
 
 ## pcs-frontend/tests/pages/sim/
@@ -1775,4 +1782,5 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
+- `PCS-DICT-ALL-003 V3.6.md` — Declares seed (~3318 tok)
 - `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~7944 tok)

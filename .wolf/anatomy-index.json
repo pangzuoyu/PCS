@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T22:03:44.570Z",
-    "fileCount": 1051,
+    "lastScanned": "2026-10-26T22:49:47.883Z",
+    "fileCount": 1056,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cee251294ae0eb673ae01179416f8fef20732bc3c03f0211e4defb861674e5cc",
-    "storeUpdatedAt": "2026-10-26T22:03:44.581Z",
-    "rootHash": "f330907a6c03dcd7"
+    "renderedHash": "e65703ebf8c1b60def6da3eb732ea828583b4b2c3ceb1ee3294fa0107e8a6185",
+    "storeUpdatedAt": "2026-10-26T22:49:47.895Z",
+    "rootHash": "c5b8402b36a7702c"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 13423,
-      "hash": "25db1523c7efe5c1",
-      "size": 89472,
-      "mtimeMs": 1793010613584.1138,
-      "updatedAt": "2026-10-26T10:30:13.633Z",
+      "tokens": 18586,
+      "hash": "e03ad18544c6f3ff",
+      "size": 123350,
+      "mtimeMs": 1793054595096.901,
+      "updatedAt": "2026-10-26T22:43:15.146Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -15778,54 +15778,54 @@
     },
     "pcs-backend/app/core/errors.py": {
       "description": "FastAPI 全局异常处理器 + 统一 PcsError 信封。",
-      "tokens": 2419,
-      "hash": "7876ebf41ccdbf59",
-      "size": 9308,
-      "mtimeMs": 1791037734035.039,
-      "updatedAt": "2026-10-03T14:28:54.080Z",
+      "tokens": 3052,
+      "hash": "b09715d740c4c342",
+      "size": 12259,
+      "mtimeMs": 1793054068464.5674,
+      "updatedAt": "2026-10-26T22:34:28.511Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_write_rbac_audit_row",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 62,
+          "startLine": 33,
+          "endLine": 64,
           "tokens": 333
         },
         {
           "name": "_best_effort_user_id",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 78,
+          "startLine": 65,
+          "endLine": 80,
           "tokens": 170
         },
         {
           "name": "_record_rbac_denial",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 104,
+          "startLine": 81,
+          "endLine": 106,
           "tokens": 242
         },
         {
           "name": "PcsError",
           "kind": "class",
-          "startLine": 105,
-          "endLine": 121,
-          "tokens": 151
+          "startLine": 107,
+          "endLine": 201,
+          "tokens": 932
         },
         {
           "name": "ErrorResponse",
           "kind": "class",
-          "startLine": 122,
-          "endLine": 134,
+          "startLine": 202,
+          "endLine": 214,
           "tokens": 76
         },
         {
           "name": "install_exception_handlers",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 235,
-          "tokens": 1183
+          "startLine": 215,
+          "endLine": 301,
+          "tokens": 1002
         }
       ]
     },
@@ -21781,33 +21781,33 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 9820,
-      "hash": "74183a9b1bee8427",
-      "size": 41915,
-      "mtimeMs": 1793031579650.0369,
-      "updatedAt": "2026-10-26T16:19:39.715Z",
+      "tokens": 10750,
+      "hash": "3e80256756118083",
+      "size": 45899,
+      "mtimeMs": 1793054461076.3496,
+      "updatedAt": "2026-10-26T22:41:01.122Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ChangeType",
           "kind": "class",
-          "startLine": 52,
-          "endLine": 63,
+          "startLine": 53,
+          "endLine": 64,
           "tokens": 96
         },
         {
           "name": "TriggeredBy",
           "kind": "class",
-          "startLine": 64,
-          "endLine": 74,
+          "startLine": 65,
+          "endLine": 75,
           "tokens": 76
         },
         {
           "name": "ChangeNoticeService",
           "kind": "class",
-          "startLine": 75,
-          "endLine": 946,
-          "tokens": 9223
+          "startLine": 76,
+          "endLine": 1030,
+          "tokens": 10136
         }
       ]
     },
@@ -37310,11 +37310,11 @@
     },
     "pcs-backend/tests/services/test_change_notice_close_real_db.py": {
       "description": "变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。",
-      "tokens": 2385,
-      "hash": "a415ec04bccb920d",
-      "size": 9565,
-      "mtimeMs": 1793020704534.615,
-      "updatedAt": "2026-10-26T13:18:24.582Z",
+      "tokens": 3056,
+      "hash": "510174defd54654a",
+      "size": 12504,
+      "mtimeMs": 1793054479709.2878,
+      "updatedAt": "2026-10-26T22:41:19.759Z",
       "source": "hook",
       "symbols": [
         {
@@ -37367,10 +37367,24 @@
           "tokens": 213
         },
         {
-          "name": "test_close_without_binding_writes_no_observation",
+          "name": "test_close_on_approved_marks_the_record_as_published",
           "kind": "fn",
           "startLine": 233,
-          "endLine": 271,
+          "endLine": 279,
+          "tokens": 401
+        },
+        {
+          "name": "test_close_on_a_not_approved_notice_does_not_mark_the_record",
+          "kind": "fn",
+          "startLine": 280,
+          "endLine": 308,
+          "tokens": 265
+        },
+        {
+          "name": "test_close_without_binding_writes_no_observation",
+          "kind": "fn",
+          "startLine": 309,
+          "endLine": 347,
           "tokens": 387
         }
       ]
@@ -37911,19 +37925,19 @@
     },
     "pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx": {
       "description": "变更单的「**作废**」入口（TODO-085 之后的前端接线项）。",
-      "tokens": 1429,
-      "hash": "df702d121ca8807d",
-      "size": 5795,
-      "mtimeMs": 1793033909261.512,
-      "updatedAt": "2026-10-26T16:58:29.317Z",
+      "tokens": 1459,
+      "hash": "03711b0bcc0a9302",
+      "size": 5920,
+      "mtimeMs": 1793054987827.5327,
+      "updatedAt": "2026-10-26T22:49:47.883Z",
       "source": "hook",
       "symbols": [
         {
           "name": "renderChanged",
           "kind": "fn",
           "startLine": 79,
-          "endLine": 160,
-          "tokens": 728
+          "endLine": 163,
+          "tokens": 758
         }
       ]
     },
@@ -37965,6 +37979,346 @@
           "tokens": 94
         }
       ]
+    },
+    "pcs-backend/app/services/exceptions.py": {
+      "description": "PCS service 层统一异常。",
+      "tokens": 1750,
+      "hash": "98690ae28bf6b6ff",
+      "size": 7495,
+      "mtimeMs": 1793054060068.5913,
+      "updatedAt": "2026-10-26T22:34:20.122Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PreconditionViolation",
+          "kind": "class",
+          "startLine": 31,
+          "endLine": 42,
+          "tokens": 106
+        },
+        {
+          "name": "PsvPilotOperatedNotSupported",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 49,
+          "tokens": 52
+        },
+        {
+          "name": "PsvRuptureDiscNotSupported",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 56,
+          "tokens": 51
+        },
+        {
+          "name": "PsvOrificeOverrideTooSmall",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 63,
+          "tokens": 46
+        },
+        {
+          "name": "PsvBackPressureExceeded",
+          "kind": "class",
+          "startLine": 64,
+          "endLine": 70,
+          "tokens": 44
+        },
+        {
+          "name": "PsvBlowdownOutOfRange",
+          "kind": "class",
+          "startLine": 71,
+          "endLine": 77,
+          "tokens": 44
+        },
+        {
+          "name": "PsvInletOutletMismatch",
+          "kind": "class",
+          "startLine": 78,
+          "endLine": 84,
+          "tokens": 45
+        },
+        {
+          "name": "PsvMaterialIncompatible",
+          "kind": "class",
+          "startLine": 85,
+          "endLine": 91,
+          "tokens": 41
+        },
+        {
+          "name": "PsvInletTooSmall",
+          "kind": "class",
+          "startLine": 92,
+          "endLine": 98,
+          "tokens": 37
+        },
+        {
+          "name": "PsvOrificeTemperatureLimit",
+          "kind": "class",
+          "startLine": 99,
+          "endLine": 105,
+          "tokens": 50
+        },
+        {
+          "name": "PsvBellowsMaterialRequired",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 112,
+          "tokens": 44
+        },
+        {
+          "name": "PsvFlangeClassOrificeMismatch",
+          "kind": "class",
+          "startLine": 113,
+          "endLine": 119,
+          "tokens": 46
+        },
+        {
+          "name": "PsvBellowsIncompatible",
+          "kind": "class",
+          "startLine": 120,
+          "endLine": 126,
+          "tokens": 44
+        },
+        {
+          "name": "PsvInletOutletRequired",
+          "kind": "class",
+          "startLine": 127,
+          "endLine": 138,
+          "tokens": 101
+        },
+        {
+          "name": "WorkspaceNotFoundError",
+          "kind": "class",
+          "startLine": 139,
+          "endLine": 145,
+          "tokens": 37
+        },
+        {
+          "name": "WorkspaceTypeNotAllowedError",
+          "kind": "class",
+          "startLine": 146,
+          "endLine": 152,
+          "tokens": 44
+        },
+        {
+          "name": "WorkspaceContextMissingError",
+          "kind": "class",
+          "startLine": 153,
+          "endLine": 164,
+          "tokens": 100
+        },
+        {
+          "name": "FlareAggregatorInputError",
+          "kind": "class",
+          "startLine": 165,
+          "endLine": 182,
+          "tokens": 157
+        },
+        {
+          "name": "InvalidFlashConsistencyError",
+          "kind": "class",
+          "startLine": 183,
+          "endLine": 224,
+          "tokens": 352
+        }
+      ]
+    },
+    "pcs-backend/tests/core/test_pcs_error_unified.py": {
+      "description": "**全仓只有一个 `PcsError`**（TODO-089）。",
+      "tokens": 1134,
+      "hash": "d636cd28639804ae",
+      "size": 4807,
+      "mtimeMs": 1793054084734.521,
+      "updatedAt": "2026-10-26T22:34:44.790Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_rf1_service_except_catches_core_raised",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 37,
+          "tokens": 64
+        },
+        {
+          "name": "test_rf2_core_except_catches_service_raised",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 43,
+          "tokens": 59
+        },
+        {
+          "name": "test_rf1b_the_two_names_are_the_same_class",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 45
+        },
+        {
+          "name": "test_rf3_service_style_defaults",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 58,
+          "tokens": 83
+        },
+        {
+          "name": "test_rf3b_service_style_overrides",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 67,
+          "tokens": 88
+        },
+        {
+          "name": "test_rf4_core_style_defaults",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 76,
+          "tokens": 74
+        },
+        {
+          "name": "test_rf4b_core_style_positional_status_and_detail",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 83,
+          "tokens": 66
+        },
+        {
+          "name": "test_rf4c_core_style_keywords",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 90,
+          "tokens": 63
+        },
+        {
+          "name": "test_rf5_subclass_status_survives_merge",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 96,
+          "tokens": 63
+        },
+        {
+          "name": "test_rf6_subclass_code_survives_merge",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 102,
+          "tokens": 64
+        },
+        {
+          "name": "test_rf6b_subclass_code_can_be_overridden",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 109,
+          "tokens": 60
+        },
+        {
+          "name": "test_rf7_str_is_the_message",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 114,
+          "tokens": 42
+        },
+        {
+          "name": "test_rf7b_details_alias_of_detail",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 120,
+          "tokens": 70
+        }
+      ]
+    },
+    "pcs-backend/app/models/mixins.py": {
+      "description": "ORM mixin 集合（公用字段 + 状态机 hook）。",
+      "tokens": 1382,
+      "hash": "cc841a7c7843a481",
+      "size": 5632,
+      "mtimeMs": 1793054356209.6912,
+      "updatedAt": "2026-10-26T22:39:16.264Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "TimestampMixin",
+          "kind": "class",
+          "startLine": 28,
+          "endLine": 43,
+          "tokens": 150
+        },
+        {
+          "name": "RecordMixin",
+          "kind": "class",
+          "startLine": 44,
+          "endLine": 128,
+          "tokens": 981
+        },
+        {
+          "name": "TaggedRecordMixin",
+          "kind": "class",
+          "startLine": 129,
+          "endLine": 138,
+          "tokens": 99
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_change_reversal_escape_hatch.py": {
+      "description": "「已对外生效」的**逃生口**：CHANGE_REVERSAL 反向变更单（TODO-082 的已知代价）。",
+      "tokens": 1988,
+      "hash": "3c62c32380c82132",
+      "size": 8277,
+      "mtimeMs": 1793054484019.2737,
+      "updatedAt": "2026-10-26T22:41:24.071Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 55,
+          "endLine": 61,
+          "tokens": 47
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 80,
+          "tokens": 142
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 94,
+          "tokens": 109
+        },
+        {
+          "name": "_drive_change",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 119,
+          "tokens": 209
+        },
+        {
+          "name": "_create_and_approve_notice",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 152,
+          "tokens": 312
+        },
+        {
+          "name": "test_escape_hatch_end_to_end",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 224,
+          "tokens": 729
+        }
+      ]
+    },
+    "spec/PCS-DICT-ALL-003 V3.6.md": {
+      "description": "Declares seed",
+      "tokens": 3318,
+      "hash": "d90ee091c5704b53",
+      "size": 17636,
+      "mtimeMs": 1793054600356.883,
+      "updatedAt": "2026-10-26T22:43:20.414Z",
+      "source": "hook"
     }
   }
 }

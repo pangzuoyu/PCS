@@ -4603,17 +4603,18 @@
       "error_message": "两个 `PcsError` 变体**互捕不到**：`except app.core.errors.PcsError` **捕不到** service 层抛的那个 ⇒ 错误落进 500 兜底",
       "file": "pcs-backend/app/services/exceptions.py",
       "root_cause": "仓里有**两个**同名 `PcsError`：`app/core/errors.py` 的（签名 `(code, message, status, detail)`）与 `app/services/exceptions.py` 的（签名 `(message, *, code, status, details)`）⇒ 二者**无继承关系** ⇒ handler 里 `except core.PcsError` **捕不到** service 变体 ⇒ 业务错误（404/409/422）变成 **500**。",
-      "fix": "**已修（2026-10-26，TODO-080 第 3 条）**：service 变体改为**继承** core 变体（`class PcsError(CorePcsError)`）⇒ `except core.PcsError` **两个都捕得到**。⚠️ 为此把 `app/core/errors.py` 里对 service 变体的 import 改成**惰性**（放在 `install_exception_handlers` 内部）—— 否则 core → services → core 成环 ⇒ 启动即 ImportError。⚠️ 子类的 `code`/`status` **必须**取 `type(self).code` / `type(self).status`（写死默认值会让 124 个既有用例的子类退化成 `PCS_ERROR`）。",
-      "fix_commit": "3e0f093",
+      "fix": "**已修（2026-10-26，TODO-080 第 3 条）**：service 变体改为**继承** core 变体（`class PcsError(CorePcsError)`）⇒ `except core.PcsError` **两个都捕得到**。⚠️ 为此把 `app/core/errors.py` 里对 service 变体的 import 改成**惰性**（放在 `install_exception_handlers` 内部）—— 否则 core → services → core 成环 ⇒ 启动即 ImportError。⚠️ 子类的 `code`/`status` **必须**取 `type(self).code` / `type(self).status`（写死默认值会让 124 个既有用例的子类退化成 `PCS_ERROR`）。**已彻底修（2026-10-27，TODO-089）**：继承只解决**一个方向**（`except base` 捕得到子类，**反之不行**）⇒ `except service.PcsError` 仍**捕不到** core 抛出的错 ⇒ 全仓 55 处 `except` 是**潜在漏网** ⇒ 改为**合并成一个类**：`app/services/exceptions.py::PcsError` 变成 `app/core/errors.py::PcsError` 的**别名**，且基类 `__init__` **同时**吃两种调用风格（service：`PcsError(\"消息\", code=…, status=…, details=…)`；core：`PcsError(\"CODE\", \"消息\", 400, {...})`）⇒ **status 缺省优先级**：显式传入 → **子类自己声明的** 类属性 → core 400 / service 422（⇒ 30+ 个 service 子类语义不变）；全局 handler **从 2 个减到 1 个** ⇒ 两种抛出方走同一渲染路径（副作用：service 抛的 401/403 现在**也**走 RBAC 审计 + 限流 —— 此前绕过 ⇒ 授权拒绝没留痕）。测试：**新增** `tests/core/test_pcs_error_unified.py`（13 例，先在旧代码上验过 RF-1 会红）。",
+      "fix_commit": "1022a2c",
       "tags": [
         "errors",
         "exception-handling",
+        "fixed",
         "todo-080",
-        "fixed"
+        "todo-089"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-10-26"
+      "last_seen": "2026-10-27"
     },
     {
       "id": "bug-2080",
@@ -4746,14 +4747,16 @@
       "error_message": "「记录已对外生效」的两道门**永远不触发** ⇒ 任何记录都能被直接弃用 / 直接撤销 ⇒ 「作废、撤销都要有凭证」这条业务约束事实上不存在",
       "file": "pcs-backend/app/services/record_cancellation_service.py",
       "root_cause": "`records.locked_by_deliverable` **全仓只被读、从不被写 True** ⇒ `record_cancellation_service.obsolete` 的「已绑定记录必须先建 RECORD_CANCELLATION 变更单」与 `reversal_approval_service.request_reversal` 的「已对外生效只能走 CHANGE_REVERSAL」两道门**永远不触发** ⇒ 门是**装饰**。根因：判据选了一个**没有写入方**的列 ⇒ 判据永远为 False。",
-      "fix": "**已修（2026-10-27，TODO-082）**：判据换成**真实可判定**的条件 —— 新增 `DeliverableService.is_record_effectively_published`（记录有没有被一张 **APPROVED** 的交付物绑定：`deliverable_record_bindings` ⋈ `deliverable_versions` ⋈ `deliverables`）⇒ 两道门改用它（已对外生效 ⇒ 409 `RECORD_BOUND_USE_CHANGE_NOTICE` / 409 `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`）。⚠️ 判「APPROVED」而不是「有绑定」：一张还没签完的变更单也绑了记录 ⇒ 用「有绑定」会把用户在变更单还没批准时就挡住。⚠️ `bound_obsolete_via_deliverable` 改判「**这张**交付物绑了这条记录」（`is_record_bound_to_deliverable`）—— 判「已批准」会把那条路径永远堵死（它由 APPROVED 流程调用，那时单子还没批完）。测试：**新增** `tests/services/test_record_publication_gate.py`（5 例，含「门不误伤」的反向对照）；⚠️ 既有假 Session 用例（前提已消失）删除。**已知代价**（裁决时已告知）：变更单批准后该记录不能再走普通撤销 ⇒ 只能走 CHANGE_REVERSAL。遗留：**TODO-090**（该列现在既无写入方也不是门禁）。",
+      "fix": "**已修（2026-10-27，TODO-082）**：判据换成**真实可判定**的条件 —— 新增 `DeliverableService.is_record_effectively_published`（记录有没有被一张 **APPROVED** 的交付物绑定：`deliverable_record_bindings` ⋈ `deliverable_versions` ⋈ `deliverables`）⇒ 两道门改用它（已对外生效 ⇒ 409 `RECORD_BOUND_USE_CHANGE_NOTICE` / 409 `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`）。⚠️ 判「APPROVED」而不是「有绑定」：一张还没签完的变更单也绑了记录 ⇒ 用「有绑定」会把用户在变更单还没批准时就挡住。⚠️ `bound_obsolete_via_deliverable` 改判「**这张**交付物绑了这条记录」（`is_record_bound_to_deliverable`）—— 判「已批准」会把那条路径永远堵死（它由 APPROVED 流程调用，那时单子还没批完）。测试：**新增** `tests/services/test_record_publication_gate.py`（5 例，含「门不误伤」的反向对照）；⚠️ 既有假 Session 用例（前提已消失）删除。**已知代价**（裁决时已告知）：变更单批准后该记录不能再走普通撤销 ⇒ 只能走 CHANGE_REVERSAL。遗留：**TODO-090**（该列现在既无写入方也不是门禁）。 **后续（2026-10-27）**：①TODO-090 把 `locked_by_deliverable` 列**写成派生标记**（bug-2090）⇒ 列不再恒假；②新增**端到端**用例钉住「已知代价」的**逃生口**（CHANGE_REVERSAL 反向变更单**真的通**）—— 代价不能只是「告知」（bug-2091）。",
       "fix_commit": "50c3e28",
       "tags": [
+        "authorization",
+        "fixed",
         "record-cancellation",
         "reversal",
-        "authorization",
         "todo-082",
-        "fixed"
+        "todo-089",
+        "todo-090"
       ],
       "related_bugs": [],
       "occurrences": 1,
@@ -4798,6 +4801,70 @@
       ],
       "related_bugs": [
         "bug-2081"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2089",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "两个 `PcsError` 变体只统一了**一半**：`except service.PcsError` **捕不到** core 变体抛出的错误 ⇒ 全仓 55 处 `except` 是潜在漏网 ⇒ 业务错误静默变成 500",
+      "file": "pcs-backend/app/services/exceptions.py",
+      "root_cause": "TODO-080 只让 service 变体**继承** core 变体 ⇒ 继承是**单向**的（`except base` 捕得到子类，**反之不行**）⇒ `except service.PcsError` 捕不到 core 变体 ⇒ 而抛出方仍有约 20 个模块用 core 变体（`deliverable_service` / `admin_user_service` / `token_issuer` / `ldap_client` / `supplier/*` …）⇒ 那些错误在 service 层的 `except PcsError` 里**漏网** ⇒ 落进 500 兜底 ⇒ 404/409/422 全变成「服务端挂了」。",
+      "fix": "**已修（2026-10-27，TODO-089）**：**合并成一个类** —— `app/services/exceptions.py::PcsError` 变成 `app/core/errors.py::PcsError` 的**别名**（`CorePcsError` 保留为历史别名）⇒ `except` 哪一个 import 都捕得到全部；基类 `__init__` **同时**吃两种调用风格（service 风格 `PcsError(\"消息\", code=…, status=…, details=…)` / core 风格 `PcsError(\"CODE\", \"消息\", 400, {...})`）⇒ 不用改任何调用点；**status 缺省优先级**：显式传入 → **子类自己声明的** `status` 类属性 → core 400 / service 422（⇒ 30+ 个 service 子类语义不变）。全局 handler **从 2 个减到 1 个**（`_service_pcs` 删除）⇒ 两种抛出方走**同一条**渲染路径。⚠️ 副作用（**是修复**）：service 抛出的 401/403 现在**也**走 RBAC 审计 + per-IP 限流（此前绕过 ⇒ 授权拒绝**没留痕**）。测试：**新增** `tests/core/test_pcs_error_unified.py`（13 例）。",
+      "fix_commit": "1022a2c",
+      "tags": [
+        "errors",
+        "exception-handling",
+        "todo-089",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2079"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2090",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "`records.locked_by_deliverable` 列**既无写入方**也不是门禁 ⇒ 读端恒报 False ⇒ 前端拿到一个**永远为假的字段**",
+      "file": "pcs-backend/app/models/mixins.py",
+      "root_cause": "TODO-082 把两道「已对外生效」的门换成**真实可判定**的条件（`is_record_effectively_published`）⇒ 这一列**不再被读作门禁**；但它**也从没被写过 True** ⇒ 列恒为 False ⇒ `GET /records/{module}` 等读端把它**原样上报** ⇒ 前端/下游拿到的是一个**永远为假的字段**（字典里却声明它是「被交付物锁定」）。根因与 bug-2086 同族：**判据与标记脱钩**，只是这次不是「判据恒假」而是「标记恒假」。",
+      "fix": "**已修（2026-10-27，TODO-090）**：选**写它**（不删列）—— `ChangeNoticeService.close_on_approved`（变更单**签完** ⇒ 关记录那步）在**这张单已经 APPROVED** 时写 `record.locked_by_deliverable = True` ⇒ **判据与门禁完全一致**（同一个事实、同一事务 ⇒ 不会分叉；单子还 PENDING ⇒ 不写）；⚠️ APPROVED 是**终态**（作废只认 DRAFT/PENDING）⇒ 写 True **不会**回退 ⇒ 不会变成「陈旧的 True」；⚠️ **门禁仍走查询**，不拿这一列当判据（列是**派生标记**，查询才是**真相**）。列注释 + 数据字典 `PCS-DICT-ALL-003 V3.6` 同步。测试：`tests/services/test_change_notice_close_real_db.py`（APPROVED ⇒ 写；PENDING ⇒ 不写）。",
+      "fix_commit": "9b445ba",
+      "tags": [
+        "records",
+        "derived-marker",
+        "todo-090",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2086"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2091",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "TODO-082 的「已知代价」只被**告知**，没被**证明**：变更单批准后记录走不了普通撤销 ⇒ 若 CHANGE_REVERSAL 这条替代路**不通**，用户就撞**死路**",
+      "file": "pcs-backend/tests/services/test_change_reversal_escape_hatch.py",
+      "root_cause": "TODO-082 把「已对外生效」的判据换成真实可判定条件 ⇒ 门**真的会触发** ⇒ 变更单一批准，该记录就**再也走不了**普通撤销（409 `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`）/ 直接弃用（409 `RECORD_BOUND_USE_CHANGE_NOTICE`）⇒ 裁决时把这条代价「告知」了用户，但仓里**没有任何用例**证明**替代路径真的通**（CHANGE_REVERSAL 反向变更单能不能建、能不能签完）⇒ 代价可能是**死路**而没人知道。",
+      "fix": "**已修（2026-10-27）**：新增**端到端**用例 `tests/services/test_change_reversal_escape_hatch.py` —— 记录被 APPROVED 的交付物绑定 ⇒ ①普通撤销被拒（消息**点名** `CHANGE_REVERSAL`）· ②直接弃用被拒（消息**点名** `RECORD_CANCELLATION`）· ③**CHANGE_REVERSAL 反向变更单建得出来**（不撞 409/422）· ④签完 ⇒ 记录回 `CHECKED`。⚠️ 顺带查清：`close_on_approved` **只关记录**、**不**把单推成 APPROVED（那是 `sign_step` 的动作）⇒ 「已对外生效」的真相仍是 `deliverables.sign_status == APPROVED` ⇒ TODO-090 的派生标记也照这个判据写（否则列与门禁**两个真相**）。",
+      "fix_commit": "ab207b6",
+      "tags": [
+        "change-notice",
+        "reversal",
+        "escape-hatch",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2086",
+        "bug-2090"
       ],
       "occurrences": 1,
       "last_seen": "2026-10-27"

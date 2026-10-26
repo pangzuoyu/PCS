@@ -1515,6 +1515,34 @@ flaky commit，而 flaky 会传染（谁 cherry-pick 谁中招）。
 审计链断。⇒ **主键一律用「调用方传入的那个」**（`db.get(table, pk)` 的 `pk`
 **就是**主键）。
 
+## Do-Not-Repeat: 同名 ≠ 同一个类（2026-10-27，TODO-089 / bug-2079）
+
+仓里有两个**同名** `PcsError`（`app/core/errors.py` 与
+`app/services/exceptions.py`）⇒ `except service.PcsError` **捕不到** core 抛出的
+错 ⇒ 全仓 55 处 `except` 是**潜在漏网** ⇒ 业务错误（404/409/422）**静默变成
+500**（看起来像「服务端挂了」，实际是「异常没被接住」）。
+
+⇒ 「让一个变体**继承**另一个」只解决**一个方向**（`except base` 捕得到子类，
+**反之不行**）⇒ 要「两个方向都捕得到」，只能**合并成一个类**（别名）。
+⇒ 合并时**必须同时吃两种调用风格**（`PcsError("CODE","消息",400)` 与
+`PcsError("消息", code=…, status=…, details=…)`）⇒ 用**位置参数个数**判风格
+（core ≥2 个位置参数 ⇒ core 风格；1 个 ⇒ service 风格），并让**子类自己声明的
+`code`/`status`** 优先（否则 100+ 个子类全退化成 `PCS_ERROR`/`422`）。
+⇒ 核对时**逐个 import 路径**看（`from app.core.errors import PcsError` 与
+`from app.services.exceptions import PcsError` 是两个**名字**，
+`from x import PcsError as CorePcsError` 又是第三个）。
+
+## Do-Not-Repeat: 判据变严 ⇒ 必须配「逃生口」（2026-10-27，TODO-082 已知代价）
+
+把「已对外生效」的门换成**真实可判定**的条件后 ⇒ 变更单一批准，该记录就**再也
+走不了普通撤销** ⇒ 这个代价若只是「**告知**」，用户遇到的就是**死路**。
+⇒ 凡是「收紧判据」的改动，都要问一句：**被挡的人还有哪条路？那条路通不通？**
+⇒ 用**端到端用例**钉住「替代路径真的通」（只测「门拒了」不够 —— 那正是
+「代价 = 死路」时的样子）。
+⚠️ 顺带查清：`close_on_approved` **只关记录**、**不**把单推成 APPROVED（那是
+`sign_step` 的动作）⇒ 派生标记（`locked_by_deliverable` 列）必须照**真相字段**
+（`deliverables.sign_status == APPROVED`）写，否则列与门禁会变成**两个真相**。
+
 ## Do-Not-Repeat: 手写清单不是断言（2026-10-27，TODO-087 加固）
 
 快照的「不采哪些列」若是**手写清单** ⇒ 将来加一列忘了加进去 ⇒ **没有任何测试

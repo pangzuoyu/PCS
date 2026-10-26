@@ -4,48 +4,50 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-27（P9A-DLV-011 **欠账清理批**：TODO-073/074/075/076/082/085 + 前端接线 + 快照加固）。
+> Read this FIRST when starting a session. Last updated: 2026-10-27（P9A-DLV-011 **收尾批 #2**：TODO-088/089/090 + 「逃生口」）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
 
-### 第 15 轮：**P9A-DLV-011 欠账清理批**（用户「顺序解决 1-4 未解决问题」）
+### 第 16 轮：**P9A-DLV-011 收尾批 #2**（用户「顺序解决 1-4 未解决问题」）
 
 | commit | 内容 |
 |---|---|
-| `5416e5f` | **TODO-073** —— 变更单编号走**编号模板**（可读 `{项目号}-CHANGE_NOTICE-{序号}`）+ 迁移 **`p9_009`** |
-| `e8d34c8` | **TODO-074** —— 矩阵**同名同状态**不许两份（应用层 409 + 迁移 **`p9_010`**） |
-| `334e140` | **TODO-075** —— `change_resolved_by` **只由「关记录」那步**写（语义对齐 ADR-0002） |
-| `4487475` | **TODO-076** —— 工作区门禁覆盖 UI-SPEC §5.3 **全部四类**操作 + 两条放行分支**钉住** |
-| `50c3e28` | **TODO-082** —— 两道「已对外生效」的门换成**真实可判定**的条件（APPROVED 的交付物绑定） |
-| `6febab1` | **TODO-085** —— 矩阵修改的申请+双审：**本项目不做**（业务裁决，写进校审层级 SPEC **V1.2**） |
-| `30df88e` | **前端「作废变更单」入口**（+ 后端读口 `GET .../change-notice`） |
-| `a551fc1` | 快照列清单改成**从 mixin 自动推导**（顺手修掉漏网的 `approval_depth`） |
-| `66dba93` | 批末用例迁移 + 顺带修 **audit `resource_id` 恒空串**（bug-2088） |
+| `3640a5c` | **TODO-088** —— 6 条约束按 **schema** 补齐（迁移 `p9_011`：判据 `connamespace = current_schema()::regnamespace`） |
+| `1022a2c` | **TODO-089** —— 两个 `PcsError` 变体**合并成一个类**（service 侧变**别名**；基类同时吃 service / core 两种调用风格；全局 handler 2 → 1） |
+| `9b445ba` | **TODO-090** —— `locked_by_deliverable` 列**写成派生标记**（变更单 APPROVED 时写 True；判据与门禁同口径） |
+| `80c3bdc` | 上批前端用例的回调类型写错 ⇒ `typecheck` 红（QA 闸门拦下） |
+| `ab207b6` | **TODO-082 已知代价的「逃生口」**：CHANGE_REVERSAL 反向变更单**端到端**钉住 |
 
-**两处业务裁决（用户 2026-10-27）**：①「已对外生效」的门 ⇒ 换成**真实可判定的
-条件**（不再用那个**从不被写**的 `locked_by_deliverable` 列）⇒ **已知代价**：变更单
-批准后该记录不能再走普通撤销（只能走 CHANGE_REVERSAL）；②矩阵修改的**申请+双审**
-⇒ **本项目不做**（PCS 没有「项目级覆写」对象 ⇒ 该规则当前**没有适用对象**）。
+**四件「不是代码风格问题」的修法**（本轮全部按「真实可判定」重做）：
 
-**顺带发现并修掉的真缺陷**：`record_cancellation_service` 的审计 `resource_id` 用
-`getattr(rec, "record_id", "")` ⇒ 各表**主键列名不同** ⇒ **恒为空串** ⇒ 审计链断
-（bug-2088，与 bug-2081 同族）。
+1. **TODO-088**：迁移的幂等检查**只按名字**查 `pg_constraint` ⇒ **不分 schema**
+   ⇒ 隔离 schema 上永远拿不到那 6 条约束（而真·全新库不受影响 ⇒ CI 一直是绿的）。
+   ⇒ **不改历史**，用新迁移 `p9_011` 按 **schema** 补齐。
+2. **TODO-089**：`except service.PcsError` 捕不到 core 抛的错 ⇒ 业务错误**静默变
+   500**。⇒ 「让子类继承」只解决**一个方向** ⇒ 必须**合并成一个类**。
+3. **TODO-090**：该列**既无写入方**也不是门禁 ⇒ 读端**恒报 False** ⇒ 前端拿到
+   一个**永远为假的字段**。⇒ 选**写它**（不删列）：判据与门禁**完全一致** ⇒
+   不会分叉；APPROVED 是终态 ⇒ 不会变成「陈旧的 True」。
+4. **逃生口**：TODO-082 的代价「告知」了用户，但**没人证明替代路真的通** ⇒ 端到端
+   用例钉住（普通撤销被拒 ⇒ 消息点名 `CHANGE_REVERSAL` ⇒ 反向变更单**建得出来**
+   ⇒ 签完记录回 `CHECKED`）。
 
-**验收**：后端 `pytest -q` **5292 passed / 77 skipped / 1 xfailed / 0 failed**；
-前端 typecheck / lint exit 0、`vitest run` **840 passed / 91 files**；G-08 门禁 4
-阶段 exit 0（**247 path / 349 schema**，裸字段仍 **71**）；两库 `pcs` / `pcs_test`
-均在 **`p9_010`**（head）· `alembic check` 各 exit 0。
+**验收**：后端 `pytest -q` **5308 passed / 77 skipped / 1 xfailed / 0 failed**；
+前端 typecheck / lint exit 0、`vitest run` **840 passed / 91 files**；
+两库 `pcs` / `pcs_test` 均在 **`p9_011`**（head）· `alembic check` 各 **exit 0**。
 
-### 第 14 轮：**P9A-DLV-011 收官批**（TODO-077/078/080/087 全闭环）
+### 第 15 轮：**P9A-DLV-011 欠账清理批**（TODO-073/074/075/076/082/085 + 前端接线 + 快照加固）
 
-- `471f22e` **TODO-077**（`apply-change` 要求记录真的改过）· `03f9c89` **TODO-078**
-  （多记录变更）· `3e0f093` **TODO-080 + TODO-087**（取消路径 / 真覆盖 / PcsError
-  统一 / 撤销**真的恢复**数据与哈希）· `8af2358` `a3e9c9c` buglog + STATUS。
-- 登记：SPEC **V2.10** · `TODOS.md` TODO-077/078/080/087 **闭环** · buglog
-  bug-2070/2076~2081。
+`5416e5f` TODO-073（变更单编号走模板）· `e8d34c8` TODO-074（矩阵同名同状态唯一）
+· `334e140` TODO-075 · `4487475` TODO-076 · `50c3e28` TODO-082 · `6febab1` TODO-085
+· `30df88e` 前端「作废变更单」入口 · `a551fc1` 快照列清单自动推导 · `66dba93` 批末
+用例迁移 + bug-2088（审计 `resource_id` 恒空串）。
+**业务裁决（用户 2026-10-27）**：①「已对外生效」的门 ⇒ 换成**真实可判定的条件**
+（**已知代价**：批准后不能再走普通撤销 ⇒ 第 16 轮已钉住逃生口）；②矩阵修改的
+**申请+双审** ⇒ **本项目不做**。
 
 ---
 
@@ -56,16 +58,9 @@ budget_tokens: 1200
    **TODO-066** 按项目守卫的编辑审计读端点）。
    ⚠️ 计划 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` **尚未过 `/plan-eng-review`**。
 2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
-3. **本批仍开着**：
-   - **TODO-088** —— 在**隔离 schema** 上跑迁移会**漏建** 6 条约束（p8_001/p8_008/
-     p8_009 的幂等检查**只按名字**查 `pg_constraint` ⇒ 不分 schema）⇒ 那个 schema
-     上的 `alembic check` 报 6 条**假漂移** ⇒ **别照字面「修」**。
-   - **TODO-089** —— 两个 `PcsError` 变体只统一了一半：`except service.PcsError`
-     **捕不到** core 变体抛出的错误 ⇒ 全仓 55 处 `except` 是潜在漏网 ⇒ 彻底修 =
-     合并两个类。
-   - **TODO-090** —— `locked_by_deliverable` 列现在既无写入方也不是门禁 ⇒ 写它
-     （审计标记）还是删列（16 张表 + 字典）。
-   - **TODO-073~076 / 079~087** ⇒ **已闭环**；**TODO-077/078/080/082/085** ⇒ 已闭环。
+3. **本批仍开着**：**TODO-073~090** ⇒ **全部闭环**；剩下的开放项见 TODOS.md
+   （TODO-065 / TODO-066 / P9B-1 的 7 条 deferred minor / 迁移幂等守门的 93 个
+   历史文件盲区 / 57 个手写类型与生成 schema 同名的长期债）。
 4. **ADR-0050**：用户 2026-10-20 裁决「先不做」⇒ 再开工按 P1~P6。
 
 ---
@@ -73,15 +68,16 @@ budget_tokens: 1200
 ## Context
 
 - main，工作区干净。**不要建 worktree**（历史事故）。
-- 两库均在 **`p9_010`**（head）· `alembic check` 两库各 exit 0（退出码 **255** = 真
+- 两库均在 **`p9_011`**（head）· `alembic check` 两库各 exit 0（退出码 **255** = 真
   漂移；先 `current` vs `heads`；`pcs_test` 的 URL 从 `.env` 派生，**不要把口令写在
-  命令行**）。
+  命令行** —— 用 `uv run python` 在**进程内**改 `DATABASE_URL`）。
 - ⚠️ **CI 现在是活的**（`.github/workflows/check-api-drift.yml`，全新 Postgres）⇒ 改了
   迁移必须**在全新库上验**（本机用隔离 schema：`options=-csearch_path=<schema>`；URL
-  里**不能有 `%`**）—— ⚠️ 该 schema 上有 6 条**假漂移**（TODO-088）。
+  里**不能有 `%`**）—— ✅ TODO-088 之后，那个隔离 schema 从零 `upgrade head` ⇒
+  **6 条约束都在** ⇒ `alembic check` **exit 0**（此前是 6 条**假漂移**）。
 - **Redis**：跨进程/锁的测试需要真 Redis（`docker compose up -d redis`）。
 - 契约：批末滚 `pcs-backend/docs/openapi-baseline.json`（前端 snapshot / api.d.ts 由
-  `gate_08_openapi_contract.sh` 重生成）⇒ 本批已滚。
+  `gate_08_openapi_contract.sh` 重生成）⇒ 本轮**无契约变化**（247 path / 349 schema）。
 - 提交约定：conventional commits，**无 attribution 行**；长消息写文件后
   `git commit -F <file>`。
 - ⚠️ **API 测试的 `client` fixture 把 `check_user_project_access` mock 成恒 True** ⇒
@@ -94,11 +90,10 @@ budget_tokens: 1200
 
 ## 教训（本批新增，已进 cerebrum）
 
-- **判据要用「真实可判定」的条件**：拿一个**从不被写**的列当门禁 ⇒ 门永远不
-  触发 ⇒ 那条业务约束**事实上不存在**（且没人发现）。
-- **主键一律用「调用方传入的那个」**：`db.get(table, pk)` 的 `pk` **就是**主键 ⇒
-  不要从对象上「猜」列名（各表列名不同 ⇒ 猜错 ⇒ 静默返回空 ⇒ 审计链断）。
-- **手写清单不是断言**：快照的「不采哪些列」手写 ⇒ 忘了加就**没有任何测试会红**
-  ⇒ 改成**从 mixin 自动推导** + 一条**守卫测试**（漏了 ⇒ 变红）。
-- **唯一约束会揭露「同名」的测试**：加约束后测试红了 ⇒ 那是测试**依赖了非法状态**
-  ⇒ 改测试（名字逐条不同），不是改约束。
+- **同名 ≠ 同一个类**：两个同名 `PcsError` ⇒ `except` 捕不到 ⇒ 业务错静默变 500。
+  「让子类继承」只解决**一个方向** ⇒ 要双向可捕，必须**合并成一个类**。
+- **判据变严 ⇒ 必须配「逃生口」**：被挡的人还有哪条路？那条路**通不通**？只测
+  「门拒了」不够 —— 那正是「代价 = 死路」时的样子。
+- **派生标记必须照真相字段写**：`close_on_approved` **不**把单推成 APPROVED（那是
+  `sign_step` 的动作）⇒ 标记照 `deliverables.sign_status` 写，否则列与门禁
+  **两个真相**。

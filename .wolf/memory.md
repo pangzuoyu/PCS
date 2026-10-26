@@ -2482,3 +2482,21 @@
 | 00:50 | Created pcs-backend/tests/services/test_record_publication_gate.py | — | ~2044 |
 | 00:58 | Created pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx | — | ~1429 |
 | 06:03 | Created pcs-backend/alembic/versions/p9_011_schema_aware_constraints.py | — | ~1208 |
+| 06:06 | Edited pcs-backend/app/core/errors.py | modified __init__() | ~743 |
+| 06:34 | Edited pcs-backend/app/core/errors.py | modified __init__() | ~764 |
+| 06:34 | Edited pcs-backend/app/services/exceptions.py | reduced (-30 lines) | ~202 |
+| 06:34 | Edited pcs-backend/app/services/exceptions.py | 9→12 lines | ~109 |
+| 06:34 | Edited pcs-backend/app/core/errors.py | removed 18 lines | ~15 |
+| 06:34 | Edited pcs-backend/app/core/errors.py | 6→4 lines | ~52 |
+| 06:34 | Edited pcs-backend/app/core/errors.py | 6→6 lines | ~80 |
+| 06:34 | Created pcs-backend/tests/core/test_pcs_error_unified.py | — | ~1134 |
+| 06:38 | Edited pcs-backend/tests/services/test_change_notice_close_real_db.py | modified test_close_on_approved_marks_the_record_as_published() | ~342 |
+| 06:39 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+8 lines) | ~185 |
+| 06:39 | Edited pcs-backend/app/models/mixins.py | 4→7 lines | ~52 |
+| 06:40 | Created pcs-backend/tests/services/test_change_reversal_escape_hatch.py | — | ~1931 |
+| 06:41 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+6 lines) | ~219 |
+| 06:41 | Edited pcs-backend/tests/services/test_change_notice_close_real_db.py | modified test_close_on_approved_marks_the_record_as_published() | ~684 |
+| 06:41 | Edited pcs-backend/tests/services/test_change_reversal_escape_hatch.py | 13→17 lines | ~160 |
+| 06:43 | Edited TODOS.md | expanded (+11 lines) | ~198 |
+| 06:43 | Edited spec/PCS-DICT-ALL-003 V3.6.md | 2→2 lines | ~25 |
+| 06:49 | Edited pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx | CSS: onStatusChange, recordId, nextStatus | ~34 |
