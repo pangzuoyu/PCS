@@ -122,27 +122,33 @@ async def require_formal_project_workspace(
         )
 
 
-async def require_active_project_member(
+async def require_project_role(
     db: AsyncSession,
     *,
     user_id: uuid.UUID,
     project_id: uuid.UUID,
+    allowed_roles: tuple[str, ...],
     actor_roles: list[str] | None = None,
 ) -> None:
-    """项目内角色必须是**活跃参与者**（不是 VIEWER）⇒ 否则 403。
+    """项目内角色必须在**白名单**里 ⇒ 否则 403 `PROJECT_ROLE_FORBIDDEN`。
 
-    ## 为什么要有这一层（评审 I-5）
+    ## 这是**收紧**（不是放松）
 
-    `check_project_access_or_404` 只问「有没有访问权」⇒ **任何**有效授权
-    （含 VIEWER）都算 ⇒ 一个「只读成员」也能做「决定这个项目谁该签」的事
-    （改签署矩阵）—— 权力比它的角色大。
+    `check_project_access_or_404` 只问「有没有访问权」⇒ 任何有效授权都算
+    ⇒ 凡是**治理级**动作（决定「本项目谁该签」），光有授权不够。
 
-    ## 为什么用「不是 VIEWER」而不是「≥ DESIGNER」
+    ## 为什么用「白名单」而不是「≥ DESIGNER」（评审 I-5 · 2026-10-26 复核）
 
     `user_projects.role_in_project` 的词表是 **DESIGNER / CHECKER / REVIEWER /
-    APPROVER / VIEWER** —— **平行职责，不是等级** ⇒ 「≥ DESIGNER」无定义。
-    ⇒ 用「**不是 VIEWER**」表达「是活跃参与者」—— 唯一的等级含义（只读 vs 参与）
-    恰好是真实存在的那个。
+    APPROVER / VIEWER** —— **平行职责，不是等级** ⇒「≥ DESIGNER」在数据上
+    **无定义** ⇒ 只能列**允许的角色**（不给词表排序）。
+
+    ⚠️ 全仓另有**两处**明确写着「项目内角色**不**用于鉴权，只看全局角色」
+    （`notification_recipients.py` §为什么只看全局角色、`todo_service.py` §不用
+    `role_in_project`）—— 那两处说的是**「谁来签」**（与 `sign_step` 的全局角色
+    判定同口径）。本守卫是**例外**：矩阵绑定是**治理**动作（改的是「谁该签」
+    的规则本身），不是「签自己那一步」⇒ 这里按**项目内角色**收紧。
+    ⇒ 白名单是**调用方的模块级常量**，改一行即可调。
 
     ⚠️ SYSTEM_ADMIN 全局 bypass（与 `check_project_access_or_404` 一致）。
     """
@@ -163,12 +169,12 @@ async def require_active_project_member(
     if row is None:
         # 无授权 ⇒ 交给 `check_project_access_or_404` 报 404（不泄漏存在性）
         return
-    if row.role_in_project == "VIEWER":
+    if row.role_in_project not in allowed_roles:
         raise PcsError(
             code="PROJECT_ROLE_FORBIDDEN",
             message=(
-                f"你在项目 {project_id} 内的角色是 VIEWER（只读），"
-                f"不能做这件事"
+                f"你在项目 {project_id} 内的角色是 {row.role_in_project}，"
+                f"这个动作只允许 {'/'.join(allowed_roles)}"
             ),
             status=403,
         )

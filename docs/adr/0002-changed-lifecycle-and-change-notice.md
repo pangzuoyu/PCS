@@ -15,3 +15,44 @@ date: 2026-08-28
 - 新增 change_notices、change_notice_record_bindings 两张表；变更单复用 SUP-004 版本目的与 SUP-005 签署矩阵机制（新增 CHANGE_NOTICE 文档类型、ISSUED_FOR_CHANGE 目的）。
 - 每次对已发布数据的修改都有可追溯的关闭凭证（谁、为什么、凭什么关闭），防止无声修改。
 - SUP-005 §3.2"上游变更回退规则"需与 CHANGED 机制对齐（见后续 ADR）。
+
+## 修订记录
+
+### 2026-10-26 · 「变更单驳回则记录回 CHANGE_PENDING 重改」一句**被 ADR-0008 取代**
+
+**本 ADR 的决定正文一字未改**（ADR 记录历史，不重写历史）；这里登记一次
+**范围收窄**。
+
+**冲突**：本 ADR 说「变更单驳回则记录回 CHANGE_PENDING 重改」；ADR-0008 说
+「被驳回则回 DRAFT，**绑定记录保持 CHANGED**」—— 两句都写「变更单驳回」，
+字面互斥（2026-10-26 评审发现，长期未登记 ⇒ TODO-084 第 4 条）。
+
+**裁决**：**ADR-0008 管辖「变更单被驳回」这一事件**，本 ADR 那半句**不适用**于
+变更单驳回（它描述的是**变更被放弃**，见下）。理由三条：
+
+1. **对象不同**。ADR-0008 讲的是**变更单（交付物）**的状态机（回 DRAFT）；
+   本 ADR 讲的是**记录**的状态机。两者可以同时成立 —— 驳回时
+   *单据*回 DRAFT（ADR-0008）＋ *记录*回 CHANGE_PENDING（本 ADR）。
+2. **本 ADR 那半句没有机制**。9 态状态机里 `CHANGED` 的出边只有
+   `REQUEST_REVERSAL` 与 `OBSOLETE` —— **没有** `CHANGED → CHANGE_PENDING`
+   ⇒ 「回 CHANGE_PENDING」今天**无法执行**。
+3. **照字面实现会断掉哈希链**。变更单与记录的关联行
+   （`deliverable_record_bindings`）带 `record_hash` / `old_record_hash_before_change`
+   —— 那是**建单那一刻**的哈希。若驳回后记录直接回 CHANGE_PENDING（**可编辑**），
+   记录内容一改，单据上的哈希就与记录**脱节** ⇒ 关闭凭证说的不是被关的那条数据。
+
+**「重改」的落地路径**（已实现、可测）—— 不是「记录回 CHANGE_PENDING」，而是
+**撤销 → 重来**：
+
+```
+变更单被驳回（单据 → DRAFT，记录保持 CHANGED）
+  → 数据本身要改？走撤销：request-reversal（CHANGED → REVERSAL_PENDING）
+    → approve-reversal（→ CHECKED + **恢复快照**，回到变更前的数据）
+  → initiate-change（CHECKED → CHANGE_PENDING，可编辑）→ 改 → apply-change（→ CHANGED）
+  → 重新签发同一张变更单（DRAFT → PENDING，R-5 已允许）→ 3 级签署 → 自动关记录（→ CHECKED）
+```
+
+⇒ 「重改」**能走通**，只是路径是「撤销 + 重来」而不是「原地回退」。
+
+⚠️ **遗留**（已登记 TODOS.md）：重走时那张变更单的 binding 哈希是**建单时**的，
+而记录的数据已被撤销/重做过 ⇒ 哈希链需要**刷新**（另立一轮，不在本裁决范围）。

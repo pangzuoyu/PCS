@@ -172,7 +172,7 @@ class UserProject(TimestampMixin, Base):
     """用户-项目关联表（user_projects 表，P7-7+ BLOCKER-3 修复）。
 
     业务：每个用户对每个项目有 1 行 (user_id, project_id, role_in_project)。
-    - role_in_project: 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)
+    - role_in_project: 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD)
       与全局 roles 区分 (避免用户全局角色干扰项目级 ACL)
     - granted_by + granted_at: 谁授予 + 何时（audit trail）
     - revoked_at: NULL=有效；非空=已撤销（保留历史）
@@ -206,7 +206,7 @@ class UserProject(TimestampMixin, Base):
     )
     role_in_project: Mapped[str] = mapped_column(
         String(32), nullable=False,
-        comment="项目内角色: DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER (与全局 roles 区分)"
+        comment="项目内角色: DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD (与全局 roles 区分)"
     )
     granted_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.user_id"), nullable=True,

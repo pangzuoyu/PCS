@@ -13,13 +13,19 @@
 |---|---|
 | 建/改矩阵**模板** | **SYSTEM_ADMIN**（模板是**全局表** ⇒ 一个项目能改它 ⇒
   别的项目在用的矩阵跟着变） |
-| 绑定/解绑**项目** | 全局角色 ∈ {DESIGNER, PROCESS_CONTROLLER, SYSTEM_ADMIN} **且**有该项目授权 |
+| 绑定/解绑**项目** | 全局角色 ∈ {DESIGNER, PROCESS_CONTROLLER, SYSTEM_ADMIN} **且**
+  有该项目授权 **且** 项目内角色 = **项目负责人**（`PROJECT_LEAD`） |
 
 绑定决定「本项目谁该签这一步」⇒ 与「签发」同级（`deliverables._ISSUE_ROLES` 同形）。
 
+⚠️ **项目内角色这一层是例外**（用户 2026-10-26 裁决「只有项目负责人能绑」）：
+全仓另有**两处**明确「项目内角色**不**用于鉴权，只看全局角色」
+（`notification_recipients.py` / `todo_service.py`）—— 那说的是**「谁来签」**。
+矩阵绑定是**治理**动作（改的是「谁该签」的**规则本身**）⇒ 按项目内角色判。
+
 ⚠️ 项目内角色词表（`user_projects.role_in_project` = DESIGNER/CHECKER/APPROVER/
-REVIEWER/VIEWER）**无序**（平行职责，不是等级）⇒ 不按它分级；按**全局角色**
-判权限，与既有端点（`_ISSUE_ROLES`）口径一致。
+REVIEWER/VIEWER）**无序**（平行职责，不是等级）⇒ **不**按它分级 ⇒ 用**白名单**
+（`_BIND_PROJECT_ROLES`）而不是「≥ DESIGNER」。
 
 ## 读面不需要项目授权
 
@@ -36,7 +42,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import (
     check_project_access_or_404,
-    require_active_project_member,
+    require_project_role,
 )
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
@@ -70,6 +76,19 @@ _ADMIN_ROLES = ("SYSTEM_ADMIN",)
 
 #: 绑定/解绑项目 = 项目负责人侧（与 `_ISSUE_ROLES` 同形）
 _BIND_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+
+#: **项目内**角色白名单：谁能绑定/解绑本项目的签署矩阵。
+#:
+#: ⚠️ 用户 2026-10-26 裁决：「**只有项目负责人能绑**」⇒ 白名单 = 项目负责人。
+#:
+#: ⚠️ `role_in_project` 词表是**平行职责不是等级** ⇒ 这里列**允许的角色**，
+#: **不**声称「≥ DESIGNER」。
+#:
+#: ⚠️ 这是全仓**唯一**按**项目内角色**鉴权的守卫（其余端点只看全局角色）——
+#: 因为矩阵绑定是**治理**动作（改的是「谁该签」的**规则本身**），不是「签自己
+#: 那一步」⇒ 见 `notification_recipients.py` / `todo_service.py` 的相反约定。
+#: ⇒ 要调就改这一行。
+_BIND_PROJECT_ROLES = ("PROJECT_LEAD",)
 
 
 def _to_response(matrix: SignatureMatrix) -> SignatureMatrixResponse:
@@ -218,10 +237,14 @@ async def bind_project_matrix(
     await check_project_access_or_404(
         db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
     )
-    # ⚠️ 授权 ≠ 有权做这件事：项目内 **VIEWER**（只读）也能通过上面的 404 门
-    # ⇒ 但「决定本项目谁该签」不该给只读成员 ⇒ 再要一道「活跃参与者」门。
-    await require_active_project_member(
-        db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
+    # ⚠️ 授权 ≠ 有权做这件事：项目内只读 / 只签自己那一步的成员也能通过上面的
+    # 404 门 ⇒ 但「决定本项目谁该签」是**治理**动作 ⇒ 再要一道项目内角色门。
+    await require_project_role(
+        db,
+        user_id=actor.user_id,
+        project_id=project_id,
+        allowed_roles=_BIND_PROJECT_ROLES,
+        actor_roles=actor.roles,
     )
     binding = await SignatureMatrixService.bind_to_project(
         db, project_id=project_id, module=body.module, matrix_id=body.matrix_id
@@ -252,8 +275,12 @@ async def unbind_project_matrix(
     await check_project_access_or_404(
         db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
     )
-    await require_active_project_member(
-        db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
+    await require_project_role(
+        db,
+        user_id=actor.user_id,
+        project_id=project_id,
+        allowed_roles=_BIND_PROJECT_ROLES,
+        actor_roles=actor.roles,
     )
     unbound = await SignatureMatrixService.unbind_from_project(
         db, project_id=project_id, module=module

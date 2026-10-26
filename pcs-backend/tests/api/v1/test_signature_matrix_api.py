@@ -186,7 +186,7 @@ async def test_bind_requires_designer_side_role(client, db, project_id):
 async def test_bind_and_rebind_keep_one_row(client, db, project_id):
     """⚠️ RF-4：换绑 = **改同一行**（不是再建一行）。"""
     me = _actor_id()
-    await _grant(db, me, project_id)
+    await _grant(db, me, project_id, role="PROJECT_LEAD")
     m1 = await client.post(
         "/api/v1/signature-matrices",
         json=_payload(),
@@ -228,7 +228,7 @@ async def test_bind_and_rebind_keep_one_row(client, db, project_id):
 async def test_unbind(client, db, project_id):
     """解绑；本来就没绑 ⇒ `unbound=false`（**不是** 404）。"""
     me = _actor_id()
-    await _grant(db, me, project_id)
+    await _grant(db, me, project_id, role="PROJECT_LEAD")
     created = await client.post(
         "/api/v1/signature-matrices",
         json=_payload(),
@@ -332,15 +332,20 @@ async def test_update_matrix_forbidden_for_non_admin(client):
     assert resp.status_code == 403, resp.text
 
 
-async def test_bind_refuses_a_viewer_project_member(client, db, project_id):
-    """⚠️ RF-3（授权那一半）：项目内 **VIEWER**（只读）不能给项目绑矩阵 ⇒ 403。
+@pytest.mark.parametrize(
+    "project_role", ["VIEWER", "CHECKER", "REVIEWER", "DESIGNER", "APPROVER"]
+)
+async def test_bind_refuses_non_lead_project_roles(client, db, project_id, project_role):
+    """⚠️ RF-3（授权那一半）：项目内**不是项目负责人**的角色不能绑矩阵 ⇒ 403。
 
-    「改签署矩阵」= 决定本项目**谁该签** ⇒ 与签发同级 ⇒ 只读成员不该有这权力。
-    `check_project_access_or_404` 只问「有没有访问权」⇒ VIEWER 也算有 ⇒
-    需要额外一道「项目内必须是活跃参与者」的门。
+    用户 2026-10-26 裁决：「**只有项目负责人能绑**」⇒
+    `role_in_project` 必须是 `PROJECT_LEAD`。
+
+    「改签署矩阵」= 决定本项目**谁该签** ⇒ **治理**动作 ⇒ 光有项目授权不够；
+    连项目内的 DESIGNER / APPROVER 也不行（他们是被矩阵管的人，不是定规则的人）。
     """
     me = _actor_id()
-    await _grant(db, me, project_id, role="VIEWER")
+    await _grant(db, me, project_id, role=project_role)
     created = await client.post(
         "/api/v1/signature-matrices",
         json=_payload(),
@@ -357,13 +362,30 @@ async def test_bind_refuses_a_viewer_project_member(client, db, project_id):
     assert resp.json()["code"] == "PROJECT_ROLE_FORBIDDEN"
 
 
-async def test_unbind_refuses_a_viewer_project_member(client, db, project_id):
-    """解绑同样是「项目负责人侧」的动作 ⇒ VIEWER 也不许。"""
+async def test_unbind_refuses_a_non_lead_project_member(client, db, project_id):
+    """解绑同样是「项目负责人」的动作 ⇒ 非负责人不许。"""
     me = _actor_id()
-    await _grant(db, me, project_id, role="VIEWER")
+    await _grant(db, me, project_id, role="DESIGNER")
     resp = await client.delete(
         f"/api/v1/projects/{project_id}/signature-matrices/RECORD",
         headers=_token(role="DESIGNER"),
     )
     assert resp.status_code == 403, resp.text
     assert resp.json()["code"] == "PROJECT_ROLE_FORBIDDEN"
+
+
+async def test_project_lead_can_bind(client, db, project_id):
+    """项目负责人（`role_in_project=PROJECT_LEAD`）⇒ 能绑。"""
+    me = _actor_id()
+    await _grant(db, me, project_id, role="PROJECT_LEAD")
+    created = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    resp = await client.post(
+        f"/api/v1/projects/{project_id}/signature-matrices",
+        json={"module": "RECORD", "matrix_id": created.json()["matrix_id"]},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text

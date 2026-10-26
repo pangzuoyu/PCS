@@ -35,7 +35,7 @@ class GrantRequest(BaseModel):
     project_id: uuid.UUID = Field(..., description="目标项目 UUID")
     role_in_project: str = Field(
         ...,
-        description="项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)",
+        description="项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD)",
     )
 
 

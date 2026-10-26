@@ -26,7 +26,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import UserProject
 
-VALID_PROJECT_ROLES = {"DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "VIEWER"}
+#: 项目内角色词表。
+#:
+#: ⚠️ `PROJECT_LEAD`（项目负责人）是 **2026-10-26 用户裁决**新增的：
+#: 「**只有项目负责人能绑签署矩阵**」⇒ 绑定/解绑端点按**项目内角色**判
+#: （见 `app/api/v1/signature_matrices.py::_BIND_PROJECT_ROLES`）。
+#: 词表来源：`spec/校审层级可配置化增补规格说明书.md` §2.1.2「项目负责人（新增）——
+#: 可指定为任意签署角色（项目级临时指派）」。
+#:
+#: ⚠️ 词表**无序**（平行职责，不是等级）⇒ 不按它分级。
+VALID_PROJECT_ROLES = {
+    "DESIGNER",
+    "CHECKER",
+    "APPROVER",
+    "REVIEWER",
+    "VIEWER",
+    "PROJECT_LEAD",
+}
 
 
 class UserProjectService:
@@ -48,18 +64,18 @@ class UserProjectService:
             session: AsyncSession
             user_id: 目标用户 UUID
             project_id: 目标项目 UUID
-            role_in_project: 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)
+            role_in_project: 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD)
             granted_by: 授权人 user_id (None = SYSTEM 角色授权)
 
         Returns:
             UserProject 记录 (新建或更新)
 
         Raises:
-            ValueError: role_in_project 不在合法 5 角色内
+            ValueError: role_in_project 不在合法 6 角色内
         """
         if role_in_project not in VALID_PROJECT_ROLES:
             raise ValueError(
-                f"role_in_project {role_in_project!r} 不在合法 5 角色: "
+                f"role_in_project {role_in_project!r} 不在合法 6 角色: "
                 f"{sorted(VALID_PROJECT_ROLES)}"
             )
 

@@ -543,3 +543,60 @@ async def test_sign_with_unknown_record_type_fails_loudly(client, db):
     )
     assert last.status_code == 409, last.text
     assert last.json()["code"] == "CHANGE_NOTICE_RECORD_TYPE_UNKNOWN"
+
+
+async def test_rejected_notice_can_be_reworked_via_reversal(client, db):
+    """⚠️ 驳回后的**重改路径**可走通（ADR-0002 §修订记录 2026-10-26 的裁决）。
+
+    裁决：**驳回的是「单据」，不是「校核结论」** ⇒
+    ① 变更单回 DRAFT，**记录保持 CHANGED**（ADR-0008）；
+    ② 要改**数据** ⇒ 走**撤销 → 重来**：request-reversal → reversal-decision
+    APPROVE（恢复快照 ⇒ 回 CHECKED）→ 再 initiate-change。
+
+    ⇒ 这条测试把「重改**能走通**」钉住（否则裁决只是文档里的一句话）。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    # 走真实链路：发起 → 提交 → 建单（这样才有 BEFORE_CHANGE 快照可恢复）
+    # ⚠️ `_to_changed` 内部**已经**含 initiate ⇒ 这里不要再单独调
+    await _to_changed(client, rec)
+    body = await _create_notice(client, rec)
+
+    # 第 1 步驳回 ⇒ 单据回 DRAFT，记录**不动**
+    reject = await _sign(
+        client,
+        body["deliverable_id"],
+        body["version_id"],
+        step=1,
+        role="CHECKER",
+        decision="RETURN",
+    )
+    assert reject.status_code == 200, reject.text
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.CHANGED.value, "驳回只动单据，不动记录"
+
+    # 撤销 ⇒ 批准（恢复快照）⇒ 回 CHECKED
+    rev = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/request-reversal",
+        json={"reason": "数据要改"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert rev.status_code == 200, rev.text
+
+    dec = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/reversal-decision",
+        json={"decision": "APPROVE", "reason": "同意撤销"},
+        headers=_token(role="APPROVER"),
+    )
+    assert dec.status_code == 200, dec.text
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.CHECKED.value, "批准撤销 ⇒ 恢复快照回 CHECKED"
+
+    # 重来：又能发起变更了
+    again = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/initiate-change",
+        json={"reason": "重做"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert again.status_code == 200, again.text
+    assert again.json()["to_status"] == "CHANGE_PENDING"

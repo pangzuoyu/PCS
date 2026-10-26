@@ -210,3 +210,18 @@ async def test_list_user_projects_includes_revoked(db_session: AsyncSession):
         db_session, user_id=user_id, include_revoked=True
     )
     assert len(projects) == 2
+
+
+async def test_project_lead_role_is_grantable(db, user_id, project_id):
+    """⚠️ 「项目负责人」（`PROJECT_LEAD`）是合法项目内角色（用户 2026-10-26 裁决）。
+
+    「只有项目负责人能绑签署矩阵」⇒ 这个角色**必须能被授予** ⇒
+    词表里没有它 = 守卫永远 403 = 功能不可用。
+    """
+    record = await UserProjectService.grant_project_access(
+        db,
+        user_id=user_id,
+        project_id=project_id,
+        role_in_project="PROJECT_LEAD",
+    )
+    assert record.role_in_project == "PROJECT_LEAD"
