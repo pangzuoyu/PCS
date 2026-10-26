@@ -4,7 +4,7 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-26（P9A-DLV-011 落地：变更单闭环 + 矩阵管理面）。
+> Read this FIRST when starting a session. Last updated: 2026-10-26（P9A-DLV-011 **整批评审修复批**收口）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -36,6 +36,33 @@ budget_tokens: 1200
 TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补记 +
 新增 bug-2055~2059 · UI-SPEC §6.3 修订注记（变更申请按钮该挂 CHANGED）。
 
+### 第 13 轮续：**P9A-DLV-011 整批评审**（`3f68722`）—— 3 CRITICAL + 8 IMPORTANT 全修
+
+- **C-1** `PUT /signature-matrices/{id}` 每次真实修改都 500（`updated_at` 是服务端
+  表达式 ⇒ 懒加载 ⇒ `MissingGreenlet`）⇒ 补 `db.refresh`。
+- **C-2** 驳回一次后 `issue` 永久 500（`MultipleResultsFound`）⇒ 探针改
+  `.first()` + `limit(1)`。
+- **C-3** TODO-068 闭环文案过度声称（守卫在 `cda6e40`，评审范围外）⇒ 更文案 +
+  登记 `locked_by_deliverable` 死闸门（**TODO-082**）。
+- **I-1** `_ensure_binding` 的 SAVEPOINT **无效**（`add` 在外 ⇒ 事务被打断）
+  ⇒ `add` 移进 savepoint + 恢复分支**只读不写**（消掉 lost update）。
+- **I-2** `bind_to_project` 并发 ⇒ 500 + 不校验 ACTIVE/模块 ⇒ SAVEPOINT + 两道 422。
+- **I-4** `sign_step` 读**活矩阵** ⇒ 改小模板把在飞版本**永久卡死** ⇒ 新增
+  `_steps_for_version`（**版本快照优先**）。
+- **I-5** 绑定权限比用户裁决宽（**VIEWER 也能绑**）⇒ 新增
+  `require_active_project_member`（项目内角色不是 VIEWER 才放行；不用「≥
+  DESIGNER」——`role_in_project` 词表是**平行职责不是等级**）⇒ 计划 R-8 口径修订。
+- **I-6** 5 个新端点没有 404 授权测试 ⇒ 新增
+  `test_p9a_dlv_011_authorization.py`（6 例，**不套** ACL bypass mock）。
+- **I-7** `require_formal_workspace` 与 `app/api/deps.py` **同名撞车**（一个
+  fail-closed 一个 fail-open）⇒ 改名 `require_formal_project_workspace`。
+- **I-3 / I-8** 补登记 + 补两条「响亮失败」分支的测试。
+
+修复批后：后端 **5242 passed / 0 failed**；两库 `alembic check` 各 exit 0；
+裸字段仍 71；G-08 门禁 exit 0。SPEC **V2.4** + README 计数（`p9_008` /
+246 path / 346 schema）+ TODO-069/076 更新 + 新增 **TODO-082**（死闸门）/
+**TODO-083**（变更单前端入口没 TODO）· buglog 新增 bug-2060~2065。
+
 ### 上一轮：**P9A-DLV-007 + TODO-057**（签署矩阵的取得 + 变更单观测写入点）—— 已完成
 
 见 `docs/PCS-PLAN-P9A-DLV-007-…`；SPEC V2.2（workflow_progress 三工作流 2/3 → **3/3**）。
@@ -49,9 +76,15 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
    **TODO-066** 按项目守卫的编辑审计读端点）。
    ⚠️ 计划 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` **尚未过 `/plan-eng-review`**。
 2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
-3. **本批遗留**（TODO-073~080）：变更单编号改走编号模板 · 矩阵名唯一约束 ·
-   `change_resolved_by` 语义（状态机与 ADR-0002 冲突）· 工作区门禁只覆盖本批端点 ·
-   `apply-change` 不校验 hash · 多记录变更 · 矩阵管理前端 · 评审 3 条 deferred minor。
+3. **本批遗留**（TODO-073~080 · 082 · 083）：变更单编号改走编号模板 · 矩阵名唯一
+   约束 · `change_resolved_by` 语义（状态机与 ADR-0002 冲突）· 工作区门禁只覆盖本批
+   端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash · 多记录变更 ·
+   **矩阵管理前端**（TODO-079）+ **变更单前端入口**（TODO-083）·
+   **`locked_by_deliverable` 死闸门**（TODO-082）· 评审 deferred minor。
+   ⚠️ 另有 **8 条 minor** 未修（M-3 硬编码 sign_status / M-4 service 不校验
+   project_id / M-5 todo_service 缺日志 / M-7 **ADR-0002 vs ADR-0008 驳回矛盾** /
+   M-8 复用 `ObsoleteRequest`）⇒ 见 ledger
+   `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-…/progress.md` 的「Deferred minors」。
 4. **ADR-0050**：用户 2026-10-20 裁决「先不做」⇒ 再开工按 P1~P6。
 5. **P9A-1 遗留**（未变）：access token 不带 `tv`；AD 同步需运维服务账号。
 
@@ -75,6 +108,11 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
   `git commit -F <file>`（`!` `（）` 会被 shell 吃掉）。
 - ⚠️ **API 测试的 `client` fixture 把 `check_user_project_access` mock 成恒 True**
   ⇒ **项目授权（404）在 API 测试里测不了** ⇒ 只能测角色那一半（403）。
+  ⇒ 要测 404 必须用 `_guard_client`（独立 client，不套那个 mock）。
+- ⚠️ **in-memory SQLite 的 StaticPool 让 `db` 与独立 client 共用同一条连接**
+  ⇒ 独立 client 退出时的 rollback 会把 `db` 这边**未提交**的 INSERT 一起回滚
+  ⇒ 造完 fixture 必须先 `await db.commit()`，否则 `db.refresh` 报
+  「Could not refresh instance」。
 
 ---
 
@@ -86,3 +124,9 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
   scope / 展示用，两者并存时用**守卫测试**钉住一致。
 - **唯一约束会揭穿依赖非法状态的测试**：加约束后测试红了，先看它依赖了什么状态，
   别急着改产品代码（红的症状常常指向别处）。
+- **SAVEPOINT 必须包住 `db.add()`**：`Session.begin_nested()` 在发出 SAVEPOINT
+  **之前**会先 flush pending ⇒ savepoint 外的 INSERT 撞约束时 PostgreSQL 会
+  **中止整个事务** ⇒ 「只回滚这一段」的意图落空。
+- **「有等级」的词表要先确认它真有等级**：`role_in_project`（DESIGNER/CHECKER/
+  REVIEWER/APPROVER/VIEWER）是**平行职责** ⇒「≥ DESIGNER」无定义 ⇒ 只能取唯一
+  真实的等级语义「只读 vs 参与」。

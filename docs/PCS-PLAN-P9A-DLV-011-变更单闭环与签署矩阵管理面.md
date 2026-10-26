@@ -233,6 +233,7 @@
 | T3 矩阵管理面 + 严格校验 | ✅ | `35a5bc8` |
 | T4 变更单闭环 HTTP 面 | ✅ | `b18cbbc` |
 | T5 收口 | ✅ | 本提交 |
+| **整批评审修复批**（3 CRITICAL + 8 IMPORTANT） | ✅ | `3f68722` |
 
 **与计划的偏差**（裁决见 ledger）：
 
@@ -258,3 +259,27 @@
   就是全新 Postgres）
 - `gate_08_openapi_contract.sh --check-baseline`：exit 0（baseline 已滚）
 - `check_openapi_payload_coverage.py`：exit 0（裸字段仍 **71**，未上涨）
+
+---
+
+## 整批评审（2026-10-26）
+
+评审范围 `9a4f66b`~`e93d3bb` ⇒ **3 CRITICAL + 8 IMPORTANT + 8 minor**。
+CRITICAL + IMPORTANT 一次修完（`3f68722`），minor 进 ledger 延后。
+
+| # | 级别 | 问题 | 处置 |
+|---|---|---|---|
+| C-1 | CRITICAL | `PUT /signature-matrices/{id}` 每次真实修改都 500（`updated_at` 服务端表达式 ⇒ 懒加载 ⇒ `MissingGreenlet`） | 补 `db.refresh` + 测试 |
+| C-2 | CRITICAL | 驳回一次后 `issue` 永久 500（`MultipleResultsFound`） | 探针改 `.first()` + `limit(1)` |
+| C-3 | CRITICAL | TODO-068 闭环文案过度声称（守卫在 `cda6e40`，评审范围外） | 更文案 + 登记 `locked_by_deliverable` 死闸门（TODO-082） |
+| I-1 | IMPORTANT | `_ensure_binding` 的 SAVEPOINT 无效（`add` 在外） | `add` 移进 savepoint + 恢复分支只读 |
+| I-2 | IMPORTANT | `bind_to_project` 并发 ⇒ 500；不校验 ACTIVE / 模块 | SAVEPOINT 恢复 + 两道 422 |
+| I-3 | IMPORTANT | 「第二次变更 ⇒ 记录卡在 CHANGED」没登记 | 补进 TODO-069 |
+| I-4 | IMPORTANT | `sign_step` 读活矩阵 ⇒ 改小模板把在飞版本卡死 | 新增 `_steps_for_version`（快照优先） |
+| I-5 | IMPORTANT | 绑定权限比用户裁决宽（VIEWER 也能绑） | 新增 `require_active_project_member`；**R-8 口径随之修订** |
+| I-6 | IMPORTANT | 5 个新端点没有 404 授权测试 | 新增 `test_p9a_dlv_011_authorization.py`（6 例，不套 ACL bypass mock） |
+| I-7 | IMPORTANT | `require_formal_workspace` 与 deps 版撞名 | 改名 `require_formal_project_workspace` + 登记 fail-open 分支 |
+| I-8 | IMPORTANT | 两条「响亮失败」分支零测试 | 补 2 例 |
+
+修复批后验收：后端 **5242 passed / 77 skipped / 0 failed**（+16）；
+两库 `alembic check` 各 exit 0；裸字段仍 71；G-08 门禁 exit 0。

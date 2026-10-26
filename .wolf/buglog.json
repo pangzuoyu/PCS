@@ -4204,6 +4204,128 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2060",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "CRITICAL",
+      "error_message": "`PUT /signature-matrices/{matrix_id}` 每次真实修改都 500（INTERNAL_ERROR）",
+      "file": "pcs-backend/app/api/v1/signature_matrices.py",
+      "root_cause": "`SignatureMatrix.updated_at` 是 `onupdate=func.now()`（**服务端**表达式）⇒ UPDATE flush 后该属性被置 expired（客户端算不出值）⇒ `db.commit()` 后 `_to_response(matrix)` 同步读它 ⇒ 触发懒加载 SELECT ⇒ async 上下文里 `MissingGreenlet` ⇒ 全局兜底 500。⚠️ 「改了必挂、没改假绿」：空体 PUT 不发 UPDATE 反而返 200。",
+      "fix": "commit 后补 `await db.refresh(matrix)`（把服务端值读回来）⇒ 200。补 PUT 的 200/403 测试。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "signature-matrix",
+        "missinggreenlet",
+        "openapi",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2061",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "CRITICAL",
+      "error_message": "变更单被驳回一次后，`POST /deliverables/{id}/issue` 此后永久 500（MultipleResultsFound）",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "签发的幂等探针用 `.scalar_one_or_none()` 取「同 (交付物, 版本目的) 的版本行」⇒ 驳回后重新签发会留下**两行**同 purpose 的版本 ⇒ 探针抛 `MultipleResultsFound` ⇒ 未捕获 ⇒ 500（而本该是 409）。",
+      "fix": "探针只问「有没有」不取那一行 ⇒ `.first()` + `limit(1)`；并把幂等判据放宽为「有**未退回**的版本」⇒ 交付物处于 DRAFT 时允许再签发。补 `test_second_reissue_returns_409_not_500`。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "deliverable",
+        "issue",
+        "multipleresultsfound",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2062",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "`_ensure_binding` 的 SAVEPOINT 兜底**完全无效** ⇒ 并发撞唯一约束时整个事务被打断（PostgreSQL 25P02）⇒ 500",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "root_cause": "`db.add(binding)` 写在 `async with db.begin_nested():` **之外** ⇒ SQLAlchemy 2.0 的 `Session.begin_nested()` 在发出 SAVEPOINT **之前**会先 flush 一次 pending（`SessionTransaction._take_snapshot`：`if not is_begin and not self.session._flushing: self.session.flush()`）⇒ 真正撞 `uq_project_signature_matrix_bindings_project_module` 的那条 INSERT **不在 savepoint 里** ⇒ PostgreSQL 上唯一约束冲突会**中止整个事务** ⇒ 处理分支里的重读 SELECT 抛 PendingRollbackError ⇒ 500。且原并发测试拦的是 `ensure_change_notice_matrix` 的查询而不是这条 ⇒ 整段是死代码（删掉 ORM 唯一约束测试仍绿）。",
+      "fix": "`db.add()` 移进 savepoint 内部 + IntegrityError 恢复分支**只读不写**（不覆盖赢家的 matrix_id ⇒ 消掉 lost update）。补一条真会抛 IntegrityError 的测试（变异验证：把 add 挪回外面 ⇒ 测试必须红）。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "signature-matrix",
+        "savepoint",
+        "integrityerror",
+        "concurrency",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2052"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2063",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "`sign_step` 读**活的**矩阵而不是版本的**冻结快照** ⇒ 模板中途改小会把在飞版本**永久卡在 PENDING**（前进/退回都 404）",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "root_cause": "`sign_step` 直接调 `_matrix_steps(matrix)` 读当前矩阵 ⇒ 管理员改了模板 ⇒ 在飞版本少了一步 ⇒ `step_index > len(steps)` ⇒ 前进 404 `SIGN_STEP_NOT_FOUND`、退回也要指定那一步 ⇒ 同样 404 ⇒ **没有放弃路径**。而版本行里其实已经冻了「这个版本承诺的签署规则」（`signature_summary_json[\"steps\"]`）。",
+      "fix": "新增 `_steps_for_version`：优先用版本快照，老版本无快照才回落活矩阵 ⇒ 模板改动只影响**之后**签发的版本。补 `TestSignUsesFrozenSnapshot`（用**真实 `/issue` 端点**造版本 ⇒ 快照来自生产代码）。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "deliverable",
+        "sign-step",
+        "signature-matrix",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2064",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "矩阵绑定权限**比用户裁决宽**：项目内 VIEWER（只读成员）也能绑定/解绑签署矩阵",
+      "file": "pcs-backend/app/api/v1/signature_matrices.py",
+      "root_cause": "绑定端点只调 `check_project_access_or_404`（只问「有没有访问权」）⇒ VIEWER 也算有 ⇒ 一个只读成员能决定「本项目谁该签这一步」⇒ 权力比它的角色大。⚠️ 计划 R-8 写的「项目内 DESIGNER 及以上」在数据上**无定义** —— `user_projects.role_in_project` 词表（DESIGNER/CHECKER/REVIEWER/APPROVER/VIEWER）是**平行职责不是等级**。",
+      "fix": "新增 `require_active_project_member`（项目内角色**不是 VIEWER** 才放行；SYSTEM_ADMIN bypass）⇒ 用唯一真实存在的等级语义「只读 vs 参与」。补 2 条 403 测试。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "signature-matrix",
+        "authorization",
+        "rbac",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2065",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "`_guard.require_formal_workspace` 与 `app/api/deps.py` 里**已存在的同名**函数撞名（一个 fail-closed 一个 fail-open）",
+      "file": "pcs-backend/app/api/v1/_guard.py",
+      "root_cause": "本批新增的工作区门禁直接用了 `require_formal_workspace` 这个名字 ⇒ 与 `app/api/deps.py` 里那个**同名**的 FastAPI 依赖并存 ⇒ 两个语义相近、**失败方向相反**的函数同名 ⇒ 后面的人 import 错了不会报错（只是行为不同）。",
+      "fix": "改名 `require_formal_project_workspace`（按项目查工作区）+ 在 docstring 里列出与 deps 版的三行对照表（fail-open vs fail-closed）+ 把两条 fail-open 分支登记进 TODO-076。",
+      "fix_commit": "3f68722",
+      "tags": [
+        "p9a-dlv-011",
+        "naming",
+        "workspace-guard",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }
