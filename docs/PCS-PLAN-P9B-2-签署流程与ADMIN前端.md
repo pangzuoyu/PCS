@@ -122,7 +122,7 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 
 | 前置 | 内容 | 本批任务 |
 |---|---|---|
-| **TODO-065** | `GET /deliverables/{id}/progress` —— 三类工作流一次拿全 | **T0** |
+| **TODO-065** | `GET /deliverables/{id}/progress` —— **两类**工作流一次拿全（R-13 删掉了恒空的第三段） | **T0** |
 | **TODO-066** | `GET /records/{module}/{record_id}/edits` —— 按项目守卫的编辑审计读端点 | **T1** |
 
 ---
@@ -162,7 +162,9 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
   `items[]` = `{progress_id, step_order, step_role, step_status, started_at, completed_at,
   assignee, result_hash}`。未知 workflow_type ⇒ 422 `WORKFLOW_TYPE_UNKNOWN`；
   工作流不存在 ⇒ 404 `WORKFLOW_NOT_FOUND`。
-- ⚠️ **三类工作流的 `workflow_id` 语义（2026-10-21 实测，与 P9B-1 计划所述不同）**：
+- ⚠️ **三类工作流的 `workflow_id` 语义（2026-10-21 实测，2026-10-27 复核）** ——
+  ⚠️ **第三类（CHANGE_NOTICE）已不作为聚合段**（R-13）：变更单**本身就是交付物**
+  ⇒ 它在进度页上自己一行；且 `parent_deliverable_id` 从未被写 ⇒ 反查不到：
 
   | 工作流 | `workflow_id` | 依据 |
   |---|---|---|
@@ -288,7 +290,7 @@ meta mock，要新加」—— 它**早就在** `src/mocks/handlers.ts:966`（5 
 | **R-12** | **变更类动作并入 `RecordActions`**（`INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` 本来就在 `ALLOWED_TRANSITIONS` 里 ⇒ meta 驱动会**自动**包含它们）⇒ 已有 `ChangeNoticeAction` 降级为「只做变更单专属交互（建单 / 作废弹窗）」 | 两个「状态 → 动作」渲染器 = 两份映射 + 同一行两个入口（同一状态给用户两套动作） | `ChangeNoticeAction` 的行内入口改指 `RecordActions`；其既有测试迁移 |
 | **R-13** | **聚合端点删掉 `CHANGE_NOTICE` 段** | 变更单**本身就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒ 它在进度页上**自己一行**、自己有 SIGN 进度 ⇒ 父交付物去反查变更单既无数据源（`parent_deliverable_id` 从未被写）也多余 | 聚合端点从 3 段变 2 段（SIGN / CUSTOMER_APPROVAL_PROXY）；进度页要能看到变更单行（`GET /deliverables` 不带 type 过滤 ⇒ 已能看到） |
 | **R-14** | **`EditConflictModal` 切到新端点** + 删掉 `api/audit.ts` 里与 `auditApi.listAuditLogs` 重复的 `listRecordEdits` | TODO-066 的**目的**是「普通 DESIGNER 能看差异」；只建端点不接线 ⇒ 目的落空（409 弹窗仍打 SYSTEM_ADMIN-only 的 `/audit-logs` ⇒ 普通用户照样 403） | 弹窗的差异数据从 `item.detail_json.changed_fields` 改成顶层 `changed_fields` ⇒ 其测试要改 |
-| **R-15** | **`WorkflowProgressPanel` 加受控模式**（传了 `data` 就不自己拉） | 面板现在 `useEffect` 自己拉 ⇒ 「三段各渲染一个面板」= 展开一行 **4 个请求**（1 聚合 + 3 分段）⇒ 聚合端点的收益被完全抵消，且两套数据源可能不一致 | 面板多一个可选 prop；既有自拉用法**保持不变**（回归） |
+| **R-15** | **`WorkflowProgressPanel` 加受控模式**（传了 `data` 就不自己拉） | 面板现在 `useEffect` 自己拉 ⇒ 「每段各渲染一个面板」= 展开一行 **多个请求**（1 聚合 + 每段 1 次）⇒ 聚合端点的收益被完全抵消，且两套数据源可能不一致 | 面板多一个可选 prop；既有自拉用法**保持不变**（回归） |
 | **R-16** | **聚合端点用一条批量查询**（`workflow_type IN (…) AND workflow_id IN (…)` ⇒ Python 侧按 (type, id) 分组） | 计划自己的断言「SELECT ≤ 5」与它的实现（每段一次 `get`，每次内部 `_resolve` 再 2 次 `db.get` ⇒ ~5~6 条）**自相矛盾** | 不复用 `WorkflowProgressService.get` 的项目反查（调用方已鉴权 ⇒ 两个 `workflow_id` 都属于已授权交付物 ⇒ 该反查冗余） |
 | **R-17** | **「多级批准链」的定义源 = 项目绑定的 `module='RECORD'` 签署矩阵**（TODO-054 并入本批，新增 T2） | 数据模型**已有这个槽位**（`project_signature_matrix_bindings.module='RECORD'`）+ 绑定 API（`POST /projects/{id}/signature-matrices`）+ 管理 UI ⇒ **零新增配置面**；且与交付物签署链**同一套矩阵** = 一份真相 | `submit-approval` 的请求体形状要变（`approval_role` / `approval_depth` 不再由前端给）⇒ **契约破坏性变更** ⇒ 前端同批改 ⇒ T4 的角色选择器随之消失 |
 | **R-18** | **TODO-067 的 7 条 deferred minor 全部并入本批**（新增 T9） | TODOS.md 的归属明写「P9B-2（顺手做，不单独排期）」；其中 4 条落在本批要改的文件上 ⇒ 边际成本 ≈ 0 | 本批面变大；每条按「一个测试 + 一次改动」的规矩做 |
@@ -485,7 +487,7 @@ COVERAGE: 31/31 路径有测试计划（100%）  |  GAPS: 0  |  E2E: 2 条（T10
 ## 为什么这个端点必须存在
 
 `GET /workflow-progress/{workflow_type}/{workflow_id}` 是**单条**查询，
-而三类工作流的 `workflow_id` 语义**各不相同**（实测 2026-10-21）：
+而两类工作流的 `workflow_id` 语义**各不相同**（实测 2026-10-21 / 复核 2026-10-27）：
 
 | 工作流 | workflow_id | 依据 |
 |---|---|---|
@@ -596,7 +598,7 @@ class WorkflowProgressSection(BaseModel):
 
 
 class DeliverableProgressResponse(BaseModel):
-    """一个交付物的三类工作流进度。"""
+    """一个交付物的两类工作流进度（R-13：CHANGE_NOTICE 段已删）。"""
 
     deliverable_id: uuid.UUID
     sections: list[WorkflowProgressSection]
@@ -611,16 +613,16 @@ class DeliverableProgressResponse(BaseModel):
 @router.get(
     "/deliverables/{deliverable_id}/progress",
     response_model=DeliverableProgressResponse,
-    summary="交付物的工作流进度聚合（三类工作流一次拿全）",
+    summary="交付物的工作流进度聚合（两类工作流一次拿全）",
 )
 async def get_deliverable_progress(
     deliverable_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     actor: Annotated[_Actor, Depends(current_actor)],
 ) -> DeliverableProgressResponse:
-    """一次返回本交付物三类工作流的进度（TODO-065）。
+    """一次返回本交付物两类工作流的进度（TODO-065）。
 
-    关联规则**留在后端**：三类工作流的 `workflow_id` 语义各不相同，
+    关联规则**留在后端**：两类工作流的 `workflow_id` 语义各不相同，
     「变更单怎么关联到本交付物」是**后端的业务规则**，不是前端的拼装活。
     """
     require_roles(actor, *_READ_ROLES)
@@ -640,7 +642,7 @@ async def get_deliverable_progress(
 async def progress_sections(
     cls, db: AsyncSession, *, deliverable: Deliverable
 ) -> list[WorkflowProgressSection]:
-    """三类工作流各自的进度段（TODO-065）。
+    """两类工作流各自的进度段（TODO-065 · R-13 删掉了 CHANGE_NOTICE 段）。
 
     ⚠️ **只有两类工作流**（R-13）：`CHANGE_NOTICE` 段**删掉** ——
     ①变更单**本身就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒ 它在进度页
@@ -1231,8 +1233,8 @@ export const commentsApi = {
  *
  * ⚠️ `progress` 打的是**聚合端点** `GET /deliverables/{id}/progress`
  * （TODO-065），**不是** `GET /workflow-progress/SIGN/{version_id}` ——
- * 三类工作流的 `workflow_id` 语义各不相同（SIGN = 版本 id，
- * CUSTOMER_APPROVAL_PROXY = **交付物 id**），关联规则归后端（R-2）。
+ * 两类工作流的 `workflow_id` 语义各不相同（SIGN = 版本 id，
+ * CUSTOMER_APPROVAL_PROXY = **交付物 id**），关联规则归后端（R-2 / R-13）。
  */
 import { api } from './client';
 import type { components } from '../types/api';
@@ -1643,7 +1645,7 @@ git commit -m "feat(P9B-2): 记录详情抽屉 + 批注面板 + 记录状态时�
 必含断言：
 1. 展开一行 ⇒ 请求打的是 **`GET /deliverables/{id}/progress`**（**不是**
    `GET /workflow-progress/SIGN/{version_id}`）。
-2. 三段（SIGN / CHANGE_NOTICE / CUSTOMER_APPROVAL_PROXY）**都渲染**。
+2. **两段**（SIGN / CUSTOMER_APPROVAL_PROXY）**都渲染**（R-13：没有第三段）。
 3. `available=false` 的段 ⇒ 显示 `reason` **原文**（不是空列表）⇒ RF-6。
 4. `available=true` 但 `total=0` 的段 ⇒ 显示「尚无步骤记录」（与「不可用」**不同**
    的两种空态）。
@@ -1894,7 +1896,7 @@ cd pcs-frontend && npm run test && npm run typecheck && npm run lint
 2. 结果页 → 「详情」→ 抽屉打开 + 操作栏按状态渲染 + 批注区可输入
 3. 送审弹窗的**角色下拉不含自己的角色**
 4. 交付物进度页展开一行 ⇒ 网络面板看到 **`/deliverables/{id}/progress`**
-   （**不是** `workflow-progress/SIGN/...`）⇒ 三段都在
+   （**不是** `workflow-progress/SIGN/...`）⇒ **两段**都在
 5. 不可用段显示 `reason` 原文
 6. ADMIN 用户管理页（用 SYSTEM_ADMIN 登录）⇒ 列表 + 停用 + 同步
 7. 审计日志页 ⇒ 筛选 + 导出（下载的 CSV 行数 = 筛选结果行数）
