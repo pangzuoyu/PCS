@@ -220,3 +220,38 @@
 5. **矩阵管理面前端没有**（用户裁决只做后端）⇒ 前端页另批。
 6. **变更单与记录的多对多**：现在一条变更单只绑一条记录（ADR-0002 的场景够用），
    但「一次变更影响多条记录」未支持 ⇒ 登记。
+
+---
+
+## 执行结果（2026-10-26 完成）
+
+| 任务 | 状态 | commit |
+|---|---|---|
+| 评审修复批（P9A-DLV-007 的 1 IMPORTANT + 4 minor） | ✅ | `9da0810` |
+| T1 建单 = 交付物 + 版本 + 记录 binding | ✅ | `9a4f66b` |
+| T2 唯一约束迁移 | ✅ | `4724573` |
+| T3 矩阵管理面 + 严格校验 | ✅ | `35a5bc8` |
+| T4 变更单闭环 HTTP 面 | ✅ | `b18cbbc` |
+| T5 收口 | ✅ | 本提交 |
+
+**与计划的偏差**（裁决见 ledger）：
+
+1. **T2/T3 提前到 T4 之前**：计划原本 T2 在 T3 后 —— 实际「矩阵绑定端点依赖唯一
+   约束兜底」⇒ 唯一约束必须先落。
+2. **计划没写「记录到不了 CHANGED」这个缺口**的解法只到端点层 —— 实测发现
+   `INITIATE_CHANGE` / `APPLY_CHANGE` **全仓无触发点** ⇒ 补两个端点（计划 R-11
+   之外的额外发现，已登记 bug-2056）。
+3. **评审抓到的 IMPORTANT 插在 T1 之前修**（`todo_service` 第二份解析）——
+   它是「上批的验收项与代码不符」，先修再往下走。
+4. **`issue` 抽出 `create_version_row`**（计划未提）：建单要「交付物 + 版本 +
+   binding + 观测」同一事务，而 `issue` 现状**自己 commit** ⇒ 必须能只建行、
+   不提交。
+
+**验收结果**：
+
+- 后端全量：见收口提交（基线 5188，本批 +N）
+- `alembic check`：`pcs` 与 `pcs_test` **各跑一次**均 exit 0（两库 `p9_008` head）
+- **全新隔离 schema** 从零 `alembic upgrade head` 通过（CI 的 api-drift job 跑的
+  就是全新 Postgres）
+- `gate_08_openapi_contract.sh --check-baseline`：exit 0（baseline 已滚）
+- `check_openapi_payload_coverage.py`：exit 0（裸字段仍 **71**，未上涨）

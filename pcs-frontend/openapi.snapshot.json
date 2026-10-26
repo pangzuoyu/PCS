@@ -1909,6 +1909,243 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/initiate-change": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "发起变更（CHECKED → CHANGE_PENDING）",
+        "description": "发起一条待生效的变更（ADR-0002：CHECKED → CHANGE_PENDING）。\n\n触发时状态机自动写 **BEFORE_CHANGE 快照**（变更前的数据 + 哈希）\n⇒ 变更单建单时能把「变更前哈希」写进 `deliverable_record_bindings`\n⇒ 新旧哈希可比对（ADR-0008）。",
+        "operationId": "initiate_change_api_v1_records__module___record_id__initiate_change_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsoleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/apply-change": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "提交变更完成（CHANGE_PENDING → CHANGED，等待变更单关闭）",
+        "description": "变更改完了、重校核过了 ⇒ 进入 CHANGED（等待变更单关闭它）。\n\nADR-0002：CHANGED = 「校核完成、等待关闭」⇒ 关闭凭证是**变更单**\n（不是新版交付物）⇒ 记录要到变更单被签完才回 CHECKED。",
+        "operationId": "apply_change_api_v1_records__module___record_id__apply_change_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsoleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/change-notice": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "发起变更单（记录须为 CHANGED）",
+        "description": "给一条 CHANGED 的记录发起变更单（ADR-0008）。\n\n建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+\n**记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），\n**同一事务**。\n\n之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`\n（矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；\n最后一步签完 ⇒ 记录自动回 CHECKED。",
+        "operationId": "create_change_notice_api_v1_records__module___record_id__change_notice_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeNoticeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeNoticeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflow-progress/{workflow_type}/{workflow_id}": {
       "get": {
         "tags": [
@@ -13470,6 +13707,440 @@
         }
       }
     },
+    "/api/v1/signature-matrices": {
+      "get": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "列签署矩阵模板",
+        "description": "列矩阵模板（全局配置 ⇒ 不按项目过滤）。",
+        "operationId": "list_signature_matrices_api_v1_signature_matrices_get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按模块过滤",
+              "title": "Module"
+            },
+            "description": "按模块过滤"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按状态过滤（DRAFT/PENDING/ACTIVE/OBSOLETE）",
+              "title": "Status"
+            },
+            "description": "按状态过滤（DRAFT/PENDING/ACTIVE/OBSOLETE）"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignatureMatrixListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "建签署矩阵模板（SYSTEM_ADMIN）",
+        "description": "建一个矩阵模板。\n\n⚠️ **写入时严格校验**（`validate_steps`）：任一步不合法 ⇒ 422，\n**不部分入库**（否则「签署少一道校审」而没人知道）。",
+        "operationId": "create_signature_matrix_api_v1_signature_matrices_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignatureMatrixRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignatureMatrixResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/signature-matrices/{matrix_id}": {
+      "get": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "签署矩阵详情",
+        "description": "取矩阵详情（不存在 ⇒ 404 `SIGNATURE_MATRIX_NOT_FOUND`）。",
+        "operationId": "get_signature_matrix_api_v1_signature_matrices__matrix_id__get",
+        "parameters": [
+          {
+            "name": "matrix_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Matrix Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignatureMatrixResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "改签署矩阵模板（SYSTEM_ADMIN）",
+        "description": "改矩阵模板（部分更新；`steps` 给了就整体替换）。",
+        "operationId": "update_signature_matrix_api_v1_signature_matrices__matrix_id__put",
+        "parameters": [
+          {
+            "name": "matrix_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Matrix Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignatureMatrixUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignatureMatrixResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/signature-matrices": {
+      "post": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "把矩阵绑到项目（项目负责人侧）",
+        "description": "绑定矩阵到「项目 × 模块」（换绑 = 改同一行）。\n\n⚠️ 同一项目同一模块**只可能有一行**绑定（唯一约束，迁移 `p9_008`）\n⇒ 「谁该签这一步」不会有两个答案。",
+        "operationId": "bind_project_matrix_api_v1_projects__project_id__signature_matrices_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrixBindingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrixBindingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/signature-matrices/{module}": {
+      "delete": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "解绑项目的矩阵（项目负责人侧）",
+        "description": "解绑（本来就没绑 ⇒ `unbound=false`，**不是** 404）。",
+        "operationId": "unbind_project_matrix_api_v1_projects__project_id__signature_matrices__module__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrixUnbindResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -20641,6 +21312,147 @@
         ],
         "title": "CepciAdjustmentCalcResponse",
         "description": "POST /cost-est/cepci-adjustment/calculate 响应（201）。\n\n与 ``CostEstCalcBase`` 镜像（无 scaling_exponent 必填）；额外填\nresult_id + equipment_id + created_at。"
+      },
+      "ChangeNoticeDetailResponse": {
+        "properties": {
+          "detail_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Detail Id"
+          },
+          "change_type": {
+            "type": "string",
+            "title": "Change Type"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "triggered_by": {
+            "type": "string",
+            "title": "Triggered By"
+          },
+          "source_record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Record Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail_id",
+          "change_type",
+          "reason",
+          "triggered_by"
+        ],
+        "title": "ChangeNoticeDetailResponse",
+        "description": "变更单扩展行（`change_notice_details`）。"
+      },
+      "ChangeNoticeRequest": {
+        "properties": {
+          "change_type": {
+            "type": "string",
+            "enum": [
+              "DATA_CORRECTION",
+              "PROCESS_CHANGE",
+              "UPSTREAM_CHANGE",
+              "CLIENT_COMMENT",
+              "RECORD_CANCELLATION",
+              "CHANGE_REVERSAL",
+              "OTHER"
+            ],
+            "title": "Change Type",
+            "description": "7 值变更类型"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "description": "变更原因"
+          },
+          "triggered_by": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "UPSTREAM_CHANGE"
+            ],
+            "title": "Triggered By",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "change_type",
+          "reason"
+        ],
+        "title": "ChangeNoticeRequest",
+        "description": "发起变更单的请求体。\n\n⚠️ **只收变更单特有字段**（ADR-0008：change_type / reason / triggered_by\n在 1:1 扩展表 `change_notice_details`）；记录是谁由路径里的\n`{module}/{record_id}` 决定 ⇒ 不在请求体里重复。"
+      },
+      "ChangeNoticeResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workflow Id"
+          },
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "doc_no": {
+            "type": "string",
+            "title": "Doc No"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "建单后 = PENDING（进签署中）"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/ChangeNoticeDetailResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "version_id",
+          "workflow_id",
+          "matrix_id",
+          "project_id",
+          "doc_no",
+          "title",
+          "sign_status",
+          "detail"
+        ],
+        "title": "ChangeNoticeResponse",
+        "description": "建单结果。字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死。\n\n`version_id` 是**签署时要用的那个版本**（变更单的 3 级矩阵作用在它身上），\n`workflow_id` 是观测工作流的 id（= 变更单自己的 deliverable_id）。"
       },
       "CheckRequest": {
         "properties": {
@@ -30052,6 +30864,170 @@
         "title": "MaterialSearchResult",
         "description": "材料搜索结果（chemicals 库 + 公式/CAS 命中）。"
       },
+      "MatrixBindingRequest": {
+        "properties": {
+          "module": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Module"
+          },
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "module",
+          "matrix_id"
+        ],
+        "title": "MatrixBindingRequest",
+        "description": "把矩阵绑到项目 × 模块。"
+      },
+      "MatrixBindingResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "module": {
+            "type": "string",
+            "title": "Module"
+          },
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          },
+          "matrix_name": {
+            "type": "string",
+            "title": "Matrix Name",
+            "description": "绑的矩阵名（回显，便于前端确认）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "module",
+          "matrix_id",
+          "matrix_name"
+        ],
+        "title": "MatrixBindingResponse",
+        "description": "绑定结果。"
+      },
+      "MatrixStepInput": {
+        "properties": {
+          "step_order": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step Order",
+            "description": "步骤序号，1 起"
+          },
+          "sign_role": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Sign Role",
+            "description": "该步要求的**全局角色**（与 token 的 role claim 比较）"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "是否必签",
+            "default": true
+          },
+          "can_self_check": {
+            "type": "boolean",
+            "title": "Can Self Check",
+            "description": "提交人可否签自己这一步（false ⇒ 403）",
+            "default": true
+          },
+          "can_skip": {
+            "type": "boolean",
+            "title": "Can Skip",
+            "description": "可否跳过（false ⇒ 409）",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "step_order",
+          "sign_role"
+        ],
+        "title": "MatrixStepInput",
+        "description": "矩阵的一步（写入形状）。"
+      },
+      "MatrixStepResponse": {
+        "properties": {
+          "step_order": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step Order",
+            "description": "步骤序号，1 起"
+          },
+          "sign_role": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Sign Role",
+            "description": "该步要求的**全局角色**（与 token 的 role claim 比较）"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "是否必签",
+            "default": true
+          },
+          "can_self_check": {
+            "type": "boolean",
+            "title": "Can Self Check",
+            "description": "提交人可否签自己这一步（false ⇒ 403）",
+            "default": true
+          },
+          "can_skip": {
+            "type": "boolean",
+            "title": "Can Skip",
+            "description": "可否跳过（false ⇒ 409）",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "step_order",
+          "sign_role"
+        ],
+        "title": "MatrixStepResponse",
+        "description": "矩阵的一步（读出形状；字段与写入形状同构）。"
+      },
+      "MatrixUnbindResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "module": {
+            "type": "string",
+            "title": "Module"
+          },
+          "unbound": {
+            "type": "boolean",
+            "title": "Unbound",
+            "description": "是否真删了一行（本来就没绑 ⇒ False）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "module",
+          "unbound"
+        ],
+        "title": "MatrixUnbindResponse",
+        "description": "解绑结果。"
+      },
       "MeResponse": {
         "properties": {
           "username": {
@@ -36064,6 +37040,261 @@
         ],
         "title": "SignStepResponse",
         "description": "推进结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。"
+      },
+      "SignatureMatrixListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SignatureMatrixResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SignatureMatrixListResponse",
+        "description": "矩阵列表 + 总数。"
+      },
+      "SignatureMatrixRequest": {
+        "properties": {
+          "matrix_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Matrix Name"
+          },
+          "module": {
+            "type": "string",
+            "enum": [
+              "*",
+              "RECORD",
+              "STREAM",
+              "EQUIP",
+              "CHANGE_NOTICE"
+            ],
+            "title": "Module",
+            "description": "模块；`*` = 全部模块"
+          },
+          "doc_type": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Doc Type"
+          },
+          "version_purpose": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Version Purpose",
+            "description": "版本目的（如 ISSUED_FOR_CHANGE）"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/MatrixStepInput"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Steps",
+            "description": "步骤定义（≥1 步）"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PENDING",
+              "ACTIVE",
+              "OBSOLETE"
+            ],
+            "title": "Status",
+            "default": "DRAFT"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matrix_name",
+          "module",
+          "doc_type",
+          "version_purpose",
+          "steps"
+        ],
+        "title": "SignatureMatrixRequest",
+        "description": "建/改矩阵模板的请求体。"
+      },
+      "SignatureMatrixResponse": {
+        "properties": {
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          },
+          "matrix_name": {
+            "type": "string",
+            "title": "Matrix Name"
+          },
+          "module": {
+            "type": "string",
+            "title": "Module"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "version_purpose": {
+            "type": "string",
+            "title": "Version Purpose"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/MatrixStepResponse"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matrix_id",
+          "matrix_name",
+          "module",
+          "doc_type",
+          "version_purpose",
+          "status",
+          "steps"
+        ],
+        "title": "SignatureMatrixResponse",
+        "description": "矩阵模板（显式声明，零裸字段）。"
+      },
+      "SignatureMatrixUpdateRequest": {
+        "properties": {
+          "matrix_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matrix Name"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "*",
+                  "RECORD",
+                  "STREAM",
+                  "EQUIP",
+                  "CHANGE_NOTICE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module"
+          },
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Type"
+          },
+          "version_purpose": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Purpose"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MatrixStepInput"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PENDING",
+                  "ACTIVE",
+                  "OBSOLETE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "SignatureMatrixUpdateRequest",
+        "description": "改矩阵模板的请求体（**部分更新**：给了才改）。"
       },
       "SimImportDetailResponse": {
         "properties": {

@@ -568,6 +568,18 @@ REVERSAL_PENDING	撤销批准 / 撤销驳回
 OBSOLETE	只读
 按钮权限由 Can 包裹。
 
+⚠️ **2026-10-26 修订登记（P9A-DLV-011）**：「变更申请」按钮的**状态归属**与
+实现不符 —— 本表把它列在 **CHECKED**，而 ADR-0002 的 CHANGED 生命周期是
+`CHECKED --initiate-change--> CHANGE_PENDING --apply-change--> CHANGED`，
+变更单的建单端点要求记录**已是 CHANGED**（`POST /records/{module}/{id}/change-notice`
+⇒ 非 CHANGED 返 422 `CHANGE_NOTICE_BAD_STATE`）。
+⇒ **按钮应挂在 CHANGED 态**（在 CHECKED 态挂它 ⇒ 点下去必 422）。
+按 UI-SPEC 自己的规则（「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」），
+此处**只加注记不改表**（改动走 UI-SPEC 下次修订）。
+⚠️ 另：`CHANGE_PENDING` 态的「提交变更批准」对应后端 `apply-change`
+（CHANGE_PENDING → CHANGED）—— **名字对不上**（后端叫 apply-change，
+前端叫「提交变更批准」）⇒ 一并登记待修订。
+
 6.4 HashBadge
 用途：显示 record_hash。
 

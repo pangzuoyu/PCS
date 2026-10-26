@@ -541,7 +541,6 @@ class ChangeNoticeService:
         db: AsyncSession,
         *,
         deliverable: Deliverable,
-        version: Any,
         actor_user_id: uuid.UUID | None,
     ) -> dict[str, Any]:
         """变更单被签到最后一步（APPROVED）⇒ **自动**关掉那条记录。

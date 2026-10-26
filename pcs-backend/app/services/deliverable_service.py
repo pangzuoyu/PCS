@@ -690,7 +690,6 @@ class DeliverableService:
                 await ChangeNoticeService.close_on_approved(
                     db,
                     deliverable=deliverable,
-                    version=version,
                     actor_user_id=actor_user_id,
                 )
         elif decision == "RETURN":

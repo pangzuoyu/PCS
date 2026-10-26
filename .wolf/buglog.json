@@ -4040,12 +4040,12 @@
     {
       "id": "bug-2052",
       "timestamp": "2026-10-26T00:00:00.000Z",
-      "severity": "LOW",
+      "severity": "MEDIUM",
       "error_message": "project_signature_matrix_bindings 缺 (project_id, module) 唯一约束（ORM 注释与 DB 实际不符）",
       "file": "pcs-backend/app/models/deliverable.py",
       "root_cause": "`ProjectSignatureMatrixBinding` 的注释写「一个项目同一模块只能绑定一个矩阵」，但**表上既没有 (project_id, module) 唯一约束，ORM 也没声明**（迁移 `dd47298c9c38` 只建了 PK + 两个索引）。`SignatureMatrixService._ensure_binding` 靠「先查后建」保证幂等 ——并发下两个事务可以各建一行 ⇒ 同一项目同一模块绑到两个矩阵，「谁该签这一步」又变成两个真相源。",
-      "fix": "**未修**（不属本批范围）：要加唯一约束就是改迁移 ⇒ 全新库验证（CI 会在全新库上跑）+ 两库各跑一次 `alembic check`。已登记进 `TODOS.md`。",
-      "fix_commit": "",
+      "fix": "**✅ 2026-10-26 已修**（P9A-DLV-011 T2）：迁移 `p9_008` 加 `uq_project_signature_matrix_bindings_project_module` + ORM 同步声明 + `_ensure_binding` 撞约束时用 **SAVEPOINT** 回滚这一段并重读那一行（裸 catch 会把整个事务中止 ⇒ 连矩阵/交付物一起丢）。验证：全新隔离 schema 从零升级通过 + `alembic check` 两库各 exit 0。⚠️ 连带发现：两个既有测试的 helper 依赖「两行绑定」这个非法状态（bug-2059）。",
+      "fix_commit": "4724573",
       "tags": [
         "signing-matrix",
         "missing-constraint",
@@ -4095,6 +4095,113 @@
         "review-caught"
       ],
       "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2055",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "变更单**没有版本行** ⇒ 进不了签署流程（3 级矩阵形同虚设）",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "`create_change_notice` 只建 `deliverables` + `change_notice_details` 两行，**不建 `deliverable_versions` 行** ⇒ `sign_step` 要 `version_id` ⇒ 变更单**永远进不了签署流程** ⇒ ADR-0008「一套版本历史」对变更单不成立。而审批走的是 `approve_change_notice`（直接 PENDING → APPROVED，**不查矩阵、不查角色**）⇒ 绑定的 `CHANGE_NOTICE_3_LEVEL` 矩阵**没有任何消费方**（装饰品）。",
+      "fix": "建单**同时建版本行**（`version_purpose=ISSUED_FOR_CHANGE`、rev=1）⇒ 变更单走**既有** `sign-step`（3 级矩阵生效：角色 403 / 越步 409 / 自校禁止）；审批语义改为「签完最后一步 ⇒ 自动关记录」（ADR-0008「系统自动」）。",
+      "fix_commit": "9a4f66b",
+      "tags": [
+        "p9a-dlv-011",
+        "change-notice",
+        "signing-matrix",
+        "adr-0008",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2058"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2056",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "`INITIATE_CHANGE` / `APPLY_CHANGE` 全仓**没有任何触发点** ⇒ 记录永远到不了 CHANGED ⇒ 变更单建单端点不可达",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "root_cause": "9 态状态机的 `ALLOWED_TRANSITIONS` 里有 `CHECKED --INITIATE_CHANGE--> CHANGE_PENDING` 与 `CHANGE_PENDING --APPLY_CHANGE--> CHANGED`，但全仓**没有任何 API 或 service 触发这两个事件**（`grep` 只命中状态机表、快照逻辑、审计映射）⇒ `create_change_notice` 要求记录是 CHANGED ⇒ **没有任何路径能建出变更单**。",
+      "fix": "新增两个端点：`POST /records/{module}/{id}/initiate-change` 与 `/apply-change`（走既有状态机事件 ⇒ ACL / 非法转移 409 / BEFORE_CHANGE 快照 / 审计全部复用）。",
+      "fix_commit": "b18cbbc",
+      "tags": [
+        "p9a-dlv-011",
+        "state-machine",
+        "adr-0002",
+        "change-notice",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2055"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2057",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "变更单与记录的关联**只存在字符串里**（deliverables.scope_value）⇒ 自动关记录只能解析字符串",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "`change_notice_details` 有 `source_record_type` 但**没有 `source_record_id`**；关联只体现在 `deliverables.scope_value` 的 `\"CHANGE_NOTICE:{表名}:{id}\"` 字符串里 ⇒ 「关掉这条记录」只能靠解析字符串 ⇒ 字符串格式一变就静默失效，且表名/记录 id 在两处（scope_value 与 detail）各写一次。",
+      "fix": "关联改走 **`deliverable_record_bindings`** 一行（ADR-0008 明写用它替代原 `change_notice_record_bindings`）：`deliverable_version_id` + `record_type` + `record_id` + `record_hash` + `old_record_hash_before_change`；`scope_value` 与 binding 由守卫测试钉住一致。",
+      "fix_commit": "9a4f66b",
+      "tags": [
+        "p9a-dlv-011",
+        "change-notice",
+        "adr-0008",
+        "data-model",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2058",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "`approve_change_notice` **完全不看矩阵** ⇒ 任何调用者都能把变更单 PENDING → APPROVED（3 级校审在任何地方都没被强制）",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "该方法只查交付物状态与详情行，**不查 `matrix_id`、不查步骤、不查角色** ⇒ 变更单绑的 `CHANGE_NOTICE_3_LEVEL`（校核/审核/审定）**形同虚设**；ADR-0008 明写变更单用「独立签署矩阵」且「APPROVED 后**系统自动**关记录」—— 「自动」意味着触发点在把状态推成 APPROVED 的地方。",
+      "fix": "审批不再走独立端点：变更单**签最后一步**（`sign_step` 置 APPROVED）⇒ 自动关记录（CHANGED → CHECKED + `change_resolved_by` + 观测 COMPLETED，同一事务）。矩阵的角色/顺序判定因此**真的生效**。",
+      "fix_commit": "b18cbbc",
+      "tags": [
+        "p9a-dlv-011",
+        "change-notice",
+        "signing-matrix",
+        "adr-0008",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2055"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2059",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "两个既有测试的 helper 依赖「同项目同模块**两行**矩阵绑定」这个非法状态",
+      "file": "pcs-backend/tests/api/v1/test_deliverable_issue.py",
+      "root_cause": "`_make_deliverable` / `_pending` 每次调用都**新增**一行 `project_signature_matrix_bindings` ⇒ 测试能过是因为 DB 上没有 `(project_id, module)` 唯一约束 —— 那正是 bug-2052 说的缺陷。⇒ 唯一约束一上（迁移 `p9_008`）这两个测试立刻红。",
+      "fix": "helper 改成**换绑/复用**（同一项目同一模块只留一行；已有绑定时复用那个矩阵，不新建也不改绑）—— 与生产代码 `bind_to_project` 同形。⚠️ 顺带暴露一个真实的坑：若新建矩阵再改绑，先前那条交付物指向的矩阵**不再绑定** ⇒ issue 409（测试里表现为「doc_no 取不到」）。",
+      "fix_commit": "b18cbbc",
+      "tags": [
+        "p9a-dlv-011",
+        "test-hygiene",
+        "unique-constraint",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2052"
+      ],
       "occurrences": 1,
       "last_seen": "2026-10-26"
     }

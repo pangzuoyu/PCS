@@ -749,6 +749,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/initiate-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 发起变更（CHECKED → CHANGE_PENDING）
+         * @description 发起一条待生效的变更（ADR-0002：CHECKED → CHANGE_PENDING）。
+         *
+         *     触发时状态机自动写 **BEFORE_CHANGE 快照**（变更前的数据 + 哈希）
+         *     ⇒ 变更单建单时能把「变更前哈希」写进 `deliverable_record_bindings`
+         *     ⇒ 新旧哈希可比对（ADR-0008）。
+         */
+        post: operations["initiate_change_api_v1_records__module___record_id__initiate_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/apply-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 提交变更完成（CHANGE_PENDING → CHANGED，等待变更单关闭）
+         * @description 变更改完了、重校核过了 ⇒ 进入 CHANGED（等待变更单关闭它）。
+         *
+         *     ADR-0002：CHANGED = 「校核完成、等待关闭」⇒ 关闭凭证是**变更单**
+         *     （不是新版交付物）⇒ 记录要到变更单被签完才回 CHECKED。
+         */
+        post: operations["apply_change_api_v1_records__module___record_id__apply_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/change-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 发起变更单（记录须为 CHANGED）
+         * @description 给一条 CHANGED 的记录发起变更单（ADR-0008）。
+         *
+         *     建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+
+         *     **记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），
+         *     **同一事务**。
+         *
+         *     之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`
+         *     （矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；
+         *     最后一步签完 ⇒ 记录自动回 CHECKED。
+         */
+        post: operations["create_change_notice_api_v1_records__module___record_id__change_notice_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workflow-progress/{workflow_type}/{workflow_id}": {
         parameters: {
             query?: never;
@@ -4348,6 +4423,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/signature-matrices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列签署矩阵模板
+         * @description 列矩阵模板（全局配置 ⇒ 不按项目过滤）。
+         */
+        get: operations["list_signature_matrices_api_v1_signature_matrices_get"];
+        put?: never;
+        /**
+         * 建签署矩阵模板（SYSTEM_ADMIN）
+         * @description 建一个矩阵模板。
+         *
+         *     ⚠️ **写入时严格校验**（`validate_steps`）：任一步不合法 ⇒ 422，
+         *     **不部分入库**（否则「签署少一道校审」而没人知道）。
+         */
+        post: operations["create_signature_matrix_api_v1_signature_matrices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/signature-matrices/{matrix_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 签署矩阵详情
+         * @description 取矩阵详情（不存在 ⇒ 404 `SIGNATURE_MATRIX_NOT_FOUND`）。
+         */
+        get: operations["get_signature_matrix_api_v1_signature_matrices__matrix_id__get"];
+        /**
+         * 改签署矩阵模板（SYSTEM_ADMIN）
+         * @description 改矩阵模板（部分更新；`steps` 给了就整体替换）。
+         */
+        put: operations["update_signature_matrix_api_v1_signature_matrices__matrix_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/signature-matrices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 把矩阵绑到项目（项目负责人侧）
+         * @description 绑定矩阵到「项目 × 模块」（换绑 = 改同一行）。
+         *
+         *     ⚠️ 同一项目同一模块**只可能有一行**绑定（唯一约束，迁移 `p9_008`）
+         *     ⇒ 「谁该签这一步」不会有两个答案。
+         */
+        post: operations["bind_project_matrix_api_v1_projects__project_id__signature_matrices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/signature-matrices/{module}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 解绑项目的矩阵（项目负责人侧）
+         * @description 解绑（本来就没绑 ⇒ `unbound=false`，**不是** 404）。
+         */
+        delete: operations["unbind_project_matrix_api_v1_projects__project_id__signature_matrices__module__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -6775,6 +6944,96 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * ChangeNoticeDetailResponse
+         * @description 变更单扩展行（`change_notice_details`）。
+         */
+        ChangeNoticeDetailResponse: {
+            /**
+             * Detail Id
+             * Format: uuid
+             */
+            detail_id: string;
+            /** Change Type */
+            change_type: string;
+            /** Reason */
+            reason: string;
+            /** Triggered By */
+            triggered_by: string;
+            /** Source Record Type */
+            source_record_type?: string | null;
+        };
+        /**
+         * ChangeNoticeRequest
+         * @description 发起变更单的请求体。
+         *
+         *     ⚠️ **只收变更单特有字段**（ADR-0008：change_type / reason / triggered_by
+         *     在 1:1 扩展表 `change_notice_details`）；记录是谁由路径里的
+         *     `{module}/{record_id}` 决定 ⇒ 不在请求体里重复。
+         */
+        ChangeNoticeRequest: {
+            /**
+             * Change Type
+             * @description 7 值变更类型
+             * @enum {string}
+             */
+            change_type: "DATA_CORRECTION" | "PROCESS_CHANGE" | "UPSTREAM_CHANGE" | "CLIENT_COMMENT" | "RECORD_CANCELLATION" | "CHANGE_REVERSAL" | "OTHER";
+            /**
+             * Reason
+             * @description 变更原因
+             */
+            reason: string;
+            /**
+             * Triggered By
+             * @default MANUAL
+             * @enum {string}
+             */
+            triggered_by: "MANUAL" | "UPSTREAM_CHANGE";
+        };
+        /**
+         * ChangeNoticeResponse
+         * @description 建单结果。字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死。
+         *
+         *     `version_id` 是**签署时要用的那个版本**（变更单的 3 级矩阵作用在它身上），
+         *     `workflow_id` 是观测工作流的 id（= 变更单自己的 deliverable_id）。
+         */
+        ChangeNoticeResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /**
+             * Workflow Id
+             * Format: uuid
+             */
+            workflow_id: string;
+            /**
+             * Matrix Id
+             * Format: uuid
+             */
+            matrix_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Doc No */
+            doc_no: string;
+            /** Title */
+            title: string;
+            /**
+             * Sign Status
+             * @description 建单后 = PENDING（进签署中）
+             */
+            sign_status: string;
+            detail: components["schemas"]["ChangeNoticeDetailResponse"];
         };
         /**
          * CheckRequest
@@ -12549,6 +12808,128 @@ export interface components {
             source: string;
         };
         /**
+         * MatrixBindingRequest
+         * @description 把矩阵绑到项目 × 模块。
+         */
+        MatrixBindingRequest: {
+            /** Module */
+            module: string;
+            /**
+             * Matrix Id
+             * Format: uuid
+             */
+            matrix_id: string;
+        };
+        /**
+         * MatrixBindingResponse
+         * @description 绑定结果。
+         */
+        MatrixBindingResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Module */
+            module: string;
+            /**
+             * Matrix Id
+             * Format: uuid
+             */
+            matrix_id: string;
+            /**
+             * Matrix Name
+             * @description 绑的矩阵名（回显，便于前端确认）
+             */
+            matrix_name: string;
+        };
+        /**
+         * MatrixStepInput
+         * @description 矩阵的一步（写入形状）。
+         */
+        MatrixStepInput: {
+            /**
+             * Step Order
+             * @description 步骤序号，1 起
+             */
+            step_order: number;
+            /**
+             * Sign Role
+             * @description 该步要求的**全局角色**（与 token 的 role claim 比较）
+             */
+            sign_role: string;
+            /**
+             * Required
+             * @description 是否必签
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Can Self Check
+             * @description 提交人可否签自己这一步（false ⇒ 403）
+             * @default true
+             */
+            can_self_check: boolean;
+            /**
+             * Can Skip
+             * @description 可否跳过（false ⇒ 409）
+             * @default false
+             */
+            can_skip: boolean;
+        };
+        /**
+         * MatrixStepResponse
+         * @description 矩阵的一步（读出形状；字段与写入形状同构）。
+         */
+        MatrixStepResponse: {
+            /**
+             * Step Order
+             * @description 步骤序号，1 起
+             */
+            step_order: number;
+            /**
+             * Sign Role
+             * @description 该步要求的**全局角色**（与 token 的 role claim 比较）
+             */
+            sign_role: string;
+            /**
+             * Required
+             * @description 是否必签
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Can Self Check
+             * @description 提交人可否签自己这一步（false ⇒ 403）
+             * @default true
+             */
+            can_self_check: boolean;
+            /**
+             * Can Skip
+             * @description 可否跳过（false ⇒ 409）
+             * @default false
+             */
+            can_skip: boolean;
+        };
+        /**
+         * MatrixUnbindResponse
+         * @description 解绑结果。
+         */
+        MatrixUnbindResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Module */
+            module: string;
+            /**
+             * Unbound
+             * @description 是否真删了一行（本来就没绑 ⇒ False）
+             */
+            unbound: boolean;
+        };
+        /**
          * MeResponse
          * @description 当前用户信息响应（GET /auth/me 端点）。
          *
@@ -15999,6 +16380,93 @@ export interface components {
              * @description 本步动作发生时刻
              */
             signed_at: string;
+        };
+        /**
+         * SignatureMatrixListResponse
+         * @description 矩阵列表 + 总数。
+         */
+        SignatureMatrixListResponse: {
+            /** Items */
+            items: components["schemas"]["SignatureMatrixResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * SignatureMatrixRequest
+         * @description 建/改矩阵模板的请求体。
+         */
+        SignatureMatrixRequest: {
+            /** Matrix Name */
+            matrix_name: string;
+            /**
+             * Module
+             * @description 模块；`*` = 全部模块
+             * @enum {string}
+             */
+            module: "*" | "RECORD" | "STREAM" | "EQUIP" | "CHANGE_NOTICE";
+            /** Doc Type */
+            doc_type: string;
+            /**
+             * Version Purpose
+             * @description 版本目的（如 ISSUED_FOR_CHANGE）
+             */
+            version_purpose: string;
+            /**
+             * Steps
+             * @description 步骤定义（≥1 步）
+             */
+            steps: components["schemas"]["MatrixStepInput"][];
+            /**
+             * Status
+             * @default DRAFT
+             * @enum {string}
+             */
+            status: "DRAFT" | "PENDING" | "ACTIVE" | "OBSOLETE";
+        };
+        /**
+         * SignatureMatrixResponse
+         * @description 矩阵模板（显式声明，零裸字段）。
+         */
+        SignatureMatrixResponse: {
+            /**
+             * Matrix Id
+             * Format: uuid
+             */
+            matrix_id: string;
+            /** Matrix Name */
+            matrix_name: string;
+            /** Module */
+            module: string;
+            /** Doc Type */
+            doc_type: string;
+            /** Version Purpose */
+            version_purpose: string;
+            /** Status */
+            status: string;
+            /** Steps */
+            steps: components["schemas"]["MatrixStepResponse"][];
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * SignatureMatrixUpdateRequest
+         * @description 改矩阵模板的请求体（**部分更新**：给了才改）。
+         */
+        SignatureMatrixUpdateRequest: {
+            /** Matrix Name */
+            matrix_name?: string | null;
+            /** Module */
+            module?: ("*" | "RECORD" | "STREAM" | "EQUIP" | "CHANGE_NOTICE") | null;
+            /** Doc Type */
+            doc_type?: string | null;
+            /** Version Purpose */
+            version_purpose?: string | null;
+            /** Steps */
+            steps?: components["schemas"]["MatrixStepInput"][] | null;
+            /** Status */
+            status?: ("DRAFT" | "PENDING" | "ACTIVE" | "OBSOLETE") | null;
         };
         /**
          * SimImportDetailResponse
@@ -21049,6 +21517,120 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    initiate_change_api_v1_records__module___record_id__initiate_change_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsoleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_change_api_v1_records__module___record_id__apply_change_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsoleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_change_notice_api_v1_records__module___record_id__change_notice_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeNoticeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeNoticeResponse"];
                 };
             };
             /** @description Validation Error */
@@ -27121,6 +27703,220 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TodoListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_signature_matrices_api_v1_signature_matrices_get: {
+        parameters: {
+            query?: {
+                /** @description 按模块过滤 */
+                module?: string | null;
+                /** @description 按状态过滤（DRAFT/PENDING/ACTIVE/OBSOLETE） */
+                status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignatureMatrixListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_signature_matrix_api_v1_signature_matrices_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignatureMatrixRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignatureMatrixResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_signature_matrix_api_v1_signature_matrices__matrix_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                matrix_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignatureMatrixResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_signature_matrix_api_v1_signature_matrices__matrix_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                matrix_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignatureMatrixUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignatureMatrixResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bind_project_matrix_api_v1_projects__project_id__signature_matrices_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatrixBindingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatrixBindingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unbind_project_matrix_api_v1_projects__project_id__signature_matrices__module__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatrixUnbindResponse"];
                 };
             };
             /** @description Validation Error */

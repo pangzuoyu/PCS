@@ -1272,74 +1272,191 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
 **归属：** P9B-2（顺手做，不单独排期）。**关联：** P9B-1 最终评审 ledger
 `.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`。
 
-## TODO-068: 变更申请**无 HTTP 入口**（变更单只能由 service 层建）🟡
+## ✅ DONE —— TODO-068: 变更申请**无 HTTP 入口**（2026-10-26 落地，P9A-DLV-011 T4）
 
-**What:** 加 `POST /change-notices`（建变更单）+ 相应的读端点，让 SPEC §6.3 的
-「变更申请」按钮真的能点。
+**落地（用户 2026-10-26 裁决「068 全闭环（ADR-0008 忠实）」）**：
 
-**Why:** P9A-DLV-007 把 `create_change_notice` 落地了（2026-10-26），但
-**没有 API 路由调用它**（`grep -rn create_change_notice app/` 只有服务自己）
-⇒ 变更单这条路仍然只能从代码走，界面上发起不了。
-连带：变更单的**签署**也缺入口（`DeliverableService.sign_step` 有 service 层，
-但变更单不是走交付物签发流程建的，没有版本行）。
+- 3 个新端点：`POST /records/{module}/{id}/initiate-change`（CHECKED →
+  CHANGE_PENDING）、`/apply-change`（→ CHANGED）、`/change-notice`（建变更单）。
+- ⚠️ **此前记录到不了 CHANGED** —— `INITIATE_CHANGE` / `APPLY_CHANGE` 全仓
+  **没有任何 API/服务触发** ⇒ 建单端点即使写出来也不可达（已补）。
+- 变更单**建单即带版本行** ⇒ 3 级矩阵走**既有** `sign-step` ⇒ 矩阵**真的生效**
+  （角色 403 / 越步 409 / 自校禁止 403）—— 此前 `approve_change_notice` 直接
+  批准 ⇒ 矩阵是**装饰品**。
+- **自动关记录**（ADR-0008）：触发点 = `sign_step` 最后一步置 APPROVED 的那一刻
+  ⇒ 记录 CHANGED → CHECKED + `change_resolved_by` + 观测 COMPLETED，同一事务。
+- 驳回后**不再永久卡死**：`issue` 幂等判据放宽为「有未退回的版本」。
+- 工作区门禁：FORMAL 才许建（UI-SPEC §5.3）。
 
-**Pros:** 变更单闭环可演示；ADR-0047 的第三个写入点从「服务层可达」变成
-「用户可达」。
+**遗留**：前端无入口（用户裁决只做后端）；变更单编号仍非编号模板（见 TODO-073）。
 
-**Cons:** 权限模型（谁能对哪条记录发起变更）+ 请求 schema + 契约 + 前端按钮。
+---
 
-**归属：** 下一轮（与 P9B-2 的签署流程前端同批更划算）。
-**关联：** TODO-057（已闭环）· P9A-DLV-007 · SPEC §6.3。
+## ✅ DONE —— TODO-069: 「一条记录同时只有一张变更单」是**新增业务约束**（2026-10-26 落地）
 
-## TODO-069: 「一条记录同时只有一张变更单」是**新增业务约束**（未经 SPEC 确认）🟡
+**落地**：
+- `doc_no` 改用**完整 32 位 hex**（`CN-{uuid.hex}`）⇒ 跨记录撞号归零
+  （原取前 8 位 = 32 bit ⇒ 同项目 ~65k 张单即可能撞 `uq_deliverables_doc_no`
+  ⇒ 未捕获的 IntegrityError 500）。
+- 同记录的第二次建单 ⇒ **409 `CHANGE_NOTICE_ALREADY_EXISTS`**（明说，不是撞约束）。
+- 记录↔变更单的关联改走 **`deliverable_record_bindings`**（ADR-0008 明写用它
+  替代原 `change_notice_record_bindings`）⇒ 不再靠解析 `scope_value` 字符串；
+  `scope_value` 与 binding 由守卫测试钉住一致。
 
-**What:** 确认或改口径。当前实现：`create_change_notice` 发现该记录已有变更单
-⇒ 409 `CHANGE_NOTICE_ALREADY_EXISTS`。
+**⚠️ 仍未由 SPEC 确认**（业务口径待裁决）：
+1. 「一条记录同时只有一张变更单」这条规则本身仍是**实现推导**出来的
+   （doc_no 派生的副产品），SPEC 侧尚未确认 ⇒ 保留本条记录的**裁决请求**。
+2. **已取消的变更单也会挡住再次建单**（实现只问「有没有」，不问状态）——
+   ⚠️ 变更单目前**没有取消路径**（`cancel_change_notice` 从未实现）⇒ 影响是
+   潜在的 ⇒ 等取消功能落地时一并定口径。
+3. `doc_no` 只是**唯一**，不是可读编号 ⇒ 见 TODO-073。
 
-**Why:** 这条约束是 **`uq_deliverables_doc_no` 的副产品**（`doc_no` 由
-`record_id` 派生 ⇒ 同记录建第二张会撞唯一约束），**不是** SPEC 写过的业务规则。
-两个连带问题：
-1. **已取消的变更单也会挡住再次建单**（实现只查「有没有」，不查状态）
-   ⇒ 一次取消就再也发不起了；
-2. `doc_no` 取 `record_id` 前 8 位 hex ⇒ 同项目内两条记录撞前 8 位的概率
-   极低但非零（2⁻³²/对）⇒ 撞了就是未捕获的 IntegrityError（500）。
+---
 
-**归属：** SPEC 下次修订时确认口径；实现侧至少要把「已取消的变更单」放行。
-**关联：** TODO-057 · ADR-0008。
+## ✅ DONE —— TODO-070: `signature_matrices` **无管理面**（2026-10-26 落地，P9A-DLV-011 T3）
 
-## TODO-070: `signature_matrices` **无管理面**（项目自定义矩阵建不了）🟡
+**落地**：6 个端点（`GET/POST /signature-matrices`、`GET/PUT
+/signature-matrices/{id}`、`POST /projects/{id}/signature-matrices`、
+`DELETE /projects/{id}/signature-matrices/{module}`）+ service CRUD。
 
-**What:** 矩阵只能由 `SignatureMatrixService` 惰性建**内置**模板
-（`CHANGE_NOTICE_3_LEVEL`），项目**自定义**矩阵没有任何创建/编辑入口。
+**权限分层**（用户 2026-10-26 裁决）：
+- 改**模板**（全局表）= **SYSTEM_ADMIN**（项目角色能改 ⇒ 别的项目在用的矩阵
+  跟着变）；
+- **绑定**项目 = 全局角色 ∈ {DESIGNER, PROCESS_CONTROLLER, SYSTEM_ADMIN}
+  + 项目授权（与 `_ISSUE_ROLES` 同形；项目内角色词表无序 ⇒ 不按它分级）。
 
-**Why:** `signature_matrices` 原本恒 0 行且全仓无创建方；本批只补了「内置模板
-+ 项目绑定」这一条最小路径。⇒ **交付物的签发路径同样受阻**（项目想用自己的
-矩阵做签发，做不到）。
+**遗留**：前端没有矩阵管理页（用户裁决只做后端）；矩阵**名**未加唯一约束
+⇒ 并发下可能建出两份同名模板（内容相同，无害）⇒ 见 TODO-074。
 
-**归属：** 独立一轮（管理面 = CRUD + 权限 + 前端页）。
-**关联：** TODO-057 · ADR-0008 · SUP-005。
+---
 
-## TODO-071: `project_signature_matrix_bindings` 缺 (project_id, module) 唯一约束 🟡
+## ✅ DONE —— TODO-071: `project_signature_matrix_bindings` 缺 (project_id, module) 唯一约束（2026-10-26 落地）
 
-**What:** 表上只有 PK + 两个索引，**没有** `(project_id, module)` 唯一约束
-（ORM 注释却写着「一个项目同一模块只能绑定一个矩阵」）。
+**落地**：迁移 `p9_008`（+ ORM 同步声明）+ `SignatureMatrixService._ensure_binding`
+撞约束 ⇒ **SAVEPOINT** 回滚这一段 ⇒ 重读那一行（而不是 500）。
 
-**Why:** `SignatureMatrixService._ensure_binding` 靠「先查后建」保证幂等
-⇒ 并发下两个事务各建一行 ⇒ 同一项目同一模块绑到**两个**矩阵 ⇒
-「谁该签这一步」又变成两个真相源（与 bug-2050 同形）。
+⚠️ SAVEPOINT 而不是裸 catch：PostgreSQL 撞唯一约束会**中止整个事务** ⇒ 裸
+catch 会把前面建的矩阵/交付物一起丢。
 
-**代价：** 加约束 = 改迁移 ⇒ 必须在**全新库**上验（CI 会跑）+ 两个库各跑一次
-`alembic check`（退出码 255 才算检出）。
+**验证**：`alembic upgrade head` 在**全新隔离 schema** 上从零跑通（CI 的
+api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs_test`
+**各跑一次**均 exit 0（两库均到 `p9_008` head）。
 
-**归属：** 独立一轮（迁移批）。**关联：** bug-2052 · TODO-057。
+**连带**：两个既有测试的 helper 依赖了「同项目同模块两行绑定」这个**非法状态**
+⇒ 改成换绑/复用（与生产代码同形）。
 
-## TODO-072: `steps_json` **校验器**缺失（部分跳过目前只记日志）🟡
+---
 
-**What:** `SignatureMatrixService.parse_steps` 对**部分**坏数据是「跳过 + WARNING
-日志」；调用方拿不到结构化的跳过计数（接口签名是 `-> list[MatrixStep]`）。
+## ✅ DONE —— TODO-072: `steps_json` **校验器**缺失（2026-10-26 落地，P9A-DLV-011 T3）
 
-**Why:** 「签署少了一道校审」比报错更危险 —— 日志不是可靠的通知渠道，
-运维不一定会看。根治办法是**入库前校验**（矩阵管理面写 `steps_json` 时
-校验形状，坏数据根本进不来）。
+**落地**：`SignatureMatrixService.validate_steps` —— **写**路径的严格校验
+（任一项非法 ⇒ 422 `SIGNATURE_MATRIX_INVALID`，**不部分入库**；另挡**序号
+重复**）。
 
-**归属：** 与 TODO-070（矩阵管理面）同批。**关联：** TODO-057 · 计划 R-2。
+| | `parse_steps`（读） | `validate_steps`（写） |
+|---|---|---|
+| 单项坏 | 跳过 + WARNING 日志 | **422** |
+| 全坏 | 422 | **422** |
+
+读路径必须容忍**存量脏数据**；写路径必须**挡住坏配置** ⇒ 新写进来的矩阵一定
+干净 ⇒ 读路径的「部分跳过」只服务存量。
+
+---
+
+## TODO-073: 变更单编号**不是可读编号**（`CN-{32 位 hex}`）🟡
+
+**What:** 变更单的 `doc_no` 现在是 `CN-{record_id 的完整 32 位 hex}`。
+
+**Why:** 它只保证**唯一**（前 8 位 = 32 bit ⇒ 同项目 ~65k 张单就可能撞
+`uq_deliverables_doc_no` ⇒ 未捕获的 IntegrityError 500）。但它是给用户看的
+编号 ⇒ 一串 32 位 hex **不可读**、不可口述、不可检索。
+
+**How:** 走**编号模板**（`numbering_templates` + `segments_json`，ADR-0008 说
+「变更单编号模板映射 PR/KDC」）—— 交付物已有 `_allocate_doc_no` 走模板取号
+（`SELECT ... FOR UPDATE` 行锁，PG 串行化同 scope 并发取号）⇒ 变更单复用
+同一条路即可，但要给变更单一张模板 + 一个 `numbering_template_id` 绑定。
+
+**归属：** 独立一轮（要建模板 + 改编号取号路径）。**关联：** TODO-069。
+
+## TODO-074: 签署矩阵**名**未加唯一约束（并发下可能两份同名模板）🟡
+
+**What:** `signature_matrices.matrix_name` 无唯一约束。
+
+**Why:** `SignatureMatrixService._get_or_create_builtin_matrix` 按
+`(matrix_name, status='ACTIVE')` **找第一份** ⇒ 并发建单时可能建出**两份**
+同名内置模板（内容相同 ⇒ 无害，但矩阵表会膨胀；两个项目可能绑到不同的一份）。
+
+**How:** 给 `matrix_name` 加唯一约束（改迁移 ⇒ 全新库验证），或管理面
+（TODO-070 的端点）建矩阵时校验「同名已存在 ⇒ 409」。**归属：** 与矩阵管理面
+的「换绑/改名」一起做。
+
+## TODO-075: `change_resolved_by` 被写**两次**（语义错位）🟡
+
+**What:** 9 态状态机的 `APPLY_CHANGE`（CHANGE_PENDING → CHANGED）就写了
+`change_resolved_at` + `change_resolved_by`；而 ADR-0002 说这两个字段记的是
+**变更单的关闭人**（变更单 APPROVED 时才写）。
+
+**Why:** ⇒ 「谁关闭了这次变更」在变更单批准**之前**就有了值（校核完成的人）。
+最终值会被关记录那步覆盖（= 批准人）⇒ 落到库里是对的，但**中间态**的语义是错的，
+且任何读 `change_resolved_by` 的地方在变更单批准前会拿到「校核人」。
+
+**How:** 把 `APPLY_CHANGE` 写这两个字段的行为去掉（或改名），只由关记录那步写。
+⚠️ 动状态机会影响既有测试 ⇒ 独立一轮。**归属：** 独立一轮。
+
+## TODO-076: 工作区类型门禁只覆盖本批端点（全端点仍缺）🟡
+
+**What:** `require_formal_workspace`（UI-SPEC §5.3）目前只挂在
+`POST /records/{module}/{id}/change-notice` 上。
+
+**Why:** UI-SPEC §5.3 的门禁清单覆盖**提交批准 / 创建交付物 / 创建变更单 /
+签署** ⇒ 其余三类在 API 层**没有**对应守卫（前端有，但「后端 403 为兜底」是
+UI-SPEC 自己写的 ⇒ 后端缺 ⇒ 绕过前端就能做）。
+
+**How:** 把 `require_formal_workspace` 挂到其余写端点上（records 的
+submit-approval / approval-step / deliverables 的 issue / sign-step），
+并补守卫测试。**归属：** 独立一轮。
+
+## TODO-077: `apply-change` 不要求 hash 变化（可能「没改内容也关变更」）🟡
+
+**What:** `POST /records/{module}/{id}/apply-change` 只做状态迁移
+（CHANGE_PENDING → CHANGED），**不检查**记录的 `record_hash` 是否真的变了。
+
+**Why:** ADR-0002 只说「校核完成」；发明「必须改过」是加需求（计划 R-11 的
+取舍）。但后果是：可以「发起变更 → 什么都不改 → 提交变更完成 → 变更单签完」
+⇒ 一条**没有实质变更**的记录被关掉，而变更单里写着「管径修正」。
+
+**How:** 待业务裁决（要不要强制 hash 变化 / 或者要求变更单里带差异清单）。
+**归属：** SPEC 裁决。
+
+## TODO-078: 变更单只绑**一条**记录（多记录变更未支持）🟡
+
+**What:** `deliverable_record_bindings` 一次变更单只写**一行**（一条记录）。
+
+**Why:** ADR-0002 的场景是「改了已发布的一版数据 ⇒ 用变更单关闭」；
+但工程实践里一次变更常影响**多条**记录（一次管径修正 ⇒ 十几条记录）。
+
+**How:** 建单请求体加 `record_ids: list[uuid]`（或一个「影响范围」选择），
+并把 binding 写成多行 + `close_on_approved` 改成**批量**关记录。
+⚠️ 现在的「一条记录一张变更单」规则（TODO-069）也要跟着调整。
+**归属：** 独立一轮。
+
+## TODO-079: 矩阵管理面**没有前端**（用户 2026-10-26 裁决「只做后端」）🟡
+
+**What:** 矩阵的 6 个管理端点已就绪，但**前端没有矩阵管理页**。
+
+**Why:** 用户裁决本批只做后端（前端属 P9B lane）。⇒ 项目负责人目前只能靠
+curl 管理矩阵。
+
+**How:** P9B 批次里加一个「签署矩阵」页（列表 / 编辑步骤 / 绑定项目）。
+**归属：** P9B（与 P9B-2 同批更划算）。
+
+## TODO-080: P9A-DLV-007 评审的 **3 条 deferred minor** 🟡
+
+| # | 事项 | 位置 |
+|---|---|---|
+| 1 | 「同记录已有变更单 ⇒ 409」**不区分已取消**（当前**没有**取消路径 ⇒ 影响潜在） | `change_notice_service.py` |
+| 2 | 4 个 approve 用例用假 Session ⇒ `record_step` 的写落到了 `ChangeNoticeDetail` 对象上（**零覆盖**，真覆盖在真库用例里） | `test_change_notice_service.py` |
+| 3 | `deliverable_service` 用 **core 变体** `PcsError`，`signature_matrix_service` 用 **service 变体** ⇒ 在前者写 `except PcsError` 捕不到后者（已在模块 docstring 注明，但没统一） | `deliverable_service.py` |
+
+**归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** P9A-DLV-007 评审
+ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md`。
