@@ -34,6 +34,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from sqlalchemy import select
 
 from app.models.calc import ReliefResult
 from app.models.deliverable import (
@@ -166,6 +167,7 @@ async def test_obsolete_is_blocked_when_the_record_is_effectively_published(db):
         )
     assert exc_info.value.code == "RECORD_BOUND_USE_CHANGE_NOTICE"
     assert exc_info.value.status == 409
+    assert "RECORD_CANCELLATION" in str(exc_info.value), "提示必须说清该走哪条路"
 
 
 async def test_obsolete_is_allowed_when_no_approved_binding_exists(db):
@@ -237,3 +239,54 @@ async def test_reversal_is_allowed_when_the_binding_is_not_approved(db):
         record_table=ReliefResult,
     )
     assert result["to"] == "REVERSAL_PENDING"
+
+
+async def test_bound_obsolete_via_deliverable_obsoletes_the_record(db):
+    """⚠️ 走**变更单**弃用：记录被**这张**交付物绑定 ⇒ 联动 OBSOLETE + 写审计。
+
+    ⚠️ 这条路径的判据是「**这张**交付物**绑了**这条记录」——**不是**「已批准」
+    （本方法由变更单 APPROVED 流程调用 ⇒ 那一刻这张单**还没**批完 ⇒ 判「已
+    批准」会把这条路径永远堵死）。
+    """
+    from app.models.system import AuditLog
+
+    project = await _make_project(db)
+    rec = await _make_record(db, project, sign_status="CHECKED")
+    deliverable = await _bind_record_to_deliverable(db, project, rec, approved=False)
+
+    result = await RecordCancellationService.bound_obsolete_via_deliverable(
+        db,
+        record_id=rec.relief_id,
+        deliverable_id=deliverable.deliverable_id,
+        actor=_Actor(uuid.uuid4()),
+        record_table=ReliefResult,
+    )
+    assert result["obsoleted_via"] == "DELIVERABLE"
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.OBSOLETE.value
+    assert rec.obsoleted_via_deliverable_id == deliverable.deliverable_id
+
+    audits = (
+        await db.execute(
+            select(AuditLog).where(AuditLog.resource_id == str(rec.relief_id))
+        )
+    ).scalars().all()
+    assert audits, "联动弃用必须留审计"
+
+
+async def test_bound_obsolete_via_deliverable_rejects_an_unbound_record(db):
+    """记录**没被这张**交付物绑定 ⇒ 422 RECORD_NOT_BOUND（该走直接 OBSOLETE）。"""
+    project = await _make_project(db)
+    rec = await _make_record(db, project, sign_status="CHECKED")
+    await _bind_record_to_deliverable(db, project, rec, approved=False)
+
+    with pytest.raises(PcsError) as exc_info:
+        await RecordCancellationService.bound_obsolete_via_deliverable(
+            db,
+            record_id=rec.relief_id,
+            deliverable_id=uuid.uuid4(),  # 另一张单
+            actor=_Actor(uuid.uuid4()),
+            record_table=ReliefResult,
+        )
+    assert exc_info.value.code == "RECORD_NOT_BOUND"
+    assert exc_info.value.status == 422

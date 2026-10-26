@@ -28,8 +28,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import PipingResult
-from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 from app.models.enums import RecordSignStatus9
+from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 
 pytestmark = pytest.mark.asyncio
 
@@ -81,6 +81,69 @@ def _url(rec: PipingResult, action: str) -> str:
     return f"/api/v1/records/PipingResult/{rec.pipe_id}/{action}"
 
 
+async def _bind_to_approved_deliverable(
+    db_session: AsyncSession, rec: PipingResult, project_id
+) -> None:
+    """把记录绑到一张**已批准**的交付物上（= 「已对外生效」）。
+
+    ⚠️ TODO-082：「已对外生效」的判据**不是** `record.locked_by_deliverable`
+    （那列**全仓只被读、从不被写 True** ⇒ 门永远不触发）⇒ 真实条件 = 记录被
+    一张 **APPROVED** 的交付物绑定。
+    """
+    from app.models.deliverable import (
+        Deliverable,
+        DeliverableRecordBinding,
+        DeliverableVersion,
+        SignatureMatrix,
+    )
+    from app.models.enums import DeliverableSignStatus
+
+    matrix = SignatureMatrix(
+        matrix_name=f"矩阵-{uuid.uuid4().hex[:8]}",
+        module="RECORD",
+        doc_type="CHANGE_NOTICE",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "APPROVER"}],
+        status="ACTIVE",
+    )
+    db_session.add(matrix)
+    await db_session.flush()
+    deliverable = Deliverable(
+        matrix_id=matrix.matrix_id,
+        project_id=project_id,
+        deliverable_type="CHANGE_NOTICE",
+        scope_type="CUSTOM",
+        scope_value=f"CHANGE_NOTICE:PipingResult:{rec.pipe_id}:{uuid.uuid4().hex[:8]}",
+        doc_no=f"CN-{uuid.uuid4().hex.upper()}",
+        doc_no_mode="MANUAL",
+        title="变更单",
+        current_rev="0",
+        version_purpose="ISSUED_FOR_CHANGE",
+        sign_status=DeliverableSignStatus.APPROVED,
+    )
+    db_session.add(deliverable)
+    await db_session.flush()
+    version = DeliverableVersion(
+        deliverable_id=deliverable.deliverable_id,
+        rev="1",
+        version_purpose="ISSUED_FOR_CHANGE",
+        description="变更单版本",
+        record_snapshot_json={},
+        signature_summary_json={},
+    )
+    db_session.add(version)
+    await db_session.flush()
+    db_session.add(
+        DeliverableRecordBinding(
+            deliverable_version_id=version.version_id,
+            record_type="PipingResult",
+            record_id=rec.pipe_id,
+            record_hash=rec.record_hash or "",
+        )
+    )
+    await db_session.commit()
+
+
 class TestObsoleteEndpoint:
     async def test_obsolete_unbound_record_succeeds(
         self, client, auth, db_session, project_id, workspace
@@ -99,16 +162,16 @@ class TestObsoleteEndpoint:
     async def test_obsolete_endpoint_returns_409_when_bound_to_deliverable(
         self, client, auth, db_session, project_id, workspace
     ):
-        """已绑定记录弃用 ⇒ 409（`BoundObsoleteError`），**不是 500**。
+        """已对外生效的记录弃用 ⇒ 409（`BoundObsoleteError`），**不是 500**。
 
-        已绑定记录必须走 RECORD_CANCELLATION 变更单（ADR-0002）。
+        已对外生效的记录必须走 RECORD_CANCELLATION 变更单（ADR-0002）
+        —— ⚠️ 判据 = 被一张 **APPROVED** 的交付物绑定（TODO-082）。
         若这里变成 500，前端只知道「出错了」，用户会以为系统坏了而重试；
         而正确处置是「去开变更单」。
         """
-        rec = await _make_record(
-            client, auth, db_session, project_id, workspace,
-            locked_by_deliverable=True,
-        )
+        rec = await _make_record(client, auth, db_session, project_id, workspace)
+        # ⚠️ 「已对外生效」= 被一张 **APPROVED** 的交付物绑定（TODO-082）
+        await _bind_to_approved_deliverable(db_session, rec, project_id)
 
         resp = await client.post(
             _url(rec, "obsolete"), headers=auth, json={"reason": "重复录入"}
@@ -281,8 +344,8 @@ class TestModuleResolution:
         现在断言：具备 `RecordMixin` 全列的键解析得到模型；
         其余的必须抛 422 `RECORD_MODULE_UNSUPPORTED`。
         """
-        from app.core.errors import PcsError
         from app.api.v1.records_actions import resolve_record_model
+        from app.core.errors import PcsError
         from app.models.mixins import RecordMixin
         from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 

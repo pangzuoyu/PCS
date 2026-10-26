@@ -148,7 +148,12 @@ async def test_api_initiate_change(client, make_stream, pc_headers, designer_hea
 
 @pytest.mark.asyncio
 async def test_api_pass_change(client, make_stream, pc_headers, designer_headers):
-    """POST /streams/{id}/pass-change → 200，sign_status=CHANGED + change_resolved_at 非空。"""
+    """POST /streams/{id}/pass-change → 200，sign_status=CHANGED。
+
+    ⚠️ TODO-075：`change_resolved_at` / `change_resolved_by` 记的是「**谁关闭了
+    这次变更**」⇒ 由**关记录那步**（变更单 APPROVED）写 ⇒ 「校核完成」这一步
+    **不写**它们 ⇒ 此刻必须是 **None**。
+    """
     stream = await make_stream("PC")
     await client.post(f"/api/v1/streams/{stream.stream_id}/submit", headers=designer_headers)
     await client.post(f"/api/v1/streams/{stream.stream_id}/approve", headers=pc_headers)
@@ -165,7 +170,8 @@ async def test_api_pass_change(client, make_stream, pc_headers, designer_headers
     assert resp.status_code == 200
     data = resp.json()
     assert data["sign_status"] == "CHANGED"
-    assert data["change_resolved_at"] is not None
+    # ⚠️ 「校核完成」**不等于**「变更已关闭」⇒ 关闭人此刻**还没有**
+    assert data["change_resolved_at"] is None
 
 
 @pytest.mark.asyncio

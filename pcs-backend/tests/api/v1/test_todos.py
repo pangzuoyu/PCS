@@ -66,7 +66,9 @@ async def _grant(db, user_id: uuid.UUID, project_id: uuid.UUID, role: str):
 
 async def _issue(db, project_id: uuid.UUID, *, steps=None, sign_status=None):
     matrix = SignatureMatrix(
-        matrix_name="矩阵",
+        # ⚠️ **名字必须逐条不同**（TODO-074：`uq_signature_matrices_name_status`
+        #    = (matrix_name, status) 唯一 ⇒ 同名同状态的两份矩阵不许存在）
+        matrix_name=f"矩阵-{uuid.uuid4().hex[:8]}",
         module="*",
         doc_type="CALCULATION_BOOK",
         version_purpose="ISSUED_FOR_CONSTRUCTION",
@@ -286,7 +288,9 @@ async def test_todo_response_has_no_bare_fields(client, db, project_id):
 async def _bulk(db, me: uuid.UUID, project_id: uuid.UUID, n: int):
     """造 n 个待签交付物。"""
     matrix = SignatureMatrix(
-        matrix_name="矩阵",
+        # ⚠️ **名字必须逐条不同**（TODO-074：`uq_signature_matrices_name_status`
+        #    = (matrix_name, status) 唯一 ⇒ 同名同状态的两份矩阵不许存在）
+        matrix_name=f"矩阵-{uuid.uuid4().hex[:8]}",
         module="*",
         doc_type="CALCULATION_BOOK",
         version_purpose="ISSUED_FOR_CONSTRUCTION",

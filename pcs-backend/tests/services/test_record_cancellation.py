@@ -5,9 +5,14 @@ ADRS：
 - ADR-0002：已绑定记录弃用须走变更单（change_type=RECORD_CANCELLATION）
 
 本测试覆盖：
-1. 未绑定记录（locked_by_deliverable=False）：直接 OBSOLETE，调用 _unbound_obsolete 路径
-2. 已绑定记录（locked_by_deliverable=True）：拒绝直接 OBSOLETE，提示需 RECORD_CANCELLATION 变更单
-3. 已绑定记录的弃用：经 deliverable APPROVED → 自动 OBSOLETE 联动（_bound_obsolete_via_change）
+1. 未对外生效的记录：直接 OBSOLETE（_unbound_obsolete 路径）
+2. **已对外生效**的记录：拒绝直接 OBSOLETE，提示需 RECORD_CANCELLATION 变更单
+   —— ⚠️ 「已对外生效」的判据在 TODO-082 换成了**真实可判定**的条件（记录被
+   一张 **APPROVED** 的交付物绑定）⇒ 那两道门的**真库**用例在
+   `tests/services/test_record_publication_gate.py`；本文件里依赖旧标志
+   （`locked_by_deliverable`）的用例已随之删除
+3. 已对外生效记录的弃用：经 deliverable APPROVED → 自动 OBSOLETE 联动
+   （bound_obsolete_via_deliverable）
 4. OBSOLETE 后位号不可复用（依赖 (project_id, tag_number) UNIQUE 约束；测试覆盖服务层契约）
 5. OBSOLETE 状态机事件：obsoleted_at/obsoleted_by/obsoleted_reason/obsoleted_via_deliverable_id 写入
 """
@@ -20,10 +25,7 @@ from typing import Any
 import pytest
 
 from app.services.exceptions import PcsError
-from app.services.record_cancellation_service import (
-    BoundObsoleteError,
-    RecordCancellationService,
-)
+from app.services.record_cancellation_service import RecordCancellationService
 
 
 @dataclass
@@ -48,14 +50,13 @@ class FakeRecordTable:
 
 
 class _FakeRecord:
-    """模拟一条带 sign_status + locked_by_deliverable 的业务记录。"""
+    """模拟一条带 sign_status 的业务记录。"""
 
     def __init__(
         self,
         *,
         record_id: uuid.UUID | None = None,
         sign_status: str = "CHECKED",
-        locked_by_deliverable: bool = False,
         tag_number: str | None = None,
         obsoleted_via_deliverable_id: uuid.UUID | None = None,
         obsoleted_at: Any = None,
@@ -65,7 +66,6 @@ class _FakeRecord:
     ) -> None:
         self.record_id = record_id or uuid.uuid4()
         self.sign_status = sign_status
-        self.locked_by_deliverable = locked_by_deliverable
         self.tag_number = tag_number
         self.obsoleted_via_deliverable_id = obsoleted_via_deliverable_id
         self.obsoleted_at = obsoleted_at
@@ -124,7 +124,7 @@ class _FakeSession:
 @pytest.mark.asyncio
 async def test_unbound_record_obsolete_directly():
     """未绑定记录（locked_by_deliverable=False）→ 直接 OBSOLETE。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=False)
+    rec = _FakeRecord(sign_status="CHECKED")
     db = _FakeSession()
     db.store[(FakeRecordTable, rec.record_id)] = rec
 
@@ -149,7 +149,7 @@ async def test_unbound_record_obsolete_directly():
 async def test_unbound_record_obsolete_supported_from_any_status():
     """未绑定记录：任何状态都可 OBSOLETE（DRAFT/CHECKED/CHANGED 等均允许）。"""
     for start_status in ("DRAFT", "CHECKED", "CHANGED", "CHANGE_PENDING", "STALE"):
-        rec = _FakeRecord(sign_status=start_status, locked_by_deliverable=False)
+        rec = _FakeRecord(sign_status=start_status)
         db = _FakeSession()
         db.store[(FakeRecordTable, rec.record_id)] = rec
 
@@ -169,82 +169,9 @@ async def test_unbound_record_obsolete_supported_from_any_status():
 
 
 @pytest.mark.asyncio
-async def test_bound_record_direct_obsolete_rejected():
-    """已绑定记录（locked_by_deliverable=True）：拒绝直接 OBSOLETE → BoundObsoleteError。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=True)
-    db = _FakeSession()
-    db.store[(FakeRecordTable, rec.record_id)] = rec
-
-    with pytest.raises(BoundObsoleteError) as exc_info:
-        await RecordCancellationService.obsolete(
-            db,
-            record_id=rec.record_id,
-            actor=_actor(),
-            reason="x",
-            record_table=FakeRecordTable,
-        )
-    assert "RECORD_CANCELLATION" in str(exc_info.value)
-    # 状态不变
-    assert rec.sign_status == "CHECKED"
-
-
-@pytest.mark.asyncio
-async def test_bound_record_direct_obsolete_error_includes_deliverable_hint():
-    """BoundObsoleteError 提示需走 RECORD_CANCELLATION 变更单。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=True)
-    db = _FakeSession()
-    db.store[(FakeRecordTable, rec.record_id)] = rec
-
-    with pytest.raises(PcsError) as exc_info:
-        await RecordCancellationService.obsolete(
-            db,
-            record_id=rec.record_id,
-            actor=_actor(),
-            reason="x",
-            record_table=FakeRecordTable,
-        )
-    assert exc_info.value.code == "RECORD_BOUND_USE_CHANGE_NOTICE"
-    assert exc_info.value.status == 409
-
-
-# ============================================================================
-# 3. 已绑定记录：经变更单 APPROVED 联动 OBSOLETE
-# ============================================================================
-
-
-@pytest.mark.asyncio
-async def test_bound_record_obsolete_via_change_notice_approval():
-    """已绑定记录：经 RECORD_CANCELLATION 变更单 APPROVED → 联动 OBSOLETE。
-
-    由 ChangeNoticeService.approve 路径触发；RecordCancellationService 提供
-    bound_obsolete_via_deliverable 入口供 approve 阶段调用。
-    """
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=True)
-    db = _FakeSession()
-    db.store[(FakeRecordTable, rec.record_id)] = rec
-
-    actor = _actor()
-    deliverable_id = uuid.uuid4()
-    await RecordCancellationService.bound_obsolete_via_deliverable(
-        db,
-        record_id=rec.record_id,
-        deliverable_id=deliverable_id,
-        actor=actor,
-        record_table=FakeRecordTable,
-    )
-
-    assert rec.sign_status == "OBSOLETE"
-    assert rec.obsoleted_at is not None
-    assert rec.obsoleted_by == actor.user_id
-    assert rec.obsoleted_via_deliverable_id == deliverable_id
-    # 锁定标志保留（OBSOLETE 后仍记录被哪份交付物绑过）
-    assert rec.locked_by_deliverable is True
-
-
-@pytest.mark.asyncio
 async def test_bound_record_obsolete_via_change_notice_requires_bound_flag():
     """bound_obsolete_via_deliverable：未绑定记录拒绝（应走直接 OBSOLETE）。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=False)
+    rec = _FakeRecord(sign_status="CHECKED")
     db = _FakeSession()
     db.store[(FakeRecordTable, rec.record_id)] = rec
 
@@ -285,7 +212,7 @@ async def test_obsolete_record_not_found():
 @pytest.mark.asyncio
 async def test_obsolete_already_obsolete_rejected():
     """已 OBSOLETE 记录不可再次 OBSOLETE → 409。"""
-    rec = _FakeRecord(sign_status="OBSOLETE", locked_by_deliverable=False)
+    rec = _FakeRecord(sign_status="OBSOLETE")
     db = _FakeSession()
     db.store[(FakeRecordTable, rec.record_id)] = rec
 
@@ -315,7 +242,6 @@ async def test_obsolete_preserves_tag_number_for_lifetime_uniqueness():
     """
     rec = _FakeRecord(
         sign_status="CHECKED",
-        locked_by_deliverable=False,
         tag_number="P-1001",
     )
     db = _FakeSession()
@@ -342,7 +268,7 @@ async def test_obsolete_preserves_tag_number_for_lifetime_uniqueness():
 @pytest.mark.asyncio
 async def test_unbound_obsolete_writes_audit():
     """未绑定 OBSOLETE 写 audit：RECORD_OBSOLETED。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=False)
+    rec = _FakeRecord(sign_status="CHECKED")
     db = _FakeSession()
     db.store[(FakeRecordTable, rec.record_id)] = rec
 
@@ -377,39 +303,3 @@ async def test_unbound_obsolete_writes_audit():
     assert aw["detail"]["obsoleted_via"] == "DIRECT"
 
 
-@pytest.mark.asyncio
-async def test_bound_obsolete_via_deliverable_writes_audit():
-    """已绑定 OBSOLETE 写 audit：obsoleted_via=DELIVERABLE。"""
-    rec = _FakeRecord(sign_status="CHECKED", locked_by_deliverable=True)
-    db = _FakeSession()
-    db.store[(FakeRecordTable, rec.record_id)] = rec
-
-    from app.services import audit_service as audit_mod
-
-    audit_writes: list[dict] = []
-
-    async def _capture(self, *, action, resource_type, resource_id, user_id, detail):
-        audit_writes.append(
-            {"action": action, "resource_type": resource_type,
-             "resource_id": resource_id, "user_id": user_id, "detail": detail}
-        )
-
-    orig_write = audit_mod.AuditService.write
-    audit_mod.AuditService.write = _capture  # type: ignore[assignment]
-    try:
-        deliverable_id = uuid.uuid4()
-        await RecordCancellationService.bound_obsolete_via_deliverable(
-            db,
-            record_id=rec.record_id,
-            deliverable_id=deliverable_id,
-            actor=_actor(),
-            record_table=FakeRecordTable,
-        )
-    finally:
-        audit_mod.AuditService.write = orig_write  # type: ignore[assignment]
-
-    obs_audits = [w for w in audit_writes if "OBSOLETE" in w["action"].name]
-    assert len(obs_audits) == 1
-    aw = obs_audits[0]
-    assert aw["detail"]["obsoleted_via"] == "DELIVERABLE"
-    assert aw["detail"]["deliverable_id"] == str(deliverable_id)

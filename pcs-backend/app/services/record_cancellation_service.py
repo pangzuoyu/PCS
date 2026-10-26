@@ -93,6 +93,7 @@ class RecordCancellationService:
         db: AsyncSession,
         *,
         rec: Any,
+        record_id: uuid.UUID,
         actor: Any,
         reason: str,
         obsoleted_via: str,
@@ -111,7 +112,11 @@ class RecordCancellationService:
         await AuditService(db).write(
             action=AuditAction.RECORD_OBSOLETED,
             resource_type=type(rec).__name__,
-            resource_id=str(getattr(rec, "record_id", "")),
+            # ⚠️ **真主键**：各表的 PK 列名不同（`relief_results` = `relief_id`…）
+            #    ⇒ `getattr(rec, "record_id", "")` 在别的表上**恒为空串** ⇒
+            #    审计的 resource_id 变成 "" ⇒ **事后查不到是哪条记录被弃用**
+            #    （与 bug-2081 同族）。
+            resource_id=str(record_id),
             user_id=getattr(actor, "user_id", None),
             detail={
                 "from": old_status,
@@ -123,7 +128,7 @@ class RecordCancellationService:
         )
         await db.commit()
         return {
-            "record_id": str(getattr(rec, "record_id", "")),
+            "record_id": str(record_id),
             "from": old_status,
             "to": RecordSignStatus9.OBSOLETE.value,
             "obsoleted_via": obsoleted_via,
@@ -188,6 +193,7 @@ class RecordCancellationService:
         return await cls._apply_obsolete(
             db,
             rec=rec,
+            record_id=record_id,
             actor=actor,
             reason=reason,
             obsoleted_via="DIRECT",
@@ -252,6 +258,7 @@ class RecordCancellationService:
         return await cls._apply_obsolete(
             db,
             rec=rec,
+            record_id=record_id,
             actor=actor,
             reason=f"经变更单 {deliverable_id} 弃用",
             obsoleted_via="DELIVERABLE",

@@ -41,7 +41,9 @@ async def _make_matrix(db: AsyncSession) -> SignatureMatrix:
     （app/models/deliverable.py:83-85）。不是可空字段 —— 见 bug-145。
     """
     row = SignatureMatrix(
-        matrix_name="测试矩阵",
+        # ⚠️ **名字必须逐条不同**（TODO-074：`uq_signature_matrices_name_status`
+        #    = (matrix_name, status) 唯一 ⇒ 同名同状态的两份矩阵不许存在）
+        matrix_name=f"测试矩阵-{uuid.uuid4().hex[:8]}",
         module="*",
         doc_type="CALCULATION_BOOK",
         version_purpose="ISSUED_FOR_CONSTRUCTION",
