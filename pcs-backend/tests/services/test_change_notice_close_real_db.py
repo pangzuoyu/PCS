@@ -230,6 +230,82 @@ async def test_close_on_approved_without_recipients_does_not_raise(db):
     assert rec.sign_status == RecordSignStatus9.CHECKED.value
 
 
+async def test_close_on_approved_marks_the_record_as_published(db):
+    """TODO-090：变更单批准 ⇒ 记录 `locked_by_deliverable` **置 True**。
+
+    ## 为什么
+
+    该列此前**全仓只被读、从不被写 True** ⇒ 读端（`GET /records/piping`）**恒报
+    False** ⇒ 「这条记录已对外生效了吗」这个信息**从来没被真正记录过**。
+
+    ⇒ 现在在**变更单批准那一刻**写 True ⇒ 列与门禁
+    `is_record_effectively_published` 判的是**同一个事实**、**同一事务**
+    ⇒ 两者**不会分叉**。
+
+    ⚠️ 判据是「这张单**已经** APPROVED」（不是「我正在关它」）—— 门禁查的
+    就是 `deliverables.sign_status == APPROVED` ⇒ 用同一个判据 ⇒ 永远一致。
+
+    ⚠️ APPROVED 是**终态**（作废只认 DRAFT/PENDING 的单）⇒ 写 True 之后
+    **不会**回退 ⇒ 列**不会**变成「陈旧的 True」。
+    """
+    project = await _make_project(db)
+    rec = await _make_changed_record(db, project)
+    created = await _create_notice(db, project, rec)
+
+    deliverable = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == created["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+
+    await db.refresh(rec)
+    assert rec.locked_by_deliverable is False, "批准前不该被锁"
+
+    # ⚠️ **真实路径**：`sign_step` 签完最后一步 ⇒ 先把单推成 APPROVED ⇒
+    #    再调 `close_on_approved`（这里照抄那一步）。
+    deliverable.sign_status = DeliverableSignStatus.APPROVED
+    await db.flush()
+
+    await ChangeNoticeService.close_on_approved(
+        db, deliverable=deliverable, actor_user_id=uuid.uuid4()
+    )
+    await db.commit()
+
+    await db.refresh(rec)
+    assert rec.locked_by_deliverable is True
+
+
+async def test_close_on_a_not_approved_notice_does_not_mark_the_record(db):
+    """⚠️ 单子**还没** APPROVED ⇒ **不**写标记（列与门禁必须一致）。
+
+    门禁 `is_record_effectively_published` 查的是 `deliverables.sign_status ==
+    APPROVED` ⇒ 若这里（单子还 PENDING）就写 True ⇒ 列说「已对外生效」而门禁说
+    「没有」⇒ 两个判据分叉 ⇒ 又一次「同一件事两个真相」。
+    """
+    project = await _make_project(db)
+    rec = await _make_changed_record(db, project)
+    created = await _create_notice(db, project, rec)
+
+    deliverable = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == created["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+    assert deliverable.sign_status == DeliverableSignStatus.PENDING
+
+    await ChangeNoticeService.close_on_approved(
+        db, deliverable=deliverable, actor_user_id=uuid.uuid4()
+    )
+    await db.commit()
+
+    await db.refresh(rec)
+    assert rec.locked_by_deliverable is False
+
+
 async def test_close_without_binding_writes_no_observation(db):
     """⚠️ 关闭失败（找不到绑定记录）⇒ **不**写观测、**不**关记录。"""
     project = await _make_project(db)

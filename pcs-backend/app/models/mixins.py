@@ -75,7 +75,10 @@ class RecordMixin(TimestampMixin):
         String(30), comment="当前待批角色 ApprovalRole"
     )
     locked_by_deliverable: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, comment="被交付物快照绑定即锁定"
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="已被 APPROVED 的交付物绑定（=已对外生效）；变更单批准时写 True",
     )
 
     # change_* 组（ADR-0002，字典 §1.3 逐字）

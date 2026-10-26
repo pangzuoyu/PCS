@@ -680,6 +680,20 @@ class ChangeNoticeService:
             record.sign_status = RecordSignStatus9.CHECKED.value
             record.change_resolved_at = datetime.now(UTC)
             record.change_resolved_by = str(actor_user_id)
+            # ⚠️ TODO-090：**标记「已对外生效」**（= 被一张 APPROVED 的交付物
+            #    绑定）。此前该列**全仓只被读、从不被写 True** ⇒ 读端恒报 False
+            #    ⇒ 「这条记录已对外生效了吗」从来没被真正记录过。
+            #    ⇒ 写在这里：与门禁 `is_record_effectively_published` 判的是
+            #    **同一个事实**、**同一事务** ⇒ 列与门禁不会分叉。
+            #    ⚠️ **判据必须是「这张单**已经** APPROVED」**（不是「我正在关它」）
+            #    —— 门禁查的就是 `deliverables.sign_status == APPROVED` ⇒ 这里
+            #    用同一个判据 ⇒ 列与门禁**永远一致**。
+            #    （真实路径：`sign_step` 签完最后一步 ⇒ 先把单推成 APPROVED
+            #    ⇒ 再调本方法 ⇒ 两者一致。）
+            #    ⚠️ APPROVED 是终态（作废只认 DRAFT/PENDING 的单）⇒ 写 True
+            #    之后**不会**回退 ⇒ 不会变成「陈旧的 True」。
+            if deliverable.sign_status == DeliverableSignStatus.APPROVED:
+                record.locked_by_deliverable = True
 
             await AuditService(db).write(
                 action=AuditAction.CHANGE_NOTICE_APPROVED,

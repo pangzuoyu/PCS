@@ -98,7 +98,7 @@ p2_sprint2_equipment_engineering	21（实际净增 19，2 个已存在跳过）	
 	`approval_step`	Integer	❌	当前审批步
 	`approval_depth`	Integer	✅	审批深度
 	`approval_role`	String(30)	❌	当前审批角色
-	`locked_by_deliverable`	Boolean	✅	被交付物锁定
+	`locked_by_deliverable`	Boolean	✅	已被 APPROVED 的交付物绑定（=已对外生效）；变更单批准时写 True（**派生标记**，门禁仍查真实绑定）
 	`change_pending_since`	datetime	❌	变更挂起起始时间
 	`change_resolved_by`	String(64)	❌	变更解决人
 	`change_resolved_at`	datetime	❌	变更解决时间
