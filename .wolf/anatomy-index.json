@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T02:05:03.598Z",
+    "lastScanned": "2026-10-26T02:12:16.057Z",
     "fileCount": 1019,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "797920288346fbf29add9d43496bc8dae8401f381cf796d4ed3ba08ebe2020ab",
-    "storeUpdatedAt": "2026-10-26T02:05:03.609Z",
-    "rootHash": "ba00665d6d19c657"
+    "renderedHash": "d5829679cb4dbe7dd2820d84cbbd86fb204080074ce8acd22a914099bc744d41",
+    "storeUpdatedAt": "2026-10-26T02:12:16.068Z",
+    "rootHash": "ef97298f86145d41"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21767,11 +21767,11 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 7266,
-      "hash": "8fd91d777717a8e1",
-      "size": 29882,
-      "mtimeMs": 1792980303548.8772,
-      "updatedAt": "2026-10-26T02:05:03.598Z",
+      "tokens": 7398,
+      "hash": "3b57d81d55e099d0",
+      "size": 30493,
+      "mtimeMs": 1792980382671.402,
+      "updatedAt": "2026-10-26T02:06:22.727Z",
       "source": "hook",
       "symbols": [
         {
@@ -21792,8 +21792,8 @@
           "name": "ChangeNoticeService",
           "kind": "class",
           "startLine": 76,
-          "endLine": 722,
-          "tokens": 6654
+          "endLine": 732,
+          "tokens": 6786
         }
       ]
     },
@@ -36511,60 +36511,60 @@
     },
     "pcs-backend/app/api/v1/signature_matrices.py": {
       "description": "签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。",
-      "tokens": 2207,
-      "hash": "c17807040d5aceb0",
-      "size": 8996,
-      "mtimeMs": 1792973494368.6907,
-      "updatedAt": "2026-10-26T00:11:34.413Z",
+      "tokens": 2204,
+      "hash": "80c6e699a7f0474c",
+      "size": 8985,
+      "mtimeMs": 1792980736003.6526,
+      "updatedAt": "2026-10-26T02:12:16.057Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_response",
           "kind": "fn",
-          "startLine": 69,
-          "endLine": 97,
+          "startLine": 71,
+          "endLine": 99,
           "tokens": 277
         },
         {
           "name": "list_signature_matrices",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 120,
+          "startLine": 100,
+          "endLine": 122,
           "tokens": 240
         },
         {
           "name": "create_signature_matrix",
           "kind": "fn",
-          "startLine": 121,
-          "endLine": 149,
+          "startLine": 123,
+          "endLine": 151,
           "tokens": 236
         },
         {
           "name": "get_signature_matrix",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 165,
+          "startLine": 152,
+          "endLine": 167,
           "tokens": 153
         },
         {
           "name": "update_signature_matrix",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 194,
+          "startLine": 168,
+          "endLine": 196,
           "tokens": 256
         },
         {
           "name": "bind_project_matrix",
           "kind": "fn",
-          "startLine": 195,
-          "endLine": 227,
+          "startLine": 197,
+          "endLine": 229,
           "tokens": 312
         },
         {
           "name": "unbind_project_matrix",
           "kind": "fn",
-          "startLine": 228,
-          "endLine": 244,
+          "startLine": 230,
+          "endLine": 246,
           "tokens": 187
         }
       ]

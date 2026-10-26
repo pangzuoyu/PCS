@@ -9,10 +9,13 @@
 
 ## 权限**分层**（用户 2026-10-26 裁决）
 
-| 动作 | 谁能做 | 为什么 |
-|---|---|---|
-| 建/改矩阵**模板** | **SYSTEM_ADMIN** | 模板是**全局表** ⇒ 一个项目能改它 ⇒ 别的项目在用的矩阵跟着变 |
-| 绑定/解绑**项目** | 全局角色 ∈ {DESIGNER, PROCESS_CONTROLLER, SYSTEM_ADMIN} **且**有该项目授权 | 绑定决定「本项目谁该签这一步」⇒ 与「签发」同级（`deliverables._ISSUE_ROLES` 同形） |
+| 动作 | 谁能做 |
+|---|---|
+| 建/改矩阵**模板** | **SYSTEM_ADMIN**（模板是**全局表** ⇒ 一个项目能改它 ⇒
+  别的项目在用的矩阵跟着变） |
+| 绑定/解绑**项目** | 全局角色 ∈ {DESIGNER, PROCESS_CONTROLLER, SYSTEM_ADMIN} **且**有该项目授权 |
+
+绑定决定「本项目谁该签这一步」⇒ 与「签发」同级（`deliverables._ISSUE_ROLES` 同形）。
 
 ⚠️ 项目内角色词表（`user_projects.role_in_project` = DESIGNER/CHECKER/APPROVER/
 REVIEWER/VIEWER）**无序**（平行职责，不是等级）⇒ 不按它分级；按**全局角色**

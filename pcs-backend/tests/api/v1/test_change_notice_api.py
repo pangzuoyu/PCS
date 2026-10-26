@@ -11,10 +11,13 @@ CHECKED --initiate-change--> CHANGE_PENDING --apply-change--> CHANGED
 
 | # | 失败模式 | 期望 |
 |---|---|---|
-| RF-1 | 记录**到不了 CHANGED** ⇒ 建单端点不可达 | initiate-change / apply-change 两个端点存在且可用 |
+| RF-1 | 记录**到不了 CHANGED** ⇒ 建单端点不可达 | initiate-change /
+  apply-change 两个端点存在且可用 |
 | RF-2 | **矩阵是装饰品**（谁都能直接批准） | 签署走 sign-step；角色/顺序生效（403/409） |
-| RF-3 | 签完了但**记录没关**（永远停在 CHANGED） | 最后一步 SIGN ⇒ 记录自动 CHECKED + change_resolved_by |
-| RF-4 | 驳回后**永久卡死**（DRAFT ⇒ sign 409、issue 409） | 驳回 ⇒ 回 DRAFT + 记录保持 CHANGED；可再签发并签完 |
+| RF-3 | 签完了但**记录没关**（永远停在 CHANGED） | 最后一步 SIGN ⇒ 记录自动
+  CHECKED + change_resolved_by |
+| RF-4 | 驳回后**永久卡死**（DRAFT ⇒ sign 409、issue 409） | 驳回 ⇒ 回 DRAFT +
+  记录保持 CHANGED；可再签发并签完 |
 | RF-5 | 个人草稿区也能建变更单 | FORMAL 工作区门禁（UI-SPEC §5.3） |
 """
 from __future__ import annotations

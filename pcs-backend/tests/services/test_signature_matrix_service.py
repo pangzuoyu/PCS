@@ -14,7 +14,8 @@
 
 | # | 失败模式 | 期望 |
 |---|---|---|
-| RF-1 | 坏数据被**静默吞** ⇒ 变更单按 0 步走 | 坏项跳过；**全部非法** ⇒ 422 `SIGNATURE_MATRIX_INVALID` |
+| RF-1 | 坏数据被**静默吞** ⇒ 变更单按 0 步走 | 坏项跳过；**全部非法** ⇒
+  422 `SIGNATURE_MATRIX_INVALID` |
 | RF-2 | **两份解析** ⇒ 签署路径与变更单路径给出不同的步骤 | `parse_steps` 是唯一解析口 |
 | RF-3 | 惰性建行**不幂等** ⇒ 每次建单都新建矩阵 | 同项目同模块只建一次 |
 | RF-4 | **跨项目串矩阵** | 模板全局、绑定按项目 |
@@ -290,8 +291,6 @@ async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, mo
     竞态用「把 `_ensure_binding` 里那次查藏起来」模拟：查的时候没有，
     插的时候另一个事务已经插好了。
     """
-    from sqlalchemy import insert
-
     matrix = SignatureMatrix(
         matrix_name="CHANGE_NOTICE_3_LEVEL",
         module="CHANGE_NOTICE",
