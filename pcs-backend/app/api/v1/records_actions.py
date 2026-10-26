@@ -48,6 +48,7 @@ from app.schemas.records_actions import (
     ApprovalStepRequest,
     ApprovalStepResponse,
     ChangeActionRequest,
+    ChangeNoticeCancelResponse,
     ChangeNoticeDetailResponse,
     ChangeNoticeRequest,
     ChangeNoticeResponse,
@@ -686,6 +687,46 @@ async def apply_change(
         module,
         record_id,
         {"from": to_value(from_status), "to": to_value(record.sign_status)},
+    )
+
+
+@router.post(
+    "/records/{module}/{record_id}/change-notice/cancel",
+    response_model=ChangeNoticeCancelResponse,
+    summary="作废该记录开着的变更单（记录本身不动）",
+)
+async def cancel_change_notice(
+    module: str,
+    record_id: uuid.UUID,
+    body: ChangeActionRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ChangeNoticeCancelResponse:
+    """作废当前**开着**的那张变更单（TODO-069 第 2 条 / TODO-080 第 1 条）。
+
+    ⚠️ **作废的是「单据」，不是「校核结论」** ⇒ **记录不动**（保持 CHANGED）：
+    作废顺手把记录关成 CHECKED = **绕过 3 级校审** ⇒ 不做。
+    ⇒ 作废后该记录**可以另起一张**变更单（作废的单不挡新单）。
+    """
+    require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+
+    from app.services.change_notice_service import ChangeNoticeService
+
+    result = await ChangeNoticeService.cancel_change_notice(
+        db,
+        record_type=type(record).__name__,
+        record_id=record_id,
+        actor_user_id=actor.user_id,
+        reason=body.reason,
+    )
+    await db.commit()
+    return ChangeNoticeCancelResponse(
+        deliverable_id=result["deliverable_id"],
+        doc_no=result["doc_no"],
+        record_type=result["record_type"],
+        record_id=result["record_id"],
+        sign_status=result["sign_status"],
     )
 
 

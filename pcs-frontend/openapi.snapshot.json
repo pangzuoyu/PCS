@@ -2067,6 +2067,85 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/change-notice/cancel": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "作废该记录开着的变更单（记录本身不动）",
+        "description": "作废当前**开着**的那张变更单（TODO-069 第 2 条 / TODO-080 第 1 条）。\n\n⚠️ **作废的是「单据」，不是「校核结论」** ⇒ **记录不动**（保持 CHANGED）：\n作废顺手把记录关成 CHECKED = **绕过 3 级校审** ⇒ 不做。\n⇒ 作废后该记录**可以另起一张**变更单（作废的单不挡新单）。",
+        "operationId": "cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeNoticeCancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records/{module}/{record_id}/change-notice": {
       "post": {
         "tags": [
@@ -21328,6 +21407,40 @@
         ],
         "title": "ChangeActionRequest",
         "description": "变更动作（发起变更 / 提交变更完成 / 放弃变更）的请求体。\n\n⚠️ **为什么不用 `ObsoleteRequest`**（TODO-084 第 5 条）：那些端点此前复用\n「弃用记录」的请求体 ⇒ 生成的 OpenAPI 里，「发起变更」的入参类型名叫\n**`ObsoleteRequest`** ⇒ 前端类型里也是 ⇒ 读契约的人会把「发起变更」\n误读成「弃用」。\n\n⚠️ 字段与约束**与 `ObsoleteRequest` 完全相同**（只有 `reason`）⇒\n这是一次**纯改名**：请求体形状、校验、行为**零变化** ⇒ 线上兼容。"
+      },
+      "ChangeNoticeCancelResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "title": "Deliverable Id"
+          },
+          "doc_no": {
+            "type": "string",
+            "title": "Doc No"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "doc_no",
+          "record_type",
+          "record_id",
+          "sign_status"
+        ],
+        "title": "ChangeNoticeCancelResponse",
+        "description": "作废变更单的结果（字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死）。"
       },
       "ChangeNoticeDetailResponse": {
         "properties": {

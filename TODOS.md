@@ -1313,9 +1313,11 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
    ⚠️ **2026-10-26 口径已随 TODO-078 调整**：「一条记录同时只在**一张未关闭**的
    变更单里」（判重按 **binding**，且**已 APPROVED** 的那单不挡新单）——
    多记录变更单落地后，原来的「一张单只绑一条 + 按 scope 判重」已经不成立。
-2. **已取消的变更单也会挡住再次建单**（实现只问「有没有」，不问状态）——
-   ⚠️ 变更单目前**没有取消路径**（`cancel_change_notice` 从未实现）⇒ 影响是
-   潜在的 ⇒ 等取消功能落地时一并定口径。
+2. ~~**已取消的变更单也会挡住再次建单**~~ ⇒ ✅ **2026-10-26 闭环**：取消路径
+   已落地（`POST /records/{module}/{id}/change-notice/cancel` ⇒ 变更单
+   `OBSOLETE`）+ 判重口径改为「**开着** = DRAFT / PENDING」⇒ **已作废/已批准
+   的单都不挡新单**。⚠️ 「作废时记录怎么办」的口径已定：**记录不动**（保持
+   CHANGED）—— 作废的是「单据」，不是「校核结论」。
 3. `doc_no` 只是**唯一**，不是可读编号 ⇒ 见 TODO-073。
 4. ⚠️ **「第二次变更」的后果**（2026-10-26 评审登记）：记录在 CHANGED 期间
    **不能再发起一轮变更** —— `INITIATE_CHANGE` 的合法前态是 CHECKED
@@ -1525,33 +1527,57 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 **为什么现在做**：用户 2026-10-26 裁决「只有项目负责人能绑」⇒ 绑定成了**治理
 动作** ⇒ 没有界面就等于「只有 curl 能治理」⇒ 本批补上。
 
-## TODO-080: P9A-DLV-007 评审的 **3 条 deferred minor** 🟡
+## ✅ DONE —— TODO-080: P9A-DLV-007 评审的 **3 条 deferred minor**（2026-10-26 全部落地）
 
-| # | 事项 | 位置 |
+| # | 事项 | 落地 |
 |---|---|---|
-| 1 | 「同记录已有变更单 ⇒ 409」**不区分已取消**（当前**没有**取消路径 ⇒ 影响潜在） | `change_notice_service.py` |
-| 2 | 4 个 approve 用例用假 Session ⇒ `record_step` 的写落到了 `ChangeNoticeDetail` 对象上（**零覆盖**，真覆盖在真库用例里） | `test_change_notice_service.py` |
-| 3 | `deliverable_service` 用 **core 变体** `PcsError`，`signature_matrix_service` 用 **service 变体** ⇒ 在前者写 `except PcsError` 捕不到后者（已在模块 docstring 注明，但没统一） | `deliverable_service.py` |
+| 1 | 「同记录已有变更单 ⇒ 409」**不区分已取消** | ✅ **补上取消路径**（见下）+ 判重口径改为「**开着** = DRAFT / PENDING」（已 APPROVED / 已 OBSOLETE 都**不挡**新单）⇒ `_find_open_notice_for_record` 与 `refresh_open_bindings` **同一口径** |
+| 2 | approve 用例用假 Session ⇒ **零覆盖** | ✅ **删掉**已弃用的 `approve_change_notice`（它**连记录都不关** ⇒ 用了它记录永远停在 CHANGED）+ 连带删掉**死代码** `_apply_record_resolution` ⇒ 该文件**再无假 Session**（`_FakeSession` + 假模型全删）⇒ 真覆盖搬到新文件 `tests/services/test_change_notice_close_real_db.py`（4 例，真库） |
+| 3 | 两个 `PcsError` 变体互捕不到 | ✅ service 变体**继承** core 变体（`app/services/exceptions.py::PcsError(CorePcsError)`）⇒ `except core.PcsError` **两个都捕得到**；⚠️ 为此把 `app/core/errors.py` 里对 service 变体的 import 改成**惰性**（否则 core → services → core 成环 ⇒ 启动即 ImportError） |
 
-**归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** P9A-DLV-007 评审
-ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md`。
+### 顺带落地：**取消路径**（用户指令里点名的「变更单没有取消路径」）
 
-## TODO-081: `approve_change_notice` 是**绕过矩阵的第二条关闭路径** 🟡
+- 新端点 `POST /records/{module}/{record_id}/change-notice/cancel`（理由必填）⇒
+  变更单 `sign_status = OBSOLETE`（交付物 4 态里**已有**这一态 ⇒ **不需要迁移**）
+  + 审计 `CHANGE_NOTICE_CANCELLED` + 观测 FAILED（与签署被退回同口径）。
+- ⚠️ **记录不动**（保持 CHANGED）：作废的是「单据」，不是「校核结论」⇒ 顺手把
+  记录关成 CHECKED = **绕过 3 级校审** ⇒ 不做。
+- ⇒ 作废后该记录**可以另起一张**（作废的单不挡新单）。
+- ⚠️ **前端没有「作废变更单」按钮** —— 本批只做后端能力（端点 + 语义 + 观测）。
+  ⇒ 前端接线属 **TODO-083 的后续**（变更单前端入口那批已闭环 ⇒ 这里补一个按钮
+  即可：结果记录行 → 变更动作区加「作废变更单」）。
+- ⚠️ 为此 **`doc_no` 与 `scope_value` 改为按「变更单自己的 uuid」派生**
+  （原先按记录派生 ⇒ 同一记录的第二张单会撞 `uq_deliverables_doc_no` /
+  `uq_deliverables_scope` ⇒ 未捕获的 IntegrityError 500）；scope 仍**以记录身份
+  开头**（`CHANGE_NOTICE:{表名}:{记录ID}:{单号后缀}` ⇒ 与 binding 一致，由守卫
+  测试钉住）。
 
-**What:** `ChangeNoticeService.approve_change_notice`（PENDING → APPROVED +
-关记录 + 观测 COMPLETED）仍留在代码里，只被**既有测试**引用，**没有 HTTP 入口**。
+### 顺带落地：**真实路径的通知**（原先真实路径**不通知任何人**）
 
-**Why:** 它**不查矩阵、不查步骤、不查角色**（bug-2058）⇒ 谁调用谁就能直接
-批准变更单 ⇒ 与新的关闭路径（`sign_step` 最后一步 ⇒ `close_on_approved`）
-**并存两条语义不同的关闭路径** ⇒ 将来有人「顺手调一下 service」就绕过了
-3 级校审。
+审批通过的通知逻辑原先在**已弃用**的 `approve_change_notice` 里 ⇒ 真实路径
+（`sign_step` → `close_on_approved`）**从不通知** ⇒ 用户不知道「变更被批准了」。
+⇒ 随该方法删除，通知**迁到** `close_on_approved`（通知行**同一事务**写，推送由
+`sign_step` 在 commit **之后**做 —— 与 `_notify_sign_outcome` 同一批推）。
 
-**How:** 二选一 —— ①删掉（连带改写 4 个引用它的 fake 测试为真库用例，
-TODO-080 第 2 条同批做）；②改造成 `close_on_approved` 的薄包装（**统一**到
-签署流程的终点，参数只留 `deliverable_id` + `actor`）。
-⇒ 在此之前，方法 docstring 已标「已弃用，不要用它做审批」。
+**归属：** 已闭环。**关联：** P9A-DLV-007 评审 ledger
+`.superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md`。
 
-**归属：** 独立一轮（与 TODO-080 第 2 条同批）。**关联：** bug-2058 · TODO-080。
+## ✅ DONE —— TODO-081: `approve_change_notice` 是**绕过矩阵的第二条关闭路径**（2026-10-26 落地）
+
+**落地**：**选项① —— 删掉** `ChangeNoticeService.approve_change_notice`
+（连带删掉**死代码** `_apply_record_resolution` —— `approve_change_notice`
+其实**连记录都不关**（`record_transition` 恒为 None）⇒ 用了它，记录**永远
+停在 CHANGED**）。
+
+⇒ 现在**唯一**的关闭路径 = 签署流程的终点（`sign_step` 最后一步 ⇒
+`close_on_approved`）⇒ 矩阵**不可能**被绕过（bug-2058 的根因消除）。
+审批通过的通知逻辑**一并迁到**这条真实路径（原先真实路径**不通知任何人**）。
+
+**测试**：该文件**再无假 Session** ⇒ 真覆盖搬到
+`tests/services/test_change_notice_close_real_db.py`（4 例，真库）+
+`tests/api/v1/test_change_notice_api.py`（端到端）。
+
+**归属：** 已闭环。**关联：** bug-2058 · TODO-080。
 
 ## TODO-082: `locked_by_deliverable` 门是**死代码**（永远 False）🟡
 
@@ -1659,24 +1685,48 @@ DRAFT → 审核 → 审定 → 才真正改绑定）；②或先明确「矩阵
 
 **关联：** TODO-077 · ADR-0002 修订记录 · **TODO-087**（本批顺带发现）。
 
-## TODO-087: 撤销批准**不恢复**记录的数据与哈希（快照恒空）🟡
+## ✅ DONE —— TODO-087: 撤销/放弃**真的恢复**记录的数据与哈希（快照不再恒空）（2026-10-26）
 
-**What:** `RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** ——
+**原症状：** `RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** ——
 `state_machine._create_snapshot` 写的是空 dict，**全仓没有任何代码往里放数据**
 ⇒ `_restore_snapshot`（state_machine）与 `ReversalApprovalService._restore_snapshot`
 的恢复循环**空转** ⇒ **撤销批准只回状态，不回数据**。
 
-**Why:** 撤销（APPROVE_REVERSAL）的语义是「这次变更作废，记录回到变更前」⇒
-现在记录带着**改动过的数据**回到 CHECKED ⇒ 「已生效的记录被撤销」之后，
-数据其实**还在** ⇒ 撤销**没有撤销任何东西**。
-⚠️ 这也是本批（TODO-086）做「返工」时的隐性依赖：返工路径之所以成立，
-是因为**第二次** CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据。
+**为什么它是「撤销」的命门：** 撤销（APPROVE_REVERSAL）的语义是「这次变更作废，
+记录回到变更前」⇒ 记录带着**改动过的数据**回到 CHECKED ⇒ 「已生效的记录被撤销」
+之后数据其实**还在** ⇒ 撤销**没有撤销任何东西**。
+⚠️ 这也是 TODO-086「返工」路径的隐性依赖：返工之所以成立，是因为**第二次**
+CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据。
 
-**How:** ①在 `_create_snapshot` 里**真的落数据**（哪些列要快照 ⇒ 逐表清单，
-各表列不齐 ⇒ 不能一刀切）；②恢复时按快照回填（并把 `record_hash` 一起恢复）。
-⚠️ 有 xfail 用例钉着现状：
-`tests/api/v1/test_change_notice_api.py::test_reversal_actually_restores_the_record_data`
-（修好后应变绿；xfail 非 strict ⇒ XPASS 不算失败）。
+### 落地
 
-**归属：** 独立一轮（要逐表定快照列清单）。**关联：** TODO-086 ·
-ADR-0002 §修订记录 · ADR-0024（「撤销或放弃时回滚」的承诺未兑现）。
+- 新模块 **`app/services/record_snapshot_codec.py`**（快照的**编解码**）：
+  - `capture_record_data(record)` ⇒ 采集记录的业务数据（JSONB 装不下的
+    **UUID / datetime / date / Decimal / Enum** **打标签**：`{"__t__": …, "v": …}`）；
+  - `apply_snapshot_data(record, data)` ⇒ 按标签**还原成真类型**（枚举按列类型的
+    `enum_class` 还原成**成员** —— 裸字符串绑枚举列会 LookupError）；
+  - `record_pk(record)` ⇒ **按 mapper 取主键**（各表 PK 列名不同）。
+- `state_machine._create_snapshot_if_needed` ⇒ 快照**真的装数据**；
+  `_restore_snapshot_if_needed` ⇒ 用 codec 还原。
+- ⚠️ **不**快照**主键 / 归属（`project_id`/`workspace_id`）/ 审计 / 状态机流程列**
+  （`sign_status` / `approval_*` / `change_*` / `obsoleted_*` / `reversal_*` /
+  `stale_*` / `locked_by_deliverable`）—— 它们由**转移本身**维护，恢复它们会与
+  「当前处于哪个状态」打架；**但快照 `record_hash`**（它是「变更前的数据指纹」，
+  TODO-077 的判据要比它）。
+- ⚠️ **顺带修 PK 取法**：`ReversalApprovalService._load_active_snapshot` 此前用
+  `getattr(record, "record_id", None)` ⇒ **只有部分表的 PK 叫 `record_id`**
+  （`relief_results` 叫 `relief_id`、`streams` 叫 `stream_id`…）⇒ 在别的表上
+  **恒为 None** ⇒ 快照永远查不到 ⇒ 撤销**什么都不恢复**。
+
+### 测试（RED → GREEN）
+
+- `tests/services/test_record_snapshot_codec.py`（**新增**，8 例）：采集业务列 ·
+  不采主键/归属/状态列 · 类型打标签 · 还原回**真类型** · 未知列跳过 ·
+  `record_pk` 取真主键 · **JSONB 落库再读回**数据还在。
+- `tests/api/v1/test_change_notice_api.py`：xfail 用例
+  `test_reversal_actually_restores_the_record_data` **摘掉 xfail 转绿**；
+  新增 `test_initiate_change_snapshot_carries_the_record_data`（快照里有数据）
+  与 `test_abandon_change_restores_the_record_data`（**放弃变更**也真恢复）。
+
+**归属：** 已闭环。**关联：** TODO-086 · ADR-0002 §修订记录 · ADR-0024
+（「撤销或放弃时回滚」的承诺**已兑现**）· bug-2070。

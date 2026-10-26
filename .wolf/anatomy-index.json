@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T12:43:15.072Z",
-    "fileCount": 1035,
+    "lastScanned": "2026-10-26T16:02:49.571Z",
+    "fileCount": 1043,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "9af62aebf38d6690d1ae817ad4ef6b22f6f46f600977371db3cb8286051950df",
-    "storeUpdatedAt": "2026-10-26T12:43:15.084Z",
-    "rootHash": "9793a78c4506b7d4"
+    "renderedHash": "eef9e87fd7f69126ecd7594bae2d561cf59f9f32011ea8a47aab40b99476e589",
+    "storeUpdatedAt": "2026-10-26T16:02:49.583Z",
+    "rootHash": "16fc85ee787a1907"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -36696,124 +36696,222 @@
     },
     "pcs-backend/tests/api/v1/test_change_notice_api.py": {
       "description": "变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。",
-      "tokens": 3566,
-      "hash": "05e2cdc07693fc49",
-      "size": 13433,
-      "mtimeMs": 1792974156008.632,
-      "updatedAt": "2026-10-26T00:22:36.060Z",
+      "tokens": 10097,
+      "hash": "0f64972ae65bb38c",
+      "size": 40391,
+      "mtimeMs": 1793020462246.6987,
+      "updatedAt": "2026-10-26T13:14:22.300Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_uuid",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 59,
+          "tokens": 80
+        },
+        {
           "name": "_token",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 55,
+          "startLine": 60,
+          "endLine": 68,
           "tokens": 64
         },
         {
           "name": "_make_project",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 74,
+          "startLine": 69,
+          "endLine": 87,
           "tokens": 154
         },
         {
           "name": "_make_record",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 87,
-          "tokens": 103
+          "startLine": 88,
+          "endLine": 101,
+          "tokens": 116
+        },
+        {
+          "name": "_initiate",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 111,
+          "tokens": 89
         },
         {
           "name": "_to_changed",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 103,
-          "tokens": 151
+          "startLine": 112,
+          "endLine": 128,
+          "tokens": 154
         },
         {
           "name": "_create_notice",
           "kind": "fn",
-          "startLine": 104,
-          "endLine": 113,
+          "startLine": 129,
+          "endLine": 138,
           "tokens": 94
         },
         {
           "name": "_sign",
           "kind": "fn",
-          "startLine": 114,
-          "endLine": 131,
+          "startLine": 139,
+          "endLine": 156,
           "tokens": 162
         },
         {
           "name": "test_initiate_change_moves_to_change_pending",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 147,
+          "startLine": 157,
+          "endLine": 172,
           "tokens": 162
         },
         {
           "name": "test_apply_change_moves_to_changed",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 162,
-          "tokens": 148
+          "startLine": 173,
+          "endLine": 190,
+          "tokens": 174
         },
         {
           "name": "test_apply_change_rejects_wrong_state",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 180,
+          "startLine": 191,
+          "endLine": 208,
           "tokens": 181
         },
         {
           "name": "test_create_change_notice_from_changed_record",
           "kind": "fn",
-          "startLine": 181,
-          "endLine": 233,
-          "tokens": 492
+          "startLine": 209,
+          "endLine": 261,
+          "tokens": 498
         },
         {
           "name": "test_create_change_notice_rejects_non_changed_record",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 247,
+          "startLine": 262,
+          "endLine": 275,
           "tokens": 154
         },
         {
           "name": "test_matrix_role_is_enforced",
           "kind": "fn",
-          "startLine": 248,
-          "endLine": 264,
+          "startLine": 276,
+          "endLine": 292,
           "tokens": 150
         },
         {
           "name": "test_full_closure_closes_the_record",
           "kind": "fn",
-          "startLine": 265,
-          "endLine": 292,
-          "tokens": 299
+          "startLine": 293,
+          "endLine": 320,
+          "tokens": 301
         },
         {
           "name": "test_return_keeps_record_changed_and_allows_reissue",
           "kind": "fn",
-          "startLine": 293,
-          "endLine": 349,
-          "tokens": 526
+          "startLine": 321,
+          "endLine": 377,
+          "tokens": 528
         },
         {
           "name": "test_change_notice_requires_formal_workspace",
           "kind": "fn",
-          "startLine": 350,
-          "endLine": 368,
+          "startLine": 378,
+          "endLine": 396,
           "tokens": 208
         },
         {
           "name": "test_change_notice_response_has_no_bare_fields",
           "kind": "fn",
-          "startLine": 369,
-          "endLine": 394,
+          "startLine": 397,
+          "endLine": 423,
           "tokens": 181
+        },
+        {
+          "name": "test_close_refuses_to_resurrect_a_moved_record",
+          "kind": "fn",
+          "startLine": 424,
+          "endLine": 449,
+          "tokens": 266
+        },
+        {
+          "name": "test_second_reissue_returns_409_not_500",
+          "kind": "fn",
+          "startLine": 450,
+          "endLine": 495,
+          "tokens": 440
+        },
+        {
+          "name": "test_sign_without_record_binding_fails_loudly",
+          "kind": "fn",
+          "startLine": 496,
+          "endLine": 527,
+          "tokens": 303
+        },
+        {
+          "name": "test_sign_with_unknown_record_type_fails_loudly",
+          "kind": "fn",
+          "startLine": 528,
+          "endLine": 556,
+          "tokens": 293
+        },
+        {
+          "name": "test_rejected_notice_can_be_reworked_via_reversal",
+          "kind": "fn",
+          "startLine": 557,
+          "endLine": 613,
+          "tokens": 557
+        },
+        {
+          "name": "test_rework_refreshes_the_open_notice_binding_hashes",
+          "kind": "fn",
+          "startLine": 614,
+          "endLine": 689,
+          "tokens": 712
+        },
+        {
+          "name": "test_closed_notice_binding_is_not_rewritten",
+          "kind": "fn",
+          "startLine": 690,
+          "endLine": 724,
+          "tokens": 331
+        },
+        {
+          "name": "test_reversal_actually_restores_the_record_data",
+          "kind": "fn",
+          "startLine": 725,
+          "endLine": 766,
+          "tokens": 393
+        },
+        {
+          "name": "test_initiate_change_snapshot_carries_the_record_data",
+          "kind": "fn",
+          "startLine": 767,
+          "endLine": 796,
+          "tokens": 290
+        },
+        {
+          "name": "test_abandon_change_restores_the_record_data",
+          "kind": "fn",
+          "startLine": 797,
+          "endLine": 825,
+          "tokens": 252
+        },
+        {
+          "name": "test_change_notice_response_reports_the_real_sign_status",
+          "kind": "fn",
+          "startLine": 826,
+          "endLine": 869,
+          "tokens": 440
+        },
+        {
+          "name": "test_apply_change_requires_an_actual_modification",
+          "kind": "fn",
+          "startLine": 870,
+          "endLine": 1070,
+          "tokens": 2021
         }
       ]
     },
@@ -37208,6 +37306,305 @@
       "size": 2659,
       "mtimeMs": 1793018595021.0454,
       "updatedAt": "2026-10-26T12:43:15.072Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_change_notice_close_real_db.py": {
+      "description": "变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。",
+      "tokens": 2385,
+      "hash": "a415ec04bccb920d",
+      "size": 9565,
+      "mtimeMs": 1793020704534.615,
+      "updatedAt": "2026-10-26T13:18:24.582Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 52,
+          "endLine": 58,
+          "tokens": 47
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 77,
+          "tokens": 143
+        },
+        {
+          "name": "_make_changed_record",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 91,
+          "tokens": 111
+        },
+        {
+          "name": "_create_notice",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 106,
+          "tokens": 129
+        },
+        {
+          "name": "test_close_on_approved_closes_the_record_and_the_observation",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 143,
+          "tokens": 347
+        },
+        {
+          "name": "test_close_on_approved_writes_the_notification_row",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 209,
+          "tokens": 620
+        },
+        {
+          "name": "test_close_on_approved_without_recipients_does_not_raise",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 232,
+          "tokens": 213
+        },
+        {
+          "name": "test_close_without_binding_writes_no_observation",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 271,
+          "tokens": 387
+        }
+      ]
+    },
+    "pcs-backend/app/services/record_snapshot_codec.py": {
+      "description": "记录快照的**数据编解码**（TODO-087）。",
+      "tokens": 1917,
+      "hash": "2f85ca1ba843e8a0",
+      "size": 8256,
+      "mtimeMs": 1793021323649.8188,
+      "updatedAt": "2026-10-26T13:28:43.696Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "record_pk",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 108,
+          "tokens": 177
+        },
+        {
+          "name": "_local_table",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 119,
+          "tokens": 78
+        },
+        {
+          "name": "_encode",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 148,
+          "tokens": 306
+        },
+        {
+          "name": "_decode",
+          "kind": "fn",
+          "startLine": 149,
+          "endLine": 175,
+          "tokens": 259
+        },
+        {
+          "name": "capture_record_data",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 196,
+          "tokens": 189
+        },
+        {
+          "name": "apply_snapshot_data",
+          "kind": "fn",
+          "startLine": 197,
+          "endLine": 222,
+          "tokens": 215
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_record_snapshot_codec.py": {
+      "description": "记录快照**数据编解码**（TODO-087）。",
+      "tokens": 1629,
+      "hash": "625b78e523c0113e",
+      "size": 6411,
+      "mtimeMs": 1793020425332.0364,
+      "updatedAt": "2026-10-26T13:13:45.381Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 52,
+          "tokens": 143
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 68,
+          "tokens": 125
+        },
+        {
+          "name": "test_capture_record_data_captures_business_columns",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 81,
+          "tokens": 109
+        },
+        {
+          "name": "test_capture_skips_pk_ownership_and_state_columns",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 96,
+          "tokens": 151
+        },
+        {
+          "name": "test_capture_encodes_types_jsonb_cannot_hold",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 111,
+          "tokens": 142
+        },
+        {
+          "name": "test_apply_snapshot_data_restores_values_and_types",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 134,
+          "tokens": 193
+        },
+        {
+          "name": "test_apply_snapshot_data_skips_unknown_columns",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 145,
+          "tokens": 94
+        },
+        {
+          "name": "test_record_pk_reads_the_real_primary_key",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 153,
+          "tokens": 67
+        },
+        {
+          "name": "test_snapshot_row_round_trips_through_jsonb",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 182,
+          "tokens": 268
+        },
+        {
+          "name": "test_decimal_and_float_round_trip",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 190,
+          "tokens": 88
+        }
+      ]
+    },
+    "pcs-backend/app/services/state_machine.py": {
+      "description": "状态机（Sprint 2 核心）。",
+      "tokens": 5544,
+      "hash": "ea600e886cc6654d",
+      "size": 21701,
+      "mtimeMs": 1793020492049.4304,
+      "updatedAt": "2026-10-26T13:14:52.109Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_record_pk",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 37,
+          "tokens": 46
+        },
+        {
+          "name": "_record_table_name",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 145,
+          "tokens": 1554
+        },
+        {
+          "name": "InvalidTransition",
+          "kind": "class",
+          "startLine": 146,
+          "endLine": 155,
+          "tokens": 102
+        },
+        {
+          "name": "RoleForbidden",
+          "kind": "class",
+          "startLine": 156,
+          "endLine": 159,
+          "tokens": 16
+        },
+        {
+          "name": "NoModification",
+          "kind": "class",
+          "startLine": 160,
+          "endLine": 177,
+          "tokens": 146
+        },
+        {
+          "name": "StateMachineService",
+          "kind": "class",
+          "startLine": 178,
+          "endLine": 482,
+          "tokens": 3479
+        }
+      ]
+    },
+    "pcs-backend/app/services/reversal_approval_service.py": {
+      "description": "ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。",
+      "tokens": 3082,
+      "hash": "4b90c4947f5c2712",
+      "size": 12198,
+      "mtimeMs": 1793021277739.5962,
+      "updatedAt": "2026-10-26T13:27:57.788Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReversalApprovalService",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 339,
+          "tokens": 2753
+        }
+      ]
+    },
+    ".git/COMMIT_MSG_080.txt": {
+      "description": "",
+      "tokens": 728,
+      "hash": "62b28b346d67a0c6",
+      "size": 4576,
+      "mtimeMs": 1793021428739.1372,
+      "updatedAt": "2026-10-26T13:30:28.797Z",
+      "source": "hook"
+    },
+    ".git/COMMIT_MSG_087.txt": {
+      "description": "",
+      "tokens": 535,
+      "hash": "af5c8317b3950915",
+      "size": 3221,
+      "mtimeMs": 1793021520688.761,
+      "updatedAt": "2026-10-26T13:32:00.744Z",
+      "source": "hook"
+    },
+    ".git/COMMIT_MSG_080_087.txt": {
+      "description": "",
+      "tokens": 1306,
+      "hash": "2aa159700254b061",
+      "size": 8115,
+      "mtimeMs": 1793030569513.1738,
+      "updatedAt": "2026-10-26T16:02:49.571Z",
       "source": "hook"
     }
   }

@@ -19,7 +19,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.services.exceptions import PcsError as ServicePcsError
+# ⚠️ **惰性 import**（TODO-080 第 3 条）：`app/services/exceptions.py` 里的
+#    service 变体**继承**本文件的 core 变体 ⇒ 若这里在**模块层** import 它
+#    ⇒ 环（core → services → core）⇒ 启动即 ImportError。
+#    ⇒ 只在**注册 handler 时** import（那时两个模块都已就绪）。
+#    详见 `app/services/exceptions.py::PcsError` 的说明。
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +170,8 @@ def install_exception_handlers(app: FastAPI) -> None:
                 trace_id=getattr(request.state, "trace_id", ""),
             ).model_dump(),
         )
+
+    from app.services.exceptions import PcsError as ServicePcsError
 
     @app.exception_handler(ServicePcsError)
     async def _service_pcs(request: Request, exc: ServicePcsError) -> JSONResponse:

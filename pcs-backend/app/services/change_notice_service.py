@@ -44,7 +44,6 @@ from app.models.enums import (
 from app.services.audit_service import AuditService
 from app.services.deliverable_service import DeliverableService
 from app.services.exceptions import PcsError
-from app.services.notifications.notify import publish
 from app.services.notifications.payload import NotificationPayload
 from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.workflow_progress_writer import record_step
@@ -78,7 +77,7 @@ class ChangeNoticeService:
 
     公开 API：
     - create_change_notice：创建 deliverables + change_notice_details 双表
-    - approve_change_notice：审批 + 自动联动绑定记录 CHANGED → CHECKED
+    - close_on_approved：签完最后一步 ⇒ 自动关掉绑定的记录（CHANGED → CHECKED）
     - cancel_change_notice：取消（不联动记录，由 record_obsolete 走自身 OBSOLETE）
     """
 
@@ -234,11 +233,19 @@ class ChangeNoticeService:
                 )
             record_type_name = ""
 
+        # ⚠️ **变更单自己的 uuid**（编号与 scope 都由它派生 ⇒ 逐单唯一）。
+        #    ⚠️ **不能**用记录 id 派生：一条记录**可以**有多张变更单
+        #    （作废一张 ⇒ 另起一张）⇒ 记录派生的编号/scope 会撞唯一约束
+        #    ⇒ 未捕获的 IntegrityError（500）。
+        notice_id = uuid.uuid4()
+
         # 2. scope：逐单唯一（见 docstring 第 2 点）
-        #    ⚠️ scope 只标识**主记录**（路径里那条）⇒ 多记录变更单之间是否
-        #    撞车，靠下面的**逐条判重**（按 binding 找「未关闭」的变更单），
-        #    不靠 scope。
-        scope_value = f"CHANGE_NOTICE:{record_type_name}:{record_id}"
+        #    ⚠️ scope **以记录身份开头**（`CHANGE_NOTICE:{表名}:{记录ID}` ⇒ 与
+        #    binding 的记录身份一致，由守卫测试钉住）**+ 逐单后缀**（本单的
+        #    uuid 前 8 位 ⇒ 同一记录可以有多张单而不撞 `uq_deliverables_scope`）。
+        scope_value = (
+            f"CHANGE_NOTICE:{record_type_name}:{record_id}:{notice_id.hex[:8]}"
+        )
 
         # 2b. ⚠️ **本次变更影响的记录集合**（TODO-078：一次变更常影响多条记录）
         #     - 必须**包含**主记录（路径里那条）⇒ 否则 422（口径明确）
@@ -304,15 +311,18 @@ class ChangeNoticeService:
             )
 
         # 5. 创建 deliverables 行（deliverable_type=CHANGE_NOTICE）
+        # ⚠️ **编号取「变更单自己的」uuid**（不是记录的）—— 同上：一条记录可以
+        #    有多张变更单 ⇒ 记录派生的编号会撞 `uq_deliverables_doc_no`
+        #    ⇒ 未捕获的 IntegrityError（500）。
+        #    完整 32 位 hex：前 8 位（32 bit）在同项目 ~65k 张单时就会撞 ⇒ 500。
+        #    ⚠️ 这只是**唯一**，不是可读编号 —— 改走编号模板另批（TODO-073）。
         deliverable = Deliverable(
+            deliverable_id=notice_id,
             project_id=project_id,
             deliverable_type="CHANGE_NOTICE",
             scope_type="CUSTOM",
             scope_value=scope_value,
-            # ⚠️ 完整 32 位 hex —— 前 8 位（32 bit）在同项目 ~65k 张单时就会撞
-            # `uq_deliverables_doc_no` ⇒ 撞了是未捕获的 IntegrityError（500）。
-            # ⚠️ 这只是**唯一**，不是可读编号 —— 改走编号模板另批（登记在 TODOS.md）。
-            doc_no=f"CN-{record_id.hex.upper()}",
+            doc_no=f"CN-{notice_id.hex.upper()}",
             doc_no_mode="MANUAL",
             title=f"变更单 - {change_type.value}",
             current_rev="0",
@@ -487,7 +497,14 @@ class ChangeNoticeService:
                     DeliverableRecordBinding.record_type == record_type,
                     DeliverableRecordBinding.record_id == record_id,
                     Deliverable.deliverable_type == "CHANGE_NOTICE",
-                    Deliverable.sign_status != DeliverableSignStatus.APPROVED.value,
+                    # ⚠️ 与 `_find_open_notice_for_record` **同一口径**：只有
+                    #    「开着」（DRAFT/PENDING）的变更单需要刷新。
+                    Deliverable.sign_status.in_(
+                        [
+                            DeliverableSignStatus.DRAFT.value,
+                            DeliverableSignStatus.PENDING.value,
+                        ]
+                    ),
                 )
             )
         ).all()
@@ -544,128 +561,6 @@ class ChangeNoticeService:
             )
         ).scalar_one_or_none()
         return snapshot.record_hash if snapshot is not None else None
-
-    @classmethod
-    async def approve_change_notice(
-        cls,
-        db: AsyncSession,
-        *,
-        deliverable_id: uuid.UUID,
-        actor: Any,
-        record_table: type | None = None,
-        deliverable_model: type | None = None,
-        detail_model: type | None = None,
-    ) -> dict[str, Any]:
-        """审批变更单 + 自动联动绑定记录 CHANGED → CHECKED（spec V1.0 §4）。
-
-        ⚠️ **已弃用（P9A-DLV-011 T4，2026-10-26）** —— **不要**用它做审批：
-        它**不查矩阵、不查步骤、不查角色** ⇒ 谁调用谁就能把变更单直接批准
-        ⇒ 3 级矩阵形同虚设（bug-2058）。
-
-        ⇒ 变更单的关闭路径现在是**签署流程的终点**：
-        `DeliverableService.sign_step` 签完最后一步 ⇒ `close_on_approved`
-        ⇒ 记录 CHANGED → CHECKED + `change_resolved_by` + 观测 COMPLETED
-        （ADR-0008「系统自动」）。
-
-        本方法保留是因为**既有测试**引用它；它没有 HTTP 入口。
-        ⇒ 删除或改造见 `TODOS.md` TODO-081。
-
-        联动逻辑：
-        - 变更单 PENDING → APPROVED
-        - 绑定记录 CHANGED → CHECKED + change_resolved_by = actor.user_id
-
-        Args:
-            deliverable_id: 变更单 deliverables.deliverable_id
-            actor: 审批人（REVIEWER/APPROVER 角色校验由签名矩阵层做）
-            record_table: 业务记录 ORM 模型（用于查 + 改 sign_status）
-            deliverable_model / detail_model: 注入 fake 模型用（测试）
-
-        Returns:
-            dict 形如 {"deliverable_id": ..., "detail": {...},
-                       "record_transition": {"from": "CHANGED", "to": "CHECKED"}}
-
-        Raises:
-            PcsError 404 if deliverable_id not found
-            PcsError 409 if deliverable.sign_status != PENDING
-        """
-        d_model = deliverable_model if deliverable_model is not None else Deliverable
-        deliverable = await db.get(d_model, deliverable_id)
-        if deliverable is None:
-            raise PcsError(
-                f"变更单 {deliverable_id} 不存在",
-                code="CHANGE_NOTICE_NOT_FOUND",
-                status=404,
-            )
-        if deliverable.sign_status != DeliverableSignStatus.PENDING:
-            raise PcsError(
-                f"变更单 {deliverable_id} 当前 {deliverable.sign_status} 不能审批"
-                f"（仅 PENDING 可审批）",
-                code="CHANGE_NOTICE_BAD_TRANSITION",
-                status=409,
-            )
-
-        detail = await cls._get_detail_by_deliverable(
-            db, deliverable_id, detail_model=detail_model,
-        )
-        if detail is None:
-            raise PcsError(
-                f"变更单 {deliverable_id} 缺 change_notice_details 扩展",
-                code="CHANGE_NOTICE_DETAIL_MISSING",
-                status=422,
-            )
-
-        # 联动绑定记录：CHANGED → CHECKED + change_resolved_by（由调用方传
-        # record_id 触发 _apply_record_resolution；本方法不强制要求）。
-        record_transition: dict[str, Any] | None = None
-
-        # 审批通过：deliverable PENDING → APPROVED
-        deliverable.sign_status = DeliverableSignStatus.APPROVED
-
-        # ⚠️ **观测写入点 2b：变更单的「自动关闭」**（ADR-0047 §① 🔒）
-        #    变更单 APPROVED ⇒ 它作为业务流程**结束** ⇒ 观测行标 COMPLETED。
-        #    必须在**同一个事务**里（与业务状态同生共死）。
-        await record_step(
-            session=db,
-            project_id=deliverable.project_id,
-            workflow_type=WorkflowType.CHANGE_NOTICE,
-            workflow_id=deliverable_id,
-            step_order=1,
-            step_role="CHANGE_NOTICE",
-            state=WorkflowProgressState.COMPLETED,
-            actor_user_id=getattr(actor, "user_id", None),
-        )
-
-        # 写 audit
-        await AuditService(db).write(
-            action=AuditAction.CHANGE_NOTICE_APPROVED,
-            resource_type="DELIVERABLE",
-            resource_id=str(deliverable_id),
-            user_id=getattr(actor, "user_id", None),
-            detail={
-                "change_type": detail.change_type,
-                "triggered_by": detail.triggered_by,
-                "from": "PENDING",
-                "to": "APPROVED",
-                "project_id": str(deliverable.project_id),
-            },
-        )
-
-        # ⚠️ 通知行与审批**同一个事务**；推送在提交之后（同 sign_step）。
-        pending = await cls._notify_approved(db, deliverable=deliverable, detail=detail)
-        await db.commit()
-        await publish(pending)
-
-        return {
-            "deliverable_id": deliverable_id,
-            "deliverable_type": deliverable.deliverable_type,
-            "sign_status": deliverable.sign_status.value,
-            "detail": {
-                "change_type": detail.change_type,
-                "reason": detail.reason,
-                "triggered_by": detail.triggered_by,
-            },
-            "record_transition": record_transition,
-        }
 
     @classmethod
     async def _notify_approved(cls, db, *, deliverable, detail) -> list[NotificationPayload]:
@@ -813,6 +708,15 @@ class ChangeNoticeService:
             state=WorkflowProgressState.COMPLETED,
             actor_user_id=actor_user_id,
         )
+
+        # ⚠️ **通知行**（审批通过的受众 = 项目的 DESIGNER）—— 与业务变更**同一
+        #    事务**写，**推送交给调用方**（`sign_step` 在 commit 之后推）。
+        #    ⚠️ 此前这段逻辑在**已弃用**的 `approve_change_notice` 里 ⇒ 真实
+        #    路径（sign_step → close_on_approved）**不通知任何人**（TODO-080
+        #    第 2 条 ⇒ 随该方法一起迁到这条真实路径上）。
+        pending_notifications = await cls._notify_approved(
+            db, deliverable=deliverable, detail=detail
+        )
         return {
             # ⚠️ 形状**向后兼容**（单记录时与旧版逐字一致）：第一条记录 +
             #     全部被关的记录（多记录变更单用）。
@@ -821,6 +725,9 @@ class ChangeNoticeService:
             "from": "CHANGED",
             "to": "CHECKED",
             "closed_records": closed,
+            # ⚠️ **通知载荷**：由调用方（sign_step）在 commit **之后**推送
+            #   （提交前推送 ⇒ commit 失败时用户收到会被回滚的通知）。
+            "pending_notifications": pending_notifications,
         }
 
     @staticmethod
@@ -838,6 +745,97 @@ class ChangeNoticeService:
                 status=500,
             )
         return val
+
+    @classmethod
+    async def cancel_change_notice(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+        actor_user_id: uuid.UUID | None,
+        reason: str,
+    ) -> dict[str, Any]:
+        """作废该记录当前**开着**的那张变更单（TODO-069 第 2 条 / TODO-080 第 1 条）。
+
+        ## 为什么需要
+
+        驳回（RETURN）只是让变更单回 DRAFT ⇒ 它**还开着** ⇒ 该记录**仍然**
+        被它占着（「一条记录同时只在**一张未关闭**的变更单里」）⇒ 用户想
+        「作废这张单、另起一张」**没有路**⇒ 而变更单**没有取消路径** ⇒
+        「已取消的单不挡新单」这条规则永远无从验证。
+
+        ## 作废 = 交付物 `sign_status = OBSOLETE`
+
+        交付物签审状态 4 态里已有 **OBSOLETE（已作废）** ⇒ **不需要迁移**。
+        ⚠️ 与 `APPROVED` 一样：**作废的单不挡新单**（`_find_open_notice_for_record`
+        只认 DRAFT / PENDING）。
+
+        ## 记录怎么办
+
+        **不动**（保持 CHANGED）—— 作废的是**单据**，不是**校核结论**：
+        记录仍在等一个关闭凭证 ⇒ 用户可以**重新建单**（现在路通了）或
+        **撤销**（request-reversal ⇒ 恢复快照 ⇒ CHECKED ⇒ 重来）。
+        ⚠️ 若「作废」顺手把记录关成 CHECKED ⇒ 等于**绕过 3 级校审** ⇒ 不做。
+
+        Raises:
+            PcsError 404 `CHANGE_NOTICE_NOT_FOUND` —— 该记录没有开着的变更单
+            PcsError 409 `CHANGE_NOTICE_ALREADY_CLOSED` —— 已 APPROVED / 已作废
+        """
+        if not reason or not reason.strip():
+            raise PcsError(
+                "作废变更单必须填写理由",
+                code="CHANGE_NOTICE_CANCEL_REASON_REQUIRED",
+                status=422,
+            )
+
+        notice = await cls._find_open_notice_for_record(
+            db, record_type=record_type, record_id=record_id
+        )
+        if notice is None:
+            raise PcsError(
+                f"记录 {record_id} 没有开着的变更单（可作废的只有 DRAFT/PENDING 的）",
+                code="CHANGE_NOTICE_NOT_FOUND",
+                status=404,
+            )
+
+        notice.sign_status = DeliverableSignStatus.OBSOLETE
+        await db.flush()
+
+        await AuditService(db).write(
+            action=AuditAction.CHANGE_NOTICE_CANCELLED,
+            resource_type="DELIVERABLE",
+            resource_id=str(notice.deliverable_id),
+            user_id=actor_user_id,
+            detail={
+                "record_type": record_type,
+                "record_id": str(record_id),
+                "reason": reason,
+                "doc_no": notice.doc_no,
+                "project_id": str(notice.project_id),
+            },
+        )
+
+        # ⚠️ 观测：CHANGE_NOTICE 工作流**没有走完** ⇒ FAILED（与签署被退回
+        #    同口径：sign_step 的 RETURN 也写 FAILED）。
+        await record_step(
+            session=db,
+            project_id=notice.project_id,
+            workflow_type=WorkflowType.CHANGE_NOTICE,
+            workflow_id=notice.deliverable_id,
+            step_order=1,
+            step_role="CHANGE_NOTICE",
+            state=WorkflowProgressState.FAILED,
+            actor_user_id=actor_user_id,
+        )
+
+        return {
+            "deliverable_id": str(notice.deliverable_id),
+            "doc_no": notice.doc_no,
+            "record_type": record_type,
+            "record_id": str(record_id),
+            "sign_status": DeliverableSignStatus.OBSOLETE.value,
+        }
 
     @classmethod
     async def _find_open_notice_for_record(
@@ -871,7 +869,14 @@ class ChangeNoticeService:
                     DeliverableRecordBinding.record_type == record_type,
                     DeliverableRecordBinding.record_id == record_id,
                     Deliverable.deliverable_type == "CHANGE_NOTICE",
-                    Deliverable.sign_status != DeliverableSignStatus.APPROVED.value,
+                    # ⚠️ 「**开着**」= DRAFT / PENDING —— **不是** APPROVED（已关过
+                    #    记录）也**不是** OBSOLETE（已作废，TODO-080 第 1 条）。
+                    Deliverable.sign_status.in_(
+                        [
+                            DeliverableSignStatus.DRAFT.value,
+                            DeliverableSignStatus.PENDING.value,
+                        ]
+                    ),
                 )
                 .limit(1)
             )
@@ -922,45 +927,6 @@ class ChangeNoticeService:
             if getattr(model, "__name__", None) == name:
                 return model
         return None
-
-    @classmethod
-    async def _apply_record_resolution(
-        cls,
-        db: AsyncSession,
-        *,
-        record_table: type,
-        record_id: uuid.UUID,
-        actor: Any,
-    ) -> dict[str, Any]:
-        """SIM-38 内部：审批通过后联动绑定记录 CHANGED → CHECKED。
-
-        由 approve_change_notice 在拿到 source_record_id 后调用（未来扩展点）；
-        当前 SIM-38 测试通过直接调用此方法验证联动契约。
-        """
-        rec = await db.get(record_table, record_id)
-        if rec is None:
-            raise PcsError(
-                f"记录 {record_id} 不存在",
-                code="CHANGE_NOTICE_RECORD_NOT_FOUND",
-                status=404,
-            )
-        if rec.sign_status != RecordSignStatus9.CHANGED.value:
-            raise PcsError(
-                f"记录 {record_id} 当前 {rec.sign_status} 不能 resolve"
-                f"（仅 CHANGED 可 resolve）",
-                code="CHANGE_NOTICE_RECORD_BAD_STATE",
-                status=409,
-            )
-        rec.sign_status = RecordSignStatus9.CHECKED.value
-        rec.change_resolved_at = datetime.now(UTC)
-        rec.change_resolved_by = str(getattr(actor, "user_id", None))
-        return {
-            "from": RecordSignStatus9.CHANGED.value,
-            "to": RecordSignStatus9.CHECKED.value,
-            "record_id": str(record_id),
-            "resolved_by": rec.change_resolved_by,
-        }
-
 
 __all__ = [
     "ChangeNoticeService",

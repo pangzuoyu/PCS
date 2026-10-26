@@ -284,3 +284,21 @@ CRITICAL + IMPORTANT 一次修完（`3f68722`），minor 进 ledger 延后。
 
 修复批后验收：后端 **5242 passed / 77 skipped / 0 failed**（+16）；
 两库 `alembic check` 各 exit 0；裸字段仍 71；G-08 门禁 exit 0。
+
+---
+
+## 后续（2026-10-26 · TODO-080）：R-1 的「保留为内部『关记录』步骤」**未采纳**
+
+⚠️ R-1 当初裁决：`approve_change_notice`「**不再作为审批入口**（**保留**为内部
+『关记录』步骤）」⇒ 实施时发现它**绕过矩阵**（谁都能直接批准 ⇒ 3 级校审形同
+虚设）**且连记录都不关**（用了它记录永远停在 CHANGED）⇒ **「保留」这一半被
+推翻**：该方法与死代码 `_apply_record_resolution` **一并删除**。
+
+⇒ **变更单的关闭路径现在唯一** = `sign_step` 签完最后一步（置 APPROVED）⇒
+`close_on_approved` ⇒ 记录 CHANGED → CHECKED + `change_resolved_by` + 写观测
+（写入点 2b）+ **写通知行**。
+⚠️ 通知逻辑原先**只在**被删的方法里 ⇒ 真实路径**从不通知任何人** ⇒ 随删除
+**迁到** `close_on_approved`（通知行**同一事务**写，推送由 `sign_step` 在
+commit **之后**做）。
+⚠️ 连带：作废路径（`POST /records/{module}/{id}/change-notice/cancel`）⇒ 变更单
+`sign_status = OBSOLETE` ⇒ 作废的单**不挡**新单。

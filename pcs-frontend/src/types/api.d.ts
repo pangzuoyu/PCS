@@ -796,6 +796,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/change-notice/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 作废该记录开着的变更单（记录本身不动）
+         * @description 作废当前**开着**的那张变更单（TODO-069 第 2 条 / TODO-080 第 1 条）。
+         *
+         *     ⚠️ **作废的是「单据」，不是「校核结论」** ⇒ **记录不动**（保持 CHANGED）：
+         *     作废顺手把记录关成 CHECKED = **绕过 3 级校审** ⇒ 不做。
+         *     ⇒ 作废后该记录**可以另起一张**变更单（作废的单不挡新单）。
+         */
+        post: operations["cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{module}/{record_id}/change-notice": {
         parameters: {
             query?: never;
@@ -6960,6 +6984,22 @@ export interface components {
         ChangeActionRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * ChangeNoticeCancelResponse
+         * @description 作废变更单的结果（字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死）。
+         */
+        ChangeNoticeCancelResponse: {
+            /** Deliverable Id */
+            deliverable_id: string;
+            /** Doc No */
+            doc_no: string;
+            /** Record Type */
+            record_type: string;
+            /** Record Id */
+            record_id: string;
+            /** Sign Status */
+            sign_status: string;
         };
         /**
          * ChangeNoticeDetailResponse
@@ -21614,6 +21654,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeNoticeCancelResponse"];
                 };
             };
             /** @description Validation Error */

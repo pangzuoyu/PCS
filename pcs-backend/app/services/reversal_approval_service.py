@@ -29,6 +29,7 @@ from app.models.deliverable import RecordChangeSnapshot
 from app.models.enums import AuditAction, RecordSignStatus9, SnapshotStatus
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
+from app.services.record_snapshot_codec import apply_snapshot_data
 
 
 class ReversalApprovalService:
@@ -67,9 +68,16 @@ class ReversalApprovalService:
         cls,
         db: AsyncSession,
         record: Any,
+        record_id: uuid.UUID,
     ) -> RecordChangeSnapshot | None:
-        """查询 record 对应的最新 ACTIVE 快照（用于 approve 时恢复数据）。"""
-        record_id = getattr(record, "record_id", None)
+        """查询 record 对应的最新 ACTIVE 快照（用于 approve 时恢复数据）。
+
+        ⚠️ TODO-087：`record_id` **由调用方传入**（它就是 `db.get(record_table,
+        record_id)` 用的那个主键）⇒ **不用**从记录上「猜」主键列名 ——
+        各表列名不同（`relief_results` = `relief_id`、`streams` = `stream_id`…）
+        ⇒ 此前那种 `getattr(record, "record_id", None)` 在别的表上**恒为 None**
+        ⇒ 快照永远查不到 ⇒ 撤销**什么都不恢复**。
+        """
         record_type = type(record).__name__
         snap = (
             await db.execute(
@@ -90,15 +98,14 @@ class ReversalApprovalService:
         cls,
         db: AsyncSession,
         record: Any,
+        record_id: uuid.UUID,
     ) -> bool:
         """恢复 ACTIVE 快照到 record 字段 + 标记 CONSUMED。返回是否找到快照。"""
-        snap = await cls._load_active_snapshot(db, record)
+        snap = await cls._load_active_snapshot(db, record, record_id)
         if snap is None:
             return False
-        data = snap.data_snapshot_json or {}
-        for col, val in data.items():
-            if hasattr(record, col):
-                setattr(record, col, val)
+        # ⚠️ TODO-087：还原**真类型**（UUID / 枚举 / datetime …）
+        apply_snapshot_data(record, snap.data_snapshot_json or {})
         snap.snapshot_status = SnapshotStatus.CONSUMED.value
         return True
 
@@ -233,7 +240,7 @@ class ReversalApprovalService:
         rec.sign_status = RecordSignStatus9.CHECKED.value
 
         # 恢复 ACTIVE 快照（spec V1.0 §3.4 撤销或放弃时回滚）
-        snapshot_restored = await cls._restore_snapshot(db, rec)
+        snapshot_restored = await cls._restore_snapshot(db, rec, record_id)
 
         await AuditService(db).write(
             action=AuditAction.CHANGE_REVERSAL_APPROVED,

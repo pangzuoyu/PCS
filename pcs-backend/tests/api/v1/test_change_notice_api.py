@@ -722,19 +722,15 @@ async def test_closed_notice_binding_is_not_rewritten(client, db):
     assert binding.record_hash == "h1", "已关闭的变更单绑定**不许**被改写"
 
 
-@pytest.mark.xfail(
-    reason="TODO-087：撤销批准号称『恢复快照』，但快照**没有数据**"
-    "（`data_snapshot_json` 恒为 `{}`）⇒ 撤销**不恢复**记录的数据/哈希。"
-    "修好快照的落库内容后本用例应变绿（xfail 非 strict ⇒ XPASS 不算失败）。",
-    strict=False,
-)
 async def test_reversal_actually_restores_the_record_data(client, db):
-    """⚠️ TODO-087：撤销批准**应当**把记录恢复成变更前的数据。
+    """TODO-087：撤销批准**把记录恢复成变更前的数据**。
 
-    现状：`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`**
-    （`state_machine._create_snapshot` 写的是空 dict ⇒ 没有任何代码往里放
-    数据）⇒ `_restore_snapshot` 的恢复循环**空转** ⇒ 记录带着改动回到
-    CHECKED ⇒ 「撤销」**没有撤销任何东西**。
+    修好之前的失败模式：`RecordChangeSnapshot.data_snapshot_json` **恒为
+    `{}`**（`state_machine._create_snapshot` 只写哈希、不写数据）⇒
+    `_restore_snapshot` 的恢复循环**空转** ⇒ 记录带着改动回到 CHECKED ⇒
+    「撤销」**没有撤销任何东西**。
+
+    ⇒ 现在快照**装着**记录的业务数据，撤销 ⇒ 数据**与哈希**都回到变更前。
     """
     proj = await _make_project(db)
     rec = await _make_record(db, project=proj, sign_status="CHECKED")
@@ -766,6 +762,65 @@ async def test_reversal_actually_restores_the_record_data(client, db):
 
     await db.refresh(rec)
     assert rec.record_hash == "h1", "撤销批准后应恢复成变更前的哈希"
+
+
+async def test_initiate_change_snapshot_carries_the_record_data(client, db):
+    """TODO-087：发起变更时建的快照**装着**记录的业务数据。
+
+    失败模式：快照只写哈希、`data_snapshot_json` 恒为 `{}` ⇒ 之后
+    「撤销 / 放弃」没有任何东西可恢复 ⇒ 撤销**不撤销任何东西**。
+    """
+    from app.models.deliverable import RecordChangeSnapshot
+
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _initiate(client, rec)
+
+    snap = (
+        await db.execute(
+            select(RecordChangeSnapshot).where(
+                RecordChangeSnapshot.record_type == MODULE,
+                RecordChangeSnapshot.record_id == rec.relief_id,
+                RecordChangeSnapshot.snapshot_status == "ACTIVE",
+            )
+        )
+    ).scalar_one()
+    data = snap.data_snapshot_json
+    assert data, "快照里必须有数据（否则撤销/放弃恢复不了任何东西）"
+    assert data["record_hash"] == "h1"
+    assert data["source_equipment_id"]["__t__"] == "uuid"
+    # 状态机 / 归属列**不**进快照
+    assert "sign_status" not in data
+    assert "project_id" not in data
+
+
+async def test_abandon_change_restores_the_record_data(client, db):
+    """TODO-087：放弃变更 ⇒ 记录的数据**与哈希**回到变更前。
+
+    「放弃」= 「这次变更没发生」⇒ 数据必须回到发起变更那一刻的样子。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    rec.reactor_volume = 1.5
+    await db.flush()
+    await _initiate(client, rec)
+
+    # CHANGE_PENDING 期间改数据
+    rec.record_hash = "h-edited"
+    rec.reactor_volume = 9.9
+    await db.flush()
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/abandon-change",
+        json={"reason": "上游撤销了变更"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+
+    await db.refresh(rec)
+    assert rec.record_hash == "h1", "放弃变更后哈希应回到变更前"
+    assert rec.reactor_volume == 1.5, "放弃变更后数据应回到变更前"
+    assert rec.sign_status == RecordSignStatus9.CHECKED.value
 
 
 async def test_change_notice_response_reports_the_real_sign_status(client, db, monkeypatch):
@@ -962,3 +1017,53 @@ async def test_a_record_cannot_be_in_two_open_change_notices(client, db):
     )
     assert second.status_code == 409, second.text
     assert second.json()["code"] == "CHANGE_NOTICE_ALREADY_EXISTS"
+
+
+# ---------------------------------------------------------------------------
+# 取消路径（TODO-069 第 2 条 / TODO-080 第 1 条）
+# ---------------------------------------------------------------------------
+
+
+async def test_cancelled_notice_does_not_block_a_new_one(client, db):
+    """⚠️ 变更单**作废**后 ⇒ 该记录**可以另起一张**（作废的单不挡新单）。
+
+    没有取消路径时，「已取消的单不挡新单」这条规则永远无从验证。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    first = await _create_notice(client, rec)
+    cancel = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice/cancel",
+        json={"reason": "这张单建错了"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert cancel.status_code == 200, cancel.text
+    assert cancel.json()["sign_status"] == "OBSOLETE"
+
+    # 记录**不动**（仍是 CHANGED —— 作废的是单据，不是校核结论）
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.CHANGED.value
+
+    # 另起一张 ⇒ 不该被已作废的单挡住
+    second = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice",
+        json={"change_type": "DATA_CORRECTION", "reason": "重新建单"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["deliverable_id"] != first["deliverable_id"]
+
+
+async def test_cancelling_without_an_open_notice_returns_404(client, db):
+    """没有开着的变更单 ⇒ 404（别静默成功）。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice/cancel",
+        json={"reason": "没有单可作废"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["code"] == "CHANGE_NOTICE_NOT_FOUND"

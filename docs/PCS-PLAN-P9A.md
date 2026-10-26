@@ -308,3 +308,20 @@ app/api/v1/__init__.py            # 只改 4 行 include_router
 原稿 1 份 900 行 / 16 task ⇒ **1 份总纲（203 行）+ 4 份 lane（382 / 208 / 256 / 122 行）**。
 共享约束（Global Constraints / Review Focus / What already exists / NOT in scope / 失败模式）
 只在总纲写一遍；各 lane 只放自己的 task。
+
+---
+
+## 后续（2026-10-26 · TODO-080）：`approve_change_notice` 已删除
+
+⚠️ **本计划里提到的 `ChangeNoticeService.approve_change_notice` 现已删除**
+（连同死代码 `_apply_record_resolution`）。
+
+**为什么删而不是修**（当时 R-1 只说「不再作为审批入口、保留为内部『关记录』步骤」
+⇒ 实施时发现它**绕过矩阵**（谁都能直接批准 ⇒ 3 级校审形同虚设）**且连记录都不
+关**（用了它记录永远停在 CHANGED）⇒ 留着就是一条「看起来能用、其实破坏签署链」
+的路）。
+
+⇒ **变更单的关闭路径现在唯一** = `sign_step` 签完最后一步（置 APPROVED）⇒
+`close_on_approved` ⇒ 记录 CHANGED → CHECKED + 写观测 + 写通知行。
+⚠️ 审批通过的通知逻辑原先**只在**被删的方法里 ⇒ 真实路径**从不通知任何人**
+⇒ 随删除**迁到** `close_on_approved`。

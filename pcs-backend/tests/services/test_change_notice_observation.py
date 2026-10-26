@@ -21,7 +21,11 @@ from sqlalchemy import select
 
 from app.models.calc import ReliefResult
 from app.models.deliverable import Deliverable
-from app.models.enums import WorkflowProgressState, WorkflowType
+from app.models.enums import (
+    DeliverableSignStatus,
+    WorkflowProgressState,
+    WorkflowType,
+)
 from app.models.workflow_progress import WorkflowProgress
 from app.services import change_notice_service as cn_mod
 from app.services.change_notice_service import (
@@ -133,18 +137,27 @@ async def test_create_observation_failure_rolls_back_the_change_notice(
 
 
 @pytest.mark.asyncio
-async def test_approve_marks_observation_completed(db, project_id):
-    """审批通过（自动关闭）⇒ 观测行变 COMPLETED 且 `completed_at` 非空。"""
+async def test_close_on_approved_marks_observation_completed(db, project_id):
+    """关闭（签完最后一步 ⇒ `close_on_approved`）⇒ 观测行 COMPLETED。
+
+    ⚠️ **真实路径**：`approve_change_notice` 已删除（TODO-081 选项① —— 它是
+    **绕过矩阵**的第二条关闭路径，且**连记录都不关** ⇒ 用了它记录就永远停在
+    CHANGED）⇒ 观测的「写入点 2b」现在只由签署流程的终点触发。
+    """
     rec = await _make_changed_record(db, project_id=project_id)
     created = await _create_notice(
         db, project_id=project_id, record_id=rec.relief_id
     )
 
-    await ChangeNoticeService.approve_change_notice(
-        db,
-        deliverable_id=created["deliverable_id"],
-        actor=_Actor(),
-        record_table=ReliefResult,
+    deliverable = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == created["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+    await ChangeNoticeService.close_on_approved(
+        db, deliverable=deliverable, actor_user_id=uuid.uuid4()
     )
 
     rows = await _observation_rows(db, workflow_id=created["deliverable_id"])
@@ -154,14 +167,31 @@ async def test_approve_marks_observation_completed(db, project_id):
 
 
 @pytest.mark.asyncio
-async def test_approve_failure_writes_no_observation(db, project_id):
-    """⚠️ 审批失败 ⇒ **不**写观测（不能给没关闭的变更单标「已完成」）。"""
+async def test_close_failure_writes_no_observation(db, project_id):
+    """⚠️ 关闭失败（找不到绑定记录）⇒ **不**写观测。
+
+    不能给没关闭的变更单标「已完成」⇒ 观测必须与业务同生共死。
+    """
+    deliverable = Deliverable(
+        deliverable_id=uuid.uuid4(),
+        project_id=project_id,
+        deliverable_type="CHANGE_NOTICE",
+        scope_type="CUSTOM",
+        scope_value="CHANGE_NOTICE:ReliefResult:" + str(uuid.uuid4()),
+        doc_no="CN-" + uuid.uuid4().hex.upper(),
+        doc_no_mode="MANUAL",
+        title="没有绑定的变更单",
+        current_rev="0",
+        version_purpose="ISSUED_FOR_CHANGE",
+        sign_status=DeliverableSignStatus.PENDING,
+        matrix_id=uuid.uuid4(),
+    )
+    db.add(deliverable)
+    await db.flush()
+
     with pytest.raises(PcsError) as exc_info:
-        await ChangeNoticeService.approve_change_notice(
-            db,
-            deliverable_id=uuid.uuid4(),
-            actor=_Actor(),
-            record_table=ReliefResult,
+        await ChangeNoticeService.close_on_approved(
+            db, deliverable=deliverable, actor_user_id=uuid.uuid4()
         )
-    assert exc_info.value.status == 404
+    assert exc_info.value.status == 409
     assert (await db.execute(select(WorkflowProgress))).scalars().all() == []

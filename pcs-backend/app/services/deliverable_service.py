@@ -683,6 +683,7 @@ class DeliverableService:
         }[decision]
 
         next_step = steps[step_index] if step_index < len(steps) else None
+        cn_notifications: list[Any] = []
         if decision == "SIGN" and next_step is None:
             deliverable.sign_status = DeliverableSignStatus.APPROVED
             # ⚠️ **变更单的最后一步 ⇒ 自动关记录**（ADR-0008：「变更单 APPROVED
@@ -695,11 +696,16 @@ class DeliverableService:
             if deliverable.deliverable_type == "CHANGE_NOTICE":
                 from app.services.change_notice_service import ChangeNoticeService
 
-                await ChangeNoticeService.close_on_approved(
+                closed = await ChangeNoticeService.close_on_approved(
                     db,
                     deliverable=deliverable,
                     actor_user_id=actor_user_id,
                 )
+                # ⚠️ 变更单关闭的**通知行**在同一事务里写好了（TODO-080 第 2 条
+                #   ⇒ 随 `approve_change_notice` 删除而迁到这条真实路径上）⇒
+                #   这里只**收集**，推送在 commit 之后（与 `_notify_sign_outcome`
+                #   同一批推）。
+                cn_notifications = closed.get("pending_notifications") or []
         elif decision == "RETURN":
             # 退回 = 交付物整体回草稿。后续要改内容必须重新 issue 出新版本，
             # 不能在原版本上继续推进 —— 否则退回的理由会挂在已签过的版本上。
@@ -768,6 +774,8 @@ class DeliverableService:
             next_step=next_step,
             actor_user_id=actor_user_id,
         )
+        # ⚠️ 变更单关闭的通知**并入同一批推送**（同一事务写的 ⇒ 一起提交）。
+        pending.extend(cn_notifications)
         await db.commit()
         await publish(pending)
         return SignStepOutcome(

@@ -19,6 +19,11 @@ from app.models.enums import (
     SnapshotStatus,
     StateTransition,
 )
+from app.services.record_snapshot_codec import (
+    apply_snapshot_data,
+    capture_record_data,
+    record_pk,
+)
 
 if TYPE_CHECKING:
     from app.models.deliverable import RecordChangeSnapshot
@@ -27,14 +32,7 @@ if TYPE_CHECKING:
 
 def _record_pk(record: RecordMixin) -> uuid.UUID:
     """Extract PK UUID via mapper inspection (RecordMixin 不自带 __tablename__)。"""
-    mapper = inspect(record.__class__)
-    if mapper is None:
-        raise TypeError(f"cannot inspect mapper for {record.__class__.__name__}")
-    pk = mapper.primary_key[0]
-    val = getattr(record, pk.name)
-    if not isinstance(val, uuid.UUID):
-        raise TypeError(f"record PK must be UUID, got {type(val).__name__}")
-    return val
+    return record_pk(record)
 
 
 def _record_table_name(record: RecordMixin) -> str:
@@ -245,7 +243,9 @@ class StateMachineService:
             record_type=record.__class__.__name__,
             record_id=_record_pk(record),
             record_hash=record.record_hash or "",
-            data_snapshot_json={},
+            # ⚠️ TODO-087：快照必须**装着数据** ⇒ 否则「撤销 / 放弃」时
+            #    没有任何东西可恢复 ⇒ 撤销**不撤销任何东西**。
+            data_snapshot_json=capture_record_data(record),
             snapshot_reason="BEFORE_CHANGE",
             snapshot_source="MANUAL_CHANGE",
             snapshot_status=SnapshotStatus.ACTIVE.value,
@@ -341,10 +341,9 @@ class StateMachineService:
         ).scalar_one_or_none()
         if snap is None:
             return None
-        data = snap.data_snapshot_json or {}
-        for col, val in data.items():
-            if hasattr(record, col):
-                setattr(record, col, val)
+        # ⚠️ TODO-087：还原**真类型**（UUID / 枚举 / datetime …）⇒ 快照里
+        #    装的是打标签的 JSON ⇒ 直接 setattr 会把枚举变成裸字符串。
+        apply_snapshot_data(record, snap.data_snapshot_json or {})
         snap.snapshot_status = SnapshotStatus.CONSUMED.value
         return snap
 

@@ -522,3 +522,18 @@ git commit -m "feat(TODO-057): ADR-0047 写入点 2b（变更单自动关闭时�
 - `alembic check`（开发库 `pcs`）：exit 0，无漂移（本批**未改迁移**）
 - `gate_08_openapi_contract.sh --check-baseline`：exit 0（baseline 顺带滚了
   P9B-1 遗留的漂移 —— `current_version_id`；本批**未改契约**）
+
+---
+
+## 后续（2026-10-26 · TODO-080）：观测写入点 2b 的**落点**变了
+
+⚠️ 本计划 T3 把「自动关闭路径写观测（写入点 2b）」放在
+`ChangeNoticeService.approve_change_notice` 里 —— 该方法现已**删除**
+（它**绕过矩阵**且**连记录都不关** ⇒ 留着就是一条破坏签署链的路；
+见 `docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md` 的「后续」段）。
+
+⇒ 写入点 2b 的**新位置** = `close_on_approved`（`sign_step` 把交付物置 APPROVED
+之后调用）⇒ 本计划的**验收口径不变**（变更单被签完 ⇒ CHANGE_NOTICE 工作流那
+一行变 COMPLETED），只是**落点**改了。
+⇒ 连带：审批通过的**通知**逻辑随之**迁到** `close_on_approved`（此前只在被删的
+方法里 ⇒ 真实路径**从不通知任何人**）。

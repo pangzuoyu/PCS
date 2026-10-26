@@ -11,9 +11,23 @@ from __future__ import annotations
 
 from typing import Any
 
+# ⚠️ **service 变体继承 core 变体**（TODO-080 第 3 条）。
+#    仓里有**两个** `PcsError`：`app/core/errors.py`（API/全局 handler 用）与
+#    本文件（service 层用）⇒ 写 `except PcsError` 时**捕不到另一个** ⇒
+#    跨模块的异常会**静默变成 500**（本仓已有多处被迫**双 import** +
+#    分别 `_to_http` 的绕法）。
+#    ⇒ 让 service 变体成为 core 变体的**子类** ⇒ `except core.PcsError`
+#    **两个都捕得到**（base class 的 except 匹配子类）⇒ 不再漏。
+#    ⚠️ 方向是 services → core（core 不依赖 services ⇒ 分层不倒挂）。
+from app.core.errors import PcsError as CorePcsError
 
-class PcsError(Exception):
-    """PCS 统一异常基类。所有 service 层异常应继承此类。"""
+
+class PcsError(CorePcsError):
+    """PCS 统一异常基类。所有 service 层异常应继承此类。
+
+    ⚠️ 与 `app/core/errors.py::PcsError` 是**父子关系**（不是两个无关的类）⇒
+    `except` 到 core 变体的代码**也捕得到**本变体（TODO-080 第 3 条）。
+    """
 
     code: str = "PCS_ERROR"
     status: int = 422
@@ -27,11 +41,17 @@ class PcsError(Exception):
         details: dict[str, Any] | None = None,
     ):
         """构造 service 层 PcsError（默认 code=PCS_ERROR / status=422；kwargs 可覆盖子码）。"""
-        super().__init__(message)
-        if code is not None:
-            self.code = code
-        if status is not None:
-            self.status = status
+        # ⚠️ 走 core 的 `__init__`（code/message/status/detail）⇒ 两个 handler
+        #    都能正确渲染它；`details` 另存一份（service 变体的历史字段名）。
+        # ⚠️ **code/status 的缺省取「类属性」**（不是硬编码常量）——
+        #    十几个子类（`MassIterationNotConvergedError` 等）用**类属性**
+        #    固定自己的 code/status ⇒ 硬编码会把它们**覆盖成 PCS_ERROR**。
+        super().__init__(
+            code=code if code is not None else type(self).code,
+            message=message,
+            status=status if status is not None else type(self).status,
+            detail=details or None,
+        )
         self.details = details or {}
 
 

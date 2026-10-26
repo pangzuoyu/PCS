@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T12:43:15.072Z
-> Files: 1035 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:02:49.571Z
+> Files: 1043 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -132,7 +132,10 @@
 
 - `COMMIT_MSG_077.txt` (~366 tok)
 - `COMMIT_MSG_078.txt` (~425 tok)
+- `COMMIT_MSG_080_087.txt` (~1306 tok)
+- `COMMIT_MSG_080.txt` (~728 tok)
 - `COMMIT_MSG_084.txt` (~539 tok)
+- `COMMIT_MSG_087.txt` (~535 tok)
 - `COMMIT_MSG_FIX1.txt` (~316 tok)
 - `COMMIT_MSG_T1_PLAN.txt` (~135 tok)
 - `COMMIT_MSG_T1.txt` (~353 tok)
@@ -1276,8 +1279,11 @@
 - `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~808 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
+- `record_snapshot_codec.py` — 记录快照的**数据编解码**（TODO-087）。 (~1917 tok)
+- `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~3082 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5857 tok)
+- `state_machine.py` — 状态机（Sprint 2 核心）。 (~5544 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
@@ -1398,7 +1404,7 @@
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_change_impact_confirm.py` — CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。 (~2805 tok)
-- `test_change_notice_api.py` — 变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。 (~3566 tok)
+- `test_change_notice_api.py` — 变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。 (~10097 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
 - `test_cost_est_project_isolation.py` — `CostEstResult` 的项目隔离 —— P9A-5 Task B（TODO-061）。 (~3042 tok)
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
@@ -1472,6 +1478,7 @@
 
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
+- `test_change_notice_close_real_db.py` — 变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。 (~2385 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
 - `test_change_notice_observation.py` — 变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。 (~1476 tok)
 - `test_change_notice_project_guard.py` — 变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。 (~1063 tok)
@@ -1483,6 +1490,7 @@
 - `test_notifications_channel.py` — P9A C1：通知通道抽象（ADR-0049 §①）。 (~2860 tok)
 - `test_record_capabilities.py` — `record_capabilities` 测试（TODO-058 裁决的落地契约）。 (~1308 tok)
 - `test_record_hash_invariant.py` — record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。 (~3104 tok)
+- `test_record_snapshot_codec.py` — 记录快照**数据编解码**（TODO-087）。 (~1629 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~3143 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)

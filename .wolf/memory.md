@@ -2453,3 +2453,22 @@
 | 20:12 | Created .git/COMMIT_MSG_084.txt | — | ~575 |
 | 20:27 | Created .git/COMMIT_MSG_077.txt | — | ~391 |
 | 20:43 | Created .git/COMMIT_MSG_078.txt | — | ~453 |
+| 20:59 | Created pcs-backend/tests/services/test_change_notice_close_real_db.py | — | ~2148 |
+| 21:13 | Created pcs-backend/app/services/record_snapshot_codec.py | — | ~1869 |
+| 21:13 | Created pcs-backend/tests/services/test_record_snapshot_codec.py | — | ~1629 |
+| 21:14 | Edited pcs-backend/tests/api/v1/test_change_notice_api.py | modified test_reversal_actually_restores_the_record_data() | ~103 |
+| 21:14 | Edited pcs-backend/tests/api/v1/test_change_notice_api.py | modified test_initiate_change_snapshot_carries_the_record_data() | ~551 |
+| 21:14 | Edited pcs-backend/tests/api/v1/test_change_notice_api.py | 21→23 lines | ~207 |
+| 21:14 | Edited pcs-backend/app/services/state_machine.py | modified _record_pk() | ~46 |
+| 21:14 | Edited pcs-backend/app/services/state_machine.py | 10→15 lines | ~89 |
+| 21:14 | Edited pcs-backend/app/services/state_machine.py | 12→14 lines | ~165 |
+| 21:14 | Edited pcs-backend/app/services/state_machine.py | 9→8 lines | ~89 |
+| 21:14 | Edited pcs-backend/app/services/reversal_approval_service.py | 4→8 lines | ~109 |
+| 21:15 | Edited pcs-backend/app/services/reversal_approval_service.py | 11→9 lines | ~108 |
+| 21:15 | Edited pcs-backend/app/services/reversal_approval_service.py | added 1 import(s) | ~36 |
+| 21:18 | Edited pcs-backend/tests/services/test_change_notice_close_real_db.py | modified test_close_on_approved_writes_the_notification_row() | ~619 |
+| 21:27 | Edited pcs-backend/app/services/reversal_approval_service.py | record_pk() → get() | ~470 |
+| 21:28 | Edited pcs-backend/app/services/record_snapshot_codec.py | modified apply_snapshot_data() | ~215 |
+| 21:30 | Created .git/COMMIT_MSG_080.txt | — | ~777 |
+| 21:32 | Created .git/COMMIT_MSG_087.txt | — | ~571 |
+| 00:02 | Created .git/COMMIT_MSG_080_087.txt | — | ~1393 |

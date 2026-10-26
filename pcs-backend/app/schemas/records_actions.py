@@ -221,6 +221,16 @@ class ChangeNoticeDetailResponse(BaseModel):
     source_record_type: str | None = None
 
 
+class ChangeNoticeCancelResponse(BaseModel):
+    """作废变更单的结果（字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死）。"""
+
+    deliverable_id: str
+    doc_no: str
+    record_type: str
+    record_id: str
+    sign_status: str
+
+
 class ChangeNoticeResponse(BaseModel):
     """建单结果。字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死。
 
