@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T22:49:47.883Z",
-    "fileCount": 1056,
+    "lastScanned": "2026-10-26T22:59:18.464Z",
+    "fileCount": 1057,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e65703ebf8c1b60def6da3eb732ea828583b4b2c3ceb1ee3294fa0107e8a6185",
-    "storeUpdatedAt": "2026-10-26T22:49:47.895Z",
-    "rootHash": "c5b8402b36a7702c"
+    "renderedHash": "5968ab50b4fcc6914a0d1d3ef24adf21ccc9c75c2f32c35f8e78078363793e28",
+    "storeUpdatedAt": "2026-10-26T22:59:18.476Z",
+    "rootHash": "bbd7c8b489b30031"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -38318,6 +38318,15 @@
       "size": 17636,
       "mtimeMs": 1793054600356.883,
       "updatedAt": "2026-10-26T22:43:20.414Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9a-dlv-011-debt2.md": {
+      "description": "QA 报告 —— PCS 前端（P9A-DLV-011 收尾批 #2）",
+      "tokens": 548,
+      "hash": "38e74cdc5cfb1686",
+      "size": 3266,
+      "mtimeMs": 1793055558409.4727,
+      "updatedAt": "2026-10-26T22:59:18.464Z",
       "source": "hook"
     }
   }

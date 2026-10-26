@@ -2500,3 +2500,4 @@
 | 06:43 | Edited TODOS.md | expanded (+11 lines) | ~198 |
 | 06:43 | Edited spec/PCS-DICT-ALL-003 V3.6.md | 2→2 lines | ~25 |
 | 06:49 | Edited pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx | CSS: onStatusChange, recordId, nextStatus | ~34 |
+| 06:59 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9a-dlv-011-debt2.md | — | ~584 |

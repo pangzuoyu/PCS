@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:49:47.883Z
-> Files: 1056 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T22:59:18.464Z
+> Files: 1057 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -182,6 +182,7 @@
 - `qa-report-pcs-frontend-2026-10-13-report-builder.md` — QA 报告 — P8 REPORT_BUILDER 前端（b10–b12 / c6 第一批） (~926 tok)
 - `qa-report-pcs-frontend-2026-10-21-p9a-z-closeout.md` — QA 报告 — pcs-frontend — P9A Z 收口（2026-10-21） (~606 tok)
 - `qa-report-pcs-frontend-2026-10-21-p9b-1.md` — QA 报告 — PCS 前端 P9B-1（结果记录页 + 编辑锁） (~1469 tok)
+- `qa-report-pcs-frontend-2026-10-27-p9a-dlv-011-debt2.md` — QA 报告 —— PCS 前端（P9A-DLV-011 收尾批 #2） (~548 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
