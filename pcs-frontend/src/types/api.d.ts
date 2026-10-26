@@ -7006,6 +7006,11 @@ export interface components {
              * @enum {string}
              */
             triggered_by: "MANUAL" | "UPSTREAM_CHANGE";
+            /**
+             * Record Ids
+             * @description 本次变更影响的**全部**记录（TODO-078：一次变更常影响多条记录）—— **必须包含**路径里的 `{record_id}`；不给 = 只有路径那条（单记录 = 旧行为）
+             */
+            record_ids?: string[] | null;
         };
         /**
          * ChangeNoticeResponse

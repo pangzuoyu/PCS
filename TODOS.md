@@ -1310,6 +1310,9 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
 **⚠️ 仍未由 SPEC 确认**（业务口径待裁决）：
 1. 「一条记录同时只有一张变更单」这条规则本身仍是**实现推导**出来的
    （doc_no 派生的副产品），SPEC 侧尚未确认 ⇒ 保留本条记录的**裁决请求**。
+   ⚠️ **2026-10-26 口径已随 TODO-078 调整**：「一条记录同时只在**一张未关闭**的
+   变更单里」（判重按 **binding**，且**已 APPROVED** 的那单不挡新单）——
+   多记录变更单落地后，原来的「一张单只绑一条 + 按 scope 判重」已经不成立。
 2. **已取消的变更单也会挡住再次建单**（实现只问「有没有」，不问状态）——
    ⚠️ 变更单目前**没有取消路径**（`cancel_change_notice` 从未实现）⇒ 影响是
    潜在的 ⇒ 等取消功能落地时一并定口径。
@@ -1477,17 +1480,32 @@ submit-approval / approval-step / deliverables 的 issue / sign-step），
 
 **关联：** ADR-0002 · 计划 R-11′（推翻 R-11）· TODO-078 · TODO-087。
 
-## TODO-078: 变更单只绑**一条**记录（多记录变更未支持）🟡
+## ✅ DONE —— TODO-078: 变更单只绑**一条**记录（多记录变更未支持）（2026-10-26 落地）
 
-**What:** `deliverable_record_bindings` 一次变更单只写**一行**（一条记录）。
+**落地**：
+- 建单请求体加 **`record_ids: list[uuid] | None`** = 本次变更影响的**全部**记录
+  —— **必须包含**路径里的 `{record_id}`（否则 422
+  `CHANGE_NOTICE_RECORD_SET_INVALID`）；不给 = 只有路径那条（**向后兼容**）。
+- `deliverable_record_bindings` **每条记录一行** ⇒ 关闭时**批量**关
+  （`close_on_approved` 逐条关，任一条不合格 ⇒ **整批失败**（事务回滚 ⇒ 一条
+  都不关）—— 半关半不关 = 一张单关了两条而另一条还开着）。
+- ⚠️ 「重复绑定」判重改按 **binding** 找（不再按 `scope_value`）：多记录变更单
+  的 scope 只标识**主记录** ⇒ 次要记录在 scope 里查不到 ⇒ 必须按 binding 查。
+- ⚠️ 「未关闭」= 交付物**不是** `APPROVED`（已批准的那张**已经关过记录**了 ⇒
+  不该再挡住新变更单）。
+- 返回值**向后兼容**（单记录时与旧版逐字一致）+ 新增 `closed_records`（全部）。
+- 测试（3 例）：`test_change_notice_can_bind_multiple_records`（两行 binding ⇒
+  签完两条都回 CHECKED）· `test_change_notice_record_set_must_contain_the_path_record`
+  （集合不含路径记录 ⇒ 422）· `test_a_record_cannot_be_in_two_open_change_notices`
+  （一条记录不能同时在两张**未关闭**的变更单里 ⇒ 409）。
 
-**Why:** ADR-0002 的场景是「改了已发布的一版数据 ⇒ 用变更单关闭」；
-但工程实践里一次变更常影响**多条**记录（一次管径修正 ⇒ 十几条记录）。
+**⚠️ 契约影响**：`ChangeNoticeRequest` 加 `record_ids` 字段 ⇒ OpenAPI
+**schemas 数不变**（346→347 是上一批的 `ChangeActionRequest`；本批只加**字段**）、
+paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
+**已重新生成并滚 baseline**；裸字段仍 **71**。
 
-**How:** 建单请求体加 `record_ids: list[uuid]`（或一个「影响范围」选择），
-并把 binding 写成多行 + `close_on_approved` 改成**批量**关记录。
-⚠️ 现在的「一条记录一张变更单」规则（TODO-069）也要跟着调整。
-**归属：** 独立一轮。
+**关联：** TODO-069（「一条记录一张变更单」规则已随本条调整为「同时只在**一张
+未关闭**的变更单里」）· ADR-0002 · TODO-077。
 
 ## ✅ DONE —— TODO-079: 矩阵管理面**没有前端**（2026-10-26 落地）
 

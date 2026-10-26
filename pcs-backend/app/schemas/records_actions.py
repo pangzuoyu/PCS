@@ -201,6 +201,14 @@ class ChangeNoticeRequest(BaseModel):
     change_type: ChangeType = Field(description="7 值变更类型")
     reason: str = Field(min_length=1, max_length=2000, description="变更原因")
     triggered_by: TriggeredBy = Field(default="MANUAL")
+    record_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        description=(
+            "本次变更影响的**全部**记录（TODO-078：一次变更常影响多条记录）"
+            "—— **必须包含**路径里的 `{record_id}`；不给 = 只有路径那条"
+            "（单记录 = 旧行为）"
+        ),
+    )
 
 
 class ChangeNoticeDetailResponse(BaseModel):

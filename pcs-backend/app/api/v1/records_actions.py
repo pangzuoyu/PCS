@@ -731,6 +731,9 @@ async def create_change_notice(
         triggered_by=TriggeredBy(body.triggered_by),
         actor=actor,
         record_table=model,
+        # ⚠️ **多记录变更**（TODO-078）：请求体可带本次变更影响的全部记录
+        #    （必须包含路径里那条）⇒ binding 写多行 ⇒ 签完**批量**关。
+        record_ids=body.record_ids,
     )
     detail = result["detail"]
     return ChangeNoticeResponse(

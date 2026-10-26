@@ -855,3 +855,110 @@ async def test_apply_change_allows_a_modified_record(client, db):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["to_status"] == "CHANGED"
+
+
+# ---------------------------------------------------------------------------
+# TODO-078：多记录变更（一次变更常影响多条记录）
+# ---------------------------------------------------------------------------
+
+
+async def test_change_notice_can_bind_multiple_records(client, db):
+    """⚠️ TODO-078：一张变更单可绑**多条**记录 ⇒ 签完**批量**关。
+
+    工程实践：一次管径修正 ⇒ 十几条记录受影响 ⇒ 一张单关十几条。
+    """
+    proj = await _make_project(db)
+    rec1 = await _make_record(db, project=proj, sign_status="CHANGED")
+    rec2 = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec1.relief_id}/change-notice",
+        json={
+            "change_type": "DATA_CORRECTION",
+            "reason": "管径修正（影响两条）",
+            "record_ids": [str(rec1.relief_id), str(rec2.relief_id)],
+        },
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    bindings = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == _uuid(body["version_id"])
+            )
+        )
+    ).scalars().all()
+    assert len(bindings) == 2, "两张记录 ⇒ 两行 binding"
+    assert {str(b.record_id) for b in bindings} == {
+        str(rec1.relief_id),
+        str(rec2.relief_id),
+    }
+
+    # 签完 3 级 ⇒ **两条**都回 CHECKED
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER"), (3, "APPROVER")):
+        r = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+        assert r.status_code == 200, r.text
+
+    await db.refresh(rec1)
+    await db.refresh(rec2)
+    assert rec1.sign_status == RecordSignStatus9.CHECKED.value
+    assert rec2.sign_status == RecordSignStatus9.CHECKED.value
+    assert rec1.change_resolved_by and rec2.change_resolved_by
+
+
+async def test_change_notice_record_set_must_contain_the_path_record(client, db):
+    """⚠️ 请求体的 `record_ids` **必须包含**路径里那条 ⇒ 否则 422。"""
+    proj = await _make_project(db)
+    rec1 = await _make_record(db, project=proj, sign_status="CHANGED")
+    rec2 = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec1.relief_id}/change-notice",
+        json={
+            "change_type": "DATA_CORRECTION",
+            "reason": "只列了另一条",
+            "record_ids": [str(rec2.relief_id)],
+        },
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["code"] == "CHANGE_NOTICE_RECORD_SET_INVALID"
+
+
+async def test_a_record_cannot_be_in_two_open_change_notices(client, db):
+    """⚠️ 「一条记录同时只在**一张未关闭**的变更单里」⇒ 409。
+
+    判重按 **binding**（不是 scope）—— 多记录变更单的 scope 只标识主记录 ⇒
+    次要记录在 scope 里查不到 ⇒ 必须按 binding 查。
+    """
+    proj = await _make_project(db)
+    rec1 = await _make_record(db, project=proj, sign_status="CHANGED")
+    rec2 = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    first = await client.post(
+        f"/api/v1/records/{MODULE}/{rec1.relief_id}/change-notice",
+        json={
+            "change_type": "DATA_CORRECTION",
+            "reason": "第一条",
+            "record_ids": [str(rec1.relief_id), str(rec2.relief_id)],
+        },
+        headers=_token(role="DESIGNER"),
+    )
+    assert first.status_code == 200, first.text
+
+    # 第二张单：主记录是 rec2（次要记录 rec1 已在第一张单里）
+    second = await client.post(
+        f"/api/v1/records/{MODULE}/{rec2.relief_id}/change-notice",
+        json={
+            "change_type": "DATA_CORRECTION",
+            "reason": "第二条",
+            "record_ids": [str(rec1.relief_id), str(rec2.relief_id)],
+        },
+        headers=_token(role="DESIGNER"),
+    )
+    assert second.status_code == 409, second.text
+    assert second.json()["code"] == "CHANGE_NOTICE_ALREADY_EXISTS"

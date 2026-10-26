@@ -74,7 +74,13 @@ export const changeNoticesApi = {
       })
       .then((r) => r.data),
 
-  /** 建变更单（记录须为 CHANGED；FORMAL 工作区才允许）。 */
+  /**
+   * 建变更单（记录须为 CHANGED；FORMAL 工作区才允许）。
+   *
+   * ⚠️ **多记录变更**（TODO-078）：`body.record_ids` 可带上本次变更影响的
+   * **全部**记录（**必须包含**路径里的那条）⇒ 一张单关多条记录。
+   * 不给 = 只有路径那条（单记录 = 旧行为）。
+   */
   create: (
     recordType: string,
     recordId: string,
