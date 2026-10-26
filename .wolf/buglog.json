@@ -4666,7 +4666,7 @@
       "file": "pcs-backend/app/services/change_notice_service.py",
       "root_cause": "变更单的 `doc_no` 直接用「变更单自己的 uuid hex」拼 ⇒ 只保证**唯一**（`uq_deliverables_doc_no`），而编号是**给人看**的（用户报单号、检索单据）⇒ 32 位 hex 谁都对不上。交付物早就支持**编号模板**（`numbering_templates` + `segments_json` + `NumberingService.next_value` 的 `SELECT ... FOR UPDATE` 行锁），但变更单**没接**那条路。",
       "fix": "**已修（2026-10-27，TODO-073）**：新增内置「变更单编号模板」（`NumberingService.get_or_create_change_notice_template`，**幂等** + 唯一约束兜底并发），段 = `{项目号}-{文档类型}-{序号}` ⇒ 编号渲染成 `P-1A2B3C4D-CHANGE_NOTICE-1`。⚠️ 取号必须**在建行之前**（`uq_deliverables_doc_no` 全局唯一 ⇒ 后补编号 ⇒ 同事务第二张单撞空串约束 ⇒ 500）⇒ 为此把渲染从 `_allocate_doc_no`（吃交付物行）抽成 `DeliverableService.render_doc_no`（不依赖已存在的行）。迁移 `p9_009`：`numbering_templates.template_name` 加全局唯一约束（不唯一 ⇒ 两份模板 ⇒ 两条号段 ⇒ 同号）。测试：`tests/services/test_change_notice_numbering.py`（4 例）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "5416e5f",
       "tags": [
         "change-notice",
         "numbering",
@@ -4686,7 +4686,7 @@
       "file": "pcs-backend/app/services/signature_matrix_service.py",
       "root_cause": "`signature_matrices.matrix_name` **无唯一约束** ⇒ `_get_or_create_builtin_matrix` 按 `(matrix_name, status='ACTIVE')` **找第一份** ⇒ **并发**下两个事务各建一份同名 ACTIVE 模板 ⇒ 内容相同看似无害，但两个项目可能绑到**不同的一份** ⇒「谁该签这一步」出现**两个答案** ⇒ 同一项目里同一条记录，按不同人查出来的签署链**不一样**。",
       "fix": "**已修（2026-10-27，TODO-074）**：①应用层 `SignatureMatrixService._assert_name_free` ⇒ 建矩阵 / 改名时**同名 + 同状态**已存在 ⇒ **409 `SIGNATURE_MATRIX_NAME_CONFLICT`**；②**迁移 `p9_010`** ⇒ `uq_signature_matrices_name_status` = **(matrix_name, status)** 唯一（并发兜底）。⚠️ 约束是 **(name, status)** 而不是「名字全局唯一」：一份**已作废**的同名模板不该永久堵住重建（否则历史绑定里的旧名字全是死链）⇒ 应用层与 DB 约束**同口径**。测试：`tests/api/v1/test_signature_matrix_api.py`（3 例）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "e8d34c8",
       "tags": [
         "signature-matrix",
         "uniqueness",
@@ -4705,7 +4705,7 @@
       "file": "pcs-backend/app/services/state_machine.py",
       "root_cause": "9 态状态机的 `APPLY_CHANGE`（CHANGE_PENDING → CHANGED = 校核完成）写 `change_resolved_at` + `change_resolved_by`；而 ADR-0002 说这两个字段记的是「**变更单的关闭人**」（「可追溯的关闭凭证（谁、为什么、凭什么关闭）」）⇒ 写它们的是**关记录那步**（变更单 APPROVED ⇒ `close_on_approved`）。⇒ 变更单**还没批准**时，字段里已经有一个「校核人」⇒ 任何读它的中间态都是**语义错位**的值（最终值会被关记录那步覆盖，但对账中间态是错的）。",
       "fix": "**已修（2026-10-27，TODO-075）**：`state_machine.transition` 的 APPLY_CHANGE **不再写** `change_resolved_at` / `change_resolved_by` ⇒ 只有 `ChangeNoticeService.close_on_approved` 写 ⇒ 字段语义与 ADR-0002 / ADR-0008 对齐。⚠️ **连带影响**：记录在 CHANGED（等关闭凭证）阶段这两个字段是**空的** ⇒ 「变更已关闭」的查询在凭证批准前查不到（这是**正确**的）。测试：既有 `test_stream_transition.py` 的断言前提已变 ⇒ 改成断言它们**仍是空的**；新增流程级用例 `test_change_resolved_by_is_written_only_when_the_notice_is_approved`。",
-      "fix_commit": "PENDING",
+      "fix_commit": "334e140",
       "tags": [
         "change-notice",
         "state-machine",
@@ -4725,7 +4725,7 @@
       "file": "pcs-backend/app/api/v1/_guard.py",
       "root_cause": "`require_formal_project_workspace`（fail-open 版）此前只在 `POST /records/{module}/{id}/change-notice` 被调用 ⇒ UI-SPEC §5.3 的门禁清单覆盖**四类**操作（提交批准 / 创建交付物 / 创建变更单 / 签署）⇒ 其余三类在 API 层**没有**对应守卫。而「后端 403 为兜底」是 UI-SPEC **自己**写的 ⇒ 绕过前端就能在个人草稿区送审、签发交付物、签字。",
       "fix": "**已修（2026-10-27，TODO-076）**：门禁挂到 UI-SPEC §5.3 的**全部**四类操作 —— `records_actions.py` 的 `submit-approval` / `approval-step`；`deliverables.py` 的 `issue` / `sign-step` / `customer-approval/proxy` ⇒ 非 FORMAL 一律 **403 `WORKSPACE_TYPE_NOT_ALLOWED`**。⇒ **两条放行（fail-open）分支显式化**：各有**一条测试**钉住（项目不存在 / 工作区行不存在 ⇒ **放行**，是有意的选择：历史项目没挂工作区 ⇒ 不是个人草稿区 ⇒ 不因缺元数据挡掉正常操作）。测试：**新增** `tests/api/v1/test_workspace_type_guard.py`（9 例）。⚠️ 顺带：`_guard.py` 原先抛 **core 变体** `PcsError` ⇒ `except service.PcsError` 捕不到 ⇒ 改成抛 **service 变体**（子类 ⇒ 两种 `except` 都捕得到）；同类残留登记 **TODO-089**（全仓还有 ~20 个模块抛 core 变体 ⇒ 55 处 `except` 是潜在漏网）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "4487475",
       "tags": [
         "workspace",
         "authorization",
@@ -4747,7 +4747,7 @@
       "file": "pcs-backend/app/services/record_cancellation_service.py",
       "root_cause": "`records.locked_by_deliverable` **全仓只被读、从不被写 True** ⇒ `record_cancellation_service.obsolete` 的「已绑定记录必须先建 RECORD_CANCELLATION 变更单」与 `reversal_approval_service.request_reversal` 的「已对外生效只能走 CHANGE_REVERSAL」两道门**永远不触发** ⇒ 门是**装饰**。根因：判据选了一个**没有写入方**的列 ⇒ 判据永远为 False。",
       "fix": "**已修（2026-10-27，TODO-082）**：判据换成**真实可判定**的条件 —— 新增 `DeliverableService.is_record_effectively_published`（记录有没有被一张 **APPROVED** 的交付物绑定：`deliverable_record_bindings` ⋈ `deliverable_versions` ⋈ `deliverables`）⇒ 两道门改用它（已对外生效 ⇒ 409 `RECORD_BOUND_USE_CHANGE_NOTICE` / 409 `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`）。⚠️ 判「APPROVED」而不是「有绑定」：一张还没签完的变更单也绑了记录 ⇒ 用「有绑定」会把用户在变更单还没批准时就挡住。⚠️ `bound_obsolete_via_deliverable` 改判「**这张**交付物绑了这条记录」（`is_record_bound_to_deliverable`）—— 判「已批准」会把那条路径永远堵死（它由 APPROVED 流程调用，那时单子还没批完）。测试：**新增** `tests/services/test_record_publication_gate.py`（5 例，含「门不误伤」的反向对照）；⚠️ 既有假 Session 用例（前提已消失）删除。**已知代价**（裁决时已告知）：变更单批准后该记录不能再走普通撤销 ⇒ 只能走 CHANGE_REVERSAL。遗留：**TODO-090**（该列现在既无写入方也不是门禁）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "50c3e28",
       "tags": [
         "record-cancellation",
         "reversal",
@@ -4767,7 +4767,7 @@
       "file": "pcs-frontend/src/pages/results/ChangeNoticeAction.tsx",
       "root_cause": "后端在 TODO-080 落地了 `POST /records/{module}/{id}/change-notice/cancel`（作废）⇒ 但前端只接了三个动作（变更申请 / 提交变更完成 / 创建变更单）⇒ 「作废」这条路**只有 curl 能走**。⚠️ 且前端**看不出来**记录有没有开着的变更单（两种情况记录都是 CHANGED）⇒ 直接加一个「作废」按钮会让人去点一个不存在的单。",
       "fix": "**已修（2026-10-27）**：①后端新增读口 `GET /records/{module}/{id}/change-notice` ⇒ 返回该记录当前**开着**的变更单摘要（`has_open_notice` + 单号 / 交付物 / 版本；⚠️ **不用 404 表达「没有」**）；②前端 `ChangeNoticeAction` 在 CHANGED 态**仍只给一个**按钮（沿用 UI-SPEC §6.3「按状态渲染」口径）⇒ **弹窗**按「有没有开着的变更单」分两种：没有 ⇒ 「创建变更单」表单；**已有** ⇒ 「**作废**变更单」表单（理由必填）+ 提示已有单号；⚠️ 查询**只在打开弹窗时**发 ⇒ 列表页无 N+1；⚠️ **作废的是单据 ⇒ 记录不动** ⇒ 前端不改记录状态；③MSW mock 补 3 个端点 + 内存态。测试：前端 +5 例（组件 3 + API 契约 2）。契约：OpenAPI +1 schema（`ChangeNoticeOpenResponse`）、path 数不变（同一路径多一个 GET）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "30df88e",
       "tags": [
         "change-notice",
         "frontend",
@@ -4788,7 +4788,7 @@
       "file": "pcs-backend/app/services/record_cancellation_service.py",
       "root_cause": "`_apply_obsolete` 写审计时用 `resource_id=str(getattr(rec, \"record_id\", \"\"))` ⇒ 而各业务表的**主键列名不同**（`relief_results` = `relief_id`、`piping_results` = `pipe_id`…）⇒ `getattr` 在别的表上**恒为默认空串** ⇒ 审计行的 resource_id = \"\" ⇒ **审计链断**（同一记录多次弃用/查询都分不清）。返回 dict 里的 `record_id` 也是同一个坑 ⇒ 端点响应里的记录 id 也是空的。与 bug-2081（`getattr(record,\"record_id\")` 查快照）**同族**。",
       "fix": "**已修（2026-10-27，TODO-082 迁移时发现）**：`_apply_obsolete` 改用**调用方传入的主键**（`record_id`，它就是 `db.get(record_table, record_id)` 用的那个）⇒ 审计的 `resource_id` 与返回 dict 的 `record_id` 都是**真主键**。测试：`tests/services/test_record_publication_gate.py::test_bound_obsolete_via_deliverable_obsoletes_the_record`（断言审计行落在**该记录**上）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "66dba93",
       "tags": [
         "audit",
         "record-cancellation",
