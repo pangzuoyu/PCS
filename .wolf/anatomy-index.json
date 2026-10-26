@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T02:12:16.057Z",
-    "fileCount": 1019,
+    "lastScanned": "2026-10-26T10:30:31.144Z",
+    "fileCount": 1020,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d5829679cb4dbe7dd2820d84cbbd86fb204080074ce8acd22a914099bc744d41",
-    "storeUpdatedAt": "2026-10-26T02:12:16.068Z",
-    "rootHash": "ef97298f86145d41"
+    "renderedHash": "bf2512a34c724fffc62e808004c526a2a328a16f18c63a6d3d6f4b591de392cc",
+    "storeUpdatedAt": "2026-10-26T10:30:31.155Z",
+    "rootHash": "0c3b5e8630d46959"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 11439,
-      "hash": "84308cb64dc3713b",
-      "size": 75816,
-      "mtimeMs": 1792971664234.0508,
-      "updatedAt": "2026-10-25T23:41:04.288Z",
+      "tokens": 13423,
+      "hash": "25db1523c7efe5c1",
+      "size": 89472,
+      "mtimeMs": 1793010613584.1138,
+      "updatedAt": "2026-10-26T10:30:13.633Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -21347,11 +21347,11 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 11385,
-      "hash": "7a869fbd6b563cb7",
-      "size": 46939,
-      "mtimeMs": 1792974003020.2668,
-      "updatedAt": "2026-10-26T00:20:03.074Z",
+      "tokens": 11745,
+      "hash": "b786fe0f674137ae",
+      "size": 48767,
+      "mtimeMs": 1792983422131.1245,
+      "updatedAt": "2026-10-26T02:57:02.188Z",
       "source": "hook",
       "symbols": [
         {
@@ -21386,8 +21386,8 @@
           "name": "DeliverableService",
           "kind": "class",
           "startLine": 131,
-          "endLine": 1155,
-          "tokens": 10318
+          "endLine": 1190,
+          "tokens": 10678
         }
       ]
     },
@@ -35873,11 +35873,11 @@
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 5084,
-      "hash": "f2f93e0936180750",
-      "size": 20993,
-      "mtimeMs": 1792973466514.5488,
-      "updatedAt": "2026-10-26T00:11:06.567Z",
+      "tokens": 5857,
+      "hash": "1a6f663e4d1c2aa8",
+      "size": 24509,
+      "mtimeMs": 1792983281448.8994,
+      "updatedAt": "2026-10-26T02:54:41.496Z",
       "source": "hook",
       "symbols": [
         {
@@ -35891,8 +35891,8 @@
           "name": "SignatureMatrixService",
           "kind": "class",
           "startLine": 85,
-          "endLine": 543,
-          "tokens": 4444
+          "endLine": 603,
+          "tokens": 5218
         }
       ]
     },
@@ -36231,11 +36231,11 @@
     },
     "docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md": {
       "description": "P9A-DLV-011 实施计划：变更单闭环（HTTP 面）+ 签署矩阵管理面",
-      "tokens": 2603,
-      "hash": "e0d8f6483d6e1745",
-      "size": 15965,
-      "mtimeMs": 1792972336159.0183,
-      "updatedAt": "2026-10-25T23:52:16.221Z",
+      "tokens": 2970,
+      "hash": "9f084b7ed55c38d3",
+      "size": 18386,
+      "mtimeMs": 1793010631096.1382,
+      "updatedAt": "2026-10-26T10:30:31.144Z",
       "source": "hook"
     },
     ".superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md": {
@@ -36511,61 +36511,61 @@
     },
     "pcs-backend/app/api/v1/signature_matrices.py": {
       "description": "签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。",
-      "tokens": 2204,
-      "hash": "80c6e699a7f0474c",
-      "size": 8985,
-      "mtimeMs": 1792980736003.6526,
-      "updatedAt": "2026-10-26T02:12:16.057Z",
+      "tokens": 2396,
+      "hash": "57574a866df2a8bb",
+      "size": 9927,
+      "mtimeMs": 1792983693887.4197,
+      "updatedAt": "2026-10-26T03:01:33.941Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_response",
           "kind": "fn",
-          "startLine": 71,
-          "endLine": 99,
+          "startLine": 75,
+          "endLine": 103,
           "tokens": 277
         },
         {
           "name": "list_signature_matrices",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 122,
+          "startLine": 104,
+          "endLine": 126,
           "tokens": 240
         },
         {
           "name": "create_signature_matrix",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 151,
+          "startLine": 127,
+          "endLine": 155,
           "tokens": 236
         },
         {
           "name": "get_signature_matrix",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 167,
+          "startLine": 156,
+          "endLine": 171,
           "tokens": 153
         },
         {
           "name": "update_signature_matrix",
           "kind": "fn",
-          "startLine": 168,
-          "endLine": 196,
-          "tokens": 256
+          "startLine": 172,
+          "endLine": 205,
+          "tokens": 334
         },
         {
           "name": "bind_project_matrix",
           "kind": "fn",
-          "startLine": 197,
-          "endLine": 229,
-          "tokens": 312
+          "startLine": 206,
+          "endLine": 243,
+          "tokens": 376
         },
         {
           "name": "unbind_project_matrix",
           "kind": "fn",
-          "startLine": 230,
-          "endLine": 246,
-          "tokens": 187
+          "startLine": 244,
+          "endLine": 263,
+          "tokens": 224
         }
       ]
     },
@@ -36811,6 +36811,94 @@
       "mtimeMs": 1792980188169.5688,
       "updatedAt": "2026-10-26T02:03:08.228Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_p9a_dlv_011_authorization.py": {
+      "description": "P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。",
+      "tokens": 2299,
+      "hash": "1966fe7f0bebdeb0",
+      "size": 8800,
+      "mtimeMs": 1792983759436.963,
+      "updatedAt": "2026-10-26T03:02:39.484Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 50,
+          "tokens": 72
+        },
+        {
+          "name": "_guard_client",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 75,
+          "tokens": 232
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 94,
+          "tokens": 146
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 108,
+          "tokens": 114
+        },
+        {
+          "name": "_make_matrix",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 127,
+          "tokens": 159
+        },
+        {
+          "name": "test_initiate_change_requires_project_access",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 142,
+          "tokens": 166
+        },
+        {
+          "name": "test_apply_change_requires_project_access",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 157,
+          "tokens": 161
+        },
+        {
+          "name": "test_change_notice_requires_project_access",
+          "kind": "fn",
+          "startLine": 158,
+          "endLine": 187,
+          "tokens": 290
+        },
+        {
+          "name": "test_bind_matrix_requires_project_access",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 208,
+          "tokens": 219
+        },
+        {
+          "name": "test_unbind_matrix_requires_project_access",
+          "kind": "fn",
+          "startLine": 209,
+          "endLine": 234,
+          "tokens": 250
+        },
+        {
+          "name": "test_project_member_is_allowed",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 254,
+          "tokens": 202
+        }
+      ]
     }
   }
 }

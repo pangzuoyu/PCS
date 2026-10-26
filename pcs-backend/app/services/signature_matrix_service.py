@@ -374,8 +374,33 @@ class SignatureMatrixService:
 
         ⚠️ `(project_id, module)` 唯一约束（迁移 `p9_008`）⇒ 同一项目同一模块
         只可能有一行绑定 ⇒ 「谁该签这一步」不会有两个答案。
+
+        ## 三道校验（都**响亮失败**，不静默）
+
+        1. 矩阵必须 **ACTIVE** —— DRAFT/PENDING/OBSOLETE 的模板**不许**接管
+           生产签署（否则「还没启用的模板」已经在签真实变更单了）。
+        2. 矩阵的 `module` 必须与绑定的 `module` 一致（或 `*` = 全部模块）
+           —— 否则一个为 RECORD 建的矩阵被绑成 CHANGE_NOTICE ⇒ 用**错误的角色集**
+           去签变更单。
+        3. 并发 ⇒ 撞唯一约束 ⇒ **SAVEPOINT** 回滚这一行 + 重读（不是 500）。
+           ⚠️ `db.add()` 必须在 savepoint **之内**（`begin_nested()` 会先 flush
+           一次 pending ⇒ savepoint 之外的 INSERT 不受保护）。
         """
         matrix = await cls.get_matrix(db, matrix_id=matrix_id)
+        if matrix.status != "ACTIVE":
+            raise PcsError(
+                f"签署矩阵 {matrix.matrix_name!r} 当前 {matrix.status}，"
+                f"只有 ACTIVE 的矩阵可以绑定到项目",
+                code="SIGNATURE_MATRIX_NOT_ACTIVE",
+                status=422,
+            )
+        if matrix.module not in ("*", module):
+            raise PcsError(
+                f"签署矩阵 {matrix.matrix_name!r} 属于模块 {matrix.module!r}，"
+                f"不能绑成 {module!r}",
+                code="SIGNATURE_MATRIX_MODULE_MISMATCH",
+                status=422,
+            )
         binding = (
             await db.execute(
                 select(ProjectSignatureMatrixBinding).where(
@@ -393,8 +418,25 @@ class SignatureMatrixService:
             module=module,
             matrix_id=matrix.matrix_id,
         )
-        db.add(binding)
-        await db.flush()
+        try:
+            # ⚠️ `db.add` 必须在 savepoint **之内**（`begin_nested()` 会先 flush
+            # pending ⇒ savepoint 之外的 INSERT 撞约束时会**中止整个事务**）。
+            async with db.begin_nested():
+                db.add(binding)
+                await db.flush()
+        except IntegrityError:
+            # 并发：另一个请求先绑上了 ⇒ 重读那一行（不覆盖赢家的 matrix_id）
+            existing = (
+                await db.execute(
+                    select(ProjectSignatureMatrixBinding).where(
+                        ProjectSignatureMatrixBinding.project_id == project_id,
+                        ProjectSignatureMatrixBinding.module == module,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                raise
+            return existing
         return binding
 
     @classmethod
@@ -451,6 +493,16 @@ class SignatureMatrixService:
         if binding is not None:
             matrix = await db.get(SignatureMatrix, binding.matrix_id)
             if matrix is not None:
+                # ⚠️ 绑着的矩阵必须 **ACTIVE** —— DRAFT/PENDING/OBSOLETE 的模板
+                # 不该接管生产签署。**响亮失败**（不静默换回内置模板：静默换
+                # 会让项目在**不知情**的情况下换了签署规则）。
+                if matrix.status != "ACTIVE":
+                    raise PcsError(
+                        f"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} "
+                        f"当前 {matrix.status}，不是 ACTIVE",
+                        code="SIGNATURE_MATRIX_NOT_ACTIVE",
+                        status=409,
+                    )
                 return matrix
 
         matrix = await cls._get_or_create_builtin_matrix(db)
@@ -512,12 +564,19 @@ class SignatureMatrixService:
             module=cls.CHANGE_NOTICE_MODULE,
             matrix_id=matrix_id,
         )
-        db.add(binding)
         try:
-            # ⚠️ SAVEPOINT：撞唯一约束时 PostgreSQL 会**中止整个事务** ⇒
-            # 没有 savepoint 的话，连同前面建的矩阵/交付物一起丢。
-            # savepoint 只回滚这一段 ⇒ 外层事务继续（矩阵行已 flush，安全）。
+            # ⚠️ **SAVEPOINT 必须包住 `db.add`**：`Session.begin_nested()` 在
+            # 发出 SAVEPOINT **之前**会先 flush 一次 pending（SQLAlchemy 2.0 的
+            # `SessionTransaction._take_snapshot`：`if not is_begin: session.flush()`）
+            # ⇒ 若 `db.add` 在 savepoint **之外**，那条会撞约束的 INSERT 就**不在
+            # savepoint 里** ⇒ PostgreSQL 撞唯一约束会**中止整个事务**（25P02）
+            # ⇒ 外层（矩阵/交付物）一起回滚 ⇒ 500。
+            #
+            # ⚠️ 反过来：savepoint **之前**的 pending（矩阵行）会在
+            # `begin_nested()` 的那次 flush 里落库 ⇒ 它在 savepoint **之外**
+            # ⇒ 回滚时不受影响 ✔（这正是我们要的：只回滚这一行绑定）。
             async with db.begin_nested():
+                db.add(binding)
                 await db.flush()
         except IntegrityError:
             # 并发：另一个事务先建了 ⇒ 重读那一行
@@ -531,7 +590,8 @@ class SignatureMatrixService:
             ).scalar_one_or_none()
             if existing is None:
                 raise
-            existing.matrix_id = matrix_id
+            # ⚠️ **不覆盖**赢家的 matrix_id：并发下「最后写入者胜」会让
+            # 输家**静默改掉**赢家的绑定（lost update）。
             return existing
         return binding
 

@@ -352,14 +352,20 @@ class DeliverableService:
 
         await cls._assert_matrix_bound(db, deliverable=deliverable)
 
+        # ⚠️ 幂等探针只问「**有没有**」，**不取那一行**（`.first()` + `limit(1)`）：
+        # 退回后可再签发 ⇒ 同一 (交付物, 版本目的) 可能有**多行**版本 ⇒
+        # `scalar_one_or_none()` 会抛 `MultipleResultsFound` ⇒ **500**
+        # （而本该是 409）⇒ 「驳回 → 再签发」只能走一次，第二次就死。
         duplicated = (
             await db.execute(
-                select(DeliverableVersion).where(
+                select(DeliverableVersion.rev)
+                .where(
                     DeliverableVersion.deliverable_id == deliverable_id,
                     DeliverableVersion.version_purpose == version_purpose,
                 )
+                .limit(1)
             )
-        ).scalar_one_or_none()
+        ).first()
         # ⚠️ 幂等判据 =「有**未退回**的版本」，不是「有版本」。
         # 交付物退回后（`sign_step` 的 RETURN ⇒ DRAFT）必须能**重新签发**：
         # 否则变更单被驳回一次就**永久卡死**（DRAFT ⇒ sign-step 409、
@@ -632,7 +638,9 @@ class DeliverableService:
             )
 
         matrix = await db.get(SignatureMatrix, deliverable.matrix_id)
-        steps = cls._matrix_steps(matrix)
+        steps = await cls._steps_for_version(
+            db, deliverable=deliverable, version=version, matrix=matrix
+        )
         if step_index > len(steps):
             raise PcsError(
                 code="SIGN_STEP_NOT_FOUND",
@@ -861,6 +869,34 @@ class DeliverableService:
             }
             for s in SignatureMatrixService.parse_steps(matrix)
         ]
+
+    @classmethod
+    async def _steps_for_version(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable: Deliverable,
+        version: DeliverableVersion,
+        matrix: SignatureMatrix | None,
+    ) -> list[dict[str, Any]]:
+        """这个版本要签的步骤：**版本快照优先**，没快照才读活矩阵。
+
+        ⚠️ **为什么以快照为准**：版本签发时把**归一化后的步骤**冻在
+        `version.signature_summary_json["steps"]` 里 ⇒ 那是「这个版本承诺的
+        签署规则」。
+
+        若改读**活矩阵** ⇒ 管理员改了模板 ⇒ **在飞的**版本突然多出/少掉步骤
+        ⇒ 观测行记着「第 2 步该签」而矩阵里已经没有第 2 步 ⇒ 交付物**永久卡在
+        PENDING**：前进 404 `SIGN_STEP_NOT_FOUND`、退回也要指定第 2 步 ⇒ 同样
+        404 ⇒ **没有放弃路径**。
+
+        ⇒ 模板改动只影响**之后**签发的版本（这正是「矩阵可管理」该有的语义）。
+        ⚠️ 老版本可能没有快照（`signature_summary_json` 为空）⇒ 回退读活矩阵。
+        """
+        snapshot = (version.signature_summary_json or {}).get("steps")
+        if isinstance(snapshot, list) and snapshot:
+            return [s for s in snapshot if isinstance(s, dict)]
+        return cls._matrix_steps(matrix)
 
     @classmethod
     async def _assert_step_order(

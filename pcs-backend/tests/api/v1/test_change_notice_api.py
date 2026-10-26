@@ -25,7 +25,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 
 from app.models.calc import ReliefResult
 from app.models.deliverable import (
@@ -436,3 +436,110 @@ async def test_close_refuses_to_resurrect_a_moved_record(client, db):
 
     await db.refresh(rec)
     assert rec.sign_status == RecordSignStatus9.OBSOLETE.value, "不许复活记录"
+
+
+async def test_second_reissue_returns_409_not_500(client, db):
+    """⚠️ **再签发一次必须是 409，不是 500**。
+
+    R-5 放宽了 `issue` 的幂等判据（退回后可再签发）⇒ 同一 (交付物, 版本目的)
+    可能有**多行**版本 ⇒ 若幂等探针是「取那一行」（`scalar_one_or_none()`）⇒
+    多行时抛 `MultipleResultsFound` ⇒ **500**（而本该是 409）。
+    ⇒ 「驳回 → 再签发」这条流程只能走一次，第二次就死。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    body = await _create_notice(client, rec)
+
+    # 第一次退回 ⇒ 交付物回 DRAFT
+    rejected = await _sign(
+        client,
+        body["deliverable_id"],
+        body["version_id"],
+        step=1,
+        role="CHECKER",
+        decision="RETURN",
+    )
+    assert rejected.status_code == 200, rejected.text
+
+    # 第一次再签发 ⇒ 版本 2
+    first = await client.post(
+        f"/api/v1/deliverables/{body['deliverable_id']}/issue",
+        json={"version_purpose": "ISSUED_FOR_CHANGE"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert first.status_code == 200, first.text
+
+    # 第二次再签发（此时同 purpose 已有 2 行版本）⇒ 必须 409
+    second = await client.post(
+        f"/api/v1/deliverables/{body['deliverable_id']}/issue",
+        json={"version_purpose": "ISSUED_FOR_CHANGE"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert second.status_code == 409, second.text
+    assert second.json()["code"] == "DELIVERABLE_ALREADY_ISSUED"
+
+
+# ---------------------------------------------------------------------------
+# RF-6：关记录时的**响亮失败**（静默跳过 = 变更单批了而记录永远停在 CHANGED）
+# ---------------------------------------------------------------------------
+
+
+async def test_sign_without_record_binding_fails_loudly(client, db):
+    """⚠️ 变更单**没有**记录绑定 ⇒ 签到最后一步 ⇒ 409
+    `CHANGE_NOTICE_RECORD_LINK_MISSING`（**不**静默跳过）。
+
+    静默跳过 = 「变更单批了而记录永远停在 CHANGED」⇒ 业务上查不出来 ⇒
+    必须响亮失败。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    body = await _create_notice(client, rec)
+
+    # 拆掉绑定（模拟「关联写丢了」）
+    await db.execute(
+        delete(DeliverableRecordBinding).where(
+            DeliverableRecordBinding.deliverable_version_id == _uuid(body["version_id"])
+        )
+    )
+    await db.commit()
+
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER")):
+        resp = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+        assert resp.status_code == 200, resp.text
+
+    last = await _sign(
+        client, body["deliverable_id"], body["version_id"], step=3, role="APPROVER"
+    )
+    assert last.status_code == 409, last.text
+    assert last.json()["code"] == "CHANGE_NOTICE_RECORD_LINK_MISSING"
+
+
+async def test_sign_with_unknown_record_type_fails_loudly(client, db):
+    """⚠️ 绑定的记录类型**不在注册表**里 ⇒ 409 `CHANGE_NOTICE_RECORD_TYPE_UNKNOWN`。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    body = await _create_notice(client, rec)
+
+    await db.execute(
+        update(DeliverableRecordBinding)
+        .where(
+            DeliverableRecordBinding.deliverable_version_id
+            == _uuid(body["version_id"])
+        )
+        .values(record_type="NoSuchRecordType")
+    )
+    await db.commit()
+
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER")):
+        resp = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+        assert resp.status_code == 200, resp.text
+
+    last = await _sign(
+        client, body["deliverable_id"], body["version_id"], step=3, role="APPROVER"
+    )
+    assert last.status_code == 409, last.text
+    assert last.json()["code"] == "CHANGE_NOTICE_RECORD_TYPE_UNKNOWN"

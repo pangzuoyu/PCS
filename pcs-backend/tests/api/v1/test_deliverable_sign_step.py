@@ -603,3 +603,70 @@ class TestSingleTransactionBoundary:
             "最后一步签完（交付物 APPROVED）必须通知版本提交人 —— "
             "他等的就是这个结果"
         )
+
+
+class TestSignUsesFrozenSnapshot:
+    """⚠️ 签署读**版本快照**（不是活矩阵）—— 模板改动不该卡住在飞的签署。
+
+    评审实测的失效路径（矩阵被缩到 1 步）：
+    - 版本快照记着 3 步，签署却按活矩阵（1 步）走 ⇒ 第 2 步 404
+      `SIGN_STEP_NOT_FOUND` ⇒ 退回也要指定第 2 步 ⇒ 同样 404
+      ⇒ **交付物永久卡在 PENDING，既不能前进也不能退回，没有放弃路径**；
+    - 观测行记「第 2 步该签」而矩阵里已经没有第 2 步 ⇒ 两个真相源对不上。
+
+    ⇒ 版本签发时冻结的步骤（`version.signature_summary_json["steps"]`）
+    才是「这个版本承诺的签署规则」；模板改动只影响**之后**签发的版本。
+
+    ⚠️ 用例走**真实的 issue 端点**建版本（快照由生产代码写）⇒ 不用
+    「手工造的版本」去证明「生产路径写快照」—— 那样测的是夹具不是产品。
+    """
+
+    async def test_shrinking_the_matrix_does_not_stall_in_flight_signing(
+        self, client, db_session, project_id, auth
+    ):
+        matrix = await _matrix(db_session, _steps())
+        db_session.add(
+            ProjectSignatureMatrixBinding(
+                project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+            )
+        )
+        deliverable = Deliverable(
+            matrix_id=matrix.matrix_id,
+            project_id=project_id,
+            deliverable_type="CALCULATION_BOOK",
+            scope_type="PROJECT_ALL",
+            scope_value=str(uuid.uuid4())[:8],
+            doc_no="CB-FROZEN",
+            doc_no_mode="MANUAL",
+            title="泵计算书",
+            current_rev="0",
+            version_purpose="DRAFT",
+            sign_status=DeliverableSignStatus.DRAFT,
+        )
+        db_session.add(deliverable)
+        await db_session.commit()
+        await db_session.refresh(deliverable)
+
+        # 走真实签发端点 ⇒ 版本带**冻结快照**
+        issued = await client.post(
+            f"/api/v1/deliverables/{deliverable.deliverable_id}/issue",
+            headers=auth,
+            json={"version_purpose": "ISSUED_FOR_CONSTRUCTION"},
+        )
+        assert issued.status_code == 200, issued.text
+        version_id = uuid.UUID(issued.json()["version_id"])
+
+        # 第 1 步签掉
+        first = await _sign(client, auth, deliverable.deliverable_id, version_id)
+        assert first.status_code == 200, first.text
+
+        # 管理员把矩阵缩成 1 步（矩阵管理面上线后才可能发生）
+        matrix.steps_json = [{"step_order": 1, "sign_role": "DESIGNER"}]
+        await db_session.commit()
+
+        # 第 2 步**仍可签**（按版本快照，不按活矩阵）—— 角色判定照旧生效
+        reviewer = _token(subject="frozen-reviewer", role="REVIEWER")
+        second = await _sign(
+            client, reviewer, deliverable.deliverable_id, version_id, step_index=2
+        )
+        assert second.status_code == 200, second.text

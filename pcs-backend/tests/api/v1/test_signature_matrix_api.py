@@ -285,3 +285,85 @@ async def test_response_has_no_bare_fields(client):
         "can_self_check",
         "can_skip",
     }
+
+
+# ---------------------------------------------------------------------------
+# 改模板（PUT）—— 「改了必挂、没改假绿」的那条路
+# ---------------------------------------------------------------------------
+
+
+async def test_update_matrix_returns_200_after_changing_a_field(client, db):
+    """⚠️ 真正改动字段后 PUT 必须 **200**。
+
+    ⚠️ 这条曾经**必 500**：`updated_at` 是 `onupdate=func.now()`（**服务端**表达式）
+    ⇒ UPDATE flush 后该属性被标记 expired ⇒ 在 async 上下文里读它 ⇒
+    触发懒加载 ⇒ `MissingGreenlet` ⇒ 全局兜底 ⇒ 500 INTERNAL_ERROR。
+    ⇒ 「没改字段的 PUT」反而是绿的（不发 UPDATE）—— **改了必挂、没改假绿**。
+    """
+    created = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    matrix_id = created.json()["matrix_id"]
+
+    resp = await client.put(
+        f"/api/v1/signature-matrices/{matrix_id}",
+        json={"matrix_name": "改名后的矩阵"},
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["matrix_name"] == "改名后的矩阵"
+
+
+async def test_update_matrix_forbidden_for_non_admin(client):
+    """改模板 = SYSTEM_ADMIN（模板是全局表）。"""
+    created = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    resp = await client.put(
+        f"/api/v1/signature-matrices/{created.json()['matrix_id']}",
+        json={"matrix_name": "改名后的矩阵"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 403, resp.text
+
+
+async def test_bind_refuses_a_viewer_project_member(client, db, project_id):
+    """⚠️ RF-3（授权那一半）：项目内 **VIEWER**（只读）不能给项目绑矩阵 ⇒ 403。
+
+    「改签署矩阵」= 决定本项目**谁该签** ⇒ 与签发同级 ⇒ 只读成员不该有这权力。
+    `check_project_access_or_404` 只问「有没有访问权」⇒ VIEWER 也算有 ⇒
+    需要额外一道「项目内必须是活跃参与者」的门。
+    """
+    me = _actor_id()
+    await _grant(db, me, project_id, role="VIEWER")
+    created = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    matrix_id = created.json()["matrix_id"]
+
+    resp = await client.post(
+        f"/api/v1/projects/{project_id}/signature-matrices",
+        json={"module": "RECORD", "matrix_id": matrix_id},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "PROJECT_ROLE_FORBIDDEN"
+
+
+async def test_unbind_refuses_a_viewer_project_member(client, db, project_id):
+    """解绑同样是「项目负责人侧」的动作 ⇒ VIEWER 也不许。"""
+    me = _actor_id()
+    await _grant(db, me, project_id, role="VIEWER")
+    resp = await client.delete(
+        f"/api/v1/projects/{project_id}/signature-matrices/RECORD",
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "PROJECT_ROLE_FORBIDDEN"

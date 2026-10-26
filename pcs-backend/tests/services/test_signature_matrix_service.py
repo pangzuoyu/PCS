@@ -283,13 +283,23 @@ def test_deliverable_matrix_steps_empty_matrix_is_empty_list():
 
 @pytest.mark.asyncio
 async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, monkeypatch):
-    """⚠️ 并发建绑定 ⇒ 唯一约束撞车 ⇒ **重读**那一行（不是 500）。
+    """⚠️ 并发建绑定 ⇒ 唯一约束撞车 ⇒ **重读**那一行（不是 500、不是新行）。
 
     没有兜底的话：同一项目同一模块绑到两个矩阵 ⇒ 之后每次解析绑定都
     `MultipleResultsFound` ⇒ 该项目的变更单路径**永久 500**（bug-2052）。
 
-    竞态用「把 `_ensure_binding` 里那次查藏起来」模拟：查的时候没有，
-    插的时候另一个事务已经插好了。
+    ## 竞态怎么模拟（**必须**藏对那次 SELECT）
+
+    `_ensure_binding` 里有**两次**绑定查询：
+    ① `ensure_change_notice_matrix` 的「项目已绑了吗？」⇒ 命中就**早退**
+       （压根不会走到 `_ensure_binding`）；
+    ② `_ensure_binding` 自己的「已绑了吗？」⇒ 这里返回 None 才会走 INSERT。
+
+    ⇒ 要真正走到**撞约束**那条路，必须藏 **②**（而不是 ①）：
+    藏 ① 的话根本不会 INSERT，**恢复分支是死代码**（评审实测：删掉整段
+    全仓测试仍绿）。
+
+    ⇒ ② 返回 None，但**表里已经有那一行**（另一个事务建好的）⇒ INSERT 撞约束。
     """
     matrix = SignatureMatrix(
         matrix_name="CHANGE_NOTICE_3_LEVEL",
@@ -313,8 +323,8 @@ async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, mo
     async def _execute(stmt, *args, **kwargs):
         if "project_signature_matrix_bindings" in str(stmt):
             seen["n"] += 1
-            if seen["n"] == 1:
-                # 竞态窗口：查的时候「还没有」，但**另一个事务已经插好了**
+            if seen["n"] == 2:
+                # `_ensure_binding` 里那次查**看不到**（竞态窗口）⇒ 它会 INSERT
                 other = ProjectSignatureMatrixBinding(
                     project_id=project_id,
                     module="CHANGE_NOTICE",
@@ -341,60 +351,131 @@ async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, mo
 
 
 # ---------------------------------------------------------------------------
-# validate_steps —— **写**路径的严格校验（TODO-072）
-#
-# `parse_steps` 是**读**路径（坏项跳过 + 日志，容忍存量脏数据）；
-# `validate_steps` 是**写**路径（任一项非法 ⇒ 422，不入库）⇒ 坏配置进不来。
+# 绑定路径的三道校验 + 并发兜底（评审 I-2 / M-1 / M-2）
 # ---------------------------------------------------------------------------
 
 
-def test_validate_steps_rejects_bad_items():
-    """坏项 ⇒ 422 `SIGNATURE_MATRIX_INVALID`（**不部分通过**）。"""
-    bad_cases = [
-        [],  # 空
-        [{"step_order": 0, "sign_role": "CHECKER"}],  # 序号非正
-        [{"step_order": "1", "sign_role": "CHECKER"}],  # 序号非 int
-        [{"step_order": True, "sign_role": "CHECKER"}],  # bool 不是序号
-        [{"step_order": 1, "sign_role": ""}],  # 角色空
-        [{"step_order": 1, "sign_role": 3}],  # 角色非字符串
-        ["not-a-dict"],
-        # 序号重复 ⇒「谁该签这一步」两个答案
-        [{"step_order": 1, "sign_role": "A"}, {"step_order": 1, "sign_role": "B"}],
-    ]
-    for steps in bad_cases:
-        with pytest.raises(PcsError) as exc:
-            SignatureMatrixService.validate_steps(steps)
-        assert exc.value.code == "SIGNATURE_MATRIX_INVALID", steps
-        assert exc.value.status == 422
-
-
-def test_validate_steps_sorts_and_fills_defaults():
-    """排序 + 缺省补齐 + 角色 strip（与 parse_steps 同一口径）。"""
-    steps = SignatureMatrixService.validate_steps(
-        [
-            {"step_order": 2, "sign_role": "REVIEWER"},
-            {"step_order": 1, "sign_role": " CHECKER "},
-        ]
+@pytest.mark.asyncio
+async def test_bind_rejects_non_active_matrix(db, project_id):
+    """⚠️ DRAFT 的矩阵**不许**接管生产签署（它还没启用）。"""
+    matrix = SignatureMatrix(
+        matrix_name="草稿矩阵",
+        module="RECORD",
+        doc_type="X",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="DRAFT",
     )
-    assert [s.step_order for s in steps] == [1, 2]
-    assert steps[0].sign_role == "CHECKER"
-    assert steps[0].required is True
-    assert steps[0].can_self_check is True
-    assert steps[0].can_skip is False
+    db.add(matrix)
+    await db.flush()
+
+    with pytest.raises(PcsError) as exc:
+        await SignatureMatrixService.bind_to_project(
+            db, project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+        )
+    assert exc.value.code == "SIGNATURE_MATRIX_NOT_ACTIVE"
+    assert exc.value.status == 422
 
 
 @pytest.mark.asyncio
-async def test_create_matrix_rejects_bad_steps(db):
-    """建矩阵时坏步骤 ⇒ 422，且**不落库**。"""
+async def test_bind_rejects_module_mismatch(db, project_id):
+    """⚠️ 为 RECORD 建的矩阵**不许**绑成 CHANGE_NOTICE（角色集不同）。"""
+    matrix = SignatureMatrix(
+        matrix_name="记录矩阵",
+        module="RECORD",
+        doc_type="X",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="ACTIVE",
+    )
+    db.add(matrix)
+    await db.flush()
+
     with pytest.raises(PcsError) as exc:
-        await SignatureMatrixService.create_matrix(
-            db,
-            matrix_name="坏矩阵",
-            module="RECORD",
-            doc_type="CALCULATION_BOOK",
-            version_purpose="ISSUED_FOR_CONSTRUCTION",
-            steps=[{"step_order": 1, "sign_role": ""}],
+        await SignatureMatrixService.bind_to_project(
+            db, project_id=project_id, module="CHANGE_NOTICE", matrix_id=matrix.matrix_id
         )
-    assert exc.value.code == "SIGNATURE_MATRIX_INVALID"
-    rows = (await db.execute(select(SignatureMatrix))).scalars().all()
-    assert rows == []
+    assert exc.value.code == "SIGNATURE_MATRIX_MODULE_MISMATCH"
+
+
+@pytest.mark.asyncio
+async def test_bind_recovers_from_concurrent_insert(db, project_id, monkeypatch):
+    """⚠️ 并发绑矩阵 ⇒ 撞唯一约束 ⇒ **重读**（不 500、不建第二行）。
+
+    ⚠️ 没有兜底时：两个用户同时绑同一个项目+模块 ⇒ 后 flush 的那个撞约束 ⇒
+    未捕获 IntegrityError ⇒ **500**（而且 PostgreSQL 上整个事务中止）。
+    """
+    matrix = SignatureMatrix(
+        matrix_name="并发矩阵",
+        module="RECORD",
+        doc_type="X",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="ACTIVE",
+    )
+    db.add(matrix)
+    await db.flush()
+
+    real_execute = db.execute
+    seen = {"n": 0}
+    other_id: list[uuid.UUID] = []
+
+    class _Empty:
+        def scalar_one_or_none(self):
+            return None
+
+    async def _execute(stmt, *args, **kwargs):
+        if "project_signature_matrix_bindings" in str(stmt):
+            seen["n"] += 1
+            if seen["n"] == 1:
+                # `bind_to_project` 里那次查**看不到**（竞态窗口）⇒ 它会 INSERT
+                other = ProjectSignatureMatrixBinding(
+                    project_id=project_id,
+                    module="RECORD",
+                    matrix_id=matrix.matrix_id,
+                )
+                db.add(other)
+                await db.flush()
+                other_id.append(other.binding_id)
+                return _Empty()
+        return await real_execute(stmt, *args, **kwargs)
+
+    monkeypatch.setattr(db, "execute", _execute)
+
+    result = await SignatureMatrixService.bind_to_project(
+        db, project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+    )
+
+    assert result.binding_id == other_id[0]
+    rows = (
+        await db.execute(select(ProjectSignatureMatrixBinding))
+    ).scalars().all()
+    assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_ensure_change_notice_matrix_rejects_inactive_binding(db, project_id):
+    """⚠️ 项目绑着的矩阵**不是 ACTIVE** ⇒ 响亮失败（不静默换回内置模板）。"""
+    matrix = SignatureMatrix(
+        matrix_name="待启用的矩阵",
+        module="CHANGE_NOTICE",
+        doc_type="CHANGE_NOTICE",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="PENDING",
+    )
+    db.add(matrix)
+    await db.flush()
+    db.add(
+        ProjectSignatureMatrixBinding(
+            project_id=project_id, module="CHANGE_NOTICE", matrix_id=matrix.matrix_id
+        )
+    )
+    await db.flush()
+
+    with pytest.raises(PcsError) as exc:
+        await SignatureMatrixService.ensure_change_notice_matrix(
+            db, project_id=project_id
+        )
+    assert exc.value.code == "SIGNATURE_MATRIX_NOT_ACTIVE"
+    assert exc.value.status == 409

@@ -2419,3 +2419,19 @@
 | 10:05 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+12 lines) | ~245 |
 | 10:06 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+10 lines) | ~219 |
 | 10:12 | Edited pcs-backend/app/api/v1/signature_matrices.py | 6→8 lines | ~76 |
+| 10:49 | Edited pcs-backend/app/api/v1/signature_matrices.py | 16→21 lines | ~226 |
+| 10:51 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+6 lines) | ~323 |
+| 10:52 | Edited pcs-backend/app/services/signature_matrix_service.py | modified begin_nested() | ~428 |
+| 10:54 | Edited pcs-backend/app/services/signature_matrix_service.py | added error handling | ~817 |
+| 10:54 | Edited pcs-backend/app/services/signature_matrix_service.py | expanded (+10 lines) | ~187 |
+| 10:56 | Edited pcs-backend/app/services/deliverable_service.py | _matrix_steps() → _steps_for_version() | ~65 |
+| 10:56 | Edited pcs-backend/app/services/deliverable_service.py | modified _matrix_steps() | ~27 |
+| 10:57 | Edited pcs-backend/app/services/deliverable_service.py | modified _matrix_steps() | ~463 |
+| 11:01 | Edited pcs-backend/app/api/v1/signature_matrices.py | 1→4 lines | ~29 |
+| 11:01 | Edited pcs-backend/app/api/v1/signature_matrices.py | 5→10 lines | ~129 |
+| 11:01 | Edited pcs-backend/app/api/v1/signature_matrices.py | 5→8 lines | ~103 |
+| 11:02 | Created pcs-backend/tests/api/v1/test_p9a_dlv_011_authorization.py | — | ~2299 |
+| 18:30 | Edited TODOS.md | expanded (+17 lines) | ~266 |
+| 18:30 | Edited TODOS.md | expanded (+6 lines) | ~83 |
+| 18:30 | Edited TODOS.md | 4→8 lines | ~100 |
+| 18:30 | Edited docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md | inline fix | ~101 |

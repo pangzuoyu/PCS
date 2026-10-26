@@ -1285,6 +1285,10 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
   批准 ⇒ 矩阵是**装饰品**。
 - **自动关记录**（ADR-0008）：触发点 = `sign_step` 最后一步置 APPROVED 的那一刻
   ⇒ 记录 CHANGED → CHECKED + `change_resolved_by` + 观测 COMPLETED，同一事务。
+  ⚠️ 关之前**先确认记录还在 CHANGED**（不许复活已作废的记录 ⇒ 409
+  `CHANGE_NOTICE_RECORD_BAD_STATE`）—— 这一条守卫**落在 `cda6e40`**，
+  **在本轮评审的 diff 范围之外**（评审器只看到 `9a4f66b`）⇒ 由评审发现
+  后补上，不算「评审漏看」。
 - 驳回后**不再永久卡死**：`issue` 幂等判据放宽为「有未退回的版本」。
 - 工作区门禁：FORMAL 才许建（UI-SPEC §5.3）。
 
@@ -1310,6 +1314,12 @@ SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` �
    ⚠️ 变更单目前**没有取消路径**（`cancel_change_notice` 从未实现）⇒ 影响是
    潜在的 ⇒ 等取消功能落地时一并定口径。
 3. `doc_no` 只是**唯一**，不是可读编号 ⇒ 见 TODO-073。
+4. ⚠️ **「第二次变更」的后果**（2026-10-26 评审登记）：记录在 CHANGED 期间
+   **不能再发起一轮变更** —— `INITIATE_CHANGE` 的合法前态是 CHECKED
+   ⇒ 有未关闭的变更单时再发起 ⇒ 409（状态不对）⇒ **记录卡在 CHANGED**，
+   直到那张变更单被签完（自动关记录）才回 CHECKED 才能再发起。
+   ⇒ 这是「一条记录同时只有一张变更单」这条约束的**下游后果**，同样待 SPEC
+   确认（业务上是否接受「变更单没签完就不能再改」）。
 
 ---
 
@@ -1405,16 +1415,33 @@ api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs
 
 ## TODO-076: 工作区类型门禁只覆盖本批端点（全端点仍缺）🟡
 
-**What:** `require_formal_workspace`（UI-SPEC §5.3）目前只挂在
+**What:** 工作区门禁目前只挂在
 `POST /records/{module}/{id}/change-notice` 上。
+
+> ⚠️ **2026-10-26 更名**：本批用的守卫原名 `require_formal_workspace`
+> （`app/api/v1/_guard.py`）与 `app/api/deps.py` 里**已存在的同名** FastAPI
+> 依赖撞名 ⇒ 已改名 **`require_formal_project_workspace`**（按项目查工作区）。
+> 两个函数语义**不同**（见下），撞名会让后面的人 import 错。
 
 **Why:** UI-SPEC §5.3 的门禁清单覆盖**提交批准 / 创建交付物 / 创建变更单 /
 签署** ⇒ 其余三类在 API 层**没有**对应守卫（前端有，但「后端 403 为兜底」是
 UI-SPEC 自己写的 ⇒ 后端缺 ⇒ 绕过前端就能做）。
 
-**How:** 把 `require_formal_workspace` 挂到其余写端点上（records 的
+**⚠️ 本守卫是 fail-open 的**（`require_formal_project_workspace`）：
+
+| 情况 | 本守卫 | `deps.require_formal_workspace`（fail-closed） |
+|---|---|---|
+| 项目不存在 / 没挂工作区 | **放行** | 404 |
+| 工作区行不存在 | **放行** | 404 |
+| 工作区不是 FORMAL | 403 | 403 |
+
+「放行」是**有意的**（历史项目没挂工作区 ⇒ 不是个人草稿区 ⇒ 不该因缺元数据
+挡掉正常操作）⇒ 但这是**两条 fail-open 分支**，与「门禁覆盖面」一起登记。
+
+**How:** 把 `require_formal_project_workspace` 挂到其余写端点上（records 的
 submit-approval / approval-step / deliverables 的 issue / sign-step），
-并补守卫测试。**归属：** 独立一轮。
+并补守卫测试；同时把两条 fail-open 分支显式化（要么改 fail-closed，要么写
+明「为什么放行」并加测试钉住）。**归属：** 独立一轮。
 
 ## TODO-077: `apply-change` 不要求 hash 变化（可能「没改内容也关变更」）🟡
 
@@ -1477,3 +1504,40 @@ TODO-080 第 2 条同批做）；②改造成 `close_on_approved` 的薄包装�
 ⇒ 在此之前，方法 docstring 已标「已弃用，不要用它做审批」。
 
 **归属：** 独立一轮（与 TODO-080 第 2 条同批）。**关联：** bug-2058 · TODO-080。
+
+## TODO-082: `locked_by_deliverable` 门是**死代码**（永远 False）🟡
+
+**What:** `records.locked_by_deliverable` 全仓**只被读，从未被写 True**。
+
+**Why:** 两个服务把它当门禁用：
+- `record_cancellation_service.py:168` —— 「已绑定记录（`locked_by_deliverable=True`）
+  必须先建 `change_type=RECORD_CANCELLATION` 的变更单才能作废」；
+- `reversal_approval_service.py:156` —— 「已对外生效的记录只能走
+  `CHANGE_REVERSAL`，不能走普通变更」。
+
+⇒ 但**没有任何代码把它置 True** ⇒ 两道门**永远不触发** ⇒
+「记录作废前必须有变更单凭证」这条业务约束**事实上不存在**。
+⚠️ 本批（P9A-DLV-011）补的变更单闭环**也没写它** ⇒ 变更单签完只关记录，
+不把记录标成「已对外生效」。
+
+**How:** 二选一 —— ①在「变更单被签完 / 交付物发布」时把绑定的记录
+`locked_by_deliverable` 置 True（+ 迁移确认该列在全部记录表上都有）；
+②删掉这两道门（承认「变更单不参与作废/反转的准入判断」）。
+⇒ 选 ① 要连带确认「记录表清单」与「哪些交付物算对外生效」⇒ 独立一轮。
+
+**归属：** 独立一轮。**关联：** TODO-069 · TODO-078。
+
+## TODO-083: 变更单闭环**没有前端入口**（评审「不予判定」第 6 条的提示）🟡
+
+**What:** P9A-DLV-011 补的 3 个后端端点（`initiate-change` / `apply-change` /
+`change-notice`）**前端一个入口都没有** ⇒ 用户仍然只能用 curl 发起变更。
+
+**Why:** TODO-079 只覆盖**矩阵管理页**（列 / 编辑步骤 / 绑定项目），
+**没提**「发起变更 / 建变更单 / 签变更单」这三个界面动作 ⇒ 按 TODO 排期
+做完 P9B-2 前端，**变更单仍然没法用**。
+
+**How:** P9B 批次里加「发起变更」入口（记录详情页的「变更申请」按钮，
+UI-SPEC §6.3 已修订为挂在 **CHANGED** 态）+ 变更单详情页（3 级签署进度）。
+⚠️ UI-SPEC §6.3 的修订注记已写明按钮位置（CHANGED 而非 CHECKED）。
+
+**归属：** P9B-2（与 TODO-079 同批更划算）。**关联：** TODO-079 · TODO-068。

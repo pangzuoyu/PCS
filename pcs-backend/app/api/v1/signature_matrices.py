@@ -34,7 +34,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1._guard import check_project_access_or_404
+from app.api.v1._guard import (
+    check_project_access_or_404,
+    require_active_project_member,
+)
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.models.deliverable import SignatureMatrix
@@ -187,6 +190,11 @@ async def update_signature_matrix(
         status=body.status,
     )
     await db.commit()
+    # ⚠️ **必须 refresh**：`updated_at` 是 `onupdate=func.now()`（**服务端**表达式）
+    # ⇒ UPDATE flush 之后该属性被标记 expired ⇒ 在 async 上下文里读它会触发
+    # 懒加载 ⇒ `MissingGreenlet` ⇒ 全局兜底 ⇒ **500 INTERNAL_ERROR**。
+    # （「没改字段的 PUT」不发 UPDATE ⇒ 反而是绿的 —— 改了必挂、没改假绿。）
+    await db.refresh(matrix)
     return _to_response(matrix)
 
 
@@ -208,6 +216,11 @@ async def bind_project_matrix(
     """
     require_roles(actor, *_BIND_ROLES)
     await check_project_access_or_404(
+        db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
+    )
+    # ⚠️ 授权 ≠ 有权做这件事：项目内 **VIEWER**（只读）也能通过上面的 404 门
+    # ⇒ 但「决定本项目谁该签」不该给只读成员 ⇒ 再要一道「活跃参与者」门。
+    await require_active_project_member(
         db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
     )
     binding = await SignatureMatrixService.bind_to_project(
@@ -237,6 +250,9 @@ async def unbind_project_matrix(
     """解绑（本来就没绑 ⇒ `unbound=false`，**不是** 404）。"""
     require_roles(actor, *_BIND_ROLES)
     await check_project_access_or_404(
+        db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
+    )
+    await require_active_project_member(
         db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
     )
     unbound = await SignatureMatrixService.unbind_from_project(

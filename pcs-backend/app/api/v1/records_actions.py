@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import (
     check_record_access_or_404,
-    require_formal_workspace,
+    require_formal_project_workspace,
 )
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
@@ -691,7 +691,7 @@ async def create_change_notice(
     model = resolve_record_model(module)
     record = await _load_record(db, module=module, record_id=record_id, actor=actor)
     # ⚠️ 工作区门禁（UI-SPEC §5.3）：个人草稿区里的变更单没有工程效力。
-    await require_formal_workspace(db, project_id=record.project_id)
+    await require_formal_project_workspace(db, project_id=record.project_id)
 
     from app.services.change_notice_service import (
         ChangeNoticeService,
