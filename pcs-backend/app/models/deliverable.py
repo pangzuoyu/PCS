@@ -149,6 +149,16 @@ class SignatureMatrix(TimestampMixin, Base):
     """签署矩阵（SUP-005 机制，V3.1 表34 新增入册）。"""
 
     __tablename__ = "signature_matrices"
+    __table_args__ = (
+        # ⚠️ **(matrix_name, status)** 唯一（TODO-074 / 迁移 `p9_010`）：
+        # 内置矩阵按 `(matrix_name, status='ACTIVE')` **找第一份** ⇒ 同名的
+        # ACTIVE 矩阵有两份 ⇒ 两个项目绑到不同的一份 ⇒ 签署链有两个答案。
+        # ⚠️ 为什么不是「名字全局唯一」：一份**已作废**的同名模板不该永久堵住
+        # 重建（否则历史绑定里的旧名字全是死链）。
+        UniqueConstraint(
+            "matrix_name", "status", name="uq_signature_matrices_name_status"
+        ),
+    )
     matrix_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )

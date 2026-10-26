@@ -4677,6 +4677,25 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2083",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "签署矩阵**同名同状态**可以存在多份 ⇒ 并发下两个项目绑到不同的一份 ⇒ 签署链有两个答案",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "root_cause": "`signature_matrices.matrix_name` **无唯一约束** ⇒ `_get_or_create_builtin_matrix` 按 `(matrix_name, status='ACTIVE')` **找第一份** ⇒ **并发**下两个事务各建一份同名 ACTIVE 模板 ⇒ 内容相同看似无害，但两个项目可能绑到**不同的一份** ⇒「谁该签这一步」出现**两个答案** ⇒ 同一项目里同一条记录，按不同人查出来的签署链**不一样**。",
+      "fix": "**已修（2026-10-27，TODO-074）**：①应用层 `SignatureMatrixService._assert_name_free` ⇒ 建矩阵 / 改名时**同名 + 同状态**已存在 ⇒ **409 `SIGNATURE_MATRIX_NAME_CONFLICT`**；②**迁移 `p9_010`** ⇒ `uq_signature_matrices_name_status` = **(matrix_name, status)** 唯一（并发兜底）。⚠️ 约束是 **(name, status)** 而不是「名字全局唯一」：一份**已作废**的同名模板不该永久堵住重建（否则历史绑定里的旧名字全是死链）⇒ 应用层与 DB 约束**同口径**。测试：`tests/api/v1/test_signature_matrix_api.py`（3 例）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "signature-matrix",
+        "uniqueness",
+        "todo-074",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }

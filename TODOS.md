@@ -1413,17 +1413,30 @@ api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs
 
 **归属：** 已闭环。**关联：** TODO-069 · ADR-0008（变更单编号模板）· bug-2082。
 
-## TODO-074: 签署矩阵**名**未加唯一约束（并发下可能两份同名模板）🟡
+## ✅ DONE —— TODO-074: 签署矩阵**同名同状态**不许存在两份（2026-10-27 落地）
 
-**What:** `signature_matrices.matrix_name` 无唯一约束。
+**原症状：** `signature_matrices.matrix_name` 无唯一约束 ⇒
+`SignatureMatrixService._get_or_create_builtin_matrix` 按
+`(matrix_name, status='ACTIVE')` **找第一份** ⇒ **并发**下两个事务各建一份
+⇒ 同名的 ACTIVE 矩阵有**两份** ⇒ 两个项目可能绑到**不同的一份** ⇒
+「谁该签这一步」出现**两个答案**。
 
-**Why:** `SignatureMatrixService._get_or_create_builtin_matrix` 按
-`(matrix_name, status='ACTIVE')` **找第一份** ⇒ 并发建单时可能建出**两份**
-同名内置模板（内容相同 ⇒ 无害，但矩阵表会膨胀；两个项目可能绑到不同的一份）。
+**落地**
 
-**How:** 给 `matrix_name` 加唯一约束（改迁移 ⇒ 全新库验证），或管理面
-（TODO-070 的端点）建矩阵时校验「同名已存在 ⇒ 409」。**归属：** 与矩阵管理面
-的「换绑/改名」一起做。
+- **应用层**（友好错误）：`SignatureMatrixService._assert_name_free` ⇒ 建矩阵 /
+  改名时若**同名 + 同状态**已存在 ⇒ **409 `SIGNATURE_MATRIX_NAME_CONFLICT`**
+  （不是 500）。⚠️ 应用层这一查只挡**顺序**调用；并发窗口靠下面的 DB 约束。
+- **DB 约束**（并发兜底）：**迁移 `p9_010`** ⇒
+  `uq_signature_matrices_name_status` = **(matrix_name, status)** 唯一。
+- ⚠️ **为什么是 `(matrix_name, status)` 而不是「名字全局唯一」**：一份**已作废**
+  （OBSOLETE）的同名模板不该**永久堵住**重建 ⇒ 否则作废后再也建不出同名的
+  ACTIVE 模板 ⇒ 运维只能改名字 ⇒ 历史绑定里的旧名字全是死链。⇒ 应用层与
+  DB 约束**同口径**（同名 + 同状态）。
+- 测试（3 例）：建同名矩阵 ⇒ 409 且**只落一行** · 改名成别人已用的名字 ⇒ 409
+  且**被拒的改名不许生效** · **同名但不同状态**（ACTIVE + OBSOLETE）⇒ **允许**
+  （把约束的形状钉死）。
+
+**归属：** 已闭环。**关联：** TODO-070（矩阵管理面）· bug-2083 · `p9_010`。
 
 ## TODO-075: `change_resolved_by` 被写**两次**（语义错位）🟡
 

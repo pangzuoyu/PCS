@@ -116,6 +116,86 @@ async def test_create_with_bad_steps_rejected_and_not_stored(client, db):
     assert rows == [], "校验没过 ⇒ 一行都不许落库"
 
 
+async def test_create_matrix_with_a_duplicate_name_is_rejected(client, db):
+    """⚠️ TODO-074：**同名**矩阵（同一状态）不许存在两份。
+
+    失败模式：`_get_or_create_builtin_matrix` 按 `(matrix_name, status='ACTIVE')`
+    **找第一份** ⇒ 并发建单时可能建出**两份**同名 ACTIVE 模板 ⇒ 两个项目绑到
+    不同的一份 ⇒ 「谁该签这一步」两个答案。
+
+    ⇒ 应用层先查（同名的**同状态**行 ⇒ 409）+ DB 唯一约束兜底并发。
+    """
+    first = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert first.status_code == 200, first.text
+
+    second = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert second.status_code == 409, second.text
+    rows = (await db.execute(select(SignatureMatrix))).scalars().all()
+    assert len(rows) == 1, "同名矩阵不许存在两份"
+
+
+async def test_update_matrix_renaming_to_an_existing_name_is_rejected(client, db):
+    """⚠️ TODO-074：改名成**别人已用**的名字 ⇒ 409（不是 500）。"""
+    first = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(matrix_name="矩阵甲"),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert first.status_code == 200, first.text
+    second = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(matrix_name="矩阵乙"),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert second.status_code == 200, second.text
+
+    resp = await client.put(
+        f"/api/v1/signature-matrices/{second.json()['matrix_id']}",
+        json={"matrix_name": "矩阵甲"},
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert resp.status_code == 409, resp.text
+    row = (
+        await db.execute(
+            select(SignatureMatrix).where(
+                SignatureMatrix.matrix_id == uuid.UUID(second.json()["matrix_id"])
+            )
+        )
+    ).scalar_one()
+    assert row.matrix_name == "矩阵乙", "被拒的改名不许生效"
+
+
+async def test_same_name_with_a_different_status_is_allowed(client, db):
+    """⚠️ 约束是 **(matrix_name, status)** ⇒ 不同**状态**同名**允许**。
+
+    为什么不是「名字全局唯一」：内置矩阵是按 `(name, status='ACTIVE')` 找的 ⇒
+    一份**已作废**的同名模板不该**永久堵住**重建（否则作废后再也建不出同名
+    的 ACTIVE 模板 ⇒ 运维只能改名字 ⇒ 编号/绑定里的旧名字全是死链）。
+    """
+    active = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(matrix_name="同名矩阵", status="ACTIVE"),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert active.status_code == 200, active.text
+    obsolete = await client.post(
+        "/api/v1/signature-matrices",
+        json=_payload(matrix_name="同名矩阵", status="OBSOLETE"),
+        headers=_token(role="SYSTEM_ADMIN"),
+    )
+    assert obsolete.status_code == 200, obsolete.text
+    rows = (await db.execute(select(SignatureMatrix))).scalars().all()
+    assert len(rows) == 2
+
+
 async def test_duplicate_step_order_rejected(client):
     """两个同序号的步骤 ⇒「谁该签这一步」两个答案 ⇒ 422。"""
     resp = await client.post(

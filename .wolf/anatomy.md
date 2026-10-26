@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:20:32.231Z
-> Files: 1046 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:37:18.613Z
+> Files: 1047 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1177,6 +1177,7 @@
 - `p9_007_cost_est_project_id.py` — P9A-5 Task B：cost_est_results 补 project_id（项目隔离键）。 (~1191 tok)
 - `p9_008_project_matrix_binding_unique.py` — P9A-DLV-011 T2：`project_signature_matrix_bindings` 加 (project_id, module) 唯一约束。 (~532 tok)
 - `p9_009_numbering_template_name_unique.py` — P9A-DLV-011 收官批：`numbering_templates.template_name` 加唯一约束（TODO-073）。 (~471 tok)
+- `p9_010_matrix_name_status_unique.py` — P9A-DLV-011 收官批：`signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）。 (~546 tok)
 
 ## pcs-backend/app/
 

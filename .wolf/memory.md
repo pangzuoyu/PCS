@@ -2477,3 +2477,4 @@
 | 00:19 | Edited pcs-backend/app/services/deliverable_service.py | modified _allocate_doc_no() | ~876 |
 | 00:19 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+9 lines) | ~356 |
 | 00:20 | Created pcs-backend/alembic/versions/p9_009_numbering_template_name_unique.py | — | ~471 |
+| 00:37 | Created pcs-backend/alembic/versions/p9_010_matrix_name_status_unique.py | — | ~546 |

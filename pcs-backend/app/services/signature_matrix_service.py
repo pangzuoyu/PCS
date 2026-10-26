@@ -240,6 +240,51 @@ class SignatureMatrixService:
         )
 
     @classmethod
+    async def _assert_name_free(
+        cls,
+        db: AsyncSession,
+        *,
+        matrix_name: str,
+        status: str,
+        exclude_matrix_id: uuid.UUID | None = None,
+    ) -> None:
+        """同名 + 同状态的矩阵**不许**存在两份 ⇒ 409（TODO-074）。
+
+        ## 为什么
+
+        内置矩阵是按 `(matrix_name, status='ACTIVE')` **找第一份**的 ⇒ 同名
+        的 ACTIVE 矩阵有两份 ⇒ 两个项目可能绑到**不同的一份** ⇒
+        「谁该签这一步」出现**两个答案**。
+
+        ## 约束为什么是 **(matrix_name, status)** 而不是「名字全局唯一」
+
+        一份**已作废**（OBSOLETE）的同名模板不该**永久堵住**重建 ⇒ 否则
+        作废后再也建不出同名的 ACTIVE 模板 ⇒ 运维只能改名字 ⇒ 历史绑定里的旧
+        名字全是死链。⇒ 同一**状态**下名字唯一就够。
+
+        ⚠️ 应用层这一查只挡**顺序**调用；**并发**下两个事务都查不到 ⇒ 靠 DB
+        唯一约束（迁移 `p9_010`）兜底 ⇒ 撞约束时端点返 **500**（而不是 409）
+        —— 这是并发窗口的固有代价，不在这里假装能挡。
+        """
+        conditions = [
+            SignatureMatrix.matrix_name == matrix_name,
+            SignatureMatrix.status == status,
+        ]
+        if exclude_matrix_id is not None:
+            conditions.append(SignatureMatrix.matrix_id != exclude_matrix_id)
+        existing = (
+            await db.execute(select(SignatureMatrix).where(*conditions))
+        ).scalars().first()
+        if existing is None:
+            return
+        raise PcsError(
+            f"签署矩阵名 {matrix_name!r}（状态 {status}）已被占用"
+            f"（矩阵 {existing.matrix_id}）",
+            code="SIGNATURE_MATRIX_NAME_CONFLICT",
+            status=409,
+        )
+
+    @classmethod
     async def create_matrix(
         cls,
         db: AsyncSession,
@@ -253,6 +298,7 @@ class SignatureMatrixService:
     ) -> SignatureMatrix:
         """建一个矩阵模板（**不 commit** —— 事务边界归调用方）。"""
         validated = cls.validate_steps(steps)
+        await cls._assert_name_free(db, matrix_name=matrix_name, status=status)
         matrix = SignatureMatrix(
             matrix_name=matrix_name,
             module=module,
@@ -337,6 +383,12 @@ class SignatureMatrixService:
         """改矩阵模板（**不 commit**）。`steps` 给了就**整体替换**。"""
         matrix = await cls.get_matrix(db, matrix_id=matrix_id)
         if matrix_name is not None:
+            await cls._assert_name_free(
+                db,
+                matrix_name=matrix_name,
+                status=status if status is not None else matrix.status,
+                exclude_matrix_id=matrix_id,
+            )
             matrix.matrix_name = matrix_name
         if module is not None:
             matrix.module = module

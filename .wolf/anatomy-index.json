@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:20:32.231Z",
-    "fileCount": 1046,
+    "lastScanned": "2026-10-26T16:37:18.613Z",
+    "fileCount": 1047,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ce526827fe9250cc5460178bacd29bfff1fe144d64a5808048b39af81e6c9231",
-    "storeUpdatedAt": "2026-10-26T16:20:32.242Z",
-    "rootHash": "2d2336a5b2017466"
+    "renderedHash": "8c587b5b724e45dbc3f9b2e70ed5d0480ac8e9641f63afa44cc62b5bf74566ef",
+    "storeUpdatedAt": "2026-10-26T16:37:18.624Z",
+    "rootHash": "735d50f99e4b724b"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37707,6 +37707,31 @@
       "mtimeMs": 1793031632177.1277,
       "updatedAt": "2026-10-26T16:20:32.231Z",
       "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p9_010_matrix_name_status_unique.py": {
+      "description": "P9A-DLV-011 收官批：`signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）。",
+      "tokens": 546,
+      "hash": "3f493f4888b7a667",
+      "size": 2964,
+      "mtimeMs": 1793032638564.3796,
+      "updatedAt": "2026-10-26T16:37:18.613Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 73,
+          "tokens": 176
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 81,
+          "tokens": 52
+        }
+      ]
     }
   }
 }
