@@ -370,29 +370,16 @@ class DeliverableService:
                 status=409,
             )
 
-        matrix = await db.get(SignatureMatrix, deliverable.matrix_id)
         doc_no = await cls._allocate_doc_no(db, deliverable=deliverable)
-        rev = await cls._next_rev(db, deliverable_id=deliverable_id)
 
-        version = DeliverableVersion(
-            deliverable_id=deliverable_id,
-            rev=rev,
+        version = await cls.create_version_row(
+            db,
+            deliverable=deliverable,
             version_purpose=version_purpose,
-            description=description or f"签发版本 rev={rev}（{version_purpose}）",
-            # 记录绑定在 B4 的 submit-approval / 快照固化里补；签发时只有矩阵步骤。
-            record_snapshot_json={"record_count": 0},
-            signature_summary_json={
-                "matrix_id": str(deliverable.matrix_id),
-                "steps": (matrix.steps_json if matrix is not None else []),
-            },
-            created_by=actor_user_id,
+            actor_user_id=actor_user_id,
+            description=description,
         )
-        db.add(version)
-
         deliverable.doc_no = doc_no
-        deliverable.current_rev = rev
-        deliverable.version_purpose = version_purpose
-        deliverable.sign_status = DeliverableSignStatus.PENDING
 
         await AuditService(db).write(
             action=AuditAction.DELIVERABLE_ISSUED,
@@ -400,7 +387,7 @@ class DeliverableService:
             resource_id=deliverable_id,
             user_id=actor_user_id,
             detail={
-                "rev": rev,
+                "rev": version.rev,
                 "version_purpose": version_purpose,
                 "doc_no": doc_no,
             },
@@ -408,6 +395,74 @@ class DeliverableService:
 
         await db.commit()
         await db.refresh(version)
+        return version
+
+    @classmethod
+    async def create_version_row(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable: Deliverable,
+        version_purpose: str,
+        actor_user_id: uuid.UUID | None,
+        description: str = "",
+    ) -> DeliverableVersion:
+        """建版本行 + 把交付物推进到签署中（PENDING）。**不 commit。**
+
+        ## 为什么单独拆出来
+
+        `issue` 是「签发」这个**用户动作**：它自己审计、自己提交。
+        而变更单建单需要「交付物 + 版本 + 记录绑定 + 观测」在**同一事务**里
+        （ADR-0047 §②③：观测写失败 ⇒ 业务变更一起回滚）⇒ 不能调一个会
+        自己 commit 的方法。
+
+        ⇒ 事务边界归调用方：`issue` = 本方法 + 审计 + commit；
+        `ChangeNoticeService.create_change_notice` = 本方法 + 绑定 + 观测 +
+        审计 + **一次** commit。
+
+        ⚠️ 调用方负责「矩阵已绑到本项目」的校验（`issue` 走 `_assert_matrix_bound`；
+        变更单走 `ensure_change_notice_matrix`，绑定在同一事务里建出来）。
+        """
+        matrix = await db.get(SignatureMatrix, deliverable.matrix_id)
+        # ⚠️ 快照里写**归一化后**的步骤（排序 / 过滤 / 缺省补齐），不是原始
+        # `steps_json` —— 否则快照显示的顺序与实际签署顺序不一致（顺序乱的矩阵
+        # ⇒ 快照 A/B/C、签署按 C/A/B 推进），而 `steps_json` 的原始值还对外可见
+        # （`GET /deliverables/{id}/snapshot`）。
+        steps = (
+            [
+                {
+                    "step_order": s.step_order,
+                    "sign_role": s.sign_role,
+                    "required": s.required,
+                    "can_self_check": s.can_self_check,
+                    "can_skip": s.can_skip,
+                }
+                for s in SignatureMatrixService.parse_steps(matrix)
+            ]
+            if matrix is not None
+            else []
+        )
+        rev = await cls._next_rev(db, deliverable_id=deliverable.deliverable_id)
+
+        version = DeliverableVersion(
+            deliverable_id=deliverable.deliverable_id,
+            rev=rev,
+            version_purpose=version_purpose,
+            description=description or f"签发版本 rev={rev}（{version_purpose}）",
+            # 记录绑定在 B4 的 submit-approval / 快照固化里补；签发时只有矩阵步骤。
+            record_snapshot_json={"record_count": 0},
+            signature_summary_json={
+                "matrix_id": str(deliverable.matrix_id),
+                "steps": steps,
+            },
+            created_by=actor_user_id,
+        )
+        db.add(version)
+
+        deliverable.current_rev = rev
+        deliverable.version_purpose = version_purpose
+        deliverable.sign_status = DeliverableSignStatus.PENDING
+        await db.flush()
         return version
 
     @classmethod

@@ -25,13 +25,21 @@ import pytest
 from sqlalchemy import select
 
 from app.models.calc import ReliefResult
-from app.models.deliverable import ChangeNoticeDetail, Deliverable
+from app.models.deliverable import (
+    ChangeNoticeDetail,
+    Deliverable,
+    DeliverableRecordBinding,
+    DeliverableVersion,
+    RecordChangeSnapshot,
+    SignatureMatrix,
+)
 from app.models.enums import (
     DeliverableSignStatus,
     RecordSignStatus9,
     ReliefScenario,
 )
 from app.models.system import AuditLog
+from app.services import change_notice_service
 from app.services.change_notice_service import (
     ChangeNoticeService,
     ChangeType,
@@ -452,6 +460,195 @@ async def test_create_change_notice_record_not_found(db, project_id):
 
 
 # ---------------------------------------------------------------------------
+# 建单 = 交付物 + **版本行** + **记录绑定**（P9A-DLV-011 · T1）
+#
+# ⚠️ 为什么必须有版本行：`sign_step` 要 `version_id` ⇒ 没有版本，变更单
+# **进不了签署流程** ⇒ ADR-0008「一套版本历史」对变更单不成立。
+# ⚠️ 为什么必须有 binding：ADR-0008 明写「deliverable_record_bindings 增加
+# old_record_hash_before_change 承载新旧哈希对比（替代原
+# change_notice_record_bindings）」⇒ 记录↔变更单的**权威**关联在 binding，
+# 不是 scope_value 字符串。
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_creates_signable_version(db, project_id):
+    """建单 ⇒ 有版本行（ISSUED_FOR_CHANGE）+ 交付物进 PENDING。"""
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="管径修正",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    versions = (
+        await db.execute(
+            select(DeliverableVersion).where(
+                DeliverableVersion.deliverable_id == result["deliverable_id"]
+            )
+        )
+    ).scalars().all()
+    assert len(versions) == 1
+    assert versions[0].version_purpose == "ISSUED_FOR_CHANGE"
+    assert versions[0].rev == "1"
+
+    row = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == result["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+    # 交付物进了签署中 ⇒ 矩阵的 3 级校审对它生效
+    assert row.sign_status == DeliverableSignStatus.PENDING
+    assert row.current_rev == "1"
+    # 响应里要能拿到版本 id —— 前端签第一步时要用
+    assert result["version_id"] == versions[0].version_id
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_binds_the_record(db, project_id):
+    """建单 ⇒ `deliverable_record_bindings` 有一行（记录↔变更单的权威关联）。"""
+    rec = await _make_changed_record(db, project_id=project_id)
+    rec.record_hash = "hash-after-change"
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="管径修正",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    bindings = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == result["version_id"]
+            )
+        )
+    ).scalars().all()
+    assert len(bindings) == 1
+    binding = bindings[0]
+    assert binding.record_type == "ReliefResult"
+    assert binding.record_id == rec.relief_id
+    assert binding.record_hash == "hash-after-change"
+    # 没有 INITIATE_CHANGE 快照 ⇒ 没有「变更前哈希」
+    assert binding.old_record_hash_before_change is None
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_carries_pre_change_hash(db, project_id):
+    """⚠️ 有 BEFORE_CHANGE 快照 ⇒ binding 带上**变更前**的哈希（新旧对比）。
+
+    ADR-0008：`deliverable_record_bindings` 的 `old_record_hash_before_change`
+    承载新旧哈希对比 ⇒ 没有它就看不出「改了什么」。
+    """
+    rec = await _make_changed_record(db, project_id=project_id)
+    rec.record_hash = "hash-before"
+    db.add(
+        RecordChangeSnapshot(
+            snapshot_id=uuid.uuid4(),
+            record_type="ReliefResult",
+            record_id=rec.relief_id,
+            record_hash="hash-before",
+            data_snapshot_json={},
+            snapshot_reason="BEFORE_CHANGE",
+            snapshot_source="MANUAL_CHANGE",
+            snapshot_status="ACTIVE",
+        )
+    )
+    await db.flush()
+    rec.record_hash = "hash-after"
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="管径修正",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    binding = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == result["version_id"]
+            )
+        )
+    ).scalar_one()
+    assert binding.old_record_hash_before_change == "hash-before"
+    assert binding.record_hash == "hash-after"
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_doc_no_uses_full_uuid(db, project_id):
+    """⚠️ `doc_no` 用**完整 32 位 hex** —— 前 8 位（32 bit）在同项目 ~65k 张单
+    时就会撞 `uq_deliverables_doc_no` ⇒ 撞了是未捕获的 IntegrityError（500）。"""
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="x",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+    assert result["doc_no"] == f"CN-{rec.relief_id.hex.upper()}"
+
+
+@pytest.mark.asyncio
+async def test_scope_value_matches_record_binding(db, project_id):
+    """⚠️ RF-8：`scope_value` 与 binding 的记录身份**必须一致**。
+
+    两处都表达「这张变更单针对哪条记录」⇒ 两处可能漂 ⇒ 用测试钉住。
+    """
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=project_id,
+        record_id=rec.relief_id,
+        change_type=ChangeType.DATA_CORRECTION,
+        reason="x",
+        triggered_by=TriggeredBy.MANUAL,
+        actor=_actor(),
+        record_table=ReliefResult,
+    )
+
+    row = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == result["deliverable_id"]
+            )
+        )
+    ).scalar_one()
+    binding = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == result["version_id"]
+            )
+        )
+    ).scalar_one()
+    assert row.scope_type == "CUSTOM"
+    assert row.scope_value == f"CHANGE_NOTICE:{binding.record_type}:{binding.record_id}"
+
+
+
+# ---------------------------------------------------------------------------
 # 记录状态校验 —— P9A 落地后 create_change_notice 仍要保留这两条行为，
 # 现在它们经由 stub 不可达，故直接测底层校验器，让 P9A 继承这份覆盖。
 # ---------------------------------------------------------------------------
@@ -696,3 +893,48 @@ async def test_approve_change_notice_still_works_without_recipients(db):
 
     assert result["sign_status"] == "APPROVED"
     assert db.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_create_change_notice_rejects_matrix_without_steps(
+    db, project_id, monkeypatch
+):
+    """⚠️ 矩阵**没有可用步骤** ⇒ 建单 422（否则变更单永远签不了）。
+
+    变更单建出来了、观测行也写了 PENDING，但它**一步都签不了**
+    （`sign_step` 越界 404 / 全非法 422）⇒ 变更单永远停在「进行中」，
+    而甘特图上却会一路走到 COMPLETED —— 「看起来走完了，其实一步没签」。
+    ⇒ 建单时就说清楚。
+    """
+    rec = await _make_changed_record(db, project_id=project_id)
+
+    async def _empty_matrix(db, *, project_id):  # noqa: ANN001
+        return SignatureMatrix(
+            matrix_id=uuid.uuid4(),
+            matrix_name="EMPTY",
+            module="CHANGE_NOTICE",
+            doc_type="CHANGE_NOTICE",
+            version_purpose="ISSUED_FOR_CHANGE",
+            steps_json=[],
+            status="ACTIVE",
+        )
+
+    monkeypatch.setattr(
+        change_notice_service.SignatureMatrixService,
+        "ensure_change_notice_matrix",
+        _empty_matrix,
+    )
+
+    with pytest.raises(PcsError) as exc_info:
+        await ChangeNoticeService.create_change_notice(
+            db,
+            project_id=project_id,
+            record_id=rec.relief_id,
+            change_type=ChangeType.DATA_CORRECTION,
+            reason="x",
+            triggered_by=TriggeredBy.MANUAL,
+            actor=_actor(),
+            record_table=ReliefResult,
+        )
+    assert exc_info.value.status == 422
+    assert exc_info.value.code == "SIGNATURE_MATRIX_INVALID"

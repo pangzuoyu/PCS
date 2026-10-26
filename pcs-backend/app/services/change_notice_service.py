@@ -27,7 +27,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.deliverable import ChangeNoticeDetail, Deliverable
+from app.models.deliverable import (
+    ChangeNoticeDetail,
+    Deliverable,
+    DeliverableRecordBinding,
+    RecordChangeSnapshot,
+)
 from app.models.enums import (
     AuditAction,
     DeliverableSignStatus,
@@ -36,6 +41,7 @@ from app.models.enums import (
     WorkflowType,
 )
 from app.services.audit_service import AuditService
+from app.services.deliverable_service import DeliverableService
 from app.services.exceptions import PcsError
 from app.services.notifications.notify import publish
 from app.services.notifications.payload import NotificationPayload
@@ -99,8 +105,13 @@ class ChangeNoticeService:
         db: AsyncSession,
         record_id: uuid.UUID,
         record_table: type,
-    ) -> None:
-        """校验记录存在且 sign_status == CHANGED。"""
+    ) -> Any:
+        """校验记录存在且 sign_status == CHANGED。**返回该行**。
+
+        返回行而不只是校验：建单要把它写进 `deliverable_record_bindings`
+        （记录哈希 = 新旧哈希对比的「新」那一半）⇒ 再查一次既多一次查询，
+        又让「校验用的行」和「绑定的行」可能不是同一行。
+        """
         rec = await db.get(record_table, record_id)
         if rec is None:
             raise PcsError(
@@ -115,6 +126,7 @@ class ChangeNoticeService:
                 code="CHANGE_NOTICE_BAD_STATE",
                 status=422,
             )
+        return rec
 
     @classmethod
     async def _get_detail_by_deliverable(
@@ -184,11 +196,15 @@ class ChangeNoticeService:
             PcsError 409 if 该记录已有变更单
         """
         # 1. 校验：record 必须存在且为 CHANGED 状态
+        record: Any = None
         if record_table is not None:
-            await cls._check_record_charged(db, record_id, record_table)
+            record = await cls._check_record_charged(db, record_id, record_table)
             record_type_name = record_table.__name__
         else:
-            # 无 record_table：占位路径（不阻断；测试可 mock）
+            # 无 record_table：**查不到记录状态** ⇒ 一律 422（不许建单）。
+            # ⚠️ 旧注释写「不阻断」是错的：`_load_record_sign_status(None)` 恒返回
+            # None ⇒ 下面必然抛 422。留着的意义只是「调用方忘了传 record_table
+            # 时错误消息说的是状态不对而不是参数不对」。
             record_sign_status = await cls._load_record_sign_status(
                 db, record_id, record_table=None,
             )
@@ -226,6 +242,17 @@ class ChangeNoticeService:
         matrix = await SignatureMatrixService.ensure_change_notice_matrix(
             db, project_id=project_id
         )
+        # ⚠️ 矩阵**没有可用步骤** ⇒ 422（明说）。
+        # 否则变更单建出来了、观测行也写了 PENDING，但它**一步都签不了**
+        # ⇒ 变更单永远停在「进行中」，而甘特图上却会一路走到 COMPLETED ——
+        # 「看起来走完了，其实一步没签」。
+        if not SignatureMatrixService.parse_steps(matrix):
+            raise PcsError(
+                f"签署矩阵 {matrix.matrix_name!r} 没有可用步骤"
+                "（变更单需要 3 级校审才能推进）",
+                code="SIGNATURE_MATRIX_INVALID",
+                status=422,
+            )
 
         # 5. 创建 deliverables 行（deliverable_type=CHANGE_NOTICE）
         deliverable = Deliverable(
@@ -233,13 +260,15 @@ class ChangeNoticeService:
             deliverable_type="CHANGE_NOTICE",
             scope_type="CUSTOM",
             scope_value=scope_value,
-            # 简化编号；接 doc_no 模板后改由模板生成（无任务号，登记在 TODOS.md）
-            doc_no=f"CN-{record_id.hex[:8].upper()}",
+            # ⚠️ 完整 32 位 hex —— 前 8 位（32 bit）在同项目 ~65k 张单时就会撞
+            # `uq_deliverables_doc_no` ⇒ 撞了是未捕获的 IntegrityError（500）。
+            # ⚠️ 这只是**唯一**，不是可读编号 —— 改走编号模板另批（登记在 TODOS.md）。
+            doc_no=f"CN-{record_id.hex.upper()}",
             doc_no_mode="MANUAL",
             title=f"变更单 - {change_type.value}",
             current_rev="0",
             version_purpose="ISSUED_FOR_CHANGE",
-            sign_status=DeliverableSignStatus.PENDING,
+            sign_status=DeliverableSignStatus.DRAFT,
             matrix_id=matrix.matrix_id,
         )
         db.add(deliverable)
@@ -256,7 +285,35 @@ class ChangeNoticeService:
         db.add(detail)
         await db.flush()
 
-        # 7. ⚠️ **观测写入点 2a：变更单的「创建」**（ADR-0047 §① 🔒 service 层）
+        # 7. **建版本行**（ISSUED_FOR_CHANGE）—— 没有版本就进不了签署流程
+        #    （`sign_step` 要 version_id）⇒ ADR-0008「一套版本历史」对变更单
+        #    才成立。`create_version_row` **不 commit** ⇒ 与建单同一事务。
+        version = await DeliverableService.create_version_row(
+            db,
+            deliverable=deliverable,
+            version_purpose="ISSUED_FOR_CHANGE",
+            actor_user_id=getattr(actor, "user_id", None),
+            description=f"变更单版本（{change_type.value}）",
+        )
+
+        # 8. **绑定记录**（ADR-0008：`deliverable_record_bindings` 承载新旧哈希
+        #    对比，替代原 `change_notice_record_bindings`）⇒ 记录↔变更单的
+        #    权威关联在这里；`scope_value` 只是 scope（两者由守卫测试钉住一致）。
+        binding = DeliverableRecordBinding(
+            deliverable_version_id=version.version_id,
+            record_type=(record_table.__name__ if record_table else ""),
+            record_id=record_id,
+            record_hash=(record.record_hash or "") if record is not None else "",
+            old_record_hash_before_change=await cls._pre_change_hash(
+                db,
+                record_type=(record_table.__name__ if record_table else ""),
+                record_id=record_id,
+            ),
+        )
+        db.add(binding)
+        await db.flush()
+
+        # 9. ⚠️ **观测写入点 2a：变更单的「创建」**（ADR-0047 §① 🔒 service 层）
         #    写 PENDING：流程已发起、尚未关闭（不是 COMPLETED —— 那是关闭时写的）。
         #    `record_step` 不 commit ⇒ 与建单同一事务（观测写失败 ⇒ 建单回滚）。
         await record_step(
@@ -270,7 +327,7 @@ class ChangeNoticeService:
             actor_user_id=getattr(actor, "user_id", None),
         )
 
-        # 8. 写 audit
+        # 10. 写 audit
         await AuditService(db).write(
             action=AuditAction.CHANGE_NOTICE_CREATED,
             resource_type="DELIVERABLE",
@@ -287,9 +344,11 @@ class ChangeNoticeService:
 
         await db.commit()
 
-        # 9. 返回轻量 DTO
+        # 11. 返回轻量 DTO
         return {
             "deliverable_id": deliverable.deliverable_id,
+            # 签署要用的版本 id（矩阵的 3 级校审作用在它身上）
+            "version_id": version.version_id,
             # 观测工作流的 id —— 与 SIGN 不同类（那是版本 id）
             "workflow_id": deliverable.deliverable_id,
             "matrix_id": matrix.matrix_id,
@@ -306,6 +365,34 @@ class ChangeNoticeService:
                 "source_record_type": detail.source_record_type,
             },
         }
+
+    @classmethod
+    async def _pre_change_hash(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+    ) -> str | None:
+        """该记录最新 ACTIVE 的 BEFORE_CHANGE 快照里的哈希（没有 ⇒ None）。
+
+        ⚠️ 查询形状与 `state_machine._restore_snapshot_if_needed` **一致**
+        （同表、同过滤、同排序）—— 两处对「快照是什么」的判断若不同，
+        就会一个恢复的是 A 快照、另一个记的是 B 快照的哈希。
+        """
+        snapshot = (
+            await db.execute(
+                select(RecordChangeSnapshot)
+                .where(
+                    RecordChangeSnapshot.record_type == record_type,
+                    RecordChangeSnapshot.record_id == record_id,
+                    RecordChangeSnapshot.snapshot_status == "ACTIVE",
+                )
+                .order_by(RecordChangeSnapshot.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return snapshot.record_hash if snapshot is not None else None
 
     @classmethod
     async def approve_change_notice(
