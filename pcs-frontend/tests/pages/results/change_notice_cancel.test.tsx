@@ -76,7 +76,9 @@ const server = setupServer(
   }),
 );
 
-function renderChanged(onStatusChange = () => undefined): void {
+function renderChanged(
+  onStatusChange: (recordId: string, nextStatus: string) => void = () => undefined,
+): void {
   render(
     <ChangeNoticeAction
       module={MODULE}
