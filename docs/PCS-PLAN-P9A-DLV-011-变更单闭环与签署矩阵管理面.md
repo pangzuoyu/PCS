@@ -249,7 +249,10 @@
 
 **验收结果**：
 
-- 后端全量：见收口提交（基线 5188，本批 +N）
+- 后端全量：**5226 passed / 77 skipped / 0 failed**（基线 5188，+38；含 9 个新端点的
+  20 条 API 用例 + 26 条 service/schema/迁移用例）
+  ⚠️ 首轮跑出过 1 个 `test_export_perf_budget`（导出耗时的 2 秒墙钟预算）—— 单独跑绿、
+  重跑全绿 ⇒ **计时类 flake**（本仓此前已为同类 flake 放宽过全局超时），与本批无关。
 - `alembic check`：`pcs` 与 `pcs_test` **各跑一次**均 exit 0（两库 `p9_008` head）
 - **全新隔离 schema** 从零 `alembic upgrade head` 通过（CI 的 api-drift job 跑的
   就是全新 Postgres）
