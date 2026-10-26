@@ -53,6 +53,7 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.deliverable import (
@@ -245,7 +246,14 @@ class SignatureMatrixService:
     async def _ensure_binding(
         cls, db: AsyncSession, *, project_id: uuid.UUID, matrix_id: uuid.UUID
     ) -> ProjectSignatureMatrixBinding:
-        """项目 × 模块 的矩阵绑定（**幂等**）。"""
+        """项目 × 模块 的矩阵绑定（**幂等** + 并发安全）。
+
+        ⚠️ **并发**：应用层的「先查后建」挡不住两个事务同时建 ⇒ 靠
+        `(project_id, module)` 唯一约束兜底（迁移 `p9_008`）。
+        撞约束 ⇒ **重读**那一行（而不是 500）——
+        没有兜底的话，同一项目同一模块会绑到两个矩阵，
+        之后每次解析绑定都 `MultipleResultsFound` ⇒ 该项目的变更单路径永久 500。
+        """
         binding = (
             await db.execute(
                 select(ProjectSignatureMatrixBinding).where(
@@ -263,8 +271,28 @@ class SignatureMatrixService:
             matrix_id=matrix_id,
         )
         db.add(binding)
-        await db.flush()
+        try:
+            # ⚠️ SAVEPOINT：撞唯一约束时 PostgreSQL 会**中止整个事务** ⇒
+            # 没有 savepoint 的话，连同前面建的矩阵/交付物一起丢。
+            # savepoint 只回滚这一段 ⇒ 外层事务继续（矩阵行已 flush，安全）。
+            async with db.begin_nested():
+                await db.flush()
+        except IntegrityError:
+            # 并发：另一个事务先建了 ⇒ 重读那一行
+            existing = (
+                await db.execute(
+                    select(ProjectSignatureMatrixBinding).where(
+                        ProjectSignatureMatrixBinding.project_id == project_id,
+                        ProjectSignatureMatrixBinding.module == cls.CHANGE_NOTICE_MODULE,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                raise
+            existing.matrix_id = matrix_id
+            return existing
         return binding
+
 
 __all__ = [
     "MatrixStep",

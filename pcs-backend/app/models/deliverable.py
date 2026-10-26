@@ -170,9 +170,21 @@ class ProjectSignatureMatrixBinding(TimestampMixin, Base):
 
     业务：项目 + 模块（RECORD/STREAM/EQUIP）+ 签名矩阵的 3 元组绑定；
     一个项目同一模块只能绑定一个矩阵（matrix_id 唯一）。
+
+    ⚠️ `(project_id, module)` 唯一约束是 **P9A-DLV-011 T2** 补的
+    （迁移 `p9_008`）—— 注释里这句话此前**只是注释**：表上没有约束、
+    ORM 也没声明 ⇒ 应用层的「先查后建」挡不住并发 ⇒ 同一项目同一模块
+    可能绑到两个矩阵 ⇒ 之后每次解析绑定都 `MultipleResultsFound`（500）。
     """
 
     __tablename__ = "project_signature_matrix_bindings"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "module",
+            name="uq_project_signature_matrix_bindings_project_module",
+        ),
+    )
     binding_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )

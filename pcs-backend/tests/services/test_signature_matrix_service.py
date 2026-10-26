@@ -279,3 +279,63 @@ def test_deliverable_matrix_steps_empty_matrix_is_empty_list():
     assert DeliverableService._matrix_steps(None) == []
     assert DeliverableService._matrix_steps(_matrix([])) == []
 
+
+@pytest.mark.asyncio
+async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, monkeypatch):
+    """⚠️ 并发建绑定 ⇒ 唯一约束撞车 ⇒ **重读**那一行（不是 500）。
+
+    没有兜底的话：同一项目同一模块绑到两个矩阵 ⇒ 之后每次解析绑定都
+    `MultipleResultsFound` ⇒ 该项目的变更单路径**永久 500**（bug-2052）。
+
+    竞态用「把 `_ensure_binding` 里那次查藏起来」模拟：查的时候没有，
+    插的时候另一个事务已经插好了。
+    """
+    from sqlalchemy import insert
+
+    matrix = SignatureMatrix(
+        matrix_name="CHANGE_NOTICE_3_LEVEL",
+        module="CHANGE_NOTICE",
+        doc_type="CHANGE_NOTICE",
+        version_purpose="ISSUED_FOR_CHANGE",
+        steps_json=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="ACTIVE",
+    )
+    db.add(matrix)
+    await db.flush()
+
+    real_execute = db.execute
+    seen = {"n": 0}
+    other_id: list[uuid.UUID] = []
+
+    class _Empty:
+        def scalar_one_or_none(self):
+            return None
+
+    async def _execute(stmt, *args, **kwargs):
+        if "project_signature_matrix_bindings" in str(stmt):
+            seen["n"] += 1
+            if seen["n"] == 1:
+                # 竞态窗口：查的时候「还没有」，但**另一个事务已经插好了**
+                other = ProjectSignatureMatrixBinding(
+                    project_id=project_id,
+                    module="CHANGE_NOTICE",
+                    matrix_id=matrix.matrix_id,
+                )
+                db.add(other)
+                await db.flush()
+                other_id.append(other.binding_id)
+                return _Empty()
+        return await real_execute(stmt, *args, **kwargs)
+
+    monkeypatch.setattr(db, "execute", _execute)
+
+    result = await SignatureMatrixService.ensure_change_notice_matrix(
+        db, project_id=project_id
+    )
+
+    assert result.matrix_id == matrix.matrix_id
+    rows = (
+        await db.execute(select(ProjectSignatureMatrixBinding))
+    ).scalars().all()
+    assert len(rows) == 1, "撞约束后必须复用已存在的那行，而不是再建一行"
+    assert rows[0].binding_id == other_id[0]
