@@ -275,7 +275,7 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 |---|---|---|---|
 | **R-1** | `create_change_notice` 抛 `NotImplementedError`；`signature_matrices` 恒 0 行、全仓**无创建方** ⇒ 交付物级签署写面只能做出「永远 404/500」的死界面 | ✅ 变更单链路已通（`records_actions.py`：`initiate-change` / `apply-change` / `change-notice` / `change-notice/cancel`）；✅ 矩阵管理面已交付（`signature_matrices.py` 的 list/create/update/delete/bind/unbind + `SignatureMatrixPage.tsx` + `api/signatureMatrices.ts`） | **前提失效 ⇒ 范围重定**（新增 T8） |
 | **R-3** | 变更单创建链未接通 ⇒ `CHANGE_NOTICE` 段恒不可用 | 变更单链路已通，但**关联口径仍是错的**：计划的 `_latest_change_notice_id` 建在 `Deliverable.parent_deliverable_id` 上 ⇒ 该列**全仓从未被写**（grep 零命中）⇒ 恒 `None` ⇒ **即便变更单存在也查不出来** | **整段删掉**（R-13） |
-| **R-6** | §6.3 的「变更申请 / 创建交付物 / 关闭凭证」三个按钮**没有后端端点** ⇒ 渲染成禁用 + 说明 | ✅ 三个端点现在都有 ⇒ 照原计划做会**渲染三个永远点不动的按钮**，而它们其实能用 | **断言改写**（R-19） |
+| **R-6** | §6.3 的「变更申请 / 创建交付物 / 关闭凭证」三个按钮**没有后端端点** ⇒ 渲染成禁用 + 说明 | ✅ 三个端点现在都有 ⇒ 照原计划做会**渲染三个永远点不动的按钮**，而它们其实能用 | **断言改写**（T4 的断言 9 ⇒ 改为「变更类动作**可用**」） |
 
 ⚠️ 另有一处**计划内部自相矛盾**：T10（原 T7）说「`meta/state-machine` 是第 6 个
 meta mock，要新加」—— 它**早就在** `src/mocks/handlers.ts:966`（5 个 meta 端点
@@ -1900,6 +1900,10 @@ cd pcs-frontend && npm run test && npm run typecheck && npm run lint
   `seed/meta.ts` 抽成 `seed/meta.state-machine.json` ⇒ **加一条守卫测试**
   （后端 pytest 逐条比对 `ALLOWED_TRANSITIONS` + `TRANSITION_ROLES` 的生成结果
   ⇒ 漂移即红）。
+  ⚠️ **跨包耦合**：守卫测试要读 `pcs-frontend/src/mocks/seed/meta.state-machine.json`
+  ⇒ **必须加 `skipif` 守卫**（只有前端目录的检出才跑 ⇒ 后端-only 的检出**跳过**
+  而不是**失败**）⇒ 路径用 `Path(__file__).parents[3] / "pcs-frontend" / …`
+  （不写死绝对路径）。
 - `GET /api/v1/deliverables/{id}/progress`
 - `GET /api/v1/records/{module}/{id}/edits`
 - `GET /api/v1/records/{module}/{id}/comments` + `POST` 同路径
