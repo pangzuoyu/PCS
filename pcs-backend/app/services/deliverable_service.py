@@ -516,24 +516,47 @@ class DeliverableService:
         if deliverable.numbering_template_id is None:
             return deliverable.doc_no
 
-        template = await db.get(NumberingTemplate, deliverable.numbering_template_id)
+        return await cls.render_doc_no(
+            db,
+            project_id=deliverable.project_id,
+            template_id=deliverable.numbering_template_id,
+            doc_type=deliverable.deliverable_type,
+        )
+
+    @classmethod
+    async def render_doc_no(
+        cls,
+        db: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        template_id: uuid.UUID,
+        doc_type: str,
+    ) -> str:
+        """按模板**渲染**一个编号（取号 + 拼段）。
+
+        ## 为什么独立于 `_allocate_doc_no`
+
+        变更单（TODO-073）要在**建行之前**就拿到编号 —— 因为
+        `uq_deliverables_doc_no` 是**全局唯一** ⇒ 「先建行、编号后补」会让同一
+        事务里的第二张变更单撞唯一约束（两行的编号都是空串）⇒ 500。
+        ⇒ 渲染必须**不依赖已存在的交付物行**。
+        """
+        template = await db.get(NumberingTemplate, template_id)
         if template is None:
             raise PcsError(
                 code="NUMBERING_TEMPLATE_NOT_FOUND",
-                message=f"编号模板 {deliverable.numbering_template_id} 不存在",
+                message=f"编号模板 {template_id} 不存在",
                 status=409,
             )
 
         # scope 取 deliverable_type：同项目同类型共享一条序列，
         # 不同类型的号段互不干扰（否则 CALCULATION_BOOK 会吃掉 PUMP_DATASHEET 的号）。
-        seq = await NumberingService(db).next_value(
-            deliverable.project_id, template.template_id, deliverable.deliverable_type
-        )
+        seq = await NumberingService(db).next_value(project_id, template.template_id, doc_type)
 
-        project = await db.get(Project, deliverable.project_id)
+        project = await db.get(Project, project_id)
         tokens = {
             "project_no": project.project_no if project is not None else "",
-            "doc_type": deliverable.deliverable_type,
+            "doc_type": doc_type,
             "seq": str(seq),
         }
         # `segments_json` 的真实内容是**列表**（P2 计划设计 §3.5：

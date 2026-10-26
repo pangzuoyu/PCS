@@ -144,7 +144,9 @@ async def test_create_change_notice_creates_both_rows(db, project_id, change_typ
     )
 
     assert result["deliverable_id"]
-    assert result["doc_no"].startswith("CN-")
+    # ⚠️ 编号走**编号模板**（TODO-073）⇒ 可读编号 `{项目号}-CHANGE_NOTICE-{序号}`
+    #    ⇒ 不再是 `CN-{uuid hex}`（编号的断言在 `test_change_notice_numbering.py`）
+    assert "CHANGE_NOTICE" in result["doc_no"]
     assert result["detail"]["change_type"] == change_type.value
 
     row = (
@@ -434,26 +436,6 @@ async def test_create_change_notice_carries_pre_change_hash(db, project_id):
     ).scalar_one()
     assert binding.old_record_hash_before_change == "hash-before"
     assert binding.record_hash == "hash-after"
-
-
-@pytest.mark.asyncio
-async def test_create_change_notice_doc_no_uses_full_uuid(db, project_id):
-    """⚠️ `doc_no` 用**完整 32 位 hex** —— 前 8 位（32 bit）在同项目 ~65k 张单
-    时就会撞 `uq_deliverables_doc_no` ⇒ 撞了是未捕获的 IntegrityError（500）。"""
-    rec = await _make_changed_record(db, project_id=project_id)
-
-    result = await ChangeNoticeService.create_change_notice(
-        db,
-        project_id=project_id,
-        record_id=rec.relief_id,
-        change_type=ChangeType.DATA_CORRECTION,
-        reason="x",
-        triggered_by=TriggeredBy.MANUAL,
-        actor=_actor(),
-        record_table=ReliefResult,
-    )
-    # ⚠️ 编号取**变更单自己的** uuid（一条记录可以有多张单 ⇒ 记录派生的会撞）
-    assert result["doc_no"] == f"CN-{result['deliverable_id'].hex.upper()}"
 
 
 @pytest.mark.asyncio

@@ -45,6 +45,7 @@ from app.services.audit_service import AuditService
 from app.services.deliverable_service import DeliverableService
 from app.services.exceptions import PcsError
 from app.services.notifications.payload import NotificationPayload
+from app.services.numbering_service import NumberingService
 from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.workflow_progress_writer import record_step
 
@@ -311,19 +312,28 @@ class ChangeNoticeService:
             )
 
         # 5. 创建 deliverables 行（deliverable_type=CHANGE_NOTICE）
-        # ⚠️ **编号取「变更单自己的」uuid**（不是记录的）—— 同上：一条记录可以
-        #    有多张变更单 ⇒ 记录派生的编号会撞 `uq_deliverables_doc_no`
-        #    ⇒ 未捕获的 IntegrityError（500）。
-        #    完整 32 位 hex：前 8 位（32 bit）在同项目 ~65k 张单时就会撞 ⇒ 500。
-        #    ⚠️ 这只是**唯一**，不是可读编号 —— 改走编号模板另批（TODO-073）。
+        # ⚠️ **编号走编号模板**（TODO-073）—— 编号是给用户看的（要口述、要检索）
+        #    ⇒ `CN-{32 位 uuid hex}` 只保证唯一、**不可读** ⇒ 渲染成
+        #    `{项目号}-CHANGE_NOTICE-{序号}`。
+        #    ⚠️ **必须在建行之前**取号：`uq_deliverables_doc_no` 是**全局唯一**
+        #    ⇒ 「先建行、编号后补」会让同一事务里的第二张变更单撞唯一约束
+        #    （两行的编号都是空串）⇒ 500。
+        numbering_template = await NumberingService(db).get_or_create_change_notice_template()
+        doc_no = await DeliverableService.render_doc_no(
+            db,
+            project_id=project_id,
+            template_id=numbering_template.template_id,
+            doc_type="CHANGE_NOTICE",
+        )
         deliverable = Deliverable(
             deliverable_id=notice_id,
             project_id=project_id,
             deliverable_type="CHANGE_NOTICE",
             scope_type="CUSTOM",
             scope_value=scope_value,
-            doc_no=f"CN-{notice_id.hex.upper()}",
-            doc_no_mode="MANUAL",
+            doc_no=doc_no,
+            doc_no_mode="TEMPLATE",
+            numbering_template_id=numbering_template.template_id,
             title=f"变更单 - {change_type.value}",
             current_rev="0",
             version_purpose="ISSUED_FOR_CHANGE",

@@ -4657,6 +4657,26 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2082",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "变更单的编号是 `CN-{32 位 uuid hex}` ⇒ 给用户看的编号**不可读**、不可口述、不可检索",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "变更单的 `doc_no` 直接用「变更单自己的 uuid hex」拼 ⇒ 只保证**唯一**（`uq_deliverables_doc_no`），而编号是**给人看**的（用户报单号、检索单据）⇒ 32 位 hex 谁都对不上。交付物早就支持**编号模板**（`numbering_templates` + `segments_json` + `NumberingService.next_value` 的 `SELECT ... FOR UPDATE` 行锁），但变更单**没接**那条路。",
+      "fix": "**已修（2026-10-27，TODO-073）**：新增内置「变更单编号模板」（`NumberingService.get_or_create_change_notice_template`，**幂等** + 唯一约束兜底并发），段 = `{项目号}-{文档类型}-{序号}` ⇒ 编号渲染成 `P-1A2B3C4D-CHANGE_NOTICE-1`。⚠️ 取号必须**在建行之前**（`uq_deliverables_doc_no` 全局唯一 ⇒ 后补编号 ⇒ 同事务第二张单撞空串约束 ⇒ 500）⇒ 为此把渲染从 `_allocate_doc_no`（吃交付物行）抽成 `DeliverableService.render_doc_no`（不依赖已存在的行）。迁移 `p9_009`：`numbering_templates.template_name` 加全局唯一约束（不唯一 ⇒ 两份模板 ⇒ 两条号段 ⇒ 同号）。测试：`tests/services/test_change_notice_numbering.py`（4 例）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "numbering",
+        "doc_no",
+        "todo-073",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }

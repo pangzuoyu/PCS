@@ -2472,3 +2472,8 @@
 | 21:30 | Created .git/COMMIT_MSG_080.txt | — | ~777 |
 | 21:32 | Created .git/COMMIT_MSG_087.txt | — | ~571 |
 | 00:02 | Created .git/COMMIT_MSG_080_087.txt | — | ~1393 |
+| 00:19 | Created pcs-backend/tests/services/test_change_notice_numbering.py | — | ~1393 |
+| 00:19 | Edited pcs-backend/app/services/numbering_service.py | added error handling | ~814 |
+| 00:19 | Edited pcs-backend/app/services/deliverable_service.py | modified _allocate_doc_no() | ~876 |
+| 00:19 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+9 lines) | ~356 |
+| 00:20 | Created pcs-backend/alembic/versions/p9_009_numbering_template_name_unique.py | — | ~471 |

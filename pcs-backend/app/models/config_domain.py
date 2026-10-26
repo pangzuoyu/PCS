@@ -303,6 +303,12 @@ class NumberingTemplate(TimestampMixin, Base):
     """
 
     __tablename__ = "numbering_templates"
+    __table_args__ = (
+        # ⚠️ 模板名**全局唯一**（TODO-073 / 迁移 `p9_009`）：内置模板是「先查
+        # 后建」⇒ 并发下两份同名模板 ⇒ 两条独立号段 ⇒ 同一项目里出现两个
+        # 同号的变更单 ⇒ 凭证认不出是哪一张。
+        UniqueConstraint("template_name", name="uq_numbering_templates_template_name"),
+    )
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )

@@ -214,7 +214,9 @@ async def test_create_change_notice_from_changed_record(client, db):
     body = await _create_notice(client, rec)
 
     assert body["sign_status"] == "PENDING"
-    assert body["doc_no"].startswith("CN-")
+    # ⚠️ 编号走**编号模板**（TODO-073）⇒ 可读编号 `{项目号}-CHANGE_NOTICE-{序号}`
+    #    ⇒ 不再是 `CN-{uuid hex}`（编号的断言在 `test_change_notice_numbering.py`）
+    assert "CHANGE_NOTICE" in body["doc_no"]
     assert body["detail"]["change_type"] == "DATA_CORRECTION"
 
     deliverable = (

@@ -15,9 +15,10 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.config_domain import DocNoSequence
+from app.models.config_domain import DocNoSequence, NumberingTemplate
 from app.models.enums import AuditAction
 from app.services.audit_service import AuditService
 
@@ -34,10 +35,68 @@ class NumberingService:
     防高并发下文档号跳号或重复。
     """
 
+    #: 内置**变更单**编号模板（TODO-073）：变更单的编号要走模板 ⇒ 可读。
+    #: ⚠️ 模板名**全局唯一**（迁移 `p9_009`）⇒ 并发建模板时靠它兜底。
+    CHANGE_NOTICE_TEMPLATE_NAME = "变更单编号模板"
+
+    #: 变更单编号的段：`{项目号}-{文档类型}-{序号}`（P2 计划 §3.5 的段约定）。
+    CHANGE_NOTICE_SEGMENTS: list[str] = ["project_no", "-", "doc_type", "-", "seq"]
+
     def __init__(self, session: AsyncSession):
         """构造 NumberingService（注入 session + AuditService 写取号审计）。"""
         self.session = session
         self.audit = AuditService(session)
+
+    async def get_or_create_change_notice_template(self) -> NumberingTemplate:
+        """内置**变更单**编号模板（**幂等**：有就用，没有才建）。
+
+        ## 为什么变更单要自己的模板
+
+        变更单的编号是给用户看的（要口述、要检索）⇒ `CN-{32 位 uuid hex}`
+        不可读 ⇒ 走模板渲染成 `{项目号}-CHANGE_NOTICE-{序号}`。
+
+        ## 并发
+
+        「先查后建」挡不住两个事务同时建 ⇒ 靠 `template_name` 的**唯一约束**
+        （迁移 `p9_009`）兜底 ⇒ 撞约束 ⇒ **重读**赢家那一行（而不是 500）。
+        ⚠️ **SAVEPOINT 必须包住 `db.add`**（见
+        `signature_matrix_service._ensure_binding` 的同款注释：savepoint 之外
+        的 INSERT 撞约束会**中止整个事务** ⇒ 外层一起回滚）。
+        """
+        template = (
+            await self.session.execute(
+                select(NumberingTemplate).where(
+                    NumberingTemplate.template_name == self.CHANGE_NOTICE_TEMPLATE_NAME
+                )
+            )
+        ).scalar_one_or_none()
+        if template is not None:
+            return template
+
+        template = NumberingTemplate(
+            template_name=self.CHANGE_NOTICE_TEMPLATE_NAME,
+            description="CHANGE_NOTICE",
+            segments_json=list(self.CHANGE_NOTICE_SEGMENTS),
+            separator="-",
+            status="ACTIVE",
+        )
+        try:
+            async with self.session.begin_nested():
+                self.session.add(template)
+                await self.session.flush()
+        except IntegrityError:
+            existing = (
+                await self.session.execute(
+                    select(NumberingTemplate).where(
+                        NumberingTemplate.template_name
+                        == self.CHANGE_NOTICE_TEMPLATE_NAME
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                raise
+            return existing
+        return template
 
     async def next_value(self, project_id: UUID, template_id: UUID, scope_key: str) -> int:
         """取文档号下一个值（按 (project, template, scope) 行锁串行化）。

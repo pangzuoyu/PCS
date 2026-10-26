@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:02:49.571Z
-> Files: 1043 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:20:32.231Z
+> Files: 1046 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1176,6 +1176,7 @@
 - `p9_006_cost_est_record_hash.py` — P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。 (~1161 tok)
 - `p9_007_cost_est_project_id.py` — P9A-5 Task B：cost_est_results 补 project_id（项目隔离键）。 (~1191 tok)
 - `p9_008_project_matrix_binding_unique.py` — P9A-DLV-011 T2：`project_signature_matrix_bindings` 加 (project_id, module) 唯一约束。 (~532 tok)
+- `p9_009_numbering_template_name_unique.py` — P9A-DLV-011 收官批：`numbering_templates.template_name` 加唯一约束（TODO-073）。 (~471 tok)
 
 ## pcs-backend/app/
 
@@ -1269,14 +1270,15 @@
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~7398 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~11745 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~9820 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~12027 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
 - `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~938 tok)
 - `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~808 tok)
+- `numbering_service.py` — NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。 (~1617 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
 - `record_snapshot_codec.py` — 记录快照的**数据编解码**（TODO-087）。 (~1917 tok)
@@ -1480,6 +1482,7 @@
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
 - `test_change_notice_close_real_db.py` — 变更单**关闭路径**的真库用例（TODO-080 第 2 条 · TODO-081）。 (~2385 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
+- `test_change_notice_numbering.py` — 变更单的**可读编号**（TODO-073）。 (~1393 tok)
 - `test_change_notice_observation.py` — 变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。 (~1476 tok)
 - `test_change_notice_project_guard.py` — 变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。 (~1063 tok)
 - `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~8472 tok)

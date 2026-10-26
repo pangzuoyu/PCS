@@ -1378,20 +1378,40 @@ api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs
 
 ---
 
-## TODO-073: 变更单编号**不是可读编号**（`CN-{32 位 hex}`）🟡
+## ✅ DONE —— TODO-073: 变更单编号**可读**（走编号模板）（2026-10-27 落地）
 
-**What:** 变更单的 `doc_no` 现在是 `CN-{record_id 的完整 32 位 hex}`。
+**原症状：** 变更单的 `doc_no` 是 `CN-{变更单自己的 32 位 uuid hex}` ⇒ 它只
+保证**唯一**，但它是给用户看的编号 ⇒ 一串 32 位 hex **不可读**、不可口述、不可
+检索 ⇒ 用户报「变更单 CN-3F2A…」时谁都对不上。
 
-**Why:** 它只保证**唯一**（前 8 位 = 32 bit ⇒ 同项目 ~65k 张单就可能撞
-`uq_deliverables_doc_no` ⇒ 未捕获的 IntegrityError 500）。但它是给用户看的
-编号 ⇒ 一串 32 位 hex **不可读**、不可口述、不可检索。
+**落地**
 
-**How:** 走**编号模板**（`numbering_templates` + `segments_json`，ADR-0008 说
-「变更单编号模板映射 PR/KDC」）—— 交付物已有 `_allocate_doc_no` 走模板取号
-（`SELECT ... FOR UPDATE` 行锁，PG 串行化同 scope 并发取号）⇒ 变更单复用
-同一条路即可，但要给变更单一张模板 + 一个 `numbering_template_id` 绑定。
+- **内置变更单编号模板**（`NumberingService.get_or_create_change_notice_template`）
+  ⇒ 段 = `["project_no", "-", "doc_type", "-", "seq"]` ⇒ 编号渲染成
+  **`{项目号}-CHANGE_NOTICE-{序号}`**（如 `P-1A2B3C4D-CHANGE_NOTICE-1`）。
+  ⚠️ **幂等**（有就用，没有才建）+ **并发安全**（靠 `template_name` 唯一约束
+  兜底 ⇒ 撞约束 ⇒ SAVEPOINT + **重读赢家那一行**，与
+  `signature_matrix_service._ensure_binding` 同一套写法）。
+- ⚠️ **必须在建行之前取号**：`uq_deliverables_doc_no` 是**全局唯一** ⇒
+  「先建行、编号后补」⇒ 同一事务里的第二张变更单两行编号都是空串 ⇒ 撞约束
+  ⇒ 500 ⇒ 为此把渲染逻辑从 `_allocate_doc_no`（吃交付物行）里**抽**成
+  `DeliverableService.render_doc_no(db, project_id=, template_id=, doc_type=)`
+  （不依赖已存在的行）⇒ `_allocate_doc_no` 改为转调它（行为不变）。
+- 变更单交付物行 ⇒ `doc_no_mode="TEMPLATE"` + `numbering_template_id` 指向模板
+  ⇒ 之后**再签发版本**时 `issue` 会**重新取号**（与其它交付物同一条路）。
+- **迁移 `p9_009`**：`numbering_templates.template_name` 加**全局唯一**约束
+  （不唯一 ⇒ 并发下两份同名模板 ⇒ **两条独立号段** ⇒ 同一项目里出现两个
+  同号的变更单 ⇒ 凭证认不出是哪一张）。
+  ⇒ 两库 `pcs` / `pcs_test` 各跑一次 `alembic check` **exit 0**；全新隔离
+  schema 从零 `alembic upgrade head` 通过。
+- 测试（新增 `tests/services/test_change_notice_numbering.py`，4 例）：编号
+  **可读**（含项目号/文档类型/序号）· 序号**递增** · 交付物行**绑了**模板 ·
+  模板**幂等**（两张单 ⇒ 同一模板 ⇒ 同一号段 ⇒ 全库只有一份模板）。
 
-**归属：** 独立一轮（要建模板 + 改编号取号路径）。**关联：** TODO-069。
+**已知取舍：** 编号里含**项目号** ⇒ 项目号改了 ⇒ 历史编号**不变**（编号是
+**快照**，不是实时计算）—— 与其它交付物同一口径。
+
+**归属：** 已闭环。**关联：** TODO-069 · ADR-0008（变更单编号模板）· bug-2082。
 
 ## TODO-074: 签署矩阵**名**未加唯一约束（并发下可能两份同名模板）🟡
 
@@ -1578,6 +1598,40 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 `tests/api/v1/test_change_notice_api.py`（端到端）。
 
 **归属：** 已闭环。**关联：** bug-2058 · TODO-080。
+
+## TODO-088: 全新隔离 schema 上跑迁移会**漏建** 6 条约束（幂等检查**只按名字**查）🟡
+
+**What:** 在**隔离 schema**（`options=-csearch_path=<schema>`）上从零跑
+`alembic upgrade head` ⇒ 建出来的 schema **缺** 6 条 ORM 声明的约束：
+
+| 约束 | 表 |
+|---|---|
+| `future_dated_forbidden_chk` | `project_calculation_standard_profiles` |
+| `uq_report_definitions_project_name` | `report_definitions` |
+| `uq_report_styles_scope_version` | `report_styles` |
+| `ck_streams_data_mode` / `ck_streams_phase` / `ck_streams_source_type` | `streams` |
+
+⇒ 在那个隔离 schema 上跑 `alembic check` ⇒ **exit 255 + 6 条「add_constraint」**
+⇒ 看着像「ORM 与迁移漂移」，其实**不是**。
+
+**Why（根因）：** `p8_001` / `p8_008` / `p8_009` 的幂等检查写成
+`SELECT 1 FROM pg_constraint WHERE conname = '<名字>'` ⇒ **`pg_constraint`
+是「每库」不是「每 schema」** ⇒ 同一个库里**别的 schema**（例如 `public`）
+已有同名列 ⇒ **跳过建约束** ⇒ 隔离 schema 永远拿不到这 6 条。
+⚠️ **真·全新数据库**（CI 的 fresh Postgres）里没有别的 schema ⇒ 约束**会**建出来
+⇒ CI 不受影响 ⇒ 只有**本地用隔离 schema 验证**时会看到这 6 条假漂移。
+
+**How:** ①把那 3 条迁移的幂等检查改成**按 schema 过滤**
+（`connamespace = to_regnamespace(current_schema())`）；②或本地验证时**逐条对照**
+这 6 个约束是否存在，别把 `alembic check` 的 exit 255 当成真漂移。
+
+⚠️ **别照字面「修」**：CLAUDE.md 写明过「`remove_constraint` 的字面意思与正确处置
+**恰好相反** —— 实测那些条全是「DB 有安全网、ORM 漏声明」⇒ 照字面删会把 DB 保护
+删掉」。这 6 条**反过来**（ORM 声明了、隔离 schema 没有）⇒ 照字面「加」会写出一条
+**重复**的迁移。
+
+**归属：** 独立一轮（要改 3 条既有迁移的幂等检查 ⇒ 改历史迁移要谨慎）。
+**关联：** CLAUDE.md「测试前检查 · 漂移盲区」· bug-147 · `p8_008`。
 
 ## TODO-082: `locked_by_deliverable` 门是**死代码**（永远 False）🟡
 

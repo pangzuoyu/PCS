@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:02:49.571Z",
-    "fileCount": 1043,
+    "lastScanned": "2026-10-26T16:20:32.231Z",
+    "fileCount": 1046,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "eef9e87fd7f69126ecd7594bae2d561cf59f9f32011ea8a47aab40b99476e589",
-    "storeUpdatedAt": "2026-10-26T16:02:49.583Z",
-    "rootHash": "16fc85ee787a1907"
+    "renderedHash": "ce526827fe9250cc5460178bacd29bfff1fe144d64a5808048b39af81e6c9231",
+    "storeUpdatedAt": "2026-10-26T16:20:32.242Z",
+    "rootHash": "2d2336a5b2017466"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21361,11 +21361,11 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 11745,
-      "hash": "b786fe0f674137ae",
-      "size": 48767,
-      "mtimeMs": 1792983422131.1245,
-      "updatedAt": "2026-10-26T02:57:02.188Z",
+      "tokens": 12027,
+      "hash": "3b12bfd01671f06d",
+      "size": 50145,
+      "mtimeMs": 1793031575149.2112,
+      "updatedAt": "2026-10-26T16:19:35.204Z",
       "source": "hook",
       "symbols": [
         {
@@ -21400,8 +21400,8 @@
           "name": "DeliverableService",
           "kind": "class",
           "startLine": 131,
-          "endLine": 1190,
-          "tokens": 10678
+          "endLine": 1221,
+          "tokens": 10959
         }
       ]
     },
@@ -21781,33 +21781,33 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 7398,
-      "hash": "3b57d81d55e099d0",
-      "size": 30493,
-      "mtimeMs": 1792980382671.402,
-      "updatedAt": "2026-10-26T02:06:22.727Z",
+      "tokens": 9820,
+      "hash": "74183a9b1bee8427",
+      "size": 41915,
+      "mtimeMs": 1793031579650.0369,
+      "updatedAt": "2026-10-26T16:19:39.715Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ChangeType",
           "kind": "class",
-          "startLine": 53,
-          "endLine": 64,
+          "startLine": 52,
+          "endLine": 63,
           "tokens": 96
         },
         {
           "name": "TriggeredBy",
           "kind": "class",
-          "startLine": 65,
-          "endLine": 75,
+          "startLine": 64,
+          "endLine": 74,
           "tokens": 76
         },
         {
           "name": "ChangeNoticeService",
           "kind": "class",
-          "startLine": 76,
-          "endLine": 732,
-          "tokens": 6786
+          "startLine": 75,
+          "endLine": 946,
+          "tokens": 9223
         }
       ]
     },
@@ -37605,6 +37605,107 @@
       "size": 8115,
       "mtimeMs": 1793030569513.1738,
       "updatedAt": "2026-10-26T16:02:49.571Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_change_notice_numbering.py": {
+      "description": "变更单的**可读编号**（TODO-073）。",
+      "tokens": 1393,
+      "hash": "36156954b48e4841",
+      "size": 5660,
+      "mtimeMs": 1793031544932.4285,
+      "updatedAt": "2026-10-26T16:19:04.979Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 42,
+          "endLine": 48,
+          "tokens": 47
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 67,
+          "tokens": 143
+        },
+        {
+          "name": "_make_changed_record",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 80,
+          "tokens": 98
+        },
+        {
+          "name": "_create_notice",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 95,
+          "tokens": 129
+        },
+        {
+          "name": "test_change_notice_doc_no_is_readable",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 108,
+          "tokens": 150
+        },
+        {
+          "name": "test_change_notice_doc_no_sequence_increments",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 121,
+          "tokens": 124
+        },
+        {
+          "name": "test_change_notice_binds_the_numbering_template",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 140,
+          "tokens": 179
+        },
+        {
+          "name": "test_change_notice_numbering_template_is_reused",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 164,
+          "tokens": 258
+        }
+      ]
+    },
+    "pcs-backend/app/services/numbering_service.py": {
+      "description": "NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。",
+      "tokens": 1617,
+      "hash": "46e249674deca8ea",
+      "size": 6831,
+      "mtimeMs": 1793031567147.5256,
+      "updatedAt": "2026-10-26T16:19:27.201Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SequenceNotFoundError",
+          "kind": "class",
+          "startLine": 26,
+          "endLine": 29,
+          "tokens": 22
+        },
+        {
+          "name": "NumberingService",
+          "kind": "class",
+          "startLine": 30,
+          "endLine": 161,
+          "tokens": 1364
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p9_009_numbering_template_name_unique.py": {
+      "description": "P9A-DLV-011 收官批：`numbering_templates.template_name` 加唯一约束（TODO-073）。",
+      "tokens": 471,
+      "hash": "24db8bd08e616c98",
+      "size": 2540,
+      "mtimeMs": 1793031632177.1277,
+      "updatedAt": "2026-10-26T16:20:32.231Z",
       "source": "hook"
     }
   }
