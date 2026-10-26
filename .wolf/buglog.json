@@ -4420,7 +4420,7 @@
       "file": "pcs-backend/app/services/state_machine.py",
       "root_cause": "`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** —— `state_machine._create_snapshot` 写的是空 dict，**全仓没有任何代码往里放数据**（`grep data_snapshot_json` 只有 1 处写、2 处读）⇒ `_restore_snapshot`（state_machine）与 `ReversalApprovalService._restore_snapshot` 的「按快照回填字段」循环**空转** ⇒ 撤销（APPROVE_REVERSAL）只回**状态**，记录带着**改动过的数据**回到 CHECKED ⇒ 「撤销」没有撤销任何东西。⚠️ 同时使 ADR-0024「撤销或放弃时回滚」的承诺未兑现。",
       "fix": "**已修（2026-10-26，TODO-087）**：新增 `app/services/record_snapshot_codec.py` —— `capture_record_data` 采集记录的业务数据（JSONB 装不下的 **UUID / datetime / date / Decimal / Enum** **打标签** `{\"__t__\": …, \"v\": …}`）、`apply_snapshot_data` 按标签**还原成真类型**（枚举按列类型的 `enum_class` 还原成**成员**）；`state_machine._create_snapshot_if_needed` 真的把数据写进 `data_snapshot_json`，`_restore_snapshot_if_needed` 用 codec 还原。⚠️ **不**快照主键 / 归属 / 审计 / 状态机流程列（恢复它们会与当前状态打架），**但快照 `record_hash`**（变更前的数据指纹）。⇒ 撤销（APPROVE_REVERSAL）与放弃（ABANDON_CHANGE）现在**真的**把数据与哈希带回变更前。⚠️ 顺带修 PK 取法（见 bug-2081）。测试：`tests/services/test_record_snapshot_codec.py`（新增 8 例）+ `tests/api/v1/test_change_notice_api.py::test_reversal_actually_restores_the_record_data`（摘掉 xfail 转绿）+ `test_initiate_change_snapshot_carries_the_record_data` / `test_abandon_change_restores_the_record_data`（新增）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "change-notice",
         "reversal",
@@ -4543,7 +4543,7 @@
       "file": "pcs-backend/app/services/state_machine.py",
       "root_cause": "`StateMachineService.transition` 的 APPLY_CHANGE 只做状态迁移，**不检查**记录的 `record_hash` 与发起变更时的 BEFORE_CHANGE 快照哈希是否不同 ⇒ 可以「发起变更 → 什么都不改 → 提交变更完成 → 变更单签完」⇒ 一条**没有实质变更**的记录被关掉，而变更单里写着「管径修正」⇒ 凭证说的不是事实（ADR-0002「防止无声修改」被架空）。计划 R-11 当初以「发明『必须改过』是加需求」为由不拦，并把后果登记为 TODO-077 待业务裁决。",
       "fix": "**业务裁决（2026-10-26）**：强制 hash 变化 ⇒ 新增 `_assert_change_modified`（APPLY_CHANGE 的**状态机层**业务前置，迁移**前**判定 ⇒ 被拒时一行都没写）+ 端点映射 **409 `CHANGE_NO_MODIFICATION`**（并提示改用「放弃变更」）。⚠️ 两种「无从判断」放行（无 `record_hash` 列 / 哈希空串 —— 物流 streams 恒为 ）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "471f22e",
       "tags": [
         "todo-077",
         "change-notice",
@@ -4563,7 +4563,7 @@
       "file": "pcs-backend/app/api/v1/records_actions.py",
       "root_cause": "变更单的 4 个签审态里**没有**「已取消」这一档；驳回（RETURN）只把交付物打回 DRAFT ⇒ 它**仍然开着** ⇒ 该记录仍被它占着 ⇒ 用户「作废这张单、另起一张」**没有路**。⚠️ 连带：判重（`_find_open_notice_for_record`）只看「有没有变更单」⇒ **已取消/已关闭的单也挡新单**。",
       "fix": "**已修（2026-10-26，TODO-080 第 1 条）**：新增端点 `POST /records/{module}/{record_id}/change-notice/cancel`（理由必填）⇒ 变更单 `sign_status = OBSOLETE`（交付物 4 态里**已有**这一档 ⇒ **不需要迁移**）+ 审计 `CHANGE_NOTICE_CANCELLED` + 观测 FAILED（与签署被退回同口径）。⚠️ **记录不动**（保持 CHANGED）—— 作废的是「单据」不是「校核结论」⇒ 顺手关成 CHECKED = **绕过 3 级校审**。⇒ 判重口径改为「**开着** = DRAFT / PENDING」（已 APPROVED / 已 OBSOLETE 都**不挡**新单），`_find_open_notice_for_record` 与 `refresh_open_bindings` **同一口径**。测试：`tests/api/v1/test_change_notice_api.py::test_cancelled_notice_does_not_block_a_new_one` 等。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "change-notice",
         "todo-080",
@@ -4584,7 +4584,7 @@
       "file": "pcs-backend/app/services/change_notice_service.py",
       "root_cause": "`ChangeNoticeService.approve_change_notice`（**绕过矩阵**的第二条关闭路径，且**连记录都不关** ⇒ 用了它记录永远停在 CHANGED）里带着 `_notify_approved` ⇒ 而真实路径（`sign_step` → `close_on_approved`）**没有**通知逻辑 ⇒ 真实路径**从不**写通知行。⚠️ 且该方法的用例走**假 Session** ⇒ **零覆盖**（假 Session 结构上看不见 DB 层的唯一约束 / 外键 / NOT NULL）。",
       "fix": "**已修（2026-10-26，TODO-080 第 2 条）**：**删除** `approve_change_notice` 与死代码 `_apply_record_resolution` ⇒ 通知逻辑**迁到** `close_on_approved`（通知行**同一事务**写，推送由 `sign_step` 在 commit **之后**做 —— 与 `_notify_sign_outcome` 同一批推）。⇒ 真覆盖搬到新文件 `tests/services/test_change_notice_close_real_db.py`（4 例，真库）；⚠️ 随之**删除** `tests/services/test_change_notice_notification.py`（它只测被删的方法）⇒ 其独有价值断言（收件人 = DESIGNER、复核人**不是**受众、`detail_json.deliverable_id`）**并入**新文件。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "change-notice",
         "notification",
@@ -4604,7 +4604,7 @@
       "file": "pcs-backend/app/services/exceptions.py",
       "root_cause": "仓里有**两个**同名 `PcsError`：`app/core/errors.py` 的（签名 `(code, message, status, detail)`）与 `app/services/exceptions.py` 的（签名 `(message, *, code, status, details)`）⇒ 二者**无继承关系** ⇒ handler 里 `except core.PcsError` **捕不到** service 变体 ⇒ 业务错误（404/409/422）变成 **500**。",
       "fix": "**已修（2026-10-26，TODO-080 第 3 条）**：service 变体改为**继承** core 变体（`class PcsError(CorePcsError)`）⇒ `except core.PcsError` **两个都捕得到**。⚠️ 为此把 `app/core/errors.py` 里对 service 变体的 import 改成**惰性**（放在 `install_exception_handlers` 内部）—— 否则 core → services → core 成环 ⇒ 启动即 ImportError。⚠️ 子类的 `code`/`status` **必须**取 `type(self).code` / `type(self).status`（写死默认值会让 124 个既有用例的子类退化成 `PCS_ERROR`）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "errors",
         "exception-handling",
@@ -4623,7 +4623,7 @@
       "file": "pcs-backend/app/services/change_notice_service.py",
       "root_cause": "`doc_no` 与 `scope_value` 原先**按记录**派生（同一记录的每张单都拿到同一个 `doc_no` / `scope_value`）⇒ 取消一张单后再建一张（同一条记录）⇒ 唯一约束冲突 ⇒ `IntegrityError` 冒到端点 ⇒ **500**（不是 409）。",
       "fix": "**已修（2026-10-26，TODO-080 第 1 条顺带）**：`doc_no = f\"CN-{notice_id.hex.upper()}\"`、`scope_value = f\"CHANGE_NOTICE:{表名}:{记录ID}:{notice_id.hex[:8]}\"` ⇒ 都按**变更单自己的 uuid** 派生 ⇒ 逐单唯一。⚠️ scope 仍**以记录身份开头**（与 binding 一致，由守卫测试钉住）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "change-notice",
         "uniqueness",
@@ -4644,7 +4644,7 @@
       "file": "pcs-backend/app/services/reversal_approval_service.py",
       "root_cause": "各业务表的**主键列名不同**（`relief_results` = `relief_id`、`streams` = `stream_id`、…）⇒ 那个 `getattr` 在别的表上**恒为 None** ⇒ `RecordChangeSnapshot.record_id == None` 查不到行 ⇒ `_restore_snapshot` 直接 `return False` ⇒ 撤销**只回状态不回数据**（与 bug-2070 叠加：即使快照有数据也取不到）。",
       "fix": "**已修（2026-10-26，TODO-087 顺带）**：`_load_active_snapshot` / `_restore_snapshot` 的主键**由调用方传入**（它就是 `db.get(record_table, record_id)` 用的那个主键）⇒ **不再从记录上「猜」主键列名** ⇒ 任何表都取得到。⚠️ 试过用 mapper 取（`record_snapshot_codec.record_pk`）—— 但 `ReversalApprovalService` 的**假模型**用例（`tests/services/test_reversal_approval.py` 的 `_FakeRecord` 不是 ORM 映射）会炸 ⇒ 改用「调用方传入」更贴切（语义上就是同一次 `db.get` 的主键）。测试：`tests/api/v1/test_change_notice_api.py::test_reversal_actually_restores_the_record_data`（真库 + 真 ORM 记录） + `test_record_snapshot_codec.py::test_record_pk_reads_the_real_primary_key`。",
-      "fix_commit": "PENDING",
+      "fix_commit": "3e0f093",
       "tags": [
         "reversal",
         "snapshot",
