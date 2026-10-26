@@ -2037,6 +2037,10 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
 4. **SPEC §5.1 的 `<Can permission="...">` 组件不存在**，且后端**不发射**
    `x-permission`（全仓 0 处）⇒ 本批用 `meta/permissions` 的
    `frontend_behavior` 代替（R-5）⇒ **须登记 SPEC 修订**。
+4b. ⚠️ **R-17 改了 `submit-approval` 的请求体**（不再收 `approval_role` /
+   `approval_depth`）⇒ **契约破坏性变更** ⇒ P9 SPEC §3.2.1（P9A-DLV-001）与
+   `docs/PCS-UI-SPEC.md` §6.3 的「送审选角色」描述**都要改** ⇒ 登记 SPEC 修订
+   （T2 落地时一并做）。
 5. **SPEC §6.3 的按钮表与 `meta/state-machine` 可能不一致**
    ⇒ 本批以 meta 为准（R-4）⇒ **须登记 SPEC 修订**（逐条比对后写进
    `docs/PCS-UI-SPEC.md` §12.4 修订记录）。
