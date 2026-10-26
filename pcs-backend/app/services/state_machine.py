@@ -366,7 +366,8 @@ class StateMachineService:
         3. 更新 record.sign_status = to_status + 业务字段（各 transition 派生）：
            - PASS_CHECK：清 approval_step
            - MARK_STALE / INITIATE_CHANGE：写 change_pending_since
-           - APPLY_CHANGE：写 change_resolved_at + change_resolved_by
+           - APPLY_CHANGE：**不写** change_resolved_* （那是「关闭人」⇒ 由
+             变更单 APPROVED 的关记录那步写，TODO-075）
            - ABANDON_CHANGE：写 change_abandoned_at + reason
            - REQUEST_REVERSAL：写 reversal_requested_at/by + reason
            - APPROVE_REVERSAL：写 reversal_approved_at/by
@@ -404,9 +405,14 @@ class StateMachineService:
             record.change_pending_since = datetime.now(UTC)
         if transition == StateTransition.INITIATE_CHANGE:
             record.change_pending_since = datetime.now(UTC)
-        if transition == StateTransition.APPLY_CHANGE:
-            record.change_resolved_at = datetime.now(UTC)
-            record.change_resolved_by = str(actor_user_id)
+        # ⚠️ TODO-075：**APPLY_CHANGE 不写** `change_resolved_at` /
+        #    `change_resolved_by` —— 这两个字段记的是「**谁关闭了这次变更**」
+        #    （ADR-0002：「可追溯的关闭凭证（谁、为什么、凭什么关闭）」）⇒
+        #    写它们的是**关记录那步**（变更单 APPROVED ⇒ `close_on_approved`），
+        #    不是「校核完成」那步。
+        #    此前 APPLY_CHANGE 也写 ⇒ 变更单**还没批准**就已经有「关闭人」
+        #    （= 校核人）⇒ 任何读 `change_resolved_by` 的地方在批准前会拿到
+        #    一个**语义错位**的值（最终值会被覆盖，但对账中间态是错的）。
         if transition == StateTransition.ABANDON_CHANGE:
             record.change_abandoned_at = datetime.now(UTC)
             record.change_abandoned_reason = reason or ""

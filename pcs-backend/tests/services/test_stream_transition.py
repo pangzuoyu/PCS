@@ -92,7 +92,11 @@ async def test_submit_happy_path(db, make_stream):
 async def test_submit_approve_pass_change_full_chain(db, make_stream):
     """完整链：DRAFT → IN_APPROVAL → CHECKED → CHANGE_PENDING → CHANGED。
 
-    验证 APPLY_CHANGE 写 change_resolved_at + change_resolved_by。
+    ⚠️ TODO-075：`APPLY_CHANGE` **不写** `change_resolved_at` /
+    `change_resolved_by` —— 那两个字段记的是「**谁关闭了这次变更**」
+    （ADR-0002「可追溯的关闭凭证（谁、为什么、凭什么关闭）」）⇒ 由**变更单
+    APPROVED 的关记录那步**写（`close_on_approved`）。
+    ⇒ 在 CHANGED（= 等关闭凭证）阶段，这两个字段**必须还是空的**。
     """
     stream = await make_stream("FULL")
 
@@ -124,16 +128,16 @@ async def test_submit_approve_pass_change_full_chain(db, make_stream):
     assert stream.change_pending_since is not None
 
     # 4. PROCESS_CONTROLLER 通过变更
-    actor = uuid.uuid4()
     stream = await StreamService.transition(
         db, stream.stream_id,
         transition=StateTransition.APPLY_CHANGE,
-        actor_user_id=actor, actor_role="PROCESS_CONTROLLER",
+        actor_user_id=uuid.uuid4(), actor_role="PROCESS_CONTROLLER",
         reason="verified",
     )
     assert stream.sign_status == StreamSignStatus.CHANGED
-    assert stream.change_resolved_at is not None
-    assert stream.change_resolved_by == str(actor)
+    # ⚠️ 「校核完成」**不等于**「变更已关闭」⇒ 关闭人还**没有**
+    assert stream.change_resolved_at is None
+    assert stream.change_resolved_by is None
 
 
 @pytest.mark.asyncio

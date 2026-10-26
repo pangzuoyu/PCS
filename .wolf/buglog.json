@@ -4696,6 +4696,26 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2084",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "`change_resolved_by` 被写**两次** ⇒ 「谁关闭了这次变更」在变更单批准**之前**就有了值（= 校核人）⇒ 中间态语义错位",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "9 态状态机的 `APPLY_CHANGE`（CHANGE_PENDING → CHANGED = 校核完成）写 `change_resolved_at` + `change_resolved_by`；而 ADR-0002 说这两个字段记的是「**变更单的关闭人**」（「可追溯的关闭凭证（谁、为什么、凭什么关闭）」）⇒ 写它们的是**关记录那步**（变更单 APPROVED ⇒ `close_on_approved`）。⇒ 变更单**还没批准**时，字段里已经有一个「校核人」⇒ 任何读它的中间态都是**语义错位**的值（最终值会被关记录那步覆盖，但对账中间态是错的）。",
+      "fix": "**已修（2026-10-27，TODO-075）**：`state_machine.transition` 的 APPLY_CHANGE **不再写** `change_resolved_at` / `change_resolved_by` ⇒ 只有 `ChangeNoticeService.close_on_approved` 写 ⇒ 字段语义与 ADR-0002 / ADR-0008 对齐。⚠️ **连带影响**：记录在 CHANGED（等关闭凭证）阶段这两个字段是**空的** ⇒ 「变更已关闭」的查询在凭证批准前查不到（这是**正确**的）。测试：既有 `test_stream_transition.py` 的断言前提已变 ⇒ 改成断言它们**仍是空的**；新增流程级用例 `test_change_resolved_by_is_written_only_when_the_notice_is_approved`。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "state-machine",
+        "semantics",
+        "todo-075",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }

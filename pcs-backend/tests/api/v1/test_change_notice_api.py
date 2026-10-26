@@ -292,6 +292,37 @@ async def test_matrix_role_is_enforced(client, db):
     assert resp.json()["code"] == "SIGN_STEP_ROLE_MISMATCH"
 
 
+async def test_change_resolved_by_is_written_only_when_the_notice_is_approved(client, db):
+    """⚠️ TODO-075：`change_resolved_by` 记的是「**谁关闭了这次变更**」。
+
+    失败模式：9 态状态机的 `APPLY_CHANGE`（校核完成）也写这两个字段 ⇒
+    变更单**还没批准**就已经有「关闭人」（= 校核人）⇒ 任何读它的中间态
+    语义**错位**（ADR-0002：「可追溯的关闭凭证（谁、为什么、凭什么关闭）」）。
+
+    ⇒ APPLY_CHANGE 后必须是**空**；签完最后一步（= 关记录）才写。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _to_changed(client, db, rec)
+
+    await db.refresh(rec)
+    assert rec.change_resolved_by is None, (
+        "「校核完成」**不等于**「变更已关闭」⇒ 关闭人此刻还不该有"
+    )
+    assert rec.change_resolved_at is None
+
+    body = await _create_notice(client, rec)
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER"), (3, "APPROVER")):
+        resp = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+        assert resp.status_code == 200, resp.text
+
+    await db.refresh(rec)
+    assert rec.change_resolved_by, "签完最后一步（关记录）才写「谁关闭的」"
+    assert rec.change_resolved_at is not None
+
+
 async def test_full_closure_closes_the_record(client, db):
     """⚠️ RF-3：3 级签完 ⇒ 记录自动 CHECKED + change_resolved_by + 观测 COMPLETED。"""
     proj = await _make_project(db)

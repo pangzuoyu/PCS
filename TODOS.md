@@ -1438,18 +1438,33 @@ api-drift job 跑的就是全新 Postgres）+ `alembic check` 在 `pcs` 与 `pcs
 
 **归属：** 已闭环。**关联：** TODO-070（矩阵管理面）· bug-2083 · `p9_010`。
 
-## TODO-075: `change_resolved_by` 被写**两次**（语义错位）🟡
+## ✅ DONE —— TODO-075: `change_resolved_by` 只由「关记录」那步写（2026-10-27 落地）
 
-**What:** 9 态状态机的 `APPLY_CHANGE`（CHANGE_PENDING → CHANGED）就写了
+**原症状：** 9 态状态机的 `APPLY_CHANGE`（CHANGE_PENDING → CHANGED）就写了
 `change_resolved_at` + `change_resolved_by`；而 ADR-0002 说这两个字段记的是
-**变更单的关闭人**（变更单 APPROVED 时才写）。
+**变更单的关闭人**（「可追溯的关闭凭证（**谁**、为什么、凭什么关闭）」）⇒ 写它
+们的是**关记录那步**（变更单 APPROVED ⇒ `close_on_approved`），不是「校核完成」
+那步。
 
-**Why:** ⇒ 「谁关闭了这次变更」在变更单批准**之前**就有了值（校核完成的人）。
-最终值会被关记录那步覆盖（= 批准人）⇒ 落到库里是对的，但**中间态**的语义是错的，
-且任何读 `change_resolved_by` 的地方在变更单批准前会拿到「校核人」。
+⇒ 「谁关闭了这次变更」在变更单批准**之前**就有了值（= 校核人）⇒ 最终值会被
+关记录那步覆盖（= 批准人）⇒ 落到库里是对的，但**中间态**的语义是错的，且任何
+读 `change_resolved_by` 的地方在变更单批准前会拿到「校核人」。
 
-**How:** 把 `APPLY_CHANGE` 写这两个字段的行为去掉（或改名），只由关记录那步写。
-⚠️ 动状态机会影响既有测试 ⇒ 独立一轮。**归属：** 独立一轮。
+**落地**
+
+- `state_machine.transition`：**APPLY_CHANGE 不再写** `change_resolved_at` /
+  `change_resolved_by` ⇒ 只有 `ChangeNoticeService.close_on_approved`（变更单
+  APPROVED ⇒ 自动关记录）写 ⇒ 字段语义与 ADR-0002 / ADR-0008 **对齐**。
+- ⚠️ **连带影响**：记录在 CHANGED（= 等关闭凭证）阶段，这两个字段是**空的**
+  ⇒ 任何「变更已关闭」的查询在凭证批准前**查不到**（这是**正确**的：那时
+  变更确实还没关闭）。
+- 测试：既有 `tests/services/test_stream_transition.py` 的断言**前提已变**
+  （原来断言「APPLY_CHANGE 写这两个字段」）⇒ 改成断言它们**仍是空的**；
+  新增流程级用例 `test_change_resolved_by_is_written_only_when_the_notice_is_approved`
+  （APPLY_CHANGE 后为空 → 签完最后一步才写）。
+
+**归属：** 已闭环。**关联：** ADR-0002（关闭凭证的「谁」）· ADR-0008
+（APPROVED ⇒ 系统自动关记录并写 `change_resolved_by`）· TODO-069。
 
 ## TODO-076: 工作区类型门禁只覆盖本批端点（全端点仍缺）🟡
 
