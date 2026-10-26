@@ -1,6 +1,6 @@
 P9 工作流与权限开发规格说明书（修订版）
 文件标识：PCS-REQ-2026-002-SPEC-P9
-当前版本：V2.5（V2.4 + P9A-DLV-011 收尾两处裁决登记，2026-10-26；V2.3 + P9A-DLV-011 评审修复批登记，2026-10-26；V2.2 + P9A-DLV-011 落地登记，2026-10-26；V2.2 + P9A-DLV-007 / TODO-057 落地登记，2026-10-26；V2.0 + P9A Z 收口验收登记，2026-10-21；V1.3 → V2.0 结构性重排，2026-10-07）
+当前版本：V2.6（V2.5 + TODO-086 落地登记，2026-10-26；V2.4 + P9A-DLV-011 收尾两处裁决登记，2026-10-26；V2.3 + P9A-DLV-011 评审修复批登记，2026-10-26；V2.2 + P9A-DLV-011 落地登记，2026-10-26；V2.2 + P9A-DLV-007 / TODO-057 落地登记，2026-10-26；V2.0 + P9A Z 收口验收登记，2026-10-21；V1.3 → V2.0 结构性重排，2026-10-07）
 修订依据：架构审查结论（2026-10-07）+ TODOS.md 实证核销（2026-10-06/07）
 修订性质：破坏性重排——V1.3 的"前端集成阶段"定位作废，改为 P9-Prep → P9A（后端）→ P9B（前端）三段式
 
@@ -619,3 +619,4 @@ V2.2	2026-10-26	P9A-DLV-007 + TODO-057 落地（**纯追加 + 状态更新，不
 V2.3	2026-10-26	P9A-DLV-011 落地（**纯追加 + 状态更新，不改绑定正文**）：①§3.2.1 新增 `P9A-DLV-011` 行（变更单闭环 HTTP 面 + 签署矩阵管理面）并写明 4 条**实现偏离**（binding 关联 / doc_no / 权限分层口径 / 一记录一单待确认）；②§7.2.1「交付物全套端点可用」补 2026-10-26 追加的 9 个端点证据；③`TODOS.md` TODO-068~072 **闭环**，新增 TODO-073~080（编号可读性 / 矩阵名唯一 / `change_resolved_by` 语义 / 工作区门禁 / apply-change 不校验 hash / 多记录变更 / 矩阵管理前端 / 评审 3 条 deferred minor）	PCS
 V2.4	2026-10-26	P9A-DLV-011 **评审修复批**（**纯追加 + 状态更新，不改绑定正文**）：①§3.2.1 `P9A-DLV-011` 行的实现偏离③补「项目内角色不能是 VIEWER」（评审 I-5：「有项目授权」≠「有权决定谁该签」）；②§7.2.1「OpenAPI 冻结」行与「alembic check」行的计数/revision 更新到实测值（`p9_008` / 246 path / 346 schema）；③§7.2.1「workflow_progress 三工作流写入」行的遗留「无 HTTP 入口（TODO-068）」已闭环 ⇒ 同步更新	PCS
 V2.5	2026-10-26	P9A-DLV-011 **收尾两处裁决**（**纯追加 + 状态更新，不改绑定正文**）：①**矩阵绑定权限**按用户裁决「**只有项目负责人能绑**」落成三层判定（全局角色 + 项目授权 + 项目内角色 `PROJECT_LEAD`）—— 新增 `PROJECT_LEAD` 项目内角色（无 DB CHECK 约束 ⇒ **不需要迁移**）；②**ADR-0002 与 ADR-0008 在「变更单驳回」上的矛盾**经裁决消解：**ADR-0008 管辖**（驳回的是「单据」，记录**保持 CHANGED**），ADR-0002 那半句被取代；「重改」的落地路径 = **撤销 → 重来**（request-reversal → approve-reversal 恢复快照 → CHECKED → 再 initiate-change），已由 `tests/api/v1/test_change_notice_api.py::test_rejected_notice_can_be_reworked_via_reversal` 钉住	PCS
+V2.6	2026-10-26	**TODO-086 落地**（**纯追加 + 状态更新，不改绑定正文**）：①变更单的**绑定哈希**在**重新 `apply-change`** 时刷新 —— `ChangeNoticeService.refresh_open_bindings` 把该记录名下**未关闭**（`sign_status != APPROVED`）的变更单绑定刷成 `record_hash` = 记录当前哈希、`old_record_hash_before_change` = **本次** BEFORE_CHANGE 快照哈希（与建单同一口径）⇒ 关闭凭证说的**就是**被关的那条数据；⚠️ **只刷未关闭的**（已 APPROVED 的绑定描述的是那一轮 ⇒ 改它 = 篡改历史）；②新增 `AuditAction.CHANGE_NOTICE_BINDING_REFRESHED`（`String(50)` 列 ⇒ 零迁移）；③**顺带登记 TODO-087**：撤销批准**不恢复**记录数据与哈希（`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** ⇒ 恢复循环空转 ⇒「撤销」只回状态不回数据），有 xfail 用例钉着	PCS

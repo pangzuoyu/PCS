@@ -4411,6 +4411,49 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2070",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "HIGH",
+      "error_message": "撤销批准号称「恢复快照」，但快照**没有数据** ⇒ 撤销**不恢复**记录的数据与哈希",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** —— `state_machine._create_snapshot` 写的是空 dict，**全仓没有任何代码往里放数据**（`grep data_snapshot_json` 只有 1 处写、2 处读）⇒ `_restore_snapshot`（state_machine）与 `ReversalApprovalService._restore_snapshot` 的「按快照回填字段」循环**空转** ⇒ 撤销（APPROVE_REVERSAL）只回**状态**，记录带着**改动过的数据**回到 CHECKED ⇒ 「撤销」没有撤销任何东西。⚠️ 同时使 ADR-0024「撤销或放弃时回滚」的承诺未兑现。",
+      "fix": "**未修**（要逐表定「快照哪些列」⇒ 各表列不齐 ⇒ 不能一刀切 ⇒ 独立一轮）。⇒ 登记 TODO-087 + xfail 用例钉住现状（`test_reversal_actually_restores_the_record_data`）；⚠️ 本批（TODO-086）的 ADR-0002 修订记录里那句「恢复快照 ⇒ 回到变更前的数据」已**二次更正**。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "reversal",
+        "snapshot",
+        "state-machine",
+        "todo-087",
+        "open"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2071",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "HIGH",
+      "error_message": "返工后变更单的**绑定哈希**不再等于记录当前哈希 ⇒ 关闭凭证说的不是被关的那条数据",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "`deliverable_record_bindings.record_hash` / `old_record_hash_before_change` 是**建单那一刻**的哈希，而「撤销 → 重来」的返工路径里记录在 CHANGE_PENDING 期间**又被改了** ⇒ 记录哈希变了、绑定仍写旧哈希 ⇒ 变更单签完关掉记录时，它声称关的是 hash=X 的那条数据，而记录早已不是 hash=X ⇒ **关闭凭证不可信**。而 `close_on_approved` **不校验**哈希（与 TODO-077 同源）⇒ 漂移无人发现。",
+      "fix": "新增 `ChangeNoticeService.refresh_open_bindings`：在**重新 `apply-change`**（记录再次变 CHANGED 的唯一入口）时，把该记录名下**未关闭**（deliverable `sign_status != APPROVED`）的变更单绑定刷成「记录当前哈希」+「**本次** BEFORE_CHANGE 快照哈希」（与建单同一口径 ⇒ 复用 `_pre_change_hash`）⇒ 与状态迁移同一事务；⚠️ **只刷未关闭的**（已 APPROVED 的绑定描述的是那一轮 ⇒ 改它 = 篡改历史）。新增 `AuditAction.CHANGE_NOTICE_BINDING_REFRESHED`。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "binding",
+        "hash",
+        "todo-086",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2070"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }

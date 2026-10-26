@@ -368,6 +368,89 @@ class ChangeNoticeService:
         }
 
     @classmethod
+    async def refresh_open_bindings(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+        record_hash: str,
+        actor_user_id: uuid.UUID | None = None,
+    ) -> int:
+        """刷新该记录名下**未关闭**变更单的绑定哈希（TODO-086）。返回刷新了几行。
+
+        ## 为什么需要这一步（否则关闭凭证说的不是被关的那条数据）
+
+        「撤销 → 重来」的返工路径里，记录在 CHANGE_PENDING 期间**又被改了**
+        ⇒ 记录的当前哈希与变更单建单时记下的**不是同一个** ⇒
+        变更单被签完、关掉记录时，它声称「我关的是 hash=X 的那条数据」——
+        而记录早就不是 hash=X 了 ⇒ **关闭凭证不可信**。
+
+        ## 刷成什么
+
+        - `record_hash` = 记录**当前**哈希（本次 apply-change 之后的）
+        - `old_record_hash_before_change` = **本次**变更前的哈希
+          = 最新 ACTIVE 的 BEFORE_CHANGE 快照哈希（与建单时**同一口径**
+          ⇒ 复用 `_pre_change_hash`）
+
+        ## 只刷「未关闭」的
+
+        已 APPROVED 的变更单**已经关过记录**了 ⇒ 它的绑定描述的是**那一轮**
+        的哈希 ⇒ 改它 = 篡改历史。
+
+        ## 调用点
+
+        `records_actions.apply_change`（CHANGE_PENDING → CHANGED）——
+        那是记录**再次**变 CHANGED 的唯一入口 ⇒ 刷新的时机只有这一处。
+        ⚠️ 与状态迁移**同一事务**（调用方在 commit 之前调本方法）。
+        """
+        rows = (
+            await db.execute(
+                select(DeliverableRecordBinding, Deliverable.deliverable_id)
+                .join(
+                    DeliverableVersion,
+                    DeliverableVersion.version_id
+                    == DeliverableRecordBinding.deliverable_version_id,
+                )
+                .join(
+                    Deliverable,
+                    Deliverable.deliverable_id == DeliverableVersion.deliverable_id,
+                )
+                .where(
+                    DeliverableRecordBinding.record_type == record_type,
+                    DeliverableRecordBinding.record_id == record_id,
+                    Deliverable.deliverable_type == "CHANGE_NOTICE",
+                    Deliverable.sign_status != DeliverableSignStatus.APPROVED.value,
+                )
+            )
+        ).all()
+        if not rows:
+            return 0
+
+        old_hash = await cls._pre_change_hash(
+            db, record_type=record_type, record_id=record_id
+        )
+        for binding, _deliverable_id in rows:
+            binding.record_hash = record_hash
+            binding.old_record_hash_before_change = old_hash
+        await db.flush()
+
+        await AuditService(db).write(
+            action=AuditAction.CHANGE_NOTICE_BINDING_REFRESHED,
+            resource_type="DELIVERABLE",
+            resource_id=str(rows[0][1]),
+            user_id=actor_user_id,
+            detail={
+                "record_type": record_type,
+                "record_id": str(record_id),
+                "record_hash": record_hash,
+                "old_record_hash_before_change": old_hash,
+                "refreshed_bindings": len(rows),
+            },
+        )
+        return len(rows)
+
+    @classmethod
     async def _pre_change_hash(
         cls,
         db: AsyncSession,

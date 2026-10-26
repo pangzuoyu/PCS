@@ -1587,18 +1587,48 @@ DRAFT → 审核 → 审定 → 才真正改绑定）；②或先明确「矩阵
 
 **归属：** 独立一轮。**关联：** TODO-070 · `spec/校审层级可配置化增补规格说明书.md`。
 
-## TODO-086: 重走变更后，变更单的**绑定哈希**不再等于记录当前哈希 🟡
+## ✅ DONE —— TODO-086: 重走变更后，变更单的**绑定哈希**不再等于记录当前哈希（2026-10-26 落地）
 
-**What:** `deliverable_record_bindings.record_hash` / `old_record_hash_before_change`
-是**建单那一刻**的哈希。若走「撤销 → 重来」（ADR-0002 §修订记录 2026-10-26
-的裁决路径），记录的数据会先被**恢复快照**再被重做 ⇒ 记录哈希变了，而绑定
-行仍写着**旧**哈希 ⇒ 关闭凭证说的不是被关的那条数据。
+**落地**：
+- `ChangeNoticeService.refresh_open_bindings(...)`：把该记录名下**未关闭**
+  （deliverable `sign_status != APPROVED`）的变更单绑定刷新成
+  `record_hash` = 记录**当前**哈希、
+  `old_record_hash_before_change` = **本次** BEFORE_CHANGE 快照哈希
+  （与建单时**同一口径** ⇒ 复用 `_pre_change_hash`）。
+- 调用点 = `records_actions.apply_change`（CHANGE_PENDING → CHANGED，记录
+  **再次**变 CHANGED 的唯一入口）⇒ 与状态迁移**同一事务**。
+- ⚠️ **只刷「未关闭」的** —— 已 APPROVED 的变更单**已经关过记录**了 ⇒ 它的
+  绑定描述的是**那一轮**的哈希 ⇒ 改它 = 篡改历史。
+- 审计：新增 `AuditAction.CHANGE_NOTICE_BINDING_REFRESHED`（`String(50)` 列
+  ⇒ 零迁移成本）。
+- 测试（2 条）：`test_rework_refreshes_the_open_notice_binding_hashes`
+  （返工 ⇒ 绑定刷新成 `h2-after-rework` + 旧哈希是**本次**快照的 `h1`）·
+  `test_closed_notice_binding_is_not_rewritten`（已关闭的绑定不许被改写）。
 
 **Why:** 变更单的**全部价值**就是「谁、为什么、凭什么关闭」—— 哈希对不上，
-凭证就不可信。而 `close_on_approved` 今天**不校验**哈希（与 TODO-077 同源：
-`apply-change` 不要求 hash 变化）⇒ 漂移**无人发现**。
+凭证就不可信。而 `close_on_approved` 今天**不校验**哈希（与 TODO-077 同源）
+⇒ 漂移**无人发现**。
 
-**How:** 在**重新 `apply-change`**（记录再次变 CHANGED）时刷新该记录名下
-**未关闭**变更单的绑定哈希（新 `record_hash` = 记录当前哈希，新
-`old_record_hash_before_change` = 本次 `apply-change` 的 BEFORE_CHANGE 快照哈希）
-⇒ 并加守卫测试。**归属：** 独立一轮。**关联：** TODO-077 · ADR-0002 修订记录。
+**关联：** TODO-077 · ADR-0002 修订记录 · **TODO-087**（本批顺带发现）。
+
+## TODO-087: 撤销批准**不恢复**记录的数据与哈希（快照恒空）🟡
+
+**What:** `RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** ——
+`state_machine._create_snapshot` 写的是空 dict，**全仓没有任何代码往里放数据**
+⇒ `_restore_snapshot`（state_machine）与 `ReversalApprovalService._restore_snapshot`
+的恢复循环**空转** ⇒ **撤销批准只回状态，不回数据**。
+
+**Why:** 撤销（APPROVE_REVERSAL）的语义是「这次变更作废，记录回到变更前」⇒
+现在记录带着**改动过的数据**回到 CHECKED ⇒ 「已生效的记录被撤销」之后，
+数据其实**还在** ⇒ 撤销**没有撤销任何东西**。
+⚠️ 这也是本批（TODO-086）做「返工」时的隐性依赖：返工路径之所以成立，
+是因为**第二次** CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据。
+
+**How:** ①在 `_create_snapshot` 里**真的落数据**（哪些列要快照 ⇒ 逐表清单，
+各表列不齐 ⇒ 不能一刀切）；②恢复时按快照回填（并把 `record_hash` 一起恢复）。
+⚠️ 有 xfail 用例钉着现状：
+`tests/api/v1/test_change_notice_api.py::test_reversal_actually_restores_the_record_data`
+（修好后应变绿；xfail 非 strict ⇒ XPASS 不算失败）。
+
+**归属：** 独立一轮（要逐表定快照列清单）。**关联：** TODO-086 ·
+ADR-0002 §修订记录 · ADR-0024（「撤销或放弃时回滚」的承诺未兑现）。

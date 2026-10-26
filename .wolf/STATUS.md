@@ -36,6 +36,21 @@ budget_tokens: 1200
 TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补记 +
 新增 bug-2055~2059 · UI-SPEC §6.3 修订注记（变更申请按钮该挂 CHANGED）。
 
+### 第 13 轮续三：**TODO-086 落地**（用户「TODO-086 进行」）
+
+- **绑定哈希刷新**：`ChangeNoticeService.refresh_open_bindings` —— 在**重新
+  `apply-change`**（记录再次变 CHANGED 的唯一入口）时，把该记录名下**未关闭**
+  （deliverable `sign_status != APPROVED`）的变更单绑定刷成「记录当前哈希」+
+  「**本次** BEFORE_CHANGE 快照哈希」（与建单同一口径 ⇒ 复用 `_pre_change_hash`）
+  ⇒ 与状态迁移**同一事务**。⚠️ **只刷未关闭的**（已 APPROVED 的绑定是**历史
+  凭证** ⇒ 改它 = 篡改历史）。
+- 新增 `AuditAction.CHANGE_NOTICE_BINDING_REFRESHED`（`String(50)` ⇒ 零迁移）。
+- **顺带发现**：`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`** ⇒ 撤销
+  批准的「恢复快照」**空转** ⇒ **撤销只回状态不回数据** ⇒ 登记 **TODO-087**
+  + bug-2070（有 xfail 用例钉着）；并**二次更正** ADR-0002 修订记录里我上批写早
+  的那句「恢复快照 ⇒ 回到变更前的数据」。
+- SPEC **V2.6** · TODO-086 闭环 · buglog bug-2070 / bug-2071。
+
 ### 第 13 轮续二：**P9A-DLV-011 收尾批**（用户「解决未解决的问题」）
 
 - **矩阵绑定权限**（用户裁决「**只有项目负责人能绑**」）⇒ 三层判定：全局角色 +
@@ -99,7 +114,8 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
    工作区门禁只覆盖本批端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash ·
    多记录变更 · **`locked_by_deliverable` 死闸门**（TODO-082）· **矩阵修改的申请 +
    双审**（TODO-085）· **重走后绑定哈希漂移**（TODO-086）· 4 条 minor（TODO-084）。
-   ⇒ TODO-079（矩阵前端）与 TODO-083（变更单前端入口）**已闭环**。
+   ⇒ TODO-079（矩阵前端）/ TODO-083（变更单前端入口）/ TODO-086（绑定哈希刷新）
+   **已闭环**；新增 **TODO-087**（撤销**不恢复**数据 —— 快照恒空）。
    约束 · `change_resolved_by` 语义（状态机与 ADR-0002 冲突）· 工作区门禁只覆盖本批
    端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash · 多记录变更 ·
    **矩阵管理前端**（TODO-079）+ **变更单前端入口**（TODO-083）·

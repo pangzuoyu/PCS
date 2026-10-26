@@ -47,12 +47,20 @@ date: 2026-08-28
 ```
 变更单被驳回（单据 → DRAFT，记录保持 CHANGED）
   → 数据本身要改？走撤销：request-reversal（CHANGED → REVERSAL_PENDING）
-    → approve-reversal（→ CHECKED + **恢复快照**，回到变更前的数据）
+    → approve-reversal（→ CHECKED）
   → initiate-change（CHECKED → CHANGE_PENDING，可编辑）→ 改 → apply-change（→ CHANGED）
   → 重新签发同一张变更单（DRAFT → PENDING，R-5 已允许）→ 3 级签署 → 自动关记录（→ CHECKED）
 ```
 
 ⇒ 「重改」**能走通**，只是路径是「撤销 + 重来」而不是「原地回退」。
+
+⚠️ **2026-10-26 二次更正**：本记录最初写的是「approve-reversal ⇒ **恢复快照**
+⇒ 回到变更前的数据」—— **那句话说早了**：快照的 `data_snapshot_json`
+**恒为 `{}`**（`state_machine._create_snapshot` 写的是空 dict ⇒ 没有任何代码
+往里放数据）⇒ 恢复循环**空转** ⇒ **撤销并不真的恢复数据/哈希**，记录带着
+改动回到 CHECKED。⇒ 「撤销」目前只回**状态**，不回**数据**（缺陷已登记
+**TODO-087** + bug-2070，有 xfail 用例钉着）。⇒ 上面的「重改」路径成立，
+但它**不依赖**撤销恢复数据（改数据是在**第二次** CHANGE_PENDING 里做的）。
 
 ⚠️ **遗留**（已登记 TODOS.md）：重走时那张变更单的 binding 哈希是**建单时**的，
 而记录的数据已被撤销/重做过 ⇒ 哈希链需要**刷新**（另立一轮，不在本裁决范围）。

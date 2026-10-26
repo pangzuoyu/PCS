@@ -63,6 +63,7 @@ from app.schemas.records_actions import (
 )
 from app.services.audit_service import AuditService
 from app.services.calc_lineage import RECORD_TYPE_REGISTRY
+from app.services.change_notice_service import ChangeNoticeService
 from app.services.record_cancellation_service import RecordCancellationService
 from app.services.record_capabilities import (
     WORKFLOW_UNSUPPORTED,
@@ -657,6 +658,16 @@ async def apply_change(
         actor=actor,
         reason=body.reason,
     )
+    # ⚠️ **刷新未关闭变更单的绑定哈希**（TODO-086）：记录在 CHANGE_PENDING 期间
+    #    可能又被改过 ⇒ 变更单建单时记的哈希**不再**是被关那条数据的哈希
+    #    ⇒ 关闭凭证会说错对象。与状态迁移**同一事务**（commit 在下面）。
+    await ChangeNoticeService.refresh_open_bindings(
+        db,
+        record_type=type(record).__name__,
+        record_id=record_id,
+        record_hash=record.record_hash or "",
+        actor_user_id=actor.user_id,
+    )
     await db.commit()
     return _response(
         module,
@@ -694,7 +705,6 @@ async def create_change_notice(
     await require_formal_project_workspace(db, project_id=record.project_id)
 
     from app.services.change_notice_service import (
-        ChangeNoticeService,
         ChangeType,
         TriggeredBy,
     )

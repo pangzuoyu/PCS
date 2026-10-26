@@ -600,3 +600,160 @@ async def test_rejected_notice_can_be_reworked_via_reversal(client, db):
     )
     assert again.status_code == 200, again.text
     assert again.json()["to_status"] == "CHANGE_PENDING"
+
+
+async def test_rework_refreshes_the_open_notice_binding_hashes(client, db):
+    """⚠️ TODO-086：返工（撤销 → 重来）后，**未关闭**变更单的绑定哈希必须刷新。
+
+    失败模式：变更单建单时记下 `record_hash = h1`；返工时记录在 CHANGE_PENDING
+    期间又被改了（哈希变 h2）⇒ 绑定仍写 h1 ⇒ **变更单关闭时说的不是被关的那条
+    数据** ⇒ 关闭凭证不可信。
+
+    ⇒ `apply-change`（记录再次变 CHANGED）时刷新绑定：
+    `record_hash` = 记录当前哈希、`old_record_hash_before_change` =
+    **本次** BEFORE_CHANGE 快照的哈希（= 本次变更前的哈希）。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _to_changed(client, rec)
+    body = await _create_notice(client, rec)
+
+    # 驳回 ⇒ 单据回 DRAFT、记录保持 CHANGED
+    reject = await _sign(
+        client,
+        body["deliverable_id"],
+        body["version_id"],
+        step=1,
+        role="CHECKER",
+        decision="RETURN",
+    )
+    assert reject.status_code == 200, reject.text
+
+    # 撤销 → 批准 ⇒ 记录回 CHECKED（快照被消费）
+    rev = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/request-reversal",
+        json={"reason": "数据要改"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert rev.status_code == 200, rev.text
+    dec = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/reversal-decision",
+        json={"decision": "APPROVE", "reason": "同意撤销"},
+        headers=_token(role="APPROVER"),
+    )
+    assert dec.status_code == 200, dec.text
+
+    # 重来：发起变更（写新的 BEFORE_CHANGE 快照）→ 改数据 → 提交变更完成
+    again = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/initiate-change",
+        json={"reason": "重做"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert again.status_code == 200, again.text
+
+    # 改数据（记录在 CHANGE_PENDING 期间可改 ⇒ 哈希变了）
+    rec.record_hash = "h2-after-rework"
+    await db.flush()
+
+    applied = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
+        json={"reason": "重做完成"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert applied.status_code == 200, applied.text
+
+    binding = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == _uuid(body["version_id"])
+            )
+        )
+    ).scalar_one()
+    assert binding.record_hash == "h2-after-rework", (
+        "绑定必须刷新成记录**当前**的哈希（否则关闭凭证说的不是被关的那条数据）"
+    )
+    # ⚠️ 「本次变更前的哈希」= 本次 BEFORE_CHANGE 快照的哈希（不是上一轮的）
+    assert binding.old_record_hash_before_change == "h1", (
+        "旧哈希必须是**本次**变更前的哈希（= 本次 BEFORE_CHANGE 快照）"
+    )
+
+
+async def test_closed_notice_binding_is_not_rewritten(client, db):
+    """⚠️ 已 APPROVED（已关过记录）的变更单，绑定**不许**被刷新。
+
+    它描述的是**那一轮**的哈希 ⇒ 改它 = 篡改历史。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    body = await _create_notice(client, rec)
+
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER"), (3, "APPROVER")):
+        resp = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+        assert resp.status_code == 200, resp.text
+
+    # 记录已回 CHECKED ⇒ 再走一轮变更
+    rec.record_hash = "h3"
+    await db.flush()
+    applied = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/initiate-change",
+        json={"reason": "再来一轮"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert applied.status_code == 200, applied.text
+
+    binding = (
+        await db.execute(
+            select(DeliverableRecordBinding).where(
+                DeliverableRecordBinding.deliverable_version_id == _uuid(body["version_id"])
+            )
+        )
+    ).scalar_one()
+    assert binding.record_hash == "h1", "已关闭的变更单绑定**不许**被改写"
+
+
+@pytest.mark.xfail(
+    reason="TODO-087：撤销批准号称『恢复快照』，但快照**没有数据**"
+    "（`data_snapshot_json` 恒为 `{}`）⇒ 撤销**不恢复**记录的数据/哈希。"
+    "修好快照的落库内容后本用例应变绿（xfail 非 strict ⇒ XPASS 不算失败）。",
+    strict=False,
+)
+async def test_reversal_actually_restores_the_record_data(client, db):
+    """⚠️ TODO-087：撤销批准**应当**把记录恢复成变更前的数据。
+
+    现状：`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`**
+    （`state_machine._create_snapshot` 写的是空 dict ⇒ 没有任何代码往里放
+    数据）⇒ `_restore_snapshot` 的恢复循环**空转** ⇒ 记录带着改动回到
+    CHECKED ⇒ 「撤销」**没有撤销任何东西**。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _initiate(client, rec)
+
+    # 改数据（CHANGE_PENDING 期间可改 ⇒ 哈希变了）
+    rec.record_hash = "h-edited"
+    await db.flush()
+
+    applied = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
+        json={"reason": "改完了"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert applied.status_code == 200, applied.text
+
+    rev = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/request-reversal",
+        json={"reason": "改错了"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert rev.status_code == 200, rev.text
+    dec = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/reversal-decision",
+        json={"decision": "APPROVE", "reason": "同意撤销"},
+        headers=_token(role="APPROVER"),
+    )
+    assert dec.status_code == 200, dec.text
+
+    await db.refresh(rec)
+    assert rec.record_hash == "h1", "撤销批准后应恢复成变更前的哈希"
