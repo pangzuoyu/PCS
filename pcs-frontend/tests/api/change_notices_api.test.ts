@@ -25,6 +25,35 @@ let lastMethod = '';
 let lastBody: unknown = null;
 
 const server = setupServer(
+  http.get('/api/v1/records/:record_type/:record_id/change-notice', ({ request, params }) => {
+    lastUrl = request.url;
+    lastMethod = 'GET';
+    return HttpResponse.json({
+      record_type: String(params['record_type']),
+      record_id: String(params['record_id']),
+      has_open_notice: true,
+      deliverable_id: 'd-1',
+      version_id: 'v-1',
+      doc_no: 'CN-0001',
+      sign_status: 'PENDING',
+      title: '变更单',
+    });
+  }),
+  http.post(
+    '/api/v1/records/:record_type/:record_id/change-notice/cancel',
+    async ({ request, params }) => {
+      lastUrl = request.url;
+      lastMethod = 'POST';
+      lastBody = await request.json();
+      return HttpResponse.json({
+        deliverable_id: 'd-1',
+        doc_no: 'CN-0001',
+        record_type: String(params['record_type']),
+        record_id: String(params['record_id']),
+        sign_status: 'OBSOLETE',
+      });
+    },
+  ),
   http.post('/api/v1/records/:record_type/:record_id/initiate-change', async ({ request, params }) => {
     lastUrl = request.url;
     lastMethod = 'POST';
@@ -100,6 +129,24 @@ describe('changeNoticesApi —— 请求契约', () => {
     expect(lastUrl).toContain(`/api/v1/records/${RECORD_TYPE}/${RECORD_ID}/apply-change`);
     expect(lastBody).toEqual({ reason: '改完了' });
     expect(res.to_status).toBe('CHANGED');
+  });
+
+  it('open 打 GET /records/{type}/{id}/change-notice（读「开着的那张」）', async () => {
+    const res = await changeNoticesApi.open(RECORD_TYPE, RECORD_ID);
+    expect(lastMethod).toBe('GET');
+    expect(lastUrl).toContain(`/api/v1/records/${RECORD_TYPE}/${RECORD_ID}/change-notice`);
+    expect(res.has_open_notice).toBe(true);
+    expect(res.doc_no).toBe('CN-0001');
+  });
+
+  it('cancel 打 /records/{type}/{id}/change-notice/cancel，body 只有 reason', async () => {
+    const res = await changeNoticesApi.cancel(RECORD_TYPE, RECORD_ID, '建错了');
+    expect(lastMethod).toBe('POST');
+    expect(lastUrl).toContain(
+      `/api/v1/records/${RECORD_TYPE}/${RECORD_ID}/change-notice/cancel`,
+    );
+    expect(lastBody).toEqual({ reason: '建错了' });
+    expect(res.sign_status).toBe('OBSOLETE');
   });
 
   it('create 打 /records/{type}/{id}/change-notice，body 是 change_type/reason/triggered_by', async () => {

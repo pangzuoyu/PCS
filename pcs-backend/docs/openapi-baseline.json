@@ -1272,7 +1272,7 @@
           "records"
         ],
         "summary": "弃用记录（已绑定者须走变更单）",
-        "description": "直接弃用记录（ADR-0009：未绑定免凭证 OBSOLETE）。\n\n已绑定记录（`locked_by_deliverable=True`）返 409 —— 它必须走\n`change_type=RECORD_CANCELLATION` 的变更单（ADR-0002）。\n弃用是状态迁移**不是删除**：行还在，只有 sign_status 变了 ——\n「这行曾经存在过、什么时候被谁作废的」要能查。",
+        "description": "直接弃用记录（ADR-0009：未绑定免凭证 OBSOLETE）。\n\n已对外生效的记录（被一张 **APPROVED** 的交付物绑定）返 409 —— 它必须走\n`change_type=RECORD_CANCELLATION` 的变更单（ADR-0002）。\n弃用是状态迁移**不是删除**：行还在，只有 sign_status 变了 ——\n「这行曾经存在过、什么时候被谁作废的」要能查。",
         "operationId": "obsolete_record_api_v1_records__module___record_id__obsolete_post",
         "parameters": [
           {
@@ -2067,6 +2067,152 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/change-notice": {
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "summary": "该记录当前**开着**的变更单（没有 ⇒ has_open_notice=false）",
+        "description": "该记录当前**开着**的变更单摘要（TODO-085 之后的前端接线项）。\n\n## 为什么需要这个读口\n\n记录状态**看不出来**有没有开着的变更单（两种情况记录都是 CHANGED）⇒\n前端要靠它区分「可以**创建**变更单」与「只能**作废**它」\n（再建一张会被 409 `CHANGE_NOTICE_ALREADY_EXISTS` 挡掉）。",
+        "operationId": "read_open_change_notice_api_v1_records__module___record_id__change_notice_get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeNoticeOpenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "发起变更单（记录须为 CHANGED）",
+        "description": "给一条 CHANGED 的记录发起变更单（ADR-0008）。\n\n建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+\n**记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），\n**同一事务**。\n\n之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`\n（矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；\n最后一步签完 ⇒ 记录自动回 CHECKED。",
+        "operationId": "create_change_notice_api_v1_records__module___record_id__change_notice_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeNoticeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeNoticeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records/{module}/{record_id}/change-notice/cancel": {
       "post": {
         "tags": [
@@ -2129,85 +2275,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChangeNoticeCancelResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/records/{module}/{record_id}/change-notice": {
-      "post": {
-        "tags": [
-          "records"
-        ],
-        "summary": "发起变更单（记录须为 CHANGED）",
-        "description": "给一条 CHANGED 的记录发起变更单（ADR-0008）。\n\n建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+\n**记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），\n**同一事务**。\n\n之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`\n（矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；\n最后一步签完 ⇒ 记录自动回 CHECKED。",
-        "operationId": "create_change_notice_api_v1_records__module___record_id__change_notice_post",
-        "parameters": [
-          {
-            "name": "module",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Module"
-            }
-          },
-          {
-            "name": "record_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Record Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangeNoticeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChangeNoticeResponse"
                 }
               }
             }
@@ -21482,6 +21549,85 @@
         ],
         "title": "ChangeNoticeDetailResponse",
         "description": "变更单扩展行（`change_notice_details`）。"
+      },
+      "ChangeNoticeOpenResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "has_open_notice": {
+            "type": "boolean",
+            "title": "Has Open Notice"
+          },
+          "deliverable_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "doc_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc No"
+          },
+          "sign_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign Status"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "has_open_notice"
+        ],
+        "title": "ChangeNoticeOpenResponse",
+        "description": "该记录当前**开着**的变更单摘要（读口）。\n\n⚠️ **没有**开着的变更单 ⇒ `has_open_notice=False` 且其余字段为 None\n—— **不用 404 表达「没有」**（404 是「端点/资源不存在」，拿它当控制流\n会让前端到处 try/catch）。"
       },
       "ChangeNoticeRequest": {
         "properties": {

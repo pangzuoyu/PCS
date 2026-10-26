@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:50:31.491Z
-> Files: 1049 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:58:29.318Z
+> Files: 1050 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1752,6 +1752,7 @@
 ## pcs-frontend/tests/pages/results/
 
 - `change_notice_action.test.tsx` — 结果记录行上的**变更动作**（TODO-083 · P9A-DLV-011 T4 的前端）。 (~492 tok)
+- `change_notice_cancel.test.tsx` — 变更单的「**作废**」入口（TODO-085 之后的前端接线项）。 (~1429 tok)
 - `result_page.test.tsx` — 通用结果页 + 编辑抽屉的守卫（P9B-1 Task T3 · SPEC §6.21）。 (~5747 tok)
 
 ## pcs-frontend/tests/pages/sim/

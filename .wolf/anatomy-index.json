@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:50:31.491Z",
-    "fileCount": 1049,
+    "lastScanned": "2026-10-26T16:58:29.318Z",
+    "fileCount": 1050,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "897174509ac1c9f1a1e1529e1f60986b26f02c6195268405d859a2b2421c0f6c",
-    "storeUpdatedAt": "2026-10-26T16:50:31.504Z",
-    "rootHash": "a612d778282d41b8"
+    "renderedHash": "664c4c6042a223df394286d243a2975f58154da18fb0f08b7dd73e7c35e3a293",
+    "storeUpdatedAt": "2026-10-26T16:58:29.329Z",
+    "rootHash": "f096f99fe05ef3fa"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37906,6 +37906,24 @@
           "startLine": 224,
           "endLine": 238,
           "tokens": 155
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/results/change_notice_cancel.test.tsx": {
+      "description": "变更单的「**作废**」入口（TODO-085 之后的前端接线项）。",
+      "tokens": 1429,
+      "hash": "df702d121ca8807d",
+      "size": 5795,
+      "mtimeMs": 1793033909261.512,
+      "updatedAt": "2026-10-26T16:58:29.317Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "renderChanged",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 160,
+          "tokens": 728
         }
       ]
     }

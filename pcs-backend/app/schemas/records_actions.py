@@ -231,6 +231,24 @@ class ChangeNoticeCancelResponse(BaseModel):
     sign_status: str
 
 
+class ChangeNoticeOpenResponse(BaseModel):
+    """该记录当前**开着**的变更单摘要（读口）。
+
+    ⚠️ **没有**开着的变更单 ⇒ `has_open_notice=False` 且其余字段为 None
+    —— **不用 404 表达「没有」**（404 是「端点/资源不存在」，拿它当控制流
+    会让前端到处 try/catch）。
+    """
+
+    record_type: str
+    record_id: str
+    has_open_notice: bool
+    deliverable_id: str | None = None
+    version_id: str | None = None
+    doc_no: str | None = None
+    sign_status: str | None = None
+    title: str | None = None
+
+
 class ChangeNoticeResponse(BaseModel):
     """建单结果。字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死。
 

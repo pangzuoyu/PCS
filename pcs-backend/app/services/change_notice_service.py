@@ -893,6 +893,75 @@ class ChangeNoticeService:
         ).scalar_one_or_none()
 
     @classmethod
+    async def get_open_notice_summary(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+    ) -> dict[str, Any]:
+        """该记录当前**开着**的变更单摘要（没有 ⇒ `has_open_notice=False`）。
+
+        ## 为什么要有这个读口
+
+        前端要能区分「这条记录**还没有**变更单」与「**已经有一张**开着的变更单」
+        ⇒ 前者可以「创建变更单」、后者只能「作废」（再建一张会被 409
+        `CHANGE_NOTICE_ALREADY_EXISTS` 挡掉）。
+        ⇒ 记录状态**看不出来**（两种情况记录都是 CHANGED）⇒ 必须查。
+
+        ⚠️ 「开着」= DRAFT / PENDING（与 `_find_open_notice_for_record` **同一
+        口径**）—— 已 APPROVED（已关过记录）/ 已 OBSOLETE（已作废）都**不算**。
+        """
+        row = (
+            await db.execute(
+                select(Deliverable, DeliverableVersion.version_id)
+                .join(
+                    DeliverableVersion,
+                    DeliverableVersion.deliverable_id == Deliverable.deliverable_id,
+                )
+                .join(
+                    DeliverableRecordBinding,
+                    DeliverableRecordBinding.deliverable_version_id
+                    == DeliverableVersion.version_id,
+                )
+                .where(
+                    DeliverableRecordBinding.record_type == record_type,
+                    DeliverableRecordBinding.record_id == record_id,
+                    Deliverable.deliverable_type == "CHANGE_NOTICE",
+                    Deliverable.sign_status.in_(
+                        [
+                            DeliverableSignStatus.DRAFT.value,
+                            DeliverableSignStatus.PENDING.value,
+                        ]
+                    ),
+                )
+                .limit(1)
+            )
+        ).first()
+        if row is None:
+            return {
+                "record_type": record_type,
+                "record_id": str(record_id),
+                "has_open_notice": False,
+                "deliverable_id": None,
+                "version_id": None,
+                "doc_no": None,
+                "sign_status": None,
+                "title": None,
+            }
+        notice, version_id = row
+        return {
+            "record_type": record_type,
+            "record_id": str(record_id),
+            "has_open_notice": True,
+            "deliverable_id": str(notice.deliverable_id),
+            "version_id": str(version_id),
+            "doc_no": notice.doc_no,
+            "sign_status": str(notice.sign_status.value),
+            "title": notice.title,
+        }
+
+    @classmethod
     async def _find_record_bindings(
         cls, db: AsyncSession, *, deliverable_id: uuid.UUID
     ) -> list[DeliverableRecordBinding]:

@@ -25,6 +25,8 @@ import type { components } from '../types/api';
 export type RecordActionResponse = components['schemas']['RecordActionResponse'];
 export type ChangeNoticeResponse = components['schemas']['ChangeNoticeResponse'];
 export type ChangeNoticeRequest = components['schemas']['ChangeNoticeRequest'];
+export type ChangeNoticeOpenResponse = components['schemas']['ChangeNoticeOpenResponse'];
+export type ChangeNoticeCancelResponse = components['schemas']['ChangeNoticeCancelResponse'];
 
 /** 变更类型 7 值（= 后端 `ChangeType`）。 */
 export const CHANGE_TYPES = [
@@ -72,6 +74,39 @@ export const changeNoticesApi = {
       .post<RecordActionResponse>(`/records/${recordType}/${recordId}/apply-change`, {
         reason,
       })
+      .then((r) => r.data),
+
+  /**
+   * 该记录当前**开着**的变更单（没有 ⇒ `has_open_notice=false`）。
+   *
+   * ⚠️ 记录状态**看不出来**有没有开着的变更单（两种情况记录都是 CHANGED）⇒
+   * 前端要靠它区分「可以**创建**」与「只能**作废**」。
+   */
+  open: (
+    recordType: string,
+    recordId: string,
+  ): Promise<ChangeNoticeOpenResponse> =>
+    api
+      .get<ChangeNoticeOpenResponse>(
+        `/records/${recordType}/${recordId}/change-notice`,
+      )
+      .then((r) => r.data),
+
+  /**
+   * 作废该记录当前**开着**的变更单（理由必填）。
+   *
+   * ⚠️ **作废的是「单据」，不是「校核结论」** ⇒ 记录**不动**（保持 CHANGED）。
+   */
+  cancel: (
+    recordType: string,
+    recordId: string,
+    reason: string,
+  ): Promise<ChangeNoticeCancelResponse> =>
+    api
+      .post<ChangeNoticeCancelResponse>(
+        `/records/${recordType}/${recordId}/change-notice/cancel`,
+        { reason },
+      )
       .then((r) => r.data),
 
   /**

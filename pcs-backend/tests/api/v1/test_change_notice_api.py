@@ -856,6 +856,63 @@ async def test_abandon_change_restores_the_record_data(client, db):
     assert rec.sign_status == RecordSignStatus9.CHECKED.value
 
 
+async def test_read_open_change_notice_reports_none_when_there_is_none(client, db):
+    """⚠️ 没有开着的变更单 ⇒ `has_open_notice=false`（**不用 404 表达「没有」**）。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    resp = await client.get(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice",
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["has_open_notice"] is False
+    assert body["deliverable_id"] is None
+    assert body["doc_no"] is None
+    assert body["record_type"] == MODULE
+
+
+async def test_read_open_change_notice_reports_the_open_one(client, db):
+    """有开着的变更单 ⇒ 报出它的编号 / 交付物 / 版本。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    created = await _create_notice(client, rec)
+
+    resp = await client.get(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice",
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["has_open_notice"] is True
+    assert body["deliverable_id"] == created["deliverable_id"]
+    assert body["version_id"] == created["version_id"]
+    assert body["doc_no"] == created["doc_no"]
+    assert body["sign_status"] == "PENDING"
+
+
+async def test_read_open_change_notice_is_empty_after_the_notice_is_cancelled(client, db):
+    """作废后 ⇒ 又变成「没有开着的变更单」（可以另起一张）。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    await _create_notice(client, rec)
+
+    cancel = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice/cancel",
+        json={"reason": "建错了"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert cancel.status_code == 200, cancel.text
+
+    resp = await client.get(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice",
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["has_open_notice"] is False
+
+
 async def test_change_notice_response_reports_the_real_sign_status(client, db, monkeypatch):
     """⚠️ TODO-084 第 1 条：响应的 `sign_status` 必须是**行里的真值**。
 

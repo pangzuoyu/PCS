@@ -588,6 +588,22 @@ OBSOLETE	只读
 ⚠️ 另：`CHANGED` 态的「发起撤销」对应 `POST /records/{module}/{id}/request-reversal`
 （CHANGED → REVERSAL_PENDING）—— 已有端点，本次未做前端入口。
 
+⚠️ **2026-10-27 修订登记（变更单的「作废」入口 · TODO-085 之后的前端接线项）**：
+`CHANGED` 态的行**只给一个**按钮（沿用本表「按状态渲染」的口径）⇒ 但**弹窗**
+按「这张记录当前有没有**开着**的变更单」分成两种：
+
+| 情形 | 弹窗 | 后端 |
+|---|---|---|
+| 没有开着的变更单 | 「创建变更单」表单（变更类型 + 原因） | `POST /records/{module}/{id}/change-notice` |
+| **已有**开着的变更单 | 「**作废**变更单」表单（作废理由必填）+ 提示已有单号 | `POST /records/{module}/{id}/change-notice/cancel` |
+
+⚠️ **为什么需要先查一次**：记录状态**看不出来**有没有开着的变更单（两种情况
+记录都是 CHANGED）⇒ 弹窗打开时先 `GET /records/{module}/{id}/change-notice`
+（**新增读口**，返回 `has_open_notice`）⇒ 查询**只在打开弹窗时**发（不是每行
+渲染时发）⇒ 列表页不会有 N+1 请求。
+⚠️ 「作废」= 作废**单据**（`sign_status = OBSOLETE`）⇒ **记录不动**（仍
+CHANGED）⇒ 作废后可以另起一张。
+
 6.4 HashBadge
 用途：显示 record_hash。
 

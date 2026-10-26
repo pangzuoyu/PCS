@@ -49,6 +49,7 @@ from app.schemas.records_actions import (
     ApprovalStepResponse,
     ChangeActionRequest,
     ChangeNoticeCancelResponse,
+    ChangeNoticeOpenResponse,
     ChangeNoticeDetailResponse,
     ChangeNoticeRequest,
     ChangeNoticeResponse,
@@ -694,6 +695,38 @@ async def apply_change(
         record_id,
         {"from": to_value(from_status), "to": to_value(record.sign_status)},
     )
+
+
+@router.get(
+    "/records/{module}/{record_id}/change-notice",
+    response_model=ChangeNoticeOpenResponse,
+    summary="该记录当前**开着**的变更单（没有 ⇒ has_open_notice=false）",
+)
+async def read_open_change_notice(
+    module: str,
+    record_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ChangeNoticeOpenResponse:
+    """该记录当前**开着**的变更单摘要（TODO-085 之后的前端接线项）。
+
+    ## 为什么需要这个读口
+
+    记录状态**看不出来**有没有开着的变更单（两种情况记录都是 CHANGED）⇒
+    前端要靠它区分「可以**创建**变更单」与「只能**作废**它」
+    （再建一张会被 409 `CHANGE_NOTICE_ALREADY_EXISTS` 挡掉）。
+    """
+    require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+
+    from app.services.change_notice_service import ChangeNoticeService
+
+    summary = await ChangeNoticeService.get_open_notice_summary(
+        db,
+        record_type=type(record).__name__,
+        record_id=record_id,
+    )
+    return ChangeNoticeOpenResponse(**summary)
 
 
 @router.post(

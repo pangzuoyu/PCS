@@ -4758,6 +4758,27 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2087",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "变更单的**取消路径**（作废）**前端没有入口** ⇒ 用户只能拿 curl 作废自己建错的单",
+      "file": "pcs-frontend/src/pages/results/ChangeNoticeAction.tsx",
+      "root_cause": "后端在 TODO-080 落地了 `POST /records/{module}/{id}/change-notice/cancel`（作废）⇒ 但前端只接了三个动作（变更申请 / 提交变更完成 / 创建变更单）⇒ 「作废」这条路**只有 curl 能走**。⚠️ 且前端**看不出来**记录有没有开着的变更单（两种情况记录都是 CHANGED）⇒ 直接加一个「作废」按钮会让人去点一个不存在的单。",
+      "fix": "**已修（2026-10-27）**：①后端新增读口 `GET /records/{module}/{id}/change-notice` ⇒ 返回该记录当前**开着**的变更单摘要（`has_open_notice` + 单号 / 交付物 / 版本；⚠️ **不用 404 表达「没有」**）；②前端 `ChangeNoticeAction` 在 CHANGED 态**仍只给一个**按钮（沿用 UI-SPEC §6.3「按状态渲染」口径）⇒ **弹窗**按「有没有开着的变更单」分两种：没有 ⇒ 「创建变更单」表单；**已有** ⇒ 「**作废**变更单」表单（理由必填）+ 提示已有单号；⚠️ 查询**只在打开弹窗时**发 ⇒ 列表页无 N+1；⚠️ **作废的是单据 ⇒ 记录不动** ⇒ 前端不改记录状态；③MSW mock 补 3 个端点 + 内存态。测试：前端 +5 例（组件 3 + API 契约 2）。契约：OpenAPI +1 schema（`ChangeNoticeOpenResponse`）、path 数不变（同一路径多一个 GET）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "frontend",
+        "todo-085",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-2077"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }

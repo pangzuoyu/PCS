@@ -796,6 +796,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/change-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 该记录当前**开着**的变更单（没有 ⇒ has_open_notice=false）
+         * @description 该记录当前**开着**的变更单摘要（TODO-085 之后的前端接线项）。
+         *
+         *     ## 为什么需要这个读口
+         *
+         *     记录状态**看不出来**有没有开着的变更单（两种情况记录都是 CHANGED）⇒
+         *     前端要靠它区分「可以**创建**变更单」与「只能**作废**它」
+         *     （再建一张会被 409 `CHANGE_NOTICE_ALREADY_EXISTS` 挡掉）。
+         */
+        get: operations["read_open_change_notice_api_v1_records__module___record_id__change_notice_get"];
+        put?: never;
+        /**
+         * 发起变更单（记录须为 CHANGED）
+         * @description 给一条 CHANGED 的记录发起变更单（ADR-0008）。
+         *
+         *     建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+
+         *     **记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），
+         *     **同一事务**。
+         *
+         *     之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`
+         *     （矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；
+         *     最后一步签完 ⇒ 记录自动回 CHECKED。
+         */
+        post: operations["create_change_notice_api_v1_records__module___record_id__change_notice_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{module}/{record_id}/change-notice/cancel": {
         parameters: {
             query?: never;
@@ -814,34 +852,6 @@ export interface paths {
          *     ⇒ 作废后该记录**可以另起一张**变更单（作废的单不挡新单）。
          */
         post: operations["cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/records/{module}/{record_id}/change-notice": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 发起变更单（记录须为 CHANGED）
-         * @description 给一条 CHANGED 的记录发起变更单（ADR-0008）。
-         *
-         *     建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+
-         *     **记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），
-         *     **同一事务**。
-         *
-         *     之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`
-         *     （矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；
-         *     最后一步签完 ⇒ 记录自动回 CHECKED。
-         */
-        post: operations["create_change_notice_api_v1_records__module___record_id__change_notice_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7019,6 +7029,32 @@ export interface components {
             triggered_by: string;
             /** Source Record Type */
             source_record_type?: string | null;
+        };
+        /**
+         * ChangeNoticeOpenResponse
+         * @description 该记录当前**开着**的变更单摘要（读口）。
+         *
+         *     ⚠️ **没有**开着的变更单 ⇒ `has_open_notice=False` 且其余字段为 None
+         *     —— **不用 404 表达「没有」**（404 是「端点/资源不存在」，拿它当控制流
+         *     会让前端到处 try/catch）。
+         */
+        ChangeNoticeOpenResponse: {
+            /** Record Type */
+            record_type: string;
+            /** Record Id */
+            record_id: string;
+            /** Has Open Notice */
+            has_open_notice: boolean;
+            /** Deliverable Id */
+            deliverable_id?: string | null;
+            /** Version Id */
+            version_id?: string | null;
+            /** Doc No */
+            doc_no?: string | null;
+            /** Sign Status */
+            sign_status?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /**
          * ChangeNoticeRequest
@@ -21667,7 +21703,7 @@ export interface operations {
             };
         };
     };
-    cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post: {
+    read_open_change_notice_api_v1_records__module___record_id__change_notice_get: {
         parameters: {
             query?: never;
             header?: {
@@ -21679,11 +21715,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangeActionRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -21691,7 +21723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChangeNoticeCancelResponse"];
+                    "application/json": components["schemas"]["ChangeNoticeOpenResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21730,6 +21762,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeNoticeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_change_notice_api_v1_records__module___record_id__change_notice_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeNoticeCancelResponse"];
                 };
             };
             /** @description Validation Error */

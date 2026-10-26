@@ -22,9 +22,14 @@ import type { components } from '../types/api';
 
 type RecordActionResponse = components['schemas']['RecordActionResponse'];
 type ChangeNoticeResponse = components['schemas']['ChangeNoticeResponse'];
+type ChangeNoticeOpenResponse = components['schemas']['ChangeNoticeOpenResponse'];
+type ChangeNoticeCancelResponse = components['schemas']['ChangeNoticeCancelResponse'];
 
 /** 记录主键 → 当前状态（mock 内存态）。 */
 const statuses = new Map<string, string>();
+
+/** 记录主键 → 已开着的变更单（mock 内存态；作废后删掉）。 */
+const openNotices = new Map<string, ChangeNoticeOpenResponse>();
 
 const PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -82,6 +87,55 @@ export const changeNoticeHandlers = [
     return HttpResponse.json(action(recordType, recordId, from, 'CHANGED'));
   }),
 
+  http.get('/api/v1/records/:module/:record_id/change-notice', async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    const recordType = String(params['module']);
+    const recordId = String(params['record_id']);
+    const existing = openNotices.get(`${recordType}:${recordId}`);
+    if (existing) return HttpResponse.json(existing);
+    const empty: ChangeNoticeOpenResponse = {
+      record_type: recordType,
+      record_id: recordId,
+      has_open_notice: false,
+      deliverable_id: null,
+      version_id: null,
+      doc_no: null,
+      sign_status: null,
+      title: null,
+    };
+    return HttpResponse.json(empty);
+  }),
+
+  http.post('/api/v1/records/:module/:record_id/change-notice/cancel', async ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    const recordType = String(params['module']);
+    const recordId = String(params['record_id']);
+    const key = `${recordType}:${recordId}`;
+    const existing = openNotices.get(key);
+    if (!existing) {
+      return HttpResponse.json(
+        { code: 'CHANGE_NOTICE_NOT_FOUND', message: '该记录没有开着的变更单' },
+        { status: 404 },
+      );
+    }
+    const body = (await request.json()) as { reason: string };
+    if (!body.reason || !body.reason.trim()) {
+      return HttpResponse.json(
+        { code: 'CHANGE_NOTICE_CANCEL_REASON_REQUIRED', message: '作废变更单必须填写理由' },
+        { status: 422 },
+      );
+    }
+    openNotices.delete(key);
+    const cancelled: ChangeNoticeCancelResponse = {
+      deliverable_id: existing.deliverable_id ?? '',
+      doc_no: existing.doc_no ?? '',
+      record_type: recordType,
+      record_id: recordId,
+      sign_status: 'OBSOLETE',
+    };
+    return HttpResponse.json(cancelled);
+  }),
+
   http.post('/api/v1/records/:module/:record_id/change-notice', async ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     // ⚠️ 路径参数名与后端路由**逐字一致**（`{module}`）⇒
@@ -113,6 +167,17 @@ export const changeNoticeHandlers = [
         source_record_type: recordType,
       },
     };
+    const open: ChangeNoticeOpenResponse = {
+      record_type: recordType,
+      record_id: recordId,
+      has_open_notice: true,
+      deliverable_id: notice.deliverable_id,
+      version_id: notice.version_id,
+      doc_no: notice.doc_no,
+      sign_status: notice.sign_status,
+      title: notice.title,
+    };
+    openNotices.set(`${recordType}:${recordId}`, open);
     return HttpResponse.json(notice);
   }),
 ];
