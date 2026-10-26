@@ -1090,10 +1090,12 @@ git commit -m "feat(P9B-2): TODO-054 送审批准链从项目 RECORD 矩阵推�
 + 闭包捕获写法）
 
 必含断言：
-- **每个动作的请求体逐字断言**（`reason` / `decision` / `approval_role` /
-  `approval_depth` **不被改名**）⇒ 这是 P9B-1 的 RF-13 同形坑（字段名漂移
-  TS 不报错 ⇒ 后端 422/403）。
-- `submitApproval` 传 `{approval_role, approval_depth}`（**snake_case**）。
+- **每个动作的请求体逐字断言**（`reason` / `decision` **不被改名**）⇒ 这是
+  P9B-1 的 RF-13 同形坑（字段名漂移 TS 不报错 ⇒ 后端 422/403）。
+- ⚠️ **`submitApproval` 传 `{reason?}`（R-17）** —— **不再**传
+  `approval_role` / `approval_depth`（批准链由后端从项目 `RECORD` 矩阵推导，
+  T2）⇒ 客户端签名同步改成 `submitApproval(module, recordId, reason?)`。
+  ⚠️ **契约破坏性变更** ⇒ `api.d.ts` 与 baseline 在 T2 就重生成 ⇒ T3 跟着改。
 - `approvalStep` 传 `{decision, reason}`。
 - `reversalDecision` 传 `{decision, reason}`。
 - `obsolete` / `requestReversal` / `abandonChange` 传 `{reason}`。
@@ -1165,7 +1167,13 @@ export type ApprovalStepResponse = components['schemas']['ApprovalStepResponse']
 export type CommentResponse = components['schemas']['CommentResponse'];
 export type CommentListResponse = components['schemas']['CommentListResponse'];
 
-/** 送审时要指定的待批角色（7 值词表，后端 `ApprovalRole`）。 */
+/**
+ * 待批角色词表（7 值，后端 `ApprovalRole`）。
+ *
+ * ⚠️ **R-17 之后前端不再「选」角色** —— 批准链由后端从项目 `RECORD` 矩阵推导。
+ * ⇒ 这个类型只用于**读**矩阵步骤的 `sign_role`（T8 的签署弹窗要显示
+ * 「这一步该谁签」）⇒ **保留**，但**不再**有「选择器」。
+ */
 export type ApprovalRole =
   | 'DESIGNER' | 'CHECKER' | 'REVIEWER' | 'APPROVER'
   | 'SYSTEM_ADMIN' | 'PROCESS_CONTROLLER' | 'DATA_ADMIN';
@@ -1189,15 +1197,15 @@ export const recordActionsApi = {
       decision, reason,
     }).then((r) => r.data),
 
+  // ⚠️ **R-17**：批准链由**后端**从项目绑定的 `module='RECORD'` 矩阵推导 ⇒
+  //    前端**不再**传 `approval_role` / `approval_depth`（客户端说了不算）。
   submitApproval: (
     module: EditableRecordType,
     recordId: string,
-    approvalRole: ApprovalRole,
-    approvalDepth: number,
+    reason?: string,
   ) =>
     api.post<SubmitApprovalResponse>(`/records/${module}/${recordId}/submit-approval`, {
-      approval_role: approvalRole,
-      approval_depth: approvalDepth,
+      reason,
     }).then((r) => r.data),
 
   approvalStep: (
