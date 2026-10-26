@@ -442,16 +442,25 @@ async def test_todo_survives_string_step_order(client, db, project_id):
     assert [i["step_role"] for i in resp.json()["items"]] == ["DESIGNER"]
 
 
-async def test_todo_skips_matrix_with_all_invalid_steps(client, db, project_id):
+async def test_todo_skips_matrix_with_all_invalid_steps(client, db, project_id, caplog):
     """⚠️ 矩阵**全部非法** ⇒ 该交付物**不产生待办**（而不是把用户推进一个 500）。
 
     「待办列表」是聚合视图：一个交付物的矩阵坏了，不该让**别人**的待办也看不到。
+
+    ⚠️ **但必须留一条 error 日志**（TODO-084 第 3 条）：静默跳过 ⇒
+    「这个交付物没人能签」这件事**完全不可见** ⇒ 矩阵配错了没人知道 ⇒
+    交付物永远停在 PENDING，而待办列表里**什么都没有**。
     """
     me = _actor_id()
     await _grant(db, me, project_id, "DESIGNER")
     await _issue(db, project_id, steps=[{"step_order": "x"}, "nope"])
 
-    resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
+    with caplog.at_level("ERROR", logger="app.services.todo_service"):
+        resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
 
     assert resp.status_code == 200, resp.text
     assert resp.json()["items"] == []
+    assert any(
+        "SIGNATURE_MATRIX_INVALID" in r.message or "矩阵" in r.message
+        for r in caplog.records
+    ), "矩阵全非法时必须留一条 error 日志（否则矩阵配错了完全不可见）"

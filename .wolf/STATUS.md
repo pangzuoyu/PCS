@@ -36,6 +36,21 @@ budget_tokens: 1200
 TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补记 +
 新增 bug-2055~2059 · UI-SPEC §6.3 修订注记（变更申请按钮该挂 CHANGED）。
 
+### 第 13 轮续四：**TODO-084 全部落地**（用户「进行 TODO-084」）
+
+评审的 **5 条 deferred minor** 一次做完（每条一个测试 + 一次改动）：
+1. 变更单响应的 `sign_status` **不再硬编码** —— service 读交付物**行里的真值**
+   并返回，端点用它。
+2. `create_change_notice` 在 **service 层**自查 `project_id` 与记录所属项目一致
+   ⇒ 422 `CHANGE_NOTICE_PROJECT_MISMATCH` 且**一行都不写**。
+3. 矩阵**全部非法**时待办不再**静默消失** ⇒ `todo_service` 记 **error** 日志。
+4. （上一轮已裁决）ADR-0002 vs ADR-0008 的驳回矛盾。
+5. 变更动作入参由 `ObsoleteRequest` 改为**专用** `ChangeActionRequest`
+   （字段/约束**完全相同** ⇒ **纯改名**，行为零变化）⇒ 契约里「发起变更」不再
+   长得像「弃用」。
+⚠️ 契约影响：OpenAPI **346 → 347 schemas**（+1），paths 246 不变 ⇒ baseline +
+前端 `api.d.ts` 已重新生成；裸字段仍 **71**。
+
 ### 第 13 轮续三：**TODO-086 落地**（用户「TODO-086 进行」）
 
 - **绑定哈希刷新**：`ChangeNoticeService.refresh_open_bindings` —— 在**重新
@@ -114,8 +129,10 @@ TODO-068~072 **闭环** + 新增 TODO-073~080 · buglog bug-2050/2053/2054 补�
    工作区门禁只覆盖本批端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash ·
    多记录变更 · **`locked_by_deliverable` 死闸门**（TODO-082）· **矩阵修改的申请 +
    双审**（TODO-085）· **重走后绑定哈希漂移**（TODO-086）· 4 条 minor（TODO-084）。
-   ⇒ TODO-079（矩阵前端）/ TODO-083（变更单前端入口）/ TODO-086（绑定哈希刷新）
-   **已闭环**；新增 **TODO-087**（撤销**不恢复**数据 —— 快照恒空）。
+   ⇒ TODO-079 / TODO-083 / TODO-084（5 条 minor）/ TODO-086 **已闭环**；
+   新增 **TODO-087**（撤销**不恢复**数据 —— 快照恒空）。
+   ⇒ 仍开着：TODO-077（apply-change 不校验 hash）· TODO-078（变更单取消路径）·
+   TODO-085（矩阵修改的申请 + 双审）· TODO-087（快照恒空）· TODO-080（3 条旧 minor）·
    约束 · `change_resolved_by` 语义（状态机与 ADR-0002 冲突）· 工作区门禁只覆盖本批
    端点（+ 两条 fail-open 分支）· `apply-change` 不校验 hash · 多记录变更 ·
    **矩阵管理前端**（TODO-079）+ **变更单前端入口**（TODO-083）·

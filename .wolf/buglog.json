@@ -4454,6 +4454,84 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2072",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "变更单响应里的 `sign_status` 是硬编码的 `PENDING`（不是行里的真值）",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "root_cause": "端点直接写 `sign_status=DeliverableSignStatus.PENDING.value` ⇒ 若交付物行其实还是 DRAFT（例如版本行建了但没推进状态），响应仍报 PENDING ⇒ 用户以为单子在签署中，实际 sign-step 会 409 ⇒ **响应在骗人**。",
+      "fix": "service 从交付物**行**读出真值并放进返回 dict，端点用 `result[\"sign_status\"]` ⇒ 端点不再编常量。测试用 monkeypatch 制造「版本行建了但没推进」⇒ 响应必须说 DRAFT。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "todo-084",
+        "response",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2073",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "`create_change_notice` 的 service 层不校验 `project_id` 与记录所属项目一致",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "service 收下 `project_id` 就直接建单，**从不**核对它与 `record.project_id` 是否一致 ⇒ 今天端点传的是 `record.project_id`（对）所以看不出来，但 service 是**对外入口** ⇒ 任何调用方传错 ⇒ 变更单建到**别的项目**名下，而它的 binding 指向一条**不属于该项目的记录** ⇒ 关闭凭证跨项目、审计链断。",
+      "fix": "service 自查：`record.project_id != project_id` ⇒ 422 `CHANGE_NOTICE_PROJECT_MISMATCH`，**且一行都不写**（真库用例 `tests/services/test_change_notice_project_guard.py`，含反向对照）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "change-notice",
+        "todo-084",
+        "authorization",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2074",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "矩阵**全部非法**时待办**静默消失**，且一条日志都没有",
+      "file": "pcs-backend/app/services/todo_service.py",
+      "root_cause": "`compute_todos` 里 `except PcsError: continue`（矩阵全非法 ⇒ 该交付物没有可签的步骤 ⇒ 不产生待办）—— 行为本身是对的（聚合视图不该因一个坏矩阵让**别人**的待办也看不到），但**零日志** ⇒ 「这个交付物没人能签」这件事**完全不可见** ⇒ 矩阵配错了没人发现 ⇒ 交付物永远停在 PENDING，而待办列表里什么都没有。",
+      "fix": "加 `logger = logging.getLogger(__name__)` + `except PcsError as exc` 分支记 **error**（带 deliverable_id / matrix_id / code / message）。断言加在既有 `test_todo_skips_matrix_with_all_invalid_steps`（caplog）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "todo-084",
+        "todos",
+        "observability",
+        "logging",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2075",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "变更动作（initiate-change / apply-change / abandon-change）复用 `ObsoleteRequest` ⇒ 契约里「发起变更」的入参类型名叫「弃用」的请求体",
+      "file": "pcs-backend/app/schemas/records_actions.py",
+      "root_cause": "三个变更动作端点的请求体直接用 `ObsoleteRequest`（弃用记录用的）⇒ 请求体**字段完全一样**（只有 reason）⇒ 行为没错、**任何既有测试都不会红**，但生成的 OpenAPI 里「发起变更」的入参类型名叫 `ObsoleteRequest` ⇒ 前端 `api.d.ts` 里也是 ⇒ 读契约的人会把「发起变更」误读成「弃用」。",
+      "fix": "新增**专用** `ChangeActionRequest`（字段与约束**与 `ObsoleteRequest` 完全相同** ⇒ **纯改名**，请求体形状/校验/行为零变化 ⇒ 线上兼容），三个变更动作端点改用它；`obsolete` 端点**仍用** `ObsoleteRequest`。契约测试 `tests/architecture/test_change_request_schema.py` 钉住（含反向对照）。⚠️ 契约影响：OpenAPI **346 → 347 schemas**（+1），paths 246 不变 ⇒ baseline + 前端 `api.d.ts` 已重新生成。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "todo-084",
+        "openapi",
+        "contract",
+        "naming",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }

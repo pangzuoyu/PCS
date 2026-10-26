@@ -757,3 +757,47 @@ async def test_reversal_actually_restores_the_record_data(client, db):
 
     await db.refresh(rec)
     assert rec.record_hash == "h1", "撤销批准后应恢复成变更前的哈希"
+
+
+async def test_change_notice_response_reports_the_real_sign_status(client, db, monkeypatch):
+    """⚠️ TODO-084 第 1 条：响应的 `sign_status` 必须是**行里的真值**。
+
+    失败模式：端点**硬编码** `sign_status=PENDING` ⇒ 若交付物行其实还是
+    DRAFT（例如版本行建了但没推进状态），响应仍报 PENDING ⇒ 用户以为单子
+    在签署中，实际 sign-step 会 409。
+
+    ⇒ 用 monkeypatch 制造「行没推进」的情形 ⇒ 响应必须说 DRAFT。
+    """
+    from app.services import deliverable_service
+
+    original = deliverable_service.DeliverableService.create_version_row
+
+    async def fake_create_version_row(*args, **kwargs):
+        version = await original(*args, **kwargs)
+        # 模拟「版本行建了，但交付物没被推进到 PENDING」
+        kwargs["deliverable"].sign_status = DeliverableSignStatus.DRAFT
+        return version
+
+    monkeypatch.setattr(
+        deliverable_service.DeliverableService, "create_version_row", fake_create_version_row
+    )
+
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/change-notice",
+        json={"change_type": "DATA_CORRECTION", "reason": "x"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["sign_status"] == "DRAFT", "响应必须报告**行里的真值**，不是常量"
+
+    deliverable = (
+        await db.execute(
+            select(Deliverable).where(
+                Deliverable.deliverable_id == _uuid(resp.json()["deliverable_id"])
+            )
+        )
+    ).scalar_one()
+    assert deliverable.sign_status == DeliverableSignStatus.DRAFT

@@ -29,6 +29,7 @@
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -46,6 +47,8 @@ from app.models.project import UserProject
 from app.models.workflow_progress import WorkflowProgress
 from app.services.exceptions import PcsError
 from app.services.signature_matrix_service import SignatureMatrixService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -172,10 +175,21 @@ async def compute_todos(
                 {"step_order": s.step_order, "sign_role": s.sign_role}
                 for s in SignatureMatrixService.parse_steps(matrix)
             ]
-        except PcsError:
+        except PcsError as exc:
             # 矩阵**全部非法** ⇒ 这个交付物没有可签的步骤 ⇒ 不产生待办。
             # ⚠️ **不抛**：待办是聚合视图 —— 一个交付物的矩阵坏了，
             # 不该让**别人**的待办也看不到（更不该让整个端点 500）。
+            # ⚠️ **但必须留一条 error 日志**（TODO-084 第 3 条）：静默跳过 ⇒
+            # 「这个交付物没人能签」这件事**完全不可见** ⇒ 矩阵配错了没人
+            # 发现 ⇒ 交付物永远停在 PENDING，而待办列表里**什么都没有**。
+            logger.error(
+                "签署矩阵全部非法 ⇒ 该交付物不产生待办：deliverable_id=%s "
+                "matrix_id=%s code=%s message=%s",
+                deliverable.deliverable_id,
+                deliverable.matrix_id,
+                getattr(exc, "code", ""),
+                str(exc),
+            )
             continue
         if not steps:
             continue

@@ -39,7 +39,6 @@ from app.core.errors import PcsError
 from app.db.session import get_db
 from app.models.enums import (
     AuditAction,
-    DeliverableSignStatus,
     RecordSignStatus9,
     StateTransition,
     to_value,
@@ -48,6 +47,7 @@ from app.models.record_comment import RecordComment
 from app.schemas.records_actions import (
     ApprovalStepRequest,
     ApprovalStepResponse,
+    ChangeActionRequest,
     ChangeNoticeDetailResponse,
     ChangeNoticeRequest,
     ChangeNoticeResponse,
@@ -460,7 +460,7 @@ async def approval_step(
 async def abandon_change(
     module: str,
     record_id: uuid.UUID,
-    body: ObsoleteRequest,
+    body: ChangeActionRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     actor: Annotated[_Actor, Depends(current_actor)],
 ) -> RecordActionResponse:
@@ -603,7 +603,7 @@ async def list_comments(
 async def initiate_change(
     module: str,
     record_id: uuid.UUID,
-    body: ObsoleteRequest,
+    body: ChangeActionRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     actor: Annotated[_Actor, Depends(current_actor)],
 ) -> RecordActionResponse:
@@ -639,7 +639,7 @@ async def initiate_change(
 async def apply_change(
     module: str,
     record_id: uuid.UUID,
-    body: ObsoleteRequest,
+    body: ChangeActionRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     actor: Annotated[_Actor, Depends(current_actor)],
 ) -> RecordActionResponse:
@@ -728,7 +728,8 @@ async def create_change_notice(
         project_id=result["project_id"],
         doc_no=result["doc_no"],
         title=result["title"],
-        sign_status=DeliverableSignStatus.PENDING.value,
+        # ⚠️ **行里的真值**（service 从交付物行读出来），不是常量
+        sign_status=result["sign_status"],
         detail=ChangeNoticeDetailResponse(
             detail_id=detail["detail_id"],
             change_type=detail["change_type"],

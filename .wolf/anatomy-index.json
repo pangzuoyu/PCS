@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T11:05:58.556Z",
-    "fileCount": 1030,
+    "lastScanned": "2026-10-26T11:56:22.500Z",
+    "fileCount": 1032,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f286a6fa88eea4bed23505d8e10fcd998d6ecb0c9e0188e5832d0e49370980df",
-    "storeUpdatedAt": "2026-10-26T11:05:58.567Z",
-    "rootHash": "90f68088b1fdaa14"
+    "renderedHash": "60bad921218e845a3ee4d50a48fdf419b710410a94c0f60f2f6df8a6fe199d38",
+    "storeUpdatedAt": "2026-10-26T11:56:22.511Z",
+    "rootHash": "e1bb19d36cfa2da1"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37097,6 +37097,91 @@
       "mtimeMs": 1793012758508.1174,
       "updatedAt": "2026-10-26T11:05:58.556Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/services/test_change_notice_project_guard.py": {
+      "description": "变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。",
+      "tokens": 1063,
+      "hash": "2d9262de5647fd69",
+      "size": 4320,
+      "mtimeMs": 1793015743051.5732,
+      "updatedAt": "2026-10-26T11:55:43.097Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 41,
+          "endLine": 49,
+          "tokens": 60
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 68,
+          "tokens": 144
+        },
+        {
+          "name": "_make_changed_record",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 82,
+          "tokens": 111
+        },
+        {
+          "name": "test_create_change_notice_rejects_a_foreign_project_id",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 109,
+          "tokens": 273
+        },
+        {
+          "name": "test_create_change_notice_accepts_the_own_project_id",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 127,
+          "tokens": 170
+        }
+      ]
+    },
+    "pcs-backend/tests/architecture/test_change_request_schema.py": {
+      "description": "变更动作的**入参 schema 名字**必须说得清（TODO-084 第 5 条）。",
+      "tokens": 508,
+      "hash": "478205fead373f32",
+      "size": 2336,
+      "mtimeMs": 1793015782453.2227,
+      "updatedAt": "2026-10-26T11:56:22.500Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "openapi",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 34,
+          "tokens": 23
+        },
+        {
+          "name": "_request_schema_ref",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 44,
+          "tokens": 91
+        },
+        {
+          "name": "test_change_action_does_not_reuse_the_obsolete_request_schema",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 53,
+          "tokens": 100
+        },
+        {
+          "name": "test_obsolete_endpoint_still_uses_the_obsolete_request_schema",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 58,
+          "tokens": 65
+        }
+      ]
     }
   }
 }

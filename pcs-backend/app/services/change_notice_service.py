@@ -201,6 +201,18 @@ class ChangeNoticeService:
         if record_table is not None:
             record = await cls._check_record_charged(db, record_id, record_table)
             record_type_name = record_table.__name__
+            # ⚠️ **项目一致性自查**（TODO-084 第 2 条）：端点层今天传的是
+            # `record.project_id`（对），但 service 是**对外入口** ⇒ 调用方
+            # 传错项目 ⇒ 变更单建到别的项目名下，而 binding 指向一条**不属
+            # 于该项目的记录** ⇒ 关闭凭证跨项目、审计链断。
+            record_project_id = getattr(record, "project_id", None)
+            if record_project_id is not None and record_project_id != project_id:
+                raise PcsError(
+                    f"记录 {record_id} 属于项目 {record_project_id}，"
+                    f"不能建到项目 {project_id} 名下",
+                    code="CHANGE_NOTICE_PROJECT_MISMATCH",
+                    status=422,
+                )
         else:
             # 无 record_table：**查不到记录状态** ⇒ 一律 422（不许建单）。
             # ⚠️ 旧注释写「不阻断」是错的：`_load_record_sign_status(None)` 恒返回
@@ -348,6 +360,10 @@ class ChangeNoticeService:
         # 11. 返回轻量 DTO
         return {
             "deliverable_id": deliverable.deliverable_id,
+            # ⚠️ **行里的真值**（不是常量）—— 建单时交付物被推进到 PENDING
+            # （`create_version_row`），但那是**副作用**：万一它没推进，
+            # 端点就不该报 PENDING（会骗用户说「在签署中」，而 sign-step 会 409）。
+            "sign_status": deliverable.sign_status.value,
             # 签署要用的版本 id（矩阵的 3 级校审作用在它身上）
             "version_id": version.version_id,
             # 观测工作流的 id —— 与 SIGN 不同类（那是版本 id）

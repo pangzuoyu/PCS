@@ -1557,18 +1557,26 @@ CHANGED 态」—— **错了**（把「变更申请 = 建变更单」搞混）�
 
 **关联：** TODO-079 · TODO-068 · UI-SPEC §6.3。
 
-## TODO-084: P9A-DLV-011 评审的 **5 条 deferred minor** 🟡
+## ✅ DONE —— TODO-084: P9A-DLV-011 评审的 **5 条 deferred minor**（2026-10-26 全部落地）
 
-| # | 事项 | 位置 |
+| # | 事项 | 落地 |
 |---|---|---|
-| 1 | 变更单响应里的 `sign_status` 是**硬编码**的 `PENDING`（不是从 DB 行读）⇒ 若建单没真把交付物推进到 PENDING，响应仍报 PENDING 而实际行是 DRAFT（sign-step 会 409） | `app/api/v1/records_actions.py` |
-| 2 | `create_change_notice` 的 service 层**不校验** `project_id` 与记录所属项目一致（端点层传的是 `record.project_id`，今天是对的，但 service 是对外入口） | `app/services/change_notice_service.py` |
-| 3 | 矩阵**全部非法**时待办**静默消失**且**一条日志都没有**（`parse_steps` 只在「部分跳过」时 WARNING，全非法直接抛） | `app/services/todo_service.py` |
-| 4 | ~~**ADR-0002 与 ADR-0008 在「驳回」上矛盾**~~ ⇒ **2026-10-26 已裁决**：ADR-0008 管辖（记录保持 CHANGED），ADR-0002 那半句被取代（「重改」走**撤销 → 重来**，已由 `test_rejected_notice_can_be_reworked_via_reversal` 钉住）；两份 ADR 均已加**修订记录** | `docs/adr/0002-*` / `docs/adr/0008-*` |
-| 5 | `initiate-change` / `apply-change` 复用 `ObsoleteRequest`（只含 `reason`）⇒ 契约里「发起变更」的入参类型名叫 `ObsoleteRequest` | `app/schemas/records_actions.py` |
+| 1 | 变更单响应里的 `sign_status` 是**硬编码**的 `PENDING` | ✅ service 从交付物**行**读出真值并返回，端点用它（`sign_status=result["sign_status"]`）⇒ 端点**不再**自己编一个常量。测试用 monkeypatch 制造「版本行建了但没推进」⇒ 响应必须说 DRAFT |
+| 2 | service 层**不校验** `project_id` 与记录所属项目一致 | ✅ `create_change_notice` 自查：`record.project_id != project_id` ⇒ 422 `CHANGE_NOTICE_PROJECT_MISMATCH`，**且一行都不写**（真库用例 `tests/services/test_change_notice_project_guard.py`） |
+| 3 | 矩阵**全部非法**时待办**静默消失**且**一条日志都没有** | ✅ `todo_service` 加 `logger` + `except PcsError` 分支记 **error**（带 deliverable_id / matrix_id / code）⇒ 「这个交付物没人能签」不再不可见。断言加在既有用例 `test_todo_skips_matrix_with_all_invalid_steps` 上（caplog） |
+| 4 | ~~ADR-0002 与 ADR-0008 在「驳回」上矛盾~~ | ✅ **已裁决**（上一轮）：ADR-0008 管辖；两份 ADR 加修订记录；「重改」路径由 `test_rejected_notice_can_be_reworked_via_reversal` 钉住 |
+| 5 | `initiate-change` / `apply-change` 复用 `ObsoleteRequest` | ✅ 新增 **`ChangeActionRequest`**（字段与约束**与 `ObsoleteRequest` 完全相同** ⇒ **纯改名**，请求体形状/校验/行为零变化），三个变更动作端点（initiate / apply / abandon）改用它；`obsolete` 端点**仍用** `ObsoleteRequest`。契约测试 `tests/architecture/test_change_request_schema.py` 钉住（**含反向对照**） |
 
-**归属：** 独立一轮（每条一个测试 + 一次改动）。**关联：** 评审 ledger
-`.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
+**契约影响**：OpenAPI **346 → 347 schemas**（+1 = `ChangeActionRequest`），
+paths 不变（246）⇒ `openapi.json` / `openapi-baseline.json` /
+前端 `openapi.snapshot.json` + `src/types/api.d.ts` **已重新生成并滚动 baseline**；
+裸字段仍 **71**（未上涨）。
+
+**验收**：后端 `pytest -q`（见提交信息）· 前端 typecheck / lint exit 0、
+`vitest run` **835 passed / 90 files / 0 failed**（类型重新生成后无回归）·
+G-08 契约门禁 4 阶段 exit 0。
+
+**关联：** 评审 ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
 的「Deferred minors」段。
 
 ## TODO-085: 改签署矩阵的**申请 + 双重审批**未实现（校审层级 SPEC 的规则）🟡

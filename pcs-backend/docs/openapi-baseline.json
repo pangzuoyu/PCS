@@ -1711,7 +1711,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ObsoleteRequest"
+                "$ref": "#/components/schemas/ChangeActionRequest"
               }
             }
           }
@@ -1959,7 +1959,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ObsoleteRequest"
+                "$ref": "#/components/schemas/ChangeActionRequest"
               }
             }
           }
@@ -2038,7 +2038,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ObsoleteRequest"
+                "$ref": "#/components/schemas/ChangeActionRequest"
               }
             }
           }
@@ -21313,6 +21313,22 @@
         "title": "CepciAdjustmentCalcResponse",
         "description": "POST /cost-est/cepci-adjustment/calculate 响应（201）。\n\n与 ``CostEstCalcBase`` 镜像（无 scaling_exponent 必填）；额外填\nresult_id + equipment_id + created_at。"
       },
+      "ChangeActionRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ChangeActionRequest",
+        "description": "变更动作（发起变更 / 提交变更完成 / 放弃变更）的请求体。\n\n⚠️ **为什么不用 `ObsoleteRequest`**（TODO-084 第 5 条）：那些端点此前复用\n「弃用记录」的请求体 ⇒ 生成的 OpenAPI 里，「发起变更」的入参类型名叫\n**`ObsoleteRequest`** ⇒ 前端类型里也是 ⇒ 读契约的人会把「发起变更」\n误读成「弃用」。\n\n⚠️ 字段与约束**与 `ObsoleteRequest` 完全相同**（只有 `reason`）⇒\n这是一次**纯改名**：请求体形状、校验、行为**零变化** ⇒ 线上兼容。"
+      },
       "ChangeNoticeDetailResponse": {
         "properties": {
           "detail_id": {
@@ -28734,7 +28750,7 @@
           "role_in_project": {
             "type": "string",
             "title": "Role In Project",
-            "description": "项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)"
+            "description": "项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER/PROJECT_LEAD)"
           }
         },
         "type": "object",

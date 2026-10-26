@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T11:05:58.556Z
-> Files: 1030 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T11:56:22.500Z
+> Files: 1032 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1427,6 +1427,7 @@
 
 ## pcs-backend/tests/architecture/
 
+- `test_change_request_schema.py` — 变更动作的**入参 schema 名字**必须说得清（TODO-084 第 5 条）。 (~508 tok)
 - `test_edit_conflict_contract.py` — 编辑冲突的 409 契约必须**在 OpenAPI 里**（P9A-5 追加）。 (~962 tok)
 - `test_record_hash_invariant.py` — record_hash 不变式的**集合关系**契约（P9A-4 D0 · ADR-0048 §⑥）。 (~1536 tok)
 
@@ -1470,6 +1471,7 @@
 - `test_broadcaster.py` — P9A C2：Redis pub/sub 推送（ADR-0049 §⑤ 的四条约束）。 (~2647 tok)
 - `test_change_notice_notification.py` — 变更单审批触发通知（真 DB 路径，P9A C1b / 用户 2026-10-20 最小接线集合）。 (~991 tok)
 - `test_change_notice_observation.py` — 变更单的观测写入点（ADR-0047 §① 写入点 2a / 2b · TODO-057 · P9A-DLV-007）。 (~1476 tok)
+- `test_change_notice_project_guard.py` — 变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。 (~1063 tok)
 - `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~8472 tok)
 - `test_deliverable_create_version_row.py` — `DeliverableService.create_version_row` 的守卫（P9A-DLV-011 · T1）。 (~1196 tok)
 - `test_edit_guard.py` — 编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。 (~3662 tok)

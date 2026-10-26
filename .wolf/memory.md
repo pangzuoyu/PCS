@@ -2448,3 +2448,5 @@
 | 19:05 | Created pcs-frontend/tests/api/change_notices_api.test.ts | — | ~1146 |
 | 19:05 | Created pcs-frontend/tests/pages/deliverables/signature_matrix_page.test.tsx | — | ~881 |
 | 19:05 | Created pcs-frontend/tests/pages/results/change_notice_action.test.tsx | — | ~492 |
+| 19:55 | Created pcs-backend/tests/services/test_change_notice_project_guard.py | — | ~1063 |
+| 19:56 | Created pcs-backend/tests/architecture/test_change_request_schema.py | — | ~508 |

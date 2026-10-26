@@ -6946,6 +6946,22 @@ export interface components {
             created_at: string;
         };
         /**
+         * ChangeActionRequest
+         * @description 变更动作（发起变更 / 提交变更完成 / 放弃变更）的请求体。
+         *
+         *     ⚠️ **为什么不用 `ObsoleteRequest`**（TODO-084 第 5 条）：那些端点此前复用
+         *     「弃用记录」的请求体 ⇒ 生成的 OpenAPI 里，「发起变更」的入参类型名叫
+         *     **`ObsoleteRequest`** ⇒ 前端类型里也是 ⇒ 读契约的人会把「发起变更」
+         *     误读成「弃用」。
+         *
+         *     ⚠️ 字段与约束**与 `ObsoleteRequest` 完全相同**（只有 `reason`）⇒
+         *     这是一次**纯改名**：请求体形状、校验、行为**零变化** ⇒ 线上兼容。
+         */
+        ChangeActionRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /**
          * ChangeNoticeDetailResponse
          * @description 变更单扩展行（`change_notice_details`）。
          */
@@ -21431,7 +21447,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ObsoleteRequest"];
+                "application/json": components["schemas"]["ChangeActionRequest"];
             };
         };
         responses: {
@@ -21544,7 +21560,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ObsoleteRequest"];
+                "application/json": components["schemas"]["ChangeActionRequest"];
             };
         };
         responses: {
@@ -21582,7 +21598,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ObsoleteRequest"];
+                "application/json": components["schemas"]["ChangeActionRequest"];
             };
         };
         responses: {
