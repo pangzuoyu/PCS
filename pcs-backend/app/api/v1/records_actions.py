@@ -74,6 +74,7 @@ from app.services.reversal_approval_service import ReversalApprovalService
 from app.services.state_machine import (
     TRANSITION_ROLES,
     InvalidTransition,
+    NoModification,
     RoleForbidden,
     StateMachineService,
 )
@@ -192,6 +193,18 @@ async def _transition(
             code="RECORD_ROLE_FORBIDDEN",
             message=f"角色 {actor.role} 不能执行 {transition.value}",
             status=403,
+        ) from e
+    except NoModification as e:
+        # ⚠️ 「提交变更完成」但**什么都没改**（TODO-077）⇒ 409。
+        # 不映射的话会落到 500 兜底 —— 而这是用户「忘了改数据」或「改完又改回去」
+        # 的**正常结果**，不是系统故障（该做的是「放弃变更」，不是重试）。
+        raise PcsError(
+            code="CHANGE_NO_MODIFICATION",
+            message=(
+                f"记录自发起变更以来没有任何修改（哈希仍是 {e.baseline_hash}）"
+                f"⇒ 不能提交变更完成；若确实无需修改，请改用「放弃变更」"
+            ),
+            status=409,
         ) from e
     except InvalidTransition as e:
         raise PcsError(

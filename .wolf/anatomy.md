@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T12:12:02.313Z
-> Files: 1033 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T12:27:50.183Z
+> Files: 1034 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -130,6 +130,7 @@
 
 ## .git/
 
+- `COMMIT_MSG_077.txt` (~366 tok)
 - `COMMIT_MSG_084.txt` (~539 tok)
 - `COMMIT_MSG_FIX1.txt` (~316 tok)
 - `COMMIT_MSG_T1_PLAN.txt` (~135 tok)

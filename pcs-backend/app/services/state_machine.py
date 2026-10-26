@@ -159,6 +159,24 @@ class RoleForbidden(Exception):
     """角色无权执行该转移。"""
 
 
+class NoModification(Exception):
+    """APPLY_CHANGE：记录**没有真的改过**（TODO-077）。
+
+    「提交变更完成」= 这次变更**做完了** ⇒ 必须真的改过（ADR-0002 的
+    CHANGE_PENDING = 「获准修改、正在改+重校核」）。
+
+    ⚠️ 判据 = **记录当前哈希** vs **最新 ACTIVE 的 BEFORE_CHANGE 快照哈希**
+    （快照哈希 = 发起变更那一刻的哈希）⇒ 两者相同 = 没改过。
+    """
+
+    def __init__(self, record_hash: str, baseline_hash: str) -> None:
+        super().__init__(
+            f"记录没有发生任何修改（哈希仍是 {baseline_hash!r}）"
+        )
+        self.record_hash = record_hash
+        self.baseline_hash = baseline_hash
+
+
 class StateMachineService:
     """通用状态机服务（9 态 record + 5 态 config asset 共用）。
 
@@ -235,6 +253,61 @@ class StateMachineService:
         )
         self.session.add(snapshot)
         return snapshot
+
+    async def _assert_change_modified(self, record: RecordMixin) -> None:
+        """APPLY_CHANGE 前置：记录**必须真的改过**（TODO-077）。
+
+        ## 判据
+
+        记录当前 `record_hash` vs **最新 ACTIVE 的 BEFORE_CHANGE 快照**的哈希
+        （快照哈希 = 发起变更那一刻的哈希）⇒ 相同 = **没改过** ⇒ 抛
+        `NoModification`。
+
+        ## 为什么不在端点层判
+
+        这是**转移本身的业务前置**（「提交变更完成」⇒ 有变更完成了）⇒ 与
+        角色校验、状态校验同层 ⇒ 放状态机里，任何调用方都躲不掉。
+
+        ## 两种「无从判断」⇒ 不拦
+
+        - 记录**没有** `record_hash` 列（少数表）⇒ 无从判断；
+        - **没有** ACTIVE 快照（不是走 INITIATE_CHANGE 进 CHANGE_PENDING 的）
+          ⇒ 没有基线可比。
+        ⇒ 这两种情况**放行**（不因缺元数据把正常操作挡掉）。
+        """
+        current = getattr(record, "record_hash", None)
+        # ⚠️ **空哈希 = 没有哈希追踪**（物流 streams 的 `record_hash` 恒为
+        # "" ⇒ 没有可比的东西）⇒ 无从判断 ⇒ 不拦。
+        if not current:
+            return
+        baseline = await self._latest_active_snapshot_hash(record)
+        if baseline is None:
+            return
+        if (current or "") == (baseline or ""):
+            raise NoModification(current or "", baseline or "")
+
+    async def _latest_active_snapshot_hash(
+        self, record: RecordMixin
+    ) -> str | None:
+        """最新 ACTIVE 的 BEFORE_CHANGE 快照哈希（没有 ⇒ None）。"""
+        from sqlalchemy import select
+
+        from app.models.deliverable import RecordChangeSnapshot
+
+        pk = _record_pk(record)
+        snap = (
+            await self.session.execute(
+                select(RecordChangeSnapshot)
+                .where(
+                    RecordChangeSnapshot.record_type == record.__class__.__name__,
+                    RecordChangeSnapshot.record_id == pk,
+                    RecordChangeSnapshot.snapshot_status == SnapshotStatus.ACTIVE.value,
+                )
+                .order_by(RecordChangeSnapshot.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return snap.record_hash if snap is not None else None
 
     async def _restore_snapshot_if_needed(
         self,
@@ -317,6 +390,11 @@ class StateMachineService:
         if key not in ALLOWED_TRANSITIONS:
             raise InvalidTransition(from_status.value, transition.value)
         to_status = ALLOWED_TRANSITIONS[key]
+
+        # ⚠️ **APPLY_CHANGE 的业务前置**：必须真的改过（TODO-077）。
+        #    放在**迁移之前** ⇒ 被拒时一行都没写。
+        if transition == StateTransition.APPLY_CHANGE:
+            await self._assert_change_modified(record)
 
         # R-03 T0 / D8 9A：STALE_RESOLVED 转移前捕获 record_hash 以计算 hash_changed
         old_hash = getattr(record, "record_hash", None)

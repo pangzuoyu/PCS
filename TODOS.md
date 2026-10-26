@@ -1443,17 +1443,39 @@ submit-approval / approval-step / deliverables 的 issue / sign-step），
 并补守卫测试；同时把两条 fail-open 分支显式化（要么改 fail-closed，要么写
 明「为什么放行」并加测试钉住）。**归属：** 独立一轮。
 
-## TODO-077: `apply-change` 不要求 hash 变化（可能「没改内容也关变更」）🟡
+## ✅ DONE —— TODO-077: `apply-change` 不要求 hash 变化（2026-10-26 落地）
 
-**What:** `POST /records/{module}/{id}/apply-change` 只做状态迁移
-（CHANGE_PENDING → CHANGED），**不检查**记录的 `record_hash` 是否真的变了。
+**业务裁决（2026-10-26，用户指令「顺序解决」）**：**强制 hash 变化** ——
+推翻计划 R-11 当初「不要求 hash 变化」的取舍。
 
-**Why:** ADR-0002 只说「校核完成」；发明「必须改过」是加需求（计划 R-11 的
-取舍）。但后果是：可以「发起变更 → 什么都不改 → 提交变更完成 → 变更单签完」
-⇒ 一条**没有实质变更**的记录被关掉，而变更单里写着「管径修正」。
+**理由**：
+1. ADR-0002 的 CHANGE_PENDING = 「**获准修改**、正在改+重校核」⇒
+   「提交变更完成」= 有变更完成了；
+2. 确实无需修改的正确动作是「**放弃变更**」（ABANDON_CHANGE → CHECKED），
+   不是提交完成；
+3. 不拦 ⇒ 可「发起变更 → 什么都不改 → 提交变更完成 → 变更单签完」⇒ 一条
+   **没有实质变更**的记录被关掉，而变更单里写着「管径修正」⇒ 凭证说的不是
+   事实（ADR-0002「防止无声修改」被架空）。
 
-**How:** 待业务裁决（要不要强制 hash 变化 / 或者要求变更单里带差异清单）。
-**归属：** SPEC 裁决。
+**落地**：
+- `StateMachineService._assert_change_modified`：**APPLY_CHANGE 的业务前置**
+  （与角色/状态校验同层 ⇒ 任何调用方都躲不掉）—— 判据 = 记录当前
+  `record_hash` vs **最新 ACTIVE 的 BEFORE_CHANGE 快照**哈希 ⇒ 相同 ⇒ 抛
+  `NoModification`。放在**迁移之前** ⇒ 被拒时一行都没写。
+- 端点映射：⇒ **409 `CHANGE_NO_MODIFICATION`**（并提示「若确实无需修改，请改用
+  「放弃变更」」）。不映射会落到 500 兜底 —— 而这是用户「忘了改数据」的
+  **正常结果**，不是系统故障。
+- ⚠️ **两种「无从判断」⇒ 放行**：记录**没有** `record_hash` 列、或哈希是**空串**
+  （物流 streams 的 `record_hash` 恒为 "" ⇒ 没有可比的东西）⇒ 不因缺元数据把
+  正常操作挡掉。
+- 测试（RED→GREEN）：`test_apply_change_requires_an_actual_modification`
+  （没改 ⇒ 409 且状态不变）+ `test_apply_change_allows_a_modified_record`
+  （改过 ⇒ 200）。
+
+**⚠️ 已知代价**：「重新校核后确认无需修改」的场景现在会被 409 挡住（可改用
+「放弃变更」）—— 这是**有意的**：那条路会留下「变更完成」的假凭证。
+
+**关联：** ADR-0002 · 计划 R-11′（推翻 R-11）· TODO-078 · TODO-087。
 
 ## TODO-078: 变更单只绑**一条**记录（多记录变更未支持）🟡
 

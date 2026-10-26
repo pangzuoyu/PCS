@@ -109,9 +109,15 @@ async def _initiate(client, rec) -> None:
     assert init.status_code == 200, init.text
 
 
-async def _to_changed(client, rec) -> None:
-    """把记录推到 CHANGED（走真实端点）。"""
+async def _to_changed(client, db, rec, *, new_hash: str = "h-edited") -> None:
+    """把记录推到 CHANGED（走真实端点）。
+
+    ⚠️ **必须真的改数据**：`apply-change` 要求记录**改过**（TODO-077 ⇒
+    哈希没变 ⇒ 409 `CHANGE_NO_MODIFICATION`）⇒ 这里改哈希模拟一次保存。
+    """
     await _initiate(client, rec)
+    rec.record_hash = new_hash
+    await db.flush()
     apply = await client.post(
         f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
         json={"reason": "改完了"},
@@ -169,6 +175,9 @@ async def test_apply_change_moves_to_changed(client, db):
     proj = await _make_project(db)
     rec = await _make_record(db, project=proj, sign_status="CHECKED")
     await _initiate(client, rec)
+    # ⚠️ 必须真的改数据（TODO-077：没改过不许提交变更完成）
+    rec.record_hash = "h-edited"
+    await db.flush()
 
     resp = await client.post(
         f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
@@ -559,7 +568,7 @@ async def test_rejected_notice_can_be_reworked_via_reversal(client, db):
     rec = await _make_record(db, project=proj, sign_status="CHECKED")
     # 走真实链路：发起 → 提交 → 建单（这样才有 BEFORE_CHANGE 快照可恢复）
     # ⚠️ `_to_changed` 内部**已经**含 initiate ⇒ 这里不要再单独调
-    await _to_changed(client, rec)
+    await _to_changed(client, db, rec)
     body = await _create_notice(client, rec)
 
     # 第 1 步驳回 ⇒ 单据回 DRAFT，记录**不动**
@@ -615,7 +624,7 @@ async def test_rework_refreshes_the_open_notice_binding_hashes(client, db):
     """
     proj = await _make_project(db)
     rec = await _make_record(db, project=proj, sign_status="CHECKED")
-    await _to_changed(client, rec)
+    await _to_changed(client, db, rec)
     body = await _create_notice(client, rec)
 
     # 驳回 ⇒ 单据回 DRAFT、记录保持 CHANGED
@@ -801,3 +810,48 @@ async def test_change_notice_response_reports_the_real_sign_status(client, db, m
         )
     ).scalar_one()
     assert deliverable.sign_status == DeliverableSignStatus.DRAFT
+
+
+async def test_apply_change_requires_an_actual_modification(client, db):
+    """⚠️ TODO-077：`apply-change`（提交变更完成）要求记录**真的改过**。
+
+    失败模式：发起变更 → **什么都不改** → 提交变更完成 → 变更单签完 ⇒
+    一条**没有实质变更**的记录被关掉，而变更单里写着「管径修正」⇒
+    凭证说的不是事实（ADR-0002「防止无声修改」被架空）。
+
+    ⇒ 记录哈希与 BEFORE_CHANGE 快照的哈希**相同** ⇒ 409
+    `CHANGE_NO_MODIFICATION`。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _initiate(client, rec)
+    # ⚠️ **不改数据** ⇒ 哈希仍是快照里那个
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
+        json={"reason": "什么都没改"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["code"] == "CHANGE_NO_MODIFICATION"
+
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.CHANGE_PENDING.value, "被拒后状态不许变"
+
+
+async def test_apply_change_allows_a_modified_record(client, db):
+    """反向对照：改过（哈希变了）⇒ 提交变更完成 ⇒ 200。"""
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHECKED")
+    await _initiate(client, rec)
+
+    rec.record_hash = "h-edited"
+    await db.flush()
+
+    resp = await client.post(
+        f"/api/v1/records/{MODULE}/{rec.relief_id}/apply-change",
+        json={"reason": "改完了"},
+        headers=_token(role="DESIGNER"),
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["to_status"] == "CHANGED"

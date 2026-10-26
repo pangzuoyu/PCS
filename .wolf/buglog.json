@@ -4532,6 +4532,26 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2076",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "`apply-change` 不要求记录真的改过 ⇒ 可「什么都没改」也关掉变更",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "`StateMachineService.transition` 的 APPLY_CHANGE 只做状态迁移，**不检查**记录的 `record_hash` 与发起变更时的 BEFORE_CHANGE 快照哈希是否不同 ⇒ 可以「发起变更 → 什么都不改 → 提交变更完成 → 变更单签完」⇒ 一条**没有实质变更**的记录被关掉，而变更单里写着「管径修正」⇒ 凭证说的不是事实（ADR-0002「防止无声修改」被架空）。计划 R-11 当初以「发明『必须改过』是加需求」为由不拦，并把后果登记为 TODO-077 待业务裁决。",
+      "fix": "**业务裁决（2026-10-26）**：强制 hash 变化 ⇒ 新增 `_assert_change_modified`（APPLY_CHANGE 的**状态机层**业务前置，迁移**前**判定 ⇒ 被拒时一行都没写）+ 端点映射 **409 `CHANGE_NO_MODIFICATION`**（并提示改用「放弃变更」）。⚠️ 两种「无从判断」放行（无 `record_hash` 列 / 哈希空串 —— 物流 streams 恒为 ）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "todo-077",
+        "change-notice",
+        "state-machine",
+        "audit-trail",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
     }
   ]
 }
