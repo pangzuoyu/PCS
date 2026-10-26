@@ -56,23 +56,36 @@ def _checker_auth() -> dict[str, str]:
 async def _pending(
     db: AsyncSession, project_id: uuid.UUID, *, steps: list | None = None
 ) -> tuple[Deliverable, DeliverableVersion]:
-    matrix = SignatureMatrix(
-        matrix_name="矩阵",
-        module="*",
-        doc_type="CALCULATION_BOOK",
-        version_purpose="ISSUED_FOR_CONSTRUCTION",
-        steps_json=steps or [
-            {"step_order": 1, "sign_role": "CHECKER", "can_self_check": True}
-        ],
-        status="ACTIVE",
-    )
-    db.add(matrix)
-    await db.flush()
-    db.add(
-        ProjectSignatureMatrixBinding(
-            project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+    # ⚠️ **同一项目同一模块只绑一个矩阵**（唯一约束，迁移 `p9_008`）⇒
+    # 已有绑定时**复用那个矩阵**（新建一个再改绑，会让先前那条交付物指向的
+    # 矩阵**不再绑定** ⇒ 签署路径 409）。
+    binding = (
+        await db.execute(
+            select(ProjectSignatureMatrixBinding).where(
+                ProjectSignatureMatrixBinding.project_id == project_id,
+                ProjectSignatureMatrixBinding.module == "RECORD",
+            )
         )
-    )
+    ).scalar_one_or_none()
+    matrix = await db.get(SignatureMatrix, binding.matrix_id) if binding else None
+    if matrix is None:
+        matrix = SignatureMatrix(
+            matrix_name="矩阵",
+            module="*",
+            doc_type="CALCULATION_BOOK",
+            version_purpose="ISSUED_FOR_CONSTRUCTION",
+            steps_json=steps or [
+                {"step_order": 1, "sign_role": "CHECKER", "can_self_check": True}
+            ],
+            status="ACTIVE",
+        )
+        db.add(matrix)
+        await db.flush()
+        db.add(
+            ProjectSignatureMatrixBinding(
+                project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+            )
+        )
     deliverable = Deliverable(
         matrix_id=matrix.matrix_id,
         project_id=project_id,

@@ -69,3 +69,34 @@ async def check_record_access_or_404(
     await check_project_access_or_404(
         db, user_id=user_id, project_id=project_id, actor_roles=actor_roles,
     )
+
+async def require_formal_workspace(
+    db: AsyncSession, *, project_id: uuid.UUID
+) -> None:
+    """工作区门禁：**只有 FORMAL 工作区**能做本操作（UI-SPEC §5.3）。
+
+    UI-SPEC §5.3：「创建变更单」在 PERSONAL / TEMPORARY 工作区 ⇒ 403。
+    个人草稿区里的变更单没有工程效力（明天就过期了），却会占用签署流程。
+
+    ⚠️ **本守卫只覆盖本批端点** —— 全端点的工作区门禁仍缺（已登记 TODOS.md）。
+    """
+    from app.core.errors import PcsError
+    from app.models.enums import WorkspaceType
+    from app.models.project import Project, Workspace
+
+    project = await db.get(Project, project_id)
+    if project is None or project.workspace_id is None:
+        # 没有工作区 ⇒ 不是个人草稿区 ⇒ 放行（不因缺元数据把正常操作挡掉）
+        return
+    workspace = await db.get(Workspace, project.workspace_id)
+    if workspace is None:
+        return
+    if workspace.workspace_type != WorkspaceType.FORMAL.value:
+        raise PcsError(
+            code="WORKSPACE_TYPE_NOT_ALLOWED",
+            message=(
+                f"当前工作区类型 {workspace.workspace_type}，只允许在 FORMAL "
+                f"工作区创建变更单（UI-SPEC §5.3）"
+            ),
+            status=403,
+        )

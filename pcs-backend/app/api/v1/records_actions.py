@@ -30,12 +30,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1._guard import check_record_access_or_404
+from app.api.v1._guard import (
+    check_record_access_or_404,
+    require_formal_workspace,
+)
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
 from app.models.enums import (
     AuditAction,
+    DeliverableSignStatus,
     RecordSignStatus9,
     StateTransition,
     to_value,
@@ -44,6 +48,9 @@ from app.models.record_comment import RecordComment
 from app.schemas.records_actions import (
     ApprovalStepRequest,
     ApprovalStepResponse,
+    ChangeNoticeDetailResponse,
+    ChangeNoticeRequest,
+    ChangeNoticeResponse,
     CommentCreateRequest,
     CommentListResponse,
     CommentResponse,
@@ -567,4 +574,156 @@ async def list_comments(
     return CommentListResponse(
         items=[CommentResponse.model_validate(r) for r in rows],
         total=int(total or 0),
+    )
+
+
+# ---------------------------------------------------------------------------
+# 变更单闭环（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）
+#
+# 完整链路（ADR-0002 的 CHANGED 生命周期）：
+#
+#   CHECKED
+#     --initiate-change-->  CHANGE_PENDING   （获准修改，正在改 + 重校核）
+#     --apply-change-->    CHANGED           （校核完成，等待关闭）
+#     --change-notice-->   变更单（3 级矩阵签署中）
+#     --签完最后一步-->     记录自动回 CHECKED（change_resolved_by = 签完的人）
+#
+# ⚠️ **发起变更 / 提交变更完成两个端点此前完全不存在** ⇒ 记录永远到不了
+# CHANGED ⇒ 变更单的建单端点即使写出来也不可达（`create_change_notice`
+# 要求记录是 CHANGED）。
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/records/{module}/{record_id}/initiate-change",
+    response_model=RecordActionResponse,
+    summary="发起变更（CHECKED → CHANGE_PENDING）",
+)
+async def initiate_change(
+    module: str,
+    record_id: uuid.UUID,
+    body: ObsoleteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> RecordActionResponse:
+    """发起一条待生效的变更（ADR-0002：CHECKED → CHANGE_PENDING）。
+
+    触发时状态机自动写 **BEFORE_CHANGE 快照**（变更前的数据 + 哈希）
+    ⇒ 变更单建单时能把「变更前哈希」写进 `deliverable_record_bindings`
+    ⇒ 新旧哈希可比对（ADR-0008）。
+    """
+    require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    from_status = record.sign_status
+    await _transition(
+        db,
+        record=record,
+        transition=StateTransition.INITIATE_CHANGE,
+        actor=actor,
+        reason=body.reason,
+    )
+    await db.commit()
+    return _response(
+        module,
+        record_id,
+        {"from": to_value(from_status), "to": to_value(record.sign_status)},
+    )
+
+
+@router.post(
+    "/records/{module}/{record_id}/apply-change",
+    response_model=RecordActionResponse,
+    summary="提交变更完成（CHANGE_PENDING → CHANGED，等待变更单关闭）",
+)
+async def apply_change(
+    module: str,
+    record_id: uuid.UUID,
+    body: ObsoleteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> RecordActionResponse:
+    """变更改完了、重校核过了 ⇒ 进入 CHANGED（等待变更单关闭它）。
+
+    ADR-0002：CHANGED = 「校核完成、等待关闭」⇒ 关闭凭证是**变更单**
+    （不是新版交付物）⇒ 记录要到变更单被签完才回 CHECKED。
+    """
+    require_roles(actor, *_roles_for(StateTransition.APPLY_CHANGE))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    from_status = record.sign_status
+    await _transition(
+        db,
+        record=record,
+        transition=StateTransition.APPLY_CHANGE,
+        actor=actor,
+        reason=body.reason,
+    )
+    await db.commit()
+    return _response(
+        module,
+        record_id,
+        {"from": to_value(from_status), "to": to_value(record.sign_status)},
+    )
+
+
+@router.post(
+    "/records/{module}/{record_id}/change-notice",
+    response_model=ChangeNoticeResponse,
+    summary="发起变更单（记录须为 CHANGED）",
+)
+async def create_change_notice(
+    module: str,
+    record_id: uuid.UUID,
+    body: ChangeNoticeRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ChangeNoticeResponse:
+    """给一条 CHANGED 的记录发起变更单（ADR-0008）。
+
+    建单 = 交付物（CHANGE_NOTICE）+ **版本行**（ISSUED_FOR_CHANGE）+
+    **记录绑定**（`deliverable_record_bindings`）+ 观测行（PENDING），
+    **同一事务**。
+
+    之后的 3 级校审走**既有** `POST /deliverables/{id}/sign-step`
+    （矩阵 `CHANGE_NOTICE_3_LEVEL`）⇒ 矩阵对变更单**真的生效**；
+    最后一步签完 ⇒ 记录自动回 CHECKED。
+    """
+    require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
+    model = resolve_record_model(module)
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # ⚠️ 工作区门禁（UI-SPEC §5.3）：个人草稿区里的变更单没有工程效力。
+    await require_formal_workspace(db, project_id=record.project_id)
+
+    from app.services.change_notice_service import (
+        ChangeNoticeService,
+        ChangeType,
+        TriggeredBy,
+    )
+
+    result = await ChangeNoticeService.create_change_notice(
+        db,
+        project_id=record.project_id,
+        record_id=record_id,
+        change_type=ChangeType(body.change_type),
+        reason=body.reason,
+        triggered_by=TriggeredBy(body.triggered_by),
+        actor=actor,
+        record_table=model,
+    )
+    detail = result["detail"]
+    return ChangeNoticeResponse(
+        deliverable_id=result["deliverable_id"],
+        version_id=result["version_id"],
+        workflow_id=result["workflow_id"],
+        matrix_id=result["matrix_id"],
+        project_id=result["project_id"],
+        doc_no=result["doc_no"],
+        title=result["title"],
+        sign_status=DeliverableSignStatus.PENDING.value,
+        detail=ChangeNoticeDetailResponse(
+            detail_id=detail["detail_id"],
+            change_type=detail["change_type"],
+            reason=detail["reason"],
+            triggered_by=detail["triggered_by"],
+            source_record_type=detail["source_record_type"],
+        ),
     )

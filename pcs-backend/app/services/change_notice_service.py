@@ -31,6 +31,7 @@ from app.models.deliverable import (
     ChangeNoticeDetail,
     Deliverable,
     DeliverableRecordBinding,
+    DeliverableVersion,
     RecordChangeSnapshot,
 )
 from app.models.enums import (
@@ -533,6 +534,134 @@ class ChangeNoticeService:
             ),
             project_id=deliverable.project_id,
         )
+
+    @classmethod
+    async def close_on_approved(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable: Deliverable,
+        version: Any,
+        actor_user_id: uuid.UUID | None,
+    ) -> dict[str, Any]:
+        """变更单被签到最后一步（APPROVED）⇒ **自动**关掉那条记录。
+
+        ADR-0008：「变更单 APPROVED 后**系统自动**将绑定记录 CHANGED → CHECKED
+        并写入 `change_resolved_by`；被驳回则回 DRAFT，绑定记录保持 CHANGED」。
+
+        ## 为什么触发点在**签最后一步**那里，而不是另一个「审批」端点
+
+        「自动」= 状态被推成 APPROVED 的那一刻 ⇒ 触发点必须在那儿
+        （`DeliverableService.sign_step`）。另开一个审批端点 ⇒ 矩阵形同虚设
+        （谁都能直接批准，3 级校审不生效）。
+
+        ## 记录的关联从哪来
+
+        `deliverable_record_bindings`（ADR-0008 指定）—— 按**交付物**找
+        （不是按版本）：变更单被退回后重新签发会有第 2 个版本，但**记录还是
+        那条记录** ⇒ 关联不能绑在单个版本上。
+
+        Raises:
+            PcsError 409 `CHANGE_NOTICE_RECORD_LINK_MISSING` —— 找不到记录
+                （响亮失败：静默跳过 = 变更单批准了而记录永远停在 CHANGED）。
+        """
+        binding = await cls._find_record_binding(db, deliverable_id=deliverable.deliverable_id)
+        if binding is None:
+            raise PcsError(
+                f"变更单 {deliverable.deliverable_id} 没有绑定记录"
+                f"（deliverable_record_bindings 里找不到）",
+                code="CHANGE_NOTICE_RECORD_LINK_MISSING",
+                status=409,
+            )
+        model = await cls._record_model_by_class_name(binding.record_type)
+        if model is None:
+            raise PcsError(
+                f"变更单 {deliverable.deliverable_id} 绑定的记录类型 "
+                f"{binding.record_type!r} 不在 RECORD_TYPE_REGISTRY 里",
+                code="CHANGE_NOTICE_RECORD_TYPE_UNKNOWN",
+                status=409,
+            )
+        record = await db.get(model, binding.record_id)
+        if record is None:
+            raise PcsError(
+                f"变更单 {deliverable.deliverable_id} 绑定的记录 "
+                f"{binding.record_id} 不存在",
+                code="CHANGE_NOTICE_RECORD_NOT_FOUND",
+                status=409,
+            )
+
+        # CHANGED → CHECKED（关闭）+ 记录是谁关的
+        record.sign_status = RecordSignStatus9.CHECKED.value
+        record.change_resolved_at = datetime.now(UTC)
+        record.change_resolved_by = str(actor_user_id)
+
+        detail = await cls._get_detail_by_deliverable(db, deliverable.deliverable_id)
+        await AuditService(db).write(
+            action=AuditAction.CHANGE_NOTICE_APPROVED,
+            resource_type="DELIVERABLE",
+            resource_id=str(deliverable.deliverable_id),
+            user_id=actor_user_id,
+            detail={
+                "from": "CHANGED",
+                "to": "CHECKED",
+                "record_type": binding.record_type,
+                "record_id": str(binding.record_id),
+                "change_type": getattr(detail, "change_type", None),
+                "project_id": str(deliverable.project_id),
+            },
+        )
+
+        # ⚠️ **观测写入点 2b 的新位置**：变更单**被签完**（不是「被批准」）⇒
+        #    CHANGE_NOTICE 工作流走到 COMPLETED（与 ADR-0047 §① 一致）。
+        await record_step(
+            session=db,
+            project_id=deliverable.project_id,
+            workflow_type=WorkflowType.CHANGE_NOTICE,
+            workflow_id=deliverable.deliverable_id,
+            step_order=1,
+            step_role="CHANGE_NOTICE",
+            state=WorkflowProgressState.COMPLETED,
+            actor_user_id=actor_user_id,
+        )
+        return {
+            "record_type": binding.record_type,
+            "record_id": str(binding.record_id),
+            "from": "CHANGED",
+            "to": "CHECKED",
+        }
+
+    @classmethod
+    async def _find_record_binding(
+        cls, db: AsyncSession, *, deliverable_id: uuid.UUID
+    ) -> DeliverableRecordBinding | None:
+        """按**交付物**找它绑的那条记录（不按版本 —— 见 `close_on_approved`）。"""
+        return (
+            await db.execute(
+                select(DeliverableRecordBinding)
+                .join(
+                    DeliverableVersion,
+                    DeliverableRecordBinding.deliverable_version_id
+                    == DeliverableVersion.version_id,
+                )
+                .where(DeliverableVersion.deliverable_id == deliverable_id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    @staticmethod
+    async def _record_model_by_class_name(name: str) -> type | None:
+        """记录类型的**类名** → ORM 模型。
+
+        ⚠️ 按**类名**找而不是按注册表的键：`RECORD_TYPE_REGISTRY` 的键风格
+        不统一（`PipingResult` / `cv_result` 混着），而 binding 里存的是
+        ORM 类名 ⇒ 按键找会漏。
+        """
+        from app.services.calc_lineage import RECORD_TYPE_REGISTRY
+
+        for model in RECORD_TYPE_REGISTRY.values():
+            if getattr(model, "__name__", None) == name:
+                return model
+        return None
 
     @classmethod
     async def _apply_record_resolution(

@@ -360,7 +360,11 @@ class DeliverableService:
                 )
             )
         ).scalar_one_or_none()
-        if duplicated is not None:
+        # ⚠️ 幂等判据 =「有**未退回**的版本」，不是「有版本」。
+        # 交付物退回后（`sign_step` 的 RETURN ⇒ DRAFT）必须能**重新签发**：
+        # 否则变更单被驳回一次就**永久卡死**（DRAFT ⇒ sign-step 409、
+        # issue 409 ⇒ 永远签不了）。
+        if duplicated is not None and deliverable.sign_status != DeliverableSignStatus.DRAFT:
             raise PcsError(
                 code="DELIVERABLE_ALREADY_ISSUED",
                 message=(
@@ -673,9 +677,27 @@ class DeliverableService:
         next_step = steps[step_index] if step_index < len(steps) else None
         if decision == "SIGN" and next_step is None:
             deliverable.sign_status = DeliverableSignStatus.APPROVED
+            # ⚠️ **变更单的最后一步 ⇒ 自动关记录**（ADR-0008：「变更单 APPROVED
+            # 后**系统自动**将绑定记录 CHANGED → CHECKED 并写入
+            # `change_resolved_by`」）。
+            # 触发点必须在这儿（把状态推成 APPROVED 的那一刻）—— 另开一个
+            # 「审批」端点 ⇒ 3 级矩阵形同虚设（谁都能直接批准）。
+            # ⚠️ 懒导入：change_notice_service 要 import 本模块（建版本），
+            # 模块级互相 import 会成环。
+            if deliverable.deliverable_type == "CHANGE_NOTICE":
+                from app.services.change_notice_service import ChangeNoticeService
+
+                await ChangeNoticeService.close_on_approved(
+                    db,
+                    deliverable=deliverable,
+                    version=version,
+                    actor_user_id=actor_user_id,
+                )
         elif decision == "RETURN":
             # 退回 = 交付物整体回草稿。后续要改内容必须重新 issue 出新版本，
             # 不能在原版本上继续推进 —— 否则退回的理由会挂在已签过的版本上。
+            # ADR-0008：「被驳回则回 DRAFT，**绑定记录保持 CHANGED**」——
+            # 这里**不碰记录** ✔（记录要到变更单被签完才关）。
             deliverable.sign_status = DeliverableSignStatus.DRAFT
 
         summary = dict(version.signature_summary_json or {})

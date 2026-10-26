@@ -154,3 +154,63 @@ class CommentListResponse(BaseModel):
 
     items: list[CommentResponse]
     total: int
+
+
+# ---------------------------------------------------------------------------
+# 变更单（TODO-068 · P9A-DLV-011 T4）
+# ---------------------------------------------------------------------------
+
+#: 变更类型 7 值（spec V1.0 §4；与 `ChangeType` 枚举逐字一致）。
+ChangeType = Literal[
+    "DATA_CORRECTION",
+    "PROCESS_CHANGE",
+    "UPSTREAM_CHANGE",
+    "CLIENT_COMMENT",
+    "RECORD_CANCELLATION",
+    "CHANGE_REVERSAL",
+    "OTHER",
+]
+
+#: 触发来源 2 值（MANUAL / UPSTREAM_CHANGE）。
+TriggeredBy = Literal["MANUAL", "UPSTREAM_CHANGE"]
+
+
+class ChangeNoticeRequest(BaseModel):
+    """发起变更单的请求体。
+
+    ⚠️ **只收变更单特有字段**（ADR-0008：change_type / reason / triggered_by
+    在 1:1 扩展表 `change_notice_details`）；记录是谁由路径里的
+    `{module}/{record_id}` 决定 ⇒ 不在请求体里重复。
+    """
+
+    change_type: ChangeType = Field(description="7 值变更类型")
+    reason: str = Field(min_length=1, max_length=2000, description="变更原因")
+    triggered_by: TriggeredBy = Field(default="MANUAL")
+
+
+class ChangeNoticeDetailResponse(BaseModel):
+    """变更单扩展行（`change_notice_details`）。"""
+
+    detail_id: uuid.UUID
+    change_type: str
+    reason: str
+    triggered_by: str
+    source_record_type: str | None = None
+
+
+class ChangeNoticeResponse(BaseModel):
+    """建单结果。字段集合被 `test_change_notice_response_has_no_bare_fields` 钉死。
+
+    `version_id` 是**签署时要用的那个版本**（变更单的 3 级矩阵作用在它身上），
+    `workflow_id` 是观测工作流的 id（= 变更单自己的 deliverable_id）。
+    """
+
+    deliverable_id: uuid.UUID
+    version_id: uuid.UUID
+    workflow_id: uuid.UUID
+    matrix_id: uuid.UUID
+    project_id: uuid.UUID
+    doc_no: str
+    title: str
+    sign_status: str = Field(description="建单后 = PENDING（进签署中）")
+    detail: ChangeNoticeDetailResponse

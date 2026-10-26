@@ -2408,3 +2408,9 @@
 | 08:17 | Edited pcs-backend/tests/api/v1/test_signature_matrix_api.py | modified test_create_with_bad_steps_rejected_and_not_stored() | ~223 |
 | 08:17 | Edited pcs-backend/tests/api/v1/test_signature_matrix_api.py | test_bind_requires_project_access() → test_bind_requires_designer_side_role() | ~227 |
 | 08:18 | Created .git/COMMIT_MSG_T3.txt | — | ~331 |
+| 08:19 | Edited pcs-backend/app/services/change_notice_service.py | modified close_on_approved() | ~1338 |
+| 08:19 | Edited pcs-backend/app/services/change_notice_service.py | 6→7 lines | ~46 |
+| 08:19 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+18 lines) | ~346 |
+| 08:20 | Edited pcs-backend/app/services/deliverable_service.py | 17→21 lines | ~248 |
+| 08:22 | Created pcs-backend/tests/api/v1/test_change_notice_api.py | — | ~3566 |
+| 08:37 | Created .git/COMMIT_MSG_T4.txt | — | ~341 |

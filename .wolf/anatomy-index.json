@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T00:18:55.825Z",
-    "fileCount": 1017,
+    "lastScanned": "2026-10-26T00:37:48.066Z",
+    "fileCount": 1018,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "41f556ece76738bbb5f339ff32ca4072ce323f0f1c091030f178687e1cfbca4f",
-    "storeUpdatedAt": "2026-10-26T00:18:55.836Z",
-    "rootHash": "48ebf63a22c7d48d"
+    "renderedHash": "35e0c7c672937bc70e3c025ecdc661ef006a363755987450a060a8057f1bdc3c",
+    "storeUpdatedAt": "2026-10-26T00:37:48.077Z",
+    "rootHash": "250e22081cea8b17"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21347,11 +21347,11 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 11081,
-      "hash": "0df88c299530eca8",
-      "size": 45436,
-      "mtimeMs": 1792972542043.813,
-      "updatedAt": "2026-10-25T23:55:42.098Z",
+      "tokens": 11385,
+      "hash": "7a869fbd6b563cb7",
+      "size": 46939,
+      "mtimeMs": 1792974003020.2668,
+      "updatedAt": "2026-10-26T00:20:03.074Z",
       "source": "hook",
       "symbols": [
         {
@@ -21386,8 +21386,8 @@
           "name": "DeliverableService",
           "kind": "class",
           "startLine": 131,
-          "endLine": 1133,
-          "tokens": 10014
+          "endLine": 1155,
+          "tokens": 10318
         }
       ]
     },
@@ -21767,33 +21767,33 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 5824,
-      "hash": "485fe5eef8228d46",
-      "size": 23762,
-      "mtimeMs": 1792972708112.3542,
-      "updatedAt": "2026-10-25T23:58:28.162Z",
+      "tokens": 7153,
+      "hash": "48ee9a0d973fc3e6",
+      "size": 29225,
+      "mtimeMs": 1792973974038.7402,
+      "updatedAt": "2026-10-26T00:19:34.084Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ChangeType",
           "kind": "class",
-          "startLine": 52,
-          "endLine": 63,
+          "startLine": 53,
+          "endLine": 64,
           "tokens": 96
         },
         {
           "name": "TriggeredBy",
           "kind": "class",
-          "startLine": 64,
-          "endLine": 74,
+          "startLine": 65,
+          "endLine": 75,
           "tokens": 76
         },
         {
           "name": "ChangeNoticeService",
           "kind": "class",
-          "startLine": 75,
-          "endLine": 582,
-          "tokens": 5218
+          "startLine": 76,
+          "endLine": 711,
+          "tokens": 6541
         }
       ]
     },
@@ -36222,11 +36222,11 @@
     },
     ".git/COMMIT_MSG_T4.txt": {
       "description": "",
-      "tokens": 253,
-      "hash": "5948272ba418a3ee",
-      "size": 1661,
-      "mtimeMs": 1792971789019.5942,
-      "updatedAt": "2026-10-25T23:43:09.066Z",
+      "tokens": 319,
+      "hash": "074c770c20e9c27e",
+      "size": 2255,
+      "mtimeMs": 1792975068020.6677,
+      "updatedAt": "2026-10-26T00:37:48.066Z",
       "source": "hook"
     },
     "docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md": {
@@ -36679,6 +36679,129 @@
       "mtimeMs": 1792973935777.3604,
       "updatedAt": "2026-10-26T00:18:55.824Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_change_notice_api.py": {
+      "description": "变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。",
+      "tokens": 3566,
+      "hash": "05e2cdc07693fc49",
+      "size": 13433,
+      "mtimeMs": 1792974156008.632,
+      "updatedAt": "2026-10-26T00:22:36.060Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 55,
+          "tokens": 64
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 74,
+          "tokens": 154
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 87,
+          "tokens": 103
+        },
+        {
+          "name": "_to_changed",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 103,
+          "tokens": 151
+        },
+        {
+          "name": "_create_notice",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 113,
+          "tokens": 94
+        },
+        {
+          "name": "_sign",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 131,
+          "tokens": 162
+        },
+        {
+          "name": "test_initiate_change_moves_to_change_pending",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 147,
+          "tokens": 162
+        },
+        {
+          "name": "test_apply_change_moves_to_changed",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 162,
+          "tokens": 148
+        },
+        {
+          "name": "test_apply_change_rejects_wrong_state",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 180,
+          "tokens": 181
+        },
+        {
+          "name": "test_create_change_notice_from_changed_record",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 233,
+          "tokens": 492
+        },
+        {
+          "name": "test_create_change_notice_rejects_non_changed_record",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 247,
+          "tokens": 154
+        },
+        {
+          "name": "test_matrix_role_is_enforced",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 264,
+          "tokens": 150
+        },
+        {
+          "name": "test_full_closure_closes_the_record",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 292,
+          "tokens": 299
+        },
+        {
+          "name": "test_return_keeps_record_changed_and_allows_reissue",
+          "kind": "fn",
+          "startLine": 293,
+          "endLine": 349,
+          "tokens": 526
+        },
+        {
+          "name": "test_change_notice_requires_formal_workspace",
+          "kind": "fn",
+          "startLine": 350,
+          "endLine": 368,
+          "tokens": 208
+        },
+        {
+          "name": "test_change_notice_response_has_no_bare_fields",
+          "kind": "fn",
+          "startLine": 369,
+          "endLine": 394,
+          "tokens": 181
+        }
+      ]
     }
   }
 }

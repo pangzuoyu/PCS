@@ -72,11 +72,27 @@ async def _make_binding(
     """把矩阵绑到项目。
 
     缺这一行 = 项目没绑矩阵 ⇒ issue 必须拒（409），而不是拿一个没绑定的矩阵去签发。
+
+    ⚠️ **换绑而不是新增行**：`project_signature_matrix_bindings` 现在有
+    `(project_id, module)` 唯一约束（迁移 `p9_008`）⇒ 同一项目同一模块
+    **只允许一行** ⇒ 第二次绑定是「换绑」（改 matrix_id）。
+    （旧写法每次插一行 —— 那个状态本来就是 bug-2052 说的「两个真相源」。）
     """
-    row = ProjectSignatureMatrixBinding(
-        project_id=project_id, module="RECORD", matrix_id=matrix_id
-    )
-    db.add(row)
+    row = (
+        await db.execute(
+            select(ProjectSignatureMatrixBinding).where(
+                ProjectSignatureMatrixBinding.project_id == project_id,
+                ProjectSignatureMatrixBinding.module == "RECORD",
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = ProjectSignatureMatrixBinding(
+            project_id=project_id, module="RECORD", matrix_id=matrix_id
+        )
+        db.add(row)
+    else:
+        row.matrix_id = matrix_id
     await db.commit()
     await db.refresh(row)
     return row
@@ -105,9 +121,24 @@ async def _make_deliverable(
 
     `bind=False` 建出「项目没绑矩阵」的状态，供 409 用例用。
     """
-    matrix = overrides.pop("matrix", None) or await _make_matrix(db)
-    if bind:
-        await _make_binding(db, project_id, matrix.matrix_id)
+    # ⚠️ **同一项目同一模块只绑一个矩阵**（唯一约束，迁移 `p9_008`）⇒
+    # 已有绑定时**复用那个矩阵**，别新建一个（新建了就会把项目改绑到新矩阵，
+    # 于是先建的那条交付物指向的矩阵**不再绑定** ⇒ issue 409）。
+    existing = (
+        await db.execute(
+            select(ProjectSignatureMatrixBinding).where(
+                ProjectSignatureMatrixBinding.project_id == project_id,
+                ProjectSignatureMatrixBinding.module == "RECORD",
+            )
+        )
+    ).scalar_one_or_none()
+    matrix = overrides.pop("matrix", None)
+    if matrix is None:
+        matrix = await db.get(SignatureMatrix, existing.matrix_id) if existing else None
+    if matrix is None:
+        matrix = await _make_matrix(db)
+        if bind:
+            await _make_binding(db, project_id, matrix.matrix_id)
     payload = {
         "matrix_id": matrix.matrix_id,
         "project_id": project_id,

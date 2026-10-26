@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T00:18:55.825Z
-> Files: 1017 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T00:37:48.066Z
+> Files: 1018 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -136,7 +136,7 @@
 - `COMMIT_MSG_T2.txt` (~228 tok)
 - `COMMIT_MSG_T2T3.txt` (~247 tok)
 - `COMMIT_MSG_T3.txt` (~310 tok)
-- `COMMIT_MSG_T4.txt` (~253 tok)
+- `COMMIT_MSG_T4.txt` (~319 tok)
 
 ## .githooks/
 
@@ -1262,8 +1262,8 @@
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~5824 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~11081 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~7153 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~11385 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
@@ -1394,6 +1394,7 @@
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_change_impact_confirm.py` — CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。 (~2805 tok)
+- `test_change_notice_api.py` — 变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。 (~3566 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
 - `test_cost_est_project_isolation.py` — `CostEstResult` 的项目隔离 —— P9A-5 Task B（TODO-061）。 (~3042 tok)
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
