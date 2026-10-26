@@ -578,7 +578,7 @@ export interface paths {
          * 弃用记录（已绑定者须走变更单）
          * @description 直接弃用记录（ADR-0009：未绑定免凭证 OBSOLETE）。
          *
-         *     已绑定记录（`locked_by_deliverable=True`）返 409 —— 它必须走
+         *     已对外生效的记录（被一张 **APPROVED** 的交付物绑定）返 409 —— 它必须走
          *     `change_type=RECORD_CANCELLATION` 的变更单（ADR-0002）。
          *     弃用是状态迁移**不是删除**：行还在，只有 sign_status 变了 ——
          *     「这行曾经存在过、什么时候被谁作废的」要能查。
