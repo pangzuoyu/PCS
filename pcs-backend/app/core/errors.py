@@ -19,11 +19,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# ⚠️ **惰性 import**（TODO-080 第 3 条）：`app/services/exceptions.py` 里的
-#    service 变体**继承**本文件的 core 变体 ⇒ 若这里在**模块层** import 它
-#    ⇒ 环（core → services → core）⇒ 启动即 ImportError。
-#    ⇒ 只在**注册 handler 时** import（那时两个模块都已就绪）。
-#    详见 `app/services/exceptions.py::PcsError` 的说明。
+# ⚠️ **全仓只有一个 `PcsError`**（TODO-089）：`app/services/exceptions.py` 里的
+#    名字是**本类的别名** ⇒ 这里**不需要**（也不能）再 import service 变体
+#    ⇒ 只注册**一个** handler ⇒ core / service 两种抛出方都走同一条渲染路径。
 
 logger = logging.getLogger(__name__)
 
@@ -107,20 +105,98 @@ async def _record_rbac_denial(request: Request, *, status: int, code: str) -> bo
 
 
 class PcsError(Exception):
-    """FastAPI 全局异常信封基类（code/status/message/detail 四元组）。
+    """PCS 业务异常（**全仓唯一**的 `PcsError`，TODO-089）。
 
     业务：service 层抛出 PcsError，install_exception_handlers 兜底转 4xx/5xx JSON；
     code 大写蛇形命名 + status HTTP code + detail 可选 dict（结构化错误数据）。
+
+    ## 为什么曾经有**两个**同名类（已合并）
+
+    仓里曾有 `app/core/errors.py::PcsError` 与 `app/services/exceptions.py::PcsError`
+    两个**互不继承**的同名类 ⇒ 写 `except PcsError` 时**捕不到另一个** ⇒ 跨模块
+    的业务错误**静默变成 500**（bug-2079）。
+
+    ⇒ TODO-080 先让 service 变体**继承** core 变体（方向对，但仍有两个类）；
+    ⇒ **本条把两个名字收敛到**同一个类** ⇒ `app/services/exceptions.py::PcsError`
+    现在是本类的**别名** ⇒ 无论 `except` 哪一个，**捕得到全部**。
+
+    ## 两种调用风格（历史遗留 ⇒ 都得支持）
+
+    | 风格 | 形状 | status 缺省 |
+    |---|---|---|
+    | **service** | `PcsError("消息", code="X", status=404, details={...})` | **类属性**（422 / 子类自己的） |
+    | **core** | `PcsError("X", "消息", 404, {...})` 或 `PcsError(code="X", message="消息")` | **400**（历史 core 变体的缺省） |
+
+    ⇒ 判定规则：**≥2 个位置参数** ⇒ core 风格；**1 个位置参数** ⇒ service 风格
+    （core 风格至少要 code + message 两个）；**全关键字且 code+message 都在** ⇒
+    core 风格。
+
+    ## status 缺省的**优先级**（子类自己定的永远最优先）
+
+    1. 显式传入的 `status`；
+    2. **子类自己声明的** `status` 类属性（`WorkspaceNotFoundError` → 404 …）；
+    3. core 风格 → **400**（历史 core 变体）；service 风格 → **422**。
     """
 
+    code: str = "PCS_ERROR"
+    status: int = 422
+
     def __init__(
-        self, code: str, message: str, status: int = 400, detail: Any = None
+        self,
+        *args: Any,
+        code: str | None = None,
+        message: str | None = None,
+        status: int | None = None,
+        detail: Any = None,
+        details: dict[str, Any] | None = None,
     ):
-        """构造 FastAPI 全局异常信封基类（code 大写蛇形 + status HTTP code + detail 可选 dict）。"""
+        """构造 PCS 业务异常（接受 service / core **两种**调用风格）。"""
+        core_style = False
+        if len(args) >= 2:
+            # core 风格：PcsError(code, message[, status[, detail]])
+            core_style = True
+            if code is None:
+                code = args[0]
+            if message is None:
+                message = args[1]
+            if status is None and len(args) > 2:
+                status = args[2]
+            if detail is None and len(args) > 3:
+                detail = args[3]
+        elif len(args) == 1:
+            # service 风格：PcsError(message, ...)
+            if message is None:
+                message = args[0]
+        elif code is not None and message is not None:
+            core_style = True
+
+        if code is None:
+            code = type(self).code
+        if status is None:
+            status = self._default_status(core_style)
+        if details is None and isinstance(detail, dict):
+            details = detail
+        if detail is None and details is not None:
+            detail = details or None
+
         self.code = code
-        self.message = message
+        self.message = message if message is not None else ""
         self.status = status
         self.detail = detail
+        # `details` 是 service 变体的历史字段名（= `detail` 的 dict 形态）
+        self.details = details or {}
+
+    @classmethod
+    def _default_status(cls, core_style: bool) -> int:
+        """status 缺省：子类自己声明的优先，其次按调用风格（core 400 / service 422）。"""
+        for klass in cls.__mro__:
+            if "status" not in klass.__dict__:
+                continue
+            # 基类自己声明的 422 只对 service 风格有效 ⇒ core 风格要 400
+            if klass is PcsError:
+                return 400 if core_style else 422
+            return int(klass.__dict__["status"])
+        return 400 if core_style else 422
 
 
 class ErrorResponse(BaseModel):
@@ -139,8 +215,8 @@ class ErrorResponse(BaseModel):
 def install_exception_handlers(app: FastAPI) -> None:
     """注册全局异常处理器，统一错误响应信封（ErrorResponse）。
 
-    注册 5 类 handler（按优先级匹配）：
-    1. `PcsError` / `ServicePcsError`：业务异常（status 取 exc.status/code）
+    注册 4 类 handler（按优先级匹配）：
+    1. `PcsError`：**业务异常**（core / service 两种风格同一个类，TODO-089）
     2. `StarletteHTTPException`：HTTP 异常（status 取 exc.status_code）
     3. `RequestValidationError`：Pydantic 422 校验失败（VALIDATION_ERROR 信封）
     4. `Exception`：兜底 500（INTERNAL_ERROR 信封，不泄漏内部细节）
@@ -167,22 +243,6 @@ def install_exception_handlers(app: FastAPI) -> None:
                 code=exc.code,
                 message=exc.message,
                 detail=exc.detail,
-                trace_id=getattr(request.state, "trace_id", ""),
-            ).model_dump(),
-        )
-
-    from app.services.exceptions import PcsError as ServicePcsError
-
-    @app.exception_handler(ServicePcsError)
-    async def _service_pcs(request: Request, exc: ServicePcsError) -> JSONResponse:
-        # app/services/exceptions.PcsError 与 core.PcsError 是两个类；
-        # message 走 str(exc)、details(dict) 映射到信封的 detail 字段。
-        return JSONResponse(
-            status_code=getattr(exc, "status", 422),
-            content=ErrorResponse(
-                code=getattr(exc, "code", "PCS_ERROR"),
-                message=str(exc),
-                detail=getattr(exc, "details", None) or None,
                 trace_id=getattr(request.state, "trace_id", ""),
             ).model_dump(),
         )
