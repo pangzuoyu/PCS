@@ -1519,7 +1519,7 @@ git commit -m "feat(P9B-2): 记录操作栏（meta 状态机驱动 + 门禁前�
   （**T1 Step 6b** 已加，位于 `src/api/audit.ts`）。
 - Produces: `RecordDetailDrawer` 组件（T4 的宿主页）。
 
-**Step 3a（已挪到 T1 Step 6b · R-14）**：`recordEditsApi` 在 `src/api/audit.ts`
+**注（不是步骤 · 原「Step 3a」已挪到 T1 Step 6b · R-14）**：`recordEditsApi` 在 `src/api/audit.ts`
 （审计类客户端归一处）⇒ **不在** `api/recordActions.ts` 追加（那会多出第三份
 审计入口）。原草稿如下，**仅作参考**：
 
