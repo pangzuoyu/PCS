@@ -383,6 +383,32 @@ COVERAGE: 31/31 路径有测试计划（100%）  |  GAPS: 0  |  E2E: 2 条（T10
 | 57 个手写类型与生成 schema 同名的长期债 | TODO-064（有棘轮守卫）⇒ 本批不碰 |
 | 迁移幂等守门的历史盲区（93 个文件） | TODO-063 ⇒ 本批**不改迁移**，不动历史 |
 
+### 并行化策略（**本仓禁 worktree** ⇒ 顺序执行）
+
+⚠️ **本仓不用 git worktree**（`.wolf/STATUS.md` 记的历史事故：worktree 被删 ⇒
+隔离守卫援引不存在的路径 ⇒ 会话永久无法 Edit/Bash）⇒ **不设计多 worktree
+并行**。可并行的只有「同一工作区内的独立任务」。
+
+| 步骤 | 触及模块（目录级） | 依赖 |
+|---|---|---|
+| T0 聚合端点 | `app/schemas/` `app/api/v1/` `app/services/` `tests/api/` | — |
+| T1 编辑审计端点 | `app/schemas/` `app/api/v1/` `app/services/` `tests/api/` | — |
+| T2 批准链推导 | `app/services/` `app/api/v1/` `tests/api/` | —（**改契约** ⇒ 必须先于 T3） |
+| T3 api 客户端 | `src/api/` `tests/api/` | **T2**（契约破坏）· T0/T1（端点形状） |
+| T4 RecordActions | `src/components/` `src/pages/results/` `tests/` | **T3** · T2（送审语义） |
+| T5 抽屉 / 批注 / 时间线 | `src/components/` `src/pages/results/` `tests/` | T3 · T4 · T1（接线） |
+| T6 交付物进度页 | `src/pages/deliverables/` `src/components/common/` `tests/` | **T0**（聚合端点）· T3 |
+| T7 ADMIN | `src/pages/admin/` `src/pages/audit/` `src/layouts/` `src/App.tsx` `tests/` | T3（api 层） |
+| T8 交付物级签署写面 | `src/pages/deliverables/` `src/components/deliverables/` `src/api/` `tests/` | T3（api 层）· T0 |
+| T9 TODO-067 七条 | `src/components/common/` `src/pages/results/` `src/api/` `tests/` | T1/T4/T6（同文件 ⇒ 须在其**后**） |
+| T10 QA + 收口 | 全仓（只跑不改） | 全部 |
+
+⇒ **一条 lane，顺序执行**（T0→T1→T2→T3→T4→T5→T6→T7→T8→T9→T10）：
+T3 卡在 T2 的契约变更后面；T9 的 #2/#6/#7 与 T4/T1/T6 **同文件** ⇒ 只能在其后；
+T8/T7 都改 `src/api/` ⇒ 只能在其后。
+⇒ 唯一能真正并行的是 **T0 与 T1**（不同文件、都只碰后端）⇒ 但它们都在
+`app/api/v1/` ⇒ 合并成一个 commit 更省事（契约一次滚）。
+
 ### What already exists（复用，不重建）
 
 | 已有 | 本批怎么用 |
