@@ -35,6 +35,7 @@ from app.api.v1.psychro import router as psychro_router  # P6-2 Task 26
 from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
 from app.api.v1.records_actions import router as records_actions_router
+from app.api.v1.signature_matrices import router as signature_matrices_router  # TODO-070 矩阵管理面
 from app.api.v1.report import router as report_router
 from app.api.v1.report_builder import router as report_builder_router
 from app.api.v1.restriction import router as restriction_router  # P6-1 Task 14
@@ -92,6 +93,7 @@ api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
 api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
 api_router.include_router(user_projects_router)  # P7-7+ BLOCKER-3 admin
 api_router.include_router(deliverables_router)  # P1-7+ D 模块读面（P8 REPORT 依赖）
+api_router.include_router(signature_matrices_router)  # TODO-070 签署矩阵管理面
 api_router.include_router(supplier_router)  # S4-1 供应商实测值录入
 api_router.include_router(open_channel_router)  # P6-3 Task 32
 api_router.include_router(filtration_router)  # P6-3 Task 34

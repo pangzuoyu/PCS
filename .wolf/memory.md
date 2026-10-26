@@ -2400,3 +2400,11 @@
 | 08:04 | Edited pcs-backend/tests/services/test_signature_matrix_service.py | modified scalar_one_or_none() | ~444 |
 | 08:09 | Created .git/COMMIT_MSG_T1.txt | — | ~376 |
 | 08:10 | Created .git/COMMIT_MSG_T2.txt | — | ~243 |
+| 08:11 | Edited pcs-backend/app/services/signature_matrix_service.py | modified validate_steps() | ~2306 |
+| 08:11 | Edited pcs-backend/app/services/signature_matrix_service.py | inline fix | ~10 |
+| 08:11 | Created pcs-backend/app/schemas/signature_matrix.py | — | ~950 |
+| 08:11 | Created pcs-backend/app/api/v1/signature_matrices.py | — | ~2207 |
+| 08:14 | Created pcs-backend/tests/api/v1/test_signature_matrix_api.py | — | ~2406 |
+| 08:17 | Edited pcs-backend/tests/api/v1/test_signature_matrix_api.py | modified test_create_with_bad_steps_rejected_and_not_stored() | ~223 |
+| 08:17 | Edited pcs-backend/tests/api/v1/test_signature_matrix_api.py | test_bind_requires_project_access() → test_bind_requires_designer_side_role() | ~227 |
+| 08:18 | Created .git/COMMIT_MSG_T3.txt | — | ~331 |

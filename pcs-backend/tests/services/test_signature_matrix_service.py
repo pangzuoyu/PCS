@@ -339,3 +339,63 @@ async def test_ensure_binding_recovers_from_concurrent_insert(db, project_id, mo
     ).scalars().all()
     assert len(rows) == 1, "撞约束后必须复用已存在的那行，而不是再建一行"
     assert rows[0].binding_id == other_id[0]
+
+
+# ---------------------------------------------------------------------------
+# validate_steps —— **写**路径的严格校验（TODO-072）
+#
+# `parse_steps` 是**读**路径（坏项跳过 + 日志，容忍存量脏数据）；
+# `validate_steps` 是**写**路径（任一项非法 ⇒ 422，不入库）⇒ 坏配置进不来。
+# ---------------------------------------------------------------------------
+
+
+def test_validate_steps_rejects_bad_items():
+    """坏项 ⇒ 422 `SIGNATURE_MATRIX_INVALID`（**不部分通过**）。"""
+    bad_cases = [
+        [],  # 空
+        [{"step_order": 0, "sign_role": "CHECKER"}],  # 序号非正
+        [{"step_order": "1", "sign_role": "CHECKER"}],  # 序号非 int
+        [{"step_order": True, "sign_role": "CHECKER"}],  # bool 不是序号
+        [{"step_order": 1, "sign_role": ""}],  # 角色空
+        [{"step_order": 1, "sign_role": 3}],  # 角色非字符串
+        ["not-a-dict"],
+        # 序号重复 ⇒「谁该签这一步」两个答案
+        [{"step_order": 1, "sign_role": "A"}, {"step_order": 1, "sign_role": "B"}],
+    ]
+    for steps in bad_cases:
+        with pytest.raises(PcsError) as exc:
+            SignatureMatrixService.validate_steps(steps)
+        assert exc.value.code == "SIGNATURE_MATRIX_INVALID", steps
+        assert exc.value.status == 422
+
+
+def test_validate_steps_sorts_and_fills_defaults():
+    """排序 + 缺省补齐 + 角色 strip（与 parse_steps 同一口径）。"""
+    steps = SignatureMatrixService.validate_steps(
+        [
+            {"step_order": 2, "sign_role": "REVIEWER"},
+            {"step_order": 1, "sign_role": " CHECKER "},
+        ]
+    )
+    assert [s.step_order for s in steps] == [1, 2]
+    assert steps[0].sign_role == "CHECKER"
+    assert steps[0].required is True
+    assert steps[0].can_self_check is True
+    assert steps[0].can_skip is False
+
+
+@pytest.mark.asyncio
+async def test_create_matrix_rejects_bad_steps(db):
+    """建矩阵时坏步骤 ⇒ 422，且**不落库**。"""
+    with pytest.raises(PcsError) as exc:
+        await SignatureMatrixService.create_matrix(
+            db,
+            matrix_name="坏矩阵",
+            module="RECORD",
+            doc_type="CALCULATION_BOOK",
+            version_purpose="ISSUED_FOR_CONSTRUCTION",
+            steps=[{"step_order": 1, "sign_role": ""}],
+        )
+    assert exc.value.code == "SIGNATURE_MATRIX_INVALID"
+    rows = (await db.execute(select(SignatureMatrix))).scalars().all()
+    assert rows == []

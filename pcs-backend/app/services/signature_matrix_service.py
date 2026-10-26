@@ -52,7 +52,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,6 +173,248 @@ class SignatureMatrixService:
                 status=422,
             )
         return sorted(steps, key=lambda s: s.step_order)
+
+    # ------------------------------------------------------------------
+    # 管理面（TODO-070）：模板 CRUD + 项目绑定
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def validate_steps(cls, steps: list) -> list[MatrixStep]:
+        """**严格**校验一份步骤定义（**写入**路径用）。
+
+        ## 与 `parse_steps` 的区别（两个口，两个语义）
+
+        | | `parse_steps`（读） | `validate_steps`（写） |
+        |---|---|---|
+        | 单项坏 | 跳过 + WARNING 日志 | **422** |
+        | 全坏 | 422 | **422** |
+
+        读路径必须容忍**存量脏数据**（否则一个坏矩阵让签署整体 500）；
+        写路径必须**挡住坏配置**（否则「签署少一道校审」而没人知道）。
+        ⇒ 新写进来的矩阵一定是干净的 ⇒ 读路径的「部分跳过」只服务存量。
+
+        Raises:
+            PcsError 422 `SIGNATURE_MATRIX_INVALID` —— 任一项非法。
+        """
+        if not steps:
+            raise PcsError(
+                "签署矩阵至少要有 1 个步骤",
+                code="SIGNATURE_MATRIX_INVALID",
+                status=422,
+            )
+        out: list[MatrixStep] = []
+        for index, raw in enumerate(steps):
+            if not isinstance(raw, dict):
+                raise cls._invalid_step(index, "必须是对象")
+            order = raw.get("step_order")
+            if isinstance(order, bool) or not isinstance(order, int) or order <= 0:
+                raise cls._invalid_step(index, "step_order 须为正整数")
+            role = raw.get("sign_role")
+            if not isinstance(role, str) or not role.strip():
+                raise cls._invalid_step(index, "sign_role 须为非空字符串")
+            out.append(
+                MatrixStep(
+                    step_order=order,
+                    sign_role=role.strip(),
+                    required=bool(raw.get("required", True)),
+                    can_self_check=bool(raw.get("can_self_check", True)),
+                    can_skip=bool(raw.get("can_skip", False)),
+                )
+            )
+        # 序号重复 ⇒ 「谁该签这一步」有两个答案 ⇒ 挡住
+        orders = [s.step_order for s in out]
+        if len(set(orders)) != len(orders):
+            raise PcsError(
+                f"签署矩阵的 step_order 重复：{sorted(orders)}",
+                code="SIGNATURE_MATRIX_INVALID",
+                status=422,
+            )
+        return sorted(out, key=lambda s: s.step_order)
+
+    @staticmethod
+    def _invalid_step(index: int, why: str) -> PcsError:
+        return PcsError(
+            f"签署矩阵第 {index + 1} 个步骤不合法：{why}",
+            code="SIGNATURE_MATRIX_INVALID",
+            status=422,
+        )
+
+    @classmethod
+    async def create_matrix(
+        cls,
+        db: AsyncSession,
+        *,
+        matrix_name: str,
+        module: str,
+        doc_type: str,
+        version_purpose: str,
+        steps: list,
+        status: str = "DRAFT",
+    ) -> SignatureMatrix:
+        """建一个矩阵模板（**不 commit** —— 事务边界归调用方）。"""
+        validated = cls.validate_steps(steps)
+        matrix = SignatureMatrix(
+            matrix_name=matrix_name,
+            module=module,
+            doc_type=doc_type,
+            version_purpose=version_purpose,
+            steps_json=[
+                {
+                    "step_order": s.step_order,
+                    "sign_role": s.sign_role,
+                    "required": s.required,
+                    "can_self_check": s.can_self_check,
+                    "can_skip": s.can_skip,
+                }
+                for s in validated
+            ],
+            status=status,
+        )
+        db.add(matrix)
+        await db.flush()
+        return matrix
+
+    @classmethod
+    async def get_matrix(
+        cls, db: AsyncSession, *, matrix_id: uuid.UUID
+    ) -> SignatureMatrix:
+        """取矩阵；不存在 ⇒ 404。"""
+        matrix = await db.get(SignatureMatrix, matrix_id)
+        if matrix is None:
+            raise PcsError(
+                f"签署矩阵 {matrix_id} 不存在",
+                code="SIGNATURE_MATRIX_NOT_FOUND",
+                status=404,
+            )
+        return matrix
+
+    @classmethod
+    async def list_matrices(
+        cls,
+        db: AsyncSession,
+        *,
+        module: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[SignatureMatrix], int]:
+        """列矩阵模板（分页）。返回 (items, total)。"""
+        conditions = []
+        if module:
+            conditions.append(SignatureMatrix.module == module)
+        if status:
+            conditions.append(SignatureMatrix.status == status)
+        total = int(
+            await db.scalar(
+                select(func.count()).select_from(SignatureMatrix).where(*conditions)
+            )
+            or 0
+        )
+        rows = (
+            await db.execute(
+                select(SignatureMatrix)
+                .where(*conditions)
+                .order_by(SignatureMatrix.created_at, SignatureMatrix.matrix_id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ).scalars().all()
+        return list(rows), total
+
+    @classmethod
+    async def update_matrix(
+        cls,
+        db: AsyncSession,
+        *,
+        matrix_id: uuid.UUID,
+        matrix_name: str | None = None,
+        module: str | None = None,
+        doc_type: str | None = None,
+        version_purpose: str | None = None,
+        steps: list | None = None,
+        status: str | None = None,
+    ) -> SignatureMatrix:
+        """改矩阵模板（**不 commit**）。`steps` 给了就**整体替换**。"""
+        matrix = await cls.get_matrix(db, matrix_id=matrix_id)
+        if matrix_name is not None:
+            matrix.matrix_name = matrix_name
+        if module is not None:
+            matrix.module = module
+        if doc_type is not None:
+            matrix.doc_type = doc_type
+        if version_purpose is not None:
+            matrix.version_purpose = version_purpose
+        if status is not None:
+            matrix.status = status
+        if steps is not None:
+            validated = cls.validate_steps(steps)
+            matrix.steps_json = [
+                {
+                    "step_order": s.step_order,
+                    "sign_role": s.sign_role,
+                    "required": s.required,
+                    "can_self_check": s.can_self_check,
+                    "can_skip": s.can_skip,
+                }
+                for s in validated
+            ]
+        await db.flush()
+        return matrix
+
+    @classmethod
+    async def bind_to_project(
+        cls,
+        db: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        module: str,
+        matrix_id: uuid.UUID,
+    ) -> ProjectSignatureMatrixBinding:
+        """把矩阵绑到项目 × 模块（**幂等**；换绑 = 改 matrix_id）。
+
+        ⚠️ `(project_id, module)` 唯一约束（迁移 `p9_008`）⇒ 同一项目同一模块
+        只可能有一行绑定 ⇒ 「谁该签这一步」不会有两个答案。
+        """
+        matrix = await cls.get_matrix(db, matrix_id=matrix_id)
+        binding = (
+            await db.execute(
+                select(ProjectSignatureMatrixBinding).where(
+                    ProjectSignatureMatrixBinding.project_id == project_id,
+                    ProjectSignatureMatrixBinding.module == module,
+                )
+            )
+        ).scalar_one_or_none()
+        if binding is not None:
+            binding.matrix_id = matrix.matrix_id
+            await db.flush()
+            return binding
+        binding = ProjectSignatureMatrixBinding(
+            project_id=project_id,
+            module=module,
+            matrix_id=matrix.matrix_id,
+        )
+        db.add(binding)
+        await db.flush()
+        return binding
+
+    @classmethod
+    async def unbind_from_project(
+        cls, db: AsyncSession, *, project_id: uuid.UUID, module: str
+    ) -> bool:
+        """解绑（返回是否真删了一行）。"""
+        binding = (
+            await db.execute(
+                select(ProjectSignatureMatrixBinding).where(
+                    ProjectSignatureMatrixBinding.project_id == project_id,
+                    ProjectSignatureMatrixBinding.module == module,
+                )
+            )
+        ).scalar_one_or_none()
+        if binding is None:
+            return False
+        await db.delete(binding)
+        await db.flush()
+        return True
 
     # ------------------------------------------------------------------
     # 取得（惰性建行）

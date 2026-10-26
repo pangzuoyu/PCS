@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T00:10:12.742Z",
-    "fileCount": 1013,
+    "lastScanned": "2026-10-26T00:18:55.825Z",
+    "fileCount": 1017,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "69439f403ee6deb4a83cb11b19732510be04489a57592f5be7733146d7e2a9e1",
-    "storeUpdatedAt": "2026-10-26T00:10:12.754Z",
-    "rootHash": "b88ec202b75ca4b9"
+    "renderedHash": "41f556ece76738bbb5f339ff32ca4072ce323f0f1c091030f178687e1cfbca4f",
+    "storeUpdatedAt": "2026-10-26T00:18:55.836Z",
+    "rootHash": "48ebf63a22c7d48d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -35873,11 +35873,11 @@
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 2821,
-      "hash": "71549ca980bbad00",
-      "size": 12342,
-      "mtimeMs": 1792972968145.1414,
-      "updatedAt": "2026-10-26T00:02:48.193Z",
+      "tokens": 5084,
+      "hash": "f2f93e0936180750",
+      "size": 20993,
+      "mtimeMs": 1792973466514.5488,
+      "updatedAt": "2026-10-26T00:11:06.567Z",
       "source": "hook",
       "symbols": [
         {
@@ -35891,8 +35891,8 @@
           "name": "SignatureMatrixService",
           "kind": "class",
           "startLine": 85,
-          "endLine": 301,
-          "tokens": 2184
+          "endLine": 543,
+          "tokens": 4444
         }
       ]
     },
@@ -36433,6 +36433,251 @@
       "size": 1552,
       "mtimeMs": 1792973412689.1953,
       "updatedAt": "2026-10-26T00:10:12.741Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/schemas/signature_matrix.py": {
+      "description": "签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。",
+      "tokens": 950,
+      "hash": "d9cbb94da6c524fc",
+      "size": 4082,
+      "mtimeMs": 1792973477165.7603,
+      "updatedAt": "2026-10-26T00:11:17.219Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "MatrixStepInput",
+          "kind": "class",
+          "startLine": 39,
+          "endLine": 54,
+          "tokens": 142
+        },
+        {
+          "name": "MatrixStepResponse",
+          "kind": "class",
+          "startLine": 55,
+          "endLine": 58,
+          "tokens": 22
+        },
+        {
+          "name": "SignatureMatrixRequest",
+          "kind": "class",
+          "startLine": 59,
+          "endLine": 71,
+          "tokens": 140
+        },
+        {
+          "name": "SignatureMatrixUpdateRequest",
+          "kind": "class",
+          "startLine": 72,
+          "endLine": 82,
+          "tokens": 137
+        },
+        {
+          "name": "SignatureMatrixResponse",
+          "kind": "class",
+          "startLine": 83,
+          "endLine": 96,
+          "tokens": 88
+        },
+        {
+          "name": "SignatureMatrixListResponse",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 103,
+          "tokens": 36
+        },
+        {
+          "name": "MatrixBindingRequest",
+          "kind": "class",
+          "startLine": 104,
+          "endLine": 110,
+          "tokens": 41
+        },
+        {
+          "name": "MatrixBindingResponse",
+          "kind": "class",
+          "startLine": 111,
+          "endLine": 119,
+          "tokens": 54
+        },
+        {
+          "name": "MatrixUnbindResponse",
+          "kind": "class",
+          "startLine": 120,
+          "endLine": 126,
+          "tokens": 47
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/signature_matrices.py": {
+      "description": "签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。",
+      "tokens": 2207,
+      "hash": "c17807040d5aceb0",
+      "size": 8996,
+      "mtimeMs": 1792973494368.6907,
+      "updatedAt": "2026-10-26T00:11:34.413Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 97,
+          "tokens": 277
+        },
+        {
+          "name": "list_signature_matrices",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 120,
+          "tokens": 240
+        },
+        {
+          "name": "create_signature_matrix",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 149,
+          "tokens": 236
+        },
+        {
+          "name": "get_signature_matrix",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 165,
+          "tokens": 153
+        },
+        {
+          "name": "update_signature_matrix",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 194,
+          "tokens": 256
+        },
+        {
+          "name": "bind_project_matrix",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 227,
+          "tokens": 312
+        },
+        {
+          "name": "unbind_project_matrix",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 244,
+          "tokens": 187
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_signature_matrix_api.py": {
+      "description": "签署矩阵管理面端点测试（TODO-070 · P9A-DLV-011 T3）。",
+      "tokens": 2526,
+      "hash": "173cf59a0994a9c7",
+      "size": 9869,
+      "mtimeMs": 1792973836729.457,
+      "updatedAt": "2026-10-26T00:17:16.773Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 37,
+          "tokens": 66
+        },
+        {
+          "name": "_actor_id",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 42,
+          "tokens": 49
+        },
+        {
+          "name": "_grant",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 53,
+          "tokens": 88
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 71,
+          "tokens": 131
+        },
+        {
+          "name": "test_admin_can_create_matrix",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 86,
+          "tokens": 143
+        },
+        {
+          "name": "test_designer_cannot_create_matrix",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 96,
+          "tokens": 85
+        },
+        {
+          "name": "test_create_with_bad_steps_rejected_and_not_stored",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 115,
+          "tokens": 223
+        },
+        {
+          "name": "test_duplicate_step_order_rejected",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 126,
+          "tokens": 116
+        },
+        {
+          "name": "test_list_and_get_matrix",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 159,
+          "tokens": 288
+        },
+        {
+          "name": "test_bind_requires_designer_side_role",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 182,
+          "tokens": 227
+        },
+        {
+          "name": "test_bind_and_rebind_keep_one_row",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 224,
+          "tokens": 404
+        },
+        {
+          "name": "test_unbind",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 259,
+          "tokens": 326
+        },
+        {
+          "name": "test_response_has_no_bare_fields",
+          "kind": "fn",
+          "startLine": 260,
+          "endLine": 285,
+          "tokens": 180
+        }
+      ]
+    },
+    ".git/COMMIT_MSG_T3.txt": {
+      "description": "",
+      "tokens": 310,
+      "hash": "a3dbf1cdfbd39060",
+      "size": 2045,
+      "mtimeMs": 1792973935777.3604,
+      "updatedAt": "2026-10-26T00:18:55.824Z",
       "source": "hook"
     }
   }
