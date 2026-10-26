@@ -44,6 +44,8 @@ from app.models.enums import (
 )
 from app.models.project import UserProject
 from app.models.workflow_progress import WorkflowProgress
+from app.services.exceptions import PcsError
+from app.services.signature_matrix_service import SignatureMatrixService
 
 
 @dataclass(frozen=True)
@@ -158,12 +160,25 @@ async def compute_todos(
     for version in versions:
         deliverable = by_id[version.deliverable_id]
         matrix = matrices.get(deliverable.matrix_id)
-        if matrix is None or not matrix.steps_json:
+        if matrix is None:
             continue
-        steps = sorted(
-            (s for s in matrix.steps_json if isinstance(s, dict)),
-            key=lambda s: s.get("step_order", 0),
-        )
+        # ⚠️ **唯一的 `steps_json` 解析口**（与签署路径同源）。
+        # 待办路径曾经自己另写了一份解析 ⇒ 坏数据在两处处理不同：
+        #   · `step_order` 是字符串 ⇒ `sorted()` 抛 TypeError ⇒ 整个端点 500；
+        #   · 缺 `step_order` 的项被保留并排到第 0 步 ⇒ 待办说「第 0 步该签」。
+        # ⇒ 「谁该签这一步」在两个入口下给出两个答案。
+        try:
+            steps = [
+                {"step_order": s.step_order, "sign_role": s.sign_role}
+                for s in SignatureMatrixService.parse_steps(matrix)
+            ]
+        except PcsError:
+            # 矩阵**全部非法** ⇒ 这个交付物没有可签的步骤 ⇒ 不产生待办。
+            # ⚠️ **不抛**：待办是聚合视图 —— 一个交付物的矩阵坏了，
+            # 不该让**别人**的待办也看不到（更不该让整个端点 500）。
+            continue
+        if not steps:
+            continue
         step = current_step(steps, done_by_version.get(version.version_id, set()))
         if step is None:
             continue

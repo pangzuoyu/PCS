@@ -410,3 +410,48 @@ async def test_todo_lists_items_the_user_can_actually_sign(client, db, project_i
     resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
 
     assert len(resp.json()["items"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# 坏矩阵不许让待办端点 500（P9A-DLV-011 · 评审 I-1）
+#
+# ⚠️ 待办路径曾经**自己另写了一份** `steps_json` 解析 ⇒ 与签署路径
+# （`SignatureMatrixService.parse_steps`）规则不同：
+#   · `step_order` 是字符串 ⇒ `sorted()` 抛 TypeError ⇒ **整个端点 500**；
+#   · 缺 `step_order` 的项被保留并排到第 0 步 ⇒ 待办说「第 0 步该签」。
+# ⇒ 「谁该签这一步」在两个入口下给出两个答案 —— 必须共用同一解析口。
+# ---------------------------------------------------------------------------
+
+
+async def test_todo_survives_string_step_order(client, db, project_id):
+    """⚠️ `step_order` 是字符串 ⇒ **不抛**（坏项跳过，好项照旧）。"""
+    me = _actor_id()
+    await _grant(db, me, project_id, "DESIGNER")
+    await _issue(
+        db,
+        project_id,
+        steps=[
+            {"step_order": 1, "sign_role": "DESIGNER"},
+            {"step_order": "2", "sign_role": "REVIEWER"},
+        ],
+    )
+
+    resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
+
+    assert resp.status_code == 200, resp.text
+    assert [i["step_role"] for i in resp.json()["items"]] == ["DESIGNER"]
+
+
+async def test_todo_skips_matrix_with_all_invalid_steps(client, db, project_id):
+    """⚠️ 矩阵**全部非法** ⇒ 该交付物**不产生待办**（而不是把用户推进一个 500）。
+
+    「待办列表」是聚合视图：一个交付物的矩阵坏了，不该让**别人**的待办也看不到。
+    """
+    me = _actor_id()
+    await _grant(db, me, project_id, "DESIGNER")
+    await _issue(db, project_id, steps=[{"step_order": "x"}, "nope"])
+
+    resp = await client.get("/api/v1/todos", headers=_token(role="DESIGNER"))
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["items"] == []

@@ -81,7 +81,9 @@ class WorkflowProgress(TimestampMixin, Base):
     step_role: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
-        comment="步骤角色（SPEC 的 step_name）；取 SignatureMatrix.steps_json.sign_role",
+        comment="步骤角色（SPEC 的 step_name）；SIGN / CUSTOMER_APPROVAL_PROXY 取 "
+        "SignatureMatrix.steps_json.sign_role；CHANGE_NOTICE 取工作流类型本身"
+        "（CHANGE_NOTICE 工作流只写 1 行，step_order=1）",
     )
     step_status: Mapped[WorkflowProgressState] = mapped_column(
         Enum(WorkflowProgressState, name="workflowprogressstate", native_enum=True),

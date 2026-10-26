@@ -35,6 +35,15 @@
 
 **不 commit** —— 与 `workflow_progress_writer.record_step` 一致：
 事务边界归调用方（ADR-0047 §②③「与主事务同生共死」）。
+
+## 抛的异常是哪一类
+
+本模块抛 **`app.services.exceptions.PcsError`**（`message` 在前、
+`code`/`status` 为 kwarg、默认 422）—— 与 `app.core.errors.PcsError`
+**不是同一个类**（后者 `code`/`message` 在前、默认 400）。
+⚠️ `deliverable_service` 用的是 **core 变体** ⇒ 在那里写
+`except PcsError`（core）**捕不到**本模块抛的 422 ⇒ 会静默变成 500。
+⇒ 需要捕获时，从 `app.services.exceptions` 导入。
 """
 
 from __future__ import annotations
@@ -135,7 +144,10 @@ class SignatureMatrixService:
             steps.append(
                 MatrixStep(
                     step_order=order,
-                    sign_role=role,
+                    # ⚠️ **剥掉前后空白**：判空用 `.strip()` 却存原值 ⇒
+                    # 矩阵里写 `" CHECKER "` ⇒ 签署时 403「要求角色『 CHECKER 』」
+                    # —— 一个带空格的自己。
+                    sign_role=role.strip(),
                     required=bool(raw.get("required", True)),
                     can_self_check=bool(raw.get("can_self_check", True)),
                     can_skip=bool(raw.get("can_skip", False)),
@@ -160,14 +172,6 @@ class SignatureMatrixService:
                 status=422,
             )
         return sorted(steps, key=lambda s: s.step_order)
-
-    @staticmethod
-    def role_for_step(steps: list[MatrixStep], step_order: int) -> str | None:
-        """某一步要求的角色；越界 ⇒ `None`。"""
-        for step in steps:
-            if step.step_order == step_order:
-                return step.sign_role
-        return None
 
     # ------------------------------------------------------------------
     # 取得（惰性建行）
@@ -261,7 +265,6 @@ class SignatureMatrixService:
         db.add(binding)
         await db.flush()
         return binding
-
 
 __all__ = [
     "MatrixStep",

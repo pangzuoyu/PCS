@@ -3999,11 +3999,11 @@
     {
       "id": "bug-2050",
       "timestamp": "2026-10-26T00:00:00.000Z",
-      "severity": "MEDIUM",
+      "severity": "IMPORTANT",
       "error_message": "签署矩阵的 steps_json 有**两份解析实现** ⇒ 签署路径与变更单路径可能给出不同的步骤",
       "file": "pcs-backend/app/services/deliverable_service.py",
       "root_cause": "`DeliverableService._matrix_steps` 自己解析 `steps_json`（只筛 dict + 按 `step_order` 排序，缺项按 0 排），而变更单路径需要自己的解析。**两份实现 = 两个真相源**：坏数据在两处的处理不同（旧实现把缺 `step_order` 的项排到第 1 步，新实现跳过它）。「谁该签这一步」在不同入口下不一致 ⇒ 同一份矩阵配置在签署与变更单两条路上给出不同结果。",
-      "fix": "解析收敛到 `SignatureMatrixService.parse_steps`（唯一解析口），`_matrix_steps` 改为委托它并转回 dict。行为变化：全部非法的矩阵从「静默当空」改为 422 `SIGNATURE_MATRIX_INVALID`；`can_self_check` 缺省在解析时补齐（与 `sign_step` 既有默认等价）。",
+      "fix": "解析收敛到 `SignatureMatrixService.parse_steps`（唯一解析口），`_matrix_steps` 改为委托它并转回 dict。行为变化：全部非法的矩阵从「静默当空」改为 422 `SIGNATURE_MATRIX_INVALID`；`can_self_check` 缺省在解析时补齐（与 `sign_step` 既有默认等价）。\n\n---\n\n## 2026-10-26 评审补记（IMPORTANT）\n\n上次的收敛**只做了一半**：`DeliverableService._matrix_steps` 改了，\n但 `app/services/todo_service.py:163-166`（`compute_todos`）**自己还写着\n一份解析** ⇒ 「唯一解析口」的说法当时是假的（SPEC §3.2.1 也跟着写假了）。\n\n两处规则不同的后果（实测）：\n\n| 坏项 | `parse_steps`（签署路径） | `todo_service`（当时的待办路径） |\n|---|---|---|\n| `step_order` 缺省 | 跳过 | 保留、按 0 排 ⇒ 待办说「第 0 步该签」 |\n| `step_order` 是字符串 `\"2\"` | 跳过（WARNING） | 保留 ⇒ `sorted()` 抛 TypeError ⇒ **整个待办端点 500** |\n| `sign_role` 空串 | 跳过 | 保留（角色 `\"\"`） |\n\n⇒ 「谁该签这一步」在签署端点与待办端点给出**两个答案** ——\n正是 `todo_service` 自己的文档警告的症状（「两条规则漂移的症状很安静」）。\n\n**已修**（P9A-DLV-011 批的评审修复）：`compute_todos` 改为调\n`SignatureMatrixService.parse_steps`，并**捕获**「全部非法」的 422 ⇒\n该交付物**不产生待办**（而不是让整个端点 500 —— 待办是聚合视图，\n一个交付物的矩阵坏了不该让别人的待办也看不到）。",
       "fix_commit": "da299fb",
       "tags": [
         "p9a-dlv-007",
@@ -4012,7 +4012,8 @@
         "fixed"
       ],
       "related_bugs": [
-        "bug-145"
+        "bug-145",
+        "bug-2053"
       ],
       "occurrences": 1,
       "last_seen": "2026-10-26"
@@ -4054,6 +4055,46 @@
       "related_bugs": [
         "bug-2050"
       ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2053",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "IMPORTANT",
+      "error_message": "签署矩阵的 sign_role 带前后空白 ⇒ 签署时 403「第 1 步要求角色『 CHECKER 』」",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "root_cause": "`parse_steps` 判空用 `role.strip()`（能过），却把**未 strip 的原值**存进 `MatrixStep.sign_role` ⇒ 矩阵里写 `\" CHECKER \"` ⇒ 校验通过、存进去带空格 ⇒ `sign_step` 拿它和 actor 的 token role 比 ⇒ 403 `SIGN_STEP_ROLE_MISMATCH`，而用户收到的消息里有一个带空格的自己。",
+      "fix": "`sign_role=role.strip()`（判空与存储用同一个值）。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "signing-matrix",
+        "normalization",
+        "p9a-dlv-007",
+        "review-caught"
+      ],
+      "related_bugs": [
+        "bug-2050"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-26"
+    },
+    {
+      "id": "bug-2054",
+      "timestamp": "2026-10-26T00:00:00.000Z",
+      "severity": "MINOR",
+      "error_message": "SignatureMatrixService.role_for_step 是死代码（只有自己的测试在调）",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "root_cause": "计划 R-6 明确「不抽 `sign_step` 的角色判定进新服务」⇒ `role_for_step` 从落地起就没有生产调用方（`grep` 全仓只命中它自己的测试）⇒ 违反本仓「不为单次使用建抽象 / 不加计划外特性」。同族的 `MatrixStep.required` 也无人消费（`sign_step` 从不读 `required`）。",
+      "fix": "**删掉** `role_for_step` 及其测试（连带把它从计划书的 Interfaces 里去掉）。`required` 保留在 dataclass 上（它是 `steps_json` 的**形状字段**，读它的人以后会有），但不因此新增任何行为。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "signing-matrix",
+        "dead-code",
+        "p9a-dlv-007",
+        "review-caught"
+      ],
+      "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-26"
     }

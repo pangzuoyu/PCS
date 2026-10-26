@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-25T23:43:42.700Z",
-    "fileCount": 1005,
+    "lastScanned": "2026-10-26T00:04:31.545Z",
+    "fileCount": 1012,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "2209788686648a7f32f6dbc1e7c73b34711e631853a77adf1f5b5a05b0e5389c",
-    "storeUpdatedAt": "2026-10-25T23:43:42.711Z",
-    "rootHash": "b5a7935f1b6f448e"
+    "renderedHash": "95b74bf982d093ba331441e14629bb498cb2dc272d3207dce3c279f40da18057",
+    "storeUpdatedAt": "2026-10-26T00:04:31.556Z",
+    "rootHash": "36db5003cc33881e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21347,11 +21347,11 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 10590,
-      "hash": "eae475787051f4c8",
-      "size": 43201,
-      "mtimeMs": 1792970691256.426,
-      "updatedAt": "2026-10-25T23:24:51.305Z",
+      "tokens": 11081,
+      "hash": "0df88c299530eca8",
+      "size": 45436,
+      "mtimeMs": 1792972542043.813,
+      "updatedAt": "2026-10-25T23:55:42.098Z",
       "source": "hook",
       "symbols": [
         {
@@ -21386,8 +21386,8 @@
           "name": "DeliverableService",
           "kind": "class",
           "startLine": 131,
-          "endLine": 1078,
-          "tokens": 9523
+          "endLine": 1133,
+          "tokens": 10014
         }
       ]
     },
@@ -21767,33 +21767,33 @@
     },
     "pcs-backend/app/services/change_notice_service.py": {
       "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
-      "tokens": 4872,
-      "hash": "a6dcca665fe9d037",
-      "size": 19440,
-      "mtimeMs": 1792971032946.286,
-      "updatedAt": "2026-10-25T23:30:32.996Z",
+      "tokens": 5824,
+      "hash": "485fe5eef8228d46",
+      "size": 23762,
+      "mtimeMs": 1792972708112.3542,
+      "updatedAt": "2026-10-25T23:58:28.162Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ChangeType",
           "kind": "class",
-          "startLine": 46,
-          "endLine": 57,
+          "startLine": 52,
+          "endLine": 63,
           "tokens": 96
         },
         {
           "name": "TriggeredBy",
           "kind": "class",
-          "startLine": 58,
-          "endLine": 68,
+          "startLine": 64,
+          "endLine": 74,
           "tokens": 76
         },
         {
           "name": "ChangeNoticeService",
           "kind": "class",
-          "startLine": 69,
-          "endLine": 495,
-          "tokens": 4305
+          "startLine": 75,
+          "endLine": 582,
+          "tokens": 5218
         }
       ]
     },
@@ -29083,19 +29083,19 @@
     },
     "pcs-backend/app/models/workflow_progress.py": {
       "description": "workflow_progress ORM（ADR-0047 观测层 / SPEC P9A-OBS-001）。",
-      "tokens": 1009,
-      "hash": "0b9b4c5da521ac95",
-      "size": 4576,
-      "mtimeMs": 1792448741993.5833,
-      "updatedAt": "2026-10-19T22:25:42.040Z",
+      "tokens": 1042,
+      "hash": "6ac48d15553496e1",
+      "size": 4726,
+      "mtimeMs": 1792972689535.7014,
+      "updatedAt": "2026-10-25T23:58:09.586Z",
       "source": "hook",
       "symbols": [
         {
           "name": "WorkflowProgress",
           "kind": "class",
           "startLine": 41,
-          "endLine": 104,
-          "tokens": 630
+          "endLine": 106,
+          "tokens": 662
         }
       ]
     },
@@ -31462,47 +31462,40 @@
     },
     "pcs-backend/app/services/todo_service.py": {
       "description": "待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。",
-      "tokens": 1705,
-      "hash": "093562be3b381ea8",
-      "size": 7271,
-      "mtimeMs": 1792477897714.7341,
-      "updatedAt": "2026-10-20T06:31:37.761Z",
+      "tokens": 1768,
+      "hash": "137cdc37a06dfb27",
+      "size": 7765,
+      "mtimeMs": 1792972640752.9636,
+      "updatedAt": "2026-10-25T23:57:20.810Z",
       "source": "hook",
       "symbols": [
         {
           "name": "TodoItem",
           "kind": "class",
-          "startLine": 50,
-          "endLine": 60,
+          "startLine": 52,
+          "endLine": 62,
           "tokens": 53
         },
         {
           "name": "current_step",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 70,
+          "startLine": 63,
+          "endLine": 72,
           "tokens": 80
-        },
-        {
-          "name": "my_roles",
-          "kind": "fn",
-          "startLine": 71,
-          "endLine": 91,
-          "tokens": 203
         },
         {
           "name": "_my_project_ids",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 105,
+          "startLine": 73,
+          "endLine": 86,
           "tokens": 134
         },
         {
           "name": "compute_todos",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 200,
-          "tokens": 867
+          "startLine": 87,
+          "endLine": 203,
+          "tokens": 1098
         }
       ]
     },
@@ -35764,11 +35757,11 @@
     },
     "pcs-backend/tests/services/test_signature_matrix_service.py": {
       "description": "签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 2589,
-      "hash": "1c6c4e8bf09b5236",
-      "size": 10764,
-      "mtimeMs": 1792970705254.6904,
-      "updatedAt": "2026-10-25T23:25:05.307Z",
+      "tokens": 3143,
+      "hash": "5ef1a707e7ea9816",
+      "size": 13179,
+      "mtimeMs": 1792973071495.108,
+      "updatedAt": "2026-10-26T00:04:31.545Z",
       "source": "hook",
       "symbols": [
         {
@@ -35814,11 +35807,11 @@
           "tokens": 121
         },
         {
-          "name": "test_role_for_step",
+          "name": "test_parse_steps_strips_sign_role",
           "kind": "fn",
           "startLine": 121,
           "endLine": 133,
-          "tokens": 113
+          "tokens": 127
         },
         {
           "name": "test_parse_steps_logs_skipped_count",
@@ -35866,43 +35859,50 @@
           "name": "test_deliverable_matrix_steps_empty_matrix_is_empty_list",
           "kind": "fn",
           "startLine": 277,
-          "endLine": 281,
-          "tokens": 67
+          "endLine": 283,
+          "tokens": 74
+        },
+        {
+          "name": "test_ensure_binding_recovers_from_concurrent_insert",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 342,
+          "tokens": 534
         }
       ]
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 2453,
-      "hash": "2e53eaba3e8fad86",
-      "size": 10471,
-      "mtimeMs": 1792970733665.5515,
-      "updatedAt": "2026-10-25T23:25:33.723Z",
+      "tokens": 2821,
+      "hash": "71549ca980bbad00",
+      "size": 12342,
+      "mtimeMs": 1792972968145.1414,
+      "updatedAt": "2026-10-26T00:02:48.193Z",
       "source": "hook",
       "symbols": [
         {
           "name": "MatrixStep",
           "kind": "class",
-          "startLine": 59,
-          "endLine": 74,
+          "startLine": 69,
+          "endLine": 84,
           "tokens": 108
         },
         {
           "name": "SignatureMatrixService",
           "kind": "class",
-          "startLine": 75,
-          "endLine": 270,
-          "tokens": 1918
+          "startLine": 85,
+          "endLine": 301,
+          "tokens": 2184
         }
       ]
     },
     ".superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测.md",
-      "tokens": 754,
-      "hash": "b3462e79ec551e58",
-      "size": 4506,
-      "mtimeMs": 1792971822645.686,
-      "updatedAt": "2026-10-25T23:43:42.700Z",
+      "tokens": 772,
+      "hash": "5e2ba6909362c0bb",
+      "size": 4598,
+      "mtimeMs": 1792971900179.4055,
+      "updatedAt": "2026-10-25T23:45:00.234Z",
       "source": "hook"
     },
     ".git/COMMIT_MSG_T1_PLAN.txt": {
@@ -35925,215 +35925,222 @@
     },
     "pcs-backend/tests/services/test_change_notice_service.py": {
       "description": "P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。",
-      "tokens": 6694,
-      "hash": "b845b4f06554884b",
-      "size": 25829,
-      "mtimeMs": 1792970964395.2766,
-      "updatedAt": "2026-10-25T23:29:24.449Z",
+      "tokens": 8472,
+      "hash": "5e8f700ebc4b95ab",
+      "size": 32715,
+      "mtimeMs": 1792972513887.1992,
+      "updatedAt": "2026-10-25T23:55:13.936Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_Actor",
           "kind": "class",
-          "startLine": 44,
-          "endLine": 48,
+          "startLine": 50,
+          "endLine": 54,
           "tokens": 29
         },
         {
           "name": "_actor",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 52,
+          "startLine": 55,
+          "endLine": 58,
           "tokens": 24
         },
         {
           "name": "_make_changed_record",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 81,
+          "startLine": 59,
+          "endLine": 87,
           "tokens": 244
         },
         {
           "name": "test_change_type_seven_values_contract",
           "kind": "fn",
-          "startLine": 82,
-          "endLine": 93,
+          "startLine": 88,
+          "endLine": 99,
           "tokens": 166
         },
         {
           "name": "test_triggered_by_two_values_contract",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 105,
+          "startLine": 100,
+          "endLine": 111,
           "tokens": 126
         },
         {
           "name": "_FakeDeliverable",
           "kind": "class",
-          "startLine": 106,
-          "endLine": 115,
+          "startLine": 112,
+          "endLine": 121,
           "tokens": 69
         },
         {
           "name": "_FakeChangeNoticeDetail",
           "kind": "class",
-          "startLine": 116,
-          "endLine": 122,
+          "startLine": 122,
+          "endLine": 128,
           "tokens": 56
         },
         {
           "name": "_FakeRecord",
           "kind": "class",
-          "startLine": 123,
-          "endLine": 133,
+          "startLine": 129,
+          "endLine": 139,
           "tokens": 109
         },
         {
           "name": "FakeRecordTable",
           "kind": "class",
-          "startLine": 134,
-          "endLine": 139,
+          "startLine": 140,
+          "endLine": 145,
           "tokens": 27
         },
         {
           "name": "_FakeSession",
           "kind": "class",
-          "startLine": 140,
-          "endLine": 230,
+          "startLine": 146,
+          "endLine": 236,
           "tokens": 936
         },
         {
           "name": "_build_record_signing_session",
           "kind": "fn",
-          "startLine": 231,
-          "endLine": 237,
+          "startLine": 237,
+          "endLine": 243,
           "tokens": 70
         },
         {
           "name": "_build_cn_session",
           "kind": "fn",
-          "startLine": 238,
-          "endLine": 268,
+          "startLine": 244,
+          "endLine": 274,
           "tokens": 340
         },
         {
           "name": "test_create_change_notice_creates_both_rows",
           "kind": "fn",
-          "startLine": 269,
-          "endLine": 321,
+          "startLine": 275,
+          "endLine": 327,
           "tokens": 488
         },
         {
           "name": "test_create_change_notice_writes_audit",
           "kind": "fn",
-          "startLine": 322,
-          "endLine": 346,
+          "startLine": 328,
+          "endLine": 352,
           "tokens": 226
         },
         {
           "name": "test_create_change_notice_second_for_other_record_ok",
           "kind": "fn",
-          "startLine": 347,
-          "endLine": 381,
+          "startLine": 353,
+          "endLine": 387,
           "tokens": 319
         },
         {
           "name": "test_create_change_notice_same_record_twice_rejected",
           "kind": "fn",
-          "startLine": 382,
-          "endLine": 416,
+          "startLine": 388,
+          "endLine": 422,
           "tokens": 312
         },
         {
           "name": "test_create_change_notice_rejects_non_changed_record",
           "kind": "fn",
-          "startLine": 417,
-          "endLine": 436,
+          "startLine": 423,
+          "endLine": 442,
           "tokens": 209
         },
         {
           "name": "test_create_change_notice_record_not_found",
           "kind": "fn",
-          "startLine": 437,
-          "endLine": 462,
-          "tokens": 287
+          "startLine": 443,
+          "endLine": 472,
+          "tokens": 316
+        },
+        {
+          "name": "test_create_change_notice_creates_signable_version",
+          "kind": "fn",
+          "startLine": 473,
+          "endLine": 513,
+          "tokens": 366
+        },
+        {
+          "name": "test_create_change_notice_binds_the_record",
+          "kind": "fn",
+          "startLine": 514,
+          "endLine": 546,
+          "tokens": 317
+        },
+        {
+          "name": "test_create_change_notice_carries_pre_change_hash",
+          "kind": "fn",
+          "startLine": 547,
+          "endLine": 592,
+          "tokens": 417
+        },
+        {
+          "name": "test_create_change_notice_doc_no_uses_full_uuid",
+          "kind": "fn",
+          "startLine": 593,
+          "endLine": 611,
+          "tokens": 192
+        },
+        {
+          "name": "test_scope_value_matches_record_binding",
+          "kind": "fn",
+          "startLine": 612,
+          "endLine": 657,
+          "tokens": 430
         },
         {
           "name": "test_record_state_validation_rejects_non_changed",
           "kind": "fn",
-          "startLine": 463,
-          "endLine": 475,
+          "startLine": 658,
+          "endLine": 670,
           "tokens": 138
         },
         {
           "name": "test_record_state_validation_record_not_found",
           "kind": "fn",
-          "startLine": 476,
-          "endLine": 492,
+          "startLine": 671,
+          "endLine": 687,
           "tokens": 163
         },
         {
           "name": "test_apply_record_resolution_changes_changed_to_checked",
           "kind": "fn",
-          "startLine": 493,
-          "endLine": 512,
+          "startLine": 688,
+          "endLine": 707,
           "tokens": 189
         },
         {
           "name": "test_apply_record_resolution_rejects_non_changed",
           "kind": "fn",
-          "startLine": 513,
-          "endLine": 527,
+          "startLine": 708,
+          "endLine": 722,
           "tokens": 142
         },
         {
           "name": "test_apply_record_resolution_record_not_found",
           "kind": "fn",
-          "startLine": 528,
-          "endLine": 547,
+          "startLine": 723,
+          "endLine": 742,
           "tokens": 193
         },
         {
           "name": "test_approve_change_notice_changes_pending_to_approved",
           "kind": "fn",
-          "startLine": 548,
-          "endLine": 566,
+          "startLine": 743,
+          "endLine": 761,
           "tokens": 181
         },
         {
           "name": "test_approve_change_notice_double_approval_rejected",
           "kind": "fn",
-          "startLine": 567,
-          "endLine": 583,
-          "tokens": 168
-        },
-        {
-          "name": "test_approve_change_notice_not_found",
-          "kind": "fn",
-          "startLine": 584,
-          "endLine": 606,
-          "tokens": 212
-        },
-        {
-          "name": "test_approve_change_notice_writes_audit",
-          "kind": "fn",
-          "startLine": 607,
-          "endLine": 648,
-          "tokens": 452
-        },
-        {
-          "name": "test_approve_change_notice_notifies_project_designers",
-          "kind": "fn",
-          "startLine": 649,
-          "endLine": 683,
-          "tokens": 346
-        },
-        {
-          "name": "test_approve_change_notice_still_works_without_recipients",
-          "kind": "fn",
-          "startLine": 684,
-          "endLine": 699,
-          "tokens": 160
+          "startLine": 762,
+          "endLine": 894,
+          "tokens": 1336
         }
       ]
     },
@@ -36221,6 +36228,203 @@
       "mtimeMs": 1792971789019.5942,
       "updatedAt": "2026-10-25T23:43:09.066Z",
       "source": "hook"
+    },
+    "docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md": {
+      "description": "P9A-DLV-011 实施计划：变更单闭环（HTTP 面）+ 签署矩阵管理面",
+      "tokens": 2603,
+      "hash": "e0d8f6483d6e1745",
+      "size": 15965,
+      "mtimeMs": 1792972336159.0183,
+      "updatedAt": "2026-10-25T23:52:16.221Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md",
+      "tokens": 310,
+      "hash": "ae46b479acddcb39",
+      "size": 1968,
+      "mtimeMs": 1792972369218.3503,
+      "updatedAt": "2026-10-25T23:52:49.266Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_deliverable_create_version_row.py": {
+      "description": "`DeliverableService.create_version_row` 的守卫（P9A-DLV-011 · T1）。",
+      "tokens": 1196,
+      "hash": "bf633f25fa56dcab",
+      "size": 5086,
+      "mtimeMs": 1792972504158.6787,
+      "updatedAt": "2026-10-25T23:55:04.208Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_version_snapshot_steps_are_normalized",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 88,
+          "tokens": 510
+        },
+        {
+          "name": "test_create_version_row_does_not_commit",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 141,
+          "tokens": 458
+        }
+      ]
+    },
+    ".git/COMMIT_MSG_FIX1.txt": {
+      "description": "",
+      "tokens": 316,
+      "hash": "94c8a420b75f5c24",
+      "size": 2124,
+      "mtimeMs": 1792972875526.9155,
+      "updatedAt": "2026-10-26T00:01:15.591Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p9_008_project_matrix_binding_unique.py": {
+      "description": "P9A-DLV-011 T2：`project_signature_matrix_bindings` 加 (project_id, module) 唯一约束。",
+      "tokens": 532,
+      "hash": "ce6b286505106eb7",
+      "size": 2732,
+      "mtimeMs": 1792972924033.8054,
+      "updatedAt": "2026-10-26T00:02:04.084Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 67,
+          "tokens": 177
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 75,
+          "tokens": 52
+        }
+      ]
+    },
+    "pcs-backend/app/models/deliverable.py": {
+      "description": "交付物 ORM 模型（P5-3 报告/文档输出）。",
+      "tokens": 2950,
+      "hash": "77dcd3391cccdf99",
+      "size": 11212,
+      "mtimeMs": 1792972933052.68,
+      "updatedAt": "2026-10-26T00:02:13.099Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Deliverable",
+          "kind": "class",
+          "startLine": 31,
+          "endLine": 100,
+          "tokens": 873
+        },
+        {
+          "name": "DeliverableVersion",
+          "kind": "class",
+          "startLine": 101,
+          "endLine": 129,
+          "tokens": 332
+        },
+        {
+          "name": "DeliverableRecordBinding",
+          "kind": "class",
+          "startLine": 130,
+          "endLine": 147,
+          "tokens": 202
+        },
+        {
+          "name": "SignatureMatrix",
+          "kind": "class",
+          "startLine": 148,
+          "endLine": 167,
+          "tokens": 212
+        },
+        {
+          "name": "ProjectSignatureMatrixBinding",
+          "kind": "class",
+          "startLine": 168,
+          "endLine": 199,
+          "tokens": 298
+        },
+        {
+          "name": "CustomerApprovalAttachment",
+          "kind": "class",
+          "startLine": 200,
+          "endLine": 224,
+          "tokens": 289
+        },
+        {
+          "name": "ChangeNoticeDetail",
+          "kind": "class",
+          "startLine": 225,
+          "endLine": 244,
+          "tokens": 221
+        },
+        {
+          "name": "RecordChangeSnapshot",
+          "kind": "class",
+          "startLine": 245,
+          "endLine": 274,
+          "tokens": 355
+        }
+      ]
+    },
+    "pcs-backend/tests/alembic/test_p9_008_project_matrix_binding_unique.py": {
+      "description": "P9A-DLV-011 T2 迁移基座的 schema 断言 —— (project_id, module) 唯一约束。",
+      "tokens": 1072,
+      "hash": "ccf494edb386e9f2",
+      "size": 4585,
+      "mtimeMs": 1792972996580.7786,
+      "updatedAt": "2026-10-26T00:03:16.625Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_binding_table_declares_unique_project_module",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 38,
+          "tokens": 75
+        },
+        {
+          "name": "test_unique_constraint_covers_exactly_project_id_and_module",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 57,
+          "tokens": 169
+        },
+        {
+          "name": "_migration_tree",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 62,
+          "tokens": 51
+        },
+        {
+          "name": "test_migration_revision_chain",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 73,
+          "tokens": 130
+        },
+        {
+          "name": "test_migration_creates_the_same_constraint_as_the_orm",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 105,
+          "tokens": 342
+        },
+        {
+          "name": "test_migration_refuses_to_delete_duplicate_rows",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 112,
+          "tokens": 88
+        }
+      ]
     }
   }
 }

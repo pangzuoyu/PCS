@@ -118,17 +118,17 @@ def test_parse_steps_defaults():
     assert step.can_skip is False
 
 
-def test_role_for_step():
-    steps = SignatureMatrixService.parse_steps(
-        _matrix(
-            [
-                {"step_order": 1, "sign_role": "CHECKER"},
-                {"step_order": 2, "sign_role": "REVIEWER"},
-            ]
-        )
-    )
-    assert SignatureMatrixService.role_for_step(steps, 2) == "REVIEWER"
-    assert SignatureMatrixService.role_for_step(steps, 9) is None
+def test_parse_steps_strips_sign_role():
+    """⚠️ `sign_role` 前后空白**必须剥掉**。
+
+    判空用 `.strip()` 却存原值 ⇒ 矩阵里写 `" CHECKER "` ⇒ 校验通过、
+    存进去带空格 ⇒ `sign_step` 拿它和 actor 的角色比 ⇒ 403
+    `SIGN_STEP_ROLE_MISMATCH`，而用户收到的消息是「第 1 步要求角色
+    『 CHECKER 』，当前角色 CHECKER」—— 一个带空格的自己。
+    """
+    matrix = _matrix([{"step_order": 1, "sign_role": " CHECKER "}])
+    step = SignatureMatrixService.parse_steps(matrix)[0]
+    assert step.sign_role == "CHECKER"
 
 
 def test_parse_steps_logs_skipped_count(caplog):
@@ -278,3 +278,4 @@ def test_deliverable_matrix_steps_empty_matrix_is_empty_list():
     """空矩阵（无步骤）⇒ 空列表，**不报错** —— 越界由调用方按 404 处理。"""
     assert DeliverableService._matrix_steps(None) == []
     assert DeliverableService._matrix_steps(_matrix([])) == []
+

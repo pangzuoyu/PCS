@@ -2365,3 +2365,36 @@
 | 07:42 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~31 |
 | 07:43 | Created .git/COMMIT_MSG_T4.txt | — | ~270 |
 | 07:43 | Edited .superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md | expanded (+23 lines) | ~403 |
+| 07:45 | Edited .superpowers/sdd/PCS-PLAN-P9A-DLV-007-签署矩阵与变更单观测/progress.md | 2→3 lines | ~71 |
+| 07:50 | **P9A-DLV-007 + TODO-057 落地**：`SignatureMatrixService`（steps_json 唯一解析口 + 惰性建 CHANGE_NOTICE_3_LEVEL 模板/项目绑定）；`create_change_notice` 落地（绑矩阵 + scope 逐单唯一 + 同记录第二次 409）；ADR-0047 写入点 2a（创建写 PENDING）/2b（关闭写 COMPLETED）；假 DB 用例改真库 + 新增 test_change_notice_observation.py；SPEC V2.2（三工作流 2/3→3/3）· TODO-057 闭环 + TODO-068~072 · bug-145 收尾 + bug-2050/2051/2052 · cerebrum 两条 | signature_matrix_service.py · change_notice_service.py · deliverable_service.py · 3 个测试文件 · TODOS.md · SPEC-P9 · .wolf/* | 5 commits（56e91ae→880c03f）；后端 5188 passed / 77 skipped；alembic check 两库 exit 0；契约门禁 exit 0 | ~0 |
+| 07:52 | Created docs/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面.md | — | ~2776 |
+| 07:52 | Created .superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md | — | ~330 |
+| 07:53 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_create_change_notice_record_not_found() | ~1925 |
+| 07:53 | Edited pcs-backend/tests/services/test_change_notice_service.py | expanded (+6 lines) | ~58 |
+| 07:53 | Edited pcs-backend/app/services/deliverable_service.py | modified create_version_row() | ~747 |
+| 07:53 | Edited pcs-backend/app/services/deliverable_service.py | 4→3 lines | ~33 |
+| 07:53 | Edited pcs-backend/app/services/change_notice_service.py | modified _pre_change_hash() | ~1530 |
+| 07:54 | Edited pcs-backend/app/services/change_notice_service.py | modified _check_record_charged() | ~262 |
+| 07:54 | Edited pcs-backend/app/services/change_notice_service.py | 16→17 lines | ~210 |
+| 07:54 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+6 lines) | ~126 |
+| 07:55 | Created pcs-backend/tests/services/test_deliverable_create_version_row.py | — | ~1196 |
+| 07:55 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_scope_value_matches_record_binding() | ~25 |
+| 07:55 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_scope_value_matches_record_binding() | ~54 |
+| 07:55 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+18 lines) | ~385 |
+| 07:55 | Edited pcs-backend/app/services/change_notice_service.py | modified parse_steps() | ~167 |
+| 07:57 | Edited pcs-backend/app/services/todo_service.py | added error handling | ~300 |
+| 07:57 | Edited pcs-backend/app/services/todo_service.py | added 2 import(s) | ~63 |
+| 07:57 | Edited pcs-backend/tests/services/test_signature_matrix_service.py | modified test_parse_steps_defaults() | ~247 |
+| 07:57 | Edited pcs-backend/app/services/signature_matrix_service.py | modified strip() | ~126 |
+| 07:57 | Edited pcs-backend/app/services/signature_matrix_service.py | reduced (-8 lines) | ~45 |
+| 07:58 | Edited pcs-backend/app/models/workflow_progress.py | 5→7 lines | ~82 |
+| 07:58 | Edited pcs-backend/app/services/change_notice_service.py | 5→8 lines | ~102 |
+| 07:58 | Edited pcs-backend/app/services/signature_matrix_service.py | expanded (+9 lines) | ~122 |
+| 08:01 | Created .git/COMMIT_MSG_FIX1.txt | — | ~337 |
+| 08:02 | Created pcs-backend/alembic/versions/p9_008_project_matrix_binding_unique.py | — | ~532 |
+| 08:02 | Edited pcs-backend/app/models/deliverable.py | modified ProjectSignatureMatrixBinding() | ~186 |
+| 08:02 | Edited pcs-backend/app/services/signature_matrix_service.py | added error handling | ~544 |
+| 08:02 | Edited pcs-backend/app/services/signature_matrix_service.py | added 1 import(s) | ~34 |
+| 08:02 | Created pcs-backend/tests/alembic/test_p9_008_project_matrix_binding_unique.py | — | ~934 |
+| 08:03 | Edited pcs-backend/tests/alembic/test_p9_008_project_matrix_binding_unique.py | added error handling | ~341 |
+| 08:04 | Edited pcs-backend/tests/services/test_signature_matrix_service.py | modified scalar_one_or_none() | ~444 |
