@@ -1693,27 +1693,51 @@ core 抛出方全部换成 service 变体 ⇒ **独立一轮**（动 ~20 个模�
 
 **归属：** 独立一轮。**关联：** bug-2079（TODO-080 第 3 条）· bug-2085。
 
-## TODO-082: `locked_by_deliverable` 门是**死代码**（永远 False）🟡
+## ✅ DONE —— TODO-082: 两道「已对外生效」的门换成**真实可判定**的条件（2026-10-27 落地）
 
-**What:** `records.locked_by_deliverable` 全仓**只被读，从未被写 True**。
+**原症状：** `records.locked_by_deliverable` 全仓**只被读，从未被写 True** ⇒
 
-**Why:** 两个服务把它当门禁用：
-- `record_cancellation_service.py:168` —— 「已绑定记录（`locked_by_deliverable=True`）
-  必须先建 `change_type=RECORD_CANCELLATION` 的变更单才能作废」；
-- `reversal_approval_service.py:156` —— 「已对外生效的记录只能走
-  `CHANGE_REVERSAL`，不能走普通变更」。
+- `record_cancellation_service` 的「已绑定记录（`locked_by_deliverable=True`）
+  必须先建 `change_type=RECORD_CANCELLATION` 的变更单才能作废」⇒ **不存在**；
+- `reversal_approval_service` 的「已对外生效的记录只能走 `CHANGE_REVERSAL`」
+  ⇒ **不存在**。
 
-⇒ 但**没有任何代码把它置 True** ⇒ 两道门**永远不触发** ⇒
-「记录作废前必须有变更单凭证」这条业务约束**事实上不存在**。
-⚠️ 本批（P9A-DLV-011）补的变更单闭环**也没写它** ⇒ 变更单签完只关记录，
-不把记录标成「已对外生效」。
+⇒ 任何记录都能被**直接弃用**、被**直接撤销** ⇒ 「作废/撤销都要有凭证」这条
+业务约束**事实上不存在**。
 
-**How:** 二选一 —— ①在「变更单被签完 / 交付物发布」时把绑定的记录
-`locked_by_deliverable` 置 True（+ 迁移确认该列在全部记录表上都有）；
-②删掉这两道门（承认「变更单不参与作废/反转的准入判断」）。
-⇒ 选 ① 要连带确认「记录表清单」与「哪些交付物算对外生效」⇒ 独立一轮。
+**业务裁决（2026-10-27，用户选「换成真实可判定的条件」）**
 
-**归属：** 独立一轮。**关联：** TODO-069 · TODO-078。
+**落地**
+
+- 新增 `DeliverableService.is_record_effectively_published(db, record_type=,
+  record_id=)` ⇒ 「记录有没有被一张 **APPROVED** 的交付物绑定」
+  （`deliverable_record_bindings` ⋈ `deliverable_versions` ⋈ `deliverables`）。
+  ⚠️ **判「APPROVED」而不是「有绑定」**：一张**还没签完**的变更单也绑了记录
+  ⇒ 用「有绑定」当门禁 ⇒ 用户在变更单还没批准时就被挡住 ⇒ 流程走不动。
+- 两道门改用该判据：
+  - `RecordCancellationService.obsolete`（直接弃用）⇒ 已对外生效 ⇒ **409
+    `RECORD_BOUND_USE_CHANGE_NOTICE`**（必须先建 RECORD_CANCELLATION 变更单）；
+  - `ReversalApprovalService.request_reversal` ⇒ 已对外生效 ⇒ **409
+    `REVERSAL_LOCKED_USE_CHANGE_REVERSAL`**（只能走 CHANGE_REVERSAL 反向变更）。
+- ⚠️ `bound_obsolete_via_deliverable`（走变更单弃用的入口）改判「**这张**
+  交付物**绑了**这条记录」（`is_record_bound_to_deliverable`）—— **不能**判
+  「已批准」：本方法由变更单 APPROVED 流程调用 ⇒ 那一刻这张单**还没**批完 ⇒
+  判「已批准」会把这条路径**永远堵死**。
+- 测试（**新增** `tests/services/test_record_publication_gate.py`，5 例）：已批准
+  ⇒ 两道门都拒（409）· 没绑定 / 还没批准 ⇒ **放行**（门不误伤）· 被拒后状态
+  不变。⚠️ 既有**假 Session** 用例 `test_request_reversal_rejects_locked_by_deliverable`
+  的前提（那个标志）已消失 ⇒ 删除 ⇒ 真库用例取代它。
+
+**⚠️ 已知代价（用户裁决时已告知）**：一张变更单**批准**后，该记录就「已对外
+生效」⇒ 之后**普通撤销**（request-reversal）会被拒 ⇒ 只能走 **CHANGE_REVERSAL
+反向变更单**。
+
+**遗留（TODO-090）**：`locked_by_deliverable` 列现在**没有任何写入方**、也不再
+是门禁（仍被记录读端原样上报）⇒ 要么在「交付物发布」时写它（审计标记），要么
+删列（16 张表 + 数据字典）⇒ 独立一轮。
+
+**归属：** 已闭环。**关联：** TODO-069 · TODO-078 · ADR-0009 · bug-2086 ·
+TODO-090。
 
 ## ✅ DONE —— TODO-083: 变更单闭环**没有前端入口**（2026-10-26 落地）
 
@@ -1758,6 +1782,24 @@ G-08 契约门禁 4 阶段 exit 0。
 
 **关联：** 评审 ledger `.superpowers/sdd/PCS-PLAN-P9A-DLV-011-变更单闭环与签署矩阵管理面/progress.md`
 的「Deferred minors」段。
+
+## TODO-090: `locked_by_deliverable` 列**彻底没人用了**（写入方与门禁都没了）🟡
+
+**What:** TODO-082 把两道「已对外生效」的门换成**真实可判定**的条件
+（`DeliverableService.is_record_effectively_published`）⇒ `records.
+locked_by_deliverable` 这一列**既没有写入方**、**也不再是门禁** ⇒ 记录读端
+（`GET /records/{module}` 等）仍把它**原样上报**（恒为 False）⇒ 前端拿到的
+是一个**永远为假的字段**。
+
+**Why:** 它是**数据字典**里声明的字段（`PCS-DICT-ALL-003 V3.6` /
+`spec/两层签署与变更管理增补规格说明书.md`）⇒ 直接删列会**与字典脱节**
+（且要动 16 张表 + 一堆迁移）⇒ 但留着不动 ⇒ 它就是一个**装饰字段**。
+
+**How:** 二选一 —— ①在「交付物发布 / 变更单签完」时把绑定记录该列置 True
+（作为**审计标记**，门禁仍走真实判据）⇒ 需确认「哪些交付物算对外生效」；
+②删列（16 张表 + 字典 + 读端字段）⇒ 独立一轮。
+
+**归属：** 独立一轮。**关联：** TODO-082 · ADR-0009 · 数据字典 V3.6。
 
 ## TODO-085: 改签署矩阵的**申请 + 双重审批**未实现（校审层级 SPEC 的规则）🟡
 

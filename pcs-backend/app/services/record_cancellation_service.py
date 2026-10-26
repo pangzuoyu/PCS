@@ -1,9 +1,16 @@
 """RecordCancellationService — 记录弃用 (RECORD_CANCELLATION) 闭环（ADR-0009 + ADR-0002）。
 
 弃用路径分支（spec V1.0 §3.4）：
-1. **未绑定记录**（locked_by_deliverable=False）：直接 OBSOLETE，无凭证；
-2. **已绑定记录**（locked_by_deliverable=True）：必须先创建 change_type=RECORD_CANCELLATION
-   变更单；变更单 APPROVED 后由本服务 `bound_obsolete_via_deliverable` 联动 OBSOLETE。
+1. **未对外生效的记录**：直接 OBSOLETE，无凭证；
+2. **已对外生效的记录**（被一张 **APPROVED** 的交付物绑定）：必须先创建
+   change_type=RECORD_CANCELLATION 变更单；变更单 APPROVED 后由本服务
+   `bound_obsolete_via_deliverable` 联动 OBSOLETE。
+
+⚠️ **「已对外生效」的口径换过了**（TODO-082）：此前判 `record.
+locked_by_deliverable` ⇒ 而该列**全仓只被读、从不被写 True** ⇒ 两道门
+**永远不触发** ⇒ 「作废前必须有变更单凭证」这条约束**事实上不存在**。
+⇒ 改判**真实可判定**的条件：记录有没有被一张 **APPROVED** 的交付物绑定
+（`DeliverableService.is_record_effectively_published`）。
 
 位号终身唯一（ADR-0009）：(project_id, tag_number/line_no) UNIQUE 约束覆盖含 OBSOLETE
 全部记录，OBSOLETE 不清空 tag_number，弃用后永不复用；替代分配新号。
@@ -18,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import AuditAction, RecordSignStatus9
 from app.services.audit_service import AuditService
+from app.services.deliverable_service import DeliverableService
 from app.services.exceptions import PcsError
 
 
@@ -64,7 +72,7 @@ class RecordCancellationService:
         *,
         allow_obsolete: bool = True,
     ) -> None:
-        """校验记录可 OBSOLETE：sign_status != OBSOLETE 且按需 locked_by_deliverable 校验。"""
+        """校验记录可 OBSOLETE：sign_status != OBSOLETE 且按需「是否已对外生效」校验。"""
         current = getattr(rec, "sign_status", None)
         if current == RecordSignStatus9.OBSOLETE.value:
             raise PcsError(
@@ -164,10 +172,15 @@ class RecordCancellationService:
                 status=409,
             )
 
-        # 已绑定 → 走变更单
-        if getattr(rec, "locked_by_deliverable", False):
+        # 已对外生效 → 必须先走变更单（TODO-082：口径从「死列」换成
+        # 「被 APPROVED 的交付物绑定」⇒ 这道门**现在真的会触发**）
+        if await DeliverableService.is_record_effectively_published(
+            db,
+            record_type=type(rec).__name__,
+            record_id=record_id,
+        ):
             raise BoundObsoleteError(
-                f"记录 {record_id} 已被交付物绑定，必须先创建 "
+                f"记录 {record_id} 已被交付物绑定（已对外生效），必须先创建 "
                 f"change_type=RECORD_CANCELLATION 的变更单并经审批通过"
                 f"（spec V1.0 §3.4 / ADR-0009）",
             )
@@ -197,7 +210,7 @@ class RecordCancellationService:
 
         Args:
             db: 异步 Session
-            record_id: 业务记录 PK（必须 locked_by_deliverable=True）
+            record_id: 业务记录 PK（必须被**这张**交付物绑定）
             deliverable_id: 触发弃用的变更单 deliverables.deliverable_id
             actor: 审批人
             record_table: 业务记录 ORM 模型类
@@ -220,9 +233,18 @@ class RecordCancellationService:
                 status=409,
             )
 
-        if not getattr(rec, "locked_by_deliverable", False):
+        # ⚠️ 判「**这张**交付物**绑了**这条记录」——不是「已批准」
+        #    （本方法由变更单 APPROVED 流程调用 ⇒ 那一刻这张单**还没**批完，
+        #    判「已批准」会把这条路径永远堵死）。
+        if not await DeliverableService.is_record_bound_to_deliverable(
+            db,
+            record_type=type(rec).__name__,
+            record_id=record_id,
+            deliverable_id=deliverable_id,
+        ):
             raise PcsError(
-                f"记录 {record_id} 未被交付物绑定，应走直接 OBSOLETE 路径",
+                f"记录 {record_id} 未被交付物 {deliverable_id} 绑定，"
+                f"应走直接 OBSOLETE 路径",
                 code="RECORD_NOT_BOUND",
                 status=422,
             )

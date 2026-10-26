@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T16:45:20.300Z",
-    "fileCount": 1048,
+    "lastScanned": "2026-10-26T16:50:31.491Z",
+    "fileCount": 1049,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "431f00a0840761f25228d0e06a4153d54f41dc91b38b374aef1eb6e0bc5be377",
-    "storeUpdatedAt": "2026-10-26T16:45:20.311Z",
-    "rootHash": "d888646a4a949391"
+    "renderedHash": "897174509ac1c9f1a1e1529e1f60986b26f02c6195268405d859a2b2421c0f6c",
+    "storeUpdatedAt": "2026-10-26T16:50:31.504Z",
+    "rootHash": "a612d778282d41b8"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -37832,6 +37832,80 @@
           "startLine": 243,
           "endLine": 255,
           "tokens": 129
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_record_publication_gate.py": {
+      "description": "「记录已对外生效」的两道门（TODO-082）。",
+      "tokens": 2044,
+      "hash": "fcc6f69f064032b0",
+      "size": 8232,
+      "mtimeMs": 1793033431439.4746,
+      "updatedAt": "2026-10-26T16:50:31.491Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 58,
+          "endLine": 64,
+          "tokens": 47
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 83,
+          "tokens": 143
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 97,
+          "tokens": 116
+        },
+        {
+          "name": "_bind_record_to_deliverable",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 152,
+          "tokens": 487
+        },
+        {
+          "name": "test_obsolete_is_blocked_when_the_record_is_effectively_published",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 170,
+          "tokens": 192
+        },
+        {
+          "name": "test_obsolete_is_allowed_when_no_approved_binding_exists",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 185,
+          "tokens": 131
+        },
+        {
+          "name": "test_obsolete_is_allowed_when_the_binding_is_not_approved_yet",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 205,
+          "tokens": 181
+        },
+        {
+          "name": "test_reversal_is_blocked_when_the_record_is_effectively_published",
+          "kind": "fn",
+          "startLine": 206,
+          "endLine": 223,
+          "tokens": 201
+        },
+        {
+          "name": "test_reversal_is_allowed_when_the_binding_is_not_approved",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 238,
+          "tokens": 155
         }
       ]
     }

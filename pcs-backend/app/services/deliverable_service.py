@@ -504,6 +504,84 @@ class DeliverableService:
             )
 
     @classmethod
+    async def is_record_effectively_published(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+    ) -> bool:
+        """记录是否被一张 **APPROVED** 的交付物绑定（= 已对外生效）。
+
+        ## 为什么是这个口径（TODO-082）
+
+        此前两个服务拿 `record.locked_by_deliverable` 当门禁用
+        （`record_cancellation_service` 的「已绑定记录必须先建
+        RECORD_CANCELLATION 变更单」、`reversal_approval_service` 的「已对外
+        生效只能走 CHANGE_REVERSAL」）⇒ 而该列**全仓只被读、从不被写 True**
+        ⇒ 两道门**永远不触发** ⇒ 那两条业务约束**事实上不存在**。
+
+        ⇒ 改查**真实可判定**的条件：记录有没有被一张 **APPROVED** 的交付物
+        绑定（`deliverable_record_bindings` ⋈ `deliverable_versions` ⋈
+        `deliverables`）。
+
+        ## 为什么判「APPROVED」而不是「有绑定」
+
+        一张**还没签完**的变更单也绑了记录（`create_change_notice` 建 binding）
+        ⇒ 「有绑定」不等于「已生效」⇒ 用它当门禁 ⇒ 用户在变更单还没批准时就
+        被挡住 ⇒ 流程走不动。
+        """
+        found = (
+            await db.execute(
+                select(DeliverableRecordBinding.deliverable_version_id)
+                .join(
+                    DeliverableVersion,
+                    DeliverableRecordBinding.deliverable_version_id
+                    == DeliverableVersion.version_id,
+                )
+                .join(
+                    Deliverable,
+                    DeliverableVersion.deliverable_id == Deliverable.deliverable_id,
+                )
+                .where(
+                    DeliverableRecordBinding.record_type == record_type,
+                    DeliverableRecordBinding.record_id == record_id,
+                    Deliverable.sign_status == DeliverableSignStatus.APPROVED,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return found is not None
+
+    @classmethod
+    async def is_record_bound_to_deliverable(
+        cls,
+        db: AsyncSession,
+        *,
+        record_type: str,
+        record_id: uuid.UUID,
+        deliverable_id: uuid.UUID,
+    ) -> bool:
+        """记录是否被**指定的**那张交付物绑定（不论它批没批）。"""
+        found = (
+            await db.execute(
+                select(DeliverableRecordBinding.deliverable_version_id)
+                .join(
+                    DeliverableVersion,
+                    DeliverableRecordBinding.deliverable_version_id
+                    == DeliverableVersion.version_id,
+                )
+                .where(
+                    DeliverableRecordBinding.record_type == record_type,
+                    DeliverableRecordBinding.record_id == record_id,
+                    DeliverableVersion.deliverable_id == deliverable_id,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return found is not None
+
+    @classmethod
     async def _allocate_doc_no(
         cls, db: AsyncSession, *, deliverable: Deliverable
     ) -> str:

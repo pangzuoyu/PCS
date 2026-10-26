@@ -4,15 +4,17 @@
 - CHANGE_PENDING 阶段：设计人自行放弃（ABANDON_CHANGE → CHECKED）
 - CHANGED 阶段：经 REVERSAL_PENDING 由撤销批准链批准
   - 3 级矩阵取 REVIEWER 角色；4 级取 APPROVER 角色
-- 已凭生效的变更（locked_by_deliverable=True）：只能发起反向新变更
+- 已对外生效的记录（被一张 APPROVED 的交付物绑定）：只能发起反向新变更
   （change_type=CHANGE_REVERSAL），不可 REVERSAL_APPROVAL
+  —— ⚠️ 判据见 `is_record_effectively_published`（TODO-082：原先判
+  `locked_by_deliverable` ⇒ 那列**从不被写 True** ⇒ 门永远不触发）
 
 状态机三事件（在 state_machine.py 锁定）：
 - CHANGED → REVERSAL_PENDING（REQUEST_REVERSAL）
 - REVERSAL_PENDING → CHECKED（APPROVE_REVERSAL + 恢复快照）
 - REVERSAL_PENDING → CHANGED（REJECT_REVERSAL）
 
-本服务封装状态机三事件 + 业务校验（locked_by_deliverable / reason 必填 /
+本服务封装状态机三事件 + 业务校验（是否已对外生效 / reason 必填 /
 非 CHANGED 不能发起），并触发 ACTIVE 快照数据恢复 + CONSUMED 标记
 （spec V1.0 §3.4 「撤销或放弃时回滚」）。
 """
@@ -28,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.deliverable import RecordChangeSnapshot
 from app.models.enums import AuditAction, RecordSignStatus9, SnapshotStatus
 from app.services.audit_service import AuditService
+from app.services.deliverable_service import DeliverableService
 from app.services.exceptions import PcsError
 from app.services.record_snapshot_codec import apply_snapshot_data
 
@@ -124,7 +127,7 @@ class ReversalApprovalService:
         ADRS：
         - ADR-0002：撤销仅对 CHANGED 状态发起
         - ADR-0010：REVERSAL_PENDING 由撤销批准链批准（角色校验交给签名矩阵层）
-        - spec V1.0 §3.4：已对外生效（locked_by_deliverable=True）只能走 CHANGE_REVERSAL
+        - spec V1.0 §3.4：已对外生效（被 APPROVED 的交付物绑定）只能走 CHANGE_REVERSAL
 
         Args:
             db: 异步 Session
@@ -159,8 +162,15 @@ class ReversalApprovalService:
                 status=409,
             )
 
-        # 已锁定：必须走 CHANGE_REVERSAL 新变更单
-        if getattr(rec, "locked_by_deliverable", False):
+        # 已对外生效：必须走 CHANGE_REVERSAL 新变更单
+        # ⚠️ TODO-082：口径从「死列」`locked_by_deliverable`（全仓只被读、
+        #    从不被写 True ⇒ 这道门**永远不触发**）换成**真实可判定**的条件
+        #    ——「记录被一张 **APPROVED** 的交付物绑定」。
+        if await DeliverableService.is_record_effectively_published(
+            db,
+            record_type=type(rec).__name__,
+            record_id=record_id,
+        ):
             raise PcsError(
                 f"记录 {record_id} 已被交付物绑定（已对外生效），"
                 f"不能走撤销流程，需发起 change_type=CHANGE_REVERSAL 反向新变更"

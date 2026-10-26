@@ -3,7 +3,7 @@
 ADRS：
 - ADR-0010：分级撤销 REVERSAL_PENDING（3 级矩阵取 REVIEWER、4 级取 APPROVER）
 - ADR-0002：撤销仅对 CHANGED 状态发起（CHECKED 不能直接 request_reversal）
-- spec V1.0 §3.4：已凭生效的变更（locked_by_deliverable=True）只能发起反向新变更
+- spec V1.0 §3.4：已对外生效的记录（被 APPROVED 的交付物绑定）只能发起反向新变更
   （CHANGE_REVERSAL），不能 REVERSAL_APPROVAL
 
 状态机三事件（已在 state_machine.py 锁定）：
@@ -14,7 +14,9 @@ ADRS：
 本测试覆盖：
 1. request_reversal：CHANGED → REVERSAL_PENDING + reversal_* 字段写入
 2. request_reversal：CHECKED/DRAFT/STALE/IN_APPROVAL 等不能发起（409）
-3. request_reversal：locked_by_deliverable=True 拒绝（已对外生效 → 走 CHANGE_REVERSAL）
+3. request_reversal：已对外生效 ⇒ 拒绝（走 CHANGE_REVERSAL）—— ⚠️ 该门禁的真库用例在
+   `tests/services/test_record_publication_gate.py`（TODO-082：口径从「死列」
+   `locked_by_deliverable` 换成「被 APPROVED 的交付物绑定」）
 4. approve_reversal：REVERSAL_PENDING → CHECKED + 恢复最新 ACTIVE 快照 + 标记 CONSUMED
 5. reject_reversal：REVERSAL_PENDING → CHANGED + reversal_rejected_* 字段写入
 6. 边界：REVERSAL_PENDING 不能再次 request_reversal（409）
@@ -60,14 +62,12 @@ class _FakeRecord:
         self,
         *,
         sign_status: str = "CHANGED",
-        locked_by_deliverable: bool = False,
         record_hash: str = "hash-initial",
         change_resolved_by: str | None = None,
         change_resolved_at: datetime | None = None,
     ) -> None:
         self.record_id = uuid.uuid4()
         self.sign_status = sign_status
-        self.locked_by_deliverable = locked_by_deliverable
         self.record_hash = record_hash
         self.change_resolved_by = change_resolved_by
         self.change_resolved_at = change_resolved_at
@@ -193,27 +193,6 @@ async def test_request_reversal_rejects_non_changed_status():
             )
         assert exc_info.value.status == 409
         assert exc_info.value.code == "REVERSAL_BAD_STATE"
-
-
-@pytest.mark.asyncio
-async def test_request_reversal_rejects_locked_by_deliverable():
-    """locked_by_deliverable=True → 已对外生效，需走 CHANGE_REVERSAL 新变更单（不可 REVERSAL）。"""
-    rec = _FakeRecord(sign_status="CHANGED", locked_by_deliverable=True)
-    db = _FakeSession()
-    db.store[(FakeRecordTable, rec.record_id)] = rec
-
-    with pytest.raises(PcsError) as exc_info:
-        await ReversalApprovalService.request_reversal(
-            db,
-            record_id=rec.record_id,
-            actor=_actor(),
-            reason="x",
-            record_table=FakeRecordTable,
-        )
-    assert exc_info.value.status == 409
-    assert exc_info.value.code == "REVERSAL_LOCKED_USE_CHANGE_REVERSAL"
-    # 状态不变
-    assert rec.sign_status == "CHANGED"
 
 
 @pytest.mark.asyncio

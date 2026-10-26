@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:45:20.300Z
-> Files: 1048 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T16:50:31.491Z
+> Files: 1049 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1495,6 +1495,7 @@
 - `test_notifications_channel.py` — P9A C1：通知通道抽象（ADR-0049 §①）。 (~2860 tok)
 - `test_record_capabilities.py` — `record_capabilities` 测试（TODO-058 裁决的落地契约）。 (~1308 tok)
 - `test_record_hash_invariant.py` — record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。 (~3104 tok)
+- `test_record_publication_gate.py` — 「记录已对外生效」的两道门（TODO-082）。 (~2044 tok)
 - `test_record_snapshot_codec.py` — 记录快照**数据编解码**（TODO-087）。 (~1629 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~3143 tok)
