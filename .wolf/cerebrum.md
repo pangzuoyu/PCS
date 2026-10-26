@@ -1463,3 +1463,42 @@ SPEC §7.2 写「待办/通知 ≤500ms」。待办有验收测试，**通知一
 **判据**：看到 `@parametrize` 就去确认**被参数化的那个量真的进了被测代码**。
 最容易漏的地方是**helper 的默认参数**与**第二处使用点**（这里是查询侧）。
 ⇒ 这与「注释与代码字面冲突，是 bug 的气味」同源。
+
+## Do-Not-Repeat: 「恢复快照」要有数据才叫恢复（2026-10-26，bug-2070）
+
+`RecordChangeSnapshot.data_snapshot_json` **恒为 `{}`**（只存哈希）⇒ 撤销/放弃的
+恢复循环**空转** ⇒ **只回状态、不回数据** ⇒「撤销」**没有撤销任何东西**。
+
+⇒ 快照要装**数据**；JSONB 装不下的类型（UUID / datetime / date / Decimal /
+Enum）要**打标签**（`{"__t__": …, "v": …}`）再按标签**还原成真类型** ——
+裸字符串绑枚举列会 LookupError。
+⚠️ 快照**不**装主键 / 归属 / 审计 / 状态机流程列（恢复它们会与当前状态打架），
+**但要装 `record_hash`**（它是「变更前的数据指纹」）。
+
+## Do-Not-Repeat: 主键列名不能靠猜（2026-10-26，bug-2081）
+
+`getattr(record, "record_id", None)` 只在**部分表**成立（`relief_results` 叫
+`relief_id`、`streams` 叫 `stream_id`…）⇒ 在别的表上**恒为 None** ⇒ 查询静默
+返回空 ⇒ 后续逻辑**空转**而不报错。
+
+⇒ **按 mapper 取**（`inspect(cls).primary_key[0]`），或**由调用方传入**
+（它就是 `db.get(table, pk)` 用的那个主键）。
+⚠️ 「静默返回空 ⇒ 后续空转」比「直接报错」更贵：它把 bug 伪装成「数据本来就没有」。
+
+## Do-Not-Repeat: 子类的默认属性要用 `type(self).*`（2026-10-26，bug-2079）
+
+让 `PcsError` 的 service 变体**继承** core 变体时，若在 `__init__` 里写死
+`code="PCS_ERROR"` / `status=500`，**所有子类**（`MassIterationNotConvergedError`
+等 100+ 个）都退化成父类的值 ⇒ 实测 **124 个既有用例同时红**。
+
+⇒ 子类的默认取 **`type(self).code` / `type(self).status`**（类属性可被子类覆盖）。
+
+## Do-Not-Repeat: 一条 commit 要确定绿（2026-10-27）
+
+TODO-080（取消路径 / 真覆盖）与 TODO-087（快照真的装数据）本想拆成两个 commit，
+但 **TODO-086 的返工用例断言「本次变更前的哈希 = h1」** ⇒ 只有快照真的装了数据
+才**确定性**成立（否则两个 ACTIVE 快照 + 同秒 `created_at` ⇒ `ORDER BY` 先后
+**不确定** ⇒ 用例**随机红**）。
+
+⇒ 若 A 依赖 B 才能让**既有用例**确定通过 ⇒ **合并落地**，别拆 —— 否则历史里留下一个
+flaky commit，而 flaky 会传染（谁 cherry-pick 谁中招）。
