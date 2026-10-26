@@ -600,6 +600,16 @@ class ChangeNoticeService:
                 code="CHANGE_NOTICE_RECORD_NOT_FOUND",
                 status=409,
             )
+        # ⚠️ 关之前先看它**还在不在 CHANGED**：记录在变更单签完前可能已被别处
+        # 改过（如被弃用）⇒ 无条件写 CHECKED 会**复活一条已作废的记录**。
+        if record.sign_status != RecordSignStatus9.CHANGED.value:
+            raise PcsError(
+                f"变更单 {deliverable.deliverable_id} 绑定的记录 "
+                f"{binding.record_id} 当前 {record.sign_status}，"
+                f"不是 CHANGED（不能把它关成 CHECKED）",
+                code="CHANGE_NOTICE_RECORD_BAD_STATE",
+                status=409,
+            )
 
         # CHANGED → CHECKED（关闭）+ 记录是谁关的
         record.sign_status = RecordSignStatus9.CHECKED.value

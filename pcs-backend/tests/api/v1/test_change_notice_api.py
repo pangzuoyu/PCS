@@ -407,3 +407,29 @@ async def test_change_notice_response_has_no_bare_fields(client, db):
         "triggered_by",
         "source_record_type",
     }
+
+
+async def test_close_refuses_to_resurrect_a_moved_record(client, db):
+    """⚠️ 记录在变更单签完前**被别处改过**（不再是 CHANGED）⇒ **不许**被关成 CHECKED。
+
+    「关记录」是把状态写成 CHECKED ⇒ 若记录此刻已是 OBSOLETE（被弃用），
+    无条件写 CHECKED 就会**复活一条已作废的记录**。
+    ⇒ 关之前先看它是不是还在 CHANGED；不是 ⇒ 响亮失败（409）。
+    """
+    proj = await _make_project(db)
+    rec = await _make_record(db, project=proj, sign_status="CHANGED")
+    body = await _create_notice(client, rec)
+
+    # 记录在变更单签完前被改成了别的状态
+    rec.sign_status = RecordSignStatus9.OBSOLETE.value
+    await db.flush()
+
+    for step, role in ((1, "CHECKER"), (2, "REVIEWER"), (3, "APPROVER")):
+        resp = await _sign(
+            client, body["deliverable_id"], body["version_id"], step=step, role=role
+        )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["code"] == "CHANGE_NOTICE_RECORD_BAD_STATE"
+
+    await db.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.OBSOLETE.value, "不许复活记录"
