@@ -50,7 +50,9 @@ from app.schemas.deliverable_write import (
     SignStepRequest,
     SignStepResponse,
 )
+from app.models.enums import StateTransition
 from app.services.deliverable_service import DeliverableService
+from app.services.state_machine import TRANSITION_ROLES
 from app.services.todo_service import compute_todos
 
 router = APIRouter(tags=["deliverables"])
@@ -73,10 +75,15 @@ _READ_ROLES = (
     "SYSTEM_ADMIN",
 )
 
-# 签发（issue）需要的角色 —— **只有作者侧能签发**。
+# 签发（issue）/ 代录（proxy）需要的角色 —— **只有作者侧能签发**。
 # 签发 = 把这一版送进签署矩阵，若审方（REVIEWER/APPROVER）也能签发，
 # 就能自己签发自己审，签署矩阵的职责分离形同虚设。
-_ISSUE_ROLES = ("DESIGNER", "SYSTEM_ADMIN")
+#
+# ⚠️ **从状态机派生**（而不是写死元组）：前端的门禁读的是
+#    `GET /meta/state-machine` 的 `INITIATE_CHANGE.allowed_roles`
+#    （SPEC §5.1「按钮由 meta 驱动」）⇒ 两边若各写一份 ⇒ 后端改了角色集、
+#    前端不知道 ⇒ 按钮亮着点了 403（P9B-2 最终评审）。⇒ **同一份真相**。
+_ISSUE_ROLES = tuple(sorted(TRANSITION_ROLES[StateTransition.INITIATE_CHANGE]))
 
 # 签署步骤的**粗闸** = 读角色（CHECKER 已在读角色里 ⇒ 无需单列）。
 # ⚠️ **粗闸不是最终判据**：每一步到底该谁签由 service 按 `steps_json.sign_role`

@@ -115,7 +115,44 @@ let proxyUnauthorized = false;
 /** 版本快照端点是否失败（失败 ⇒ 「读不到步骤」，**不是**「没有步骤」）。 */
 let snapshotFails = false;
 
+/** 签发 / 代录允许的角色（后端 `_ISSUE_ROLES` = meta 的 `INITIATE_CHANGE`）。 */
+let issueRoles = ['DESIGNER', 'SYSTEM_ADMIN'];
+/** 项目绑定的矩阵 id（null = **没绑** ⇒ 签发必 409）。 */
+let boundMatrixIds: string[] | null = ['m-1'];
+
 const server = setupServer(
+  // ⚠️ meta 的 `INITIATE_CHANGE` = 签发 / 代录的角色闸（后端同一份真相）
+  http.get('/api/v1/meta/state-machine', () =>
+    HttpResponse.json({
+      transitions: [
+        {
+          from: 'CHECKED',
+          action: 'INITIATE_CHANGE',
+          to: 'CHANGE_PENDING',
+          allowed_roles: issueRoles,
+          preconditions: [],
+          side_effects: [],
+        },
+      ],
+      allowed: { CHECKED: ['INITIATE_CHANGE'] },
+    }),
+  ),
+  // ⚠️ 项目**绑定的矩阵**（P9B-2 · T-1 的读端点）⇒ 签发的前置门
+  http.get('/api/v1/projects/:projectId/signature-matrices', () =>
+    HttpResponse.json(
+      boundMatrixIds === null
+        ? []
+        : [
+            {
+              module: 'RECORD',
+              matrix_id: boundMatrixIds[0],
+              matrix_name: '默认记录矩阵',
+              status: 'ACTIVE',
+              steps: FROZEN_STEPS,
+            },
+          ],
+    ),
+  ),
   http.get('/api/v1/deliverables', () => {
     listCalls += 1;
     return HttpResponse.json({
@@ -222,6 +259,8 @@ describe('交付物级签署写面（T8）', () => {
     lastIssueBody = null;
     proxyFails = false;
     proxyUnauthorized = false;
+    issueRoles = ['DESIGNER', 'SYSTEM_ADMIN'];
+    boundMatrixIds = ['m-1'];
     snapshotFails = false;
     useAuth.setState({ role: 'DESIGNER', accessToken: 'test-token' });
   });
@@ -369,6 +408,39 @@ describe('交付物级签署写面（T8）', () => {
     expect(screen.getByTestId('sign-dialog-error').textContent).toContain('用户名或密码错误');
     // ⚠️ **会话还在**（不是登录过期 ⇒ 不该清 session）
     expect(useAuth.getState().accessToken).toBe('test-token');
+  });
+
+  it('⚠️ 角色不在**签发允许集** ⇒ 「签发」**禁用** + 写明原因（点了才吃 403）', async () => {
+    // ⚠️ 后端 `_ISSUE_ROLES` = DESIGNER / SYSTEM_ADMIN ⇒ REVIEWER 点了必 403。
+    useAuth.setState({ role: 'REVIEWER', accessToken: 'test-token' });
+    await renderPage();
+
+    const btn = screen.getByTestId('deliverable-issue-d-draft');
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId('deliverable-issue-d-draft-hint').textContent).toContain('角色'),
+    );
+  });
+
+  it('⚠️ 项目**没绑**该交付物的矩阵 ⇒ 「签发」**禁用** + 写明原因（后端 409）', async () => {
+    boundMatrixIds = null;
+    await renderPage();
+
+    const btn = screen.getByTestId('deliverable-issue-d-draft');
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByTestId('deliverable-issue-d-draft-hint').textContent).toContain(
+        '未绑定',
+      ),
+    );
+  });
+
+  it('⚠️ 角色不在允许集 ⇒ 「代录」也**禁用**（后端 `_ISSUE_ROLES` 同源）', async () => {
+    useAuth.setState({ role: 'REVIEWER', accessToken: 'test-token' });
+    await renderPage();
+
+    const btn = screen.getByTestId('deliverable-proxy-d-pending');
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('⚠️ 「代录」⇒ 失败时显示后端 `message` **原文**（不得显示成功）', async () => {

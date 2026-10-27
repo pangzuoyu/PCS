@@ -46,6 +46,8 @@ import {
   type WorkflowProgressSection,
 } from '../../api/deliverables';
 import { useAuth } from '../../store/auth';
+import { metaApi } from '../../api/meta';
+import { signatureMatricesApi } from '../../api/signatureMatrices';
 import { PROJECT_ID } from '../../constants/env';
 import type { components } from '../../types/api';
 
@@ -123,7 +125,49 @@ export function DeliverableProgressPage(): JSX.Element {
   const [contextLoading, setContextLoading] = useState(false);
   /** 列表刷新令牌（写操作成功后 ⇒ 重新拉列表，不乐观更新）。 */
   const [reloadToken, setReloadToken] = useState(0);
+  /**
+   * 签发 / 代录允许的角色（来自 `meta/state-machine` 的 `INITIATE_CHANGE`）。
+   *
+   * ⚠️ **与后端同源**：后端 `_ISSUE_ROLES` 现在也是从 `TRANSITION_ROLES`
+   *    派生的 ⇒ 两边不会分叉（各写一份 ⇒ 后端改了前端不知道 ⇒ 按钮亮着 403）。
+   * ⚠️ `null` = **还没取到** ⇒ **不禁用**（不猜）⇒ 后端 403 兜底。
+   */
+  const [issueRoles, setIssueRoles] = useState<string[] | null>(null);
+  /**
+   * 项目**绑定的矩阵 id 集合**（`null` = 还没取到 ⇒ 不猜）。
+   *
+   * ⚠️ 后端 `_assert_matrix_bound`：矩阵没绑到本项目 ⇒ **409**
+   *    `DELIVERABLE_MATRIX_UNBOUND` ⇒ 前端知道（它拉过绑定列表）⇒ 门禁前置。
+   */
+  const [boundMatrixIds, setBoundMatrixIds] = useState<Set<string> | null>(null);
   const role = useAuth((s) => s.role);
+
+  // ⚠️ 门禁数据**各拉一次**（页面级 ⇒ 不是每行一次 ⇒ 无 N+1）。
+  useEffect(() => {
+    let cancelled = false;
+    void metaApi
+      .stateMachine()
+      .then((r) => {
+        if (cancelled) return;
+        const t = r.transitions.find((x) => x.action === 'INITIATE_CHANGE');
+        setIssueRoles(t ? [...t.allowed_roles] : null);
+      })
+      .catch(() => {
+        // ⚠️ 拉不到 ⇒ **不禁用**（前端不知道 ⇒ 不猜）⇒ 后端 403 兜底
+      });
+    void signatureMatricesApi
+      .listProjectBindings(PROJECT_ID)
+      .then((bindings) => {
+        if (cancelled) return;
+        setBoundMatrixIds(new Set(bindings.map((b) => b.matrix_id)));
+      })
+      .catch(() => {
+        // ⚠️ 拉不到 ⇒ 同上（不猜）
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -281,26 +325,45 @@ export function DeliverableProgressPage(): JSX.Element {
         //    **永久卡死**（后端 `issue` 的幂等判据是「有没有未退回的版本」）。
         const canIssue = !row.current_version_id || row.sign_status === 'DRAFT';
         const canSign = Boolean(row.current_version_id);
+        // ⚠️ **角色闸**（后端 `_ISSUE_ROLES` = meta 的 `INITIATE_CHANGE`）
+        const roleOk = !issueRoles || !role || issueRoles.includes(role);
+        // ⚠️ **矩阵绑定闸**（后端 `_assert_matrix_bound` ⇒ 409）
+        const matrixBound =
+          !boundMatrixIds || (row.matrix_id ? boundMatrixIds.has(row.matrix_id) : false);
+        const issueHint = !matrixBound
+          ? '项目未绑定该交付物的签署矩阵 ⇒ 不能签发'
+          : !roleOk
+            ? `当前角色（${role ?? '未知'}）不可签发（需 ${issueRoles?.join(' / ')}）`
+            : !canIssue
+              ? '该交付物已在签署中，不能重复签发'
+              : '';
+        const proxyHint = roleOk
+          ? ''
+          : `当前角色（${role ?? '未知'}）不可代录（需 ${issueRoles?.join(' / ')}）`;
         return (
           <Space>
-            <Tooltip
-              title={
-                canIssue
-                  ? '签发新版本（送审）'
-                  : '该交付物已在签署中，不能重复签发'
-              }
-            >
+            <Tooltip title={issueHint || '签发新版本（送审）'}>
               {/* ⚠️ Tooltip 包 **span**（disabled 按钮不派发鼠标事件） */}
               <span>
                 <Button
                   size="small"
                   data-testid={`deliverable-issue-${row.deliverable_id}`}
-                  disabled={!canIssue}
+                  disabled={!canIssue || !roleOk || !matrixBound}
                   onClick={() => openIssue(row)}
                 >
                   签发
                 </Button>
               </span>
+              {/* ⚠️ antd 的 Tooltip **不把 props 转发到 DOM** ⇒ 禁用原因另外
+                  渲染一个节点（视觉隐藏）⇒ 断言能读到「为什么禁用」。 */}
+              {issueHint && (
+                <span
+                  style={{ display: 'none' }}
+                  data-testid={`deliverable-issue-${row.deliverable_id}-hint`}
+                >
+                  {issueHint}
+                </span>
+              )}
             </Tooltip>
             <Tooltip title={canSign ? '推进签署矩阵的一步' : '该交付物尚无版本，不能签署'}>
               {/* ⚠️ Tooltip 包 **span**（disabled 按钮不派发鼠标事件） */}
@@ -317,9 +380,10 @@ export function DeliverableProgressPage(): JSX.Element {
             </Tooltip>
             <Tooltip
               title={
-                canSign
+                proxyHint ||
+                (canSign
                   ? '代录客户在系统外的批准（凭证 + 二次认证）'
-                  : '该交付物尚无版本，不能代录'
+                  : '该交付物尚无版本，不能代录')
               }
             >
               {/* ⚠️ Tooltip 包 **span**：disabled 的 Button 不派发鼠标事件 ⇒
@@ -328,12 +392,20 @@ export function DeliverableProgressPage(): JSX.Element {
                 <Button
                   size="small"
                   data-testid={`deliverable-proxy-${row.deliverable_id}`}
-                  disabled={!canSign}
+                  disabled={!canSign || !roleOk}
                   onClick={() => openProxy(row)}
                 >
                   代录
                 </Button>
               </span>
+              {proxyHint && (
+                <span
+                  style={{ display: 'none' }}
+                  data-testid={`deliverable-proxy-${row.deliverable_id}-hint`}
+                >
+                  {proxyHint}
+                </span>
+              )}
             </Tooltip>
           </Space>
         );
