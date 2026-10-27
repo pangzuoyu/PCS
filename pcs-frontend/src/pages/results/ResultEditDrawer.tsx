@@ -33,6 +33,7 @@ import {
 import { EditLockIndicator } from '../../components/common/EditLockIndicator';
 import { EditConflictModal } from '../../components/common/EditConflictModal';
 import { recordsApi } from '../../api/records';
+import { api } from '../../api/client';
 import { extractConflict, extractPcsError, type ConflictDetail } from '../../api/errors';
 import { useEditBaseline, isRowEditable } from '../../hooks/useEditBaseline';
 import { useEditLock } from '../../hooks/useEditLock';
@@ -127,7 +128,11 @@ export function ResultEditDrawer({
     const onPageHide = () => {
       const token = useAuth.getState().accessToken;
       if (!token) return;
-      void fetch(`/api/v1/locks/${module.recordType}/${id}/release`, {
+      // ⚠️ **前缀取 `api.defaults.baseURL`**（TODO-067 #5）—— 写死
+      //    `/api/v1` ⇒ 换网关前缀 / 测试环境时释放请求打到**错的地方**
+      //    ⇒ 锁释放不掉 ⇒ 同事看到「张三 正在编辑」而张三 已走。
+      const { baseURL } = api.defaults;
+      void fetch(`${baseURL}/locks/${module.recordType}/${id}/release`, {
         method: 'POST',
         keepalive: true,
         headers: { Authorization: `Bearer ${token}` },

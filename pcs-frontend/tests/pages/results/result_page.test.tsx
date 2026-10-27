@@ -22,6 +22,7 @@ import { setupServer } from 'msw/node';
 import { ResultListPage } from '../../../src/pages/results/ResultListPage';
 import { moduleByRecordType } from '../../../src/pages/results/resultModules';
 import { useAuth } from '../../../src/store/auth';
+import { api } from '../../../src/api/client';
 import type { components } from '../../../src/types/api';
 
 type CoolTowerRow = components['schemas']['CoolTowerResultResponse'];
@@ -354,6 +355,28 @@ describe('ResultEditDrawer —— 关闭与释放锁（RF-10）', () => {
     fireEvent.click(screen.getByRole('button', { name: /继续编辑/ }));
     // 取消 ⇒ 抽屉保持打开
     await waitFor(() => expect(screen.getByTestId('result-edit-drawer')).toBeTruthy());
+  }, SLOW_TIMEOUT);
+
+  it('⚠️ TODO-067 #5 卸载释放的路径**取 `api.defaults.baseURL`**（不硬编码 `/api/v1`）', async () => {
+    // ⚠️ 前缀写死 ⇒ 换 baseURL（网关前缀 / 测试环境）时释放请求打到**错的地方**
+    //    ⇒ 锁释放不掉 ⇒ 同事看到「张三 正在编辑」而张三 已走。
+    useAuth.setState({ accessToken: 'test-token' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+    const originalBase = api.defaults.baseURL;
+    try {
+      await openEditor(0);
+      // ⚠️ **打开之后再改** baseURL —— 改早了会把页面自己的请求也打偏
+      //    （MSW handler 匹配不上 ⇒ 列表空 ⇒ 连编辑按钮都没有）。
+      api.defaults.baseURL = '/api/v9';
+      window.dispatchEvent(new Event('pagehide'));
+
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+      const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(String(url)).toContain('/api/v9/locks/');
+    } finally {
+      api.defaults.baseURL = originalBase;
+      fetchSpy.mockRestore();
+    }
   }, SLOW_TIMEOUT);
 
   it('⚠️ 页面卸载 ⇒ 用 keepalive fetch 发 release（**不是** sendBeacon）', async () => {
