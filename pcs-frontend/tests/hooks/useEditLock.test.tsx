@@ -313,4 +313,28 @@ describe('useEditLock —— TODO-067 #3 / #4', () => {
     expect(onDegraded).toHaveBeenLastCalledWith(null);
   });
 
+  it('⚠️ #4 `enabled` 翻 false ⇒ 状态**复位**（不残留上一条的「他人正在编辑」）', async () => {
+    vi.spyOn(editLockApi, 'acquire').mockResolvedValue(
+      lockResponse({ success: false, holder: HOLDER }) as never,
+    );
+
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useEditLock({
+          recordType: 'CostEstResult',
+          recordId: RECORD_ID,
+          enabled,
+        }),
+      { initialProps: { enabled: true } },
+    );
+
+    await flush();
+    expect(result.current.state.status).toBe('blocked');
+
+    // ⚠️ 抽屉关闭 ⇒ enabled=false ⇒ 状态必须复位
+    rerender({ enabled: false });
+    await flush();
+    expect(result.current.state.status).toBe('idle');
+    expect(result.current.readOnly).toBe(false);
+  });
 });

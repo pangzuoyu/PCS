@@ -165,6 +165,14 @@ export function useEditLock({
     };
   }, [recordType, recordId, enabled]);
 
+  // ⚠️ **enabled 翻 false ⇒ 状态复位**（TODO-067 #4）：
+  //    否则换一条记录时，界面**短暂**显示上一条的「他人正在编辑」
+  //    （上一条的 `blocked` 状态还在，新的 acquire 还没落地）。
+  useEffect(() => {
+    if (enabled) return;
+    setState({ status: 'idle' });
+  }, [enabled]);
+
   const release = useCallback(async () => {
     try {
       await editLockApi.release(recordType, recordId);
