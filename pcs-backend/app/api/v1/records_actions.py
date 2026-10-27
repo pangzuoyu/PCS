@@ -73,6 +73,7 @@ from app.services.record_capabilities import (
     supports_state_workflow,
 )
 from app.services.reversal_approval_service import ReversalApprovalService
+from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.state_machine import (
     TRANSITION_ROLES,
     InvalidTransition,
@@ -327,6 +328,34 @@ async def reversal_decision(
     return _response(module, record_id, result)
 
 
+async def _next_approval_role(
+    db: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    step_index: int,
+    fallback: str | None,
+) -> str | None:
+    """批准链第 `step_index` 步该谁批（1 起）。
+
+    ⚠️ **矩阵查不到 ⇒ 保留原角色**（`fallback`），**不**静默清空 ——
+    清空后 `record.approval_role` 为空 ⇒ 端点的角色闸会**放行任何人**
+    （判据是 `if record.approval_role and ...`）⇒ 任何人都能批这一步。
+
+    ⚠️ **矩阵中途被改**（步骤数变少）⇒ 取不到第 `step_index` 步 ⇒ 同上，
+    保留原角色 ⇒ 链条**卡住**（响亮：批下一步会吃
+    `APPROVAL_ROLE_MISMATCH`），而不是「放行给任何人」。
+    """
+    matrix = await SignatureMatrixService.resolve_project_matrix(
+        db, project_id=project_id, module=SignatureMatrixService.RECORD_MODULE
+    )
+    if matrix is None:
+        return fallback
+    steps = SignatureMatrixService.parse_steps(matrix)
+    if step_index < 1 or step_index > len(steps):
+        return fallback
+    return steps[step_index - 1].sign_role
+
+
 @router.post(
     "/records/{module}/{record_id}/submit-approval",
     response_model=SubmitApprovalResponse,
@@ -341,33 +370,58 @@ async def submit_approval(
 ) -> SubmitApprovalResponse:
     """提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
 
-    `approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`
-    在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式
-    （只在配置说 false 时才拒）在没有配置源时等于没有防护。
+    ## 批准链从**项目绑定的 RECORD 矩阵**推导（TODO-054 · R-17）
 
-    `approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，
-    见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。
+    ⚠️ **契约破坏性变更**：请求体**不再收** `approval_role` / `approval_depth`
+    ⇒ 谁该批、批几级由**服务器**说了算（客户端说了不算）。
+
+    项目**没绑** RECORD 矩阵 ⇒ **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND`
+    （响亮失败，不是「默认深度 1」—— 静默降级会让用户以为走的是单级审批，
+    而实际批准链是空的）。
+
+    ## 自审防护
+
+    提交人自己的全局角色出现在链里**任何一步** ⇒ 403
+    `APPROVAL_SELF_REVIEW_FORBIDDEN`。
+    ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。
     """
     require_roles(actor, *_roles_for(StateTransition.SUBMIT_FOR_CHECK))
     record = await _load_record(db, module=module, record_id=record_id, actor=actor)
     # ⚠️ **工作区门禁**（UI-SPEC §5.3「提交批准」）：个人草稿区里的送审没有
     #    工程效力，却会占用签署流程 ⇒ 403（TODO-076）。
     await require_formal_project_workspace(db, project_id=record.project_id)
-    if body.approval_role == actor.role:
+    matrix = await SignatureMatrixService.resolve_project_matrix(
+        db, project_id=record.project_id, module=SignatureMatrixService.RECORD_MODULE
+    )
+    if matrix is None:
+        raise PcsError(
+            code="RECORD_APPROVAL_MATRIX_NOT_BOUND",
+            message=(
+                f"项目 {record.project_id} 没有绑定记录级签署矩阵（module='RECORD'）"
+                "⇒ 无法推导批准链 ⇒ 请先在矩阵管理面绑定一份 ACTIVE 的 RECORD 矩阵"
+            ),
+            status=422,
+        )
+    steps = SignatureMatrixService.parse_steps(matrix)
+    if actor.role in {s.sign_role for s in steps}:
         raise PcsError(
             code="APPROVAL_SELF_REVIEW_FORBIDDEN",
             message=(
-                f"待批角色不能是提交人自己的角色（{body.approval_role}）："
-                "记录侧没有 can_self_check 配置源，本端点一律不允许自审"
+                f"提交人自己的角色（{actor.role}）出现在批准链 "
+                f"{[s.sign_role for s in steps]} 里 ⇒ 不允许自审"
             ),
             status=403,
         )
     from_status = record.sign_status
-    record.approval_role = body.approval_role
-    record.approval_depth = body.approval_depth
+    record.approval_role = steps[0].sign_role
+    record.approval_depth = len(steps)
     record.approval_step = 1
     await _transition(
-        db, record=record, transition=StateTransition.SUBMIT_FOR_CHECK, actor=actor
+        db,
+        record=record,
+        transition=StateTransition.SUBMIT_FOR_CHECK,
+        actor=actor,
+        reason=body.reason,
     )
     await db.commit()
     return SubmitApprovalResponse(
@@ -400,6 +454,13 @@ async def approval_step(
 
     只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了
     这个，不校验等于那列是装饰。
+
+    ## ⚠️ **推进待批角色**（TODO-054 · R-17）
+
+    批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把
+    `approval_role` **推进到链上下一步的角色** ⇒ 否则第 2 步的角色永远
+    匹配不上 `record.approval_role` ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒
+    链条卡死（这正是「深度 > 1 不可用」的根因）。
     """
     require_roles(actor, *_roles_for(StateTransition.PASS_CHECK))
     record = await _load_record(db, module=module, record_id=record_id, actor=actor)
@@ -446,6 +507,14 @@ async def approval_step(
         # 硬造一个会让 ALLOWED_TRANSITIONS 出现自环。审计另写一条。
         final_step = current_step + 1
         record.approval_step = final_step
+        # ⚠️ **推进待批角色**（R-17）：第 `final_step` 步该谁批 ⇒ 链上下一步。
+        #    不推进 ⇒ 链条卡死（见上面 docstring）。
+        record.approval_role = await _next_approval_role(
+            db,
+            project_id=record.project_id,
+            step_index=final_step,
+            fallback=record.approval_role,
+        )
         await db.flush()
         # 中间步骤不发状态机事件，但**必须留痕**：记录表上没有「第几步谁批的」列，
         # 审计是唯一去处。漏了它，深度 > 1 时中间批准人彻底无从追溯。
@@ -459,6 +528,7 @@ async def approval_step(
                 "approval_step": final_step,
                 "approval_depth": depth,
                 "role": actor.role,
+                "next_role": record.approval_role,
             },
         )
 

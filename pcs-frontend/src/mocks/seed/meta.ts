@@ -112,10 +112,10 @@ export const metaSeed: {
         preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
       // IN_APPROVAL → APPROVE/REJECT
       { from: "IN_APPROVAL", action: "PASS_CHECK", to: "CHECKED",
-        allowed_roles: ["APPROVER", "CHECKER", "SYSTEM_ADMIN"],
+        allowed_roles: ["APPROVER", "CHECKER", "REVIEWER", "SYSTEM_ADMIN"],
         preconditions: [], side_effects: ["WRITE audit_log", "AUDIT APPROVAL_STEP_PASSED"] },
       { from: "IN_APPROVAL", action: "REJECT_CHECK", to: "CHECK_REJECTED",
-        allowed_roles: ["APPROVER", "CHECKER", "SYSTEM_ADMIN"],
+        allowed_roles: ["APPROVER", "CHECKER", "REVIEWER", "SYSTEM_ADMIN"],
         preconditions: [], side_effects: ["WRITE audit_log", "AUDIT APPROVAL_STEP_REJECTED"] },
       // CHECK_REJECTED → RESUBMIT
       { from: "CHECK_REJECTED", action: "SUBMIT_FOR_CHECK", to: "IN_APPROVAL",

@@ -434,7 +434,7 @@ class TestRegistryModuleColumnCoverage:
         ("obsolete", {"reason": "x"}),
         ("request-reversal", {"reason": "x"}),
         ("reversal-decision", {"decision": "APPROVE"}),
-        ("submit-approval", {"approval_role": "CHECKER"}),
+        ("submit-approval", {}),
         ("approval-step", {"decision": "PASS"}),
         ("abandon-change", {"reason": "x"}),
     )
@@ -500,7 +500,7 @@ class TestRegistryModuleColumnCoverage:
         resp = await client.post(
             f"/api/v1/records/ProjectCalculationStandardProfile/"
             f"{uuid.uuid4()}/submit-approval",
-            headers=auth, json={"approval_role": "CHECKER"},
+            headers=auth, json={},
         )
 
         assert resp.status_code == 422, resp.text

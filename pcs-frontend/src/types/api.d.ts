@@ -648,12 +648,20 @@ export interface paths {
          * 提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）
          * @description 提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
          *
-         *     `approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`
-         *     在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式
-         *     （只在配置说 false 时才拒）在没有配置源时等于没有防护。
+         *     ## 批准链从**项目绑定的 RECORD 矩阵**推导（TODO-054 · R-17）
          *
-         *     `approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，
-         *     见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。
+         *     ⚠️ **契约破坏性变更**：请求体**不再收** `approval_role` / `approval_depth`
+         *     ⇒ 谁该批、批几级由**服务器**说了算（客户端说了不算）。
+         *
+         *     项目**没绑** RECORD 矩阵 ⇒ **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND`
+         *     （响亮失败，不是「默认深度 1」—— 静默降级会让用户以为走的是单级审批，
+         *     而实际批准链是空的）。
+         *
+         *     ## 自审防护
+         *
+         *     提交人自己的全局角色出现在链里**任何一步** ⇒ 403
+         *     `APPROVAL_SELF_REVIEW_FORBIDDEN`。
+         *     ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。
          */
         post: operations["submit_approval_api_v1_records__module___record_id__submit_approval_post"];
         delete?: never;
@@ -680,6 +688,13 @@ export interface paths {
          *
          *     只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了
          *     这个，不校验等于那列是装饰。
+         *
+         *     ## ⚠️ **推进待批角色**（TODO-054 · R-17）
+         *
+         *     批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把
+         *     `approval_role` **推进到链上下一步的角色** ⇒ 否则第 2 步的角色永远
+         *     匹配不上 `record.approval_role` ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒
+         *     链条卡死（这正是「深度 > 1 不可用」的根因）。
          */
         post: operations["approval_step_api_v1_records__module___record_id__approval_step_post"];
         delete?: never;
@@ -18283,22 +18298,24 @@ export interface components {
          * SubmitApprovalRequest
          * @description 提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
          *
-         *     `approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源
-         *     （`project_templates.default_config_json` 的 `record_approval_config`
-         *     只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。
-         *     服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。
+         *     ## ⚠️ **契约破坏性变更**（TODO-054 · R-17 · P9B-2）
+         *
+         *     原先请求体收 `approval_role` + `approval_depth`（由**客户端**决定谁该批、
+         *     批几级）⇒ 现在**不再收**：批准链由**后端**从项目绑定的 `module='RECORD'`
+         *     签署矩阵推导（`SignatureMatrixService.resolve_project_matrix`）。
+         *
+         *     ⇒ `extra="forbid"`：多传旧字段 ⇒ **422**（而不是静默忽略）——
+         *     静默忽略会让调用方以为自己传了角色，实际生效的是矩阵里的角色 ⇒
+         *     「我明明选了 APPROVER」却吃 403。
+         *
+         *     `reason` 是送审说明（可选）。
          */
         SubmitApprovalRequest: {
             /**
-             * Approval Role
-             * @enum {string}
+             * Reason
+             * @description 送审说明（可选）
              */
-            approval_role: "DESIGNER" | "CHECKER" | "REVIEWER" | "APPROVER" | "SYSTEM_ADMIN" | "PROCESS_CONTROLLER" | "DATA_ADMIN";
-            /**
-             * Approval Depth
-             * @default 1
-             */
-            approval_depth: number;
+            reason?: string | null;
         };
         /**
          * SubmitApprovalResponse

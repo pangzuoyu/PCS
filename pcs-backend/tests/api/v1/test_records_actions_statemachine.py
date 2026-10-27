@@ -6,13 +6,14 @@
 
 ## 三处按裁决实现、不是按 SPEC 原文实现的地方
 
-1. **多级批准的角色链在本仓没有来源**（`approval_role` / `approval_depth` /
-   `approval_step` 只是三个标量列；`project_templates.default_config_json` 里的
-   `record_approval_config` 只有一句注释、无消费方）。
-   ⇒ `approval_role` 由 `submit-approval` 请求体指定并保持到终态，
-   多级 = 同一待批角色逐级批 N 次。**不发明角色链** —— 那是凭空造需求。
+1. ⚠️ **批准链的定义源已改**（P9B-2 · T2 · R-17）：原先「多级批准的角色链在本仓
+   没有来源」⇒ `approval_role` 由 `submit-approval` 请求体指定；现在
+   **由后端从项目绑定的 `module='RECORD'` 签署矩阵推导** ⇒ 请求体不再收
+   `approval_role` / `approval_depth`（**契约破坏性变更**）。
+   ⇒ 本文件里「多级 = 同一待批角色逐级批 N 次」的情形，用**同角色的 N 步矩阵**
+   表达（矩阵第 i 步都是 CHECKER）⇒ 深度/步进的语义不变。
 2. **`can_self_check` 在记录侧没有配置源** ⇒ 取其**最强形式**：
-   提交人不能把 `approval_role` 设成自己的角色。宽松形式等于没有自审防护。
+   提交人自己的角色出现在链里 ⇒ 403。宽松形式等于没有自审防护。
 3. **`abandon-change` 不接线 `approve_change_notice`**（语义相反，
    见 B4a commit 的 Step 0 判定）⇒ 转发 `StateTransition.ABANDON_CHANGE`。
 """
@@ -64,15 +65,42 @@ def _url(rec, action: str) -> str:
     return f"/api/v1/records/PipingResult/{rec.pipe_id}/{action}"
 
 
+async def _bind_record_matrix(
+    db_session: AsyncSession, *, project_id, steps: list[dict]
+) -> None:
+    """给项目绑一份 RECORD 矩阵（批准链的定义源 · P9B-2 · R-17）。"""
+    from app.services.signature_matrix_service import SignatureMatrixService
+
+    matrix = await SignatureMatrixService.create_matrix(
+        db_session,
+        matrix_name=f"矩阵-{uuid.uuid4().hex[:8]}",
+        module="*",
+        doc_type="RECORD",
+        version_purpose="PUBLISHED",
+        steps=steps,
+        status="ACTIVE",
+    )
+    await SignatureMatrixService.bind_to_project(
+        db_session, project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+    )
+    await db_session.commit()
+
+
+def _chain(depth: int, role: str = "CHECKER") -> list[dict]:
+    """N 步、每步同一角色的链（保留「多级 = 同一角色逐级批 N 次」的情形）。"""
+    return [{"step_order": i, "sign_role": role} for i in range(1, depth + 1)]
+
+
 class TestSubmitApproval:
     async def test_submit_moves_draft_to_in_approval(
         self, client, auth, db_session, project_id, workspace
     ):
         rec = await _make_record(client, auth, db_session, project_id, workspace)
-
-        resp = await client.post(
-            _url(rec, "submit-approval"), headers=auth, json={"approval_role": "CHECKER"}
+        await _bind_record_matrix(
+            db_session, project_id=project_id, steps=_chain(1, "CHECKER")
         )
+
+        resp = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
 
         assert resp.status_code == 200, resp.text
         await db_session.refresh(rec)
@@ -83,51 +111,56 @@ class TestSubmitApproval:
     async def test_submit_rejects_self_approval_role(
         self, client, auth, db_session, project_id, workspace
     ):
-        """提交人不能把待批角色设成自己 ⇒ 403。
+        """提交人自己的角色出现在批准链里 ⇒ 403。
 
         `can_self_check` 在记录侧没有配置源，本轮取**最强形式**：恒不允许自审。
         宽松形式（只在配置说 false 时才拒）等于没有防护 ——
         配置源不存在时，「配置说 false」这件事永远不成立。
         """
         rec = await _make_record(client, auth, db_session, project_id, workspace)
-
-        resp = await client.post(
-            _url(rec, "submit-approval"), headers=auth, json={"approval_role": "DESIGNER"}
+        # 提交人（DESIGNER）的角色出现在链里
+        await _bind_record_matrix(
+            db_session, project_id=project_id, steps=_chain(2, "DESIGNER")
         )
+
+        resp = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
 
         assert resp.status_code == 403, resp.text
         assert resp.json()["code"] == "APPROVAL_SELF_REVIEW_FORBIDDEN"
         await db_session.refresh(rec)
         assert rec.sign_status == RecordSignStatus9.DRAFT, "被拒的提交不得改状态"
 
-    async def test_submit_rejects_unknown_approval_role(
+    async def test_submit_rejects_client_supplied_approval_role(
         self, client, auth, db_session, project_id, workspace
     ):
-        """7 值词表（`app/models/project.py:154`）之外的值 ⇒ 422。
+        """请求体**不再接受** `approval_role` ⇒ 422（P9B-2 · R-17 契约变更）。
 
-        不能收下再说 —— `approval_role` 决定谁能批这条记录，
-        写错等于让记录卡住或让不该批的人能批。
+        不能静默忽略 —— 调用方以为自己传了角色，实际生效的是矩阵里的角色 ⇒
+        「我明明选了 APPROVER」却吃 403。
         """
         rec = await _make_record(client, auth, db_session, project_id, workspace)
+        await _bind_record_matrix(
+            db_session, project_id=project_id, steps=_chain(1, "CHECKER")
+        )
 
         resp = await client.post(
             _url(rec, "submit-approval"), headers=auth, json={"approval_role": "BOSS"}
         )
 
         assert resp.status_code == 422, resp.text
+        assert resp.json()["code"] == "VALIDATION_ERROR"
 
     async def test_submit_is_rejected_when_already_in_approval(
         self, client, auth, db_session, project_id, workspace
     ):
         """重复提交 ⇒ 409（状态机只允许 DRAFT / CHECK_REJECTED → IN_APPROVAL）。"""
         rec = await _make_record(client, auth, db_session, project_id, workspace)
-        await client.post(
-            _url(rec, "submit-approval"), headers=auth, json={"approval_role": "CHECKER"}
+        await _bind_record_matrix(
+            db_session, project_id=project_id, steps=_chain(1, "CHECKER")
         )
+        await client.post(_url(rec, "submit-approval"), headers=auth, json={})
 
-        resp = await client.post(
-            _url(rec, "submit-approval"), headers=auth, json={"approval_role": "CHECKER"}
-        )
+        resp = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
 
         assert resp.status_code == 409, resp.text
 
@@ -135,13 +168,12 @@ class TestSubmitApproval:
 class TestApprovalStep:
     async def _submitted(self, client, auth, db_session, project_id, workspace, depth=1, **kw):
         rec = await _make_record(client, auth, db_session, project_id, workspace, **kw)
-        # 深度由 submit-approval 的请求体声明（端点会写 approval_depth），
-        # 所以这里必须显式传 —— 只在建记录时设好会被 submit 覆写回缺省 1。
-        r = await client.post(
-            _url(rec, "submit-approval"),
-            headers=auth,
-            json={"approval_role": "CHECKER", "approval_depth": depth},
+        # ⚠️ 深度现在由**矩阵**决定（P9B-2 · R-17）⇒ 送审前必须先绑一份
+        #    N 步的 RECORD 矩阵（这里每步同一角色 ⇒ 保留「同一角色逐级批 N 次」）。
+        await _bind_record_matrix(
+            db_session, project_id=project_id, steps=_chain(depth, "CHECKER")
         )
+        r = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
         assert r.status_code == 200, r.text
         return rec
 

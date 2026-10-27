@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V2.1
+当前版本: V2.2
 发布日期: 2026-10-21
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -603,6 +603,25 @@ OBSOLETE	只读
 渲染时发）⇒ 列表页不会有 N+1 请求。
 ⚠️ 「作废」= 作废**单据**（`sign_status = OBSOLETE`）⇒ **记录不动**（仍
 CHANGED）⇒ 作废后可以另起一张。
+
+⚠️ **2026-10-27 修订登记（P9B-2 · T2 · R-17 · TODO-054 ——「送审选角色」取消）**：
+本节 `DRAFT` 行的「提交批准」**没有角色选择器** ⇒ 批准链由**后端**从**项目
+绑定的 `module='RECORD'` 签署矩阵**推导 ⇒ `POST /records/{module}/{id}/submit-approval`
+的请求体**只收** `{reason?}`（**不再收** `approval_role` / `approval_depth`）。
+
+| 情形 | 前端表现 | 后端 |
+|---|---|---|
+| 项目**没绑** RECORD 矩阵 | 送审按钮**禁用** + Tooltip「项目未绑定记录级签署矩阵」 | **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND` |
+| 矩阵**第 1 步**的角色 == 当前用户 | 送审按钮**禁用** + Tooltip 写明原因 | **403** `APPROVAL_SELF_REVIEW_FORBIDDEN` |
+| 正常 | 送审按钮可用，**无角色下拉** | 200 |
+
+⚠️ **「IN_APPROVAL」行的「通过 / 退回（当前步骤角色）」**仍成立 ⇒ 但「当前步骤
+角色」现在由**矩阵**给出 ⇒ 中间步骤批完后后端把 `approval_role` **推进到链上
+下一步的角色** ⇒ 前端的按钮可用性**跟着 `record.approval_role` 走**。
+⚠️ **`PASS_CHECK` / `REJECT_CHECK` 的角色集新增 REVIEWER**（后端
+`TRANSITION_ROLES`）—— 内置记录级矩阵（CHECKER→REVIEWER→APPROVER）的第 2 步
+是 REVIEWER，不加则第 2 步**谁也批不了**（前端 meta 驱动也会禁用按钮）。
+⚠️ **§12.4 修订记录**同步登记了本次**契约破坏性变更**。
 
 6.4 HashBadge
 用途：显示 record_hash。
@@ -2315,6 +2334,7 @@ V1.8	2026-10-20	P9A-4 D2 补 §6.21 P9A-LCK-006（保存请求的并发基线与
 V1.9	2026-10-20	P9A-4 D3 补 §6.7.1 变更影响的「确认」动作（P9A-CIA-001/002，依据 ADR-0048 与 P9-Prep 交付面清单 §3）：①新增两个**不可合并**的端点 —— `confirm`（系统按哈希判定分流：结果不变 ⇒ 免凭证回 CHECKED；结果变化 ⇒ 进 CHANGE_PENDING 要求重新签署）与 `manual-adjust`（人工判定，reason 必填，限权 + 审计）；②明确按钮文案随响应的 decision 分流、不得自动重试；③登记 record_type 词表差（类名 vs 表名，TODO-060）。	Claude Code
 V2.0	2026-10-20	P9A-5 Task A 归一 `record_type` 词表（TODO-060）：①**全仓只有一套词表** —— `RECORD_TYPE_REGISTRY` 的键，取代此前 `/change-impact`（键）与 `/locks`+`/results`（表名）的分叉；⚠️ 推翻了 V1.9 登记的「§6.7.1 用类名」—— 实测注册表 21 个键里 **5 个 ≠ 类名**（`cv_result`/`restriction_result`/`flare_system_result`/`cooling_tower_result`/`psychro_result`）⇒「类名」不是一套词表；②**破坏性变更**：`/locks/{record_type}` 三端点改为只接受注册表键、**并校验**（未登记 ⇒ 404）。原先完全不校验 ⇒ 传错拼写 200 成功、锁写进 `lock:edit:{错拼写}:{id}`，与正确拼写**互不可见** ⇒ 两个人能同时编辑同一条记录；且 `has_conflict_detection(错拼写)`=False 会让降级横幅**错误地**说「本次编辑无冲突检测」；③`{record_type}` 参数在 OpenAPI 里带 `enum`（前端不必再读 SPEC 源码才知道取值）；④SPEC §6.7.1 与 §6.21 的词表句同步修订。**风格不统一**（3 snake + 3 Pascal）是 `RECORD_TYPE_REGISTRY` 的历史遗留（TODO-055）⇒ 统一风格要动 `/change-impact` 与 `/records/{module}` 两个已发布契约 + 存量 DB 列，本版不做。	Claude Code
 V2.1	2026-10-21	P9A Z 收口补写 **ADR-0047 §后果 / ADR-0049 §⑥ 承诺而至今 0 命中的 10 条 SPEC 条款**（P9A-OBS-001~004 / P9A-NOT-001~006，V1.6/V1.7 两版都登记为欠账）：①新增 **§6.22 TodoPanel**（P9A-NOT-002 待办实时计算 —— 待办**不落库**，真值是「签署矩阵当前步骤 × 当前用户角色」；`GET /todos` 逐字字段；`total` ≠ `items.length` 时计数用 `total`；待办为空不得断言「你没有待办」—— 也可能是无签署职责）；②新增 **§6.23 RealtimeStatus**（P9A-NOT-005/006 —— `WS /api/v1/ws/notifications` 的下行帧逐字取实现；**真值是 `notifications` 表**，WS 只是及时性通道，「WS 推送成功」≠「通知已送达」；重连走 `?after=<last_seen>` 补齐；降级读 `/health` 的 `realtime`/`realtime_reason`，`realtime` 只承诺 **pub/sub 可达性**、**不得**用于 liveness/readiness；降级 ⇒ 自动切轮询，通知**仍可达**，横幅**不阻断**）；③新增 **§6.24 WorkflowProgressPanel**（P9A-OBS-001~004 —— `GET /workflow-progress/{workflow_type}/{workflow_id}`；`{workflow_id}` **多态**（SIGN→版本 ID，其余→交付物 ID）；**五态不得归并成三态**（PENDING 与 SKIPPED 都是「没完成」但语义不同）；**不得显示百分比**（`total` 是节点数不是工作量）；观测层**保证「流程进度可信」不保证「通知已送达」**；CHANGE_NOTICE 写入点当前不可达 ⇒ 该类型面板恒为空，前端不得显示成「流程异常」）；④**扩写 §6.20**：通知条目**逐字绑定契约**（`kind`/`title`/`body`/`created_at`/`read_at`/`detail`）、未读判定 = `read_at` 为 null、铃铛红点 = 响应 `unread_count`（**不是**前端数 `items`）、`kind` 只有后端四值（**不得**映射成自造三档分类）、标已读后**重新拉列表**、通知**只保留 30 天**；⑤**补齐 §6.20 四个分组的数据来源**（V1.0 只锁了分组名没锁来源，P9A 交付了「通知」与「待办」两个来源）：待办 ← `GET /todos`（**不是**通知）、变更 ← `kind=CHANGE_NOTICE_APPROVED`、系统 ← 其余三种 kind、全部 ← 全部**通知**（不含待办）。	Claude Code
+V2.2	2026-10-27	P9B-2 T2（TODO-054 · R-17）—— **契约破坏性变更**「送审选角色」取消：①§6.3 `DRAFT` 态的「提交批准」**没有角色选择器** ⇒ 批准链由**后端**从**项目绑定的 `module='RECORD'` 签署矩阵**推导 ⇒ `POST /records/{module}/{id}/submit-approval` 的请求体**只收** `{reason?}`（**不再收** `approval_role` / `approval_depth`，多传 ⇒ 422）；②项目**没绑** RECORD 矩阵 ⇒ 前端送审按钮**禁用** + Tooltip「项目未绑定记录级签署矩阵」，后端 **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND`；③矩阵**第 1 步**角色 == 当前用户 ⇒ 送审按钮**禁用** + Tooltip（替代原「排除自己的角色」的选择器），后端 **403** `APPROVAL_SELF_REVIEW_FORBIDDEN`；④「通过 / 退回（当前步骤角色）」的「当前步骤角色」改由**矩阵**给出 ⇒ 中间步骤批完后后端把 `approval_role` **推进到链上下一步的角色**；⑤后端 `TRANSITION_ROLES[PASS_CHECK]` / `[REJECT_CHECK]` **新增 REVIEWER**（内置记录级矩阵 CHECKER→REVIEWER→APPROVER 的第 2 步是 REVIEWER，不加则第 2 步**谁也批不了**且前端 meta 驱动会禁用按钮）；⑥`approval_depth` 语义**不变** = 链的**总步数**（`approval_step` = 当前步）⇒ N 步链恰好批 N 次。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

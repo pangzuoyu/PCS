@@ -138,7 +138,7 @@ async def test_submit_approval_requires_formal_workspace(client, db):
 
     resp = await client.post(
         f"/api/v1/records/{MODULE}/{rec.relief_id}/submit-approval",
-        json={"approval_role": "CHECKER"},
+        json={},
         headers=_token(role="DESIGNER"),
     )
     assert resp.status_code == 403, resp.text

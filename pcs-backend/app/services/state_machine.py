@@ -94,8 +94,15 @@ ALLOWED_TRANSITIONS: dict[
 # 角色权限：transition → 允许的角色集合
 TRANSITION_ROLES: dict[StateTransition, set[str]] = {
     StateTransition.SUBMIT_FOR_CHECK: {"DESIGNER", "CHECKER", "APPROVER", "SYSTEM_ADMIN"},
-    StateTransition.PASS_CHECK: {"CHECKER", "APPROVER", "SYSTEM_ADMIN"},
-    StateTransition.REJECT_CHECK: {"CHECKER", "APPROVER", "SYSTEM_ADMIN"},
+    # ⚠️ **REVIEWER 也要能批**（P9B-2 · T2 · R-17）：批准链的定义源改成
+    #    项目绑定的 `module='RECORD'` 签署矩阵，而**内置记录级矩阵的第 2 步
+    #    就是 REVIEWER**（CHECKER→REVIEWER→APPROVER）⇒ 不把它放进这两个
+    #    转移的角色集，链条在第 2 步**谁也批不了**（403 `HTTP_403`）。
+    #    ⇒ 与交付物签署路径对齐（`sign_step` 直接按矩阵的 `sign_role` 判）。
+    #    ⚠️ **粗闸不是最终判据**：端点仍要求 `actor.role == record.approval_role`
+    #    （= 矩阵这一步该谁签）⇒ 放进来不等于「谁都能批这一步」。
+    StateTransition.PASS_CHECK: {"CHECKER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN"},
+    StateTransition.REJECT_CHECK: {"CHECKER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN"},
     StateTransition.REQUEST_REVERSAL: {"DESIGNER", "CHECKER", "APPROVER", "SYSTEM_ADMIN"},
     StateTransition.APPROVE_REVERSAL: {"APPROVER", "SYSTEM_ADMIN"},
     StateTransition.REJECT_REVERSAL: {"APPROVER", "SYSTEM_ADMIN"},

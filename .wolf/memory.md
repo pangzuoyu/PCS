@@ -2561,3 +2561,45 @@
 | 12:06 | Edited pcs-frontend/src/components/common/EditConflictModal.tsx | listRecordEdits() → list() | ~192 |
 | 12:06 | Edited pcs-frontend/src/components/common/EditConflictModal.tsx | expanded (+11 lines) | ~186 |
 | 12:07 | Created pcs-frontend/tests/components/common/EditConflictModal.test.tsx | — | ~2012 |
+| 12:19 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | 1→2 lines | ~106 |
+| 12:20 | Created pcs-backend/tests/api/v1/test_record_approval_chain.py | — | ~3031 |
+| 12:21 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified test_request_body_rejects_client_supplied_chain() | ~292 |
+| 12:21 | Edited pcs-backend/app/services/signature_matrix_service.py | 5→3 lines | ~49 |
+| 12:21 | Edited pcs-backend/app/services/signature_matrix_service.py | 7→9 lines | ~107 |
+| 12:21 | Edited pcs-backend/app/services/signature_matrix_service.py | modified resolve_project_matrix() | ~478 |
+| 12:21 | Edited pcs-backend/app/schemas/records_actions.py | modified SubmitApprovalRequest() | ~175 |
+| 12:22 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+25 lines) | ~653 |
+| 12:22 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+16 lines) | ~881 |
+| 12:22 | Edited pcs-backend/app/api/v1/records_actions.py | modified _next_approval_role() | ~263 |
+| 12:22 | Edited pcs-backend/app/api/v1/records_actions.py | added 1 import(s) | ~54 |
+| 12:23 | Edited pcs-backend/app/services/state_machine.py | expanded (+7 lines) | ~160 |
+| 12:24 | Edited pcs-frontend/src/mocks/seed/meta.ts | 6→6 lines | ~138 |
+| 12:24 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified test_wrong_role_cannot_approve_the_step() | ~227 |
+| 12:25 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | 12→13 lines | ~155 |
+| 12:25 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified _url() | ~276 |
+| 12:25 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified test_submit_moves_draft_to_in_approval() | ~816 |
+| 12:25 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified _submitted() | ~161 |
+| 12:26 | Edited pcs-backend/tests/api/v1/test_workspace_type_guard.py | 5→5 lines | ~47 |
+| 12:26 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | inline fix | ~10 |
+| 12:26 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | 5→5 lines | ~55 |
+| 12:27 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~280 |
+| 12:27 | Edited docs/PCS-UI-SPEC.md | expanded (+19 lines) | ~263 |
+| 12:27 | Edited docs/PCS-UI-SPEC.md | 1→2 lines | ~218 |
+| 12:28 | Edited docs/PCS-UI-SPEC.md | inline fix | ~3 |
+| 12:28 | Created pcs-frontend/src/api/meta.ts | — | ~324 |
+| 12:28 | Created pcs-frontend/src/api/recordActions.ts | — | ~978 |
+| 12:29 | Created pcs-frontend/src/api/deliverables.ts | — | ~338 |
+| 12:29 | Created pcs-frontend/src/api/admin.ts | — | ~244 |
+| 12:29 | Created pcs-frontend/tests/api/record_actions_api.test.ts | — | ~1631 |
+| 12:29 | Created pcs-frontend/tests/api/deliverables_api.test.ts | — | ~928 |
+| 12:29 | Created pcs-frontend/tests/api/admin_api.test.ts | — | ~782 |
+| 12:31 | Edited pcs-frontend/src/api/recordActions.ts | expanded (+19 lines) | ~267 |
+| 12:31 | Edited pcs-frontend/src/api/signatureMatrices.ts | 1→3 lines | ~63 |
+| 12:31 | Edited pcs-frontend/src/api/signatureMatrices.ts | expanded (+13 lines) | ~199 |
+| 12:32 | Created pcs-frontend/tests/components/common/RecordActions.test.tsx | — | ~2901 |
+| 12:32 | Created pcs-frontend/src/components/common/RecordActions.tsx | — | ~2806 |
+| 12:32 | Edited pcs-frontend/src/components/common/RecordActions.tsx | 9→7 lines | ~56 |
+| 12:33 | Edited pcs-frontend/src/components/common/RecordActions.tsx | modified if() | ~95 |
+| 12:33 | Edited pcs-frontend/src/components/common/RecordActions.tsx | CSS: display | ~142 |
+| 18:18 | Edited pcs-frontend/src/pages/results/resultModules.ts | expanded (+15 lines) | ~206 |
+| 18:19 | Created pcs-frontend/tests/pages/results/resultModules.test.tsx | — | ~462 |

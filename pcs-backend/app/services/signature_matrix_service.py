@@ -696,6 +696,53 @@ class SignatureMatrixService:
     # ------------------------------------------------------------------
 
     @classmethod
+    async def resolve_project_matrix(
+        cls, db: AsyncSession, *, project_id: uuid.UUID, module: str
+    ) -> SignatureMatrix | None:
+        """取项目在某模块上绑的**生效**矩阵（**没绑 ⇒ None**）。
+
+        ## 口径与 `bind_to_project` 一致
+
+        - 按 `(project_id, module)` 查绑定 —— 绑的是**哪个模块**由绑定行的
+          `module` 列决定 ⇒ 绑了 STREAM 矩阵**不算** RECORD 矩阵。
+        - 矩阵必须 **ACTIVE**（与 `bind_to_project` 的第 1 道校验同口径）
+          ⇒ DRAFT/PENDING/OBSOLETE 的模板不许接管生产签署。
+          ⚠️ 绑着但矩阵不是 ACTIVE ⇒ **响亮失败**（409），不静默换回内置模板
+          —— 静默换会让项目在**不知情**的情况下换了签署规则。
+
+        ## 为什么返回 `None` 而不是抛错
+
+        「没绑」是**配置态**（调用方决定 422 还是别的），
+        「绑了但不是 ACTIVE」是**错误态**（本方法直接抛 409）。
+        ⇒ 两种情况**分开**，调用方才不会把「没配」和「配错了」混成一句。
+
+        Returns:
+            生效的矩阵；**没绑** ⇒ `None`。
+        """
+        binding = (
+            await db.execute(
+                select(ProjectSignatureMatrixBinding).where(
+                    ProjectSignatureMatrixBinding.project_id == project_id,
+                    ProjectSignatureMatrixBinding.module == module,
+                )
+            )
+        ).scalar_one_or_none()
+        if binding is None:
+            return None
+        matrix = await db.get(SignatureMatrix, binding.matrix_id)
+        if matrix is None:
+            # 悬空绑定（矩阵行不在）⇒ 当作「没绑」⇒ 调用方给出可操作的提示
+            return None
+        if matrix.status != "ACTIVE":
+            raise PcsError(
+                f"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} "
+                f"当前 {matrix.status}，不是 ACTIVE",
+                code="SIGNATURE_MATRIX_NOT_ACTIVE",
+                status=409,
+            )
+        return matrix
+
+    @classmethod
     async def ensure_default_record_matrix(
         cls, db: AsyncSession, *, project_id: uuid.UUID
     ) -> SignatureMatrix:

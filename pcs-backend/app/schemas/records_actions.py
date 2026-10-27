@@ -84,14 +84,24 @@ ApprovalRole = Literal[
 class SubmitApprovalRequest(BaseModel):
     """提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
 
-    `approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源
-    （`project_templates.default_config_json` 的 `record_approval_config`
-    只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。
-    服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。
+    ## ⚠️ **契约破坏性变更**（TODO-054 · R-17 · P9B-2）
+
+    原先请求体收 `approval_role` + `approval_depth`（由**客户端**决定谁该批、
+    批几级）⇒ 现在**不再收**：批准链由**后端**从项目绑定的 `module='RECORD'`
+    签署矩阵推导（`SignatureMatrixService.resolve_project_matrix`）。
+
+    ⇒ `extra="forbid"`：多传旧字段 ⇒ **422**（而不是静默忽略）——
+    静默忽略会让调用方以为自己传了角色，实际生效的是矩阵里的角色 ⇒
+    「我明明选了 APPROVER」却吃 403。
+
+    `reason` 是送审说明（可选）。
     """
 
-    approval_role: ApprovalRole
-    approval_depth: int = Field(default=1, ge=1, le=4)
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(
+        default=None, max_length=500, description="送审说明（可选）"
+    )
 
 
 class SubmitApprovalResponse(BaseModel):
