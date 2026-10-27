@@ -34,6 +34,7 @@ import { setupServer } from 'msw/node';
 
 import MainLayout from '../../src/layouts/MainLayout';
 import { useDegradation } from '../../src/store/degradation';
+import { useAuth } from '../../src/store/auth';
 
 /** 契约形状（`components['schemas']['NotificationListResponse']`）。 */
 const CONTRACT_RESPONSE = {
@@ -185,5 +186,51 @@ describe('MainLayout —— 实时状态横幅（SPEC §6.23）', () => {
     );
     await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
     expect(screen.queryByTestId('realtime-status-banner')).toBeNull();
+  });
+});
+
+
+/**
+ * 「管理」菜单组（P9B-2 · T7 · SPEC §7.20 · R-8）。
+ *
+ * ⚠️ **按角色隐藏**（SPEC §5.1「菜单项隐藏」）：「用户管理」对应的三个端点
+ * （`/admin/users`、`/admin/users/{id}/disable`、`/admin/users/sync`）都限
+ * SYSTEM_ADMIN ⇒ 普通用户**看不到入口**（而不是点进去吃 403）。
+ *
+ * ⚠️ 组名从「审计」改成「**管理**」—— 「用户管理」是 ADMIN 项 ⇒ 与审计日志同组。
+ */
+describe('MainLayout —— 「管理」菜单组（P9B-2 · T7）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    useDegradation.setState({ message: null });
+  });
+
+  it('SYSTEM_ADMIN ⇒ 「用户管理」**出现**，且组名为「管理」', async () => {
+    useAuth.setState({ role: 'SYSTEM_ADMIN', accessToken: 'test-token' });
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
+    expect(screen.getByText('用户管理')).toBeTruthy();
+    expect(screen.getByText('审计日志')).toBeTruthy();
+    expect(screen.getByText('管理')).toBeTruthy();
+  });
+
+  it('⚠️ 非 SYSTEM_ADMIN ⇒ 「用户管理」**不出现**（入口隐藏，不是进去吃 403）', async () => {
+    useAuth.setState({ role: 'DESIGNER', accessToken: 'test-token' });
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
+    expect(screen.queryByText('用户管理')).toBeNull();
+    // ⚠️ 审计日志**对所有角色可见**（tab 内部再按角色禁用）
+    expect(screen.getByText('审计日志')).toBeTruthy();
   });
 });

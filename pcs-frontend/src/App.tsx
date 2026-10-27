@@ -44,6 +44,7 @@ import {
   CoolingWaterRoute,
   EnergySummaryAggregateRoute,
   AuditLogRoute,
+  UserAdminRoute,
   ResultListRoute,
   DeliverableProgressRoute,
   SignatureMatrixRoute,
@@ -114,6 +115,7 @@ const router = createBrowserRouter([
 
       // Audit Query（F-P2-009 Sprint 3 / Issue 7）
       { path: 'audit/logs', element: <AuditLogRoute /> },
+      { path: 'admin/users', element: <UserAdminRoute /> },
 
       // P9B-1 结果记录（SPEC §6.21：通用页 + 6 个模块描述符）
       { path: 'results/cool-tower', element: <ResultListRoute module="cooling_tower_result" /> },

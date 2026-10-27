@@ -18,7 +18,7 @@ import { test, expect, type Page } from './fixtures';
 
 /** SPA 菜单导航到 audit 页 (避免整页刷新丢 session). */
 async function gotoAuditViaMenu(page: Page): Promise<void> {
-  await page.getByRole('menuitem', { name: 'Audit Query (F-P2-009)' }).click();
+  await page.getByRole('menuitem', { name: '审计日志' }).click();
   await expect(page).toHaveURL(/\/audit\/logs$/);
 }
 
@@ -26,7 +26,7 @@ test.describe('AuditLogPage (F-P2-009 Sprint 3)', () => {
   test('SPA 导航到 /audit/logs + 3 tab 渲染', async ({ loggedInPage: page }) => {
     await gotoAuditViaMenu(page);
     await expect(page.getByTestId('page-header-title')).toHaveText(
-      /Audit Query/,
+      /审计日志/,
     );
     await expect(page.getByRole('tab', { name: /CONFIG R1 修订痕迹/ })).toBeVisible();
     await expect(page.getByRole('tab', { name: /设备删除审计/ })).toBeVisible();

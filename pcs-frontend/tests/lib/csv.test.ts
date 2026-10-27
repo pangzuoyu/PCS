@@ -1,0 +1,59 @@
+/**
+ * CSV 导出工具的**转义**规则（P9B-2 · T7 · RFC 4180）。
+ *
+ * ⚠️ **为什么值得单测**：审计日志的 `detail_json` 里什么都可能有 ——
+ * 逗号、引号、**换行**。不转义的话导出的文件会被 Excel 拆成错列 / 破行
+ * ⇒ 用户拿到的数据是**残缺的**，而他以为那是全部（RF-11）。
+ */
+import { describe, it, expect } from 'vitest';
+
+import { csvCell, csvRow, toCsv } from '../../src/lib/csv';
+
+describe('csvCell —— RFC 4180 转义', () => {
+  it('普通值原样输出', () => {
+    expect(csvCell('abc')).toBe('abc');
+    expect(csvCell(123)).toBe('123');
+  });
+
+  it('⚠️ 含逗号 ⇒ 用双引号包起来', () => {
+    expect(csvCell('a,b')).toBe('"a,b"');
+  });
+
+  it('⚠️ 含引号 ⇒ 加倍（`"` → `""`）并包起来', () => {
+    expect(csvCell('say "hi"')).toBe('"say ""hi"""');
+  });
+
+  it('⚠️ 含**换行** ⇒ 用双引号包起来（**不破行**）', () => {
+    expect(csvCell('line1\nline2')).toBe('"line1\nline2"');
+    expect(csvCell('line1\r\nline2')).toBe('"line1\r\nline2"');
+  });
+
+  it('空值 ⇒ 空字段（不是 `null` 字面量）', () => {
+    expect(csvCell(null)).toBe('');
+    expect(csvCell(undefined)).toBe('');
+  });
+
+  it('⚠️ 公式注入面：`=`/`+`/`@` 开头 ⇒ 前置 `\'`（Excel 当文本）', () => {
+    expect(csvCell('=1+1')).toBe("'=1+1");
+    expect(csvCell('@SUM(A1)')).toBe("'@SUM(A1)");
+  });
+
+  it('⚠️ **正常负数**不加 `\'`（否则数字被当文本）', () => {
+    expect(csvCell(-1)).toBe('-1');
+    expect(csvCell(-1.5)).toBe('-1.5');
+  });
+});
+
+describe('csvRow / toCsv', () => {
+  it('一行 ⇒ 逗号分隔', () => {
+    expect(csvRow(['a', 'b'])).toBe('a,b');
+  });
+
+  it('⚠️ 含逗号 / 引号 / 换行的**数据行** ⇒ 解析回来仍是 **1 行**', () => {
+    const csv = toCsv(['h1', 'h2'], [['a,b', 'x"y\nz']]);
+    const lines = csv.split('\r\n');
+    // 表头 + 数据行 = 2 段（换行在引号内 ⇒ 不算断行）
+    expect(lines.length).toBe(2);
+    expect(lines[1]).toBe('"a,b","x""y\nz"');
+  });
+});

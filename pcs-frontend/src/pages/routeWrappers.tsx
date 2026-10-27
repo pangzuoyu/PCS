@@ -295,6 +295,12 @@ export function AuditLogRoute(): JSX.Element {
   return <AuditLogPage />;
 }
 
+// === ADMIN 用户管理（P9B-2 · T7 · SPEC §7.20）===
+import { UserAdminPage } from './admin/UserAdminPage';
+export function UserAdminRoute(): JSX.Element {
+  return <UserAdminPage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);

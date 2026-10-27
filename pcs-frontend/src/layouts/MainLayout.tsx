@@ -22,7 +22,14 @@ function group(label: string, key: string, children: MenuItem[]): MenuItem {
   return { type: 'group', label, key, children };
 }
 
-const MENU_ITEMS: MenuItem[] = [
+/**
+ * 菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。
+ *
+ * ⚠️ 「用户管理」只对 SYSTEM_ADMIN 显示（三个 ADMIN 端点都限 SYSTEM_ADMIN）⇒
+ * 普通用户**看不到入口**（而不是点进去吃 403）。
+ */
+function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
+  return [
   { key: '/', label: '仪表盘' },
   group('基础配置', 'config', [
     { key: '/config/asset-list', label: '设备一览' },
@@ -79,19 +86,25 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/deliverables/progress', label: '签署进度' },
     { key: '/deliverables/signature-matrices', label: '签署矩阵' },
   ]),
-  group('审计', 'audit', [
-    { key: '/audit/logs', label: 'Audit Query (F-P2-009)' },
+  // ⚠️ 组名从「审计」改成「**管理**」（R-8 · SPEC §7.20 的 ADMIN 项）——
+  //    「用户管理」是 ADMIN 项 ⇒ 与审计日志同组。
+  group('管理', 'admin', [
+    // ⚠️ 「用户管理」**按角色显示**（SPEC §5.1「菜单项隐藏」）⇒
+    //    SYSTEM_ADMIN 才能看见（三个端点都限 SYSTEM_ADMIN）。
+    ...(isSystemAdmin ? [{ key: '/admin/users', label: '用户管理' }] : []),
+    { key: '/audit/logs', label: '审计日志' },
   ]),
   group('项目文档', 'docs', [
     { key: '/pms', label: 'PMS 规格' },
     { key: '/bedd', label: 'BEDD 文档' },
     { key: '/wizard', label: '项目向导' },
   ]),
-];
+  ];
+}
 
-/** 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 */
-function findSelectedKeys(pathname: string): string[] {
-  for (const item of MENU_ITEMS) {
+/** 在菜单项里找 path 命中的条目（含父 group）。找不到返回 []。 */
+function findSelectedKeys(menuItems: MenuItem[], pathname: string): string[] {
+  for (const item of menuItems) {
     if (item && 'children' in item && item.children) {
       for (const c of item.children) {
         if (c && 'key' in c && c.key === pathname) {
@@ -170,7 +183,8 @@ export default function MainLayout() {
       .catch(() => {/* offline */});
   }, []);
 
-  const selectedKeys = findSelectedKeys(location.pathname);
+  const menuItems = buildMenuItems(role === 'SYSTEM_ADMIN');
+  const selectedKeys = findSelectedKeys(menuItems, location.pathname);
   const openKeys = selectedKeys.length > 1 ? [selectedKeys[0]] : [];
 
   function onLogout() {
@@ -221,7 +235,7 @@ export default function MainLayout() {
             mode="inline"
             selectedKeys={selectedKeys}
             defaultOpenKeys={openKeys}
-            items={MENU_ITEMS}
+            items={menuItems}
             onClick={(e) => {
               if (typeof e.key === 'string' && e.key.startsWith('/')) nav(e.key);
             }}
