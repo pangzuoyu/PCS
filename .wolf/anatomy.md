@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-26T23:01:09.585Z
-> Files: 1057 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T02:54:00.114Z
+> Files: 1059 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -289,6 +289,10 @@
 ## .superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md (~1310 tok)
+
+## .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~420 tok)
 
 ## .vite/vitest/
 
@@ -1207,7 +1211,7 @@
 - `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7298 tok)
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
 - `pipe.py` — P4-2-5 PIPE 计算链 API。 (~2299 tok)
-- `projects.py` — 项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据). (~1184 tok)
+- `projects.py` — 项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~1752 tok)
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~3955 tok)
@@ -1215,7 +1219,7 @@
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5099 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
-- `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~2394 tok)
+- `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6705 tok)
@@ -1258,11 +1262,11 @@
 - `lock.py` — 编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。 (~404 tok)
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
-- `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
+- `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~742 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~803 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
-- `signature_matrix.py` — 签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。 (~950 tok)
+- `signature_matrix.py` — 签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。 (~1122 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~711 tok)
 
@@ -1289,7 +1293,7 @@
 - `record_snapshot_codec.py` — 记录快照的**数据编解码**（TODO-087）。 (~1917 tok)
 - `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~3082 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
-- `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5857 tok)
+- `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~7830 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5544 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
@@ -1427,6 +1431,7 @@
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
+- `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~4169 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~3944 tok)

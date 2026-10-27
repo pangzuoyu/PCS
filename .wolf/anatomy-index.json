@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-26T23:01:09.585Z",
-    "fileCount": 1057,
+    "lastScanned": "2026-10-27T02:54:00.114Z",
+    "fileCount": 1059,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f1e8541d6d7a0ebf03d20121c1ca226f29dfda6d67f68fa213f5dc5182c32f1e",
-    "storeUpdatedAt": "2026-10-26T23:01:09.596Z",
-    "rootHash": "9389352ef2724149"
+    "renderedHash": "346fe2967113538bb68cbbee6db424d303def149f3b5f0c01745940315f9233c",
+    "storeUpdatedAt": "2026-10-27T02:54:00.125Z",
+    "rootHash": "fb2edf767b0dce24"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17633,42 +17633,72 @@
       ]
     },
     "pcs-backend/app/schemas/project.py": {
-      "description": "项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据).",
-      "tokens": 297,
-      "hash": "f4ad66b994eb7494",
-      "size": 1381,
-      "mtimeMs": 1791165955334.4387,
-      "updatedAt": "2026-10-05T02:05:55.379Z",
-      "source": "hook"
+      "description": "项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
+      "tokens": 742,
+      "hash": "c7f0209ed6eac441",
+      "size": 3454,
+      "mtimeMs": 1793069491690.2852,
+      "updatedAt": "2026-10-27T02:51:31.742Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ProjectOut",
+          "kind": "class",
+          "startLine": 24,
+          "endLine": 36,
+          "tokens": 92
+        },
+        {
+          "name": "ProductCategoryUpdate",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 49,
+          "tokens": 94
+        },
+        {
+          "name": "ProjectCreate",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 82,
+          "tokens": 398
+        }
+      ]
     },
     "pcs-backend/app/api/v1/projects.py": {
-      "description": "项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据).",
-      "tokens": 1184,
-      "hash": "ea6e68f4cdc72a75",
-      "size": 4819,
-      "mtimeMs": 1791165966818.9165,
-      "updatedAt": "2026-10-05T02:06:06.873Z",
+      "description": "项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
+      "tokens": 1752,
+      "hash": "db8cfc1f5905e1ab",
+      "size": 7368,
+      "mtimeMs": 1793069590094.3984,
+      "updatedAt": "2026-10-27T02:53:10.144Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_out",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 53,
-          "tokens": 129
+          "startLine": 46,
+          "endLine": 64,
+          "tokens": 155
+        },
+        {
+          "name": "create_project",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 112,
+          "tokens": 451
         },
         {
           "name": "get_project",
           "kind": "fn",
-          "startLine": 54,
-          "endLine": 80,
+          "startLine": 113,
+          "endLine": 139,
           "tokens": 248
         },
         {
           "name": "set_product_category",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 129,
+          "startLine": 140,
+          "endLine": 188,
           "tokens": 457
         }
       ]
@@ -35887,26 +35917,33 @@
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 5857,
-      "hash": "1a6f663e4d1c2aa8",
-      "size": 24509,
-      "mtimeMs": 1792983281448.8994,
-      "updatedAt": "2026-10-26T02:54:41.496Z",
+      "tokens": 7830,
+      "hash": "48444244f899f38d",
+      "size": 33061,
+      "mtimeMs": 1793069558550.359,
+      "updatedAt": "2026-10-27T02:52:38.610Z",
       "source": "hook",
       "symbols": [
         {
           "name": "MatrixStep",
           "kind": "class",
           "startLine": 69,
-          "endLine": 84,
-          "tokens": 108
+          "endLine": 85,
+          "tokens": 115
+        },
+        {
+          "name": "ProjectMatrixBinding",
+          "kind": "class",
+          "startLine": 86,
+          "endLine": 99,
+          "tokens": 82
         },
         {
           "name": "SignatureMatrixService",
           "kind": "class",
-          "startLine": 85,
-          "endLine": 603,
-          "tokens": 5218
+          "startLine": 100,
+          "endLine": 813,
+          "tokens": 7102
         }
       ]
     },
@@ -36451,11 +36488,11 @@
     },
     "pcs-backend/app/schemas/signature_matrix.py": {
       "description": "签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。",
-      "tokens": 950,
-      "hash": "d9cbb94da6c524fc",
-      "size": 4082,
-      "mtimeMs": 1792973477165.7603,
-      "updatedAt": "2026-10-26T00:11:17.219Z",
+      "tokens": 1122,
+      "hash": "7fc3ed3050fa2487",
+      "size": 4923,
+      "mtimeMs": 1793069594493.4043,
+      "updatedAt": "2026-10-27T02:53:14.542Z",
       "source": "hook",
       "symbols": [
         {
@@ -36518,68 +36555,82 @@
           "name": "MatrixUnbindResponse",
           "kind": "class",
           "startLine": 120,
-          "endLine": 126,
+          "endLine": 127,
           "tokens": 47
+        },
+        {
+          "name": "ProjectMatrixBindingOut",
+          "kind": "class",
+          "startLine": 128,
+          "endLine": 146,
+          "tokens": 172
         }
       ]
     },
     "pcs-backend/app/api/v1/signature_matrices.py": {
       "description": "签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。",
-      "tokens": 2394,
-      "hash": "444ef79ded3ece32",
-      "size": 9918,
-      "mtimeMs": 1793012069077.4023,
-      "updatedAt": "2026-10-26T10:54:29.122Z",
+      "tokens": 3071,
+      "hash": "4c3f4b06c6ff97d1",
+      "size": 13202,
+      "mtimeMs": 1793069613136.4292,
+      "updatedAt": "2026-10-27T02:53:33.189Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_response",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 103,
+          "startLine": 95,
+          "endLine": 123,
           "tokens": 277
         },
         {
           "name": "list_signature_matrices",
           "kind": "fn",
-          "startLine": 104,
-          "endLine": 126,
+          "startLine": 124,
+          "endLine": 146,
           "tokens": 240
         },
         {
           "name": "create_signature_matrix",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 155,
+          "startLine": 147,
+          "endLine": 175,
           "tokens": 236
         },
         {
           "name": "get_signature_matrix",
           "kind": "fn",
-          "startLine": 156,
-          "endLine": 171,
+          "startLine": 176,
+          "endLine": 191,
           "tokens": 153
         },
         {
           "name": "update_signature_matrix",
           "kind": "fn",
-          "startLine": 172,
-          "endLine": 205,
-          "tokens": 334
+          "startLine": 192,
+          "endLine": 225,
+          "tokens": 337
+        },
+        {
+          "name": "list_project_matrix_bindings",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 275,
+          "tokens": 450
         },
         {
           "name": "bind_project_matrix",
           "kind": "fn",
-          "startLine": 206,
-          "endLine": 243,
-          "tokens": 376
+          "startLine": 276,
+          "endLine": 317,
+          "tokens": 393
         },
         {
           "name": "unbind_project_matrix",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 263,
-          "tokens": 224
+          "startLine": 318,
+          "endLine": 341,
+          "tokens": 240
         }
       ]
     },
@@ -38328,6 +38379,145 @@
       "mtimeMs": 1793055558409.4727,
       "updatedAt": "2026-10-26T22:59:18.464Z",
       "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md",
+      "tokens": 420,
+      "hash": "e0b24aa18faa0c54",
+      "size": 1732,
+      "mtimeMs": 1793069252886.1636,
+      "updatedAt": "2026-10-27T02:47:32.938Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_project_creation.py": {
+      "description": "项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。",
+      "tokens": 4169,
+      "hash": "c9920e6a28a24825",
+      "size": 15932,
+      "mtimeMs": 1793069640061.4668,
+      "updatedAt": "2026-10-27T02:54:00.113Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "admin_headers",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 57,
+          "tokens": 48
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 64,
+          "tokens": 52
+        },
+        {
+          "name": "_guard_client",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 93,
+          "tokens": 258
+        },
+        {
+          "name": "_make_workspace",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 107,
+          "tokens": 90
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 122,
+          "tokens": 122
+        },
+        {
+          "name": "_bound_matrix_id",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 152,
+          "tokens": 233
+        },
+        {
+          "name": "test_create_project_missing_required_field_is_422",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 163,
+          "tokens": 112
+        },
+        {
+          "name": "test_create_project_requires_system_admin",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 172,
+          "tokens": 98
+        },
+        {
+          "name": "test_create_project_unknown_workspace_is_404",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 193,
+          "tokens": 228
+        },
+        {
+          "name": "test_create_project_persists_row",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 218,
+          "tokens": 282
+        },
+        {
+          "name": "test_create_project_defaults_status_and_product_category",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 243,
+          "tokens": 239
+        },
+        {
+          "name": "test_create_project_binds_default_record_matrix",
+          "kind": "fn",
+          "startLine": 244,
+          "endLine": 274,
+          "tokens": 341
+        },
+        {
+          "name": "test_ensure_default_record_matrix_is_idempotent",
+          "kind": "fn",
+          "startLine": 275,
+          "endLine": 323,
+          "tokens": 465
+        },
+        {
+          "name": "test_ensure_default_record_matrix_does_not_override_existing_binding",
+          "kind": "fn",
+          "startLine": 324,
+          "endLine": 370,
+          "tokens": 442
+        },
+        {
+          "name": "test_list_project_bindings_returns_normalized_steps",
+          "kind": "fn",
+          "startLine": 371,
+          "endLine": 405,
+          "tokens": 290
+        },
+        {
+          "name": "test_list_project_bindings_empty_when_no_binding",
+          "kind": "fn",
+          "startLine": 406,
+          "endLine": 431,
+          "tokens": 239
+        },
+        {
+          "name": "test_list_project_bindings_404_for_other_project",
+          "kind": "fn",
+          "startLine": 432,
+          "endLine": 459,
+          "tokens": 246
+        }
+      ]
     }
   }
 }

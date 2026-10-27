@@ -4107,6 +4107,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 建项目（P9B-2 · T-1 · SYSTEM_ADMIN）
+         * @description 建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。
+         *
+         *     ## 为什么必须「建项目」与「默认绑矩阵」同批
+         *
+         *     R-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒
+         *     没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）
+         *     ⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。
+         *     ⇒ **同批**落地 ⇒ 新项目**当场就能送审**。
+         *
+         *     ## 事务边界
+         *
+         *     建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**
+         *     ⇒ 不会留下「项目建好了但送不了审」的半成品。
+         */
+        post: operations["create_project_api_v1_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}": {
         parameters: {
             query?: never;
@@ -4515,7 +4547,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * 列项目绑定的矩阵（带归一化的步骤）
+         * @description 列本项目绑的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。
+         *
+         *     ## 为什么需要这个读端点
+         *
+         *     T4 的操作栏要判「**矩阵第 1 步的角色 == 当前用户**」⇒ 必须读得到
+         *     「本项目的 RECORD 矩阵的第 1 步是谁」⇒ 绑定**写**端点早就有了
+         *     （`POST /projects/{id}/signature-matrices`），但**读**端点此前**不存在**
+         *     ⇒ 前端拿不到 ⇒ 只能退化成「点了才吃 403」（违背 SPEC §5.1「门禁前置」）。
+         *
+         *     ⚠️ **项目没绑 RECORD 矩阵 ⇒ 空列表**（不是 404）⇒ 前端**不猜**
+         *     （不禁用送审按钮）⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。
+         */
+        get: operations["list_project_matrix_bindings_api_v1_projects__project_id__signature_matrices_get"];
         put?: never;
         /**
          * 把矩阵绑到项目（项目负责人侧）
@@ -13986,6 +14032,111 @@ export interface components {
         ProductCategoryUpdate: {
             /** @description 产品类别 (GB 30251-2024 §6.1.5): REFINING (炼油) / ETHYLENE (乙烯) ⇒ 电折标系数用等价值 (0.21 kg标油/kWh); OTHER ⇒ 当量值 (0.086 kg标油/kWh) */
             product_category: components["schemas"]["ProductCategory"];
+        };
+        /**
+         * ProjectCreate
+         * @description 建项目的请求体（P9B-2 · T-1）。
+         *
+         *     ## 为什么只收这 8 个必填字段
+         *
+         *     它们是 `app/models/project.py::Project` 里**类型非 Optional**（⇒ NOT NULL）
+         *     且**没有模型默认**的列：`project_no` · `project_name` · `owner_company` ·
+         *     `location` · `project_type` · `design_phase` · `unit_system` ·
+         *     `workspace_id`。
+         *
+         *     ⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）
+         *     ⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。
+         *     ⇒ `project_id` **不暴露**（服务端生成）。
+         *
+         *     ⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）。
+         */
+        ProjectCreate: {
+            /**
+             * Project No
+             * @description 项目编号（全局唯一）
+             */
+            project_no: string;
+            /**
+             * Project Name
+             * @description 项目名
+             */
+            project_name: string;
+            /**
+             * Owner Company
+             * @description 业主
+             */
+            owner_company: string;
+            /**
+             * Location
+             * @description 所在地
+             */
+            location: string;
+            /**
+             * Project Type
+             * @description 项目类型
+             */
+            project_type: string;
+            /**
+             * Design Phase
+             * @description 设计阶段
+             */
+            design_phase: string;
+            /**
+             * Unit System
+             * @description 单位制（SI 等）
+             */
+            unit_system: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 所属 FORMAL 工作区（必须已存在）
+             */
+            workspace_id: string;
+            /**
+             * Status
+             * @description 项目状态
+             * @default ACTIVE
+             */
+            status: string;
+            /**
+             * @description 产品类别（GB 30251-2024 §6.1.5 电折标口径判据）
+             * @default OTHER
+             */
+            product_category: components["schemas"]["ProductCategory"];
+        };
+        /**
+         * ProjectMatrixBindingOut
+         * @description 项目绑定的矩阵（**带归一化的步骤**）—— P9B-2 · T-1。
+         *
+         *     ## 为什么步骤是**归一化**的
+         *
+         *     前端要的是「第 1 步该谁签」⇒ 直接给 `steps_json` 原样 ⇒ 前端得自己
+         *     再写一份解析逻辑（**第二份真相源**）⇒ 归一化在后端做一次
+         *     （`SignatureMatrixService.parse_steps` 是**唯一**解析口）。
+         *
+         *     ⇒ 形状与 `SignatureMatrixResponse.steps` **完全一致** ⇒ 前端
+         *     `SignatureMatrixPage` 显示的与本端点返回的**同一套**。
+         */
+        ProjectMatrixBindingOut: {
+            /**
+             * Module
+             * @description RECORD / STREAM / EQUIP / CHANGE_NOTICE / *
+             */
+            module: string;
+            /**
+             * Matrix Id
+             * Format: uuid
+             */
+            matrix_id: string;
+            /** Matrix Name */
+            matrix_name: string;
+            /**
+             * Status
+             * @description 矩阵状态（DRAFT/PENDING/ACTIVE/OBSOLETE）
+             */
+            status: string;
+            /** Steps */
+            steps: components["schemas"]["MatrixStepResponse"][];
         };
         /**
          * ProjectOut
@@ -27363,6 +27514,41 @@ export interface operations {
             };
         };
     };
+    create_project_api_v1_projects_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_project_api_v1_projects__project_id__get: {
         parameters: {
             query?: never;
@@ -28015,6 +28201,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignatureMatrixResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_matrix_bindings_api_v1_projects__project_id__signature_matrices_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectMatrixBindingOut"][];
                 };
             };
             /** @description Validation Error */

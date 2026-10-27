@@ -12820,6 +12820,66 @@
         }
       }
     },
+    "/api/v1/projects": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "建项目（P9B-2 · T-1 · SYSTEM_ADMIN）",
+        "description": "建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。\n\n## 为什么必须「建项目」与「默认绑矩阵」同批\n\nR-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒\n没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）\n⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。\n⇒ **同批**落地 ⇒ 新项目**当场就能送审**。\n\n## 事务边界\n\n建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**\n⇒ 不会留下「项目建好了但送不了审」的半成品。",
+        "operationId": "create_project_api_v1_projects_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}": {
       "get": {
         "tags": [
@@ -14149,6 +14209,68 @@
       }
     },
     "/api/v1/projects/{project_id}/signature-matrices": {
+      "get": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "列项目绑定的矩阵（带归一化的步骤）",
+        "description": "列本项目绑的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。\n\n## 为什么需要这个读端点\n\nT4 的操作栏要判「**矩阵第 1 步的角色 == 当前用户**」⇒ 必须读得到\n「本项目的 RECORD 矩阵的第 1 步是谁」⇒ 绑定**写**端点早就有了\n（`POST /projects/{id}/signature-matrices`），但**读**端点此前**不存在**\n⇒ 前端拿不到 ⇒ 只能退化成「点了才吃 403」（违背 SPEC §5.1「门禁前置」）。\n\n⚠️ **项目没绑 RECORD 矩阵 ⇒ 空列表**（不是 404）⇒ 前端**不猜**\n（不禁用送审按钮）⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。",
+        "operationId": "list_project_matrix_bindings_api_v1_projects__project_id__signature_matrices_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectMatrixBindingOut"
+                  },
+                  "title": "Response List Project Matrix Bindings Api V1 Projects  Project Id  Signature Matrices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "signature-matrices"
@@ -33050,6 +33172,130 @@
         ],
         "title": "ProductCategoryUpdate",
         "description": "设置项目产品类别的请求体."
+      },
+      "ProjectCreate": {
+        "properties": {
+          "project_no": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Project No",
+            "description": "项目编号（全局唯一）"
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project Name",
+            "description": "项目名"
+          },
+          "owner_company": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Owner Company",
+            "description": "业主"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Location",
+            "description": "所在地"
+          },
+          "project_type": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Project Type",
+            "description": "项目类型"
+          },
+          "design_phase": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Design Phase",
+            "description": "设计阶段"
+          },
+          "unit_system": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit System",
+            "description": "单位制（SI 等）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "所属 FORMAL 工作区（必须已存在）"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Status",
+            "description": "项目状态",
+            "default": "ACTIVE"
+          },
+          "product_category": {
+            "$ref": "#/components/schemas/ProductCategory",
+            "description": "产品类别（GB 30251-2024 §6.1.5 电折标口径判据）",
+            "default": "OTHER"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_no",
+          "project_name",
+          "owner_company",
+          "location",
+          "project_type",
+          "design_phase",
+          "unit_system",
+          "workspace_id"
+        ],
+        "title": "ProjectCreate",
+        "description": "建项目的请求体（P9B-2 · T-1）。\n\n## 为什么只收这 8 个必填字段\n\n它们是 `app/models/project.py::Project` 里**类型非 Optional**（⇒ NOT NULL）\n且**没有模型默认**的列：`project_no` · `project_name` · `owner_company` ·\n`location` · `project_type` · `design_phase` · `unit_system` ·\n`workspace_id`。\n\n⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）\n⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。\n⇒ `project_id` **不暴露**（服务端生成）。\n\n⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）。"
+      },
+      "ProjectMatrixBindingOut": {
+        "properties": {
+          "module": {
+            "type": "string",
+            "title": "Module",
+            "description": "RECORD / STREAM / EQUIP / CHANGE_NOTICE / *"
+          },
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          },
+          "matrix_name": {
+            "type": "string",
+            "title": "Matrix Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "矩阵状态（DRAFT/PENDING/ACTIVE/OBSOLETE）"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/MatrixStepResponse"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "module",
+          "matrix_id",
+          "matrix_name",
+          "status",
+          "steps"
+        ],
+        "title": "ProjectMatrixBindingOut",
+        "description": "项目绑定的矩阵（**带归一化的步骤**）—— P9B-2 · T-1。\n\n## 为什么步骤是**归一化**的\n\n前端要的是「第 1 步该谁签」⇒ 直接给 `steps_json` 原样 ⇒ 前端得自己\n再写一份解析逻辑（**第二份真相源**）⇒ 归一化在后端做一次\n（`SignatureMatrixService.parse_steps` 是**唯一**解析口）。\n\n⇒ 形状与 `SignatureMatrixResponse.steps` **完全一致** ⇒ 前端\n`SignatureMatrixPage` 显示的与本端点返回的**同一套**。"
       },
       "ProjectOut": {
         "properties": {

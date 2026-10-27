@@ -1,4 +1,4 @@
-"""项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据).
+"""项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。
 
 用户裁决 2026-10-05「按 project 产品类型强制」落地配套。
 
@@ -6,11 +6,15 @@
 `workspaces.py` 只管 workspace), product_category 只能在 DB/seed 层设置, 真实
 项目运维成本高、且容易漏标 → 炼油项目静默按非炼油口径算能耗。
 
-**范围**: 只做 product_category 的可查可设, **不做完整 Project CRUD**
-(创建/删除/列表超出本次范围)。项目本体仍由外部导入/直改 DB 建立。
+⚠️ **T-1（P9B-2 · 2026-10-27 用户裁决）补上 `POST /projects`** —— 没有它,
+项目建不出来 ⇒ 签署流程的对象（记录 / 交付物）全都挂在项目下 ⇒ P9B-2 交付后
+签署流程在**真实 UI** 上走不通（只能靠 mock 验证）。
+
+**范围**: product_category 的可查可设 + **建项目**; **删除 / 列表**仍不做。
 
 ACL: GET 需对该 project 有访问权 (或 SYSTEM_ADMIN);
-     PATCH 限 SYSTEM_ADMIN —— 产品类别直接决定能耗折标口径, 不是普通编辑。
+     PATCH 限 SYSTEM_ADMIN —— 产品类别直接决定能耗折标口径, 不是普通编辑;
+     POST 限 SYSTEM_ADMIN —— 建项目是**管理动作**（与 PATCH 同口径）。
 """
 
 from __future__ import annotations
@@ -27,9 +31,11 @@ from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
-from app.models.project import Project
+from app.models.project import Project, Workspace
 from app.models.util import UtilityEnergySummary
-from app.schemas.project import ProductCategoryUpdate, ProjectOut
+from app.schemas.project import ProductCategoryUpdate, ProjectCreate, ProjectOut
+from app.services.exceptions import WorkspaceNotFoundError
+from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.util.utility_energy_summary_service import (
     derive_electricity_value_type,
 )
@@ -48,6 +54,59 @@ def _to_out(record: Project) -> ProjectOut:
             record.product_category
         ),
     )
+
+
+@router.post(
+    "",
+    response_model=ProjectOut,
+    status_code=http_status.HTTP_201_CREATED,
+    summary="建项目（P9B-2 · T-1 · SYSTEM_ADMIN）",
+)
+async def create_project(
+    payload: ProjectCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> ProjectOut:
+    """建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。
+
+    ## 为什么必须「建项目」与「默认绑矩阵」同批
+
+    R-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒
+    没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）
+    ⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。
+    ⇒ **同批**落地 ⇒ 新项目**当场就能送审**。
+
+    ## 事务边界
+
+    建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**
+    ⇒ 不会留下「项目建好了但送不了审」的半成品。
+    """
+    require_roles(user, "SYSTEM_ADMIN")
+    workspace = await db.get(Workspace, payload.workspace_id)
+    if workspace is None:
+        # ⚠️ **不建孤儿项目**：`projects.workspace_id` 是 FK ⇒ 指向不存在的工作区
+        # ⇒ 404（明确说「工作区没有」，而不是 500 的 FK 违约）。
+        raise WorkspaceNotFoundError(f"工作区 {payload.workspace_id} 不存在")
+    record = Project(
+        project_no=payload.project_no,
+        project_name=payload.project_name,
+        owner_company=payload.owner_company,
+        location=payload.location,
+        project_type=payload.project_type,
+        design_phase=payload.design_phase,
+        unit_system=payload.unit_system,
+        workspace_id=payload.workspace_id,
+        status=payload.status,
+        product_category=payload.product_category.value,
+    )
+    db.add(record)
+    await db.flush()
+    await SignatureMatrixService.ensure_default_record_matrix(
+        db, project_id=record.project_id
+    )
+    await db.commit()
+    await db.refresh(record)
+    return _to_out(record)
 
 
 @router.get("/{project_id}", response_model=ProjectOut)

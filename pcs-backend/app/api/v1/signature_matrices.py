@@ -52,6 +52,7 @@ from app.schemas.signature_matrix import (
     MatrixBindingResponse,
     MatrixStepResponse,
     MatrixUnbindResponse,
+    ProjectMatrixBindingOut,
     SignatureMatrixListResponse,
     SignatureMatrixRequest,
     SignatureMatrixResponse,
@@ -215,6 +216,56 @@ async def update_signature_matrix(
     # （「没改字段的 PUT」不发 UPDATE ⇒ 反而是绿的 —— 改了必挂、没改假绿。）
     await db.refresh(matrix)
     return _to_response(matrix)
+
+
+@router.get(
+    "/projects/{project_id}/signature-matrices",
+    response_model=list[ProjectMatrixBindingOut],
+    summary="列项目绑定的矩阵（带归一化的步骤）",
+)
+async def list_project_matrix_bindings(
+    project_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> list[ProjectMatrixBindingOut]:
+    """列本项目绑的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。
+
+    ## 为什么需要这个读端点
+
+    T4 的操作栏要判「**矩阵第 1 步的角色 == 当前用户**」⇒ 必须读得到
+    「本项目的 RECORD 矩阵的第 1 步是谁」⇒ 绑定**写**端点早就有了
+    （`POST /projects/{id}/signature-matrices`），但**读**端点此前**不存在**
+    ⇒ 前端拿不到 ⇒ 只能退化成「点了才吃 403」（违背 SPEC §5.1「门禁前置」）。
+
+    ⚠️ **项目没绑 RECORD 矩阵 ⇒ 空列表**（不是 404）⇒ 前端**不猜**
+    （不禁用送审按钮）⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。
+    """
+    require_roles(actor, *_READ_ROLES)
+    await check_project_access_or_404(
+        db, user_id=actor.user_id, project_id=project_id, actor_roles=actor.roles
+    )
+    bindings = await SignatureMatrixService.list_project_bindings(
+        db, project_id=project_id
+    )
+    return [
+        ProjectMatrixBindingOut(
+            module=b.module,
+            matrix_id=b.matrix_id,
+            matrix_name=b.matrix_name,
+            status=b.status,
+            steps=[
+                MatrixStepResponse(
+                    step_order=s.step_order,
+                    sign_role=s.sign_role,
+                    required=s.required,
+                    can_self_check=s.can_self_check,
+                    can_skip=s.can_skip,
+                )
+                for s in b.steps
+            ],
+        )
+        for b in bindings
+    ]
 
 
 @router.post(

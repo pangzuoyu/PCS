@@ -82,6 +82,21 @@ class MatrixStep:
     can_skip: bool = False
 
 
+@dataclass(frozen=True)
+class ProjectMatrixBinding:
+    """项目绑定的矩阵（**带归一化的步骤**）—— P9B-2 · T-1。
+
+    ⚠️ 这是**读面**的形状（不是 ORM 行）⇒ 步骤已由 `parse_steps`
+    归一化 ⇒ 前端不必再解析 `steps_json`（避免第二份解析逻辑）。
+    """
+
+    module: str
+    matrix_id: uuid.UUID
+    matrix_name: str
+    status: str
+    steps: tuple[MatrixStep, ...]
+
+
 class SignatureMatrixService:
     """签署矩阵的**取得**与**解析**（P9A-DLV-007）。"""
 
@@ -93,6 +108,26 @@ class SignatureMatrixService:
 
     #: 内置变更单矩阵的步骤（3 级：校核 / 审核 / 审定）
     DEFAULT_CHANGE_NOTICE_STEPS: tuple[dict[str, object], ...] = (
+        {"step_order": 1, "sign_role": "CHECKER", "required": True},
+        {"step_order": 2, "sign_role": "REVIEWER", "required": True},
+        {"step_order": 3, "sign_role": "APPROVER", "required": True},
+    )
+
+    # ------------------------------------------------------------------
+    # 记录级矩阵（P9B-2 · T-1）
+    # ------------------------------------------------------------------
+
+    #: 内置**记录级**矩阵名（P9B-2 · T-1）
+    #:
+    #: ⚠️ **全局单例**（与 `CHANGE_NOTICE_3_LEVEL` 同形）：固定名 + ACTIVE
+    #: ⇒ 多个项目共用**同一份** ⇒ 「谁该签这一步」只有一个答案。
+    DEFAULT_RECORD_MATRIX_NAME = "DEFAULT_RECORD_3_LEVEL"
+
+    #: 记录级矩阵的模块标识（`ProjectSignatureMatrixBinding.module`）
+    RECORD_MODULE = "RECORD"
+
+    #: 内置记录级矩阵的步骤（3 级：校核 / 审核 / 审定 —— 与变更单同）
+    DEFAULT_RECORD_STEPS: tuple[dict[str, object], ...] = (
         {"step_order": 1, "sign_role": "CHECKER", "required": True},
         {"step_order": 2, "sign_role": "REVIEWER", "required": True},
         {"step_order": 3, "sign_role": "APPROVER", "required": True},
@@ -590,7 +625,12 @@ class SignatureMatrixService:
 
     @classmethod
     async def _ensure_binding(
-        cls, db: AsyncSession, *, project_id: uuid.UUID, matrix_id: uuid.UUID
+        cls,
+        db: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        matrix_id: uuid.UUID,
+        module: str | None = None,
     ) -> ProjectSignatureMatrixBinding:
         """项目 × 模块 的矩阵绑定（**幂等** + 并发安全）。
 
@@ -599,12 +639,16 @@ class SignatureMatrixService:
         撞约束 ⇒ **重读**那一行（而不是 500）——
         没有兜底的话，同一项目同一模块会绑到两个矩阵，
         之后每次解析绑定都 `MultipleResultsFound` ⇒ 该项目的变更单路径永久 500。
+
+        ⚠️ `module` 缺省 = 变更单模块（历史口径）；记录级矩阵走
+        `module='RECORD'`（P9B-2 · T-1）。
         """
+        mod = module if module is not None else cls.CHANGE_NOTICE_MODULE
         binding = (
             await db.execute(
                 select(ProjectSignatureMatrixBinding).where(
                     ProjectSignatureMatrixBinding.project_id == project_id,
-                    ProjectSignatureMatrixBinding.module == cls.CHANGE_NOTICE_MODULE,
+                    ProjectSignatureMatrixBinding.module == mod,
                 )
             )
         ).scalar_one_or_none()
@@ -613,7 +657,7 @@ class SignatureMatrixService:
             return binding
         binding = ProjectSignatureMatrixBinding(
             project_id=project_id,
-            module=cls.CHANGE_NOTICE_MODULE,
+            module=mod,
             matrix_id=matrix_id,
         )
         try:
@@ -636,7 +680,7 @@ class SignatureMatrixService:
                 await db.execute(
                     select(ProjectSignatureMatrixBinding).where(
                         ProjectSignatureMatrixBinding.project_id == project_id,
-                        ProjectSignatureMatrixBinding.module == cls.CHANGE_NOTICE_MODULE,
+                        ProjectSignatureMatrixBinding.module == mod,
                     )
                 )
             ).scalar_one_or_none()
@@ -647,8 +691,122 @@ class SignatureMatrixService:
             return existing
         return binding
 
+    # ------------------------------------------------------------------
+    # 记录级矩阵（P9B-2 · T-1）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def ensure_default_record_matrix(
+        cls, db: AsyncSession, *, project_id: uuid.UUID
+    ) -> SignatureMatrix:
+        """取「项目该用哪个记录级矩阵」，没有就**建出来并绑上**。
+
+        ## 顺序（与 `ensure_change_notice_matrix` 同形，但**不覆盖**）
+
+        1. 项目**已绑定**的 RECORD 矩阵 ⇒ **原样返回**（人工改过的绑定
+           **不被夺走** —— 「谁该签」的决定权不在系统手里）；
+        2. 否则取**全局内置模板** `DEFAULT_RECORD_3_LEVEL`（没有就建）；
+        3. 给项目建**绑定**（若还没有）。
+
+        ⚠️ **为什么不覆盖**：批准链（TODO-054 · R-17）由这份矩阵推导 ⇒
+        系统擅自换一份 ⇒ 用户看到的「该谁批」**无征兆地**变了。
+
+        ⚠️ **不 commit**（事务边界归调用方）。
+
+        Returns:
+            该项目用的记录级签署矩阵。
+        """
+        binding = (
+            await db.execute(
+                select(ProjectSignatureMatrixBinding).where(
+                    ProjectSignatureMatrixBinding.project_id == project_id,
+                    ProjectSignatureMatrixBinding.module == cls.RECORD_MODULE,
+                )
+            )
+        ).scalar_one_or_none()
+        if binding is not None:
+            matrix = await db.get(SignatureMatrix, binding.matrix_id)
+            if matrix is not None:
+                return matrix
+            # ⚠️ 悬空绑定（矩阵行不在）⇒ 继续往下走，把绑定修回默认矩阵
+            #    （FK 理论上不允许，但历史数据可能脏 ⇒ 不让它变成 500）
+        matrix = await cls._get_or_create_default_record_matrix(db)
+        await cls._ensure_binding(
+            db,
+            project_id=project_id,
+            matrix_id=matrix.matrix_id,
+            module=cls.RECORD_MODULE,
+        )
+        return matrix
+
+    @classmethod
+    async def _get_or_create_default_record_matrix(
+        cls, db: AsyncSession
+    ) -> SignatureMatrix:
+        """全局内置记录级模板（**幂等**：有就用，没有才建）。"""
+        matrix = (
+            await db.execute(
+                select(SignatureMatrix).where(
+                    SignatureMatrix.matrix_name == cls.DEFAULT_RECORD_MATRIX_NAME,
+                    SignatureMatrix.status == "ACTIVE",
+                )
+            )
+        ).scalars().first()
+        if matrix is not None:
+            return matrix
+        matrix = SignatureMatrix(
+            matrix_name=cls.DEFAULT_RECORD_MATRIX_NAME,
+            module=cls.RECORD_MODULE,
+            doc_type=cls.RECORD_MODULE,
+            version_purpose="PUBLISHED",
+            steps_json=[dict(s) for s in cls.DEFAULT_RECORD_STEPS],
+            status="ACTIVE",
+        )
+        db.add(matrix)
+        await db.flush()
+        return matrix
+
+    @classmethod
+    async def list_project_bindings(
+        cls, db: AsyncSession, *, project_id: uuid.UUID
+    ) -> list["ProjectMatrixBinding"]:
+        """列项目绑的矩阵（**带归一化的步骤**）。
+
+        ⚠️ **为什么归一化**：前端要的是「第 1 步该谁签」⇒ 直接给
+        `steps_json` 原样 ⇒ 前端得自己再写一份解析逻辑（**第二份真相源**）
+        ⇒ 归一化在后端做一次（`parse_steps` 是**唯一**解析口）。
+
+        ⚠️ 项目**没绑**矩阵 ⇒ **空列表**（不是 404）⇒ 前端**不猜**
+        （不禁用送审按钮）⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。
+        """
+        rows = (
+            await db.execute(
+                select(ProjectSignatureMatrixBinding, SignatureMatrix)
+                .join(
+                    SignatureMatrix,
+                    SignatureMatrix.matrix_id
+                    == ProjectSignatureMatrixBinding.matrix_id,
+                )
+                .where(ProjectSignatureMatrixBinding.project_id == project_id)
+                .order_by(ProjectSignatureMatrixBinding.module)
+            )
+        ).all()
+        out: list[ProjectMatrixBinding] = []
+        for binding, matrix in rows:
+            out.append(
+                ProjectMatrixBinding(
+                    module=binding.module,
+                    matrix_id=matrix.matrix_id,
+                    matrix_name=matrix.matrix_name,
+                    status=matrix.status,
+                    steps=tuple(cls.parse_steps(matrix)),
+                )
+            )
+        return out
+
 
 __all__ = [
     "MatrixStep",
+    "ProjectMatrixBinding",
     "SignatureMatrixService",
 ]

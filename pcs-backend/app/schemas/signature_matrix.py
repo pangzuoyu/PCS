@@ -123,3 +123,23 @@ class MatrixUnbindResponse(BaseModel):
     project_id: uuid.UUID
     module: str
     unbound: bool = Field(description="是否真删了一行（本来就没绑 ⇒ False）")
+
+
+class ProjectMatrixBindingOut(BaseModel):
+    """项目绑定的矩阵（**带归一化的步骤**）—— P9B-2 · T-1。
+
+    ## 为什么步骤是**归一化**的
+
+    前端要的是「第 1 步该谁签」⇒ 直接给 `steps_json` 原样 ⇒ 前端得自己
+    再写一份解析逻辑（**第二份真相源**）⇒ 归一化在后端做一次
+    （`SignatureMatrixService.parse_steps` 是**唯一**解析口）。
+
+    ⇒ 形状与 `SignatureMatrixResponse.steps` **完全一致** ⇒ 前端
+    `SignatureMatrixPage` 显示的与本端点返回的**同一套**。
+    """
+
+    module: str = Field(description="RECORD / STREAM / EQUIP / CHANGE_NOTICE / *")
+    matrix_id: uuid.UUID
+    matrix_name: str
+    status: str = Field(description="矩阵状态（DRAFT/PENDING/ACTIVE/OBSOLETE）")
+    steps: list[MatrixStepResponse]
