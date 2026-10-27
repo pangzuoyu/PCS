@@ -12,6 +12,8 @@ import { http, HttpResponse } from 'msw';
 
 import type { components } from '../types/api';
 
+import { bindRecordMatrix } from './signatureMatrices';
+
 import {
   seedAdminUsers,
   seedDeliverableActions,
@@ -30,6 +32,8 @@ type SubmitApprovalResponse = components['schemas']['SubmitApprovalResponse'];
 type ApprovalStepResponse = components['schemas']['ApprovalStepResponse'];
 type UserDisabledOut = components['schemas']['UserDisabledOut'];
 type AdSyncResultOut = components['schemas']['AdSyncResultOut'];
+type ProjectCreate = components['schemas']['ProjectCreate'];
+type ProjectOut = components['schemas']['ProjectOut'];
 
 function isAuthed(request: Request): boolean {
   return request.headers.get('Authorization') !== null;
@@ -85,24 +89,46 @@ export const signFlowHandlers = [
     if (!isAuthed(request)) {
       return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     }
-    const body = (await request.json()) as { project_no?: string; project_name?: string };
-    if (!body.project_no || !body.project_name) {
+    const body = (await request.json()) as Partial<ProjectCreate>;
+    // ⚠️ **8 个必填字段全都要有**（后端 `ProjectCreate`）⇒ mock 少校验一个
+    //    ⇒ dev 里「漏填业主」也能建出来 ⇒ 真后端 422 ⇒ dev 与生产不一致。
+    const required = [
+      'project_no',
+      'project_name',
+      'owner_company',
+      'location',
+      'project_type',
+      'design_phase',
+      'unit_system',
+      'workspace_id',
+    ] as const;
+    const missing = required.filter((k) => !body[k]);
+    if (missing.length > 0) {
       return HttpResponse.json(
-        { code: 'VALIDATION_ERROR', message: 'project_no / project_name 必填' },
+        {
+          code: 'VALIDATION_ERROR',
+          message: `缺少必填字段：${missing.join(' / ')}`,
+        },
         { status: 422 },
       );
     }
-    return HttpResponse.json(
-      {
-        project_id: `p-${Date.now()}`,
-        project_no: body.project_no,
-        project_name: body.project_name,
-        project_type: 'ENGINEERING',
-        product_category: 'OTHER',
-        electricity_value_type: 'AC_380V',
-      },
-      { status: 201 },
-    );
+    const projectId = `p-${Date.now()}`;
+    // ⚠️ 建项目 ⇒ **自动绑一份 RECORD 矩阵**（后端同事务）⇒ 建完当场能送审。
+    bindRecordMatrix(projectId);
+    const projectOut: ProjectOut = {
+      project_id: projectId,
+      project_no: body.project_no as string,
+      project_name: body.project_name as string,
+      project_type: body.project_type as string,
+      product_category: body.product_category ?? 'OTHER',
+      // ⚠️ 电折标口径是 `product_category` 的**派生态**（后端
+      //    `derive_electricity_value_type`）⇒ REFINING / ETHYLENE 用等价值。
+      electricity_value_type:
+        body.product_category === 'REFINING' || body.product_category === 'ETHYLENE'
+          ? 'AC_380V_EQUIVALENT'
+          : 'AC_380V',
+    };
+    return HttpResponse.json(projectOut, { status: 201 });
   }),
 
   // === 交付物：聚合进度（TODO-065）===

@@ -216,6 +216,8 @@ describe('MainLayout —— 「管理」菜单组（P9B-2 · T7）', () => {
 
     await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
     expect(screen.getByText('用户管理')).toBeTruthy();
+    // ⚠️ 「建项目」也限 SYSTEM_ADMIN（后端 `POST /projects` 同口径）
+    expect(screen.getByText('建项目')).toBeTruthy();
     expect(screen.getByText('审计日志')).toBeTruthy();
     expect(screen.getByText('管理')).toBeTruthy();
   });
@@ -230,6 +232,8 @@ describe('MainLayout —— 「管理」菜单组（P9B-2 · T7）', () => {
 
     await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
     expect(screen.queryByText('用户管理')).toBeNull();
+    // ⚠️ 「建项目」同样**不出现**（建项目 = 管理动作）
+    expect(screen.queryByText('建项目')).toBeNull();
     // ⚠️ 审计日志**对所有角色可见**（tab 内部再按角色禁用）
     expect(screen.getByText('审计日志')).toBeTruthy();
   });

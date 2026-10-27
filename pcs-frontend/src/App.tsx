@@ -45,6 +45,7 @@ import {
   EnergySummaryAggregateRoute,
   AuditLogRoute,
   UserAdminRoute,
+  ProjectAdminRoute,
   ResultListRoute,
   DeliverableProgressRoute,
   SignatureMatrixRoute,
@@ -116,6 +117,8 @@ const router = createBrowserRouter([
       // Audit Query（F-P2-009 Sprint 3 / Issue 7）
       { path: 'audit/logs', element: <AuditLogRoute /> },
       { path: 'admin/users', element: <UserAdminRoute /> },
+      // ⚠️ 「建项目」限 SYSTEM_ADMIN（前端隐藏 + 后端 `POST /projects` 鉴权）
+      { path: 'admin/projects', element: <ProjectAdminRoute /> },
 
       // P9B-1 结果记录（SPEC §6.21：通用页 + 6 个模块描述符）
       { path: 'results/cool-tower', element: <ResultListRoute module="cooling_tower_result" /> },

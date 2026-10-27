@@ -301,6 +301,12 @@ export function UserAdminRoute(): JSX.Element {
   return <UserAdminPage />;
 }
 
+// === ADMIN 建项目（P9B-2 · Batch F）===
+import { ProjectAdminPage } from './admin/ProjectAdminPage';
+export function ProjectAdminRoute(): JSX.Element {
+  return <ProjectAdminPage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);

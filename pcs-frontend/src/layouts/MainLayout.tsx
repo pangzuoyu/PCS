@@ -91,7 +91,13 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
   group('管理', 'admin', [
     // ⚠️ 「用户管理」**按角色显示**（SPEC §5.1「菜单项隐藏」）⇒
     //    SYSTEM_ADMIN 才能看见（三个端点都限 SYSTEM_ADMIN）。
-    ...(isSystemAdmin ? [{ key: '/admin/users', label: '用户管理' }] : []),
+    ...(isSystemAdmin
+      ? [
+          { key: '/admin/users', label: '用户管理' },
+          // ⚠️ 「建项目」也限 SYSTEM_ADMIN（后端 `POST /projects` 同口径）
+          { key: '/admin/projects', label: '建项目' },
+        ]
+      : []),
     { key: '/audit/logs', label: '审计日志' },
   ]),
   group('项目文档', 'docs', [

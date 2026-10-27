@@ -59,6 +59,17 @@ export const seedSignatureMatrices: SignatureMatrix[] = [
 /** 项目 × 模块 → 矩阵（换绑 = 改同一行）。 */
 const bindings = new Map<string, string>([[`${PROJECT_ID}:RECORD`, 'm-2']]);
 
+/**
+ * 给项目绑一份 RECORD 矩阵（建项目时用）。
+ *
+ * ⚠️ 后端 `POST /projects` 在**同一事务**里绑一份 ACTIVE 的 RECORD 矩阵
+ *    ⇒ 建完项目**当场就能送审** ⇒ mock 得跟上一致，否则 dev 里新建的项目
+ *    送不了审（前端「矩阵未绑 ⇒ 送审禁用」的闸会把它挡住）。
+ */
+export function bindRecordMatrix(projectId: string, matrixId = 'm-2'): void {
+  bindings.set(`${projectId}:RECORD`, matrixId);
+}
+
 let counter = 100;
 
 function isAuthed(request: Request): boolean {
