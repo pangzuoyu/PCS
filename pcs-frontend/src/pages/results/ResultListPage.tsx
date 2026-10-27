@@ -28,6 +28,7 @@ import { PROJECT_ID } from '../../constants/env';
 import { ResultEditDrawer } from './ResultEditDrawer';
 import { RecordDetailDrawer } from './RecordDetailDrawer';
 import { ChangeNoticeAction } from './ChangeNoticeAction';
+import { metaApi } from '../../api/meta';
 import type { CommonResultRow, ResultModule } from './resultModules';
 
 /** 行 = 公共字段 + 该模块自己的字段（主键名逐模块不同 ⇒ 只能动态取）。 */
@@ -90,8 +91,34 @@ export function ResultListPage({ module }: Props): JSX.Element {
   const [editing, setEditing] = useState<ResultRow | null>(null);
   /** 详情抽屉打开的那一行（P9B-2 · T5 · SPEC §7.19.1）。 */
   const [detail, setDetail] = useState<ResultRow | null>(null);
+  /**
+   * 「建单 / 作废」允许的角色（来自 `meta/state-machine` 的 `INITIATE_CHANGE`）。
+   *
+   * ⚠️ **页面取一次**（不是每行一次）⇒ 行内按钮也能做**角色闸**（RF-1：
+   * 角色不够 ⇒ 禁用 + 写明原因，别让用户点了吃 403）。
+   * ⚠️ `null` = 还没取到 ⇒ **不禁用**（不猜）⇒ 后端 403 兜底。
+   */
+  const [initiateChangeRoles, setInitiateChangeRoles] = useState<string[] | null>(null);
   /** 动作成功后**重拉列表**（状态变了 ⇒ 按钮必须跟着变）。 */
   const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    // ⚠️ meta **只拉一次**（页面级）⇒ 行内按钮的角色闸不产生 N+1
+    void metaApi
+      .stateMachine()
+      .then((r) => {
+        if (cancelled) return;
+        const t = r.transitions.find((x) => x.action === 'INITIATE_CHANGE');
+        setInitiateChangeRoles(t ? [...t.allowed_roles] : null);
+      })
+      .catch(() => {
+        // ⚠️ 拉不到 ⇒ **不禁用**（前端不知道 ⇒ 不猜）⇒ 后端 403 兜底
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,6 +229,7 @@ export function ResultListPage({ module }: Props): JSX.Element {
         <ChangeNoticeAction
           module={module}
           row={row}
+          allowedRoles={initiateChangeRoles}
           onStatusChange={onStatusChanged}
         />
       </Space>

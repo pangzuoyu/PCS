@@ -33,9 +33,10 @@
  * 旧状态** ⇒ 用户能对同一条记录连点两次 ⇒ 第二次 409。
  */
 import { useState } from 'react';
-import { Button, Form, Input, Modal, Select, message } from 'antd';
+import { Button, Form, Input, Modal, Select, Tooltip, message } from 'antd';
 
 import { extractPcsError } from '../../api/errors';
+import { useAuth } from '../../store/auth';
 import {
   CHANGE_TYPE_LABELS,
   CHANGE_TYPES,
@@ -49,6 +50,14 @@ export type ChangeRow = Record<string, unknown> & { sign_status?: string | null 
 interface Props {
   module: ResultModule;
   row: ChangeRow;
+  /**
+   * 允许执行「建单 / 作废」的**全局角色**（来自 `meta/state-machine` 的
+   * `INITIATE_CHANGE` 转移）。
+   *
+   * ⚠️ `null` = **还不知道**（meta 没拉到）⇒ **不禁用**（不猜）⇒ 后端 403 兜底。
+   * ⚠️ 页面**取一次** meta 传下来 ⇒ 不是每行一次 ⇒ 无 N+1。
+   */
+  allowedRoles?: string[] | null;
   /** 成功后把新状态回传（列表就地更新，不重拉）。 */
   onStatusChange: (recordId: string, nextStatus: string) => void;
 }
@@ -62,14 +71,25 @@ interface ReasonFormValue {
   reason: string;
 }
 
-/** 三个动作的按钮文案（与后端事件名对齐，避免「批准/提交」这类歧义）。 */
+/**
+ * 行内按钮的文案（**只**剩 CHANGED 态）。
+ *
+ * ⚠️ **R-12b**：`CHECKED → 变更申请` 与 `CHANGE_PENDING → 提交变更完成` 是
+ * **状态机事件** ⇒ 归 `RecordActions`（meta 驱动、详情抽屉里）⇒ 行内**不再**
+ * 渲染 ⇒ 同一状态**不会有两个入口**（两份映射 = 用户不知道该点哪个）。
+ * ⇒ 行内只留**两个非状态机动作**：`change-notice`（建单）/ `change-notice/cancel`
+ * （作废）—— 它们都发生在 **CHANGED** 态。
+ */
 const ACTION_TEXT: Record<string, string> = {
-  CHECKED: '变更申请',
-  CHANGE_PENDING: '提交变更完成',
   CHANGED: '创建变更单',
 };
 
-export function ChangeNoticeAction({ module, row, onStatusChange }: Props): JSX.Element | null {
+export function ChangeNoticeAction({
+  module,
+  row,
+  allowedRoles,
+  onStatusChange,
+}: Props): JSX.Element | null {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +98,8 @@ export function ChangeNoticeAction({ module, row, onStatusChange }: Props): JSX.
   const [reasonForm] = Form.useForm<ReasonFormValue>();
   const [noticeForm] = Form.useForm<NoticeFormValue>();
 
+  // ⚠️ **hook 必须在 early return 之前**（React Hooks 规则）
+  const role = useAuth((s) => s.role);
   const status = row.sign_status ?? '';
   const actionText = ACTION_TEXT[status];
   if (!actionText) return null;
@@ -148,11 +170,35 @@ export function ChangeNoticeAction({ module, row, onStatusChange }: Props): JSX.
     }
   }
 
+  // ⚠️ **角色闸**（RF-1）：后端 `change-notice` 的 ACL = `INITIATE_CHANGE` 的
+  //    `allowed_roles` ⇒ 角色不够就别让用户点了 403。
+  const roleOk = !allowedRoles || !role || allowedRoles.includes(role);
+  const roleHint = roleOk
+    ? ''
+    : `当前角色（${role ?? '未知'}）不可执行此操作（需 ${allowedRoles?.join(' / ')}）`;
+
   return (
     <>
-      <Button size="small" onClick={() => void openModal()} data-testid="change-notice-action">
-        {actionText}
-      </Button>
+      <Tooltip title={roleHint}>
+        {/* ⚠️ Tooltip 包 **span**：disabled 的 Button 不派发鼠标事件 */}
+        <span>
+          <Button
+            size="small"
+            onClick={() => void openModal()}
+            disabled={!roleOk}
+            data-testid="change-notice-action"
+          >
+            {actionText}
+          </Button>
+        </span>
+      </Tooltip>
+      {/* ⚠️ antd 的 Tooltip **不把 props 转发到 DOM** ⇒ 禁用原因另外渲染一个
+          节点（视觉隐藏）⇒ 断言能读到「为什么禁用」。 */}
+      {roleHint && (
+        <span style={{ display: 'none' }} data-testid="change-notice-action-hint">
+          {roleHint}
+        </span>
+      )}
       <Modal
         title={openNotice?.has_open_notice ? `作废变更单（${openNotice.doc_no ?? ''}）` : actionText}
         open={open}

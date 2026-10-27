@@ -102,43 +102,66 @@ function buildSpecs(
     },
     ABANDON_CHANGE: {
       label: '放弃变更',
-      reasonRequired: false,
+      // ⚠️ **理由必填**（后端 `ChangeActionRequest.reason` = `min_length=1`）
+      //    ⇒ 空理由直接 **422** ⇒ 此前 `reasonRequired: false` ⇒ 按钮**永远
+      //    点不动**（且「放弃变更」是变更单唯一的退出路径 ⇒ 卡死）。
+      reasonRequired: true,
       run: (reason) => recordActionsApi.abandonChange(module, recordId, reason),
     },
     INITIATE_CHANGE: {
       label: '变更申请',
-      reasonRequired: false,
+      reasonRequired: true,
       run: (reason) => recordActionsApi.initiateChange(module, recordId, reason),
     },
     APPLY_CHANGE: {
       label: '提交变更完成',
-      reasonRequired: false,
+      reasonRequired: true,
       run: (reason) => recordActionsApi.applyChange(module, recordId, reason),
     },
   };
 }
 
 /**
- * 项目绑定的 RECORD 矩阵的**第 1 步角色**缓存。
+ * 项目绑定的 RECORD 矩阵的**整条链**（每一步的角色）缓存。
  *
  * ⚠️ 同一项目只拉一次 ⇒ 不是每行一次 ⇒ 不是 N+1。
  * ⚠️ **只缓存成功的结果** ⇒ 拉失败不缓存（下次重试）。
+ *
+ * ## 为什么是「整条链」而不是「第 1 步」
+ *
+ * 后端 `APPROVAL_SELF_REVIEW_FORBIDDEN` 的判据是「提交人自己的角色出现在链里
+ * **任何一步**」（不是只挡第 1 步 —— 只挡第 1 步会留下「在第 2 步自己批自己」
+ * 的洞）⇒ 前端只挡第 1 步 ⇒ APPROVER 之类的角色点了必吃 403
+ * ⇒ **前端与后端判据不一致 ⇒ 门禁失效**。
+ *
+ * ## 为什么把「没绑矩阵」与「拉失败」分开
+ *
+ * 「没绑」⇒ 前端**知道**（绑定列表里没有 RECORD）⇒ 门禁前置（SPEC V2.2）
+ * ⇒ 禁用 + Tooltip；「拉失败」⇒ 前端**不知道** ⇒ **不猜**（不禁用）⇒ 后端
+ * 422 兜底。两者混成同一个 `null` ⇒ 「没绑」也变成了「不猜」。
  */
-const firstStepRoleCache = new Map<string, string | null>();
+type ChainState =
+  | { kind: 'loading' }
+  | { kind: 'bound'; roles: string[] }
+  | { kind: 'unbound' }
+  | { kind: 'failed' };
 
-async function loadFirstStepRole(projectId: string): Promise<string | null> {
-  if (firstStepRoleCache.has(projectId)) {
-    return firstStepRoleCache.get(projectId) ?? null;
-  }
+const chainCache = new Map<string, ChainState>();
+
+async function loadChain(projectId: string): Promise<ChainState> {
+  const cached = chainCache.get(projectId);
+  if (cached) return cached;
   try {
     const bindings = await signatureMatricesApi.listProjectBindings(projectId);
     const recordBinding = bindings.find((b) => b.module === 'RECORD');
-    const role = recordBinding?.steps?.[0]?.sign_role ?? null;
-    firstStepRoleCache.set(projectId, role);
-    return role;
+    const state: ChainState = recordBinding
+      ? { kind: 'bound', roles: (recordBinding.steps ?? []).map((s) => s.sign_role) }
+      : { kind: 'unbound' };
+    chainCache.set(projectId, state);
+    return state;
   } catch {
     // ⚠️ 拉失败 ⇒ **不禁用**（前端不知道 ⇒ 不猜）⇒ 后端 422/403 兜底
-    return null;
+    return { kind: 'failed' };
   }
 }
 
@@ -154,7 +177,7 @@ export function RecordActions({
   const [metaError, setMetaError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [firstStepRole, setFirstStepRole] = useState<string | null>(null);
+  const [chain, setChain] = useState<ChainState>({ kind: 'loading' });
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
@@ -180,8 +203,8 @@ export function RecordActions({
   useEffect(() => {
     if (!signStatus || !projectId) return;
     let cancelled = false;
-    void loadFirstStepRole(projectId).then((r) => {
-      if (!cancelled) setFirstStepRole(r);
+    void loadChain(projectId).then((c) => {
+      if (!cancelled) setChain(c);
     });
     return () => {
       cancelled = true;
@@ -239,17 +262,24 @@ export function RecordActions({
         );
         const allowedRoles = transition?.allowed_roles ?? [];
         const roleOk = !role || allowedRoles.length === 0 || allowedRoles.includes(role);
-        // ⚠️ **矩阵第 1 步的角色 == 当前用户** ⇒ 送审必吃 403 ⇒ 门禁前置
+        // ⚠️ **链里有你自己的角色** ⇒ 送审必吃 403 ⇒ 门禁前置（判据与后端
+        //    `APPROVAL_SELF_REVIEW_FORBIDDEN` **同口径**：链里**任何一步**）。
         const selfReview =
           action === 'SUBMIT_FOR_CHECK' &&
-          Boolean(firstStepRole) &&
-          firstStepRole === role;
-        const disabled = !roleOk || selfReview || pending === action;
-        const hint = selfReview
-          ? '批准链的第一步就是你自己 ⇒ 不能自己送自己审'
-          : !roleOk
-            ? `当前角色（${role ?? '未知'}）不可执行此操作`
-            : '';
+          chain.kind === 'bound' &&
+          Boolean(role) &&
+          chain.roles.includes(role as string);
+        // ⚠️ **项目没绑 RECORD 矩阵** ⇒ 无法推导批准链 ⇒ 后端必 422
+        //    ⇒ 前端**知道**（绑定列表里没有 RECORD）⇒ 门禁前置（SPEC V2.2）。
+        const chainUnbound = action === 'SUBMIT_FOR_CHECK' && chain.kind === 'unbound';
+        const disabled = !roleOk || selfReview || chainUnbound || pending === action;
+        const hint = chainUnbound
+          ? '项目未绑定记录级签署矩阵 ⇒ 无法推导批准链'
+          : selfReview
+            ? '批准链里有你自己的角色 ⇒ 不能自己送自己审'
+            : !roleOk
+              ? `当前角色（${role ?? '未知'}）不可执行此操作`
+              : '';
         const button = (
           <Button
             key={action}

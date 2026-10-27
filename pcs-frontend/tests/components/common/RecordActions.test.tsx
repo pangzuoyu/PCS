@@ -30,7 +30,8 @@ let lastBody: unknown = null;
 let lastAction = '';
 let metaStatus = 200;
 let matrixStatus = 200;
-let matrixFirstRole: string | null = 'CHECKER';
+/** 项目绑定的 RECORD 矩阵的**步骤角色**（null = 项目**没绑**矩阵）。 */
+let matrixRoles: string[] | null = ['CHECKER'];
 
 const STATE_MACHINE = {
   transitions: [
@@ -102,22 +103,20 @@ const server = setupServer(
     if (matrixStatus !== 200) {
       return HttpResponse.json({ code: 'BOOM', message: '矩阵挂了' }, { status: 500 });
     }
-    if (matrixFirstRole === null) return HttpResponse.json([]);
+    if (matrixRoles === null) return HttpResponse.json([]);
     return HttpResponse.json([
       {
         module: 'RECORD',
         matrix_id: 'm-1',
         matrix_name: '默认记录矩阵',
         status: 'ACTIVE',
-        steps: [
-          {
-            step_order: 1,
-            sign_role: matrixFirstRole,
-            required: true,
-            can_self_check: true,
-            can_skip: false,
-          },
-        ],
+        steps: matrixRoles.map((role, i) => ({
+          step_order: i + 1,
+          sign_role: role,
+          required: true,
+          can_self_check: true,
+          can_skip: false,
+        })),
       },
     ]);
   }),
@@ -134,7 +133,14 @@ const server = setupServer(
   }),
 );
 
-function renderActions(signStatus: string | null, projectId = 'project-1') {
+/**
+ * ⚠️ **每个用例用不同的 projectId** —— `RecordActions` 按项目缓存**整条链**
+ * （模块级 Map ⇒ 避免 N+1）⇒ 共用同一个 projectId 会让**前一个用例的缓存**
+ * 污染后一个（实测：先跑「已绑」再跑「没绑」，后者拿到的是缓存的「已绑」）。
+ */
+let projectSeq = 0;
+
+function renderActions(signStatus: string | null, projectId = `project-${++projectSeq}`) {
   return render(
     <RecordActions
       module={MODULE}
@@ -155,7 +161,7 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
     lastAction = '';
     metaStatus = 200;
     matrixStatus = 200;
-    matrixFirstRole = 'CHECKER';
+    matrixRoles = ['CHECKER'];
     useAuth.setState({ role: 'DESIGNER', accessToken: 'test-token' });
   });
 
@@ -227,7 +233,7 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
 
   it('⚠️ 矩阵第 1 步的角色 == 当前用户 ⇒ 送审**禁用** + Tooltip（RF-2 / RF-16）', async () => {
     useAuth.setState({ role: 'CHECKER' });
-    matrixFirstRole = 'CHECKER';
+    matrixRoles = ['CHECKER'];
     renderActions('DRAFT');
     await waitFor(() => expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK')).toBeTruthy());
     await waitFor(() =>
@@ -239,12 +245,69 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
     expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 
-  it('⚠️ 项目**没绑** RECORD 矩阵 ⇒ **不禁用**（不猜）⇒ 后端 422 兜底', async () => {
-    matrixFirstRole = null;
+  it('⚠️ 项目**没绑** RECORD 矩阵 ⇒ 送审**禁用** + Tooltip（SPEC V2.2 · RF-16）', async () => {
+    // ⚠️ **前端知道**（它刚拉过 `GET /projects/{id}/signature-matrices` ⇒ 返回 []
+    //    ⇒ 没绑）⇒ 门禁前置（SPEC V2.2）⇒ 后端 422 只是兜底。
+    matrixRoles = null;
+    renderActions('DRAFT');
+    await waitFor(() => expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK-hint').textContent).toContain(
+        '未绑定记录级签署矩阵',
+      ),
+    );
+    const btn = screen.getByTestId('record-action-SUBMIT_FOR_CHECK') as HTMLButtonElement;
+    expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(true);
+  });
+
+  it('⚠️ 角色出现在链里**任一步** ⇒ 送审**禁用**（后端判据是「链里任何一步」）', async () => {
+    // ⚠️ 后端 `APPROVAL_SELF_REVIEW_FORBIDDEN` 判的是「提交人自己的角色出现在
+    //    链里**任何一步**」⇒ 前端只挡第 1 步 ⇒ APPROVER/REVIEWER 类用户点了
+    //    必吃 403（前端与后端判据不一致 ⇒ 门禁失效）。
+    // ⚠️ 用 **APPROVER**（链的**第 3 步**）—— REVIEWER 连粗闸都过不了
+    //    （`SUBMIT_FOR_CHECK` 的 allowed_roles 不含 REVIEWER）⇒ 不是这条路径。
+    useAuth.setState({ role: 'APPROVER' });
+    matrixRoles = ['CHECKER', 'REVIEWER', 'APPROVER'];
+    renderActions('DRAFT');
+    await waitFor(() => expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK-hint').textContent).toContain(
+        '自己',
+      ),
+    );
+    const btn = screen.getByTestId('record-action-SUBMIT_FOR_CHECK') as HTMLButtonElement;
+    expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(true);
+  });
+
+  it('⚠️ 角色**不在**链里 ⇒ 送审可用（DESIGNER 不在 CHECKER/REVIEWER/APPROVER 链上）', async () => {
+    useAuth.setState({ role: 'DESIGNER' });
+    matrixRoles = ['CHECKER', 'REVIEWER', 'APPROVER'];
     renderActions('DRAFT');
     await waitFor(() => expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK')).toBeTruthy());
     const btn = screen.getByTestId('record-action-SUBMIT_FOR_CHECK') as HTMLButtonElement;
     expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(false);
+  });
+
+  it('⚠️ 变更类动作 ⇒ **必须填理由**（后端 `ChangeActionRequest.reason` min_length=1 ⇒ 空理由必 422）', async () => {
+    // ⚠️ 此前这三个动作 `reasonRequired: false` ⇒ 前端发 `{"reason": ""}` ⇒
+    //    FastAPI 直接 **422** ⇒ 「放弃变更」在 UI 上**永远点不动**。
+    renderActions('CHECKED');
+    await waitFor(() => expect(screen.getByTestId('record-action-INITIATE_CHANGE')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('record-action-INITIATE_CHANGE'));
+    const ok = await screen.findByTestId('record-action-reason-ok');
+    // ⚠️ 理由为空 ⇒ 确认按钮禁用（前端拦）
+    expect((ok as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId('record-action-reason-input'), {
+      target: { value: '塔径由 3.0 改为 3.5m' },
+    });
+    await waitFor(() =>
+      expect((screen.getByTestId('record-action-reason-ok') as HTMLButtonElement).disabled).toBe(false),
+    );
+    fireEvent.click(screen.getByTestId('record-action-reason-ok'));
+    await waitFor(() => expect(recordCalls).toBe(1));
+    expect(lastAction).toBe('initiate-change');
+    // ⚠️ 理由**非空**（后端 min_length=1）
+    expect((lastBody as { reason?: string }).reason).toBe('塔径由 3.0 改为 3.5m');
   });
 
   it('⚠️ meta 请求失败 ⇒ 显示「无法读取状态机定义」（**不是**空白按钮组）', async () => {
