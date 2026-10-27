@@ -188,6 +188,28 @@ describe('UserAdminPage —— ADMIN 用户管理', () => {
     expect(screen.queryByTestId('admin-notice')).toBeNull();
   });
 
+  it('⚠️ AD 同步 `skipped_empty=true` ⇒ **不是绿色成功条**（什么都没写入）', async () => {
+    // ⚠️ 绿色 success 条 = 「成功」⇒ 用户以为同步过了 ⇒ 真相是「**一个都没写**」。
+    syncResult = {
+      ok: true,
+      created: 0,
+      updated: 0,
+      departed: 0,
+      unmapped: 0,
+      skipped_empty: true,
+      error: null,
+    };
+    render(<UserAdminPage />);
+    await waitFor(() => expect(screen.getByText('张三')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('admin-sync-ad'));
+
+    await waitFor(() => expect(screen.getByTestId('admin-notice')).toBeTruthy());
+    const cls = screen.getByTestId('admin-notice').className;
+    expect(cls).toContain('ant-alert-warning');
+    expect(cls).not.toContain('ant-alert-success');
+  });
+
   it('⚠️ AD 同步 `skipped_empty=true` ⇒ 「枚举到 0 个用户，未做任何写入」（RF-10）', async () => {
     syncResult = {
       ok: true,

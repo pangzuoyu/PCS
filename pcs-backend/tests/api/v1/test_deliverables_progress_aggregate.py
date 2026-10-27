@@ -256,6 +256,40 @@ async def test_customer_approval_proxy_section_uses_deliverable_id(
     assert proxy["workflow_id"] == str(deliverable.deliverable_id)
 
 
+async def test_progress_sections_exclude_rows_of_other_projects(
+    client, auth, db_session, project_id
+):
+    """⚠️ **行级 `project_id` 一致性校验**（批量端点与单条端点同口径）。
+
+    单条端点 `workflow_progress_service.get` 会比对「宿主行的 project」与
+    调用方授权的 project ⇒ 不一致 ⇒ 404 ⇒ **脏数据不会出现在结果里**。
+
+    批量端点（R-16 的一条批量查询）**曾经丢掉了这一步** ⇒ 两个端点对同一份
+    脏数据给**不同答案** ⇒ 前端按聚合端点渲染 ⇒ 把**别的项目**的观测行
+    画进这个交付物的甘特图。
+
+    ⇒ 批量端点也要按 `project_id` 过滤观测行。
+    """
+    deliverable, version = await _make_deliverable(db_session, project_id)
+    assert version is not None
+    # ⚠️ 脏数据：观测行的 project_id = **别的项目**
+    await _seed_progress(
+        db_session,
+        project_id=uuid.uuid4(),
+        workflow_type=WorkflowType.SIGN,
+        workflow_id=version.version_id,
+    )
+
+    resp = await client.get(
+        f"/api/v1/deliverables/{deliverable.deliverable_id}/progress", headers=auth
+    )
+
+    assert resp.status_code == 200, resp.text
+    sign = resp.json()["sections"][0]
+    assert sign["items"] == []
+    assert sign["total"] == 0
+
+
 # ---------------------------------------------------------------------------
 # available / reason（RF-6）
 # ---------------------------------------------------------------------------

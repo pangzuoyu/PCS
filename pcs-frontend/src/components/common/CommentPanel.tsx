@@ -82,7 +82,10 @@ export function CommentPanel({ module, recordId }: CommentPanelProps): JSX.Eleme
     setError(null);
     try {
       const created = await commentsApi.create(module, recordId, text);
-      setItems((prev) => [created, ...prev]);
+      // ⚠️ **追加到末尾**（不是 prepend）—— 后端按 `created_at ASC` 返回
+      //    ⇒ prepend ⇒ 发送后新批注跳到**顶部**、一刷新又回**末尾**
+      //    ⇒ 用户以为「批注丢了」。
+      setItems((prev) => [...prev, created]);
       setTotal((prev) => prev + 1);
       setBody('');
     } catch (err) {

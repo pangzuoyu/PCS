@@ -495,6 +495,17 @@ export function DeliverableProgressPage(): JSX.Element {
                     上面回答「流程到哪一步了」（R-10）。 */}
                 <div data-testid="deliverable-actions">
                   <Typography.Text strong>动作时间线</Typography.Text>
+                  {/* ⚠️ **被截断 ⇒ 明说**（后端默认 limit=200 ⇒ 超出就**静默**
+                      截断 ⇒ 用户以为「就这些」） */}
+                  {actionList && actionList.total > actionList.items.length && (
+                    <Typography.Text
+                      type="secondary"
+                      style={{ marginLeft: 8 }}
+                      data-testid="deliverable-actions-truncated"
+                    >
+                      只显示最近 {actionList.items.length} 条（共 {actionList.total} 条）
+                    </Typography.Text>
+                  )}
                   {detail.actionsError && (
                     <Typography.Text type="danger" data-testid="deliverable-actions-error">
                       {detail.actionsError}

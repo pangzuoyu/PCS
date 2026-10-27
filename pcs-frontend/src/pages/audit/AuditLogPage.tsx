@@ -70,6 +70,9 @@ export function AuditLogPage(): JSX.Element {
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   // ⚠️ 通用 audit tab 的**筛选条件**（P9B-2）—— 直接映射 api 层已有的参数名
   const [auditFilter, setAuditFilter] = useState<ListAuditLogsParams>({});
+  // ⚠️ **已应用**的筛选条件（点「查询」时冻结）—— 导出必须用**它**，
+  //    不是输入框的实时值 ⇒ 否则 CSV 与屏幕上看到的行**对不上**。
+  const [appliedFilter, setAppliedFilter] = useState<ListAuditLogsParams>({});
   const [exporting, setExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   // ⚠️ **服务端分页**（P9B-2 · 延后的 minor）：此前 `limit: 50` 不带 offset +
@@ -126,6 +129,8 @@ export function AuditLogPage(): JSX.Element {
   async function loadAuditLogs(offset: number): Promise<void> {
     setListError(null);
     setLoading(true);
+    // ⚠️ 本次查询用的筛选条件 = **已应用**的筛选条件（冻结）
+    setAppliedFilter(auditFilter);
     try {
       const r = await auditApi.listAuditLogs({
         ...auditFilter,
@@ -157,22 +162,18 @@ export function AuditLogPage(): JSX.Element {
     try {
       const collected: AuditLogItem[] = [];
       let offset = 0;
-      let truncated = false;
       /** 后端说的**结果集总数**（最后一页的 `total`）。 */
       let lastTotal: number | null = null;
       // ⚠️ 最多 25 页 × 200 行 = 5000 行（上限）
       while (offset < EXPORT_LIMIT) {
         const r = await auditApi.listAuditLogs({
-          ...auditFilter,
+          ...appliedFilter,
           limit: EXPORT_PAGE_SIZE,
           offset,
         });
         collected.push(...r.items);
         lastTotal = r.total;
-        if (collected.length >= EXPORT_LIMIT) {
-          truncated = true;
-          break;
-        }
+        if (collected.length >= EXPORT_LIMIT) break;
         if (r.items.length < EXPORT_PAGE_SIZE) break;
         offset += EXPORT_PAGE_SIZE;
       }
@@ -182,6 +183,9 @@ export function AuditLogPage(): JSX.Element {
       //    结果」就是**骗人**。⇒ 对不上就**明说**（用户据此判断能不能用这份
       //    文件当证据）。
       const total = lastTotal;
+      // ⚠️ **截断**的判据是「结果集**比上限还大**」，不是「刚好导满了上限」——
+      //    恰好 5000 行 ⇒ **没截断** ⇒ 误报「已截断」会让用户以为少了数据。
+      const truncatedByLimit = total !== null && total > EXPORT_LIMIT;
       const mismatch = total !== null && collected.length !== total;
       const rows = collected.slice(0, EXPORT_LIMIT).map((i) => [
         // ⚠️ **audit_id（LogID）必须在第一列** —— 同一秒的多条记录靠时间戳分不开
@@ -209,10 +213,10 @@ export function AuditLogPage(): JSX.Element {
       );
       downloadCsv('audit-logs.csv', csv);
       setExportNotice(
-        mismatch
-          ? `已导出 ${rows.length} 行，但与结果集总数（${lastTotal}）**不一致** —— 可能重复 / 漏行，请核对后再当证据用`
-          : truncated
-            ? `已导出前 ${EXPORT_LIMIT} 行（结果集超过上限，已截断）`
+        truncatedByLimit
+          ? `已导出前 ${EXPORT_LIMIT} 行（结果集共 ${total} 行，超过上限，已截断）`
+          : mismatch
+            ? `已导出 ${rows.length} 行，但与结果集总数（${lastTotal}）**不一致** —— 可能重复 / 漏行，请核对后再当证据用`
             : `已导出 ${rows.length} 行（当前筛选条件下的全部结果）`,
       );
     } catch (err: unknown) {
@@ -471,6 +475,17 @@ export function AuditLogPage(): JSX.Element {
                     </Button>
                   </Form.Item>
                 </Form>
+                {/* ⚠️ 输入框改了条件但**没点查询** ⇒ 导出仍按**已应用**的条件
+                    ⇒ 不说清楚 ⇒ 用户以为「填了没生效」。 */}
+                {JSON.stringify(auditFilter) !== JSON.stringify(appliedFilter) && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    data-testid="audit-filter-pending-hint"
+                    message="筛选条件改过但还没点「查询」—— 表格与导出都仍按**上次已应用**的条件。"
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
                 {exportNotice && (
                   <Alert
                     type="info"

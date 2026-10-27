@@ -313,7 +313,16 @@ class DeliverableService:
         rows = (
             await db.execute(
                 select(WorkflowProgress)
-                .where(or_(*conditions))
+                .where(
+                    or_(*conditions),
+                    # ⚠️ **行级 project_id 一致性校验**（与单条端点同口径）——
+                    #    单条端点 `workflow_progress_service.get` 比对「宿主行的
+                    #    project」与调用方授权的 project ⇒ 不一致 ⇒ 404 ⇒ 脏数据
+                    #    **不会**出现在结果里；批量端点曾经漏了这一步 ⇒ 两个端点
+                    #    对同一份脏数据给**不同答案** ⇒ 别的项目的观测行被画进
+                    #    这个交付物的甘特图。
+                    WorkflowProgress.project_id == deliverable.project_id,
+                )
                 .order_by(WorkflowProgress.step_order, WorkflowProgress.progress_id)
             )
         ).scalars().all()

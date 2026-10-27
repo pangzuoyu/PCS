@@ -13,11 +13,16 @@
 
 ⇒ seed 改成**后端生成**的 JSON，本测试逐条比对 ⇒ 漂移即红。
 
-## ⚠️ 跨包耦合 ⇒ **skipif**（不是失败）
+## ⚠️ 跨包耦合 ⇒ **skipif**（不是失败）—— 但**只**在「前端包整个不在」时
 
 本测试读 `pcs-frontend/src/mocks/seed/meta.state-machine.json`
 ⇒ **后端-only 的检出**（只 clone 了 `pcs-backend/`）里没有这个文件 ⇒
 那种检出应当**跳过**，而不是**失败**（否则后端单独跑测试永远是红的）。
+
+⚠️ **但跳过条件只能是「前端包整个不在」** —— 此前条件是「seed 文件不在」
+⇒ seed 文件一旦**改名 / 被删**，整模块 SKIP、exit 0 ⇒ **守卫在无人察觉的
+情况下消失**（而它守的正是「前端按钮与后端状态机漂移」）。
+⇒ 拆成两层：**包不在 ⇒ 跳过**；**包在但文件不在 ⇒ 失败**。
 """
 
 from __future__ import annotations
@@ -34,15 +39,29 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 #: 前端 seed 文件（**相对**路径 ⇒ 不写死绝对路径）
 _SEED_REL = Path("pcs-frontend") / "src" / "mocks" / "seed" / "meta.state-machine.json"
 
+#: 前端**包**目录（相对仓库根）
+_FRONTEND_DIR = _REPO_ROOT / "pcs-frontend"
+
 pytestmark = pytest.mark.skipif(
-    not (_REPO_ROOT / _SEED_REL).is_file(),
-    reason="前端 seed 不在本次检出里（后端-only 检出 ⇒ 跳过，不是失败）",
+    not _FRONTEND_DIR.is_dir(),
+    reason="前端包不在本次检出里（后端-only 检出 ⇒ 跳过，不是失败）",
 )
+
+
+def _seed_path() -> Path:
+    """seed 文件路径（**存在性是守卫的一部分** ⇒ 缺文件 ⇒ 失败，不是跳过）。"""
+    path = _REPO_ROOT / _SEED_REL
+    assert path.is_file(), (
+        f"前端状态机 seed 不见了：{_SEED_REL} —— "
+        "⚠️ 守卫会**整模块跳过**（exit 0）⇒ 前端按钮与后端状态机的漂移"
+        "从此没人抓 ⇒ 恢复这个文件，或同步删掉这条守卫。"
+    )
+    return path
 
 
 def test_frontend_state_machine_seed_matches_backend() -> None:
     """前端 seed 与后端 `get_state_machine()` **逐条一致**。"""
-    seed = json.loads((_REPO_ROOT / _SEED_REL).read_text(encoding="utf-8"))
+    seed = json.loads(_seed_path().read_text(encoding="utf-8"))
     backend = get_state_machine()
 
     assert seed == backend, (
@@ -63,7 +82,7 @@ def test_seed_contains_the_transition_the_handwritten_version_missed() -> None:
     ⚠️ 这条单独立一条：主断言失败时 pytest 只给一个「不相等」⇒ 修的人
     还得自己去 diff ⇒ 把**具体漏了什么**钉在这里，省掉那一步。
     """
-    seed = json.loads((_REPO_ROOT / _SEED_REL).read_text(encoding="utf-8"))
+    seed = json.loads(_seed_path().read_text(encoding="utf-8"))
     pairs = {(t["from"], t["action"]) for t in seed["transitions"]}
     assert ("REVERSAL_PENDING", "OBSOLETE") in pairs, (
         "REVERSAL_PENDING → OBSOLETE 缺失 ⇒ 前端会藏掉「撤销审批中」的作废按钮"

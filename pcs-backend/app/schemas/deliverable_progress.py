@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.workflow_progress import WorkflowProgressItemResponse
 
@@ -61,6 +61,23 @@ class WorkflowProgressSection(BaseModel):
     skipped: int = 0
     failed: int = 0
     items: list[WorkflowProgressItemResponse] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _reason_required_when_unavailable(self) -> WorkflowProgressSection:
+        """`available=false` ⇒ `reason` **必填**（钉进契约，不靠自觉）。
+
+        ⚠️ 「不可用」与「可用但一个节点都没有」在界面上**长得一样** ⇒ 前端只
+        能靠 `reason` 区分 ⇒ `reason` 缺失 ⇒ 用户把「这类流程不存在」读成
+        「流程一个节点都没有」⇒ **静默降级**。
+
+        ⚠️ 校验失败会让响应变成 500（而不是把坏数据发给前端）—— 这是**故意**
+        的：能构造出这种段的服务端代码有 bug，服务端当场炸比前端静默降级好。
+        """
+        if not self.available and not (self.reason or "").strip():
+            raise ValueError(
+                "available=false 时 reason 必填（不得返回空数组冒充「无步骤」）"
+            )
+        return self
 
 
 class DeliverableProgressResponse(BaseModel):

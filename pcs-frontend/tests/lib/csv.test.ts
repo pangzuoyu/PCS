@@ -5,9 +5,9 @@
  * 逗号、引号、**换行**。不转义的话导出的文件会被 Excel 拆成错列 / 破行
  * ⇒ 用户拿到的数据是**残缺的**，而他以为那是全部（RF-11）。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-import { csvCell, csvRow, toCsv } from '../../src/lib/csv';
+import { csvCell, csvRow, toCsv, downloadCsv } from '../../src/lib/csv';
 
 describe('csvCell —— RFC 4180 转义', () => {
   it('普通值原样输出', () => {
@@ -49,6 +49,29 @@ describe('csvCell —— RFC 4180 转义', () => {
   it('⚠️ **正常负数**不加 `\'`（否则数字被当文本）', () => {
     expect(csvCell(-1)).toBe('-1');
     expect(csvCell(-1.5)).toBe('-1.5');
+  });
+});
+
+describe('downloadCsv —— 下载', () => {
+  it('⚠️ `revokeObjectURL` **不在同一个 tick** 撤销（否则下载可能被打断）', async () => {
+    // ⚠️ 浏览器**同步** revoke ⇒ 下载还没开始就把 URL 撤销了 ⇒ 文件下不来。
+    const revoke = vi.fn();
+    const create = vi.fn(() => 'blob:mock');
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = create as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = revoke as unknown as typeof URL.revokeObjectURL;
+    try {
+      downloadCsv('x.csv', 'a,b\r\n1,2');
+      // ⚠️ **当场**不该撤销
+      expect(revoke).not.toHaveBeenCalled();
+      // ⚠️ 下一个 tick 之后才撤销
+      await new Promise((r) => setTimeout(r, 0));
+      expect(revoke).toHaveBeenCalledWith('blob:mock');
+    } finally {
+      URL.createObjectURL = origCreate;
+      URL.revokeObjectURL = origRevoke;
+    }
   });
 });
 

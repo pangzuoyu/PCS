@@ -58,5 +58,7 @@ export function downloadCsv(filename: string, csv: string): void {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // ⚠️ **延后一个 tick 再撤销** —— 同步 revoke 会在浏览器**还没开始下载**时
+  //    把 URL 撤销掉 ⇒ 文件下不来（Firefox / Safari 上尤其明显）。
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

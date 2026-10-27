@@ -31,7 +31,9 @@ export function UserAdminPage(): JSX.Element {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // ⚠️ notice 带**类型**：`skipped_empty`（**什么都没写入**）⇒ warning 条，
+  //    不是绿色 success 条（绿色 = 「成功」⇒ 用户以为同步过了）。
+  const [notice, setNotice] = useState<{ type: 'success' | 'warning'; text: string } | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   // ⚠️ **停用要二次确认**（P9B-2 · 延后的 minor）：停用会**递增 token_version**
@@ -78,7 +80,10 @@ export function UserAdminPage(): JSX.Element {
       // ⚠️ **重新拉列表**（不乐观更新单行）—— 用户要看的 `token_version`
       //    是「已签发的 refresh 全部失效」的凭据（ADR-0046 §⑤）。
       await load();
-      setNotice(`已停用 ${res.username}；token_version = ${res.token_version}`);
+      setNotice({
+        type: 'success',
+        text: `已停用 ${res.username}；token_version = ${res.token_version}`,
+      });
       setPendingDisable(null);
     } catch (err) {
       setErrorMsg(describePcsError(err, '停用失败'));
@@ -100,13 +105,15 @@ export function UserAdminPage(): JSX.Element {
       }
       if (res.skipped_empty) {
         // ⚠️ 枚举到 0 个用户 ⇒ **未做任何写入**（不是「同步成功」）
-        setNotice('枚举到 0 个用户，未做任何写入');
+        setNotice({ type: 'warning', text: '枚举到 0 个用户，未做任何写入' });
         return;
       }
-      setNotice(
-        `AD 同步完成：新建 ${res.created} · 更新 ${res.updated} · 离职 ${res.departed}` +
+      setNotice({
+        type: 'success',
+        text:
+          `AD 同步完成：新建 ${res.created} · 更新 ${res.updated} · 离职 ${res.departed}` +
           (res.unmapped ? ` · 未映射 ${res.unmapped}` : ''),
-      );
+      });
       await load();
     } catch (err) {
       setErrorMsg(describePcsError(err, 'AD 同步失败'));
@@ -145,9 +152,9 @@ export function UserAdminPage(): JSX.Element {
       )}
       {notice && (
         <Alert
-          type="success"
+          type={notice.type}
           showIcon
-          message={notice}
+          message={notice.text}
           data-testid="admin-notice"
           style={{ marginBottom: 16 }}
           closable

@@ -63,6 +63,20 @@ let seenParams: URLSearchParams[] = [];
 let totalRows = 2;
 /** 403 ⇒ 模拟「无权查看」；200 ⇒ 正常。 */
 let auditLogsStatus = 200;
+/** ⚠️ 结果集**总行数**（E5：恰好 5000 ⇒ 不该报「已截断」）。 */
+let auditRowsTotal = 2;
+/** ⚠️ 按需生成行（避免 seed 里放 5000 条）。 */
+function makeRows(offset: number, limit: number) {
+  return Array.from({ length: Math.max(0, Math.min(limit, auditRowsTotal - offset)) }, (_, i) => ({
+    audit_id: `a-${offset + i}`,
+    user_id: 'u-1',
+    action: 'RECORD_EDITED',
+    resource_type: 'cooling_tower_result',
+    resource_id: `r-${offset + i}`,
+    detail_json: { changed_fields: ['duty_kw'] },
+    occurred_at: '2026-10-20T10:00:00Z',
+  }));
+}
 
 const server = setupServer(
   http.get('/api/v1/audit-logs', ({ request }) => {
@@ -83,6 +97,15 @@ const server = setupServer(
         },
         { status: 403 },
       );
+    }
+    if (auditRowsTotal > ITEMS.length) {
+      // ⚠️ 大结果集 ⇒ 按 offset/limit 现生成（E5 的 5000 行场景）
+      return HttpResponse.json({
+        items: makeRows(offset, limit),
+        total: auditRowsTotal,
+        limit,
+        offset,
+      });
     }
     return HttpResponse.json({
       items: offset === 0 ? ITEMS : [],
@@ -167,6 +190,7 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     seenParams = [];
     totalRows = 2;
     auditLogsStatus = 200;
+    auditRowsTotal = 2;
     useAuth.setState({ role: 'SYSTEM_ADMIN', accessToken: 'test-token' });
   });
 
@@ -244,6 +268,55 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     expect(document.querySelector('.ant-alert-close-icon')).toBeNull();
     // ⚠️ **不渲染空表**（空表会被读成「没有审计日志」）
     expect(document.querySelector('.ant-table')).toBeNull();
+  });
+
+  it('⚠️ 恰好 5000 行 ⇒ **不**误报「已截断」', async () => {
+    // ⚠️ 此前 `collected.length >= EXPORT_LIMIT` 就判「已截断」⇒ 结果集**正好**
+    //    5000 行时也会说「已截断」⇒ 用户以为少了数据。
+    auditRowsTotal = 5000;
+    await openAuditLogsTab();
+    fireEvent.click(screen.getByTestId('audit-export-csv'));
+    await waitFor(() => expect(screen.getByTestId('audit-export-notice')).toBeTruthy(), {
+      timeout: 20000,
+    });
+    const notice = screen.getByTestId('audit-export-notice').textContent ?? '';
+    expect(notice).not.toContain('截断');
+    expect(notice).toContain('5000');
+  });
+
+  it('⚠️ 超过 5000 行 ⇒ 明说「已截断」', async () => {
+    auditRowsTotal = 5001;
+    await openAuditLogsTab();
+    fireEvent.click(screen.getByTestId('audit-export-csv'));
+    await waitFor(() => expect(screen.getByTestId('audit-export-notice')).toBeTruthy(), {
+      timeout: 20000,
+    });
+    expect(screen.getByTestId('audit-export-notice').textContent).toContain('截断');
+  });
+
+  it('⚠️ 导出用**已应用**的筛选值（输入框改了但没点「查询」⇒ 不生效）', async () => {
+    // ⚠️ 此前导出用**输入框的实时值** ⇒ CSV 与屏幕上看到的行**对不上**
+    //    ⇒ 用户以为拿到的就是眼前这份数据。
+    await openAuditLogsTab();
+    fireEvent.change(screen.getByTestId('audit-filter-action'), {
+      target: { value: 'NEVER_APPLIED' },
+    });
+    seenParams = [];
+    fireEvent.click(screen.getByTestId('audit-export-csv'));
+    await waitFor(() => expect(blobs.length).toBe(1), { timeout: 20000 });
+    const exportCall = seenParams.filter((p) => p.get('limit') === '200');
+    expect(exportCall.length).toBeGreaterThan(0);
+    expect(exportCall[0]?.get('action')).toBeNull();
+  });
+
+  it('⚠️ 输入框改了筛选但**没点查询** ⇒ 明说导出仍按**已应用**的条件', async () => {
+    // ⚠️ 不给提示的话，用户会以为「我填了条件，导出怎么还是全部？」
+    await openAuditLogsTab();
+    fireEvent.change(screen.getByTestId('audit-filter-action'), {
+      target: { value: 'NEVER_APPLIED' },
+    });
+    await waitFor(() => expect(screen.getByTestId('audit-filter-pending-hint')).toBeTruthy());
+    expect(screen.getByTestId('audit-filter-pending-hint').textContent).toContain('查询');
   });
 
   it('⚠️ 导出**第一列是 `audit_id`（LogID）** ⇒ 能回指原审计行', async () => {

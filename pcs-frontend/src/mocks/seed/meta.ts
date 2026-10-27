@@ -109,7 +109,10 @@ export const metaSeed: {
   //    ⚠️ 手写的那份曾经**漏了** `REVERSAL_PENDING → OBSOLETE` ⇒ 前端把
   //    「撤销审批中」的作废按钮**藏掉**了（用户没法作废一条待批撤销的记录）
   //    —— 这正是「按钮的数据源不是后端生成的」要防的漂移。
-  stateMachine: rawStateMachine as unknown as StateMachineResponse,
+  // ⚠️ **不要 cast**（`as unknown as StateMachineResponse`）—— 那是 seed 唯一的
+  //    **类型级闸门**：cast 一加 ⇒ seed 与契约脱钩 ⇒ 漂移看不见了
+  //    （实测这个 cast 多余 ⇒ 直接赋值可通过 `tsc --strict` ⇒ 闸门留着）。
+  stateMachine: rawStateMachine,
 
   permissions: [
     { role: "DESIGNER", resource: "streams", action: "WRITE", permission_code: "STREAMS.WRITE", frontend_behavior: "show" },

@@ -71,6 +71,8 @@ const DELIVERABLES = [
 
 let aggregateCalls = 0;
 let actionCalls = 0;
+/** 动作时间线的**总条数**（> items.length ⇒ 被截断）。 */
+let actionsTotal = 1;
 /** 单条工作流端点的调用数 —— 受控模式下必须**恒为 0**（R-15）。 */
 let singleProgressCalls = 0;
 /** 聚合端点返回的段（测试按需改写）。 */
@@ -201,19 +203,21 @@ const server = setupServer(
   }),
   http.get('/api/v1/deliverables/:id/actions', ({ params }) => {
     actionCalls += 1;
+    const items = [
+      {
+        action: 'DELIVERABLE_ISSUED',
+        resource_type: 'deliverable',
+        resource_id: String(params.id),
+        actor_user_id: 'u-1',
+        detail_json: '{"version_purpose":"ISSUED_FOR_CONSTRUCTION"}',
+        created_at: '2026-10-20T10:00:00Z',
+      },
+    ];
     return HttpResponse.json({
       deliverable_id: String(params.id),
-      items: [
-        {
-          action: 'DELIVERABLE_ISSUED',
-          resource_type: 'deliverable',
-          resource_id: String(params.id),
-          actor_user_id: 'u-1',
-          detail_json: '{"version_purpose":"ISSUED_FOR_CONSTRUCTION"}',
-          created_at: '2026-10-20T10:00:00Z',
-        },
-      ],
-      total: 1,
+      items,
+      // ⚠️ `total` 与 `items.length` 不一致 ⇒ 被**截断**（后端默认 limit=200）
+      total: actionsTotal,
     });
   }),
   // ⚠️ 单条工作流端点 —— 受控模式下**不得**被调用（R-15）
@@ -231,6 +235,7 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     actionCalls = 0;
     singleProgressCalls = 0;
     sections = DEFAULT_SECTIONS;
+    actionsTotal = 1;
     listStatus = 200;
     usePerIdSections = false;
   });
@@ -368,6 +373,20 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(screen.getByTestId('deliverable-action-item').textContent).toContain(
       'version_purpose',
     );
+  });
+
+  it('⚠️ 动作时间线**被截断** ⇒ 明说「只显示前 N 条（共 M 条）」', async () => {
+    // ⚠️ 后端默认 limit=200 ⇒ 超过 200 条时**静默截断** ⇒ 用户以为「就这些」。
+    actionsTotal = 250;
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByTestId('deliverable-actions')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId('deliverable-actions-truncated')).toBeTruthy(),
+    );
+    const hint = screen.getByTestId('deliverable-actions-truncated').textContent ?? '';
+    expect(hint).toContain('250');
   });
 
   it('⚠️ 动作时间线空态是「尚无动作记录」（**不是**「尚无编辑记录」—— R-10）', async () => {
