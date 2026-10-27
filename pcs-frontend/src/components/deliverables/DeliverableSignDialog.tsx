@@ -237,7 +237,8 @@ export function DeliverableSignDialog({
       title={`${TITLES[mode]} —— ${deliverable.doc_no} ${deliverable.title}`}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      // ⚠️ antd 5.29 起 `destroyOnClose` 已弃用（**控制台报错**）⇒ 用 `destroyOnHidden`
+      destroyOnHidden
       data-testid="deliverable-sign-dialog"
     >
       {error && (
