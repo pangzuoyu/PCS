@@ -13,13 +13,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * 401 里**表示会话结束**的错误码。
+ *
+ * ⚠️ **不是所有 401 都是会话过期** —— 代录客户批准的**二次认证**失败
+ * （AD 密码打错）也是 401（`SECONDARY_AUTH_FAILED`）⇒ 一律登出会把用户**踢回
+ * 登录页**、填好的凭证/客户批准人/日期**全丢**，而且**看不到**「用户名或密码
+ * 错误」⇒ 只有**会话码**才清 session。
+ */
+const SESSION_OVER_CODES = new Set([
+  'MISSING_BEARER',
+  'INVALID_TOKEN',
+  'EXPIRED_TOKEN',
+  'WRONG_TOKEN_TYPE',
+  'INVALID_REFRESH',
+  'EXPIRED_REFRESH',
+]);
+
 api.interceptors.response.use(
   (r) => r,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
-      useAuth.getState().clearSession();
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      const code = (err.response.data as { code?: string } | undefined)?.code;
+      // ⚠️ **没有 code** ⇒ 不知道是什么 401 ⇒ 按会话过期处理（旧行为）
+      if (!code || SESSION_OVER_CODES.has(code)) {
+        useAuth.getState().clearSession();
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(err);

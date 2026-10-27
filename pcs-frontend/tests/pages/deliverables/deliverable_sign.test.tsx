@@ -110,6 +110,8 @@ let lastSignBody: Record<string, unknown> | null = null;
 let lastIssueBody: Record<string, unknown> | null = null;
 /** 代录端点是否失败（失败 ⇒ 弹窗要显示后端原文）。 */
 let proxyFails = false;
+/** 代录端点是否返 **401**（二次认证失败 ⇒ **不是**会话过期！）。 */
+let proxyUnauthorized = false;
 /** 版本快照端点是否失败（失败 ⇒ 「读不到步骤」，**不是**「没有步骤」）。 */
 let snapshotFails = false;
 
@@ -180,6 +182,13 @@ const server = setupServer(
   http.post('/api/v1/deliverables/:id/customer-approval/proxy', async ({ request }) => {
     proxyCalls += 1;
     await request.json();
+    if (proxyUnauthorized) {
+      // ⚠️ **二次认证失败**（AD 密码打错）⇒ 401，但**会话没过期**
+      return HttpResponse.json(
+        { code: 'SECONDARY_AUTH_FAILED', message: '用户名或密码错误' },
+        { status: 401 },
+      );
+    }
     if (proxyFails) {
       return HttpResponse.json(
         { code: 'CREDENTIAL_FILE_NOT_FOUND', message: '代录失败：凭证文件不存在' },
@@ -212,6 +221,7 @@ describe('交付物级签署写面（T8）', () => {
     lastSignBody = null;
     lastIssueBody = null;
     proxyFails = false;
+    proxyUnauthorized = false;
     snapshotFails = false;
     useAuth.setState({ role: 'DESIGNER', accessToken: 'test-token' });
   });
@@ -324,6 +334,41 @@ describe('交付物级签署写面（T8）', () => {
     await waitFor(() => expect(screen.getByTestId('sign-context-error')).toBeTruthy());
     // ⚠️ 不得说「没有待签的步骤」—— 那会让用户以为**签完了**
     expect(screen.queryByTestId('sign-no-step')).toBeNull();
+  });
+
+  it('⚠️ 代录 **401**（二次认证失败）⇒ 显示原文 + **不登出**（会话没过期！）', async () => {
+    // ⚠️ axios 拦截器此前对**任何** 401 都 clearSession + 跳登录 ⇒ AD 密码打错
+    //    ⇒ 用户被踢回登录页、填好的凭证全丢、且**看不到**「用户名或密码错误」。
+    proxyUnauthorized = true;
+    await renderPage();
+
+    fireEvent.click(screen.getByTestId('deliverable-proxy-d-pending'));
+    await waitFor(() => expect(screen.getByTestId('proxy-submit')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('proxy-file-path'), {
+      target: { value: 'approvals/customer.pdf' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-file-name'), {
+      target: { value: 'customer.pdf' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-approver-name'), {
+      target: { value: '客户方 张三' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-approval-date'), {
+      target: { value: '2026-10-20' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-secondary-username'), {
+      target: { value: 'zhangsan' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-secondary-password'), {
+      target: { value: 'wrong' },
+    });
+    fireEvent.click(screen.getByTestId('proxy-submit'));
+
+    await waitFor(() => expect(proxyCalls).toBe(1));
+    await waitFor(() => expect(screen.getByTestId('sign-dialog-error')).toBeTruthy());
+    expect(screen.getByTestId('sign-dialog-error').textContent).toContain('用户名或密码错误');
+    // ⚠️ **会话还在**（不是登录过期 ⇒ 不该清 session）
+    expect(useAuth.getState().accessToken).toBe('test-token');
   });
 
   it('⚠️ 「代录」⇒ 失败时显示后端 `message` **原文**（不得显示成功）', async () => {

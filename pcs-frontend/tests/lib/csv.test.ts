@@ -38,6 +38,14 @@ describe('csvCell —— RFC 4180 转义', () => {
     expect(csvCell('@SUM(A1)')).toBe("'@SUM(A1)");
   });
 
+  it('⚠️ **tab / CR 开头**也是注入向量（Excel 会忽略前导 tab/CR）', () => {
+    // ⚠️ Excel / LibreOffice **忽略前导的 tab / CR** ⇒ `\t=1+1` 照样被当公式
+    //    求值 ⇒ 只挡 `=`/`+`/`-`/`@` 四个前缀**不够**。
+    expect(csvCell('\t=1+1')).toBe("'\t=1+1");
+    // ⚠️ CR 触发 RFC 4180 的**加引号**（CR 是必须加引号的字符）⇒ 输出带引号
+    expect(csvCell('\r=1+1')).toBe('"\'\r=1+1"');
+  });
+
   it('⚠️ **正常负数**不加 `\'`（否则数字被当文本）', () => {
     expect(csvCell(-1)).toBe('-1');
     expect(csvCell(-1.5)).toBe('-1.5');

@@ -21,7 +21,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 #: VersionPurpose 13 值（合并数据字典逐字）。
 #: 新增值要同时改字典、本常量与 `SignatureMatrix.version_purpose` 的取值。
@@ -78,7 +78,14 @@ SignDecision = Literal["SIGN", "RETURN", "SKIP"]
 
 
 class SignStepRequest(BaseModel):
-    """推进签署矩阵某一步的请求体。"""
+    """推进签署矩阵某一步的请求体。
+
+    ⚠️ `extra="forbid"`：字段名拼错（如 `reasn`）⇒ **422**，而不是被
+    **静默丢弃** ⇒ 退回会**没有理由**（「作者不知道要改什么」这个场景又回来）
+    ⇒ 且**没有任何报错**。与 `SubmitApprovalRequest` 同一口径。
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     version_id: uuid.UUID = Field(description="被签的版本行")
     step_index: int = Field(ge=1, description="步骤序号，1 起")

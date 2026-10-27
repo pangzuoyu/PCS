@@ -79,7 +79,12 @@ async def list_audit_logs(
         await db.execute(
             select(AuditLog)
             .where(where_clause)
-            .order_by(AuditLog.occurred_at.desc())
+            # ⚠️ **必须有 tiebreaker**（`audit_id`）：`occurred_at` 是
+            #    `server_default=func.now()` = **事务时间** ⇒ 同一次 AD 同步写的
+            #    N 条审计**时间戳完全相同** ⇒ 并列行的 OFFSET 分页在 Postgres 里
+            #    **顺序不稳定** ⇒ 同一行跨页出现两次、另一行永远不出现 ⇒ 导出
+            #    的 CSV 行数 ≠ 结果集行数（前端已加核对 + 明说）。
+            .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -217,7 +222,12 @@ async def list_config_audit(
         await db.execute(
             select(AuditLog)
             .where(where_clause)
-            .order_by(AuditLog.occurred_at.desc())
+            # ⚠️ **必须有 tiebreaker**（`audit_id`）：`occurred_at` 是
+            #    `server_default=func.now()` = **事务时间** ⇒ 同一次 AD 同步写的
+            #    N 条审计**时间戳完全相同** ⇒ 并列行的 OFFSET 分页在 Postgres 里
+            #    **顺序不稳定** ⇒ 同一行跨页出现两次、另一行永远不出现 ⇒ 导出
+            #    的 CSV 行数 ≠ 结果集行数（前端已加核对 + 明说）。
+            .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())
             .limit(limit)
             .offset(offset)
         )

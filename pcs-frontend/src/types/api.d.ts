@@ -16693,6 +16693,10 @@ export interface components {
         /**
          * SignStepRequest
          * @description 推进签署矩阵某一步的请求体。
+         *
+         *     ⚠️ `extra="forbid"`：字段名拼错（如 `reasn`）⇒ **422**，而不是被
+         *     **静默丢弃** ⇒ 退回会**没有理由**（「作者不知道要改什么」这个场景又回来）
+         *     ⇒ 且**没有任何报错**。与 `SubmitApprovalRequest` 同一口径。
          */
         SignStepRequest: {
             /**

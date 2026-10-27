@@ -162,6 +162,8 @@ export function AuditLogPage(): JSX.Element {
       const collected: AuditLogItem[] = [];
       let offset = 0;
       let truncated = false;
+      /** 后端说的**结果集总数**（最后一页的 `total`）。 */
+      let lastTotal: number | null = null;
       // ⚠️ 最多 25 页 × 200 行 = 5000 行（上限）
       while (offset < EXPORT_LIMIT) {
         const r = await auditApi.listAuditLogs({
@@ -170,6 +172,7 @@ export function AuditLogPage(): JSX.Element {
           offset,
         });
         collected.push(...r.items);
+        lastTotal = r.total;
         if (collected.length >= EXPORT_LIMIT) {
           truncated = true;
           break;
@@ -177,6 +180,13 @@ export function AuditLogPage(): JSX.Element {
         if (r.items.length < EXPORT_PAGE_SIZE) break;
         offset += EXPORT_PAGE_SIZE;
       }
+      // ⚠️ **与后端 `total` 核对**（RF-11）：后端按 `occurred_at DESC` 排序、
+      //    **无 tiebreaker** ⇒ 并列行的 OFFSET 分页**不稳定** ⇒ 同一行可能跨页
+      //    出现两次、另一行永远不出现 ⇒ 导出行数 ≠ 结果集行数 ⇒ 文案写「全部
+      //    结果」就是**骗人**。⇒ 对不上就**明说**（用户据此判断能不能用这份
+      //    文件当证据）。
+      const total = lastTotal;
+      const mismatch = total !== null && collected.length !== total;
       const rows = collected.slice(0, EXPORT_LIMIT).map((i) => [
         i.occurred_at,
         i.action,
@@ -192,9 +202,11 @@ export function AuditLogPage(): JSX.Element {
       );
       downloadCsv('audit-logs.csv', csv);
       setExportNotice(
-        truncated
-          ? `已导出前 ${EXPORT_LIMIT} 行（结果集超过上限，已截断）`
-          : `已导出 ${rows.length} 行（当前筛选条件下的全部结果）`,
+        mismatch
+          ? `已导出 ${rows.length} 行，但与结果集总数（${lastTotal}）**不一致** —— 可能重复 / 漏行，请核对后再当证据用`
+          : truncated
+            ? `已导出前 ${EXPORT_LIMIT} 行（结果集超过上限，已截断）`
+            : `已导出 ${rows.length} 行（当前筛选条件下的全部结果）`,
       );
     } catch (err: unknown) {
       setErrorMsg(

@@ -740,3 +740,33 @@ class TestSignStepReason:
         await db_session.refresh(v)
         signatures = (v.signature_summary_json or {}).get("signatures", [])
         assert "reason" not in signatures[-1]
+
+
+class TestSignStepRequestStrict:
+    """请求体**多传/拼错**字段 ⇒ 422（不是静默丢弃）。"""
+
+    async def test_unknown_field_is_422(self, client, auth, db_session, project_id):
+        d, v = await _issued(db_session, project_id)
+
+        resp = await client.post(
+            f"/api/v1/deliverables/{d.deliverable_id}/sign-step",
+            headers=auth,
+            # ⚠️ `reasn` 拼错 ⇒ 若被静默丢弃 ⇒ 退回**没有理由**且无报错
+            json={
+                "version_id": str(v.version_id),
+                "step_index": 1,
+                "decision": "RETURN",
+                "reasn": "P&ID 缺 E-101",
+            },
+        )
+
+        assert resp.status_code == 422, resp.text
+
+    async def test_known_fields_are_accepted(self, client, auth, db_session, project_id):
+        d, v = await _issued(db_session, project_id)
+
+        resp = await _sign(
+            client, auth, d.deliverable_id, v.version_id, decision="RETURN", reason="缺 E-101"
+        )
+
+        assert resp.status_code == 200, resp.text

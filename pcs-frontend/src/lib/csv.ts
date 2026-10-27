@@ -21,8 +21,10 @@
 export function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
   const raw = String(value);
-  // ⚠️ 公式注入：非数字的 `=`/`+`/`-`/`@` 开头 ⇒ 前置 `'`（Excel 当文本）
-  const safe = /^[=+\-@]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw) ? `'${raw}` : raw;
+  // ⚠️ 公式注入：非数字的 `=`/`+`/`-`/`@` 开头 ⇒ 前置 `'`（Excel 当文本）。
+  // ⚠️ **tab / CR 也要算**：Excel / LibreOffice 会**忽略前导的 tab / CR** ⇒
+  //    `\t=1+1` 照样被当公式求值 ⇒ 注入向量不止 4 个前缀。
+  const safe = /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw) ? `'${raw}` : raw;
   if (/[",\r\n]/.test(safe)) {
     return `"${safe.replace(/"/g, '""')}"`;
   }

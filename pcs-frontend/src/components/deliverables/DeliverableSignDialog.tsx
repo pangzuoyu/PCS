@@ -74,6 +74,14 @@ export interface DeliverableSignDialogProps {
    * 前者让用户以为**没有步骤** ⇒ 找错人、也找不到人。
    */
   contextError?: string | null;
+  /**
+   * 宿主**正在**读签署上下文（版本快照 + 进度）。
+   *
+   * ⚠️ **加载中 ≠ 没有步骤** —— 弹窗一打开 `nextStep` 还是 null ⇒ 若直接渲染
+   * 「该交付物没有待签的步骤」，慢网下这句话挂几百 ms ⇒ 用户读成「已经签完了 /
+   * 没有矩阵」⇒ **关掉弹窗、不再签**。
+   */
+  loading?: boolean;
   onClose: () => void;
   /** 成功后由宿主**重新拉数据**（不乐观更新）。 */
   onDone: () => void;
@@ -104,6 +112,7 @@ export function DeliverableSignDialog({
   nextStep,
   role,
   contextError,
+  loading = false,
   onClose,
   onDone,
 }: DeliverableSignDialogProps): JSX.Element {
@@ -286,7 +295,12 @@ export function DeliverableSignDialog({
 
       {mode === 'sign' && (
         <Space direction="vertical" style={{ width: '100%' }}>
-          {nextStep ? (
+          {loading && !nextStep ? (
+            // ⚠️ **加载中**（不是「没有待签的步骤」）
+            <Typography.Text data-testid="sign-context-loading">
+              正在读取签署步骤…
+            </Typography.Text>
+          ) : nextStep ? (
             <>
               <Typography.Text strong data-testid="sign-next-step">
                 第 {nextStep.step_index} 步 · {nextStep.sign_role}

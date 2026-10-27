@@ -52,6 +52,39 @@ import type { components } from '../../types/api';
 type Deliverable = components['schemas']['DeliverableResponse'];
 type DeliverableList = components['schemas']['DeliverableListResponse'];
 
+/** 某个交付物的详情（进度 + 动作时间线 + 各自的错误）。 */
+interface DetailState {
+  loading: boolean;
+  error: string | null;
+  progress: DeliverableProgressResponse | null;
+  actionList: DeliverableActionsListResponse | null;
+  /** 进度**单独**失败（动作时间线仍可用）⇒ 只说那一块。 */
+  progressError: string | null;
+  /** 动作时间线**单独**失败。 */
+  actionsError: string | null;
+}
+
+const EMPTY_DETAIL: DetailState = {
+  loading: false,
+  error: null,
+  progress: null,
+  actionList: null,
+  progressError: null,
+  actionsError: null,
+};
+
+/** 取后端错误原文（`{code, message}` 信封）—— 前端不自造文案。 */
+function errorText(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: { code?: string; message?: string } } }).response
+      ?.data;
+    if (data?.message) {
+      return data.code ? `${data.code}：${data.message}` : data.message;
+    }
+  }
+  return fallback;
+}
+
 /** 段标题（与 `workflowTabs` 的词表一致）。 */
 const SECTION_LABELS: Record<string, string> = {
   SIGN: '签署进度',
@@ -67,18 +100,27 @@ export function DeliverableProgressPage(): JSX.Element {
   // ⇒ 用户以为「就这些」。⇒ 走 limit/offset（后端上限 500）。
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  /** 当前展开的交付物（行展开才拉 ⇒ 不预取）。 */
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<DeliverableProgressResponse | null>(null);
-  const [actionList, setActionList] = useState<DeliverableActionsListResponse | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  /**
+   * **展开的交付物 id 集合**（多行可同时展开）。
+   *
+   * ⚠️ 此前是**单个** `expandedId` + `expandedRowRender` **忽略 `record`** ⇒
+   *    A、B 两行**同时**展开时，两行渲染的是**同一份** state ⇒ **A 行下面显示的
+   *    是 B 的签署进度**（doc_no 都对不上）；收起 B 后 A 行还展开着却显示
+   *    「尚无进度信息」⇒ 按 id 索引才治得住。
+   */
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  /** 每个交付物**各自**的详情（按 id 索引 ⇒ 多行不串）。 */
+  const [details, setDetails] = useState<Record<string, DetailState>>({});
+  /** 列表**加载失败**的原因（403 ⇒ 「无权查看」**不是**空表）。 */
+  const [listError, setListError] = useState<string | null>(null);
   // ⚠️ **写面**（P9B-2 · T8）：签发 / 签署 / 代录
   const [dialogMode, setDialogMode] = useState<SignDialogMode | null>(null);
   const [dialogTarget, setDialogTarget] = useState<Deliverable | null>(null);
   const [nextStep, setNextStep] = useState<SignNextStep | null>(null);
   /** 读签署上下文（版本快照 + 进度）失败时的原因 —— **不得**与「没有步骤」混淆。 */
   const [contextError, setContextError] = useState<string | null>(null);
+  /** 正在读签署上下文（⇒ 弹窗显示「读取中」，**不是**「没有待签的步骤」）。 */
+  const [contextLoading, setContextLoading] = useState(false);
   /** 列表刷新令牌（写操作成功后 ⇒ 重新拉列表，不乐观更新）。 */
   const [reloadToken, setReloadToken] = useState(0);
   const role = useAuth((s) => s.role);
@@ -95,10 +137,13 @@ export function DeliverableProgressPage(): JSX.Element {
         setItems(res.data.items ?? []);
         setTotal(res.data.total ?? 0);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelled) {
           setItems([]);
           setTotal(0);
+          // ⚠️ **403 ≠ 「没有交付物」** —— 空表会被读成「这个项目没有交付物」
+          //    （真相是「你没权限」）⇒ 说清是权限问题（RF-12）。
+          setListError(errorText(err, '无法读取该项目的交付物'));
         }
       })
       .finally(() => {
@@ -110,53 +155,58 @@ export function DeliverableProgressPage(): JSX.Element {
   }, [page, pageSize, reloadToken]);
 
   // ⚠️ **行展开才拉**（列表加载时**不**预取）⇒ 无 N+1。
+  //    ⇒ 每个展开的行**各自**拉一次（互不影响 ⇒ 多行不串）。
   useEffect(() => {
-    if (!expandedId) {
-      setProgress(null);
-      setActionList(null);
-      return;
-    }
-    let cancelled = false;
-    setDetailLoading(true);
-    setDetailError(null);
-    void Promise.all([
-      deliverablesApi.progress(expandedId),
-      deliverablesApi.actions(expandedId),
-    ])
-      .then(([p, a]) => {
-        if (cancelled) return;
-        setProgress(p);
-        setActionList(a);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setProgress(null);
-          setActionList(null);
-          setDetailError('无法读取该交付物的进度');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [expandedId]);
+    expandedIds.forEach((id) => {
+      if (id in details) return; // 已拉过 ⇒ 不重复拉
+      void loadDetail(id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedIds]);
+
+  /**
+   * 拉某个交付物的详情（进度 + 动作时间线）。
+   *
+   * ⚠️ **两个数据源各自成败**（不是 `Promise.all`）—— 动作时间线挂掉不该把
+   *    **已经取回的签署进度**一起拖下水（用户连进度都看不到）。
+   */
+  async function loadDetail(id: string): Promise<void> {
+    setDetails((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? EMPTY_DETAIL), loading: true, error: null },
+    }));
+    const [p, a] = await Promise.allSettled([
+      deliverablesApi.progress(id),
+      deliverablesApi.actions(id),
+    ]);
+    setDetails((prev) => ({
+      ...prev,
+      [id]: {
+        loading: false,
+        progress: p.status === 'fulfilled' ? p.value : null,
+        actionList: a.status === 'fulfilled' ? a.value : null,
+        // ⚠️ 只在**两个都失败**时才算「读不到」；单个失败 ⇒ 那一块显示自己的错
+        error:
+          p.status === 'rejected' && a.status === 'rejected'
+            ? '无法读取该交付物的进度'
+            : null,
+        progressError: p.status === 'rejected' ? '无法读取该交付物的签署进度' : null,
+        actionsError: a.status === 'rejected' ? '无法读取该交付物的动作时间线' : null,
+      },
+    }));
+  }
 
   /**
    * 写操作成功 ⇒ **重新拉数据**（不乐观更新）。
    *
-   * ⚠️ 重新拉**该行的进度**（计划 T8 断言 4）⇒ 步骤推进看得见；
+   * ⚠️ 重新拉**该行的进度 + 动作时间线**（计划 T8 断言 4）⇒ 步骤推进看得见、
+   *    刚发生的动作也看得见（只重拉进度 ⇒ 动作时间线停在旧状态 ⇒ 用户签完
+   *    **看不到自己签过**）；
    * ⚠️ 重新拉**列表**（`current_version_id` / `sign_status` 变了）。
    */
   function refreshAfterAction(target: Deliverable): void {
     setReloadToken((t) => t + 1);
-    void deliverablesApi
-      .progress(target.deliverable_id)
-      .then((p) => {
-        if (expandedId === target.deliverable_id) setProgress(p);
-      })
-      .catch(() => {/* 进度拉不到 ⇒ 展开时再拉 */});
+    void loadDetail(target.deliverable_id);
   }
 
   function openIssue(row: Deliverable): void {
@@ -184,9 +234,11 @@ export function DeliverableProgressPage(): JSX.Element {
     setDialogTarget(row);
     setNextStep(null);
     setContextError(null);
+    setContextLoading(true);
     setDialogMode('sign');
     if (!row.current_rev) {
       setContextError('该交付物尚无版本（没有版本就没有可签的步骤）');
+      setContextLoading(false);
       return;
     }
     try {
@@ -200,6 +252,8 @@ export function DeliverableProgressPage(): JSX.Element {
       setNextStep(null);
       // ⚠️ **读不到 ≠ 没有** —— 说清是「读不到」
       setContextError('无法读取该交付物的签署步骤（网络 / 权限 / 交付物不存在）');
+    } finally {
+      setContextLoading(false);
     }
   }
 
@@ -290,6 +344,14 @@ export function DeliverableProgressPage(): JSX.Element {
   return (
     <div data-testid="deliverable-progress-page">
       <PageHeader title="交付物签署进度" actions={<span />} />
+      {/* ⚠️ **列表加载失败 ⇒ 不渲染表格**（渲染空表会被读成「这个项目没有
+          交付物」；真相可能是「你没权限」⇒ 403 ≠ 空表，RF-12）。 */}
+      {listError && (
+        <Typography.Text type="danger" data-testid="deliverable-list-error">
+          {listError}
+        </Typography.Text>
+      )}
+      {!listError && (
       <Table<Deliverable>
         rowKey="deliverable_id"
         columns={columns}
@@ -316,17 +378,25 @@ export function DeliverableProgressPage(): JSX.Element {
         //    （antd 的 `Modal` 走 portal ⇒ 放在 Table 外面更稳）
         expandable={{
           onExpand: (expanded, record) => {
-            // ⚠️ **行展开才拉**（列表加载时不预取）
-            setExpandedId(expanded ? String(record.deliverable_id) : null);
+            // ⚠️ **行展开才拉**（列表加载时不预取）⇒ 无 N+1。
+            //    ⚠️ **多行可同时展开** ⇒ 集合（不是单个 id）⇒ 每行各显示各的。
+            const id = String(record.deliverable_id);
+            setExpandedIds((prev) =>
+              expanded ? [...new Set([...prev, id])] : prev.filter((x) => x !== id),
+            );
           },
-          expandedRowRender: () => {
-            if (detailLoading) {
+          expandedRowRender: (record) => {
+            // ⚠️ **按行取**（此前忽略 `record` ⇒ 所有展开行渲染同一份 state）
+            const detail = details[String(record.deliverable_id)] ?? EMPTY_DETAIL;
+            const progress = detail.progress;
+            const actionList = detail.actionList;
+            if (detail.loading) {
               return <Spin data-testid="deliverable-progress-loading" />;
             }
-            if (detailError) {
+            if (detail.error) {
               return (
                 <Typography.Text type="danger" data-testid="deliverable-progress-error">
-                  {detailError}
+                  {detail.error}
                 </Typography.Text>
               );
             }
@@ -340,6 +410,11 @@ export function DeliverableProgressPage(): JSX.Element {
             }
             return (
               <div data-testid="deliverable-progress-panel">
+                {detail.progressError && (
+                  <Typography.Text type="danger" data-testid="deliverable-progress-error">
+                    {detail.progressError}
+                  </Typography.Text>
+                )}
                 {progress.sections.map((section) => (
                   <SectionBlock key={section.workflow_type} section={section} />
                 ))}
@@ -348,6 +423,11 @@ export function DeliverableProgressPage(): JSX.Element {
                     上面回答「流程到哪一步了」（R-10）。 */}
                 <div data-testid="deliverable-actions">
                   <Typography.Text strong>动作时间线</Typography.Text>
+                  {detail.actionsError && (
+                    <Typography.Text type="danger" data-testid="deliverable-actions-error">
+                      {detail.actionsError}
+                    </Typography.Text>
+                  )}
                   {!actionList || actionList.items.length === 0 ? (
                     <Empty
                       data-testid="deliverable-actions-empty"
@@ -380,6 +460,7 @@ export function DeliverableProgressPage(): JSX.Element {
           },
         }}
       />
+      )}
       {/* ⚠️ 写面弹窗（P9B-2 · T8）—— 宿主在**页面**里（不在表格里），
           antd `Modal` 走 portal ⇒ 放在 Table 外面更稳。 */}
       <DeliverableSignDialog
@@ -398,6 +479,7 @@ export function DeliverableProgressPage(): JSX.Element {
         }
         nextStep={nextStep}
         role={role}
+        loading={contextLoading}
         contextError={contextError}
         onClose={() => {
           setDialogMode(null);

@@ -1509,7 +1509,7 @@
           "records"
         ],
         "summary": "提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）",
-        "description": "提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n`approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`\n在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式\n（只在配置说 false 时才拒）在没有配置源时等于没有防护。\n\n`approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，\n见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。",
+        "description": "提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n## 批准链从**项目绑定的 RECORD 矩阵**推导（TODO-054 · R-17）\n\n⚠️ **契约破坏性变更**：请求体**不再收** `approval_role` / `approval_depth`\n⇒ 谁该批、批几级由**服务器**说了算（客户端说了不算）。\n\n项目**没绑** RECORD 矩阵 ⇒ **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND`\n（响亮失败，不是「默认深度 1」—— 静默降级会让用户以为走的是单级审批，\n而实际批准链是空的）。\n\n## 自审防护\n\n提交人自己的全局角色出现在链里**任何一步** ⇒ 403\n`APPROVAL_SELF_REVIEW_FORBIDDEN`。\n⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。",
         "operationId": "submit_approval_api_v1_records__module___record_id__submit_approval_post",
         "parameters": [
           {
@@ -1588,7 +1588,7 @@
           "records"
         ],
         "summary": "推进/退回当前批准步骤",
-        "description": "批当前这一步。\n\n深度耗尽（`approval_step >= approval_depth`）时走 `PASS_CHECK` → CHECKED，\n再往后批 409 —— 不静默继续，因为「第 4 级」在本仓没有依据。\n\n只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了\n这个，不校验等于那列是装饰。",
+        "description": "批当前这一步。\n\n深度耗尽（`approval_step >= approval_depth`）时走 `PASS_CHECK` → CHECKED，\n再往后批 409 —— 不静默继续，因为「第 4 级」在本仓没有依据。\n\n只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了\n这个，不校验等于那列是装饰。\n\n## ⚠️ **推进待批角色**（TODO-054 · R-17）\n\n批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把\n`approval_role` **推进到链上下一步的角色** ⇒ 否则第 2 步的角色永远\n匹配不上 `record.approval_role` ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒\n链条卡死（这正是「深度 > 1 不可用」的根因）。",
         "operationId": "approval_step_api_v1_records__module___record_id__approval_step_post",
         "parameters": [
           {
@@ -2275,6 +2275,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChangeNoticeCancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/edits": {
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "summary": "列记录的编辑审计（按项目守卫）",
+        "description": "列一条记录的编辑历史，最新在前。\n\n⚠️ **只认 `action = RECORD_EDITED`**（ADR-0048 §⑦ 强制）—— 不得用\n「该记录最近一条审计」泛匹配去凑。",
+        "operationId": "list_record_edits_api_v1_records__module___record_id__edits_get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordEditsResponse"
                 }
               }
             }
@@ -12820,6 +12912,66 @@
         }
       }
     },
+    "/api/v1/projects": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "建项目（P9B-2 · T-1 · SYSTEM_ADMIN）",
+        "description": "建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。\n\n## 为什么必须「建项目」与「默认绑矩阵」同批\n\nR-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒\n没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）\n⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。\n⇒ **同批**落地 ⇒ 新项目**当场就能送审**。\n\n## 事务边界\n\n建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**\n⇒ 不会留下「项目建好了但送不了审」的半成品。",
+        "operationId": "create_project_api_v1_projects_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}": {
       "get": {
         "tags": [
@@ -13720,6 +13872,66 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/progress": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "交付物的工作流进度聚合（两类工作流一次拿全）",
+        "description": "一次返回本交付物两类工作流的进度（TODO-065）。\n\n关联规则**留在后端**：两类工作流的 `workflow_id` 语义各不相同\n（SIGN = 版本 id，CUSTOMER_APPROVAL_PROXY = **交付物 id**），\n「变更单怎么关联到本交付物」是**后端的业务规则**，不是前端的拼装活。\n\n⚠️ 每段都带 `available` + `reason`：`available=false` 时前端显示**原因**\n（不是空列表）—— 空数组与「这条流程不存在」在界面上长得一样。",
+        "operationId": "get_deliverable_progress_api_v1_deliverables__deliverable_id__progress_get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/deliverables/{deliverable_id}/actions": {
       "get": {
         "tags": [
@@ -14149,6 +14361,68 @@
       }
     },
     "/api/v1/projects/{project_id}/signature-matrices": {
+      "get": {
+        "tags": [
+          "signature-matrices"
+        ],
+        "summary": "列项目绑定的矩阵（带归一化的步骤）",
+        "description": "列本项目绑的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。\n\n## 为什么需要这个读端点\n\nT4 的操作栏要判「**矩阵第 1 步的角色 == 当前用户**」⇒ 必须读得到\n「本项目的 RECORD 矩阵的第 1 步是谁」⇒ 绑定**写**端点早就有了\n（`POST /projects/{id}/signature-matrices`），但**读**端点此前**不存在**\n⇒ 前端拿不到 ⇒ 只能退化成「点了才吃 403」（违背 SPEC §5.1「门禁前置」）。\n\n⚠️ **项目没绑 RECORD 矩阵 ⇒ 空列表**（不是 404）⇒ 前端**不猜**\n（不禁用送审按钮）⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。",
+        "operationId": "list_project_matrix_bindings_api_v1_projects__project_id__signature_matrices_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectMatrixBindingOut"
+                  },
+                  "title": "Response List Project Matrix Bindings Api V1 Projects  Project Id  Signature Matrices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "signature-matrices"
@@ -24973,6 +25247,29 @@
         "title": "DeliverableListResponse",
         "description": "项目下的交付物列表。\n\n`total` 供前端分页；P8 REPORT 生成页要按 deliverable_type 分组展示。"
       },
+      "DeliverableProgressResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowProgressSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "sections"
+        ],
+        "title": "DeliverableProgressResponse",
+        "description": "一个交付物的两类工作流进度（R-13：CHANGE_NOTICE 段已删）。"
+      },
       "DeliverableResponse": {
         "properties": {
           "deliverable_id": {
@@ -25054,18 +25351,6 @@
               }
             ],
             "title": "Matrix Id"
-          },
-          "parent_deliverable_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Deliverable Id"
           },
           "customer_approval_date": {
             "anyOf": [
@@ -33051,6 +33336,130 @@
         "title": "ProductCategoryUpdate",
         "description": "设置项目产品类别的请求体."
       },
+      "ProjectCreate": {
+        "properties": {
+          "project_no": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Project No",
+            "description": "项目编号（全局唯一）"
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project Name",
+            "description": "项目名"
+          },
+          "owner_company": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Owner Company",
+            "description": "业主"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Location",
+            "description": "所在地"
+          },
+          "project_type": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Project Type",
+            "description": "项目类型"
+          },
+          "design_phase": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Design Phase",
+            "description": "设计阶段"
+          },
+          "unit_system": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit System",
+            "description": "单位制（SI 等）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "所属 FORMAL 工作区（必须已存在）"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Status",
+            "description": "项目状态",
+            "default": "ACTIVE"
+          },
+          "product_category": {
+            "$ref": "#/components/schemas/ProductCategory",
+            "description": "产品类别（GB 30251-2024 §6.1.5 电折标口径判据）",
+            "default": "OTHER"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_no",
+          "project_name",
+          "owner_company",
+          "location",
+          "project_type",
+          "design_phase",
+          "unit_system",
+          "workspace_id"
+        ],
+        "title": "ProjectCreate",
+        "description": "建项目的请求体（P9B-2 · T-1）。\n\n## 为什么只收这 8 个必填字段\n\n它们是 `app/models/project.py::Project` 里**类型非 Optional**（⇒ NOT NULL）\n且**没有模型默认**的列：`project_no` · `project_name` · `owner_company` ·\n`location` · `project_type` · `design_phase` · `unit_system` ·\n`workspace_id`。\n\n⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）\n⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。\n⇒ `project_id` **不暴露**（服务端生成）。\n\n⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）。"
+      },
+      "ProjectMatrixBindingOut": {
+        "properties": {
+          "module": {
+            "type": "string",
+            "title": "Module",
+            "description": "RECORD / STREAM / EQUIP / CHANGE_NOTICE / *"
+          },
+          "matrix_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matrix Id"
+          },
+          "matrix_name": {
+            "type": "string",
+            "title": "Matrix Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "矩阵状态（DRAFT/PENDING/ACTIVE/OBSOLETE）"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/MatrixStepResponse"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "module",
+          "matrix_id",
+          "matrix_name",
+          "status",
+          "steps"
+        ],
+        "title": "ProjectMatrixBindingOut",
+        "description": "项目绑定的矩阵（**带归一化的步骤**）—— P9B-2 · T-1。\n\n## 为什么步骤是**归一化**的\n\n前端要的是「第 1 步该谁签」⇒ 直接给 `steps_json` 原样 ⇒ 前端得自己\n再写一份解析逻辑（**第二份真相源**）⇒ 归一化在后端做一次\n（`SignatureMatrixService.parse_steps` 是**唯一**解析口）。\n\n⇒ 形状与 `SignatureMatrixResponse.steps` **完全一致** ⇒ 前端\n`SignatureMatrixPage` 显示的与本端点返回的**同一套**。"
+      },
       "ProjectOut": {
         "properties": {
           "project_id": {
@@ -34187,6 +34596,88 @@
         ],
         "title": "RecordBindingResponse",
         "description": "snapshot 端点里的单条记录绑定明细。\n\n报表要回答「这份 Rev 锁定了哪些记录、各自哈希是多少」——\n`old_record_hash_before_change` 用于识别「相对上一版哪些记录实质变了」。"
+      },
+      "RecordEditItem": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Audit Id"
+          },
+          "changed_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Fields",
+            "description": "被改的字段名列表（不是值）"
+          },
+          "overwrote_stale_baseline": {
+            "type": "boolean",
+            "title": "Overwrote Stale Baseline",
+            "description": "这次编辑是否覆盖了无法校验的基线（ADR-0048 §⑦ 的额外审计行）",
+            "default": false
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "操作人；系统动作为空"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "occurred_at"
+        ],
+        "title": "RecordEditItem",
+        "description": "一次编辑。"
+      },
+      "RecordEditsResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "RECORD_TYPE_REGISTRY 的键"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecordEditItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "items",
+          "total"
+        ],
+        "title": "RecordEditsResponse",
+        "description": "一条记录的编辑历史。"
       },
       "RecordTransitionRequest": {
         "properties": {
@@ -37260,8 +37751,16 @@
             ],
             "title": "Decision",
             "description": "SIGN / RETURN / SKIP"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason",
+            "description": "退回理由。`decision=RETURN` 时**前端必填**（退回是签署流程里唯一能纠错的路径 —— 没有理由，作者无从知道要改什么）。写进版本的签署汇总（`signature_summary_json.signatures[].reason`），可经 snapshot 端点回读。",
+            "default": ""
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "version_id",
@@ -37269,7 +37768,7 @@
           "decision"
         ],
         "title": "SignStepRequest",
-        "description": "推进签署矩阵某一步的请求体。"
+        "description": "推进签署矩阵某一步的请求体。\n\n⚠️ `extra=\"forbid\"`：字段名拼错（如 `reasn`）⇒ **422**，而不是被\n**静默丢弃** ⇒ 退回会**没有理由**（「作者不知道要改什么」这个场景又回来）\n⇒ 且**没有任何报错**。与 `SubmitApprovalRequest` 同一口径。"
       },
       "SignStepResponse": {
         "properties": {
@@ -40260,33 +40759,24 @@
       },
       "SubmitApprovalRequest": {
         "properties": {
-          "approval_role": {
-            "type": "string",
-            "enum": [
-              "DESIGNER",
-              "CHECKER",
-              "REVIEWER",
-              "APPROVER",
-              "SYSTEM_ADMIN",
-              "PROCESS_CONTROLLER",
-              "DATA_ADMIN"
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Approval Role"
-          },
-          "approval_depth": {
-            "type": "integer",
-            "maximum": 4.0,
-            "minimum": 1.0,
-            "title": "Approval Depth",
-            "default": 1
+            "title": "Reason",
+            "description": "送审说明（可选）"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "required": [
-          "approval_role"
-        ],
         "title": "SubmitApprovalRequest",
-        "description": "提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n`approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源\n（`project_templates.default_config_json` 的 `record_approval_config`\n只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。\n服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。"
+        "description": "提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n## ⚠️ **契约破坏性变更**（TODO-054 · R-17 · P9B-2）\n\n原先请求体收 `approval_role` + `approval_depth`（由**客户端**决定谁该批、\n批几级）⇒ 现在**不再收**：批准链由**后端**从项目绑定的 `module='RECORD'`\n签署矩阵推导（`SignatureMatrixService.resolve_project_matrix`）。\n\n⇒ `extra=\"forbid\"`：多传旧字段 ⇒ **422**（而不是静默忽略）——\n静默忽略会让调用方以为自己传了角色，实际生效的是矩阵里的角色 ⇒\n「我明明选了 APPROVER」却吃 403。\n\n`reason` 是送审说明（可选）。"
       },
       "SubmitApprovalResponse": {
         "properties": {
@@ -43507,6 +43997,89 @@
         ],
         "title": "WorkflowProgressResponse",
         "description": "一条工作流的节点进度（甘特图的横轴 = `items` 的 `step_order`）。"
+      },
+      "WorkflowProgressSection": {
+        "properties": {
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type",
+            "description": "SIGN / CUSTOMER_APPROVAL_PROXY（R-13：CHANGE_NOTICE 段已删）"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id",
+            "description": "该类工作流的主键；不可用时为 null"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "该类工作流是否可解析（false 时 reason 必填，不得返回空数组冒充「无步骤」）"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "available=false 时的原因（中文原文，前端原样显示）"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "default": 0
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress",
+            "default": 0
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowProgressItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_type",
+          "available"
+        ],
+        "title": "WorkflowProgressSection",
+        "description": "一类工作流在本交付物上的进度。"
       },
       "WorkspaceCreate": {
         "properties": {

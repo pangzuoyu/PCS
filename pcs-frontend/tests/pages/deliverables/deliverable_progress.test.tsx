@@ -116,16 +116,87 @@ const DEFAULT_SECTIONS = [
   },
 ];
 
+/** 列表端点的失败态（403 ⇒ 「无权查看」**不是**空表）。 */
+let listStatus = 200;
+/** 进度**按交付物 id**分别返回（多行展开那条用例专用）。 */
+let usePerIdSections = false;
+
+/** 每行的**不同**进度（用来断言「每行显示自己的」）。 */
+const SECTIONS_BY_ID: Record<string, unknown[]> = {
+  [DRAFT_ID]: [
+    {
+      workflow_type: 'SIGN',
+      workflow_id: 'v-draft',
+      available: true,
+      reason: null,
+      total: 1,
+      pending: 0,
+      in_progress: 1,
+      completed: 0,
+      skipped: 0,
+      failed: 0,
+      items: [
+        {
+          progress_id: 'p-draft',
+          step_order: 1,
+          step_role: 'DRAFT_ROW_ROLE',
+          step_status: 'IN_PROGRESS',
+          started_at: '2026-10-20T10:00:00Z',
+          completed_at: null,
+          assignee: 'alice',
+          result_hash: null,
+        },
+      ],
+    },
+  ],
+  [VERSIONED_ID]: [
+    {
+      workflow_type: 'SIGN',
+      workflow_id: 'v-2',
+      available: true,
+      reason: null,
+      total: 1,
+      pending: 0,
+      in_progress: 1,
+      completed: 0,
+      skipped: 0,
+      failed: 0,
+      items: [
+        {
+          progress_id: 'p-versioned',
+          step_order: 1,
+          step_role: 'VERSIONED_ROW_ROLE',
+          step_status: 'IN_PROGRESS',
+          started_at: '2026-10-20T10:00:00Z',
+          completed_at: null,
+          assignee: 'bob',
+          result_hash: null,
+        },
+      ],
+    },
+  ],
+};
+
 const server = setupServer(
-  http.get('/api/v1/deliverables', () =>
-    HttpResponse.json({ items: DELIVERABLES, total: DELIVERABLES.length }),
-  ),
+  http.get('/api/v1/deliverables', () => {
+    if (listStatus !== 200) {
+      return HttpResponse.json(
+        { code: 'HTTP_403', message: '无权查看该项目的交付物' },
+        { status: listStatus },
+      );
+    }
+    return HttpResponse.json({ items: DELIVERABLES, total: DELIVERABLES.length });
+  }),
   // ⚠️ **聚合端点**（P9B-2 · TODO-065）
   http.get('/api/v1/deliverables/:id/progress', ({ params }) => {
     aggregateCalls += 1;
+    const id = String(params.id);
+    // ⚠️ **每行给不同内容**（否则断言「每行显示自己的进度」测不出来）
+    //    ⇒ 只在「多行展开」那条用例里开（其余用例共用 `sections`）。
+    const own = usePerIdSections ? SECTIONS_BY_ID[id] : undefined;
     return HttpResponse.json({
-      deliverable_id: String(params.id),
-      sections,
+      deliverable_id: id,
+      sections: own ?? sections,
     });
   }),
   http.get('/api/v1/deliverables/:id/actions', ({ params }) => {
@@ -160,6 +231,8 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     actionCalls = 0;
     singleProgressCalls = 0;
     sections = DEFAULT_SECTIONS;
+    listStatus = 200;
+    usePerIdSections = false;
   });
 
   it('列表渲染：doc_no + title + sign_status', async () => {
@@ -183,6 +256,45 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
     await waitFor(() => expect(aggregateCalls).toBe(1));
     expect(screen.getByTestId('deliverable-progress-panel')).toBeTruthy();
+  });
+
+  it('⚠️ 展开**两行** ⇒ 每行显示**自己的**进度（不是最后展开那行的）', async () => {
+    // ⚠️ 此前是**单个** `expandedId` + `expandedRowRender` 忽略 `record`
+    //    ⇒ A 行和 B 行**同时**渲染同一份 state ⇒ A 行下面显示的是 **B 的进度**
+    //    （doc_no 都对不上）⇒ 收起 B 后 A 行还展开着却显示「尚无进度信息」。
+    usePerIdSections = true;
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+
+    const icons = document.querySelectorAll('.ant-table-row-expand-icon');
+    fireEvent.click(icons[0]);
+    await waitFor(() => expect(screen.getByText('DRAFT_ROW_ROLE')).toBeTruthy());
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByText('VERSIONED_ROW_ROLE')).toBeTruthy());
+
+    // ⚠️ 两行**同时**展开 ⇒ **两个面板各显示各的**（此前两个面板渲染的是同一份
+    //    state ⇒ 第一个面板里出现的是**第二行**的角色）。
+    const panels = document.querySelectorAll('[data-testid=deliverable-progress-panel]');
+    expect(panels.length).toBe(2);
+    expect(panels[0].textContent).toContain('DRAFT_ROW_ROLE');
+    expect(panels[0].textContent).not.toContain('VERSIONED_ROW_ROLE');
+    expect(panels[1].textContent).toContain('VERSIONED_ROW_ROLE');
+
+    // 收起 B ⇒ A 行**仍然**显示自己的进度
+    // ⚠️ **重新取**展开图标（antd 展开后会重渲染表格 ⇒ 旧的 NodeList 可能失效）
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByText('DRAFT_ROW_ROLE')).toBeTruthy());
+    // ⚠️ antd 收起后**保留**该行的 DOM（隐藏）⇒ 断言「不可见」而不是「不存在」
+    expect(screen.getByText('VERSIONED_ROW_ROLE')).not.toBeVisible();
+  });
+
+  it('⚠️ 列表 **403** ⇒ 显示「无权查看」（**不是**空表）', async () => {
+    listStatus = 403;
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByTestId('deliverable-list-error')).toBeTruthy());
+    expect(screen.getByTestId('deliverable-list-error').textContent).toContain('无权查看');
+    // ⚠️ 不得渲染成「暂无数据」的空表
+    expect(screen.queryByText('暂无数据')).toBeNull();
   });
 
   it('⚠️ R-15：展开一行 ⇒ **分段请求零调用**（面板受控 ⇒ 不自己拉）', async () => {

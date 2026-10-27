@@ -200,6 +200,19 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     expect(screen.getByTestId('audit-export-notice').textContent).toContain('全部结果');
   });
 
+  it('⚠️ 导出行数与后端 `total` **对不上** ⇒ 明说（可能重复 / 漏行）', async () => {
+    // ⚠️ 后端按 `occurred_at DESC` 排序、**无 tiebreaker** ⇒ 并列行的 OFFSET
+    //    分页**不稳定** ⇒ 同一行可能跨页出现两次、另一行永远不出现 ⇒ 导出的
+    //    CSV 行数 ≠ 结果集行数 ⇒ 文案写「全部结果」就是**骗人**。
+    //    ⇒ 收集完与 `total` 核对，对不上就明说。
+    totalRows = 5; // ⚠️ 后端说 5 行，但每页只给 2 行 ⇒ 实际只拿到 2 行 ⇒ 对不上
+    await openAuditLogsTab();
+    fireEvent.click(screen.getByTestId('audit-export-csv'));
+    await waitFor(() => expect(screen.getByTestId('audit-export-notice')).toBeTruthy());
+    const notice = screen.getByTestId('audit-export-notice').textContent ?? '';
+    expect(notice).toContain('不一致');
+  });
+
   it('⚠️ 筛选条件**原样**传给后端（不改参数名）', async () => {
     await openAuditLogsTab();
     fireEvent.change(screen.getByTestId('audit-filter-action'), {
