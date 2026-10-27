@@ -67,10 +67,13 @@ export const seedDeliverableProgress: DeliverableProgress = {
       ],
     },
     {
+      // ⚠️ **代录段恒为 available**（后端 `progress_sections`：PROXY 段的
+      //    workflow_id = **交付物 id** ⇒ 永远可解析）⇒ 「尚未签发版本，无签署
+      //    流程」是 **SIGN 段**（且只在**没有版本**时）的不可用原因 ⇒ 挂错段了。
       workflow_type: 'CUSTOMER_APPROVAL_PROXY',
       workflow_id: 'd-2',
-      available: false,
-      reason: '尚未签发版本，无签署流程',
+      available: true,
+      reason: null,
       total: 0,
       pending: 0,
       in_progress: 0,

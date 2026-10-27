@@ -135,6 +135,37 @@ const MOCK_USER_IDS: Record<string, string> = {
   dan: '00000000-0000-0000-0000-0000000da0001',
 };
 
+/** 通用 audit 的 seed 行（dev mock）—— 3 条 ⇒ 翻页看得出来。 */
+const SEED_AUDIT_LOG_ITEMS = [
+  {
+    audit_id: '66666666-6666-6666-6666-666666666666',
+    user_id: '00000000-0000-0000-0000-000000000001',
+    action: 'RECORD_CREATED',
+    resource_type: 'config_energy_conversion_factors',
+    resource_id: '42',
+    detail_json: {},
+    occurred_at: '2026-10-03T09:00:00+00:00',
+  },
+  {
+    audit_id: '66666666-6666-6666-6666-666666666667',
+    user_id: '00000000-0000-0000-0000-000000000001',
+    action: 'RECORD_EDITED',
+    resource_type: 'cooling_tower_result',
+    resource_id: 'r-1',
+    detail_json: { changed_fields: ['duty_kw'] },
+    occurred_at: '2026-10-03T09:05:00+00:00',
+  },
+  {
+    audit_id: '66666666-6666-6666-6666-666666666668',
+    user_id: '00000000-0000-0000-0000-000000000002',
+    action: 'USER_DISABLED',
+    resource_type: 'user',
+    resource_id: 'u-2',
+    detail_json: {},
+    occurred_at: '2026-10-03T09:10:00+00:00',
+  },
+];
+
 const devOnlyMockHandlers = [
   // === 认证 ===
   // P7-7+ actor 上下文一致性: mock-login 返回 user_id (与 backend /auth/me
@@ -766,21 +797,16 @@ devOnlyMockHandlers.push(
       return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     }
     // dev mode: 永远返回 (简化 — 实际后端会做 SYSTEM_ADMIN gate)
+    // ⚠️ **认 limit / offset**（此前恒回全部 + limit=50/offset=0）⇒ 前端做
+    //    **服务端分页**时，mock 给的永远是第 1 页 ⇒ dev 里翻页看不到变化。
+    const url = new URL(request.url);
+    const limit = Number(url.searchParams.get('limit') ?? '50');
+    const offset = Number(url.searchParams.get('offset') ?? '0');
     return HttpResponse.json({
-      items: [
-        {
-          audit_id: '66666666-6666-6666-6666-666666666666',
-          user_id: '00000000-0000-0000-0000-000000000001',
-          action: 'RECORD_CREATED',
-          resource_type: 'config_energy_conversion_factors',
-          resource_id: '42',
-          detail_json: {},
-          occurred_at: '2026-10-03T09:00:00+00:00',
-        },
-      ],
-      total: 1,
-      limit: 50,
-      offset: 0,
+      items: SEED_AUDIT_LOG_ITEMS.slice(offset, offset + limit),
+      total: SEED_AUDIT_LOG_ITEMS.length,
+      limit,
+      offset,
     });
   }),
 

@@ -22,6 +22,9 @@ import {
 } from './seed/signFlow';
 
 type CommentResponse = components['schemas']['CommentResponse'];
+type ProgressItem = components['schemas']['WorkflowProgressItemResponse'];
+type ProgressSection = components['schemas']['WorkflowProgressSection'];
+type DeliverableProgress = components['schemas']['DeliverableProgressResponse'];
 type RecordActionResponse = components['schemas']['RecordActionResponse'];
 type SubmitApprovalResponse = components['schemas']['SubmitApprovalResponse'];
 type ApprovalStepResponse = components['schemas']['ApprovalStepResponse'];
@@ -34,6 +37,47 @@ function isAuthed(request: Request): boolean {
 
 /** 批注（内存态 —— 发一条就多一条）。 */
 const comments = [...seedRecordComments.items];
+
+/**
+ * mock 的**可变**签署状态（模块级 ⇒ 跨请求保持 ⇒ dev 里点「签署」能看到进度变）。
+ *
+ * ⚠️ 语义**照抄后端** `DeliverableService.sign_step`：
+ * ① 本步行终态（COMPLETED / FAILED / SKIPPED）；
+ * ② **下一步**行 IN_PROGRESS（最后一步不写；RETURN 也不写）；
+ * ③ 最后一步 SIGN ⇒ 交付物 APPROVED；RETURN ⇒ 交付物回 DRAFT（ADR-0008）。
+ * ⚠️ **越步签 ⇒ 409** `SIGN_STEP_OUT_OF_ORDER`（矩阵的职责分离：复核人不能
+ *    在设计人没签时先签复核）。
+ */
+let mockSignSteps: ProgressItem[] = [];
+let mockDeliverableSignStatus = 'PENDING';
+
+/** 重置 mock 的签署状态（测试之间隔离用；页面刷新不会重置）。 */
+export function resetMockSignState(): void {
+  mockSignSteps = (
+    seedDeliverableProgress.sections.find((s) => s.workflow_type === 'SIGN')?.items ?? []
+  ).map((i) => ({ ...i }));
+  mockDeliverableSignStatus = 'PENDING';
+}
+resetMockSignState();
+
+/** SIGN 段（按当前状态现算 —— 计数与后端同口径）。 */
+function currentSignSection(): ProgressSection {
+  const items = mockSignSteps;
+  const count = (s: string) => items.filter((i) => i.step_status === s).length;
+  return {
+    workflow_type: 'SIGN',
+    workflow_id: 'v-2',
+    available: true,
+    reason: null,
+    total: items.length,
+    pending: count('PENDING'),
+    in_progress: count('IN_PROGRESS'),
+    completed: count('COMPLETED'),
+    skipped: count('SKIPPED'),
+    failed: count('FAILED'),
+    items,
+  };
+}
 
 export const signFlowHandlers = [
   // === 项目创建（P9B-2 · T-1）—— **自动绑一份 ACTIVE 的 RECORD 矩阵** ===
@@ -66,7 +110,15 @@ export const signFlowHandlers = [
     if (!isAuthed(request)) {
       return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     }
-    return HttpResponse.json(seedDeliverableProgress);
+    // ⚠️ SIGN 段**现算**（签过之后状态要变 ⇒ 否则 dev 里「点了没反应」）。
+    const proxy = seedDeliverableProgress.sections.find(
+      (s) => s.workflow_type === 'CUSTOMER_APPROVAL_PROXY',
+    );
+    const body: DeliverableProgress = {
+      deliverable_id: seedDeliverableProgress.deliverable_id,
+      sections: [currentSignSection(), ...(proxy ? [proxy] : [])],
+    };
+    return HttpResponse.json(body);
   }),
 
   // === 交付物：动作时间线（审计，**不是**观测层）===
@@ -121,15 +173,50 @@ export const signFlowHandlers = [
     };
     const stepIndex = body.step_index ?? 1;
     const decision = body.decision ?? 'SIGN';
+    const step = mockSignSteps[stepIndex - 1];
+    if (!step) {
+      return HttpResponse.json(
+        {
+          code: 'SIGN_STEP_NOT_FOUND',
+          message: `签署矩阵只有 ${mockSignSteps.length} 步，第 ${stepIndex} 步不存在`,
+        },
+        { status: 404 },
+      );
+    }
+    // ⚠️ **越步签 ⇒ 409**（后端 `_assert_step_order`）：只能顺序推进。
+    if (step.step_status !== 'IN_PROGRESS') {
+      return HttpResponse.json(
+        {
+          code: 'SIGN_STEP_OUT_OF_ORDER',
+          message: `第 ${stepIndex} 步当前是 ${step.step_status}，不是待签状态`,
+        },
+        { status: 409 },
+      );
+    }
+    const now = new Date().toISOString();
+    const state = decision === 'SIGN' ? 'COMPLETED' : decision === 'RETURN' ? 'FAILED' : 'SKIPPED';
+    step.step_status = state;
+    step.completed_at = now;
+    const next = mockSignSteps[stepIndex];
+    if (next && decision !== 'RETURN') {
+      next.step_status = 'IN_PROGRESS';
+      next.started_at = now;
+    }
+    // ⚠️ 最后一步 SIGN ⇒ APPROVED；RETURN ⇒ 回 DRAFT（ADR-0008）。
+    if (decision === 'RETURN') {
+      mockDeliverableSignStatus = 'DRAFT';
+    } else if (!next) {
+      mockDeliverableSignStatus = 'APPROVED';
+    }
     return HttpResponse.json({
       deliverable_id: String(params['deliverable_id']),
       version_id: body.version_id ?? 'v-2',
       step_index: stepIndex,
-      step_role: stepIndex === 1 ? 'CHECKER' : 'REVIEWER',
+      step_role: step.step_role,
       decision,
-      state: decision === 'SIGN' ? 'COMPLETED' : decision === 'RETURN' ? 'FAILED' : 'SKIPPED',
-      deliverable_sign_status: decision === 'SIGN' ? 'PENDING' : 'DRAFT',
-      signed_at: new Date().toISOString(),
+      state,
+      deliverable_sign_status: mockDeliverableSignStatus,
+      signed_at: now,
     });
   }),
 

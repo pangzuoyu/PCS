@@ -66,7 +66,10 @@ test.describe('交付物级签署写面（T8）', () => {
   });
 
   test('签发：无版本的交付物可签发（有版本的禁用）', async ({ page }) => {
-    await loginAs(page, 'bob');
+    // ⚠️ **角色要选对**：签发（`INITIATE_CHANGE`）的允许角色 = **DESIGNER /
+    //    SYSTEM_ADMIN**（后端 `_ISSUE_ROLES` 从 meta 派生）⇒ bob(CHECKER)
+    //    **不能**签发 ⇒ 按钮会被正确地禁用 ⇒ 用 alice(DESIGNER)。
+    await loginAs(page, 'alice');
 
     await page.getByRole('menuitem', { name: '签署进度' }).click();
     const row = page.locator('tr', { hasText: '泵计算书' });

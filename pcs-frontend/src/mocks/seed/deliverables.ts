@@ -28,7 +28,10 @@ export const seedDeliverables: Deliverable[] = [
     current_version_id: null,
     version_purpose: 'ISSUED_FOR_CONSTRUCTION',
     sign_status: 'DRAFT',
-    matrix_id: null,
+    // ⚠️ **matrix_id 不能是 null** —— 前端闸「矩阵已绑定到项目」∋ `matrix_id`
+    //    ⇒ null ⇒ 「签发」**永远禁用** ⇒ dev 里根本走不到签发流程
+    //    （后端 `_assert_matrix_bound` 同口径：按 project_id + matrix_id 查绑定）。
+    matrix_id: 'm-2',
     customer_approval_date: null,
     customer_approver_name: null,
     created_at: '2026-10-20T10:00:00Z',
@@ -46,8 +49,12 @@ export const seedDeliverables: Deliverable[] = [
     // ⚠️ SIGN 的 workflow_id = **版本 ID**
     current_version_id: 'v-2',
     version_purpose: 'ISSUED_FOR_CONSTRUCTION',
-    sign_status: 'CHANGE_PENDING',
-    matrix_id: null,
+    // ⚠️ **`DeliverableSignStatus` 只有 4 态**（DRAFT / PENDING / APPROVED /
+    //    OBSOLETE）⇒ `CHANGE_PENDING` 是**记录**状态，套到交付物上 ⇒ 前端
+    //    按 4 态判断时会走错分支 ⇒ 这里与「版本已签发待签」一致 = PENDING。
+    sign_status: 'PENDING',
+    // ⚠️ 同上（快照 seed 里的 `signature_summary_json.matrix_id` 也是 'm-2'）
+    matrix_id: 'm-2',
     customer_approval_date: null,
     customer_approver_name: null,
     created_at: '2026-10-20T10:00:00Z',
