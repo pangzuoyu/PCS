@@ -4,12 +4,30 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-27（**P9B-2 全批落地并收口**；上批：P9B-2 计划三审）。
+> Read this FIRST when starting a session. Last updated: 2026-10-28（**P9B-2 延后的 minor 批 B~F 全落地**；上批：P9B-2 全批收口）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
+
+### 第 19 轮：**P9B-2 延后的 minor 批（B~F）全落地**（commit `8a6d05a..7346c94`）
+
+整支评审留下的「延后 minor」**五批全做完**（每条一个**先红**的测试）：
+
+| commit | 批 | 内容 |
+|---|---|---|
+| `8a6d05a` | B+C | 审计导出补 `audit_id`（LogID，第一列）· 用户列表补 email/department/last_login_at · **停用二次确认** · 审计表**服务端分页**（此前只加载 50 行却写「共 N 条」）· **权限错误提示不可关闭 + 不渲染空表**（关掉退化成「共 0 条」⇒ 读成「什么都没有」⇒ 真相是「你没权限」）|
+| `e159926` | D | **mock 保真度**：sign-step **真的改状态**（后端同口径：终态 + 下一步 IN_PROGRESS + 越步 409）· PROXY 段恒 available · 交付物 `matrix_id` 不能再是 null（⇒「签发」永远禁用）· `sign_status` 用**合法枚举** · `/audit-logs` mock 认 limit/offset · **顺带修好一条先前就红的 e2e**（`deliverable_sign` 用 bob 签发 ⇒ 上一提交 5800a8b 加了角色门禁后必红 ⇒ 改 alice）|
+| `0459c95` | E | LOW 一组：批注**追加末尾**（与后端升序一致）· `available=false` 时 **reason 必填**（钉进 schema）· 聚合端点补**行级 project_id 校验**（与单条端点同口径）· 恰好 5000 行**不**误报截断 · 导出用**已应用**筛选值 · `skipped_empty` 用 **warning** 条 · `revokeObjectURL` 延后一个 tick · 时间线截断**明说** · seed 多余 cast 删掉 · **状态机守卫不再会悄悄消失**（skipif 只在前端包整个不在时才跳过）|
+| `595384a` | F | **建项目入口**（`/admin/projects` + 菜单按角色隐藏 + mock 补 8 字段校验与自动绑矩阵）+ **存量项目回填默认 RECORD 矩阵**（迁移 `p9_013`，三处库各跑一次）|
+| `5c1172a` `7346c94` | — | SPEC **V2.4** 登记本批前端行为 · 修用户可见文案里的 markdown 记号（`**` 原样上屏）|
+
+**验收**：后端 **5377 passed / 77 skipped / 1 xfailed**；前端 **974 passed / 105 files**；
+Playwright **21 passed**；typecheck + lint exit 0；G-08 契约门禁通过；**迁移三处**
+（`pcs` / `pcs_test` / 隔离 schema 从零）`alembic check` 均 **exit 0**；浏览器 QA
+`.gstack/qa-reports/qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md`（0 critical /
+0 high / 1 medium 已修；控制台 0 error、404-500 计数 0）。
 
 ### 第 18 轮：**P9B-2 全批落地 + 收口**（13 个任务 T-1…T10，commit `979119b..33706d8`）
 
@@ -50,20 +68,19 @@ budget_tokens: 1200
 
 ## 🚀 Next quest
 
-1. **P9B-2 收尾**：整支评审（fresh context）已跑完 ⇒ 1 CRITICAL + 6 HIGH **已修**
-   （`d422ed3` / `1fba41d` / `6b69797`）⇒ 剩下的是**延后的 minor**（ledger 的
-   「Final: minor (deferred)」段：交付物级门禁 / 导出列 / 用户列表字段 / 停用
-   二次确认 / 建项目入口 + 存量回填 / mock 保真度 …）⇒ 下批做。
-2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
-3. **本批仍开着**：TODO-073~090 全部闭环；剩余开放项见 TODOS.md（迁移幂等守门的
+1. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI（SPEC §7.20 的
+   「AI 开关 / 系统参数 / Prompt 模板 / 角色分配」几页仍未落地）。
+2. **本批仍开着**：TODO-073~090 全部闭环；剩余开放项见 TODOS.md（迁移幂等守门的
    历史文件盲区 / 57 个手写类型的长期债 / ADR-0050 用户裁决「先不做」）。
+3. ⚠️ **开发库 `pcs` 目前 0 个项目** ⇒ 迁移 `p9_013` 的回填在真数据上是 no-op
+   （只建了默认矩阵）⇒ 要验「存量项目被回填」得先有项目数据。
 
 ---
 
 ## Context
 
 - main，工作区干净（`.wolf/*` 由 hook 自动维护）。**不要建 worktree**（历史事故）。
-- 两库均在 **`p9_012`**（head）· `alembic check` 两库 + 隔离 schema 各 exit 0
+- 两库均在 **`p9_013`**（head）· `alembic check` 两库 + 隔离 schema 各 exit 0
   （退出码 **255** = 真漂移；先 `current` vs `heads`；`pcs_test` 的 URL 从 `.env`
   **进程内**派生，**不要把口令写在命令行**）。
 - ⚠️ **CI 是活的**（全新 Postgres）⇒ 改迁移必须**在全新库上验**（隔离 schema：

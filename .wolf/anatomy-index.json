@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T11:48:03.745Z",
-    "fileCount": 1097,
+    "lastScanned": "2026-10-27T23:03:30.619Z",
+    "fileCount": 1105,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "6c9ea9af57103b2a461906f3b514c607cc5c4c78504d57e3d2e7f9752468c473",
-    "storeUpdatedAt": "2026-10-27T11:48:03.756Z",
-    "rootHash": "acf48778297894c4"
+    "renderedHash": "ecba35d061c64d3f56c908bcf1253bfb796743b74be5641e95aa9e60643b2447",
+    "storeUpdatedAt": "2026-10-27T23:03:30.631Z",
+    "rootHash": "ccd1decd4144e03a"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13559,33 +13559,19 @@
     },
     "pcs-frontend/src/pages/audit/AuditLogPage.tsx": {
       "description": "AuditLogPage — 审计日志查询（F-P2-009 Sprint 3 / Issue 7 · **P9B-2 扩展**）。",
-      "tokens": 4209,
-      "hash": "4507c5ea3cc91b54",
-      "size": 15831,
-      "mtimeMs": 1793098133320.2754,
-      "updatedAt": "2026-10-27T10:48:53.369Z",
+      "tokens": 4851,
+      "hash": "ee89384da05225de",
+      "size": 19273,
+      "mtimeMs": 1793118634435.9238,
+      "updatedAt": "2026-10-27T16:30:34.489Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "PcsErrorEnvelope",
-          "kind": "section",
-          "startLine": 47,
-          "endLine": 50,
-          "tokens": 20
-        },
-        {
-          "name": "extractPcsError",
-          "kind": "fn",
-          "startLine": 51,
-          "endLine": 64,
-          "tokens": 132
-        },
-        {
           "name": "AuditLogPage",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 458,
-          "tokens": 3680
+          "startLine": 54,
+          "endLine": 520,
+          "tokens": 4405
         }
       ]
     },
@@ -34968,11 +34954,11 @@
     },
     "pcs-frontend/src/api/errors.ts": {
       "description": "统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。",
-      "tokens": 689,
-      "hash": "d3b05f2b8a6da549",
-      "size": 3209,
-      "mtimeMs": 1792510033842.6213,
-      "updatedAt": "2026-10-20T15:27:13.892Z",
+      "tokens": 998,
+      "hash": "b728bd444f7cde9c",
+      "size": 4593,
+      "mtimeMs": 1793118568903.451,
+      "updatedAt": "2026-10-27T16:29:28.953Z",
       "source": "hook",
       "symbols": [
         {
@@ -34993,21 +34979,35 @@
           "name": "extractPcsError",
           "kind": "fn",
           "startLine": 41,
-          "endLine": 57,
-          "tokens": 146
+          "endLine": 59,
+          "tokens": 172
+        },
+        {
+          "name": "isPermissionError",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 76,
+          "tokens": 134
+        },
+        {
+          "name": "describePcsError",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 92,
+          "tokens": 148
         },
         {
           "name": "extractConflict",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 77,
+          "startLine": 93,
+          "endLine": 112,
           "tokens": 189
         },
         {
           "name": "conflictKind",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 88,
+          "startLine": 113,
+          "endLine": 123,
           "tokens": 67
         }
       ]
@@ -39404,20 +39404,20 @@
     },
     "pcs-frontend/tests/pages/admin/user_admin.test.tsx": {
       "description": "ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20 / P9A-ADM-001/002）。",
-      "tokens": 1387,
-      "hash": "1b079d8bcb0e232a",
-      "size": 5404,
-      "mtimeMs": 1793098277801.1443,
-      "updatedAt": "2026-10-27T10:51:17.849Z",
+      "tokens": 1923,
+      "hash": "de126b87492d5e9b",
+      "size": 7562,
+      "mtimeMs": 1793118344834.697,
+      "updatedAt": "2026-10-27T16:25:44.884Z",
       "source": "hook"
     },
     "pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx": {
       "description": "审计日志的**筛选 + CSV 导出**（P9B-2 · T7 · SPEC §7.20）。",
-      "tokens": 1836,
-      "hash": "7bf6208e2c9092e7",
-      "size": 7385,
-      "mtimeMs": 1793098178062.901,
-      "updatedAt": "2026-10-27T10:49:38.109Z",
+      "tokens": 2364,
+      "hash": "f7e12daab499160f",
+      "size": 9860,
+      "mtimeMs": 1793118262724.987,
+      "updatedAt": "2026-10-27T16:24:22.775Z",
       "source": "hook",
       "symbols": [
         {
@@ -39431,8 +39431,8 @@
           "name": "parseCsv",
           "kind": "fn",
           "startLine": 95,
-          "endLine": 215,
-          "tokens": 1077
+          "endLine": 257,
+          "tokens": 1604
         }
       ]
     },
@@ -39595,6 +39595,170 @@
       "size": 4914,
       "mtimeMs": 1793101683686.0608,
       "updatedAt": "2026-10-27T11:48:03.745Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/mocks/signFlow.test.ts": {
+      "description": "mock 保真度（P9B-2 · 延后的 minor · Batch D）。",
+      "tokens": 1878,
+      "hash": "32a1efdfe3a3bea7",
+      "size": 7487,
+      "mtimeMs": 1793118772872.8782,
+      "updatedAt": "2026-10-27T16:32:52.922Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "postSignStep",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 54,
+          "tokens": 127
+        },
+        {
+          "name": "getProgress",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 59,
+          "tokens": 44
+        },
+        {
+          "name": "signSection",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 179,
+          "tokens": 1325
+        }
+      ]
+    },
+    "pcs-backend/tests/schemas/test_deliverable_progress_schema.py": {
+      "description": "交付物聚合进度段的 schema 契约（P9B-2 · 延后的 minor · Batch E）。",
+      "tokens": 450,
+      "hash": "245d9e01c9201718",
+      "size": 2096,
+      "mtimeMs": 1793119674791.865,
+      "updatedAt": "2026-10-27T16:47:54.839Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/projects.ts": {
+      "description": "项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。",
+      "tokens": 328,
+      "hash": "944def7e426b6e27",
+      "size": 1624,
+      "mtimeMs": 1793120118813.561,
+      "updatedAt": "2026-10-27T16:55:18.861Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/admin/ProjectAdminPage.tsx": {
+      "description": "ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F · SPEC §7.20）。",
+      "tokens": 1899,
+      "hash": "2283baed02bd9cfd",
+      "size": 7590,
+      "mtimeMs": 1793120137464.3884,
+      "updatedAt": "2026-10-27T16:55:37.514Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ProjectAdminPage",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 219,
+          "tokens": 1539
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/admin/project_admin.test.tsx": {
+      "description": "ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F）。",
+      "tokens": 1530,
+      "hash": "400ae66122fae4a1",
+      "size": 6100,
+      "mtimeMs": 1793120203999.8142,
+      "updatedAt": "2026-10-27T16:56:44.047Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py": {
+      "description": "给**存量项目**回填默认的 RECORD 签署矩阵（P9B-2 · Batch F）。",
+      "tokens": 884,
+      "hash": "df2d5213415a3e67",
+      "size": 4256,
+      "mtimeMs": 1793120291470.1484,
+      "updatedAt": "2026-10-27T16:58:11.520Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 118,
+          "tokens": 36
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 122,
+          "tokens": 28
+        }
+      ]
+    },
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py": {
+      "description": "`p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。",
+      "tokens": 931,
+      "hash": "cbbcba10a2bb1c53",
+      "size": 4368,
+      "mtimeMs": 1793120324542.9202,
+      "updatedAt": "2026-10-27T16:58:44.591Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 47,
+          "tokens": 84
+        },
+        {
+          "name": "test_migration_exists_and_is_chained_to_p9_012",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 57,
+          "tokens": 104
+        },
+        {
+          "name": "test_migration_matrix_definition_matches_service_constants",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 70,
+          "tokens": 153
+        },
+        {
+          "name": "test_backfill_only_touches_projects_without_record_binding",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 80,
+          "tokens": 112
+        },
+        {
+          "name": "test_default_matrix_is_created_only_when_missing",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 90,
+          "tokens": 104
+        },
+        {
+          "name": "test_downgrade_deletes_bindings_but_keeps_the_matrix_row",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 99,
+          "tokens": 107
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md": {
+      "description": "QA Report: pcs-frontend 2026-10-28 P9B-2 延后的 minor 批（B~F）",
+      "tokens": 763,
+      "hash": "08065f2c18507187",
+      "size": 4634,
+      "mtimeMs": 1793142210571.9824,
+      "updatedAt": "2026-10-27T23:03:30.619Z",
       "source": "hook"
     }
   }

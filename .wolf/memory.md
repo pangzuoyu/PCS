@@ -2680,3 +2680,20 @@
 | 19:28 | Created pcs-frontend/e2e/record_actions.spec.ts | — | ~658 |
 | 19:29 | Created pcs-frontend/e2e/deliverable_sign.spec.ts | — | ~830 |
 | 19:48 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md | — | ~891 |
+| 00:24 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | 10→14 lines | ~191 |
+| 00:24 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | CSS: offset, offset, offset | ~687 |
+| 00:24 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 6→8 lines | ~127 |
+| 00:24 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 4→8 lines | ~61 |
+| 00:24 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | CSS: load, offset | ~96 |
+| 00:25 | Edited pcs-frontend/tests/pages/admin/user_admin.test.tsx | added nullish coalescing | ~765 |
+| 00:29 | Edited pcs-frontend/src/api/errors.ts | added optional chaining | ~371 |
+| 00:30 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | inline fix | ~17 |
+| 00:32 | Created pcs-frontend/tests/mocks/signFlow.test.ts | — | ~1878 |
+| 00:47 | Created pcs-backend/tests/schemas/test_deliverable_progress_schema.py | — | ~450 |
+| 00:55 | Created pcs-frontend/src/api/projects.ts | — | ~328 |
+| 00:55 | Created pcs-frontend/src/pages/admin/ProjectAdminPage.tsx | — | ~1899 |
+| 00:56 | Created pcs-frontend/tests/pages/admin/project_admin.test.tsx | — | ~1530 |
+| 00:58 | Created pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py | — | ~884 |
+| 00:58 | Created pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | — | ~928 |
+| 00:58 | Created pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | — | ~931 |
+| 07:03 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md | — | ~814 |

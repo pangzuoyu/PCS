@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T11:48:03.745Z
-> Files: 1097 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T23:03:30.619Z
+> Files: 1105 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -184,6 +184,7 @@
 - `qa-report-pcs-frontend-2026-10-21-p9b-1.md` — QA 报告 — PCS 前端 P9B-1（结果记录页 + 编辑锁） (~1469 tok)
 - `qa-report-pcs-frontend-2026-10-27-p9a-dlv-011-debt2.md` — QA 报告 —— PCS 前端（P9A-DLV-011 收尾批 #2） (~548 tok)
 - `qa-report-pcs-frontend-2026-10-27-p9b-2.md` — QA Report: pcs-frontend 2026-10-27 P9B-2（签署流程 + ADMIN 前端） (~835 tok)
+- `qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md` — QA Report: pcs-frontend 2026-10-28 P9B-2 延后的 minor 批（B~F） (~763 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -1187,6 +1188,7 @@
 - `p9_010_matrix_name_status_unique.py` — P9A-DLV-011 收官批：`signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）。 (~546 tok)
 - `p9_011_schema_aware_constraints.py` — 把 6 条约束**按 schema** 补齐（TODO-088）。 (~1208 tok)
 - `p9_012_drop_parent_deliverable_id.py` — 删死列 `deliverables.parent_deliverable_id`（P9B-2 · T-2 · 用户 2026-10-27 裁决）。 (~406 tok)
+- `p9_013_bind_default_record_matrix.py` — 给**存量项目**回填默认的 RECORD 签署矩阵（P9B-2 · Batch F）。 (~884 tok)
 
 ## pcs-backend/app/
 
@@ -1416,6 +1418,7 @@
 - `test_p9_006_cost_est_record_hash.py` — P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。 (~1558 tok)
 - `test_p9_007_cost_est_project_id.py` — `p9_007`（cost_est_results 补 project_id）的迁移形状断言 —— P9A-5 Task B。 (~981 tok)
 - `test_p9_008_project_matrix_binding_unique.py` — P9A-DLV-011 T2 迁移基座的 schema 断言 —— (project_id, module) 唯一约束。 (~1072 tok)
+- `test_p9_013_bind_default_record_matrix.py` — `p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。 (~931 tok)
 
 ## pcs-backend/tests/api/v1/
 
@@ -1488,6 +1491,7 @@
 ## pcs-backend/tests/schemas/
 
 - `test_config_asset_schema.py` — AssetResponse.status 的词表（2026-10-19，bug-188）。 (~376 tok)
+- `test_deliverable_progress_schema.py` — 交付物聚合进度段的 schema 契约（P9B-2 · 延后的 minor · Batch E）。 (~450 tok)
 - `test_pipe_class_schema.py` — PipeClass schema 的 status 词表（2026-10-19，bug-187）。 (~806 tok)
 - `test_stream_vocabulary.py` — `Stream` 四个词表字段必须在契约里（2026-10-19，TODO-042 / bug-191）。 (~1362 tok)
 
@@ -1623,11 +1627,12 @@
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
 - `deliverables.ts` — 交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。 (~1197 tok)
-- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
+- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~998 tok)
 - `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `meta.ts` — Meta API 客户端（状态机 + 权限矩阵）—— P9B-2 · T4 的数据源。 (~324 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
+- `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~328 tok)
 - `recordActions.ts` — 记录级写面客户端（9 态动作 + 批注）—— P9B-2 · SPEC §6.3 / §7.19.1。 (~1178 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
@@ -1690,11 +1695,12 @@
 
 ## pcs-frontend/src/pages/admin/
 
+- `ProjectAdminPage.tsx` — ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F · SPEC §7.20）。 (~1899 tok)
 - `UserAdminPage.tsx` — ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20「用户管理（AD 同步）」/ P9A-ADM-001/002）。 (~1659 tok)
 
 ## pcs-frontend/src/pages/audit/
 
-- `AuditLogPage.tsx` — AuditLogPage — 审计日志查询（F-P2-009 Sprint 3 / Issue 7 · **P9B-2 扩展**）。 (~4209 tok)
+- `AuditLogPage.tsx` — AuditLogPage — 审计日志查询（F-P2-009 Sprint 3 / Issue 7 · **P9B-2 扩展**）。 (~4851 tok)
 
 ## pcs-frontend/src/pages/config/
 
@@ -1783,14 +1789,16 @@
 
 - `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~2936 tok)
 - `reportBuilderStatusFilter.test.ts` — MSW 的 `/report-builder/definitions` 必须**遵守 `status` 查询参数**。 (~782 tok)
+- `signFlow.test.ts` — mock 保真度（P9B-2 · 延后的 minor · Batch D）。 (~1878 tok)
 
 ## pcs-frontend/tests/pages/admin/
 
-- `user_admin.test.tsx` — ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20 / P9A-ADM-001/002）。 (~1387 tok)
+- `project_admin.test.tsx` — ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F）。 (~1530 tok)
+- `user_admin.test.tsx` — ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20 / P9A-ADM-001/002）。 (~1923 tok)
 
 ## pcs-frontend/tests/pages/audit/
 
-- `AuditLogPage.export.test.tsx` — 审计日志的**筛选 + CSV 导出**（P9B-2 · T7 · SPEC §7.20）。 (~1836 tok)
+- `AuditLogPage.export.test.tsx` — 审计日志的**筛选 + CSV 导出**（P9B-2 · T7 · SPEC §7.20）。 (~2364 tok)
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
 
 ## pcs-frontend/tests/pages/deliverables/
