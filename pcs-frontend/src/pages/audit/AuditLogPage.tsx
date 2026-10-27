@@ -33,6 +33,7 @@ import {
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { auditApi, type AuditLogItem, type ListAuditLogsParams } from '../../api/audit';
+import { describePcsError } from '../../api/errors';
 import { downloadCsv, toCsv } from '../../lib/csv';
 import { useAuth } from '../../store/auth';
 import type { StrictColumns } from '../../types/strictColumns';
@@ -43,18 +44,6 @@ type TabKey = 'config-audit' | 'equipment-deletion' | 'audit-logs';
 const EXPORT_LIMIT = 5000;
 /** 导出时每页的行数。 */
 const EXPORT_PAGE_SIZE = 200;
-
-interface PcsErrorEnvelope {
-  code?: string;
-  message?: string;
-}
-function extractPcsError(err: unknown): PcsErrorEnvelope {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const data = (err as { response?: { data?: PcsErrorEnvelope } }).response?.data;
-    if (data && typeof data === 'object') return data;
-  }
-  return {};
-}
 
 const TAB_LABELS: Record<TabKey, string> = {
   'config-audit': 'CONFIG R1 修订痕迹 (工艺室可查)',
@@ -68,7 +57,12 @@ export function AuditLogPage(): JSX.Element {
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // ⚠️ **列表加载失败**与**导出失败**分开：
+  //    列表失败 ⇒ 提示**不可关闭** + **不渲染空表**（关掉就退化成「共 0 条」
+  //    的空表 ⇒ 读成「系统没有审计日志」⇒ 真相可能是「你没权限」，RF-12）；
+  //    导出失败 ⇒ 只影响导出 ⇒ 提示**可关闭**，列表照常显示。
+  const [listError, setListError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // CONFIG tab 过滤
   const [assetId, setAssetId] = useState<number | undefined>(undefined);
@@ -78,22 +72,26 @@ export function AuditLogPage(): JSX.Element {
   const [auditFilter, setAuditFilter] = useState<ListAuditLogsParams>({});
   const [exporting, setExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  // ⚠️ **服务端分页**（P9B-2 · 延后的 minor）：此前 `limit: 50` 不带 offset +
+  //    antd **前端**分页 ⇒ 表格**永远只有 50 行**，标题却写「共 N 条」⇒
+  //    三处数字互相打架（用户以为看到的就是全部）。
+  //    ⇒ 页码 / 每页行数 / offset 全部由前端算，**页数由后端的 `total` 决定**。
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
-  async function loadConfigAudit(): Promise<void> {
-    setErrorMsg(null);
+  async function loadConfigAudit(offset: number): Promise<void> {
+    setListError(null);
     setLoading(true);
     try {
-      const r = await auditApi.listConfigAudit(
-        assetId !== undefined ? { asset_id: assetId, limit: 50 } : { limit: 50 },
-      );
+      const r = await auditApi.listConfigAudit({
+        ...(assetId !== undefined ? { asset_id: assetId } : {}),
+        limit: pageSize,
+        offset,
+      });
       setItems(r.items);
       setTotal(r.total);
     } catch (err: unknown) {
-      setErrorMsg(
-        `${extractPcsError(err).code ?? 'HTTP_500'}: ${
-          extractPcsError(err).message ?? 'CONFIG audit 查询失败'
-        }`,
-      );
+      setListError(describePcsError(err, 'CONFIG audit 查询失败'));
       setItems([]);
       setTotal(0);
     } finally {
@@ -101,26 +99,23 @@ export function AuditLogPage(): JSX.Element {
     }
   }
 
-  async function loadEquipmentDeletionAudit(): Promise<void> {
+  async function loadEquipmentDeletionAudit(offset: number): Promise<void> {
     if (!projectId) {
-      setErrorMsg('project_id 必填 (非 SYSTEM_ADMIN 必须传)');
+      setListError('project_id 必填 (非 SYSTEM_ADMIN 必须传)');
       return;
     }
-    setErrorMsg(null);
+    setListError(null);
     setLoading(true);
     try {
       const r = await auditApi.listEquipmentDeletionAudit({
         project_id: projectId,
-        limit: 50,
+        limit: pageSize,
+        offset,
       });
       setItems(r.items as unknown as AuditLogItem[]);
       setTotal(r.total);
     } catch (err: unknown) {
-      setErrorMsg(
-        `${extractPcsError(err).code ?? 'HTTP_500'}: ${
-          extractPcsError(err).message ?? '设备删除 audit 查询失败'
-        }`,
-      );
+      setListError(describePcsError(err, '设备删除 audit 查询失败'));
       setItems([]);
       setTotal(0);
     } finally {
@@ -128,19 +123,19 @@ export function AuditLogPage(): JSX.Element {
     }
   }
 
-  async function loadAuditLogs(): Promise<void> {
-    setErrorMsg(null);
+  async function loadAuditLogs(offset: number): Promise<void> {
+    setListError(null);
     setLoading(true);
     try {
-      const r = await auditApi.listAuditLogs({ ...auditFilter, limit: 50 });
+      const r = await auditApi.listAuditLogs({
+        ...auditFilter,
+        limit: pageSize,
+        offset,
+      });
       setItems(r.items);
       setTotal(r.total);
     } catch (err: unknown) {
-      setErrorMsg(
-        `${extractPcsError(err).code ?? 'HTTP_500'}: ${
-          extractPcsError(err).message ?? 'audit-logs 查询失败'
-        }`,
-      );
+      setListError(describePcsError(err, 'audit-logs 查询失败'));
       setItems([]);
       setTotal(0);
     } finally {
@@ -158,6 +153,7 @@ export function AuditLogPage(): JSX.Element {
   async function exportAuditCsv(): Promise<void> {
     setExporting(true);
     setExportNotice(null);
+    setExportError(null);
     try {
       const collected: AuditLogItem[] = [];
       let offset = 0;
@@ -188,6 +184,9 @@ export function AuditLogPage(): JSX.Element {
       const total = lastTotal;
       const mismatch = total !== null && collected.length !== total;
       const rows = collected.slice(0, EXPORT_LIMIT).map((i) => [
+        // ⚠️ **audit_id（LogID）必须在第一列** —— 同一秒的多条记录靠时间戳分不开
+        //    ⇒ 没有 LogID 就**无法回指**原审计行（合规场景拿这份 CSV 当证据）。
+        i.audit_id,
         i.occurred_at,
         i.action,
         i.resource_type ?? '',
@@ -197,7 +196,15 @@ export function AuditLogPage(): JSX.Element {
         i.detail_json ? JSON.stringify(i.detail_json) : '',
       ]);
       const csv = toCsv(
-        ['occurred_at', 'action', 'resource_type', 'resource_id', 'user_id', 'detail_json'],
+        [
+          'audit_id',
+          'occurred_at',
+          'action',
+          'resource_type',
+          'resource_id',
+          'user_id',
+          'detail_json',
+        ],
         rows,
       );
       downloadCsv('audit-logs.csv', csv);
@@ -209,22 +216,32 @@ export function AuditLogPage(): JSX.Element {
             : `已导出 ${rows.length} 行（当前筛选条件下的全部结果）`,
       );
     } catch (err: unknown) {
-      setErrorMsg(
-        `${extractPcsError(err).code ?? 'HTTP_500'}: ${
-          extractPcsError(err).message ?? '导出失败'
-        }`,
-      );
+      setExportError(describePcsError(err, '导出失败'));
     } finally {
       setExporting(false);
     }
   }
 
+  /**
+   * 回到**第 1 页**重新查。
+   *
+   * ⚠️ 当前已经在第 1 页 ⇒ 直接查（否则 `setPage(1)` 不产生新状态 ⇒ effect 不触发
+   *    ⇒ 「查询」按钮会**毫无反应**）；不在第 1 页 ⇒ 只改页码 ⇒ 让 effect 去查
+   *    ⇒ **不重复请求**。
+   */
+  function reloadFromFirstPage(load: (offset: number) => Promise<void>): void {
+    if (page === 1) void load(0);
+    else setPage(1);
+  }
+
   useEffect(() => {
-    if (activeTab === 'config-audit') void loadConfigAudit();
-    if (activeTab === 'equipment-deletion') void loadEquipmentDeletionAudit();
-    if (activeTab === 'audit-logs') void loadAuditLogs();
+    // ⚠️ **服务端分页** ⇒ offset 由 `page` 算；页码变化 ⇒ 重拉。
+    const offset = (page - 1) * pageSize;
+    if (activeTab === 'config-audit') void loadConfigAudit(offset);
+    if (activeTab === 'equipment-deletion') void loadEquipmentDeletionAudit(offset);
+    if (activeTab === 'audit-logs') void loadAuditLogs(offset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, assetId, projectId]);
+  }, [activeTab, assetId, projectId, page, pageSize]);
 
   const columns: StrictColumns<AuditLogItem> = [
     { title: '时间', dataIndex: 'occurred_at', width: 200 },
@@ -266,20 +283,35 @@ export function AuditLogPage(): JSX.Element {
         style={{ marginBottom: 16 }}
       />
 
-      {errorMsg && (
+      {/* ⚠️ **列表加载失败 ⇒ 不可关闭 + 不渲染空表**（见 `listError` 注释） */}
+      {listError && (
         <Alert
           type="error"
           showIcon
-          message={errorMsg}
+          message={listError}
+          data-testid="audit-list-error"
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      {exportError && (
+        <Alert
+          type="error"
+          showIcon
+          message={exportError}
+          data-testid="audit-export-error"
           style={{ marginBottom: 16 }}
           closable
-          onClose={() => setErrorMsg(null)}
+          onClose={() => setExportError(null)}
         />
       )}
 
       <Tabs
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as TabKey)}
+        onChange={(k) => {
+          // ⚠️ 换 tab ⇒ 回到第 1 页（否则带着上一个 tab 的页码去查另一个结果集）
+          setPage(1);
+          setActiveTab(k as TabKey);
+        }}
         items={[
           {
             key: 'config-audit',
@@ -296,7 +328,10 @@ export function AuditLogPage(): JSX.Element {
                     />
                   </Form.Item>
                   <Form.Item>
-                    <Button type="primary" onClick={() => void loadConfigAudit()}>
+                    <Button
+                      type="primary"
+                      onClick={() => reloadFromFirstPage(loadConfigAudit)}
+                    >
                       查询
                     </Button>
                   </Form.Item>
@@ -321,7 +356,7 @@ export function AuditLogPage(): JSX.Element {
                   <Form.Item>
                     <Button
                       type="primary"
-                      onClick={() => void loadEquipmentDeletionAudit()}
+                      onClick={() => reloadFromFirstPage(loadEquipmentDeletionAudit)}
                       disabled={!projectId}
                     >
                       查询
@@ -420,7 +455,7 @@ export function AuditLogPage(): JSX.Element {
                     <Button
                       type="primary"
                       data-testid="audit-filter-submit"
-                      onClick={() => void loadAuditLogs()}
+                      onClick={() => reloadFromFirstPage(loadAuditLogs)}
                     >
                       查询
                     </Button>
@@ -453,6 +488,8 @@ export function AuditLogPage(): JSX.Element {
         ]}
       />
 
+      {/* ⚠️ **列表加载失败 ⇒ 不渲染表**（空表会被读成「没有审计日志」） */}
+      {!listError && (
       <Card title={`结果 (共 ${total} 条)`}>
         <Table<AuditLogItem>
           rowKey="audit_id"
@@ -460,9 +497,22 @@ export function AuditLogPage(): JSX.Element {
           columns={columns}
           loading={loading}
           size="small"
-          pagination={{ pageSize: 50, showSizeChanger: false }}
+          // ⚠️ **服务端分页**：`total` 来自**后端** ⇒ 页数是真实结果集页数；
+          //    `onChange` 只改状态 ⇒ 由上面的 effect 重新拉（不重复请求）。
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['50', '100', '200'],
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
+          }}
         />
       </Card>
+      )}
     </div>
   );
 }

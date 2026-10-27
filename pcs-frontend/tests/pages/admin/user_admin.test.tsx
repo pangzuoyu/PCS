@@ -34,6 +34,8 @@ const USER = {
 
 let listCalls = 0;
 let disableCalls = 0;
+/** 403 ⇒ 模拟「无权查看」；200 ⇒ 正常。 */
+let listStatus = 200;
 let syncResult: AdSyncResult = {
   ok: true,
   created: 1,
@@ -47,6 +49,17 @@ let syncResult: AdSyncResult = {
 const server = setupServer(
   http.get('/api/v1/admin/users', () => {
     listCalls += 1;
+    if (listStatus === 403) {
+      return HttpResponse.json(
+        {
+          code: 'HTTP_403',
+          message: "需要角色 ['SYSTEM_ADMIN']",
+          detail: null,
+          trace_id: 't-403',
+        },
+        { status: 403 },
+      );
+    }
     // ⚠️ 停用后**重新拉**时，服务端返回的 token_version 变了
     return HttpResponse.json([{ ...USER, status: disableCalls > 0 ? 'DISABLED' : 'ACTIVE', token_version: disableCalls > 0 ? 4 : 3 }]);
   }),
@@ -68,6 +81,7 @@ describe('UserAdminPage —— ADMIN 用户管理', () => {
   beforeEach(() => {
     listCalls = 0;
     disableCalls = 0;
+    listStatus = 200;
     syncResult = {
       ok: true,
       created: 1,
@@ -88,17 +102,70 @@ describe('UserAdminPage —— ADMIN 用户管理', () => {
     expect(screen.getByText('3')).toBeTruthy();
   });
 
-  it('⚠️ 点「停用」⇒ 调 PUT ⇒ **重新拉列表**（RF-9）', async () => {
+  it('⚠️ 列表显示 email / department / last_login_at（后端已返回，前端没展示）', async () => {
+    // ⚠️ `AdminUserOut` **本来就带** email / department / last_login_at
+    //    ⇒ 运营看不到邮箱 = 找不到「这个人是谁」⇒ 列表形同虚设。
+    render(<UserAdminPage />);
+    await waitFor(() => expect(screen.getByText('张三')).toBeTruthy());
+    expect(screen.getByText('zhangsan@example.com')).toBeTruthy();
+    expect(screen.getByText('工艺')).toBeTruthy();
+    expect(screen.getByText('2026-10-20 09:00 UTC')).toBeTruthy();
+  });
+
+  it('⚠️ 403（无权）⇒ 错误提示**不可关闭** + **不渲染空表**', async () => {
+    // ⚠️ 此前错误 Alert **可关闭** ⇒ 关掉就退化成「用户（0）」的**空表**
+    //    ⇒ 管理员读成「系统里一个用户都没有」⇒ 真相是「你没权限」（RF-12）。
+    listStatus = 403;
+    render(<UserAdminPage />);
+    await waitFor(() => expect(screen.getByTestId('admin-error')).toBeTruthy());
+    expect(screen.getByTestId('admin-error').textContent).toContain('无权');
+    expect(document.querySelector('.ant-alert-close-icon')).toBeNull();
+    expect(document.querySelector('.ant-table')).toBeNull();
+  });
+
+  it('⚠️ 停用**要二次确认**（未确认 ⇒ **不调 PUT**）', async () => {
+    // ⚠️ 停用会**递增 token_version** ⇒ 在手 refresh 全部失效 ⇒ 误点即误伤。
+    render(<UserAdminPage />);
+    await waitFor(() => expect(screen.getByText('张三')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('admin-disable-u-1'));
+
+    await waitFor(() => expect(screen.getByTestId('admin-disable-confirm')).toBeTruthy());
+    // ⚠️ 确认框里要点名**谁**被停用 + 说清后果
+    const modalText = screen.getByTestId('admin-disable-confirm').textContent ?? '';
+    expect(modalText).toContain('zhangsan');
+    expect(modalText).toContain('refresh');
+    // ⚠️ **未确认 ⇒ 一个 PUT 都不发**
+    expect(disableCalls).toBe(0);
+    expect(listCalls).toBe(1);
+  });
+
+  it('⚠️ 点「停用」⇒ 二次确认 ⇒ 调 PUT ⇒ **重新拉列表**（RF-9）', async () => {
     render(<UserAdminPage />);
     await waitFor(() => expect(screen.getByText('张三')).toBeTruthy());
     expect(listCalls).toBe(1);
 
     fireEvent.click(screen.getByTestId('admin-disable-u-1'));
+    await waitFor(() => expect(screen.getByTestId('admin-disable-confirm-ok')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('admin-disable-confirm-ok'));
 
     await waitFor(() => expect(listCalls).toBe(2));
     expect(disableCalls).toBe(1);
     // ⚠️ 重新拉到的**新** token_version 必须显示出来（不是旧值 3）
     await waitFor(() => expect(screen.getByText('4')).toBeTruthy());
+  });
+
+  it('⚠️ 二次确认**取消** ⇒ 不调 PUT', async () => {
+    render(<UserAdminPage />);
+    await waitFor(() => expect(screen.getByText('张三')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('admin-disable-u-1'));
+    await waitFor(() => expect(screen.getByTestId('admin-disable-confirm-cancel')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('admin-disable-confirm-cancel'));
+
+    await waitFor(() => expect(screen.queryByTestId('admin-disable-confirm')).toBeNull());
+    expect(disableCalls).toBe(0);
+    expect(listCalls).toBe(1);
   });
 
   it('⚠️ AD 同步 `ok=false` ⇒ 显示 **error 原文**，**不得**显示成功（RF-10）', async () => {

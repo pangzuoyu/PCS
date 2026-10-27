@@ -48,6 +48,41 @@ export function extractPcsError(err: unknown): PcsErrorEnvelope | null {
 }
 
 /**
+ * 是否是**权限**错误（HTTP 403）。
+ *
+ * ⚠️ 后端有**两个**403 来源，**都要认**：
+ * 1. `require_roles` 抛 `HTTPException(403)` ⇒ 全局 handler 渲染成
+ *    `{code: 'HTTP_403'}`（`app/core/errors.py`）；
+ * 2. `current_actor` 抛 `PcsError(status=403)` ⇒ `code` 是业务码
+ *    （如 `INVALID_ROLE`）⇒ **光看 code 认不出**。
+ * ⇒ 一律再查一次 **HTTP 状态码**。
+ */
+export function isPermissionError(err: unknown): boolean {
+  const envelope = extractPcsError(err);
+  if (envelope?.code === 'HTTP_403') return true;
+  if (isRecord(err)) {
+    const response = err['response'];
+    if (isRecord(response) && response['status'] === 403) return true;
+  }
+  return false;
+}
+
+/**
+ * 错误提示文案（**统一**）。
+ *
+ * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——
+ *    前者说清了**发生了什么**，后者只给了一个机器码；而且 403 与「查出来是空」
+ *    **必须区分开**（空表会被读成「没有数据」⇒ RF-12）。
+ */
+export function describePcsError(err: unknown, fallback: string): string {
+  const envelope = extractPcsError(err);
+  const code = envelope?.code ?? 'HTTP_500';
+  const message = envelope?.message ?? fallback;
+  if (isPermissionError(err)) return `无权查看：${message}`;
+  return `${code}：${message}`;
+}
+
+/**
  * 取 409 编辑冲突的详情（`detail.conflict`）。
  *
  * - 非冲突错误（404 / 500 / 网络错误）⇒ `null`

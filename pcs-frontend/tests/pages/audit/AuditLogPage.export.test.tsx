@@ -61,6 +61,8 @@ const ITEMS: AuditLogItem[] = [
 let listCalls = 0;
 let seenParams: URLSearchParams[] = [];
 let totalRows = 2;
+/** 403 ⇒ 模拟「无权查看」；200 ⇒ 正常。 */
+let auditLogsStatus = 200;
 
 const server = setupServer(
   http.get('/api/v1/audit-logs', ({ request }) => {
@@ -69,6 +71,19 @@ const server = setupServer(
     seenParams.push(url.searchParams);
     const offset = Number(url.searchParams.get('offset') ?? '0');
     const limit = Number(url.searchParams.get('limit') ?? '50');
+    if (auditLogsStatus === 403) {
+      // ⚠️ 后端 `require_roles` 抛的 HTTPException ⇒ 全局 handler 渲染成
+      //    `{code: 'HTTP_403', message: "需要角色 [...]"}`（app/core/errors.py）。
+      return HttpResponse.json(
+        {
+          code: 'HTTP_403',
+          message: "需要角色 ['SYSTEM_ADMIN']",
+          detail: null,
+          trace_id: 't-403',
+        },
+        { status: 403 },
+      );
+    }
     return HttpResponse.json({
       items: offset === 0 ? ITEMS : [],
       total: totalRows,
@@ -151,6 +166,7 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     listCalls = 0;
     seenParams = [];
     totalRows = 2;
+    auditLogsStatus = 200;
     useAuth.setState({ role: 'SYSTEM_ADMIN', accessToken: 'test-token' });
   });
 
@@ -181,10 +197,10 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     const rows = parseCsv(text);
     // ⚠️ 2 条数据 + 1 行表头 = **3 条记录**（引号里的换行**不算**断行）
     expect(rows.length).toBe(3);
-    // ⚠️ **列数不变** ⇒ 逗号没把单元格拆开（6 列）
-    expect(rows[2].length).toBe(6);
+    // ⚠️ **列数不变** ⇒ 逗号没把单元格拆开（7 列：audit_id + 6）
+    expect(rows[2].length).toBe(7);
     // ⚠️ 含逗号 / 引号 / 换行的那个字段**完整**落在**一个**单元格里
-    const trickyCell = rows[2][5];
+    const trickyCell = rows[2][6];
     expect(trickyCell).toContain('引号');
     expect(trickyCell).toContain('逗号');
     expect(trickyCell).toContain('以及换行');
@@ -198,6 +214,48 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     await waitFor(() => expect(screen.getByTestId('audit-export-notice')).toBeTruthy());
     expect(screen.getByTestId('audit-export-notice').textContent).toContain('2');
     expect(screen.getByTestId('audit-export-notice').textContent).toContain('全部结果');
+  });
+
+  it('⚠️ 表格走**服务端分页**（翻页 ⇒ 带 offset；不是前端切 50 条）', async () => {
+    // ⚠️ 此前 `limit: 50` 不带 offset + antd **前端**分页 ⇒ 表格**永远只有 50 行**，
+    //    标题却写「共 12000 条」⇒ 三处数字互相打架。
+    //    ⇒ 服务端分页：页码由**后端的 total** 决定 ⇒ total=120 时有第 2 页。
+    totalRows = 120;
+    await openAuditLogsTab();
+    seenParams = [];
+    // ⚠️ 页码 2 存在 ⇔ 分页器知道**后端的 total**（前端分页时 dataSource 只有 2 行
+    //    ⇒ 只有一个页 ⇒ 这行先失败 ⇒ 说明还没做服务端分页）。
+    await waitFor(() => expect(screen.getByTitle('2')).toBeTruthy());
+    fireEvent.click(screen.getByTitle('2'));
+    await waitFor(() => expect(seenParams.length).toBeGreaterThan(0));
+    const last = seenParams[seenParams.length - 1];
+    expect(last?.get('offset')).toBe('50');
+    expect(last?.get('limit')).toBe('50');
+  });
+
+  it('⚠️ 403（无权）⇒ 错误提示**不可关闭** + **不渲染空表**', async () => {
+    // ⚠️ 此前错误 Alert **可关闭** ⇒ 关掉就退化成「共 0 条」的**空表**
+    //    ⇒ 用户读成「这个系统没有审计日志」⇒ 真相是「你没权限」（RF-12）。
+    auditLogsStatus = 403;
+    await openAuditLogsTab();
+    await waitFor(() => expect(screen.getByTestId('audit-list-error')).toBeTruthy());
+    expect(screen.getByTestId('audit-list-error').textContent).toContain('无权');
+    // ⚠️ **关不掉**（关掉 = 假装没有数据）
+    expect(document.querySelector('.ant-alert-close-icon')).toBeNull();
+    // ⚠️ **不渲染空表**（空表会被读成「没有审计日志」）
+    expect(document.querySelector('.ant-table')).toBeNull();
+  });
+
+  it('⚠️ 导出**第一列是 `audit_id`（LogID）** ⇒ 能回指原审计行', async () => {
+    // ⚠️ 同一秒的多条记录靠 `occurred_at` **分不开** ⇒ 没有 LogID ⇒ 合规场景
+    //    拿这份 CSV 当证据时**无法回指**。
+    await openAuditLogsTab();
+    fireEvent.click(screen.getByTestId('audit-export-csv'));
+    await waitFor(() => expect(blobs.length).toBe(1));
+    const text = await readBlobText(blobs[0]);
+    const rows = parseCsv(text);
+    expect(rows[0][0]).toBe('audit_id');
+    expect(rows[1][0]).toBe('a-1');
   });
 
   it('⚠️ 导出行数与后端 `total` **对不上** ⇒ 明说（可能重复 / 漏行）', async () => {
