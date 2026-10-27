@@ -11,7 +11,7 @@ budget_tokens: 1200
 
 ## ✅ Done
 
-### 第 18 轮：**P9B-2 全批落地 + 收口**（13 个任务 T-1…T10，commit `979119b..478b547`）
+### 第 18 轮：**P9B-2 全批落地 + 收口**（13 个任务 T-1…T10，commit `979119b..33706d8`）
 
 计划 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md`（2348 行，13 任务）**全部执行完**：
 
@@ -32,24 +32,28 @@ budget_tokens: 1200
 | `f033a8f` | **T10** 新端点 mock + **状态机 seed 改为后端生成**（R-19）+ 两条 e2e |
 | `36d9296` `478b547` | antd `destroyOnHidden` 修正 + TODO-054/065/066/067 结项 + buglog 3 条 |
 
-**验收**：后端 **5364 passed / 77 skipped / 1 xfailed**；前端 typecheck / lint exit 0、
-`vitest run` **935 passed / 103 files**；Playwright **21 passed**；G-08 契约门禁通过；
-浏览器 QA `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md`
-（**0 critical / 0 high**，1 medium 当场修掉）。
+**验收**（含最终整支评审的修复批）：后端 **5368 passed / 77 skipped / 1 xfailed**；
+前端 typecheck / lint exit 0、`vitest run` **944 passed / 103 files**；Playwright
+**21 passed**；G-08 契约门禁**含 `--check-baseline`** 通过；浏览器 QA
+`.gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md`（0 critical /
+0 high；修复批后控制台 0 error、404-500 计数 0）。
 
 **本批抓到的真缺陷**：**bug-2092** 手写的 `meta/state-machine` seed 漏了
 `REVERSAL_PENDING → OBSOLETE` ⇒ 「撤销审批中」的记录**没有**「弃用」按钮（后端允许）
 ⇒ 改成后端生成 + pytest 逐条比对；**bug-2093** `SignStepRequest` 没有 `reason`
-⇒ 退回理由会被静默丢弃。
+⇒ 退回理由会被静默丢弃。**最终整支评审**又抓到 1 CRITICAL（三个变更动作**每次
+都 422** ⇒「放弃变更」永远点不动）+ 6 HIGH（自审门禁只挡第 1 步 / 没绑矩阵不禁用 /
+401 误登出 / 多行展开串数据 / 列表 403 吞成空表 / 导出宣称「全部」不核对 `total`）
+⇒ **全部已修**（每条一个先红的测试）；**CHECKER 读交付物**是用户裁决放行。
 
 ---
 
 ## 🚀 Next quest
 
-1. **最终整支评审 + 收尾**：executing-plans 的 **whole-branch review**（新上下文审
-   `979119b..HEAD`）⇒ Critical/Important 修完 ⇒ `finishing-a-development-branch` ⇒
-   汇报「Rulings I made」+「Deferred minors」（ledger：
-   `.superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md`）。
+1. **P9B-2 收尾**：整支评审（fresh context）已跑完 ⇒ 1 CRITICAL + 6 HIGH **已修**
+   （`d422ed3` / `1fba41d` / `6b69797`）⇒ 剩下的是**延后的 minor**（ledger 的
+   「Final: minor (deferred)」段：交付物级门禁 / 导出列 / 用户列表字段 / 停用
+   二次确认 / 建项目入口 + 存量回填 / mock 保真度 …）⇒ 下批做。
 2. **P9B-3**：系统参数前端 + 物流手动创建向导 + 校对 UI。
 3. **本批仍开着**：TODO-073~090 全部闭环；剩余开放项见 TODOS.md（迁移幂等守门的
    历史文件盲区 / 57 个手写类型的长期债 / ADR-0050 用户裁决「先不做」）。
