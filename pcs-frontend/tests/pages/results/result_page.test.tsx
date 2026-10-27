@@ -560,3 +560,50 @@ describe('ResultEditDrawer —— 页面卸载（SPA 导航）也要释放锁（
     await waitFor(() => expect(releaseCalls).toBeGreaterThan(0));
   }, SLOW_TIMEOUT);
 });
+
+/**
+ * 「详情」入口（P9B-2 · T5 · SPEC §7.19.1）。
+ *
+ * 抽屉里的三个读端点（meta / 批注 / 编辑历史）在这里补上 mock ——
+ * 默认 `onUnhandledRequest: 'error'` ⇒ 少一个就整条用例红。
+ */
+describe('ResultListPage —— 详情入口', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    ROWS = [ROW_DRAFT];
+    useAuth.setState({ accessToken: 'test-token', role: 'DESIGNER' });
+    server.use(
+      http.get('/api/v1/meta/state-machine', () =>
+        HttpResponse.json({ transitions: [], allowed: {} }),
+      ),
+      http.get('/api/v1/projects/:projectId/signature-matrices', () =>
+        HttpResponse.json([]),
+      ),
+      http.get('/api/v1/records/:module/:recordId/comments', () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
+      http.get('/api/v1/records/:module/:recordId/edits', () =>
+        HttpResponse.json({
+          record_type: 'cooling_tower_result',
+          record_id: ROW_DRAFT.id,
+          items: [],
+          total: 0,
+        }),
+      ),
+    );
+  });
+
+  it('⚠️ 点「详情」⇒ 打开记录详情抽屉（操作栏 + 批注 + 状态时间线）', async () => {
+    render(<ResultListPage module={MODULE} />);
+    await waitFor(() => expect(screen.getAllByTestId('result-detail-button').length).toBe(1));
+    fireEvent.click(screen.getAllByTestId('result-detail-button')[0]);
+
+    await waitFor(() => expect(screen.getByTestId('record-detail-drawer')).toBeTruthy());
+    expect(screen.getByTestId('record-detail-drawer').getAttribute('data-record-id')).toBe(
+      ROW_DRAFT.id,
+    );
+    expect(screen.getByTestId('comment-panel')).toBeTruthy();
+    expect(screen.getByTestId('record-timeline')).toBeTruthy();
+  }, SLOW_TIMEOUT);
+});

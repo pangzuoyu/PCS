@@ -26,6 +26,7 @@ import { recordsApi } from '../../api/records';
 import { useEditBaseline, isRowEditable } from '../../hooks/useEditBaseline';
 import { PROJECT_ID } from '../../constants/env';
 import { ResultEditDrawer } from './ResultEditDrawer';
+import { RecordDetailDrawer } from './RecordDetailDrawer';
 import { ChangeNoticeAction } from './ChangeNoticeAction';
 import type { CommonResultRow, ResultModule } from './resultModules';
 
@@ -87,6 +88,10 @@ export function ResultListPage({ module }: Props): JSX.Element {
   const [pageSize, setPageSize] = useState(50);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<ResultRow | null>(null);
+  /** 详情抽屉打开的那一行（P9B-2 · T5 · SPEC §7.19.1）。 */
+  const [detail, setDetail] = useState<ResultRow | null>(null);
+  /** 动作成功后**重拉列表**（状态变了 ⇒ 按钮必须跟着变）。 */
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,7 +122,7 @@ export function ResultListPage({ module }: Props): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [module.base, page, pageSize]);
+  }, [module.base, page, pageSize, reloadToken]);
 
   /**
    * 变更动作成功后**就地更新**行的 `sign_status`（不重拉列表）。
@@ -144,6 +149,16 @@ export function ResultListPage({ module }: Props): JSX.Element {
       ),
     );
   }
+
+  /**
+   * 详情抽屉对应的**当前行**（列表里的，不是打开时的快照）。
+   *
+   * ⚠️ 动作成功后重拉列表 ⇒ 抽屉里的状态徽章与按钮**跟着更新**（否则用户
+   * 会对同一条记录连点两次 ⇒ 第二次必 409）。
+   */
+  const detailRow = detail
+    ? records.find((r) => String(r[module.pk]) === String(detail[module.pk]))
+    : undefined;
 
   const columns: ColumnsType<ResultRow> = module.columns.map((field) => ({
     title: field.label,
@@ -175,6 +190,13 @@ export function ResultListPage({ module }: Props): JSX.Element {
     key: '__actions',
     render: (_: unknown, row: ResultRow) => (
       <Space size="small">
+        <Button
+          size="small"
+          data-testid="result-detail-button"
+          onClick={() => setDetail(row)}
+        >
+          详情
+        </Button>
         <ResultEditButton row={row} onEdit={setEditing} />
         {/* ⚠️ 变更动作**按状态只给一个**（见 ChangeNoticeAction 的说明） */}
         <ChangeNoticeAction
@@ -218,6 +240,20 @@ export function ResultListPage({ module }: Props): JSX.Element {
           record={editing}
           onClose={() => setEditing(null)}
           onSaved={onSaved}
+        />
+      )}
+      {/* ⚠️ **key 必须带 recordType + recordId**（RF-13）：换记录 = 整块重建
+          ⇒ 不残留上一条的内容（P9B-1 的 bug-2043 同形）。 */}
+      {detail && (
+        <RecordDetailDrawer
+          key={`${module.recordType}:${String(detail[module.pk])}`}
+          module={module.recordType}
+          recordId={String(detail[module.pk])}
+          // ⚠️ 用**列表里的当前行**（不是打开时的快照）⇒ 动作成功后重拉列表
+          //    ⇒ 抽屉里的状态徽章与按钮**跟着更新**。
+          record={detailRow ?? detail}
+          onClose={() => setDetail(null)}
+          onDone={() => setReloadToken((t) => t + 1)}
         />
       )}
     </div>
