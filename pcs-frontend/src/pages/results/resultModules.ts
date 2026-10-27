@@ -71,6 +71,21 @@ export interface ResultModuleDef<TRes extends CommonResultRow = CommonResultRow>
   columns: ResultFieldDef[];
   /** 可编辑字段（**只放标量业务字段**）。 */
   editableFields: readonly (keyof TRes & string)[];
+  /**
+   * 本模块**有没有 9 态列**（`sign_status`）。
+   *
+   * ⚠️ `cost_est_results` **没有** `sign_status`（后端模型注释：1:1 跟随设备、
+   * 状态跟设备）⇒ 它的记录**不参与 9 态工作流** ⇒
+   * `POST /records/{module}/{id}/<action>` 会 422 `RECORD_MODULE_UNSUPPORTED`。
+   *
+   * ⇒ 前端**不发注定失败的请求**：无状态列 ⇒ 不渲染操作栏（RF-4）。
+   *
+   * ⚠️ 这是**显式布尔**（不是从 `columns` 派生 ⇒ 显式 > 隐式）⇒ 但它与
+   * `columns` **必须一致** ⇒ `tests/pages/results/resultModules.test.tsx`
+   * 有一条守卫测试（`hasSignStatus ⇔ columns 里有 sign_status`）⇒ 将来给
+   * 某模块**加/删** `sign_status` 列而忘了改布尔 ⇒ **测试变红**。
+   */
+  hasSignStatus: boolean;
 }
 
 /** 页面用的描述符形状（字段清单按 `string` 收窄 —— 逐模块的类型检查在各自 const 处完成）。 */
@@ -85,6 +100,7 @@ export type ResultModule = Omit<ResultModuleDef, 'editableFields'> & {
 
 const COST_EST: ResultModuleDef<CostEstResultResponse> = {
   recordType: 'CostEstResult',
+  hasSignStatus: false,
   base: RESULT_BASES.CostEstResult,
   pk: 'result_id',
   route: '/results/cost-est',
@@ -116,6 +132,7 @@ const COST_EST: ResultModuleDef<CostEstResultResponse> = {
 
 const FILTRATION: ResultModuleDef<FiltrationResultResponse> = {
   recordType: 'FiltrationResult',
+  hasSignStatus: true,
   base: RESULT_BASES.FiltrationResult,
   pk: 'result_id',
   route: '/results/filtration',
@@ -151,6 +168,7 @@ const FILTRATION: ResultModuleDef<FiltrationResultResponse> = {
 
 const FLARE: ResultModuleDef<FlareResultResponse> = {
   recordType: 'flare_system_result',
+  hasSignStatus: true,
   base: RESULT_BASES.flare_system_result,
   pk: 'id',
   route: '/results/flare',
@@ -192,6 +210,7 @@ const FLARE: ResultModuleDef<FlareResultResponse> = {
 
 const OPEN_CHANNEL: ResultModuleDef<OpenChannelResultResponse> = {
   recordType: 'OpenChannelResult',
+  hasSignStatus: true,
   base: RESULT_BASES.OpenChannelResult,
   pk: 'result_id',
   route: '/results/open-channel',
@@ -231,6 +250,7 @@ const OPEN_CHANNEL: ResultModuleDef<OpenChannelResultResponse> = {
 
 const PSYCHRO: ResultModuleDef<PsychroResultResponse> = {
   recordType: 'psychro_result',
+  hasSignStatus: true,
   base: RESULT_BASES.psychro_result,
   pk: 'id',
   route: '/results/psychro',
@@ -268,6 +288,7 @@ const PSYCHRO: ResultModuleDef<PsychroResultResponse> = {
 
 const COOL_TOWER: ResultModuleDef<CoolTowerResultResponse> = {
   recordType: 'cooling_tower_result',
+  hasSignStatus: true,
   base: RESULT_BASES.cooling_tower_result,
   pk: 'id',
   route: '/results/cool-tower',

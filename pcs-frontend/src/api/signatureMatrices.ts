@@ -29,6 +29,8 @@ export type MatrixBinding = components['schemas']['MatrixBindingResponse'];
 export type MatrixUnbind = components['schemas']['MatrixUnbindResponse'];
 export type SignatureMatrixRequest = components['schemas']['SignatureMatrixRequest'];
 export type SignatureMatrixUpdate = components['schemas']['SignatureMatrixUpdateRequest'];
+/** 项目绑定的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。 */
+export type ProjectMatrixBinding = components['schemas']['ProjectMatrixBindingOut'];
 
 /** 矩阵可用的模块（= 后端 `MatrixModule` Literal）。 */
 export const MATRIX_MODULES = [
@@ -72,6 +74,19 @@ export const signatureMatricesApi = {
   bind: (projectId: string, body: { module: string; matrix_id: string }): Promise<MatrixBinding> =>
     api
       .post<MatrixBinding>(`/projects/${projectId}/signature-matrices`, body)
+      .then((r) => r.data),
+
+  /**
+   * 列项目绑的矩阵（含**归一化的步骤**）—— P9B-2 · T-1。
+   *
+   * ⚠️ **前端要的是「第 1 步该谁签」** ⇒ 步骤由后端归一化（前端**不**自己
+   * 解析 `steps_json` ⇒ 不出现第二份解析逻辑）。
+   * ⚠️ 项目**没绑** ⇒ **空列表**（不是 404）⇒ 前端**不猜**（不禁用按钮）
+   * ⇒ 后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底。
+   */
+  listProjectBindings: (projectId: string): Promise<ProjectMatrixBinding[]> =>
+    api
+      .get<ProjectMatrixBinding[]>(`/projects/${projectId}/signature-matrices`)
       .then((r) => r.data),
 
   /** 解绑（本来就没绑 ⇒ `unbound=false`，**不是** 404）。 */
