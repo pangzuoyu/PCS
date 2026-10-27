@@ -31,9 +31,9 @@ type ProductCategory = components['schemas']['ProductCategory'];
 
 /** 产品类别 3 值（契约枚举 —— 不手写字面量）。 */
 const PRODUCT_CATEGORIES: { value: ProductCategory; label: string }[] = [
-  { value: 'REFINING', label: '炼油（电折标按**等价值** 0.21 kg 标油/kWh）' },
-  { value: 'ETHYLENE', label: '乙烯（电折标按**等价值** 0.21 kg 标油/kWh）' },
-  { value: 'OTHER', label: '其他（电折标按**当量值** 0.086 kg 标油/kWh）' },
+  { value: 'REFINING', label: '炼油（电折标按「等价值」0.21 kg 标油/kWh）' },
+  { value: 'ETHYLENE', label: '乙烯（电折标按「等价值」0.21 kg 标油/kWh）' },
+  { value: 'OTHER', label: '其他（电折标按「当量值」0.086 kg 标油/kWh）' },
 ];
 
 export function ProjectAdminPage(): JSX.Element {
@@ -91,8 +91,8 @@ export function ProjectAdminPage(): JSX.Element {
       />
 
       <Typography.Paragraph type="secondary">
-        ⚠️ 项目的**工作区必须已存在**（`projects.workspace_id` 是外键 ⇒ 后端不建孤儿项目）。
-        建完项目会**自动绑定**一份记录级签署矩阵 ⇒ 建完**当场就能提交批准**。
+        ⚠️ 项目的「工作区」必须已存在（projects.workspace_id 是外键 ⇒ 后端不建孤儿项目）。
+        建完项目会自动绑定一份记录级签署矩阵 ⇒ 建完当场就能提交批准。
       </Typography.Paragraph>
 
       {wsError && (

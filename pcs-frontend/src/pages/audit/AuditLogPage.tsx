@@ -216,7 +216,7 @@ export function AuditLogPage(): JSX.Element {
         truncatedByLimit
           ? `已导出前 ${EXPORT_LIMIT} 行（结果集共 ${total} 行，超过上限，已截断）`
           : mismatch
-            ? `已导出 ${rows.length} 行，但与结果集总数（${lastTotal}）**不一致** —— 可能重复 / 漏行，请核对后再当证据用`
+            ? `已导出 ${rows.length} 行，但与结果集总数（${lastTotal}）「不一致」 —— 可能重复 / 漏行，请核对后再当证据用`
             : `已导出 ${rows.length} 行（当前筛选条件下的全部结果）`,
       );
     } catch (err: unknown) {
@@ -482,7 +482,7 @@ export function AuditLogPage(): JSX.Element {
                     type="warning"
                     showIcon
                     data-testid="audit-filter-pending-hint"
-                    message="筛选条件改过但还没点「查询」—— 表格与导出都仍按**上次已应用**的条件。"
+                    message="筛选条件改过但还没点「查询」—— 表格与导出都仍按「上次已应用」的条件。"
                     style={{ marginBottom: 16 }}
                   />
                 )}
