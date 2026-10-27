@@ -56,11 +56,20 @@ from app.services.todo_service import compute_todos
 router = APIRouter(tags=["deliverables"])
 
 # 读取交付物需要的角色 —— 签署流程的各环节都要能看交付物列表与快照。
+#
+# ⚠️ **CHECKER 必须单列**（P9B-2 最终评审 HIGH-4 · **用户 2026-10-27 裁决放行**）：
+# 它是 9 态机里唯一的「校核人」角色，而校核正是签署矩阵里的**常见一步**（内置
+# 记录矩阵 CHECKER→REVIEWER→APPROVER 的第 1 步）⇒ **能签却不能看** ⇒ 校核人
+# 打开「签署进度」吃 403 ⇒ 前端又把它渲染成**空表**（前端已加列表错误态）
+# ⇒ 用户以为「这个项目没有交付物」。
+# ⚠️ 读端点**已有项目守卫**（`check_project_access_or_404`）⇒ 放行只对**项目
+# 成员**生效，不会跨项目泄露。
 _READ_ROLES = (
     "DESIGNER",
     "PROCESS_CONTROLLER",
     "REVIEWER",
     "APPROVER",
+    "CHECKER",
     "SYSTEM_ADMIN",
 )
 
@@ -69,10 +78,10 @@ _READ_ROLES = (
 # 就能自己签发自己审，签署矩阵的职责分离形同虚设。
 _ISSUE_ROLES = ("DESIGNER", "SYSTEM_ADMIN")
 
-# 签署步骤的角色闸 = 读角色 + CHECKER。CHECKER 必须单列：它是 9 态机里唯一的
-# 「校核人」角色，而校核正是签署矩阵里的常见一步；漏了它，矩阵配 CHECKER 的
-# 项目**谁都签不了**。每一步到底该谁签由 service 按 `steps_json.sign_role` 判定。
-_SIGN_ROLES = (*_READ_ROLES, "CHECKER")
+# 签署步骤的**粗闸** = 读角色（CHECKER 已在读角色里 ⇒ 无需单列）。
+# ⚠️ **粗闸不是最终判据**：每一步到底该谁签由 service 按 `steps_json.sign_role`
+#    判定（矩阵那一步要求谁签就是谁签）⇒ 粗闸宽一点是**故意**的。
+_SIGN_ROLES = _READ_ROLES
 
 
 async def _authorize(

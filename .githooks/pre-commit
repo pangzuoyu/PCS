@@ -31,6 +31,24 @@ if git diff --cached --name-only | grep -qE '^pcs-backend/alembic/versions/'; th
     echo ""
 fi
 
+# ---- R-19：前端 `meta/state-machine` seed ↔ 后端状态机（独立触发段）----
+# ⚠️ 改了 `app/services/state_machine.py`（ALLOWED_TRANSITIONS / TRANSITION_ROLES）
+# 或前端 seed ⇒ seed 可能陈旧 ⇒ MSW 的按钮与真后端不一致 ⇒ 按钮亮着点了 403 /
+# 按钮被藏掉 ⇒ 用一条 pytest 挡住（0.1s、零 Postgres 依赖）。
+# ⚠️ **用户 2026-10-27 裁决：只接 pre-commit**（不接 CI workflow）⇒ 本地提交
+# 时就有反馈；CI 仍不跑这条（守门靠人工 + 批末回归）。
+if git diff --cached --name-only | grep -qE '^(pcs-backend/app/services/state_machine\.py|pcs-frontend/src/mocks/seed/)'; then
+    echo "[R-19] 状态机 seed 守卫触发..."
+    echo "----------------------------------------"
+    if ! (cd "$REPO_ROOT/pcs-backend" && uv run pytest tests/architecture/test_frontend_state_machine_seed.py -q); then
+        echo ""
+        echo "[R-19] ❌ 闸门 fail；commit 阻断"
+        echo "修复：按 pytest 报错里给出的命令重新生成 pcs-frontend/src/mocks/seed/meta.state-machine.json"
+        exit 1
+    fi
+    echo ""
+fi
+
 # 仅 OpenAPI/schemas 改动触发（性能优化）
 if ! git diff --cached --name-only | grep -qE '^(pcs-backend/app/(api/v1|schemas)/|pcs-frontend/src/types/)'; then
     exit 0
