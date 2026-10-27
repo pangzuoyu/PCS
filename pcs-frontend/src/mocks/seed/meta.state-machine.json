@@ -1,0 +1,384 @@
+{
+  "transitions": [
+    {
+      "from": "DRAFT",
+      "action": "SUBMIT_FOR_CHECK",
+      "to": "IN_APPROVAL",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "AUDIT RECORD_TRANSITION"
+      ]
+    },
+    {
+      "from": "CHECK_REJECTED",
+      "action": "SUBMIT_FOR_CHECK",
+      "to": "IN_APPROVAL",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "AUDIT RECORD_TRANSITION"
+      ]
+    },
+    {
+      "from": "IN_APPROVAL",
+      "action": "PASS_CHECK",
+      "to": "CHECKED",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "REVIEWER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "WRITE audit_log",
+        "AUDIT APPROVAL_STEP_PASSED"
+      ]
+    },
+    {
+      "from": "IN_APPROVAL",
+      "action": "REJECT_CHECK",
+      "to": "CHECK_REJECTED",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "REVIEWER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "WRITE audit_log",
+        "AUDIT APPROVAL_STEP_REJECTED"
+      ]
+    },
+    {
+      "from": "CHECKED",
+      "action": "INITIATE_CHANGE",
+      "to": "CHANGE_PENDING",
+      "allowed_roles": [
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "当前 CHECKED 且绑定 ConfigAsset/ConfigVersion"
+      ],
+      "side_effects": [
+        "CREATE record_change_snapshot",
+        "AUDIT CHANGE_INITIATED"
+      ]
+    },
+    {
+      "from": "CHANGED",
+      "action": "REQUEST_REVERSAL",
+      "to": "REVERSAL_PENDING",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "CHANGED 状态且未被交付物绑定"
+      ],
+      "side_effects": [
+        "AUDIT CHANGE_REVERSAL_REQUESTED"
+      ]
+    },
+    {
+      "from": "REVERSAL_PENDING",
+      "action": "APPROVE_REVERSAL",
+      "to": "CHECKED",
+      "allowed_roles": [
+        "APPROVER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "存在 ACTIVE 快照"
+      ],
+      "side_effects": [
+        "AUDIT CHANGE_REVERSAL_APPROVED"
+      ]
+    },
+    {
+      "from": "REVERSAL_PENDING",
+      "action": "REJECT_REVERSAL",
+      "to": "CHANGED",
+      "allowed_roles": [
+        "APPROVER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "存在 ACTIVE 快照"
+      ],
+      "side_effects": [
+        "AUDIT CHANGE_REVERSAL_REJECTED"
+      ]
+    },
+    {
+      "from": "CHECKED",
+      "action": "MARK_STALE",
+      "to": "STALE",
+      "allowed_roles": [
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "源快照哈希与下游比对不一致"
+      ],
+      "side_effects": [
+        "AUDIT RECORD_TRANSITION"
+      ]
+    },
+    {
+      "from": "CHANGE_PENDING",
+      "action": "APPLY_CHANGE",
+      "to": "CHANGED",
+      "allowed_roles": [
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "AUDIT CHANGE_RESOLVED"
+      ]
+    },
+    {
+      "from": "CHANGE_PENDING",
+      "action": "ABANDON_CHANGE",
+      "to": "CHECKED",
+      "allowed_roles": [
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "AUDIT CHANGE_ABANDONED"
+      ]
+    },
+    {
+      "from": "STALE",
+      "action": "RESOLVE_STALE_NO_CHANGE",
+      "to": "CHECKED",
+      "allowed_roles": [
+        "CHECKER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "AUDIT STALE_RESOLVED_NO_CHANGE"
+      ]
+    },
+    {
+      "from": "STALE",
+      "action": "RESOLVE_STALE_CHANGED",
+      "to": "CHANGE_PENDING",
+      "allowed_roles": [
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [],
+      "side_effects": [
+        "CREATE record_change_snapshot",
+        "AUDIT STALE_RESOLVED_CHANGED"
+      ]
+    },
+    {
+      "from": "DRAFT",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "IN_APPROVAL",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "CHECKED",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "CHECK_REJECTED",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "STALE",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "CHANGE_PENDING",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "CHANGED",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    },
+    {
+      "from": "REVERSAL_PENDING",
+      "action": "OBSOLETE",
+      "to": "OBSOLETE",
+      "allowed_roles": [
+        "APPROVER",
+        "CHECKER",
+        "DESIGNER",
+        "SYSTEM_ADMIN"
+      ],
+      "preconditions": [
+        "无下游引用（计算结果/状态点）"
+      ],
+      "side_effects": [
+        "WRITE audit_log + 阻断下游引用",
+        "AUDIT RECORD_OBSOLETED"
+      ]
+    }
+  ],
+  "allowed": {
+    "DRAFT": [
+      "OBSOLETE",
+      "SUBMIT_FOR_CHECK"
+    ],
+    "IN_APPROVAL": [
+      "OBSOLETE",
+      "PASS_CHECK",
+      "REJECT_CHECK"
+    ],
+    "CHECKED": [
+      "INITIATE_CHANGE",
+      "MARK_STALE",
+      "OBSOLETE"
+    ],
+    "CHECK_REJECTED": [
+      "OBSOLETE",
+      "SUBMIT_FOR_CHECK"
+    ],
+    "STALE": [
+      "OBSOLETE",
+      "RESOLVE_STALE_CHANGED",
+      "RESOLVE_STALE_NO_CHANGE"
+    ],
+    "CHANGE_PENDING": [
+      "ABANDON_CHANGE",
+      "APPLY_CHANGE",
+      "OBSOLETE"
+    ],
+    "CHANGED": [
+      "OBSOLETE",
+      "REQUEST_REVERSAL"
+    ],
+    "REVERSAL_PENDING": [
+      "APPROVE_REVERSAL",
+      "OBSOLETE",
+      "REJECT_REVERSAL"
+    ],
+    "OBSOLETE": []
+  }
+}

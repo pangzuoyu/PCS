@@ -17,9 +17,18 @@ import Ajv, { type AnySchema } from "ajv";
 import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
 import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
+import { signFlowHandlers } from "../../src/mocks/signFlow";
 import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
+import {
+  seedAdminUsers,
+  seedDeliverableActions,
+  seedDeliverableProgress,
+  seedDeliverableSnapshot,
+  seedRecordComments,
+  seedRecordEdits,
+} from "../../src/mocks/seed/signFlow";
 import {
   seedCoolTowerResults,
   seedCostEstResults,
@@ -149,7 +158,7 @@ describe("MSW handlers 注册 ↔ OpenAPI paths", () => {
   it("每个 handler 注册路径都在 OpenAPI 列出", () => {
     // ⚠️ **三组都要查**（TODO-079 / TODO-083 新增了两组契约端点的 handler）
     // —— 只查 `handlers` 的话，新组的路径打错字**永远不会被发现**。
-    for (const h of [...handlers, ...signatureMatrixHandlers, ...changeNoticeHandlers]) {
+    for (const h of [...handlers, ...signatureMatrixHandlers, ...changeNoticeHandlers, ...signFlowHandlers]) {
       const path = (h as { info?: { path?: string } }).info?.path;
       expect(path, "handler missing path").toBeDefined();
       // ⚠️ **MSW 用 `:param`，OpenAPI 用 `{param}`** ⇒ 比之前必须先归一
@@ -448,5 +457,176 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       (h as { info?: { path?: string } }).info?.path));
     expect(paths.has("/api/v1/notifications")).toBe(true);
     expect(paths.has("/api/v1/todos")).toBe(true);
+  });
+});
+
+/**
+ * P9B-2 的 mock 形状 ↔ OpenAPI（TODO-065 / 066 / T-8 / T7 的端点）。
+ *
+ * ## 为什么这组也要有守卫
+ *
+ * 棘轮清单（`devOnly ∩ 契约`）只覆盖**没有路径参数**的端点 ——
+ * `/api/v1/deliverables/:id/progress` 这种**带参数**的路径在 OpenAPI 里是
+ * `/api/v1/deliverables/{deliverable_id}/progress` ⇒ 棘轮**看不见**它。
+ *
+ * ⇒ 带参数的端点必须**逐个**校验形状，否则漂移照样被藏住
+ * （bug-2040 / bug-189 的形状）。
+ */
+describe("P9B-2 签署流程 / ADMIN 的 mock 形状 ↔ OpenAPI", () => {
+  function validateOp(path: string, method: "get" | "post" | "put", data: unknown) {
+    const op = openapi.paths[path]?.[method];
+    expect(op, `契约里没有 ${method.toUpperCase()} ${path}`).toBeDefined();
+    const schemaJson = op!.responses["200"]?.content["application/json"]?.schema
+      ?? op!.responses["201"]?.content["application/json"]?.schema;
+    expect(schemaJson, `${path} 没有 JSON schema`).toBeDefined();
+    const schema = (schemaJson!.$ref
+      ? inlineRefs(resolveRef(openapi, schemaJson!.$ref), openapi)
+      : inlineRefs(schemaJson, openapi)) as AnySchema;
+    const validate = ajv.compile(schema);
+    const ok = validate(data);
+    expect(ok, `${path} 形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  }
+
+  it("交付物聚合进度（两段 + 每段带 available/reason）", () => {
+    validateOp("/api/v1/deliverables/{deliverable_id}/progress", "get", seedDeliverableProgress);
+    const types = seedDeliverableProgress.sections.map((s) => s.workflow_type);
+    // ⚠️ R-13：**没有** CHANGE_NOTICE 段
+    expect(types).toEqual(["SIGN", "CUSTOMER_APPROVAL_PROXY"]);
+    // ⚠️ 两段的 workflow_id 语义不同（版本 id / 交付物 id）
+    expect(seedDeliverableProgress.sections[0].workflow_id).toBe("v-2");
+    expect(seedDeliverableProgress.sections[1].workflow_id).toBe("d-2");
+  });
+
+  it("交付物动作时间线（审计形状）", () => {
+    validateOp("/api/v1/deliverables/{deliverable_id}/actions", "get", seedDeliverableActions);
+  });
+
+  it("版本快照（含冻结的签署步骤）", () => {
+    validateOp(
+      "/api/v1/deliverables/{deliverable_id}/versions/{rev}/snapshot",
+      "get",
+      seedDeliverableSnapshot,
+    );
+    const steps = (seedDeliverableSnapshot.signature_summary_json as { steps?: unknown[] }).steps;
+    expect(Array.isArray(steps)).toBe(true);
+  });
+
+  it("记录编辑历史（TODO-066）", () => {
+    validateOp("/api/v1/records/{module}/{record_id}/edits", "get", seedRecordEdits);
+  });
+
+  it("记录批注列表", () => {
+    validateOp("/api/v1/records/{module}/{record_id}/comments", "get", seedRecordComments);
+  });
+
+  it("ADMIN 用户列表", () => {
+    validateOp("/api/v1/admin/users", "get", seedAdminUsers);
+  });
+
+  it("交付物写面三个端点的响应形状（issue / sign-step / proxy）", () => {
+    validateOp("/api/v1/deliverables/{deliverable_id}/issue", "post", {
+      deliverable_id: "d-2",
+      version_id: "v-3",
+      rev: "C",
+      doc_no: "CB-002",
+      version_purpose: "ISSUED_FOR_CONSTRUCTION",
+      sign_status: "PENDING",
+      issued_at: "2026-10-20T10:00:00Z",
+    });
+    validateOp("/api/v1/deliverables/{deliverable_id}/sign-step", "post", {
+      deliverable_id: "d-2",
+      version_id: "v-2",
+      step_index: 2,
+      step_role: "REVIEWER",
+      decision: "SIGN",
+      state: "COMPLETED",
+      deliverable_sign_status: "PENDING",
+      signed_at: "2026-10-20T10:00:00Z",
+    });
+    validateOp("/api/v1/deliverables/{deliverable_id}/customer-approval/proxy", "post", {
+      deliverable_id: "d-2",
+      version_id: "v-2",
+      attachment_id: "att-1",
+      customer_approver_name: "客户方 张三",
+      approval_date: "2026-10-20",
+      approval_method: "EMAIL",
+      is_proxy: true,
+      proxied_at: "2026-10-20T10:00:00Z",
+    });
+  });
+
+  it("记录写动作 + 送审 + 推进 + ADMIN 停用/同步的响应形状", () => {
+    validateOp("/api/v1/records/{module}/{record_id}/obsolete", "post", {
+      record_type: "cooling_tower_result",
+      record_id: "r-1",
+      from_status: "DRAFT",
+      to_status: "OBSOLETE",
+    });
+    validateOp("/api/v1/records/{module}/{record_id}/submit-approval", "post", {
+      record_type: "cooling_tower_result",
+      record_id: "r-1",
+      from_status: "DRAFT",
+      to_status: "IN_APPROVAL",
+      approval_step: 1,
+      approval_depth: 2,
+      approval_role: "CHECKER",
+    });
+    validateOp("/api/v1/records/{module}/{record_id}/approval-step", "post", {
+      record_type: "cooling_tower_result",
+      record_id: "r-1",
+      from_status: "IN_APPROVAL",
+      to_status: "IN_APPROVAL",
+      approval_step: 2,
+      approval_depth: 2,
+    });
+    validateOp("/api/v1/admin/users/{user_id}/disable", "put", {
+      user_id: "u-1",
+      username: "alice",
+      status: "DISABLED",
+      token_version: 4,
+    });
+    validateOp("/api/v1/admin/users/sync", "post", {
+      ok: true,
+      created: 1,
+      updated: 0,
+      departed: 0,
+      unmapped: 0,
+      skipped_empty: false,
+      error: null,
+    });
+  });
+
+  it("项目绑定的矩阵（带归一化的步骤）", () => {
+    validateOp("/api/v1/projects/{project_id}/signature-matrices", "get", [
+      {
+        module: "RECORD",
+        matrix_id: "m-2",
+        matrix_name: "计算书 2 级矩阵",
+        status: "DRAFT",
+        steps: [
+          { step_order: 1, sign_role: "CHECKER", required: true, can_self_check: true, can_skip: false },
+          { step_order: 2, sign_role: "APPROVER", required: true, can_self_check: false, can_skip: false },
+        ],
+      },
+    ]);
+  });
+
+  it("新端点的 handler 都注册了（路径形状：MSW `:param` ⇒ OpenAPI `{param}`）", () => {
+    const paths = new Set(
+      signFlowHandlers.map((h) => (h as { info?: { path?: string } }).info?.path),
+    );
+    for (const p of [
+      "/api/v1/deliverables/:deliverable_id/progress",
+      "/api/v1/deliverables/:deliverable_id/actions",
+      "/api/v1/deliverables/:deliverable_id/issue",
+      "/api/v1/deliverables/:deliverable_id/sign-step",
+      "/api/v1/deliverables/:deliverable_id/customer-approval/proxy",
+      "/api/v1/records/:module/:record_id/edits",
+      "/api/v1/records/:module/:record_id/comments",
+      "/api/v1/admin/users",
+      "/api/v1/admin/users/sync",
+    ]) {
+      expect(paths.has(p), `missing handler for ${p}`).toBe(true);
+    }
   });
 });

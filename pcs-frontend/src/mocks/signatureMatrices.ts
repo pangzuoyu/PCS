@@ -169,6 +169,28 @@ export const signatureMatrixHandlers = [
     });
   }),
 
+  // ⚠️ **读**项目绑定的矩阵（P9B-2 · T-1）—— 前端算「第 1 步该谁签」靠它
+  //    ⇒ 步骤由后端**归一化**（前端不自己解析 `steps_json`）。
+  http.get('/api/v1/projects/:project_id/signature-matrices', ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    const projectId = String(params['project_id']);
+    const out = [];
+    for (const [key, matrixId] of bindings.entries()) {
+      const [pid, module] = key.split(':');
+      if (pid !== projectId) continue;
+      const matrix = seedSignatureMatrices.find((m) => m.matrix_id === matrixId);
+      if (!matrix) continue;
+      out.push({
+        module,
+        matrix_id: matrix.matrix_id,
+        matrix_name: matrix.matrix_name,
+        status: matrix.status,
+        steps: matrix.steps,
+      });
+    }
+    return HttpResponse.json(out);
+  }),
+
   http.delete('/api/v1/projects/:project_id/signature-matrices/:module', ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     const projectId = String(params['project_id']);

@@ -16,6 +16,8 @@
  */
 import type { components } from "../../types/api";
 
+import rawStateMachine from "./meta.state-machine.json";
+
 type EnumsResponse = components["schemas"]["EnumsResponse"];
 type StateMachineResponse = components["schemas"]["StateMachineResponse"];
 type PermissionItem = components["schemas"]["PermissionItem"];
@@ -101,90 +103,13 @@ export const metaSeed: {
     StatePointCaseType: enumToDict(["NORMAL", "MIN", "MAX", "ALTERNATE"]),
   },
 
-  stateMachine: {
-    transitions: [
-      // 9 态 → SUBMIT/OBSOLETE
-      { from: "DRAFT", action: "SUBMIT_FOR_CHECK", to: "IN_APPROVAL",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["WRITE audit_log"] },
-      { from: "DRAFT", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // IN_APPROVAL → APPROVE/REJECT
-      { from: "IN_APPROVAL", action: "PASS_CHECK", to: "CHECKED",
-        allowed_roles: ["APPROVER", "CHECKER", "REVIEWER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["WRITE audit_log", "AUDIT APPROVAL_STEP_PASSED"] },
-      { from: "IN_APPROVAL", action: "REJECT_CHECK", to: "CHECK_REJECTED",
-        allowed_roles: ["APPROVER", "CHECKER", "REVIEWER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["WRITE audit_log", "AUDIT APPROVAL_STEP_REJECTED"] },
-      // CHECK_REJECTED → RESUBMIT
-      { from: "CHECK_REJECTED", action: "SUBMIT_FOR_CHECK", to: "IN_APPROVAL",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["WRITE audit_log"] },
-      { from: "CHECK_REJECTED", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // CHECKED → CHANGE / OBSOLETE
-      { from: "CHECKED", action: "INITIATE_CHANGE", to: "CHANGE_PENDING",
-        allowed_roles: ["DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["绑定 ConfigAsset/ConfigVersion"], side_effects: ["CREATE record_change_snapshot", "AUDIT CHANGE_INITIATED"] },
-      { from: "CHECKED", action: "MARK_STALE", to: "STALE",
-        allowed_roles: ["DESIGNER", "CHECKER", "SYSTEM_ADMIN"],
-        preconditions: ["源快照哈希与下游比对不一致"], side_effects: ["AUDIT RECORD_TRANSITION"] },
-      { from: "CHECKED", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // STALE → CONFIRM_RECALC
-      { from: "STALE", action: "RESOLVE_STALE_NO_CHANGE", to: "CHECKED",
-        allowed_roles: ["CHECKER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["AUDIT STALE_RESOLVED_NO_CHANGE"] },
-      { from: "STALE", action: "RESOLVE_STALE_CHANGED", to: "CHANGE_PENDING",
-        allowed_roles: ["CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["CREATE record_change_snapshot", "AUDIT STALE_RESOLVED_CHANGED"] },
-      { from: "STALE", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // CHANGE_PENDING → APPROVE / REJECT
-      { from: "CHANGE_PENDING", action: "APPLY_CHANGE", to: "CHANGED",
-        allowed_roles: ["DESIGNER", "CHECKER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["AUDIT CHANGE_RESOLVED"] },
-      { from: "CHANGE_PENDING", action: "ABANDON_CHANGE", to: "CHECKED",
-        allowed_roles: ["DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: [], side_effects: ["AUDIT CHANGE_ABANDONED"] },
-      { from: "CHANGE_PENDING", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // CHANGED → REVERSE / OBSOLETE
-      { from: "CHANGED", action: "REQUEST_REVERSAL", to: "REVERSAL_PENDING",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["CHANGED 状态且未被交付物绑定"], side_effects: ["AUDIT CHANGE_REVERSAL_REQUESTED"] },
-      { from: "CHANGED", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-      // REVERSAL_PENDING → APPROVE / REJECT
-      { from: "REVERSAL_PENDING", action: "APPROVE_REVERSAL", to: "CHECKED",
-        allowed_roles: ["APPROVER", "SYSTEM_ADMIN"],
-        preconditions: ["存在 ACTIVE 快照"], side_effects: ["AUDIT CHANGE_REVERSAL_APPROVED"] },
-      { from: "REVERSAL_PENDING", action: "REJECT_REVERSAL", to: "CHANGED",
-        allowed_roles: ["APPROVER", "SYSTEM_ADMIN"],
-        preconditions: ["存在 ACTIVE 快照"], side_effects: ["AUDIT CHANGE_REVERSAL_REJECTED"] },
-      // IN_APPROVAL OBSOLETE
-      { from: "IN_APPROVAL", action: "OBSOLETE", to: "OBSOLETE",
-        allowed_roles: ["APPROVER", "CHECKER", "DESIGNER", "SYSTEM_ADMIN"],
-        preconditions: ["无下游引用"], side_effects: ["WRITE audit_log + 阻断下游引用", "AUDIT RECORD_OBSOLETED"] },
-    ],
-    allowed: {
-      DRAFT: ["SUBMIT_FOR_CHECK", "OBSOLETE"],
-      IN_APPROVAL: ["PASS_CHECK", "REJECT_CHECK", "OBSOLETE"],
-      CHECKED: ["INITIATE_CHANGE", "MARK_STALE", "OBSOLETE"],
-      CHECK_REJECTED: ["SUBMIT_FOR_CHECK", "OBSOLETE"],
-      STALE: ["RESOLVE_STALE_NO_CHANGE", "RESOLVE_STALE_CHANGED", "OBSOLETE"],
-      CHANGE_PENDING: ["APPLY_CHANGE", "ABANDON_CHANGE", "OBSOLETE"],
-      CHANGED: ["REQUEST_REVERSAL", "OBSOLETE"],
-      REVERSAL_PENDING: ["APPROVE_REVERSAL", "REJECT_REVERSAL"],
-      OBSOLETE: [],
-    },
-  },
+  // ⚠️ **R-19**：状态机 seed **不是手写的** —— 它由后端 `get_state_machine()`
+  //    生成并落成 JSON（`meta.state-machine.json`），后端有一条 pytest 逐条
+  //    比对 ⇒ 漂移即红。
+  //    ⚠️ 手写的那份曾经**漏了** `REVERSAL_PENDING → OBSOLETE` ⇒ 前端把
+  //    「撤销审批中」的作废按钮**藏掉**了（用户没法作废一条待批撤销的记录）
+  //    —— 这正是「按钮的数据源不是后端生成的」要防的漂移。
+  stateMachine: rawStateMachine as unknown as StateMachineResponse,
 
   permissions: [
     { role: "DESIGNER", resource: "streams", action: "WRITE", permission_code: "STREAMS.WRITE", frontend_behavior: "show" },
