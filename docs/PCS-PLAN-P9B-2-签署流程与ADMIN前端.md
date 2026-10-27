@@ -92,9 +92,6 @@ async + pytest。
 | RF-4 | **9 态动作发给没有 9 态列的模块**（`cost_est`）⇒ 422 `RECORD_MODULE_UNSUPPORTED` | 无 `sign_status` 的行**不渲染操作栏**（不发注定失败的请求） | T4 / T5 |
 | RF-5 | **把 `workflow_progress` 当成「谁做了什么」** ⇒ 甘特图把「查过一眼」算成活动 | 记录状态时间线**只**取编辑审计（`RECORD_EDITED`）；交付物动作时间线**只**取 `/deliverables/{id}/actions`；两个数据源**不得混用** | T5 / T6 |
 | RF-6 | **聚合端点里某类工作流不可用时返回空数组** ⇒ 用户以为「这条流程一个节点都没有」（与 404 长得一样） | 每段都带 `available` + `reason`；`available=false` ⇒ 显示**原因**（不是空列表）。⚠️ **R-13 后只有两段**（SIGN / CUSTOMER_APPROVAL_PROXY）⇒ 不可用只发生在「交付物无版本」 | T0 / T6 |
-| RF-14 | **面板自己拉数据 ⇒ 展开一行发 4 个请求**（1 聚合 + 3 分段）⇒ 聚合端点的收益被抵消，且两套数据源可能不一致 | 面板**受控模式**（R-15）：传了 `data` 就不自己拉 ⇒ 展开一行 = **1 个请求**；既有自拉用法**保持不变**（回归） | T6 |
-| RF-15 | **mock 的 `stateMachine` 是手写的第二份真相** ⇒ 与后端 `ALLOWED_TRANSITIONS` 漂移 ⇒ 按钮可点但吃 403（正是 RF-1 要防的失败模式） | seed 抽成 JSON + **后端一条守卫测试**逐条比对（R-19）⇒ 漂移即红 | T10 |
-| RF-16 | **项目没绑 `RECORD` 矩阵** ⇒ 送审无从推导 ⇒ 前端按钮点了才 422 | 送审按钮在**进抽屉时**就知道「本项目没绑 RECORD 矩阵」⇒ **禁用 + Tooltip 写明「项目未绑定记录级签署矩阵」**；后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底 | T2 / T4 |
 | RF-7 | **批注提交纯空白** ⇒ 后端 422（字段校验拒空白）⇒ 用户以为没发出去 | 前端 `trim()` 后为空 ⇒ **禁用发送**；已发列表里**不出现**空白条目 | T5 |
 | RF-8 | **批注分页漏条 / 重复** ⇒ 后端排序带 `comment_id` tiebreaker（秒级精度） | 前端按 `total` **分页**（不是「加载更多直到空」）⇒ 页数 = `ceil(total/limit)` | T5 |
 | RF-9 | **停用用户后列表仍是旧状态** ⇒ 用户以为没生效 | 停用成功后**重新拉列表**（不乐观更新单行）；并显示新的 `token_version` | T7 |
@@ -102,6 +99,9 @@ async + pytest。
 | RF-11 | **导出只导当前页，文案却说「全部」** ⇒ 用户拿到的数据是残缺的 | 导出**当前筛选下的全部行**（循环拉页，上限 5000 行）；超限**显式提示截断**；按钮文案写明范围 | T7 |
 | RF-12 | **越权 403 / 404 混同** ⇒ 页面显示成「没有数据」 | 无权限 ⇒ 显式「无权查看」提示；**不得**渲染成空表 | T5 / T7 |
 | RF-13 | **记录详情抽屉跨模块切换时残留上一个模块的记录** ⇒ P9B-1 的 bug-2043 同形复发 | 抽屉的 `key` 必须带 `recordType + recordId` ⇒ 换记录 = 整块重建 | T5 |
+| RF-14 | **面板自己拉数据 ⇒ 展开一行发 4 个请求**（1 聚合 + 3 分段）⇒ 聚合端点的收益被抵消，且两套数据源可能不一致 | 面板**受控模式**（R-15）：传了 `data` 就不自己拉 ⇒ 展开一行 = **1 个请求**；既有自拉用法**保持不变**（回归） | T6 |
+| RF-15 | **mock 的 `stateMachine` 是手写的第二份真相** ⇒ 与后端 `ALLOWED_TRANSITIONS` 漂移 ⇒ 按钮可点但吃 403（正是 RF-1 要防的失败模式） | seed 抽成 JSON + **后端一条守卫测试**逐条比对（R-19）⇒ 漂移即红 | T10 |
+| RF-16 | **项目没绑 `RECORD` 矩阵** ⇒ 送审无从推导 ⇒ 前端按钮点了才 422 | 送审按钮在**进抽屉时**就知道「本项目没绑 RECORD 矩阵」⇒ **禁用 + Tooltip 写明「项目未绑定记录级签署矩阵」**；后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` 兜底 | T2 / T4 |
 
 ---
 
@@ -145,11 +145,24 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 | `POST /records/{module}/{id}/request-reversal` | `{reason}` **必填** | 同上 | REQUEST_REVERSAL = {DESIGNER, CHECKER, APPROVER, SYSTEM_ADMIN} |
 | `POST /records/{module}/{id}/reversal-decision` | `{decision: APPROVE\|REJECT, reason}` | 同上 | APPROVE/REJECT_REVERSAL = {APPROVER, SYSTEM_ADMIN} |
 | `POST /records/{module}/{id}/abandon-change` | `{reason}` | 同上 | ABANDON_CHANGE = {DESIGNER, SYSTEM_ADMIN} |
+| `POST /records/{module}/{id}/initiate-change` | **`ChangeActionRequest`** = `{reason}`（`min_length=1`, `max_length=200`） | `{from_status,to_status}` | INITIATE_CHANGE = {DESIGNER, SYSTEM_ADMIN} |
+| `POST /records/{module}/{id}/apply-change` | **同上**（`ChangeActionRequest`，**只有** `reason` 一个字段） | `{from_status,to_status}` | APPLY_CHANGE = {DESIGNER, CHECKER, SYSTEM_ADMIN} |
+| `POST /records/{module}/{id}/change-notice` | `{change_type, reason, triggered_by, record_ids?}` | `{deliverable_id, workflow_id, matrix_id, detail, title, doc_no}` | 建单端点（**不是**状态机事件 ⇒ 无 `TRANSITION_ROLES` 闸；走工作区门禁） |
+| `POST /records/{module}/{id}/change-notice/cancel` | `{reason}` **必填** | `{deliverable_id, doc_no, record_type, record_id, sign_status}` | 同上（非状态机事件） |
 | `GET /records/{module}/{id}/comments` | `?limit&offset` | `{items,total}` | 读角色 5 个（DESIGNER/PROCESS_CONTROLLER/REVIEWER/APPROVER/SYSTEM_ADMIN） |
 | `POST /records/{module}/{id}/comments` | `{body}`（**拒纯空白**，≤5000） | `{comment_id,record_type,record_id,body,author_id,created_at}` | 同上 |
 
-⚠️ **13 个状态机事件里，只有 6 个有端点**：`MARK_STALE` / `INITIATE_CHANGE` /
-`APPLY_CHANGE` / `RESOLVE_STALE_NO_CHANGE` / `RESOLVE_STALE_CHANGED` **无端点**
+⚠️ **2026-10-27 复审补记**：`INITIATE_CHANGE` / `APPLY_CHANGE` **已有端点**（上表
+最后四行）⇒ 「13 个事件里只有 6 个有端点」这句**已过时**；**仍然无端点**的是
+`MARK_STALE` / `RESOLVE_STALE_NO_CHANGE` / `RESOLVE_STALE_CHANGED`。
+⚠️ **`change-notice` 与 `change-notice/cancel` 不是 `StateTransition` 的成员**
+（`StateTransition` 共 13 个成员，见 `app/models/enums.py`）⇒ 它们**不可能**被
+meta 驱动的 `RecordActions` 渲染 ⇒ 归 `ChangeNoticeAction`（R-12 澄清）；
+`INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` **是**成员 ⇒ 归
+`RecordActions`（meta 驱动）。
+⚠️ **13 个状态机事件里，只有 6 个有端点**（**这句已过时** —— 见上）：`MARK_STALE` /
+`INITIATE_CHANGE` / `APPLY_CHANGE` / `RESOLVE_STALE_NO_CHANGE` /
+`RESOLVE_STALE_CHANGED` **无端点**
 ⇒ SPEC §6.3 的「变更申请」「创建交付物」「关闭凭证」**本批无后端可调**（见 R-6）。
 
 ⚠️ **端点层会映射异常**：`RoleForbidden` → 403 `RECORD_ROLE_FORBIDDEN`；
@@ -174,9 +187,9 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 
   | 工作流 | `workflow_id` | 依据 |
   |---|---|---|
-  | `SIGN` | **版本 id** | 写入点 `deliverable_service.py:641` `workflow_id=version_id` |
-  | `CUSTOMER_APPROVAL_PROXY` | **交付物 id** | 写入点 `deliverable_service.py:931` `workflow_id=deliverable_id`；`workflow_progress_service._resolve` 亦证（非 SIGN ⇒ 查 `deliverables`） |
-  | `CHANGE_NOTICE` | 变更单自身的 deliverable_id | 写入点在 `change_notice_service.py:388`，而 `create_change_notice` **抛 NotImplementedError**（P9A-DLV-007 / TODO-057 未做）⇒ **恒不产生观测行** |
+  | `SIGN` | **版本 id** | 写入点：`deliverable_service.py` 的 `sign_step` ⇒ `record_step(workflow_type=SIGN, workflow_id=version_id)`（grep 锚：`grep -n "workflow_type=WorkflowType.SIGN" app/services/deliverable_service.py`） |
+  | `CUSTOMER_APPROVAL_PROXY` | **交付物 id** | 写入点：`deliverable_service.py` 的**客户批准代录** ⇒ `record_step(workflow_type=CUSTOMER_APPROVAL_PROXY, workflow_id=deliverable_id)`（grep 锚：`grep -n "workflow_type=WorkflowType.CUSTOMER_APPROVAL_PROXY" app/services/deliverable_service.py`）；`workflow_progress_service._resolve` 亦证（非 SIGN ⇒ 查 `deliverables`） |
+  | ~~`CHANGE_NOTICE`~~ | ~~变更单自身的 deliverable_id~~ | ⚠️ **R-13 后这一段已从聚合端点删除**（变更单自己就是交付物）⇒ 原写入点 `change_notice_service.py` 的 `record_step(workflow_type=CHANGE_NOTICE)` |
 
   ⇒ **P9B-1 计划 §「事实基础」写的「CUSTOMER_APPROVAL_PROXY → 版本 ID」是错的**，
   本批按**代码**实现，并修订 `TODOS.md` TODO-065 的那张表（R-2）。
@@ -251,16 +264,21 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 
 ---
 
-## 裁决（本计划已定，执行时按此做）
+## 裁决（2026-10-21 版 · **R-1 / R-3 / R-6 已于 2026-10-27 失效** ⇒ 见下一节）
+
+> ⚠️ **R-1 / R-3 / R-6 三条的前提已被 2026-10-27 的复审逐条证伪** ⇒ 它们的
+> 正文**保留作历史**（谁都能看到当初为什么那么判），但**执行时以
+> 「2026-10-27 `/plan-eng-review` 复审裁决」节为准** ⇒ R-1 ⇒ **R-11**、
+> R-3 ⇒ **R-13**、R-6 ⇒ **R-12b + R-19**。
 
 | # | 裁决 | 理由 | 代价 |
 |---|---|---|---|
-| **R-1** | **交付物级签署写面（issue / sign-step / customer-approval/proxy）本批不做** | `signature_matrices` **恒 0 行**、全仓**无创建方**（`change_notice_service.py:153` 自陈）⇒ `sign-step` 无矩阵可推；`create_change_notice` 抛 `NotImplementedError`（TODO-057 未做）⇒ 做 UI 只能做出「永远 404/500」的死界面 | 交付物级签署推迟到 TODO-057 之后；本批的「签署」只到**记录级 9 态**与**交付物读面** |
+| ~~**R-1**~~ ⚠️ **已失效（2026-10-27 · 见 R-11）** | ~~**交付物级签署写面本批不做**~~ ⇒ **本批要做**（R-11 / 新增 T8） | ~~`signature_matrices` 恒 0 行、无创建方；`create_change_notice` 抛 `NotImplementedError`~~ ⇒ **前提已失效**：矩阵管理面与变更单链路**都已交付** | ~~推迟到 TODO-057 之后~~ ⇒ **纳入本批（T8）** |
 | **R-2** | TODO-065 聚合端点按**代码实测**的 `workflow_id` 语义实现（CUSTOMER_APPROVAL_PROXY = **交付物 id**） | 写入点与 `_resolve` 双向印证；P9B-1 计划里的表**是错的** | 需同步修订 `TODOS.md` TODO-065 的表格（否则下一个人照旧表实现） |
-| **R-3** | 聚合端点的每类工作流都带 `available` + `reason`；`CHANGE_NOTICE` 恒 `available=false` + 明确原因 | `parent_deliverable_id` **全仓从未被写** + 变更单创建链未接通 ⇒ 空数组会被读成「这条流程一个节点都没有」（与 404 长得一样，后端 `workflow_progress.py:65` 已为单条端点写过同样的警告） | 响应多两个字段；前端多一个分支 |
+| ~~**R-3**~~ ⚠️ **已失效（2026-10-27 · 见 R-13）** | ~~每类工作流都带 `available` + `reason`；`CHANGE_NOTICE` 恒 `available=false`~~ ⇒ **该段整段删掉**（R-13） | ~~`parent_deliverable_id` 从未被写 + 变更单创建链未接通~~ ⇒ 前半句**仍成立**（所以口径查不到），后半句**已失效**（链路已通）⇒ 但**变更单自己就是交付物** ⇒ 本就不该由父交付物反查 | ~~响应多两个字段~~ ⇒ 仍是 2 段，`available`+`reason` 保留 |
 | **R-4** | 操作栏由 **`GET /meta/state-machine`** 驱动，**不硬编码** SPEC §6.3 的按钮表 | §6.3 是冻结快照，`meta` 是从 `ALLOWED_TRANSITIONS` 生成的**契约真源**；硬编码 = 第二份真相源 ⇒ 后端加迁移而前端不变 ⇒ 用户看到注定 409 的按钮 | 前端多一次 meta 请求（可缓存）；§6.3 与 meta 不一致时**以 meta 为准**并登记 SPEC 修订 |
 | **R-5** | 权限判定用「`meta/state-machine` 的 `allowed_roles` + `meta/permissions` 的 `frontend_behavior`」，**不造 `Can` 组件、不硬编码 ACL** | SPEC §5.5.1 明令「前端不得自行推导能力」；后端**不发射 `x-permission`** ⇒ §5.1 的 `Can` 契约当前无源 | 无 `Can` 组件 ⇒ P9B-1 的 `Can` 计划项继续挂起（本仓至今**没有** `Can`） |
-| **R-6** | §6.3 里**没有后端端点**的按钮（变更申请 / 创建交付物 / 关闭凭证）⇒ **禁用 + 写明「后端未提供该操作」**，并登记 `TODOS.md` | 静默隐藏 = 用户以为功能不存在；发假请求 = 用户吃 500。禁用 + 说明是唯一诚实的中间态 | UI 上有三个永远点不动的按钮；已登记待补 |
+| ~~**R-6**~~ ⚠️ **已失效（2026-10-27 · 见 R-12b）** | ~~三个按钮没有后端端点 ⇒ 禁用 + 说明~~ ⇒ **三个端点都有了** ⇒ 渲染成**可用**按钮（T4 断言 9） | ~~静默隐藏 = 用户以为功能不存在~~ ⇒ 现在不存在这个问题了 | ~~UI 上有三个永远点不动的按钮~~ ⇒ **没有**了 |
 | **R-7** | 记录级**批注**对**有 `project_id` 的记录**开放（`need_mixin=False`）⇒ `cost_est`（p9_007 后有 `project_id`）**可批注但无操作栏** | 后端 `resolve_record_model(need_mixin=False)` 只要求 `project_id` | 前端要按「有无 sign_status」**分别**渲染操作栏与批注区 |
 | **R-8** | 审计日志**扩展现有 `AuditLogPage`**（加筛选 + 导出），并把菜单从「审计」组移到「管理」组、标题改「审计日志」 | SPEC §7.20 的 ADMIN 项；新建第二个审计页 = 两个页面抢同一批端点 | 现有 e2e `e2e/audit_log.spec.ts` 的菜单项名与标题断言**必须同步改** |
 | **R-9** | 审计导出的数据源是**前端循环拉页**（同一筛选条件，上限 5000 行），**不新增后端导出端点** | 后端已有 `/meta/permissions.csv` 但**没有** audit 导出端点；新增一个导出端点会把本批做大，且导出的权限边界与查询端点相同 | 大结果集会截断 ⇒ **必须显式提示**（RF-11） |
@@ -293,7 +311,8 @@ meta mock，要新加」—— 它**早就在** `src/mocks/handlers.ts:966`（5 
 | # | 裁决 | 理由 | 代价 |
 |---|---|---|---|
 | **R-11** | **交付物级签署写面（签发 / 逐步签署 / 代录）纳入本批**（新增 T8） | R-1 的两个前提都没了 ⇒ 矩阵能建能绑、变更单链已通 ⇒ 交付一个「矩阵永远是空的」死界面没有道理；且 SPEC §7.19 的「签署流程前端」本来就指它 | T8 是纯前端任务；矩阵绑定 UI 已有（P9A-DLV-011 T3 交付） |
-| **R-12** | **变更类动作并入 `RecordActions`**（`INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` 本来就在 `ALLOWED_TRANSITIONS` 里 ⇒ meta 驱动会**自动**包含它们）⇒ 已有 `ChangeNoticeAction` 降级为「只做变更单专属交互（建单 / 作废弹窗）」 | 两个「状态 → 动作」渲染器 = 两份映射 + 同一行两个入口（同一状态给用户两套动作） | `ChangeNoticeAction` 的行内入口改指 `RecordActions`；其既有测试迁移 |
+| **R-12** | **变更类动作并入 `RecordActions`**（`INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` 本来就在 `ALLOWED_TRANSITIONS` 里 ⇒ meta 驱动会**自动**包含它们）⇒ 已有 `ChangeNoticeAction` **降级** | 两个「状态 → 动作」渲染器 = 两份映射 + 同一行两个入口（同一状态给用户两套动作） | `ChangeNoticeAction` 的行内入口改指 `RecordActions`；其既有测试迁移 |
+| **R-12b**（R-12 的边界，澄清「谁归谁」） | **归属切分**：`RecordActions`（meta 驱动）只管**状态机事件** —— `INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE`；`ChangeNoticeAction`（降级后）只管**两个非状态机动作** —— `change-notice`（**创建**变更单）与 `change-notice/cancel`（**作废**变更单） | `StateTransition` 的 13 个成员里**没有**「建单 / 作废单」⇒ 它们**不可能**被 meta 驱动渲染 ⇒ 必须有第二个渲染器 ⇒ 否则建单/作废**没有入口**（上批刚补的「作废变更单」入口会丢） | `ChangeNoticeAction` 保留组件与两个动作；只把「变更申请 / 提交变更完成 / 放弃变更」这三个**状态机**按钮交出去 |
 | **R-13** | **聚合端点删掉 `CHANGE_NOTICE` 段** | 变更单**本身就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒ 它在进度页上**自己一行**、自己有 SIGN 进度 ⇒ 父交付物去反查变更单既无数据源（`parent_deliverable_id` 从未被写）也多余 | 聚合端点从 3 段变 2 段（SIGN / CUSTOMER_APPROVAL_PROXY）；进度页要能看到变更单行（`GET /deliverables` 不带 type 过滤 ⇒ 已能看到） |
 | **R-14** | **`EditConflictModal` 切到新端点** + 删掉 `api/audit.ts` 里与 `auditApi.listAuditLogs` 重复的 `listRecordEdits` | TODO-066 的**目的**是「普通 DESIGNER 能看差异」；只建端点不接线 ⇒ 目的落空（409 弹窗仍打 SYSTEM_ADMIN-only 的 `/audit-logs` ⇒ 普通用户照样 403） | 弹窗的差异数据从 `item.detail_json.changed_fields` 改成顶层 `changed_fields` ⇒ 其测试要改 |
 | **R-15** | **`WorkflowProgressPanel` 加受控模式**（传了 `data` 就不自己拉） | 面板现在 `useEffect` 自己拉 ⇒ 「每段各渲染一个面板」= 展开一行 **多个请求**（1 聚合 + 每段 1 次）⇒ 聚合端点的收益被完全抵消，且两套数据源可能不一致 | 面板多一个可选 prop；既有自拉用法**保持不变**（回归） |
@@ -536,9 +555,9 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 
 | 工作流 | workflow_id | 依据 |
 |---|---|---|
-| SIGN | 版本 id | `deliverable_service.py:641` |
-| CUSTOMER_APPROVAL_PROXY | **交付物 id** | `deliverable_service.py:931` |
-| CHANGE_NOTICE | 变更单自身的 deliverable_id | `change_notice_service.py:388` |
+| SIGN | 版本 id | `deliverable_service.py` 的 `sign_step`（grep 锚 `workflow_type=WorkflowType.SIGN`） |
+| CUSTOMER_APPROVAL_PROXY | **交付物 id** | `deliverable_service.py` 的客户批准代录（grep 锚 `workflow_type=WorkflowType.CUSTOMER_APPROVAL_PROXY`） |
+| ~~CHANGE_NOTICE~~ | ~~变更单自身的 deliverable_id~~ | ⚠️ **R-13 删掉了这一段** |
 
 ⚠️ **P9B-1 计划把 CUSTOMER_APPROVAL_PROXY 写成「版本 ID」，与代码不符** ——
 本测试把**代码的语义**钉死（R-2）。
@@ -549,7 +568,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_progress_sections_cover_three_workflow_types(client, auth_headers, ...):
+async def test_progress_sections_cover_two_workflow_types(client, auth_headers, ...):
     ...
 ```
 
@@ -567,7 +586,8 @@ async def test_progress_sections_cover_three_workflow_types(client, auth_headers
 > 2. `SIGN` 段的 `workflow_id == deliverable.current_version_id`。
 > 3. **`CUSTOMER_APPROVAL_PROXY` 段的 `workflow_id == deliverable.deliverable_id`**
 >    （**不是** version_id —— 这是 R-2 的钉子，2026-10-27 复核
->    `deliverable_service.py:1164` 仍成立）。
+>    仍成立：写入点是 `deliverable_service.py` 的客户批准代录 ⇒
+>    `record_step(workflow_type=CUSTOMER_APPROVAL_PROXY, workflow_id=deliverable_id)`）。
 > 4. 交付物**无版本**时 `SIGN` 段 `available is False` + `reason` 非空。
 > 5. 5 态计数（`pending` / `in_progress` / `completed` / `skipped` / `failed`）
 >    **恒存在**（含 0）。
@@ -600,8 +620,8 @@ Expected: FAIL —— 端点不存在（404 / 路由未匹配）。
 
 | 工作流 | workflow_id | 依据 |
 |---|---|---|
-| SIGN | 版本 id | `deliverable_service.py:836` |
-| CUSTOMER_APPROVAL_PROXY | **交付物 id** | `deliverable_service.py:1164` |
+| SIGN | 版本 id | `deliverable_service.py` 的 `sign_step`（grep 锚 `workflow_type=WorkflowType.SIGN`） |
+| CUSTOMER_APPROVAL_PROXY | **交付物 id** | `deliverable_service.py` 的客户批准代录（grep 锚 `workflow_type=WorkflowType.CUSTOMER_APPROVAL_PROXY`） |
 
 ⚠️ **P9B-1 计划写的是「CUSTOMER_APPROVAL_PROXY → 版本 ID」，与代码不符** ——
 本实现按**代码**（R-2），并同步修订 `TODOS.md` TODO-065 的那张表。
@@ -621,7 +641,9 @@ from app.schemas.workflow_progress import WorkflowProgressItemResponse
 class WorkflowProgressSection(BaseModel):
     """一类工作流在本交付物上的进度。"""
 
-    workflow_type: str = Field(description="SIGN / CHANGE_NOTICE / CUSTOMER_APPROVAL_PROXY")
+    workflow_type: str = Field(
+        description="SIGN / CUSTOMER_APPROVAL_PROXY（R-13：CHANGE_NOTICE 段已删）"
+    )
     workflow_id: uuid.UUID | None = Field(
         default=None,
         description="该类工作流的主键；不可用时为 null",
@@ -679,6 +701,14 @@ async def get_deliverable_progress(
         deliverable_id=deliverable_id, sections=sections
     )
 ```
+
+**Step 4b: 先核实两处 ORM 事实（2026-10-27 已核实，省得再查）**
+
+- ✅ `WorkflowProgress.step_status` 是 **`Mapped[WorkflowProgressState]`**
+  （`app/models/workflow_progress.py`）⇒ **枚举列** ⇒ 下面 `counts` 用**枚举**做键
+  **正确**（若哪天改成字符串列，`counts.get(枚举)` 会全部取不到 ⇒ 计数全 0）。
+- ✅ `records_actions._load_record` 的签名**已含** `need_mixin: bool = True`
+  ⇒ T1 的调用**不需要**另写一个私有函数。
 
 **Step 5: 写 service 方法**（`pcs-backend/app/services/deliverable_service.py`）
 
@@ -969,7 +999,9 @@ async def list_record_edits(
     ).scalars().all()
     items: list[RecordEditItem] = []
     for row in rows:
-        detail = row.detail if isinstance(row.detail, dict) else {}
+        # ⚠️ 列名是 **`detail_json`**（`app/models/system.py` 的 `AuditLog`）——
+        #    **不是** `detail`（照抄成 `row.detail` ⇒ AttributeError）。
+        detail = row.detail_json if isinstance(row.detail_json, dict) else {}
         fields = detail.get("changed_fields")
         items.append(
             RecordEditItem(
@@ -1073,7 +1105,9 @@ git commit -m "feat(P9B-2): TODO-066 按项目守卫的编辑审计读端点"
    （403 `APPROVAL_SELF_REVIEW_FORBIDDEN`，**前端不再需要排除自己的角色**）。
 5. 请求体**不再接受** `approval_role` / `approval_depth`（多传 ⇒ 422）⇒
    契约变更被显式化。
-6. 矩阵 `module='*'` ⇒ 也能当 RECORD 链用（`bind_to_project` 的既有口径）。
+6. 矩阵 `module='*'` ⇒ 也能当 RECORD 链用 —— ✅ **已核实**（2026-10-27）：
+   `signature_matrix_service.bind_to_project` 的判定就是
+   `if matrix.module not in ("*", module)` ⇒ **通配确实存在**。
 
 **Step 2: 跑测试确认失败**
 
@@ -1100,12 +1134,30 @@ cd pcs-backend && uv run python scripts/export_openapi.py
 bash pcs-backend/scripts/gate_08_openapi_contract.sh
 ```
 Expected: PASS；契约**破坏性变更**（`SubmitApprovalRequest` 的两个字段消失）
-⇒ 前端 `api.d.ts` 与 baseline 一并重生成（T3 同批改前端调用）。
+⇒ 前端 `api.d.ts` 与 baseline 在本任务**一并重生成**；**后续的 T3** 会改前端
+调用（`recordActionsApi.submitApproval` 的签名 ⇒ 去掉两个参数）。
 
-**Step 5: 提交**
+**Step 5: SPEC 修订（**必做** —— 开放项 2 的方案 A ⇒ 不做的话「说了要做但没排进
+Step」就等于永远不做）**
+
+- `spec/PCS-REQ-2026-002-SPEC-P9 …（修订版）.md` **§3.2.1**（P9A-DLV-001）：
+  `submit-approval` 的请求体描述改为「**由后端从项目绑定的 `module='RECORD'`
+  矩阵推导**（前端不再传 `approval_role` / `approval_depth`）」+ 在 §12.x 修订
+  记录里登记本次**契约破坏性变更**。
+- `docs/PCS-UI-SPEC.md` **§6.3**：「送审选角色」的描述同步改（「无角色选择器」）。
+
+⚠️ **T2 一提交，SPEC §3.2.1 就已过时** ⇒ 下一个读 SPEC 的人会按旧写法传两个
+字段 ⇒ 后端 422 ⇒ 「文档与代码不一致」的典型失败模式 ⇒ **本 Step 与代码同批**。
+
+**Step 6: 提交**
 
 ```bash
-git add pcs-backend/app/services/signature_matrix_service.py   pcs-backend/app/api/v1/records_actions.py pcs-backend/app/services/state_machine.py   pcs-backend/tests/api/v1/test_record_approval_chain.py   pcs-frontend/openapi.snapshot.json pcs-frontend/src/types/api.d.ts
+git add pcs-backend/app/services/signature_matrix_service.py \
+  pcs-backend/app/api/v1/records_actions.py pcs-backend/app/services/state_machine.py \
+  pcs-backend/tests/api/v1/test_record_approval_chain.py \
+  "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md" \
+  docs/PCS-UI-SPEC.md \
+  pcs-frontend/openapi.snapshot.json pcs-frontend/src/types/api.d.ts
 git commit -m "feat(P9B-2): TODO-054 送审批准链从项目 RECORD 矩阵推导"
 ```
 
@@ -1385,15 +1437,17 @@ git commit -m "feat(P9B-2): 记录动作 / 交付物进度 / meta / ADMIN 的 ap
 3. `IN_APPROVAL` ⇒ 有「通过」「退回」；**没有**「提交批准」。
 4. **角色不够 ⇒ 按钮禁用 + Tooltip 写明原因**（如 `role = 'DESIGNER'` 时
    `IN_APPROVAL` 的「通过」禁用）⇒ RF-1。
-5. **送审角色选择器排除当前用户自己的角色** ⇒ RF-2。
+5. **送审**按钮**没有角色选择器**（R-17）⇒ 提交体只有 `{reason?}`，
+   **不含** `approval_role` / `approval_depth`。
 6. **理由为空 ⇒ 弃用按钮禁用** ⇒ RF-3。
 7. **动作请求体逐字断言**（`{reason}` / `{decision, reason}` /
-   `{approval_role, approval_depth}`）。
+   **`{reason?}`（送审，R-17 —— 不再有 `{approval_role, approval_depth}`）**）。
 8. 403 / 409 / 422 ⇒ **显示错误码 + 原文**，**不静默**（RF-5 的「失败明说」）。
 9. **变更类动作**（变更申请 / 提交变更完成 / 放弃变更）⇒ 按钮**存在且可用**
    （R-12 + R-6 失效）⇒ 断言请求打到**已有端点**。
-10. **送审不弹角色选择器**（R-17）⇒ 提交体是 `{reason?}`；矩阵第 1 步角色
-    == 当前用户 ⇒ 按钮禁用 + Tooltip 写明原因。
+10. **矩阵第 1 步的角色 == 当前用户** ⇒ **送审按钮禁用 + Tooltip 写明原因**
+    （RF-2 的**新**口径：R-17 之后不再由用户选角色，而是后端从项目 `RECORD`
+    矩阵推导 ⇒ 前端的判据变成「矩阵这一步该谁签 == 我是谁」）。
 11. `meta/state-machine` **请求失败** ⇒ 显示「无法读取状态机定义」**而不是**
     空白按钮组（失败明说）。
 12. **双击提交** ⇒ 只发**一次**请求（pending 期间按钮禁用）。
@@ -1475,7 +1529,9 @@ export function RecordActions({
   if (!signStatus) return null;                       // RF-4：无 9 态列 ⇒ 不渲染
   if (!sm) return <Skeleton active />;
 
-  const actions = sm.allowed[signStatus] ?? [];
+  // ⚠️ **可选链要两层**：`sm.allowed?.[signStatus]` —— 只写 `sm.allowed[signStatus]`
+  //    在 `sm.allowed` 本身缺失时（schema 变更 / 200 但体不符）会 TypeError。
+  const actions = sm.allowed?.[signStatus] ?? [];
   // …按 action 映射到按钮与请求 …
 }
 ```
@@ -1538,11 +1594,22 @@ Run: `cd pcs-frontend && npm run typecheck && npm run lint`
 Expected: exit 0（⚠️ `npm run lint` 自带 `--max-warnings 0`，**别用裸
 `npx eslint src/` 替代**）。
 
-**Step 7: 提交**
+**Step 7: SPEC 修订（**必做** —— 开放项 2 的方案 A）**
+
+- **逐条比对** `docs/PCS-UI-SPEC.md` **§6.3** 的冻结按钮表 与
+  `GET /meta/state-machine` 的 `allowed`（**以 meta 为准**，R-4）⇒ 不一致的
+  每一条**写进** `docs/PCS-UI-SPEC.md` **§12.4 修订记录**（不是只记「可能不一致」
+  ⇒ 是**逐条列出哪一条不一致、以谁为准**）。
+- 顺带登记 §5.1 的 `<Can permission="...">` 组件**无源**这件事（开放项 4）：
+  本批用「`meta/state-machine` 的 `allowed_roles` + `meta/permissions` 的
+  `frontend_behavior`」代替 ⇒ §5.1 的 `<Can>` 段落要改成实际口径。
+
+**Step 8: 提交**
 
 ```bash
 cd pcs-frontend && git add src/components/common/RecordActions.tsx src/pages/results/resultModules.ts \
-  tests/components/common/RecordActions.test.tsx
+  tests/components/common/RecordActions.test.tsx tests/pages/results/resultModules.test.tsx \
+  docs/PCS-UI-SPEC.md
 git commit -m "feat(P9B-2): 记录操作栏（meta 状态机驱动 + 门禁前置）"
 ```
 
@@ -1564,26 +1631,9 @@ git commit -m "feat(P9B-2): 记录操作栏（meta 状态机驱动 + 门禁前�
   （**T1 Step 6b** 已加，位于 `src/api/audit.ts`）。
 - Produces: `RecordDetailDrawer` 组件（T4 的宿主页）。
 
-**注（不是步骤 · 原「Step 3a」已挪到 T1 Step 6b · R-14）**：`recordEditsApi` 在 `src/api/audit.ts`
-（审计类客户端归一处）⇒ **不在** `api/recordActions.ts` 追加（那会多出第三份
-审计入口）。原草稿如下，**仅作参考**：
-
-在 `src/api/recordActions.ts` 追加：
-
-```ts
-/** 记录编辑审计（TODO-066 · 按项目守卫的读端点）。 */
-export type RecordEditsResponse = components['schemas']['RecordEditsResponse'];
-
-export const recordEditsApi = {
-  list: (
-    module: EditableRecordType,
-    recordId: string,
-    params?: { limit?: number; offset?: number },
-  ): Promise<RecordEditsResponse> =>
-    api.get<RecordEditsResponse>(`/records/${module}/${recordId}/edits`, { params })
-      .then((r) => r.data),
-};
-```
+**注（不是步骤）**：`recordEditsApi` **在 T1 Step 6b 里加**，位于 `src/api/audit.ts`
+（审计类客户端归一处）⇒ **本任务不重复加**（原草稿把它放在
+`api/recordActions.ts`，已按 R-14 改到 `api/audit.ts` ⇒ 避免第三份审计入口）。
 
 **Step 1: 写失败测试**
 
@@ -1704,6 +1754,8 @@ git commit -m "feat(P9B-2): 记录详情抽屉 + 批注面板 + 记录状态时�
    的两种空态）。
 4b. ⚠️ **展开一行只发 1 个请求**（R-15）⇒ 断言 `workflow-progress/...` **零调用**
    （面板受控 ⇒ 不自己拉）。
+4c. ⚠️ **不展开时 0 请求**（P9B-1 的懒加载**不许丢**）⇒ 列表加载完时**不得**已经
+   发出 `/deliverables/{id}/progress`；**展开**某行才发那 1 个。
 5. 动作时间线区渲染 `actions.items`，`detail_json` **是 JSON 文本** ⇒ 前端
    `JSON.parse` 且**畸形时不崩**。
 
@@ -1845,7 +1897,8 @@ git commit -m "feat(P9B-2): ADMIN 用户管理页 + 审计日志筛选与导出"
 - Modify: `src/api/deliverables.ts`（加 `issue` / `signStep` / `customerApprovalProxy`）
 - Modify: `src/pages/deliverables/DeliverableProgressPage.tsx`（行操作列）
 - Create: `src/components/deliverables/DeliverableSignDialog.tsx`（签发 / 签署 / 代录）
-- Test: `tests/pages/deliverables/deliverable_sign.test.tsx`（api 层断言并入 T3 的文件）
+- Test: `tests/pages/deliverables/deliverable_sign.test.tsx`（组件层）
+  + **api 层断言并入 T3 的 `tests/api/deliverables_api.test.ts`**（见下）
 
 **Step 1: 写失败测试**（必含断言）
 
@@ -1856,6 +1909,16 @@ git commit -m "feat(P9B-2): ADMIN 用户管理页 + 审计日志筛选与导出"
 3. 「退回」⇒ **理由必填**（前端拦）。
 4. 签署成功 ⇒ **重新拉该行的进度**（不乐观更新）⇒ 步骤推进。
 5. 「代录」⇒ 弹窗 + 提交 ⇒ 失败时**显示后端 `error` 原文**，不得显示成功。
+
+**api 层断言（放在 T3 的 `tests/api/deliverables_api.test.ts`，本任务只补这三个）**：
+
+6. `deliverablesApi.issue` 打 **`POST /deliverables/{id}/issue`**，请求体
+   `{version_purpose, description?}`（字段名**逐字**，不改成 camelCase）。
+7. `deliverablesApi.signStep` 打 **`POST /deliverables/{id}/sign-step`**，请求体
+   `{version_id, decision, reason?}`。
+8. `deliverablesApi.customerApprovalProxy` 打
+   **`POST /deliverables/{id}/customer-approval/proxy`**，请求体逐字取后端 schema
+   （**先读** `app/api/v1/deliverables.py` 的该端点签名，不要凭印象写字段名）。
 
 **Step 2: 跑测试确认失败** ⇒ FAIL（组件不存在）。
 
@@ -1888,7 +1951,7 @@ cd pcs-frontend && npm run typecheck && npm run lint
 | 4 | `enabled` 翻 false 时状态不复位 ⇒ 换一条记录短暂显示上一条的「他人正在编辑」 | `useEditLock.ts` | `enabled` 变 false ⇒ 清空状态 + 一条测试 |
 | 5 | 卸载释放的路径**硬编码** `/api/v1/locks/...`（应取 `api.defaults.baseURL`） | `ResultEditDrawer.tsx` | 改用 baseURL + 一条测试（断言请求 URL 前缀随 baseURL 变） |
 | 6 | `api/audit.ts::listRecordEdits` 与 `auditApi.listAuditLogs` **完全重复** | `api/audit.ts` | **R-14 已含**：删掉重复的那个 |
-| 7 | `WorkflowProgressPanel` 把 403 / 404 / 网络错误都映射成同一句 ⇒ **404 被读成「无权限」** | `WorkflowProgressPanel.tsx` | **R-15 顺带**：区分 403 / 404 / 网络三种文案 + 一条测试 |
+| 7 | `WorkflowProgressPanel` 把 403 / 404 / 网络错误都映射成同一句 ⇒ **404 被读成「无权限」** | `WorkflowProgressPanel.tsx` | **独立于 R-15**（R-15 只加受控模式；T6 只处理 `available=false` 的段）⇒ 本条处理**面板内部**的 403 / 404 / 网络三种文案 + 一条测试 |
 
 **Step 1: 每条先写失败测试** ⇒ **Step 2: 逐条改** ⇒ **Step 3: 全绿**
 
@@ -1951,7 +2014,8 @@ cd pcs-frontend && npm run test && npm run typecheck && npm run lint
 清单：
 1. login 200 → dashboard 渲染
 2. 结果页 → 「详情」→ 抽屉打开 + 操作栏按状态渲染 + 批注区可输入
-3. 送审弹窗的**角色下拉不含自己的角色**
+3. 送审**不弹角色选择器**（R-17）⇒ 提交体只有 `{reason?}`；且**矩阵第 1 步
+   角色 == 当前用户 ⇒ 按钮禁用 + Tooltip**
 4. 交付物进度页展开一行 ⇒ 网络面板看到 **`/deliverables/{id}/progress`**
    （**不是** `workflow-progress/SIGN/...`）⇒ **两段**都在
 5. 不可用段显示 `reason` 原文
