@@ -724,39 +724,32 @@ ADR-0047 §后果 段也已加同一份偏离说明（下一个实施者读到�
 
 ---
 
-## TODO-054: 记录侧「多级批准」的角色链无定义来源（P9A B4b 裁决登记）
+## ✅ DONE —— TODO-054: 记录侧「多级批准」的角色链无定义来源（2026-10-27 落地，P9B-2 · T2）
 
-`RecordMixin` 只有 `approval_step` / `approval_depth` / `approval_role` 三个标量列；
-`project_templates.default_config_json` 的 `record_approval_config` 只有一句注释、
-**无消费方**（`grep record_approval_config app/` 仅命中那一句）。
+**落地**（P9B-2 · T2 · commit `678cc7b`，R-17）：
 
-**P9A B4b 的裁决**（不发明需求）：
-- `approval_role` 由 `POST /records/{module}/{id}/submit-approval` 请求体指定
-  （7 值词表逐字取自 `app/models/project.py:154`），并保持到终态；
-- 「多级批准」表达为**同一待批角色逐级批 N 次**，`approval_depth` 由请求体给出；
-- 每一步只允许 `record.approval_role` 那个角色批（403 `APPROVAL_ROLE_MISMATCH`）；
-- `can_self_check` 在记录侧无配置源 ⇒ 取**最强形式**：提交人不能把
-  `approval_role` 设成自己的角色（403 `APPROVAL_SELF_REVIEW_FORBIDDEN`）。
-  宽松形式（只在配置说 false 时才拒）在没有配置源时**永远不成立 = 没有防护**。
+- **定义源 = 项目绑定的 `module='RECORD'` 签署矩阵**（数据模型已有该槽位 +
+  绑定 API + 管理 UI ⇒ 零新增配置面；且与交付物签署链**同一套矩阵** = 一份真相）。
+  ⇒ `POST /records/{module}/{id}/submit-approval` 改为**推导**：
+  - `approval_role` = 链的第 1 步角色；`approval_depth` = 链的**总步数**；
+  - `approval_step` 随推进前进（`_next_approval_role()`）。
+- ⚠️ **契约破坏性变更**：请求体**不再收** `approval_role` / `approval_depth`
+  ⇒ `SubmitApprovalRequest` 加 `extra="forbid"` ⇒ 多传旧字段 ⇒ **422**
+  （静默忽略会让调用方以为自己传了角色，实际生效的是矩阵里的角色 ⇒
+  「我明明选了 APPROVER」却吃 403）。
+- ⚠️ **没绑矩阵** ⇒ 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`。
+- ⚠️ **自审判据** = 提交人自己的角色出现在链里**任何一步**（不只挡第 1 步 ⇒
+  不留「在第 2 步自己批自己」的洞）⇒ 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`。
+- ⚠️ `TRANSITION_ROLES[PASS_CHECK]` / `[REJECT_CHECK]` **补 REVIEWER** ——
+  内置记录级矩阵第 2 步就是 REVIEWER，不加则第 2 步**谁也批不了**（403）。
+  粗闸**不是**最终判据：端点仍要求 `actor.role == record.approval_role`。
+- 前端同批改（T4）：**送审角色选择器消失** ⇒ 操作栏不再让用户选角色；
+  「矩阵第 1 步角色 == 当前用户」⇒ 送审**禁用 + 说明**（不能自己送自己审）。
 
-**待定**：`record_approval_config` 的真实结构由谁定义（项目模板？硬编码 4 级链？
-沿用 `SignatureMatrix.steps_json`？）。定了之后 `submit-approval` 应改为**推导**
-而不是显式输入。
+⚠️ `project_templates.record_approval_config` 现在**无消费方** ⇒ 建议后续删
+（另议，本批只登记）。
 
-- **发现**：2026-10-20，P9A B4b 开工前
-- **归属**：**P9B-2**（2026-10-27 `/plan-eng-review` 裁决：**并入本批**，见计划
-  `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` 的 **T2**）⇒ 定义源 =
-  **项目绑定的 `module='RECORD'` 签署矩阵**（数据模型**已有该槽位** + 绑定 API +
-  管理 UI ⇒ 零新增配置面；且与交付物签署链同一套矩阵 = 一份真相）⇒
-  `submit-approval` 改**推导**（请求体不再由前端传 `approval_role`/`approval_depth`
-  ⇒ **契约破坏性变更**，前端同批改）⇒ T4 的「送审角色选择器」随之消失。
-  ⚠️ 连带：`project_templates.record_approval_config` 变成**无消费方** ⇒ 建议后续删
-  （另议，本批只登记）。
-- **严重度**：MEDIUM（批准链退化为「同角色批 N 次」，与 SPEC 可能的「多角色链」
-  不同；每一步仍留痕、可追溯，只是不区分人）
-- **关联**：TODO-053 · ADR-0047
-
----
+**关联：** TODO-053 · ADR-0047 · P9B-2 · T2 / R-17
 
 ## TODO-055: `RECORD_TYPE_REGISTRY` 的键风格不统一（P9A B4a 登记）
 
@@ -1203,85 +1196,69 @@ typecheck）。优先迁「零消费方」的（它们连棘轮都判死，会�
 - **严重度**：MEDIUM（当前无功能故障；有消费方的那些仍在工作，但少字段时会静默）
 - **关联**：P9B-1 Task F0 · `scripts/audit-handwritten-types.mjs`（清单式审计的盲区）
 
-## TODO-065: `GET /deliverables/{id}/progress` 聚合端点（缺失 · P9B-2 前置）
+## ✅ DONE —— TODO-065: `GET /deliverables/{id}/progress` 聚合端点（2026-10-27 落地，P9B-2 · T0）
 
-**What:** 后端加一个聚合端点，一次返回某交付物**三类**工作流的进度：
-`GET /api/v1/deliverables/{deliverable_id}/progress`。
+**落地**（P9B-2 · T0 · commit `f646b48`）：
 
-**Why:** `GET /workflow-progress/{workflow_type}/{workflow_id}` 是**单条**查询，
-而三类工作流的 `workflow_id` 语义**各不相同**（实测 2026-10-21）：
+- `GET /api/v1/deliverables/{deliverable_id}/progress` ⇒ 一次返回**两类**工作流的
+  进度，每段带 `available` + `reason`（不可用时**说原因**，不返空数组冒充
+  「这条流程一个节点都没有」）。
+- ⚠️ **口径修订**（R-2 / R-13）—— 原表里的 `CHANGE_NOTICE` 行**删掉**，
+  `CUSTOMER_APPROVAL_PROXY` 的 `workflow_id` 也**不是**版本 id：
 
-| 工作流 | workflow_id | 前端怎么拿 |
+| 工作流 | workflow_id | 说明 |
 |---|---|---|
-| `SIGN` | 版本 ID | `DeliverableResponse.current_version_id`（P9B-1 本批加） |
-| `CUSTOMER_APPROVAL_PROXY` | 版本 ID | 同上 |
-| `CHANGE_NOTICE` | **变更单自身的 deliverable_id**（变更单是独立交付物，`deliverable_type=CHANGE_NOTICE`） | ⛔ 前端**拿不到** —— 需要查「当前交付物 → 它的变更单」的关联 |
+| `SIGN` | **版本 ID** | 版本行 id（`current_version_id`） |
+| `CUSTOMER_APPROVAL_PROXY` | **交付物 ID** | 代录挂在交付物上，不是版本上 |
+| ~~`CHANGE_NOTICE`~~ | — | **删**（R-13）：变更单**本身就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒ 它在进度页上自己一行、自有 SIGN 进度；而 `Deliverable.parent_deliverable_id` 全仓从未被写 ⇒ 靠它反查**永远查不到** ⇒ 留着一个**永远为假**的段比没有更坏（该列已由 T-2 的迁移 `p9_012` 删除） |
 
-⇒ 前端要凑齐三类 ⇒ 4~5 个请求/行，且「变更单的 workflow_id 怎么拿」这段逻辑
-会落在**前端** ⇒ 错误的位置（关联规则在后端：`change_notice_details` 与
-`deliverables` 的关系不是简单外键）。
+- ⚠️ **一条批量查询**（R-16）而不是「每段各查一次」⇒ 实测 **3 条 SELECT**
+  （取交付物 1 + 取当前版本 1 + 批量取观测行 1）；测试里钉了「SELECT ≤ 5」的守卫。
+- 前端接线（P9B-2 · T6 · commit `7fe7e29`）：`WorkflowProgressPanel` 加**受控
+  模式**（传 `data` 就不自己拉）⇒ 展开一行 = **1 个**聚合请求（不是 1 + 每段 1 个）。
+- **浏览器实测**（2026-10-27 QA 报告）：展开一行 ⇒ 网络面板看到
+  `GET /api/v1/deliverables/d-2/progress`（**不是** `workflow-progress/SIGN/...`）
+  ⇒ 两段都在；不可用段显示 `reason` 原文「尚未签发版本，无签署流程」。
 
-**Pros:** 前端 1 次请求拿全；关联解析归后端；P9B-2 加新工作流类型时前端不动。
+**关联：** `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` · T0 · ADR-0047 ·
+QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md`
 
-**Cons:** 新端点 + 契约 + 测试；需定义「一个交付物有多个变更单时取哪个」的口径。
+## ✅ DONE —— TODO-066: 编辑审计缺**按项目守卫**的读端点（2026-10-27 落地，P9B-2 · T1）
 
-**Context:** P9B-1（2026-10-21 裁决）**本批不做** —— 本批范围收窄为「只展示
-SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` 即可，
-聚合端点此时「退化成一个没有收益的新端点」。
-**触发条件：P9B-2 开始实现 `CUSTOMER_APPROVAL_PROXY` / `CHANGE_NOTICE` 面板时，
-先做聚合端点，再做面板** —— 否则前端要自己解析变更单关联（P9B-2 会重走一遍
-「三个选项」的讨论）。
-**归属：** P9B-2，与两个新面板同批。
+**落地**（P9B-2 · T1 · commit `c68bbf0`）：
 
-## TODO-066: 编辑审计缺**按项目守卫**的读端点（普通用户看不到「查看差异」）
+- `GET /api/v1/records/{module}/{record_id}/edits` ⇒ 只回 `changed_fields`
+  **字段名列表** + 操作人 + 时间（**不**回值 ⇒ 差异页不泄漏整行数据）。
+- ⚠️ **按项目守卫**：越权 ⇒ **404**（不是 403）⇒ 不泄漏「这条记录存在」。
+- ⚠️ 只回 `action=RECORD_EDITED` 的审计行（其余动作不进差异视图）。
+- 前端接线（R-14）：409 弹窗的「查看差异」**改打新端点** ⇒ **普通用户点得开**
+  （此前打 SYSTEM_ADMIN-only 的 `/audit-logs` ⇒ 普通 DESIGNER 拿到弹窗却
+  点不开差异 ⇒ 弹窗的第二个出口形同虚设）。
+  ⇒ 连带删掉 `api/audit.ts` 里与 `auditApi.listAuditLogs` **完全重复**的
+  `listRecordEdits`（TODO-067 #6 一并闭环）。
+- **差异视图的 `changed_fields` 在顶层**（不是 `detail_json` 里）⇒ 后端摊平。
 
-**What:** 后端加 `GET /records/{module}/{record_id}/edits`（只回 `changed_fields`
-字段名列表 + 操作人 + 时间），带**项目守卫**（`check_record_access_or_404`）。
+**关联：** SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑦ · P9B-2 · T1 / R-14
 
-**Why:** SPEC §6.21 P9A-LCK-006 要求 409 弹窗提供「查看差异」，而差异内容在
-**编辑审计**里（`audit_logs` 的 `RECORD_EDITED` action）。但唯一的读端点
-`GET /audit-logs` **限 SYSTEM_ADMIN**（实测：`app/api/v1/audit.py:58`
-`require_roles(user, "SYSTEM_ADMIN")`，且 `audit_logs` 表**无 project_id**）
-⇒ 普通 DESIGNER 拿到 409 弹窗却**点不开差异**。
+## ✅ DONE —— TODO-067: P9B-1 最终评审的 **7 条 deferred minor**（2026-10-27 全部闭环，P9B-2 · T9）
 
-**Pros:** 普通用户能看差异（409 弹窗的第二个出口才有意义）；不泄露跨项目数据。
+**逐条闭环**（每条 = 一个测试 + 一次改动）：
 
-**Cons:** 新端点 + 契约 + 测试；`audit_logs` 无 `project_id` ⇒ 授权只能靠
-`resource_type + resource_id` 反查所属项目（`records` 表有 project_id）。
+| # | 事项 | 改法 | 落点 |
+|---|---|---|---|
+| 1 | 「联系管理员」按钮在生产里是**死的** | `basis=no_baseline` 时**不渲染**死按钮 ⇒ 改成一条**真实**出路（提示「请联系管理员补齐该记录的并发基线后重试」） | T1 · `EditConflictModal.tsx`（commit `c68bbf0`） |
+| 2 | `editableFields` 漏字段 ⇒ 静默从表单消失 | 加**守卫测试**「`editableFields ⊆ columns`」（漏了 ⇒ 变红） | T4 · `resultModules.ts`（commit `bb123bb`） |
+| 3 | 降级横幅成功后**不消失**（`onDegraded(null)` 从不被调） | 取锁成功 / 续期成功 ⇒ `onDegraded(null)` | T9 #3 · `useEditLock.ts`（commit `6b0db55`） |
+| 4 | `enabled` 翻 false 时状态不复位 | `enabled` 变 false ⇒ 状态复位 `idle`（换记录不再短暂显示上一条的「他人正在编辑」） | T9 #4 · `useEditLock.ts`（commit `012dd04`） |
+| 5 | 卸载释放的路径硬编码 `/api/v1/locks/...` | 前缀取 `api.defaults.baseURL`（与 axios 实例同源 ⇒ 只有一处真相） | T9 #5 · `ResultEditDrawer.tsx`（commit `d9c2548`） |
+| 6 | `api/audit.ts::listRecordEdits` 与 `auditApi.listAuditLogs` 完全重复 | **删**（R-14 切到新端点时一并做） | T1 · `api/audit.ts`（commit `c68bbf0`） |
+| 7 | `WorkflowProgressPanel` 把 403 / 404 / 网络错误映射成同一句 | 三种**分开**：403「无权查看该工作流的进度」/ 404「该工作流不存在」/ 网络 ⇒ 宿主给的 `errorDescription` | T6 · `WorkflowProgressPanel.tsx`（commit `7fe7e29`） |
 
-**Context:** P9B-1（2026-10-21 裁决）**本批不做** —— 前端优雅降级：
-「查看差异」遇 403 ⇒ 显示「无权查看差异（需系统管理员）」并**保留**
-「放弃我的修改并刷新」出口。
-**触发条件：P9B-2 做签署流程前端（批注/状态时间线）时一并做** —— 那时编辑审计
-的展示面更大。
-**归属：** P9B-2。**关联：** SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑦。
+⚠️ **#3 的边界**：降级态**不续期**（续期失败会把「放行」变成只读 ⇒ 反而阻断
+编辑）⇒ 降级持续期间横幅只能靠**重新取锁**（重开抽屉）消失。
 
-## TODO-067: P9B-1 最终评审的 **7 条 deferred minor**（🟡 延后到 P9B-2 顺手做）
-
-**What:** P9B-1 的最终整支评审（2026-10-21，范围 `a963a76..ed58075`）报出
-1 Critical + 5 Important + 8 Minor。Critical 与 Important **已修**（commit
-`20a3cc6`，见 `.wolf/buglog.json` 的 bug-2044~2049）；下面 7 条 Minor 按
-「每个都要一个测试 + 一次改动」的规矩**延后**：
-
-| # | 事项 | 位置 |
-|---|---|---|
-| 1 | 「联系管理员」按钮在生产里是**死的**（`onContact` 可选，唯一的生产调用方省略了它）⇒ `basis=no_baseline` 时点它**没反应** | `EditConflictModal.tsx:101` |
-| 2 | `editableFieldDefs` 从 `columns` 派生 ⇒ `editableFields` 里漏掉的字段会**静默**从表单消失（无错误、无测试）⇒ 缺一条「`editableFields ⊆ columns`」的守卫 | `resultModules.ts:314` |
-| 3 | 降级横幅成功后**不消失**（`onDegraded(null)` 从不被调）⇒ 一次 Redis 抖动把警告钉到会话结束 | `useEditLock.ts:114` |
-| 4 | `enabled` 翻 false 时状态不复位 ⇒ 换一条记录会短暂显示上一条的「他人正在编辑 / 锁已失效」 | `useEditLock.ts:70` |
-| 5 | 卸载释放的路径硬编码 `/api/v1/locks/...`（应取 `api.defaults.baseURL`）—— 那是**卸载期间唯一必须成功**的路径 | `ResultEditDrawer.tsx:121` |
-| 6 | `api/audit.ts` 的 `listRecordEdits` 与 `auditApi.listAuditLogs` **完全重复**（同端点同响应类型）⇒ 只多一个名字 | `api/audit.ts:108` |
-| 7 | `WorkflowProgressPanel` 把 403 / 404 / 网络错误都映射成同一句 `errorDescription` ⇒ **404 被读成「无权限」** | `WorkflowProgressPanel.tsx:74` |
-
-**Why:** 评审的 skill 明确「Minor 进 ledger 延后，不进修复批」⇒ 一次一个测试 +
-一次改动，混进来会让这批的修复面失控。
-
-**归属：** **P9B-2**（顺手做，不单独排期）⇒ 2026-10-27 `/plan-eng-review` 裁决：
-**7 条全部并入** P9B-2 计划（见 `docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md` 的
-**T9**）⇒ 每条按「一个测试 + 一次改动」做；其中 #6 已由 **R-14**（切 409 弹窗到新
-端点时删掉重复的 `listRecordEdits`）闭环、#7 由 **R-15**（面板受控模式）顺带闭环。
 **关联：** P9B-1 最终评审 ledger
-`.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`。
+`.superpowers/sdd/PCS-PLAN-P9B-1-结果记录页与编辑锁/progress.md`
 
 ## ✅ DONE —— TODO-068: 变更申请**无 HTTP 入口**（2026-10-26 落地，P9A-DLV-011 T4）
 

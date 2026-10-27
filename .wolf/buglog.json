@@ -4868,6 +4868,64 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2092",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "HIGH",
+      "error_message": "「撤销审批中」（REVERSAL_PENDING）的记录**没有**「弃用」按钮 —— 前端按 meta/state-machine 渲染操作栏，而后端允许 `REVERSAL_PENDING → OBSOLETE`",
+      "file": "pcs-frontend/src/mocks/seed/meta.state-machine.json",
+      "root_cause": "前端的 `meta/state-machine` **seed 是手写的**（`src/mocks/seed/meta.ts` 里 21 条迁移 + 9 态 allowed + 每个 allowed_roles），**不从后端生成** ⇒ 漂移被藏住：手写的那份**漏了** `REVERSAL_PENDING → OBSOLETE` 这一条（后端 `ALLOWED_TRANSITIONS` 里有）⇒ 前端 `sm.allowed['REVERSAL_PENDING']` 里没有 OBSOLETE ⇒ 「弃用」按钮**不渲染** ⇒ 用户**没法**作废一条待批撤销的记录（后端明明允许）。同类漂移还有 `allowed_roles` 的**顺序**（后端排序）与 `preconditions`/`side_effects` 的**文案**（后端更细：「无下游引用（计算结果/状态点）」）。",
+      "fix": "**已修（2026-10-27，P9B-2 · T10 / R-19）**：① seed 从 `.ts` 抽成 `src/mocks/seed/meta.state-machine.json`，内容由**后端** `get_state_machine()` 生成；② 后端加 `tests/architecture/test_frontend_state_machine_seed.py` **逐条比对**（跨包耦合 ⇒ `skipif` 守卫：后端-only 的检出**跳过**而不是**失败**）；③ 另加一条单点回归守卫（「`REVERSAL_PENDING → OBSOLETE` 必须在 seed 里」），免得下次只看到一个「不相等」的 diff 还要自己去查。",
+      "fix_commit": "f033a8f",
+      "tags": [
+        "state-machine",
+        "meta",
+        "mock-drift",
+        "r-19",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2093",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "MEDIUM",
+      "error_message": "签署退回（RETURN）**没有理由**可填 —— `SignStepRequest` 只有 `{version_id, step_index, decision}`，前端若让用户必填理由，FastAPI 会**静默丢弃**它",
+      "file": "pcs-backend/app/schemas/deliverable_write.py",
+      "root_cause": "计划（P9B-2 T8 断言 3/7）假设 sign-step 的请求体含 `reason`，但**交付的契约里没有**这个字段（`SignStepRequest` 三字段，`DeliverableService.sign_step` 也不收）⇒ 前端「退回必须填理由」这个门禁若照做，理由会**被 Pydantic 静默忽略**（默认 `extra='ignore'`）⇒ 用户以为自己留下了理由、实际没留 ⇒ **退回**（签署流程里唯一能纠错的路径）退化成「退回但没人知道要改什么」。",
+      "fix": "**已修（2026-10-27，P9B-2 · T8）**：给 `SignStepRequest` 加 `reason`（可选、`default=\"\"`、max_length=2000 ⇒ **additive 不破坏契约**），service 层写进版本的签署汇总 `signature_summary_json.signatures[].reason` ⇒ 理由**可回读**（`GET /deliverables/{id}/versions/{rev}/snapshot`）⇒ 前端的必填门禁是**诚实的**。⚠️ 空理由**不写**键（不是空串占位）⇒ 「没填」与「填了空的」可区分。",
+      "fix_commit": "a293269",
+      "tags": [
+        "sign-step",
+        "contract",
+        "return-reason",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
+    },
+    {
+      "id": "bug-2094",
+      "timestamp": "2026-10-27T00:00:00.000Z",
+      "severity": "LOW",
+      "error_message": "[antd: Modal] `destroyOnClose` is deprecated. Please use `destroyOnHidden` instead.（每次打开交付物「签署」弹窗都打一条控制台 error）",
+      "file": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx",
+      "root_cause": "本批新增的弹窗沿用 antd 4/5.28 的 `destroyOnClose`；antd **5.29 起弃用** ⇒ 控制台每次都红一条。⚠️ 本仓已有两处**同款**注释（`SignatureMatrixPage.tsx` / `ChangeNoticeAction.tsx`）⇒ 早知道这件事，新代码又犯了一次（**没有** grep 现成用法）。",
+      "fix": "**已修（2026-10-27）**：改用 `destroyOnHidden`（与本仓既有两处一致）。浏览器 QA 复跑：同一条路径 `console --errors` ⇒ **无输出**。",
+      "fix_commit": "36d9296",
+      "tags": [
+        "antd",
+        "console-error",
+        "deprecation",
+        "fixed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-27"
     }
   ]
 }
