@@ -2603,3 +2603,80 @@
 | 12:33 | Edited pcs-frontend/src/components/common/RecordActions.tsx | CSS: display | ~142 |
 | 18:18 | Edited pcs-frontend/src/pages/results/resultModules.ts | expanded (+15 lines) | ~206 |
 | 18:19 | Created pcs-frontend/tests/pages/results/resultModules.test.tsx | — | ~462 |
+| 18:24 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | expanded (+19 lines) | ~369 |
+| 18:26 | Created pcs-frontend/src/components/common/CommentPanel.tsx | — | ~1335 |
+| 18:26 | Created pcs-frontend/src/components/common/RecordTimeline.tsx | — | ~804 |
+| 18:27 | Edited pcs-frontend/src/components/common/RecordTimeline.tsx | removed 7 lines | ~8 |
+| 18:27 | Edited pcs-frontend/src/components/common/RecordTimeline.tsx | inline fix | ~15 |
+| 18:27 | Created pcs-frontend/src/pages/results/RecordDetailDrawer.tsx | — | ~628 |
+| 18:28 | Created pcs-frontend/tests/components/common/CommentPanel.test.tsx | — | ~1075 |
+| 18:28 | Created pcs-frontend/tests/components/common/RecordTimeline.test.tsx | — | ~811 |
+| 18:29 | Created pcs-frontend/tests/pages/results/record_detail.test.tsx | — | ~1146 |
+| 18:29 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | expanded (+7 lines) | ~163 |
+| 18:29 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | expanded (+12 lines) | ~188 |
+| 18:29 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | added 1 import(s) | ~50 |
+| 18:29 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | 1→3 lines | ~51 |
+| 18:30 | Edited pcs-frontend/src/components/common/RecordTimeline.tsx | modified RecordTimeline() | ~122 |
+| 18:30 | Edited pcs-frontend/src/components/common/RecordTimeline.tsx | modified join() | ~89 |
+| 18:30 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | 3→3 lines | ~36 |
+| 18:31 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | modified if() | ~266 |
+| 18:31 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | added nullish coalescing | ~127 |
+| 18:31 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | 2→1 lines | ~22 |
+| 18:31 | Edited pcs-frontend/src/pages/results/ResultListPage.tsx | expanded (+11 lines) | ~100 |
+| 18:35 | Edited pcs-frontend/src/components/common/WorkflowProgressPanel.tsx | added 1 condition(s) | ~824 |
+| 18:35 | Edited pcs-frontend/src/components/common/WorkflowProgressPanel.tsx | CSS: errorText | ~184 |
+| 18:36 | Edited pcs-frontend/src/components/common/workflowTabs.ts | 32→37 lines | ~343 |
+| 18:36 | Edited pcs-frontend/src/components/common/WorkflowProgressPanel.tsx | modified WorkflowProgressPanel() | ~110 |
+| 18:36 | Edited pcs-frontend/src/components/common/WorkflowProgressPanel.tsx | 9→11 lines | ~90 |
+| 18:36 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | CSS: SECTION_LABELS, SIGN, CUSTOMER_APPROVAL_PROXY | ~754 |
+| 18:36 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added 4 condition(s) | ~239 |
+| 18:36 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added error handling | ~1168 |
+| 18:37 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | modified setExpandedId() | ~49 |
+| 18:37 | Created pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | — | ~2878 |
+| 18:39 | Edited pcs-frontend/tests/components/common/WorkflowProgressPanel.test.tsx | added optional chaining | ~1002 |
+| 18:40 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | inline fix | ~11 |
+| 18:42 | Created pcs-frontend/src/lib/csv.ts | — | ~452 |
+| 18:43 | Created pcs-frontend/src/pages/admin/UserAdminPage.tsx | — | ~1659 |
+| 18:43 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | modified extractPcsError() | ~478 |
+| 18:43 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 4→8 lines | ~131 |
+| 18:43 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | CSS: collected | ~632 |
+| 18:44 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | added nullish coalescing | ~1311 |
+| 18:44 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 8→8 lines | ~53 |
+| 18:44 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 3→8 lines | ~95 |
+| 18:44 | Edited pcs-frontend/src/layouts/MainLayout.tsx | CSS: isSystemAdmin | ~70 |
+| 18:44 | Edited pcs-frontend/src/layouts/MainLayout.tsx | CSS: menuItems | ~90 |
+| 18:45 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified AuditLogRoute() | ~107 |
+| 18:45 | Edited pcs-frontend/src/App.tsx | 2→3 lines | ~16 |
+| 18:45 | Created pcs-frontend/tests/pages/admin/user_admin.test.tsx | — | ~1388 |
+| 18:46 | Created pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | — | ~1684 |
+| 18:48 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 3→7 lines | ~74 |
+| 18:48 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | added nullish coalescing | ~104 |
+| 18:48 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | inline fix | ~14 |
+| 18:49 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | "查询" → "audit-filter-submit" | ~18 |
+| 18:49 | Created pcs-frontend/tests/lib/csv.test.ts | — | ~464 |
+| 18:49 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx | 9→14 lines | ~153 |
+| 18:50 | Edited pcs-frontend/tests/layouts/MainLayout.test.tsx | added 1 import(s) | ~47 |
+| 18:51 | Edited pcs-frontend/tests/pages/admin/user_admin.test.tsx | inline fix | ~23 |
+| 18:51 | Edited pcs-frontend/src/lib/csv.ts | 2→3 lines | ~52 |
+| 18:57 | Edited pcs-backend/app/schemas/deliverable_write.py | modified SignStepRequest() | ~159 |
+| 18:57 | Edited pcs-backend/app/api/v1/deliverables.py | 9→10 lines | ~88 |
+| 18:58 | Edited pcs-backend/app/services/deliverable_service.py | 4→5 lines | ~38 |
+| 18:58 | Edited pcs-backend/app/services/deliverable_service.py | 14→19 lines | ~234 |
+| 18:59 | Edited pcs-frontend/tests/api/deliverables_api.test.ts | "FAILED" → "COMPLETED" | ~12 |
+| 18:59 | Edited pcs-frontend/src/api/deliverables.ts | expanded (+96 lines) | ~1090 |
+| 19:01 | Created pcs-frontend/tests/pages/deliverables/deliverable_sign.test.tsx | — | ~3268 |
+| 19:02 | Created pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx | — | ~3753 |
+| 19:02 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | expanded (+7 lines) | ~261 |
+| 19:02 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | modified if() | ~337 |
+| 19:02 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added error handling | ~1027 |
+| 19:02 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | 1→3 lines | ~41 |
+| 19:02 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added optional chaining | ~541 |
+| 19:03 | Edited pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx | CSS: reason | ~83 |
+| 19:04 | Edited pcs-frontend/tests/pages/deliverables/deliverable_sign.test.tsx | 3→5 lines | ~86 |
+| 19:05 | Edited pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx | expanded (+7 lines) | ~77 |
+| 19:21 | Created pcs-frontend/src/mocks/seed/signFlow.ts | — | ~1309 |
+| 19:22 | Created pcs-frontend/src/mocks/signFlow.ts | — | ~2738 |
+| 19:26 | Created pcs-backend/tests/architecture/test_frontend_state_machine_seed.py | — | ~648 |
+| 19:28 | Created pcs-frontend/e2e/record_actions.spec.ts | — | ~658 |
+| 19:29 | Created pcs-frontend/e2e/deliverable_sign.spec.ts | — | ~830 |
+| 19:48 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md | — | ~891 |

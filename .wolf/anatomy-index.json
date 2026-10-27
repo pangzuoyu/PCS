@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T10:19:39.585Z",
-    "fileCount": 1078,
+    "lastScanned": "2026-10-27T11:48:03.745Z",
+    "fileCount": 1097,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "26df5199ba45ce42e67d4af10773ce2940994b7cd53e79a6b8fd82b4b0aebf61",
-    "storeUpdatedAt": "2026-10-27T10:19:39.596Z",
-    "rootHash": "3bb855a65bb005ca"
+    "renderedHash": "6c9ea9af57103b2a461906f3b514c607cc5c4c78504d57e3d2e7f9752468c473",
+    "storeUpdatedAt": "2026-10-27T11:48:03.756Z",
+    "rootHash": "acf48778297894c4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13558,304 +13558,311 @@
       ]
     },
     "pcs-frontend/src/pages/audit/AuditLogPage.tsx": {
-      "description": "AuditLogPage — Audit Query viewer (F-P2-009 Sprint 3 / Issue 7).",
-      "tokens": 2271,
-      "hash": "03940e9e5f248ae8",
-      "size": 8205,
-      "mtimeMs": 1790978962754.9648,
-      "updatedAt": "2026-10-02T22:09:22.804Z",
+      "description": "AuditLogPage — 审计日志查询（F-P2-009 Sprint 3 / Issue 7 · **P9B-2 扩展**）。",
+      "tokens": 4209,
+      "hash": "4507c5ea3cc91b54",
+      "size": 15831,
+      "mtimeMs": 1793098133320.2754,
+      "updatedAt": "2026-10-27T10:48:53.369Z",
       "source": "hook",
       "symbols": [
         {
           "name": "PcsErrorEnvelope",
           "kind": "section",
-          "startLine": 33,
-          "endLine": 36,
+          "startLine": 47,
+          "endLine": 50,
           "tokens": 20
         },
         {
           "name": "extractPcsError",
           "kind": "fn",
-          "startLine": 37,
-          "endLine": 50,
+          "startLine": 51,
+          "endLine": 64,
           "tokens": 132
         },
         {
           "name": "AuditLogPage",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 274,
-          "tokens": 1888
+          "startLine": 65,
+          "endLine": 458,
+          "tokens": 3680
         }
       ]
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 3319,
-      "hash": "74ff67093240c82e",
-      "size": 12599,
-      "mtimeMs": 1792374406589.207,
-      "updatedAt": "2026-10-19T01:46:46.641Z",
+      "tokens": 3745,
+      "hash": "d875f272571a3fb3",
+      "size": 14761,
+      "mtimeMs": 1793097907337.5898,
+      "updatedAt": "2026-10-27T10:45:07.386Z",
       "source": "hook",
       "symbols": [
         {
           "name": "useFetch",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 91,
+          "startLine": 75,
+          "endLine": 90,
           "tokens": 144
         },
         {
           "name": "ApprovalPanelRoute",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 94,
+          "startLine": 91,
+          "endLine": 93,
           "tokens": 28
         },
         {
           "name": "AssetListRoute",
           "kind": "fn",
-          "startLine": 95,
-          "endLine": 103,
-          "tokens": 108
+          "startLine": 94,
+          "endLine": 101,
+          "tokens": 102
         },
         {
           "name": "CoefficientEditorRoute",
           "kind": "fn",
-          "startLine": 104,
-          "endLine": 106,
+          "startLine": 102,
+          "endLine": 104,
           "tokens": 31
         },
         {
           "name": "FormulaEditorRoute",
           "kind": "fn",
-          "startLine": 107,
-          "endLine": 122,
+          "startLine": 105,
+          "endLine": 120,
           "tokens": 135
         },
         {
           "name": "TemplateFileRoute",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 127,
+          "startLine": 121,
+          "endLine": 125,
           "tokens": 33
         },
         {
           "name": "StreamListRoute",
           "kind": "fn",
-          "startLine": 128,
-          "endLine": 131,
+          "startLine": 126,
+          "endLine": 129,
           "tokens": 52
         },
         {
           "name": "StreamDetailRoute",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 151,
-          "tokens": 221
+          "startLine": 130,
+          "endLine": 149,
+          "tokens": 276
         },
         {
           "name": "ImportWizardRoute",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 156,
+          "startLine": 150,
+          "endLine": 154,
           "tokens": 29
         },
         {
           "name": "PipeClassListRoute",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 160,
+          "startLine": 155,
+          "endLine": 158,
           "tokens": 50
         },
         {
           "name": "SymbolTableRoute",
           "kind": "fn",
-          "startLine": 161,
-          "endLine": 163,
+          "startLine": 159,
+          "endLine": 161,
           "tokens": 28
         },
         {
           "name": "CodeFormatRoute",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 168,
+          "startLine": 162,
+          "endLine": 166,
           "tokens": 38
         },
         {
           "name": "PropertySearchRoute",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 172,
+          "startLine": 167,
+          "endLine": 170,
           "tokens": 58
         },
         {
           "name": "AllowableStressRoute",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 176,
+          "startLine": 171,
+          "endLine": 174,
           "tokens": 56
         },
         {
           "name": "ToxicityRoute",
           "kind": "fn",
-          "startLine": 177,
-          "endLine": 182,
+          "startLine": 175,
+          "endLine": 180,
           "tokens": 56
         },
         {
           "name": "FlashRoute",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 190,
+          "startLine": 181,
+          "endLine": 188,
           "tokens": 54
         },
         {
           "name": "PipeRoute",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 199,
+          "startLine": 189,
+          "endLine": 197,
           "tokens": 60
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 200,
-          "endLine": 203,
+          "startLine": 198,
+          "endLine": 201,
           "tokens": 55
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 207,
+          "startLine": 202,
+          "endLine": 205,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 208,
-          "endLine": 217,
+          "startLine": 206,
+          "endLine": 215,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 218,
-          "endLine": 223,
+          "startLine": 216,
+          "endLine": 221,
           "tokens": 63
         },
         {
           "name": "HeatingValueRoute",
           "kind": "fn",
-          "startLine": 224,
-          "endLine": 226,
+          "startLine": 222,
+          "endLine": 224,
           "tokens": 24
         },
         {
           "name": "SaturationWaterContentRoute",
           "kind": "fn",
-          "startLine": 227,
-          "endLine": 229,
+          "startLine": 225,
+          "endLine": 227,
           "tokens": 30
         },
         {
           "name": "CvRoute",
           "kind": "fn",
-          "startLine": 230,
-          "endLine": 235,
+          "startLine": 228,
+          "endLine": 233,
           "tokens": 38
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 241,
+          "startLine": 234,
+          "endLine": 239,
           "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 242,
-          "endLine": 247,
+          "startLine": 240,
+          "endLine": 245,
           "tokens": 54
         },
         {
           "name": "HeatRoute",
           "kind": "fn",
-          "startLine": 248,
-          "endLine": 260,
+          "startLine": 246,
+          "endLine": 258,
           "tokens": 146
         },
         {
           "name": "ReportDefinitionListRoute",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 264,
+          "startLine": 259,
+          "endLine": 262,
           "tokens": 29
         },
         {
           "name": "ReportDefinitionEditorRoute",
           "kind": "fn",
-          "startLine": 265,
-          "endLine": 268,
+          "startLine": 263,
+          "endLine": 266,
           "tokens": 30
         },
         {
           "name": "ReportExecuteRoute",
           "kind": "fn",
-          "startLine": 269,
-          "endLine": 338,
-          "tokens": 548
+          "startLine": 267,
+          "endLine": 373,
+          "tokens": 943
         }
       ]
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 1443,
-      "hash": "0396ac6c8be76f92",
-      "size": 5237,
-      "mtimeMs": 1793012590331.0408,
-      "updatedAt": "2026-10-26T11:03:10.384Z",
+      "tokens": 1466,
+      "hash": "7953f23b4036cef4",
+      "size": 5315,
+      "mtimeMs": 1793097942641.174,
+      "updatedAt": "2026-10-27T10:45:42.685Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 144,
+          "startLine": 140,
+          "endLine": 146,
           "tokens": 38
         }
       ]
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
-      "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 2427,
-      "hash": "470128461b98127b",
-      "size": 9654,
-      "mtimeMs": 1792579455152.191,
-      "updatedAt": "2026-10-21T10:44:15.209Z",
+      "description": "菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。",
+      "tokens": 2570,
+      "hash": "fa45f663ea9ed650",
+      "size": 10458,
+      "mtimeMs": 1793097883560.883,
+      "updatedAt": "2026-10-27T10:44:43.609Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
           "startLine": 21,
-          "endLine": 91,
-          "tokens": 718
+          "endLine": 30,
+          "tokens": 78
+        },
+        {
+          "name": "buildMenuItems",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 105,
+          "tokens": 778
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 104,
-          "tokens": 96
+          "startLine": 106,
+          "endLine": 118,
+          "tokens": 103
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 255,
+          "startLine": 119,
+          "endLine": 269,
           "tokens": 1378
         }
       ]
@@ -21384,11 +21391,11 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 14059,
-      "hash": "cc4809a044bd2e61",
-      "size": 58628,
-      "mtimeMs": 1793072890001.805,
-      "updatedAt": "2026-10-27T03:48:10.048Z",
+      "tokens": 14142,
+      "hash": "a66657d721197ce9",
+      "size": 59094,
+      "mtimeMs": 1793098689048.255,
+      "updatedAt": "2026-10-27T10:58:09.102Z",
       "source": "hook",
       "symbols": [
         {
@@ -21423,18 +21430,18 @@
           "name": "DeliverableService",
           "kind": "class",
           "startLine": 133,
-          "endLine": 1406,
-          "tokens": 12951
+          "endLine": 1412,
+          "tokens": 13034
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。",
-      "tokens": 4748,
-      "hash": "5cb1c2e76adc5b1d",
-      "size": 20374,
-      "mtimeMs": 1793072852524.61,
-      "updatedAt": "2026-10-27T03:47:32.577Z",
+      "tokens": 4756,
+      "hash": "d5831ce59f57aee1",
+      "size": 20402,
+      "mtimeMs": 1793098676148.0896,
+      "updatedAt": "2026-10-27T10:57:56.195Z",
       "source": "hook",
       "symbols": [
         {
@@ -21483,35 +21490,35 @@
           "name": "sign_step",
           "kind": "fn",
           "startLine": 283,
-          "endLine": 331,
-          "tokens": 511
+          "endLine": 332,
+          "tokens": 519
         },
         {
           "name": "proxy_customer_approval",
           "kind": "fn",
-          "startLine": 332,
-          "endLine": 389,
+          "startLine": 333,
+          "endLine": 390,
           "tokens": 631
         },
         {
           "name": "get_deliverable_progress",
           "kind": "fn",
-          "startLine": 390,
-          "endLine": 416,
+          "startLine": 391,
+          "endLine": 417,
           "tokens": 268
         },
         {
           "name": "list_deliverable_actions",
           "kind": "fn",
-          "startLine": 417,
-          "endLine": 471,
+          "startLine": 418,
+          "endLine": 472,
           "tokens": 558
         },
         {
           "name": "list_todos",
           "kind": "fn",
-          "startLine": 472,
-          "endLine": 499,
+          "startLine": 473,
+          "endLine": 500,
           "tokens": 234
         }
       ]
@@ -29258,11 +29265,11 @@
     },
     "pcs-backend/app/schemas/deliverable_write.py": {
       "description": "交付物写面 schema（P9A B1 `issue` 端点）。",
-      "tokens": 1201,
-      "hash": "28da21636ea5bc6d",
-      "size": 5664,
-      "mtimeMs": 1792451175823.415,
-      "updatedAt": "2026-10-19T23:06:15.871Z",
+      "tokens": 1290,
+      "hash": "03e6b3109c4c0446",
+      "size": 6106,
+      "mtimeMs": 1793098673079.0498,
+      "updatedAt": "2026-10-27T10:57:53.128Z",
       "source": "hook",
       "symbols": [
         {
@@ -29283,28 +29290,28 @@
           "name": "SignStepRequest",
           "kind": "class",
           "startLine": 80,
-          "endLine": 87,
-          "tokens": 71
+          "endLine": 97,
+          "tokens": 160
         },
         {
           "name": "SignStepResponse",
           "kind": "class",
-          "startLine": 88,
-          "endLine": 109,
+          "startLine": 98,
+          "endLine": 119,
           "tokens": 205
         },
         {
           "name": "CustomerApprovalProxyRequest",
           "kind": "class",
-          "startLine": 110,
-          "endLine": 129,
+          "startLine": 120,
+          "endLine": 139,
           "tokens": 223
         },
         {
           "name": "CustomerApprovalProxyResponse",
           "kind": "class",
-          "startLine": 130,
-          "endLine": 141,
+          "startLine": 140,
+          "endLine": 151,
           "tokens": 119
         }
       ]
@@ -35128,11 +35135,11 @@
     },
     "pcs-frontend/tests/layouts/MainLayout.test.tsx": {
       "description": "MainLayout 的通知接线测试（TODO-065 · P9A Z 收口实测发现）。",
-      "tokens": 1638,
-      "hash": "a57264a77d107fb3",
-      "size": 7306,
-      "mtimeMs": 1792579290185.6096,
-      "updatedAt": "2026-10-21T10:41:30.252Z",
+      "tokens": 2060,
+      "hash": "c0eb5d01d2aafc25",
+      "size": 9181,
+      "mtimeMs": 1793098206202.6772,
+      "updatedAt": "2026-10-27T10:50:06.253Z",
       "source": "hook"
     },
     "pcs-frontend/src/api/notifications.ts": {
@@ -35623,33 +35630,33 @@
     },
     "pcs-frontend/src/pages/results/ResultListPage.tsx": {
       "description": "ResultListPage —— 通用结果列表页（P9B-1 · SPEC §6.21）。",
-      "tokens": 1574,
-      "hash": "9c21b08d6f76b0c7",
-      "size": 6273,
-      "mtimeMs": 1792549271457.7598,
-      "updatedAt": "2026-10-21T02:21:11.510Z",
+      "tokens": 2207,
+      "hash": "4a9aa43337d66bbd",
+      "size": 9426,
+      "mtimeMs": 1793097097342.7715,
+      "updatedAt": "2026-10-27T10:31:37.396Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 31,
-          "endLine": 39,
+          "startLine": 36,
+          "endLine": 44,
           "tokens": 40
         },
         {
           "name": "ResultEditButton",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 80,
-          "tokens": 275
+          "startLine": 45,
+          "endLine": 83,
+          "tokens": 262
         },
         {
           "name": "ResultListPage",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 194,
-          "tokens": 933
+          "startLine": 84,
+          "endLine": 262,
+          "tokens": 1513
         }
       ]
     },
@@ -35696,11 +35703,11 @@
     },
     "pcs-frontend/tests/components/common/WorkflowProgressPanel.test.tsx": {
       "description": "WorkflowProgressPanel 的守卫（P9B-1 Task T5 · SPEC §6.24）。",
-      "tokens": 1613,
-      "hash": "f24a9fd4478c9acf",
-      "size": 6218,
-      "mtimeMs": 1792551743289.4019,
-      "updatedAt": "2026-10-21T03:02:23.340Z",
+      "tokens": 2850,
+      "hash": "7916eec1bef97405",
+      "size": 11213,
+      "mtimeMs": 1793097547279.5276,
+      "updatedAt": "2026-10-27T10:39:07.331Z",
       "source": "hook"
     },
     "pcs-frontend/tests/components/common/TodoPanel.test.tsx": {
@@ -35723,33 +35730,26 @@
     },
     "pcs-frontend/src/components/common/WorkflowProgressPanel.tsx": {
       "description": "WorkflowProgressPanel —— 一条工作流的步骤进度（P9B-1 · SPEC §6.24）。",
-      "tokens": 1656,
-      "hash": "eadf3cd5d63de7b9",
-      "size": 6527,
-      "mtimeMs": 1792551814458.2214,
-      "updatedAt": "2026-10-21T03:03:34.524Z",
+      "tokens": 2176,
+      "hash": "ed46a3cc8e186ba0",
+      "size": 9214,
+      "mtimeMs": 1793097379853.8186,
+      "updatedAt": "2026-10-27T10:36:19.900Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "WorkflowTab",
-          "kind": "section",
-          "startLine": 42,
-          "endLine": 66,
-          "tokens": 244
-        },
-        {
           "name": "Props",
           "kind": "section",
-          "startLine": 67,
-          "endLine": 71,
-          "tokens": 21
+          "startLine": 49,
+          "endLine": 96,
+          "tokens": 318
         },
         {
           "name": "WorkflowProgressPanel",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 185,
-          "tokens": 1012
+          "startLine": 97,
+          "endLine": 250,
+          "tokens": 1353
         }
       ]
     },
@@ -35789,37 +35789,58 @@
     },
     "pcs-frontend/src/components/common/workflowTabs.ts": {
       "description": "工作流类型 tab 的**词表**（P9B-1 · SPEC §6.24）。",
-      "tokens": 288,
-      "hash": "28740a61d5194405",
-      "size": 1242,
-      "mtimeMs": 1792552159424.1396,
-      "updatedAt": "2026-10-21T03:09:19.476Z",
+      "tokens": 344,
+      "hash": "3969cbb3a7b53062",
+      "size": 1670,
+      "mtimeMs": 1793097365416.2522,
+      "updatedAt": "2026-10-27T10:36:05.469Z",
       "source": "hook"
     },
     "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
-      "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。",
-      "tokens": 2300,
-      "hash": "e4371e7db22e7516",
-      "size": 9185,
-      "mtimeMs": 1793071284058.102,
-      "updatedAt": "2026-10-27T03:21:24.102Z",
+      "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。",
+      "tokens": 2878,
+      "hash": "b643058ad3ed75d6",
+      "size": 11393,
+      "mtimeMs": 1793097452650.7957,
+      "updatedAt": "2026-10-27T10:37:32.709Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
-      "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24）。",
-      "tokens": 1266,
-      "hash": "a546388fa9db0d3d",
-      "size": 5185,
-      "mtimeMs": 1792579488537.7844,
-      "updatedAt": "2026-10-21T10:44:48.586Z",
+      "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。",
+      "tokens": 4334,
+      "hash": "0d3a544086ec47c8",
+      "size": 17504,
+      "mtimeMs": 1793098956641.895,
+      "updatedAt": "2026-10-27T11:02:36.691Z",
       "source": "hook",
       "symbols": [
         {
           "name": "DeliverableProgressPage",
           "kind": "fn",
-          "startLine": 39,
-          "endLine": 146,
-          "tokens": 900
+          "startLine": 61,
+          "endLine": 394,
+          "tokens": 3143
+        },
+        {
+          "name": "computeNextStep",
+          "kind": "fn",
+          "startLine": 395,
+          "endLine": 417,
+          "tokens": 209
+        },
+        {
+          "name": "parseDetail",
+          "kind": "fn",
+          "startLine": 418,
+          "endLine": 432,
+          "tokens": 111
+        },
+        {
+          "name": "SectionBlock",
+          "kind": "fn",
+          "startLine": 433,
+          "endLine": 463,
+          "tokens": 298
         }
       ]
     },
@@ -38529,11 +38550,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md",
-      "tokens": 948,
-      "hash": "05f371448a7f3b88",
-      "size": 4991,
-      "mtimeMs": 1793074744658.008,
-      "updatedAt": "2026-10-27T04:19:04.710Z",
+      "tokens": 1240,
+      "hash": "be1062776105044e",
+      "size": 6828,
+      "mtimeMs": 1793096686338.6265,
+      "updatedAt": "2026-10-27T10:24:46.386Z",
       "source": "hook"
     },
     "pcs-backend/tests/api/v1/test_project_creation.py": {
@@ -39136,11 +39157,11 @@
     },
     "pcs-frontend/src/api/deliverables.ts": {
       "description": "交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。",
-      "tokens": 338,
-      "hash": "4321d00d29404039",
-      "size": 1301,
-      "mtimeMs": 1793075343223.8987,
-      "updatedAt": "2026-10-27T04:29:03.272Z",
+      "tokens": 1197,
+      "hash": "af30414a25bba4c4",
+      "size": 4789,
+      "mtimeMs": 1793098771687.2205,
+      "updatedAt": "2026-10-27T10:59:31.734Z",
       "source": "hook"
     },
     "pcs-frontend/src/api/admin.ts": {
@@ -39163,11 +39184,11 @@
     },
     "pcs-frontend/tests/api/deliverables_api.test.ts": {
       "description": "交付物读面客户端的**端点形状**（P9B-2 · T3）。",
-      "tokens": 928,
-      "hash": "39313470af3c6b6e",
-      "size": 3534,
-      "mtimeMs": 1793075378911.3088,
-      "updatedAt": "2026-10-27T04:29:38.961Z",
+      "tokens": 1991,
+      "hash": "11b58e8a658f26d6",
+      "size": 7542,
+      "mtimeMs": 1793098760321.0967,
+      "updatedAt": "2026-10-27T10:59:20.368Z",
       "source": "hook"
     },
     "pcs-frontend/tests/api/admin_api.test.ts": {
@@ -39250,6 +39271,330 @@
       "size": 2056,
       "mtimeMs": 1793096379534.0303,
       "updatedAt": "2026-10-27T10:19:39.585Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/common/CommentPanel.tsx": {
+      "description": "批注面板（P9B-2 · T5 · SPEC §7.19.1「批注面板：右侧抽屉」）。",
+      "tokens": 1335,
+      "hash": "c6f4971232d8e05d",
+      "size": 5195,
+      "mtimeMs": 1793096793120.1792,
+      "updatedAt": "2026-10-27T10:26:33.167Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CommentPanelProps",
+          "kind": "section",
+          "startLine": 23,
+          "endLine": 29,
+          "tokens": 32
+        },
+        {
+          "name": "CommentPanel",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 162,
+          "tokens": 1083
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/RecordTimeline.tsx": {
+      "description": "记录状态时间线（P9B-2 · T5 · SPEC §7.19.1「状态时间线」）。",
+      "tokens": 750,
+      "hash": "068b1bb7f58e400e",
+      "size": 3060,
+      "mtimeMs": 1793097050234.2205,
+      "updatedAt": "2026-10-27T10:30:50.284Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "RecordTimelineProps",
+          "kind": "section",
+          "startLine": 19,
+          "endLine": 23,
+          "tokens": 26
+        },
+        {
+          "name": "RecordTimeline",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 84,
+          "tokens": 548
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/results/RecordDetailDrawer.tsx": {
+      "description": "记录详情抽屉（P9B-2 · T5 · SPEC §7.19.1）。",
+      "tokens": 628,
+      "hash": "23c04a583971ad0c",
+      "size": 2443,
+      "mtimeMs": 1793096863324.3813,
+      "updatedAt": "2026-10-27T10:27:43.372Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "RecordDetailDrawerProps",
+          "kind": "section",
+          "startLine": 19,
+          "endLine": 29,
+          "tokens": 71
+        },
+        {
+          "name": "RecordDetailDrawer",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 70,
+          "tokens": 353
+        }
+      ]
+    },
+    "pcs-frontend/tests/components/common/CommentPanel.test.tsx": {
+      "description": "批注面板（P9B-2 · T5 · SPEC §7.19.1）。",
+      "tokens": 1075,
+      "hash": "a1ce91230ded2a77",
+      "size": 4244,
+      "mtimeMs": 1793096888550.4792,
+      "updatedAt": "2026-10-27T10:28:08.606Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/RecordTimeline.test.tsx": {
+      "description": "记录状态时间线（P9B-2 · T5 · SPEC §7.19.1）。",
+      "tokens": 811,
+      "hash": "aa9d8f74d2bdbefc",
+      "size": 3297,
+      "mtimeMs": 1793096918959.304,
+      "updatedAt": "2026-10-27T10:28:39.017Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/results/record_detail.test.tsx": {
+      "description": "记录详情抽屉（P9B-2 · T5 · SPEC §7.19.1）。",
+      "tokens": 1146,
+      "hash": "77e47c7aa8b70dd9",
+      "size": 4338,
+      "mtimeMs": 1793096940571.8323,
+      "updatedAt": "2026-10-27T10:29:00.623Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/lib/csv.ts": {
+      "description": "CSV 导出工具（P9B-2 · T7）。",
+      "tokens": 470,
+      "hash": "952459431372f926",
+      "size": 2200,
+      "mtimeMs": 1793098291726.0464,
+      "updatedAt": "2026-10-27T10:51:31.771Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/admin/UserAdminPage.tsx": {
+      "description": "ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20「用户管理（AD 同步）」/ P9A-ADM-001/002）。",
+      "tokens": 1659,
+      "hash": "c6f835d4da74155e",
+      "size": 6416,
+      "mtimeMs": 1793097796285.06,
+      "updatedAt": "2026-10-27T10:43:16.331Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UserAdminPage",
+          "kind": "fn",
+          "startLine": 17,
+          "endLine": 201,
+          "tokens": 1488
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/admin/user_admin.test.tsx": {
+      "description": "ADMIN 用户管理页（P9B-2 · T7 · SPEC §7.20 / P9A-ADM-001/002）。",
+      "tokens": 1387,
+      "hash": "1b079d8bcb0e232a",
+      "size": 5404,
+      "mtimeMs": 1793098277801.1443,
+      "updatedAt": "2026-10-27T10:51:17.849Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/audit/AuditLogPage.export.test.tsx": {
+      "description": "审计日志的**筛选 + CSV 导出**（P9B-2 · T7 · SPEC §7.20）。",
+      "tokens": 1836,
+      "hash": "7bf6208e2c9092e7",
+      "size": 7385,
+      "mtimeMs": 1793098178062.901,
+      "updatedAt": "2026-10-27T10:49:38.109Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "readBlobText",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 94,
+          "tokens": 87
+        },
+        {
+          "name": "parseCsv",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 215,
+          "tokens": 1077
+        }
+      ]
+    },
+    "pcs-frontend/tests/lib/csv.test.ts": {
+      "description": "CSV 导出工具的**转义**规则（P9B-2 · T7 · RFC 4180）。",
+      "tokens": 464,
+      "hash": "3d7a17b9495c97b7",
+      "size": 2105,
+      "mtimeMs": 1793098173340.9395,
+      "updatedAt": "2026-10-27T10:49:33.389Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/deliverables/deliverable_sign.test.tsx": {
+      "description": "交付物级签署**写面**（P9B-2 · T8 · SPEC §7.19）。",
+      "tokens": 3295,
+      "hash": "0d0645fd72e0a5fe",
+      "size": 12983,
+      "mtimeMs": 1793099048726.53,
+      "updatedAt": "2026-10-27T11:04:08.772Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx": {
+      "description": "DeliverableSignDialog —— 交付物级签署**写面**（P9B-2 · T8 · SPEC §7.19）。",
+      "tokens": 3825,
+      "hash": "af012e7821e49aa1",
+      "size": 14940,
+      "mtimeMs": 1793099141476.0654,
+      "updatedAt": "2026-10-27T11:05:41.524Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SignDialogStep",
+          "kind": "section",
+          "startLine": 42,
+          "endLine": 48,
+          "tokens": 45
+        },
+        {
+          "name": "SignNextStep",
+          "kind": "section",
+          "startLine": 49,
+          "endLine": 55,
+          "tokens": 35
+        },
+        {
+          "name": "DeliverableSignDialogProps",
+          "kind": "section",
+          "startLine": 56,
+          "endLine": 88,
+          "tokens": 224
+        },
+        {
+          "name": "errorText",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 99,
+          "tokens": 104
+        },
+        {
+          "name": "DeliverableSignDialog",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 432,
+          "tokens": 3059
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/seed/signFlow.ts": {
+      "description": "签署流程 + ADMIN 的 seed（P9B-2 · T10）。",
+      "tokens": 1309,
+      "hash": "231404e52db52406",
+      "size": 5073,
+      "mtimeMs": 1793100117961.405,
+      "updatedAt": "2026-10-27T11:21:58.011Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/mocks/signFlow.ts": {
+      "description": "签署流程 + ADMIN 的 MSW handlers（P9B-2 · T10）。",
+      "tokens": 2738,
+      "hash": "71d8b37f3fdb002a",
+      "size": 10215,
+      "mtimeMs": 1793100131272.4163,
+      "updatedAt": "2026-10-27T11:22:11.325Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isAuthed",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 290,
+          "tokens": 2458
+        }
+      ]
+    },
+    "pcs-backend/tests/architecture/test_frontend_state_machine_seed.py": {
+      "description": "前端 MSW 的状态机 seed ↔ 后端真身（P9B-2 · T10 · R-19）。",
+      "tokens": 648,
+      "hash": "bfb1bb339236c738",
+      "size": 3105,
+      "mtimeMs": 1793100360555.5732,
+      "updatedAt": "2026-10-27T11:26:00.604Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_frontend_state_machine_seed_matches_backend",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 59,
+          "tokens": 194
+        },
+        {
+          "name": "test_seed_contains_the_transition_the_handwritten_version_missed",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 71,
+          "tokens": 136
+        }
+      ]
+    },
+    "pcs-frontend/e2e/record_actions.spec.ts": {
+      "description": "记录操作栏（Playwright e2e · P9B-2 · T10）。",
+      "tokens": 658,
+      "hash": "c4af06bd3f525e99",
+      "size": 2858,
+      "mtimeMs": 1793100502788.6443,
+      "updatedAt": "2026-10-27T11:28:22.838Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "loginAs",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 63,
+          "tokens": 507
+        }
+      ]
+    },
+    "pcs-frontend/e2e/deliverable_sign.spec.ts": {
+      "description": "交付物级签署写面（Playwright e2e · P9B-2 · T8 / T10）。",
+      "tokens": 830,
+      "hash": "c46aa9df8db9e3a5",
+      "size": 3607,
+      "mtimeMs": 1793100540166.6604,
+      "updatedAt": "2026-10-27T11:29:00.213Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "loginAs",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 85,
+          "tokens": 684
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-27-p9b-2.md": {
+      "description": "QA Report: pcs-frontend 2026-10-27 P9B-2（签署流程 + ADMIN 前端）",
+      "tokens": 835,
+      "hash": "8799790c7a9bcf6c",
+      "size": 4914,
+      "mtimeMs": 1793101683686.0608,
+      "updatedAt": "2026-10-27T11:48:03.745Z",
       "source": "hook"
     }
   }
