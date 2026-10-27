@@ -1677,6 +1677,53 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
   两库 `pcs` / `pcs_test` 各跑一次 `alembic check` ⇒ **exit 0**（`current` 均
   `p9_011` = head）。
 
+## TODO-091: `project_templates.record_approval_config` 作废（**只有注释、无消费方**）🟡
+
+**What:** `project_templates.default_config_json` 里的 `record_approval_config`
+**没有任何消费方**（全仓只命中那一处注释）⇒ 2026-10-27 的裁决 **R-17** 把
+「记录侧多级批准链」的定义源定为**项目绑定的 `module='RECORD'` 签署矩阵**
+⇒ 这个配置项**彻底作废** ⇒ 建议从项目模板的默认配置里**删掉**（或明确标注
+「已废弃，批准链见签署矩阵」）。
+
+**Why:** 留着它 ⇒ 下一个读项目模板的人会以为「多级批准链在这里配」⇒ 去那里
+找配置 ⇒ 找不到（因为没消费方）⇒ 白费时间。开发阶段**无历史配置数据**要清理
+⇒ 现在删成本最低。
+
+**Pros:** 消掉一个会误导人的配置项；项目模板的默认配置只留**真在用**的键。
+
+**Cons:** 改 `project_templates` 的默认 JSON ⇒ 属于「模板内容」变更 ⇒ 要确认
+没有别处按 key 读它（已查：零命中）。
+
+**Context:** 2026-10-27 `/plan-eng-review` 复审 P9B-2 计划时发现 ⇒ 裁决 R-17
+（批准链定义源 = 签署矩阵）⇒ 顺带发现这个配置项作废。证据：`app/models/project.py`
+的 `default_config_json` 里那句注释 + **全仓零消费方**。
+
+**Depends on / blocked by:** 无（独立）。**归属：** 项目模板相关批次（PMS / P2）；
+**触发条件：** 下次改 `project_templates` 表 / 模板默认配置时一并删。
+
+## TODO-092: ADMIN「角色分配」没有后端端点 🟡
+
+**What:** `GET /admin/users` / `PUT /admin/users/{id}/disable` /
+`POST /admin/users/sync` **三个端点里没有「改角色」** ⇒ 用户的全局角色
+（`users.roles`）**只能靠 AD 同步的组映射**改 ⇒ 想手工给某人加/减一个角色，
+**没有路**。
+
+**Why:** AD 同步是「目录说了算」；本地手工调整（临时授权、纠错）没有出口 ⇒
+管理员只能去改 AD ⇒ 生效还取决于下次同步。
+
+**Pros:** 补一个 `PUT /admin/users/{id}/roles` ⇒ 管理员能手工纠错；
+与「停用」并排 ⇒ 同一套审计（`token_version` 也要跟着涨，否则旧 token 仍有效）。
+
+**Cons:** 新端点 + 契约 + 测试；**角色来源的权威性**要想清楚（AD 同步会不会把
+手工改的角色冲掉 ⇒ 需要「手工优先」或「标记来源」）。
+
+**Context:** 2026-10-27 `/plan-eng-review` 复审 P9B-2 时确认（`app/api/v1/admin_users.py`
+只有 list / disable / sync 三个端点）⇒ P9B-2 的 ADMIN 前端**不含**角色分配
+（计划的「NOT in scope」已登记）。
+
+**Depends on / blocked by:** 无（独立）。**归属：** P9B-3 或更后的 ADMIN 批次；
+**触发条件：** ADMIN 前端要能改角色时。
+
 ## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 
 **原症状：** TODO-080 第 3 条只把 service 变体做成了 core 变体的**子类**

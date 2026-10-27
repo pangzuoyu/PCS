@@ -77,7 +77,10 @@ async + pytest。
 9. 提交约定：conventional commits，**无 attribution 行**。长 commit message 写文件后
    `git commit -F <file>`（`!` `（）` 会被 shell 吃掉）。
 10. ⚠️ **不要建 worktree**（本仓历史事故，见 `.wolf/STATUS.md`）。
-11. ⚠️ **改了迁移必须在新库上验**（CLAUDE.md「漂移盲区」）—— 本批**不改迁移**。
+11. ⚠️ **改了迁移必须在新库上验**（CLAUDE.md「漂移盲区」）—— 本批**改 1 条迁移**
+    （`p9_012`：删死列 `deliverables.parent_deliverable_id`，T-2）⇒ **必须**在
+    **隔离 schema 上从零 `upgrade head` + `alembic check` exit 0**（两库也要各跑
+    一次）。⚠️ 迁移与 **ORM 声明必须同批改** ⇒ 否则 `alembic check` 报漂移。
 
 ## Review Focus
 
@@ -429,6 +432,8 @@ COVERAGE: 31/31 路径有测试计划（100%）  |  GAPS: 0  |  E2E: 2 条（T10
 
 | 步骤 | 触及模块（目录级） | 依赖 |
 |---|---|---|
+| **T-1 项目创建** | `app/api/v1/` `app/schemas/` `app/services/` `tests/api/` | — |
+| **T-2 删死列** | `app/models/` `app/schemas/` `alembic/versions/` | — |
 | T0 聚合端点 | `app/schemas/` `app/api/v1/` `app/services/` `tests/api/` | — |
 | T1 编辑审计端点 | `app/schemas/` `app/api/v1/` `app/services/` `tests/api/` | — |
 | T2 批准链推导 | `app/services/` `app/api/v1/` `tests/api/` | —（**改契约** ⇒ 必须先于 T3） |
@@ -477,8 +482,14 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 | `pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py` | TODO-065 的测试 | T0 |
 | `pcs-backend/tests/api/v1/test_record_edits_endpoint.py` | TODO-066 的测试 | T1 |
 | `pcs-backend/tests/api/v1/test_record_approval_chain.py` | TODO-054 批准链推导的测试 | T2 |
+| `pcs-backend/tests/api/v1/test_project_creation.py` | 项目创建 + 默认绑 RECORD 矩阵的测试 | T-1 |
+| `pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py` | 删死列的迁移 | T-2 |
 
-**修改**（后端 4 个）：`pcs-backend/app/api/v1/deliverables.py`（加聚合端点，T0）、
+**修改**（后端 7 个）：`pcs-backend/app/api/v1/deliverables.py`（加聚合端点，T0）、
+`pcs-backend/app/api/v1/projects.py`（加 `POST /projects`，T-1）、
+`pcs-backend/app/schemas/project.py`（加 `ProjectCreate`，T-1）、
+`pcs-backend/app/models/deliverable.py` + `app/schemas/deliverable.py`
+（删死列，T-2）、
 `pcs-backend/app/api/v1/__init__.py`（挂 `record_edits` 路由，T1）、
 `pcs-backend/app/services/signature_matrix_service.py`（加 `resolve_project_matrix`，T2）、
 `pcs-backend/app/api/v1/records_actions.py` + `pcs-backend/app/services/state_machine.py`
@@ -523,6 +534,119 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 **修改**（测试 4 个）：`tests/mocks/handlers.test.ts`（棘轮 + ajv 校验）、
 `tests/layouts/MainLayout.test.tsx`（菜单组变动）、`e2e/audit_log.spec.ts`（菜单名 / 标题）、
 `tests/pages/deliverables/deliverable_progress.test.tsx`（聚合端点替换 SIGN 直查）。
+
+---
+
+## Task T-1：后端 —— 项目创建 `POST /projects` + **默认绑一份 RECORD 矩阵**（2026-10-27 复审新增）
+
+**Why（实测）**：`app/api/v1/projects.py` **只有** `GET /{project_id}` 与
+`PATCH /{project_id}` ⇒ **没有 `POST /projects`** ⇒ 项目**建不出来** ⇒
+而签署流程的对象（记录 / 交付物）全都挂在项目下 ⇒ **P9B-2 交付后签署流程在
+真实 UI 上走不通**（只能靠 mock 验证）。
+⚠️ 且 R-17 之后**项目必须绑了 `module='RECORD'` 的矩阵**才能送审 ⇒
+「项目创建」与「默认绑 RECORD 矩阵」必须**同批**，否则新项目建出来送不了审 ⇒
+用户看到的是 422 而不是引导。
+
+**Files:**
+- Modify: `app/schemas/project.py`（加 `ProjectCreate`）
+- Modify: `app/api/v1/projects.py`（加 `POST /projects`）
+- Modify: `app/services/signature_matrix_service.py`（加
+  `ensure_default_record_matrix(db, project_id)` —— 幂等）
+- Test: `tests/api/v1/test_project_creation.py`
+
+**必填字段（实测自 `app/models/project.py` 的 `Project` —— 类型非 `Optional`
+⇒ NOT NULL）**：`project_no` · `project_name` · `owner_company` · `location` ·
+`project_type` · `design_phase` · `unit_system` · `status` · `product_category` ·
+`workspace_id`（**FK ⇒ 必须先有工作区** —— `POST /workspaces` 已存在）。
+
+**Step 1: 写失败测试**（必含断言）
+
+1. `POST /projects` 缺任一必填字段 ⇒ **422**（不是 500）。
+2. 创建成功 ⇒ 201 + `project_id` + `project_no` 落库；**再查一次**要得到同一行。
+3. **创建时自动绑一份 RECORD 矩阵** ⇒ `project_signature_matrix_bindings` 里
+   有一行 `(project_id, module='RECORD')` ⇒ **矩阵本身** `status='ACTIVE'`、
+   `module='RECORD'`（或 `'*'`）、`steps_json` = **3 步**：
+   `CHECKER → REVIEWER → APPROVER`。
+4. **幂等**：同一项目**再调一次**「确保默认矩阵」⇒ **不产生第二行**绑定、
+   **不产生第二份**矩阵。
+5. **默认矩阵已被人工改过**（绑了别的矩阵）⇒ **不覆盖**（不夺走「谁该签」的
+   决定权）。
+6. `workspace_id` 指向不存在的工作区 ⇒ **404**（不建孤儿项目）。
+
+**Step 2: 跑测试确认失败** ⇒ FAIL（端点不存在）。
+
+**Step 3: 实现**
+
+- `ProjectCreate`（请求体）⇒ 只收上表的必填字段（**不要**把 `project_id` 暴露给
+  客户端）。
+- `POST /projects`：`create_project`（建行）⇒ **同一事务**里
+  `ensure_default_record_matrix` ⇒ **一次 commit** ⇒ 失败全回滚。
+- `ensure_default_record_matrix`：查 `(project_id, module='RECORD')` 的绑定 ⇒
+  **有就返回**（不覆盖）；没有 ⇒ 建一份**内置默认矩阵**
+  （`matrix_name` 用**固定名**如 `DEFAULT-RECORD-MATRIX`，`status='ACTIVE'`，
+  `steps_json` = 上面的 3 步）⇒ 建绑定 ⇒ **幂等**（并发 ⇒ 撞
+  `uq_project_signature_matrix_bindings_project_module` ⇒ SAVEPOINT 回滚 +
+  重读，**照抄** `bind_to_project` 的并发处理）。
+
+**Step 4: 跑测试确认通过 + 契约重生成**
+
+```bash
+cd pcs-backend && uv run pytest tests/api/v1/test_project_creation.py -q
+cd pcs-backend && uv run python scripts/export_openapi.py
+bash pcs-backend/scripts/gate_08_openapi_contract.sh
+```
+
+**Step 5: 提交** ⇒ `feat(P9B-2): POST /projects + 默认绑 RECORD 矩阵`
+
+---
+
+## Task T-2：后端 —— 删掉死列 `deliverables.parent_deliverable_id`（迁移 `p9_012`）
+
+**Why（实测）**：该列 **0 行数据**（开发库 `deliverables` 空）· **0 处写入**
+（grep 只命中 model 与 schema 的声明）· **R-13 之后零依赖**（聚合端点不再反查
+变更单）⇒ 留着它**唯一的后果**是误导：下一个读 `app/models/deliverable.py` 的人
+会以为「变更单挂在父交付物上」，而事实是**变更单自己就是交付物**
+（`deliverable_type=CHANGE_NOTICE`）。
+⚠️ **开发阶段是删死列成本最低的时机**（0 行 ⇒ 无回填、无兼容窗口、无下游通知）。
+
+**Files:**
+- Create: `alembic/versions/p9_012_drop_parent_deliverable_id.py`
+- Modify: `app/models/deliverable.py`（删 `parent_deliverable_id` 声明）
+- Modify: `app/schemas/deliverable.py`（删 `parent_deliverable_id` 字段）
+- Test: `alembic check` 干净（**不是**单测）
+
+**Step 1: 写迁移**
+
+```python
+# 迁移文件的 docstring（内容）：
+#
+#   删死列 `deliverables.parent_deliverable_id`（TODO-090 后续 · R-13）。
+#
+#   ## 为什么现在删最便宜
+#
+#   - **0 行数据**（开发阶段）⇒ 无回填、无兼容窗口；
+#   - **0 处写入**（全仓只有 model / schema 的声明）；
+#   - **R-13 之后零依赖**（聚合端点不再反查变更单 —— 变更单自己就是交付物）。
+#
+#   ⚠️ `downgrade` 只能把列**加回来**（数据回不来）⇒ 降级是**有损**的，
+#   这是删列的固有代价，不在降级路径里修。
+```
+`op.drop_column("parent_deliverable_id", table_name="deliverables")`；
+`downgrade` = `op.add_column(...)`（**有损**，注释写明）。
+
+**Step 2: 改 model + schema**（**必须与迁移同批** ⇒ 否则 `alembic check` 报漂移）。
+
+**Step 3: 验证（CLAUDE.md「漂移盲区」纪律）**
+
+```bash
+cd pcs-backend && uv run alembic upgrade head
+cd pcs-backend && uv run alembic current      # 必须是 p9_012 (head)
+cd pcs-backend && uv run alembic check        # exit 0（退出码 255 = 真漂移）
+# 隔离 schema 从零验（改了迁移**必须**在全新库上验）
+```
+
+**Step 4: 提交** ⇒ `refactor(P9B-2): 删死列 deliverables.parent_deliverable_id`
+
 
 ---
 
@@ -2077,6 +2201,10 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
       说明；绑了 3 步 ⇒ 第 1 步角色 + 深度 3，PASS 后推进到第 2 步。
 - [ ] **交付物级签署写面**（R-11）：签发 / 逐步签署 / 代录可用，矩阵步骤来自矩阵。
 - [ ] **TODO-067 的 7 条**全部闭环（每条一个测试 + 一次改动）。
+- [ ] **项目能创建**（T-1）：`POST /projects` ⇒ 201 ⇒ **自动绑一份 ACTIVE 的
+      RECORD 矩阵**（3 步 CHECKER→REVIEWER→APPROVER）⇒ 新项目**当场能送审**。
+- [ ] **死列已删**（T-2）：`parent_deliverable_id` 不再出现在 model / schema /
+      DB；`alembic check` 两库 + 隔离 schema 各 exit 0。
 - [ ] ADMIN：停用后**重拉列表**；AD 同步的失败方向**不显示成成功**；
       审计导出覆盖**筛选后的全部行**（超限显式提示）。
 - [ ] 前端 typecheck + lint + 单测全绿（**≥ 840**，2026-10-27 基线）；
@@ -2091,13 +2219,15 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
    本批渲染成**可用**按钮。⚠️ 连带要改 SPEC §6.3 的说明（登记 §12.4 修订）。
 2. ~~**交付物级签署写面不可用**~~ ⇒ **已失效**（R-1）：矩阵管理面 + 变更单链
    都已交付 ⇒ **本批做**（新增 T8）。
-3. ~~**变更单的关联列 `parent_deliverable_id` 全仓从未被写**~~ ⇒ **绕开**
-   （R-13）：聚合端点**不再**反查变更单（变更单自己一行）⇒ 该列**仍然**没写，
-   但**不再有代码依赖它** ⇒ 建议后续要么写它、要么删它（另议，本批不动）。
+3. ~~**变更单的关联列 `parent_deliverable_id` 全仓从未被写**~~ ⇒ **本批删掉**
+   （用户 2026-10-27 裁决「本批删」⇒ **新增 T-2** + 迁移 `p9_012`）⇒ 理由：
+   0 行数据 + 0 处写入 + R-13 后零依赖 ⇒ **开发阶段是成本最低的时机** ⇒ 不留
+   一个会误导下一个人（「变更单挂在父交付物上」）的死列。
 3b. **「记录级批准链」改由项目矩阵推导后，没绑矩阵的项目送不了审** ⇒ 这是
-   **有意的**（响亮失败 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）⇒ 但
-   **迁移期**：已绑 `RECORD` 矩阵的项目 = 零；未绑的 = 送审被拒 ⇒ 上线前要
-   **给每个项目绑一份 RECORD 矩阵**（管理 UI 已有）⇒ **运维动作，本批不管**。
+   **有意的**（响亮失败 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）⇒ ✅ **本批闭环**
+   （用户 2026-10-27 裁决「加 T(-1)」）：**新增 T-1** = `POST /projects` +
+   **创建时默认绑一份 ACTIVE 的 RECORD 矩阵**（3 步 CHECKER→REVIEWER→APPROVER）
+   ⇒ 新项目**当场就能送审** ⇒ 不再需要「上线前人工给每个项目绑矩阵」的运维动作。
 4. **SPEC §5.1 的 `<Can permission="...">` 组件不存在**，且后端**不发射**
    `x-permission`（全仓 0 处）⇒ 本批用 `meta/permissions` 的
    `frontend_behavior` 代替（R-5）⇒ **须登记 SPEC 修订**。
@@ -2109,7 +2239,8 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
    ⇒ 本批以 meta 为准（R-4）⇒ **须登记 SPEC 修订**（逐条比对后写进
    `docs/PCS-UI-SPEC.md` §12.4 修订记录）。
 6. **ADMIN「角色分配」没有后端端点**（`/admin/users` 只有 list / disable / sync；
-   角色只能靠 AD 同步的组映射）⇒ 本批不做 ⇒ 登记 `TODOS.md`。
+   角色只能靠 AD 同步的组映射）⇒ 本批不做 ⇒ ✅ **已登记 `TODOS.md`**（带归属 /
+   触发条件 / 证据）。
 7. **ADMIN「AI 开关 / Prompt 模板 / 系统参数」** ⇒ 属 P9B-3 或更后。
 8. **审计导出的行数上限 5000** ⇒ 超限截断（R-9 / RF-11）⇒ 循环拉页 25 次请求 ⇒
    大结果集下前端会卡；若运维要全量导出，需后端导出端点（另议，本批按 R-9
@@ -2119,8 +2250,10 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
    `meta/state-machine` 的逐条比对**要在 T4 落地时做**（R-4：以 meta 为准 ⇒
    不一致处登记 `docs/PCS-UI-SPEC.md` §12.4）。
 10. **`record_approval_config`（项目模板里的多级批准配置）仍然没有消费方**
-    ⇒ R-17 选了「矩阵」作定义源 ⇒ 该配置项**作废** ⇒ 建议后续从项目模板里
-    **删掉**（另议；本批只登记）。
+    ⇒ R-17 选了「矩阵」作定义源 ⇒ 该配置项**作废** ⇒ ✅ **已登记 `TODOS.md`**
+    （归属：项目模板相关批次；触发条件：下次改 `project_templates` 表时；证据：
+    该字段**只有注释、无消费方**）—— 开发阶段无历史配置数据要清理 ⇒ 紧迫性低
+    ⇒ **登记即可，不进本批**。
 
 ---
 
