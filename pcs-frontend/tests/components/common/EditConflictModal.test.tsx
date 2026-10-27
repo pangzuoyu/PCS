@@ -15,6 +15,13 @@
  * 一个是「有人改过」，一个是「没法知道有没有人改过」。
  *
  * ⚠️ **不得自动重试**（ADR-0048 §⑦）：重试仍是 409，且会把「冲突」掩盖成「抖动」。
+ *
+ * ## P9B-2 · R-14：「查看差异」换了数据源
+ *
+ * 原先打 `/audit-logs`（**限 SYSTEM_ADMIN**）⇒ 普通 DESIGNER 拿到 409 弹窗
+ * 却**点不开差异** ⇒ 现在打**按项目守卫**的
+ * `GET /records/{module}/{record_id}/edits`（TODO-066）⇒ **普通用户点得开**。
+ * ⇒ `changed_fields` 也在**顶层**（不是 `detail_json` 里）。
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -24,34 +31,40 @@ import { setupServer } from 'msw/node';
 import { EditConflictModal } from '../../../src/components/common/EditConflictModal';
 import type { ConflictDetail } from '../../../src/api/errors';
 
-let auditCalls = 0;
-let auditStatus = 200;
+let editCalls = 0;
+let editStatus = 200;
+let auditLogCalls = 0;
 
 const server = setupServer(
-  http.get('/api/v1/audit-logs', () => {
-    auditCalls += 1;
-    if (auditStatus === 403) {
-      // ⚠️ `/audit-logs` 限 SYSTEM_ADMIN ⇒ 普通 DESIGNER 拿 403
+  // ⚠️ 新端点（按项目守卫）—— 普通 DESIGNER **点得开**
+  http.get('/api/v1/records/:module/:recordId/edits', () => {
+    editCalls += 1;
+    if (editStatus === 403) {
       return HttpResponse.json(
-        { code: 'FORBIDDEN', message: '仅系统管理员可查审计日志' },
+        { code: 'HTTP_404', message: 'Project not found' },
         { status: 403 },
       );
     }
-    return HttpResponse.json(
-      {
-        items: [
-          {
-            audit_id: 'a-1',
-            action: 'RECORD_EDIT',
-            occurred_at: '2026-10-20T11:00:00Z',
-            detail_json: { changed_fields: ['duty_kw', 'tower_type'] },
-          },
-        ],
-        total: 1,
-        limit: 50,
-        offset: 0,
-      },
-    );
+    return HttpResponse.json({
+      record_type: 'CostEstResult',
+      record_id: '11111111-2222-3333-4444-555555555555',
+      items: [
+        {
+          audit_id: 'a-1',
+          // ⚠️ `changed_fields` 在**顶层**（新端点已把 `detail_json` 摊平）
+          changed_fields: ['duty_kw', 'tower_type'],
+          overwrote_stale_baseline: false,
+          user_id: 'u-1',
+          occurred_at: '2026-10-20T11:00:00Z',
+        },
+      ],
+      total: 1,
+    });
+  }),
+  // ⚠️ 旧端点（SYSTEM_ADMIN-only）—— **不得**再被「查看差异」打到
+  http.get('/api/v1/audit-logs', () => {
+    auditLogCalls += 1;
+    return HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 });
   }),
 );
 
@@ -69,8 +82,9 @@ describe('EditConflictModal —— 按 basis 分流', () => {
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
   afterAll(() => server.close());
   beforeEach(() => {
-    auditCalls = 0;
-    auditStatus = 200;
+    editCalls = 0;
+    auditLogCalls = 0;
+    editStatus = 200;
   });
 
   it('basis=record_hash ⇒ 「谁于何时改了这条记录」+ [查看差异] / [放弃我的修改并刷新]', () => {
@@ -117,6 +131,21 @@ describe('EditConflictModal —— 按 basis 分流', () => {
     expect(screen.queryByTestId('conflict-view-diff')).toBeNull();
   });
 
+  it('⚠️ TODO-067 #1：宿主没给 `onContactAdmin` ⇒ **不渲染死按钮**，改给真实出路', () => {
+    render(
+      <EditConflictModal
+        open
+        conflict={{ ...CONFLICT, basis: 'no_baseline' }}
+        onRefresh={vi.fn()}
+      />,
+    );
+    // ⚠️ 死按钮 = `onContactAdmin?.()` 在宿主没传时**点了什么都不会发生**
+    expect(screen.queryByTestId('conflict-contact-admin')).toBeNull();
+    expect(screen.getByTestId('conflict-contact-admin-hint').textContent).toContain(
+      '管理员',
+    );
+  });
+
   it('basis 未知 ⇒ 「说不清是否冲突」+ [刷新后重试]（**不误报成「无冲突」**）', () => {
     render(
       <EditConflictModal
@@ -130,7 +159,7 @@ describe('EditConflictModal —— 按 basis 分流', () => {
     expect(screen.getByTestId('conflict-refresh')).toBeTruthy();
   });
 
-  it('[查看差异] ⇒ 拉编辑审计并展示 changed_fields（字段名列表）', async () => {
+  it('[查看差异] ⇒ 拉**按项目守卫**的编辑审计并展示 changed_fields（字段名列表）', async () => {
     render(
       <EditConflictModal open conflict={CONFLICT} onRefresh={vi.fn()} />,
     );
@@ -140,15 +169,25 @@ describe('EditConflictModal —— 按 basis 分流', () => {
     expect(screen.getByTestId('conflict-diff').textContent).toContain('tower_type');
   });
 
+  it('⚠️ R-14：**不得**再打 SYSTEM_ADMIN-only 的 `/audit-logs`（普通用户点得开）', async () => {
+    render(
+      <EditConflictModal open conflict={CONFLICT} onRefresh={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByTestId('conflict-view-diff'));
+
+    await waitFor(() => expect(editCalls).toBe(1));
+    expect(auditLogCalls).toBe(0);
+  });
+
   it('⚠️ **不得自动重试** —— 点一次只请求一次', async () => {
     render(
       <EditConflictModal open conflict={CONFLICT} onRefresh={vi.fn()} />,
     );
     fireEvent.click(screen.getByTestId('conflict-view-diff'));
-    await waitFor(() => expect(auditCalls).toBe(1));
+    await waitFor(() => expect(editCalls).toBe(1));
 
     await new Promise((r) => setTimeout(r, 50));
-    expect(auditCalls).toBe(1);
+    expect(editCalls).toBe(1);
   });
 
   it('[刷新后重试] ⇒ 调 onRefresh 一次', () => {
@@ -160,8 +199,8 @@ describe('EditConflictModal —— 按 basis 分流', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('⚠️ [查看差异] 403 ⇒ 「无权查看差异（需系统管理员）」且**保留**刷新出口', async () => {
-    auditStatus = 403;
+  it('⚠️ [查看差异] 403 ⇒ 「无权查看差异」且**保留**刷新出口', async () => {
+    editStatus = 403;
     render(
       <EditConflictModal open conflict={CONFLICT} onRefresh={vi.fn()} />,
     );
@@ -169,7 +208,7 @@ describe('EditConflictModal —— 按 basis 分流', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('conflict-diff-error').textContent).toContain(
-        '需系统管理员',
+        '无权查看差异',
       ),
     );
     // ⚠️ 不能把人堵死 ⇒ 刷新出口必须还在

@@ -33,13 +33,14 @@ from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
 from app.api.v1.psychro import router as psychro_router  # P6-2 Task 26
 from app.api.v1.pump import router as pump_router
+from app.api.v1.record_edits import router as record_edits_router  # TODO-066 编辑审计读
 from app.api.v1.records import router as records_router
 from app.api.v1.records_actions import router as records_actions_router
-from app.api.v1.signature_matrices import router as signature_matrices_router  # TODO-070 矩阵管理面
 from app.api.v1.report import router as report_router
 from app.api.v1.report_builder import router as report_builder_router
 from app.api.v1.restriction import router as restriction_router  # P6-1 Task 14
 from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
+from app.api.v1.signature_matrices import router as signature_matrices_router  # TODO-070 矩阵管理面
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
 from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
 from app.api.v1.stream_symbols import router as stream_symbols_router
@@ -61,6 +62,7 @@ api_router.include_router(workspaces_router)
 api_router.include_router(checklist_router)
 api_router.include_router(records_router)
 api_router.include_router(records_actions_router)
+api_router.include_router(record_edits_router)  # TODO-066 编辑审计读
 api_router.include_router(workflow_progress_router)
 api_router.include_router(lineage_router)
 api_router.include_router(meta_router)

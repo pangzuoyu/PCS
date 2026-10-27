@@ -2292,6 +2292,98 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/edits": {
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "summary": "列记录的编辑审计（按项目守卫）",
+        "description": "列一条记录的编辑历史，最新在前。\n\n⚠️ **只认 `action = RECORD_EDITED`**（ADR-0048 §⑦ 强制）—— 不得用\n「该记录最近一条审计」泛匹配去凑。",
+        "operationId": "list_record_edits_api_v1_records__module___record_id__edits_get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordEditsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workflow-progress/{workflow_type}/{workflow_id}": {
       "get": {
         "tags": [
@@ -34504,6 +34596,88 @@
         ],
         "title": "RecordBindingResponse",
         "description": "snapshot 端点里的单条记录绑定明细。\n\n报表要回答「这份 Rev 锁定了哪些记录、各自哈希是多少」——\n`old_record_hash_before_change` 用于识别「相对上一版哪些记录实质变了」。"
+      },
+      "RecordEditItem": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Audit Id"
+          },
+          "changed_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Fields",
+            "description": "被改的字段名列表（不是值）"
+          },
+          "overwrote_stale_baseline": {
+            "type": "boolean",
+            "title": "Overwrote Stale Baseline",
+            "description": "这次编辑是否覆盖了无法校验的基线（ADR-0048 §⑦ 的额外审计行）",
+            "default": false
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "操作人；系统动作为空"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "occurred_at"
+        ],
+        "title": "RecordEditItem",
+        "description": "一次编辑。"
+      },
+      "RecordEditsResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "RECORD_TYPE_REGISTRY 的键"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecordEditItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "items",
+          "total"
+        ],
+        "title": "RecordEditsResponse",
+        "description": "一条记录的编辑历史。"
       },
       "RecordTransitionRequest": {
         "properties": {

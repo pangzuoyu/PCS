@@ -2547,3 +2547,17 @@
 | 11:58 | Edited pcs-backend/app/schemas/deliverable_progress.py | 4→4 lines | ~69 |
 | 11:58 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 4→4 lines | ~70 |
 | 11:58 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 6→5 lines | ~59 |
+| 12:01 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | expanded (+14 lines) | ~274 |
+| 12:02 | Created pcs-backend/tests/api/v1/test_record_edits_endpoint.py | — | ~1972 |
+| 12:02 | Created pcs-backend/tests/api/v1/test_record_edits_endpoint.py | — | ~3365 |
+| 12:03 | Created pcs-backend/app/schemas/record_edits.py | — | ~336 |
+| 12:03 | Created pcs-backend/app/api/v1/record_edits.py | — | ~976 |
+| 12:03 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~61 |
+| 12:03 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~48 |
+| 12:04 | Edited pcs-backend/tests/api/v1/test_record_edits_endpoint.py | modified test_other_project_record_is_404() | ~272 |
+| 12:06 | Edited pcs-frontend/src/api/audit.ts | added 1 import(s) | ~204 |
+| 12:06 | Edited pcs-frontend/src/api/audit.ts | modified list() | ~240 |
+| 12:06 | Edited pcs-frontend/src/components/common/EditConflictModal.tsx | modified isForbidden() | ~168 |
+| 12:06 | Edited pcs-frontend/src/components/common/EditConflictModal.tsx | listRecordEdits() → list() | ~192 |
+| 12:06 | Edited pcs-frontend/src/components/common/EditConflictModal.tsx | expanded (+11 lines) | ~186 |
+| 12:07 | Created pcs-frontend/tests/components/common/EditConflictModal.test.tsx | — | ~2012 |

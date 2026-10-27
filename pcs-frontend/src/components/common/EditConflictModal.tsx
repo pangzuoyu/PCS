@@ -23,7 +23,7 @@ import { useState } from 'react';
 import { Button, Modal, Space, Typography } from 'antd';
 
 import { conflictKind, type ConflictDetail } from '../../api/errors';
-import { listRecordEdits } from '../../api/audit';
+import { recordEditsApi } from '../../api/audit';
 
 interface Props {
   open: boolean;
@@ -34,7 +34,7 @@ interface Props {
   onContactAdmin?: () => void;
 }
 
-/** 403 = 无权（编辑审计限 SYSTEM_ADMIN）。 */
+/** 403 = 无权（这条记录不在你的项目里）。 */
 function isForbidden(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
   const response = (err as { response?: { status?: number } }).response;
@@ -68,21 +68,20 @@ export function EditConflictModal({
     if (!conflict) return;
     setDiffError(null);
     try {
-      const res = await listRecordEdits({
-        resource_type: conflict.record_type,
-        resource_id: conflict.record_id,
-      });
-      const fields = res.items.flatMap((item) => {
-        const raw = item.detail_json?.changed_fields;
-        return Array.isArray(raw) ? (raw as string[]) : [];
-      });
+      // ⚠️ **按项目守卫**的端点（P9B-2 · R-14）⇒ **普通用户点得开**
+      //    （原先打 SYSTEM_ADMIN-only 的 `/audit-logs` ⇒ 普通用户 403）。
+      const res = await recordEditsApi.list(
+        conflict.record_type,
+        conflict.record_id,
+      );
+      // ⚠️ `changed_fields` 在**顶层**（新端点已把 `detail_json` 摊平）。
+      const fields = res.items.flatMap((item) =>
+        Array.isArray(item.changed_fields) ? item.changed_fields : [],
+      );
       setDiff(fields);
     } catch (err) {
-      // ⚠️ 编辑审计限 SYSTEM_ADMIN ⇒ 普通用户 403 ⇒ 优雅降级，
-      // 但**保留** [放弃我的修改并刷新] 出口（不能把人堵死）。
-      setDiffError(
-        isForbidden(err) ? '无权查看差异（需系统管理员）' : '暂时无法查看差异',
-      );
+      // 优雅降级，但**保留** [放弃我的修改并刷新] 出口（不能把人堵死）。
+      setDiffError(isForbidden(err) ? '无权查看差异' : '暂时无法查看差异');
     }
   }
 
@@ -98,14 +97,25 @@ export function EditConflictModal({
               查看差异
             </Button>
           )}
-          {kind === 'no_baseline' && (
-            <Button
-              data-testid="conflict-contact-admin"
-              onClick={() => onContactAdmin?.()}
-            >
-              联系管理员
-            </Button>
-          )}
+          {kind === 'no_baseline' &&
+            (onContactAdmin ? (
+              <Button
+                data-testid="conflict-contact-admin"
+                onClick={() => onContactAdmin()}
+              >
+                联系管理员
+              </Button>
+            ) : (
+              // ⚠️ **不渲染死按钮**（TODO-067 #1）：`onContactAdmin` 可选 ⇒
+              //    宿主没传时点了**什么都不会发生** ⇒ 用户以为功能坏了。
+              //    ⇒ 改成一条**真实**的出路文案。
+              <Typography.Text
+                type="secondary"
+                data-testid="conflict-contact-admin-hint"
+              >
+                请联系管理员补齐该记录的并发基线后重试
+              </Typography.Text>
+            ))}
           <Button
             type="primary"
             data-testid="conflict-refresh"

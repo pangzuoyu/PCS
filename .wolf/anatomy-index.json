@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T03:58:32.138Z",
-    "fileCount": 1063,
+    "lastScanned": "2026-10-27T04:07:12.215Z",
+    "fileCount": 1066,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5265da06b91c56d95ef6097b25c721a52c0447e7c4018dee70f1809749ae7a11",
-    "storeUpdatedAt": "2026-10-27T03:58:32.149Z",
-    "rootHash": "23817656c4c1aa1e"
+    "renderedHash": "60f4d7d9f9f18cf3a8bc92728ae3feaa179ec437286f156e033ac413651fd0b9",
+    "storeUpdatedAt": "2026-10-27T04:07:12.226Z",
+    "rootHash": "bcda73dcb722d117"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13417,11 +13417,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 1783,
-      "hash": "99db41151d6f2f62",
-      "size": 6316,
-      "mtimeMs": 1792487921750.383,
-      "updatedAt": "2026-10-20T09:18:41.796Z",
+      "tokens": 1874,
+      "hash": "ee2fb834a7316faa",
+      "size": 6678,
+      "mtimeMs": 1793073834947.772,
+      "updatedAt": "2026-10-27T04:03:54.999Z",
       "source": "hook"
     },
     "pcs-backend/scripts/p7_s3_003_backfill_config_audit.py": {
@@ -13499,68 +13499,61 @@
     },
     "pcs-frontend/src/api/audit.ts": {
       "description": "Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7).",
-      "tokens": 856,
-      "hash": "40bf5b911602a219",
-      "size": 3240,
-      "mtimeMs": 1792547766847.275,
-      "updatedAt": "2026-10-21T01:56:06.895Z",
+      "tokens": 994,
+      "hash": "d4eb2b0bf9047742",
+      "size": 3803,
+      "mtimeMs": 1793073991626.246,
+      "updatedAt": "2026-10-27T04:06:31.676Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ListAuditLogsParams",
           "kind": "section",
-          "startLine": 17,
-          "endLine": 27,
+          "startLine": 19,
+          "endLine": 29,
           "tokens": 64
         },
         {
           "name": "ListEquipmentDeletionAuditParams",
           "kind": "section",
-          "startLine": 28,
-          "endLine": 38,
+          "startLine": 30,
+          "endLine": 40,
           "tokens": 70
         },
         {
           "name": "ListConfigAuditParams",
           "kind": "section",
-          "startLine": 39,
-          "endLine": 46,
+          "startLine": 41,
+          "endLine": 48,
           "tokens": 45
         },
         {
           "name": "AuditLogItem",
           "kind": "section",
-          "startLine": 47,
-          "endLine": 56,
+          "startLine": 49,
+          "endLine": 58,
           "tokens": 59
         },
         {
           "name": "AuditLogListResponse",
           "kind": "section",
-          "startLine": 57,
-          "endLine": 63,
+          "startLine": 59,
+          "endLine": 65,
           "tokens": 34
         },
         {
           "name": "EquipmentDeletionAuditItem",
           "kind": "section",
-          "startLine": 64,
-          "endLine": 75,
+          "startLine": 66,
+          "endLine": 77,
           "tokens": 78
         },
         {
           "name": "EquipmentDeletionAuditListResponse",
           "kind": "section",
-          "startLine": 76,
-          "endLine": 107,
-          "tokens": 276
-        },
-        {
-          "name": "listRecordEdits",
-          "kind": "fn",
-          "startLine": 108,
-          "endLine": 114,
-          "tokens": 60
+          "startLine": 78,
+          "endLine": 126,
+          "tokens": 441
         }
       ]
     },
@@ -35245,11 +35238,11 @@
     },
     "pcs-frontend/tests/components/common/EditConflictModal.test.tsx": {
       "description": "409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。",
-      "tokens": 1613,
-      "hash": "cf6290b20f09ef96",
-      "size": 6587,
-      "mtimeMs": 1792548519552.9407,
-      "updatedAt": "2026-10-21T02:08:39.605Z",
+      "tokens": 2012,
+      "hash": "ff5ab0016c43bfc0",
+      "size": 8300,
+      "mtimeMs": 1793074032162.5986,
+      "updatedAt": "2026-10-27T04:07:12.215Z",
       "source": "hook"
     },
     "pcs-frontend/src/hooks/useEditBaseline.ts": {
@@ -35364,11 +35357,11 @@
     },
     "pcs-frontend/src/components/common/EditConflictModal.tsx": {
       "description": "EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。",
-      "tokens": 1092,
-      "hash": "20efee2646c1e33b",
-      "size": 4634,
-      "mtimeMs": 1792548504342.6018,
-      "updatedAt": "2026-10-21T02:08:24.390Z",
+      "tokens": 1222,
+      "hash": "a157e9312513d38b",
+      "size": 5291,
+      "mtimeMs": 1793074012715.909,
+      "updatedAt": "2026-10-27T04:06:52.765Z",
       "source": "hook",
       "symbols": [
         {
@@ -35376,7 +35369,7 @@
           "kind": "section",
           "startLine": 28,
           "endLine": 37,
-          "tokens": 74
+          "tokens": 72
         },
         {
           "name": "isForbidden",
@@ -35389,8 +35382,8 @@
           "name": "EditConflictModal",
           "kind": "fn",
           "startLine": 44,
-          "endLine": 135,
-          "tokens": 723
+          "endLine": 145,
+          "tokens": 855
         }
       ]
     },
@@ -38389,11 +38382,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md",
-      "tokens": 723,
-      "hash": "bb8128cf1bc6bc75",
-      "size": 3610,
-      "mtimeMs": 1793072621141.0264,
-      "updatedAt": "2026-10-27T03:43:41.189Z",
+      "tokens": 894,
+      "hash": "8b81cf08d291b43b",
+      "size": 4728,
+      "mtimeMs": 1793073664157.5771,
+      "updatedAt": "2026-10-27T04:01:04.212Z",
       "source": "hook"
     },
     "pcs-backend/tests/api/v1/test_project_creation.py": {
@@ -38682,6 +38675,170 @@
           "startLine": 66,
           "endLine": 71,
           "tokens": 49
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_record_edits_endpoint.py": {
+      "description": "记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。",
+      "tokens": 3498,
+      "hash": "ffcdd7ad0547fe8c",
+      "size": 13557,
+      "mtimeMs": 1793073865985.2683,
+      "updatedAt": "2026-10-27T04:04:26.036Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 47,
+          "tokens": 42
+        },
+        {
+          "name": "_guard_client",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 72,
+          "tokens": 232
+        },
+        {
+          "name": "_cooling_tower_body",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 92,
+          "tokens": 174
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 102,
+          "tokens": 104
+        },
+        {
+          "name": "_seed_edit",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 132,
+          "tokens": 248
+        },
+        {
+          "name": "_url",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 141,
+          "tokens": 89
+        },
+        {
+          "name": "test_lists_record_edits_with_changed_fields",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 161,
+          "tokens": 231
+        },
+        {
+          "name": "test_only_record_edited_actions_are_listed",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 189,
+          "tokens": 250
+        },
+        {
+          "name": "test_other_records_edits_are_not_listed",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 202,
+          "tokens": 128
+        },
+        {
+          "name": "test_overwrote_stale_baseline_flag_is_reported",
+          "kind": "fn",
+          "startLine": 203,
+          "endLine": 223,
+          "tokens": 196
+        },
+        {
+          "name": "test_other_project_record_is_404",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 252,
+          "tokens": 272
+        },
+        {
+          "name": "test_unknown_module_is_422_with_code",
+          "kind": "fn",
+          "startLine": 253,
+          "endLine": 262,
+          "tokens": 97
+        },
+        {
+          "name": "test_module_without_sign_status_still_works",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 295,
+          "tokens": 279
+        },
+        {
+          "name": "test_unknown_record_is_404_with_code",
+          "kind": "fn",
+          "startLine": 296,
+          "endLine": 308,
+          "tokens": 128
+        },
+        {
+          "name": "test_malformed_detail_json_yields_empty_changed_fields",
+          "kind": "fn",
+          "startLine": 309,
+          "endLine": 327,
+          "tokens": 180
+        },
+        {
+          "name": "test_pagination_keeps_total",
+          "kind": "fn",
+          "startLine": 328,
+          "endLine": 341,
+          "tokens": 140
+        },
+        {
+          "name": "test_newest_first_ordering",
+          "kind": "fn",
+          "startLine": 342,
+          "endLine": 364,
+          "tokens": 218
+        },
+        {
+          "name": "test_real_edit_is_listed",
+          "kind": "fn",
+          "startLine": 365,
+          "endLine": 385,
+          "tokens": 202
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/record_edits.py": {
+      "description": "编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。",
+      "tokens": 336,
+      "hash": "523ed2e649e7561c",
+      "size": 1637,
+      "mtimeMs": 1793073804331.2703,
+      "updatedAt": "2026-10-27T04:03:24.380Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/api/v1/record_edits.py": {
+      "description": "记录编辑审计读端点（TODO-066 · P9B-2 · T1）。",
+      "tokens": 976,
+      "hash": "0544f17718b221f2",
+      "size": 4085,
+      "mtimeMs": 1793073813848.1152,
+      "updatedAt": "2026-10-27T04:03:33.896Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "list_record_edits",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 102,
+          "tokens": 565
         }
       ]
     }

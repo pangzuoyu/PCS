@@ -858,6 +858,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列记录的编辑审计（按项目守卫）
+         * @description 列一条记录的编辑历史，最新在前。
+         *
+         *     ⚠️ **只认 `action = RECORD_EDITED`**（ADR-0048 §⑦ 强制）—— 不得用
+         *     「该记录最近一条审计」泛匹配去凑。
+         */
+        get: operations["list_record_edits_api_v1_records__module___record_id__edits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workflow-progress/{workflow_type}/{workflow_id}": {
         parameters: {
             query?: never;
@@ -14862,6 +14885,58 @@ export interface components {
             old_record_hash_before_change?: string | null;
         };
         /**
+         * RecordEditItem
+         * @description 一次编辑。
+         */
+        RecordEditItem: {
+            /**
+             * Audit Id
+             * Format: uuid
+             */
+            audit_id: string;
+            /**
+             * Changed Fields
+             * @description 被改的字段名列表（不是值）
+             */
+            changed_fields?: string[];
+            /**
+             * Overwrote Stale Baseline
+             * @description 这次编辑是否覆盖了无法校验的基线（ADR-0048 §⑦ 的额外审计行）
+             * @default false
+             */
+            overwrote_stale_baseline: boolean;
+            /**
+             * User Id
+             * @description 操作人；系统动作为空
+             */
+            user_id?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /**
+         * RecordEditsResponse
+         * @description 一条记录的编辑历史。
+         */
+        RecordEditsResponse: {
+            /**
+             * Record Type
+             * @description RECORD_TYPE_REGISTRY 的键
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Items */
+            items: components["schemas"]["RecordEditItem"][];
+            /** Total */
+            total: number;
+        };
+        /**
          * RecordTransitionRequest
          * @description 记录状态机迁移请求体（POST /records/{type}/{id}/transitions）。
          *
@@ -22047,6 +22122,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeNoticeCancelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_record_edits_api_v1_records__module___record_id__edits_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordEditsResponse"];
                 };
             };
             /** @description Validation Error */

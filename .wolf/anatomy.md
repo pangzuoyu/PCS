@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T03:58:32.138Z
-> Files: 1063 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T04:07:12.215Z
+> Files: 1066 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -292,7 +292,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~723 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~894 tok)
 - `run-migration-checks.sh` — 迁移漂移守门（CLAUDE.md「漂移盲区」纪律）： (~559 tok)
 
 ## .vite/vitest/
@@ -1193,7 +1193,7 @@
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~1783 tok)
+- `__init__.py` (~1874 tok)
 - `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~1599 tok)
 - `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~819 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
@@ -1216,6 +1216,7 @@
 - `projects.py` — 项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~1752 tok)
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
+- `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~3955 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
@@ -1266,6 +1267,7 @@
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~742 tok)
+- `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~803 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
@@ -1437,6 +1439,7 @@
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
 - `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~4169 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3498 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~3944 tok)
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~3206 tok)
@@ -1610,7 +1613,7 @@
 
 ## pcs-frontend/src/api/
 
-- `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~856 tok)
+- `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~994 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~689 tok)
@@ -1625,7 +1628,7 @@
 ## pcs-frontend/src/components/common/
 
 - `ChangeImpactPanel.tsx` — ChangeImpactPanel — 变更影响分析面板（P45-1-8 / Task 13）。 (~3965 tok)
-- `EditConflictModal.tsx` — EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。 (~1092 tok)
+- `EditConflictModal.tsx` — EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。 (~1222 tok)
 - `EditLockIndicator.tsx` — EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。 (~527 tok)
 - `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
 - `RealtimeStatusBanner.tsx` — RealtimeStatusBanner —— 通知实时推送的状态与降级（P9B-1 · SPEC §6.23）。 (~381 tok)
@@ -1724,7 +1727,7 @@
 
 ## pcs-frontend/tests/components/common/
 
-- `EditConflictModal.test.tsx` — 409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。 (~1613 tok)
+- `EditConflictModal.test.tsx` — 409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。 (~2012 tok)
 - `EditLockIndicator.test.tsx` — EditLockIndicator 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-003）。 (~607 tok)
 - `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~2283 tok)
 - `RealtimeStatusBanner.test.tsx` — RealtimeStatusBanner 的守卫（P9B-1 Task T5 · SPEC §6.23）。 (~499 tok)

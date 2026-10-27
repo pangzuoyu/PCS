@@ -5,6 +5,7 @@
  * - GET /api/v1/audit-logs              (SYSTEM_ADMIN only)
  * - GET /api/v1/equipment-deletion-audit (DESIGNER+ + project_id filter)
  * - GET /api/v1/config-audit            (DESIGNER+ 公司级全局)
+ * - GET /api/v1/records/{module}/{id}/edits (P9B-2 · TODO-066 · 按项目守卫)
  *
  * Source-verify (2026-10-03):
  * - audit_logs.resource_type 实际值: "config_energy_conversion_factors"
@@ -13,6 +14,7 @@
  *   BIGINT, 需 str() 转换 (前端发 asset_id int, 后端转 str)
  */
 import { api } from './client';
+import type { components } from '../types/api';
 
 export interface ListAuditLogsParams {
   resource_type?: string;
@@ -99,16 +101,26 @@ export const auditApi = {
 /**
  * 编辑审计（SPEC §6.21 P9A-LCK-006「查看差异」的来源）。
  *
- * ⚠️ `/audit-logs` **限 SYSTEM_ADMIN** ⇒ 普通 DESIGNER 拿到 409 弹窗却
- * **看不到差异** ⇒ 弹窗必须优雅降级（「无权查看差异（需系统管理员）」）
- * ⇒ **TODO-066**（按项目守卫的编辑审计读端点，归属 P9B-2）。
+ * ⚠️ **数据源换了**（P9B-2 · R-14）：原先打 `/audit-logs`（**限 SYSTEM_ADMIN**）
+ * ⇒ 普通 DESIGNER 拿到 409 弹窗却**点不开差异** ⇒ 现打**按项目守卫**的
+ * `GET /records/{module}/{record_id}/edits`（TODO-066）⇒ **普通用户点得开**。
  *
- * ⚠️ `changed_fields`（**字段名列表**，不是值）在 `detail_json` 里。
+ * ⚠️ `changed_fields`（**字段名列表**，不是值）在**顶层**（不是 `detail_json` 里）——
+ * 新端点已经把 `detail_json` 摊平了。
+ *
+ * ⚠️ **此处是审计类客户端的归一处** ⇒ 不要再出现第三份审计入口。
  */
-export function listRecordEdits(params: {
-  resource_type: string;
-  resource_id: string;
-  limit?: number;
-}): Promise<AuditLogListResponse> {
-  return api.get('/audit-logs', { params }).then((r) => r.data);
-}
+export type RecordEditsResponse = components['schemas']['RecordEditsResponse'];
+export type RecordEditItem = components['schemas']['RecordEditItem'];
+
+export const recordEditsApi = {
+  list(
+    module: string,
+    recordId: string,
+    params?: { limit?: number; offset?: number },
+  ): Promise<RecordEditsResponse> {
+    return api
+      .get<RecordEditsResponse>(`/records/${module}/${recordId}/edits`, { params })
+      .then((r) => r.data);
+  },
+};
