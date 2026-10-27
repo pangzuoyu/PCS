@@ -168,13 +168,107 @@ describe('WorkflowProgressPanel — 观测进度（SPEC §6.24）', () => {
     expect(screen.getByTestId('progress-node-p2').textContent).toContain('a3f9');
   });
 
-  it('WORKFLOW_TABS **只渲染 enabled 的 tab**（本批只有 SIGN）', () => {
+  it('WORKFLOW_TABS **只渲染 enabled 的 tab**（P9B-2 起：签署 + 代录；变更单仍禁用）', () => {
     render(<WorkflowProgressPanel workflowType="SIGN" workflowId="v-1" />);
     const enabled = WORKFLOW_TABS.filter((t) => t.enabled).map((t) => t.type);
-    expect(enabled).toEqual(['SIGN']);
+    expect(enabled).toEqual(['SIGN', 'CUSTOMER_APPROVAL_PROXY']);
     // ⚠️ 后端枚举**没有** `DOC_PROXY`（「代录」= `CUSTOMER_APPROVAL_PROXY`）
     expect(WORKFLOW_TABS.map((t) => t.type)).not.toContain('DOC_PROXY');
     expect(WORKFLOW_TABS.map((t) => t.type)).toContain('CUSTOMER_APPROVAL_PROXY');
+    // ⚠️ **变更单仍然禁用**（R-13）：变更单自己就是交付物 ⇒ 不作为聚合段出现
+    expect(WORKFLOW_TABS.find((t) => t.type === 'CHANGE_NOTICE')?.enabled).toBe(false);
+  });
+
+  it('⚠️ R-15 受控模式：传了 `data` ⇒ **不自己拉**（展开一行 = 1 个请求）', async () => {
+    let calls = 0;
+    server.use(
+      http.get('/api/v1/workflow-progress/:type/:id', () => {
+        calls += 1;
+        return HttpResponse.json({ items: [], total: 0 });
+      }),
+    );
+    render(
+      <WorkflowProgressPanel
+        workflowType="SIGN"
+        workflowId="v-1"
+        data={{
+          total: 1,
+          pending: 0,
+          in_progress: 1,
+          completed: 0,
+          skipped: 0,
+          failed: 0,
+          items: [
+            {
+              progress_id: 'p-ctrl',
+              step_order: 1,
+              step_role: 'DESIGNER',
+              step_status: 'IN_PROGRESS',
+              started_at: null,
+              completed_at: null,
+              assignee: null,
+              result_hash: null,
+            },
+          ],
+        }}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('progress-node-p-ctrl')).toBeTruthy());
+    expect(calls).toBe(0);
+  });
+});
+
+/**
+ * TODO-067 #7：403 / 404 / 网络错误**不得**映射成同一句。
+ *
+ * ⚠️ 此前一律用 `errorDescription` ⇒ **404 被读成「无权限」** ⇒ 用户以为自己
+ * 没权限（其实是不存在）⇒ 找错人。
+ */
+describe('WorkflowProgressPanel —— 三种失败文案（TODO-067 #7）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  afterAll(() => server.close());
+
+  it('403 ⇒ 「无权查看」', async () => {
+    server.use(
+      http.get('/api/v1/workflow-progress/:type/:id', () =>
+        HttpResponse.json({ code: 'HTTP_403' }, { status: 403 }),
+      ),
+    );
+    render(<WorkflowProgressPanel workflowType="SIGN" workflowId="v-403" />);
+    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
+    expect(screen.getByTestId('workflow-progress-empty').textContent).toContain('无权查看');
+  });
+
+  it('⚠️ 404 ⇒ 「该工作流不存在」（**不是**「无权限」）', async () => {
+    server.use(
+      http.get('/api/v1/workflow-progress/:type/:id', () =>
+        HttpResponse.json({ code: 'WORKFLOW_NOT_FOUND' }, { status: 404 }),
+      ),
+    );
+    render(<WorkflowProgressPanel workflowType="SIGN" workflowId="v-404" />);
+    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
+    const text = screen.getByTestId('workflow-progress-empty').textContent ?? '';
+    expect(text).toContain('不存在');
+    expect(text).not.toContain('无权');
+  });
+
+  it('网络错误 ⇒ 宿主给的通用文案', async () => {
+    server.use(
+      http.get('/api/v1/workflow-progress/:type/:id', () =>
+        HttpResponse.error(),
+      ),
+    );
+    render(
+      <WorkflowProgressPanel
+        workflowType="SIGN"
+        workflowId="v-net"
+        errorDescription="你无权查看此交付物的进度"
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
+    expect(screen.getByTestId('workflow-progress-empty').textContent).toContain(
+      '你无权查看此交付物的进度',
+    );
   });
 });
 

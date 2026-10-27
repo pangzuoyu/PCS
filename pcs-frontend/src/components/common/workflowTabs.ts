@@ -13,8 +13,12 @@
  *
  * ## tab **可配置**
  *
- * 本批只启用 `SIGN`；其余两个在 **P9B-2** 开（`CHANGE_NOTICE` 的写入点
- * `change_notice_service` 当前抛 `NotImplementedError`，待 P9A-DLV-007）。
+ * - `SIGN` / `CUSTOMER_APPROVAL_PROXY`：**已启用**（P9B-2 起，聚合端点
+ *   （TODO-065）一次返回这两类工作流的进度）。
+ * - `CHANGE_NOTICE`：**仍然禁用** —— R-13 把这一段从聚合端点**删掉**了
+ *   （变更单**本身就是交付物** ⇒ 它在进度页上自己一行、自有 SIGN 进度；
+ *   而 `Deliverable.parent_deliverable_id` 全仓从未被写 ⇒ 靠它反查变更单
+ *   **永远查不到** ⇒ 留着一个**永远为假**的段比没有更坏）。
  */
 export type WorkflowType = 'SIGN' | 'CHANGE_NOTICE' | 'CUSTOMER_APPROVAL_PROXY';
 
@@ -27,6 +31,7 @@ export interface WorkflowTab {
 
 export const WORKFLOW_TABS: readonly WorkflowTab[] = [
   { type: 'SIGN', label: '签署', enabled: true },
-  { type: 'CHANGE_NOTICE', label: '变更单', enabled: false }, // P9B-2
-  { type: 'CUSTOMER_APPROVAL_PROXY', label: '代录', enabled: false }, // P9B-2
+  // ⚠️ **仍然禁用**（R-13）：变更单自己就是交付物 ⇒ 不作为聚合段出现
+  { type: 'CHANGE_NOTICE', label: '变更单', enabled: false },
+  { type: 'CUSTOMER_APPROVAL_PROXY', label: '代录', enabled: true },
 ];

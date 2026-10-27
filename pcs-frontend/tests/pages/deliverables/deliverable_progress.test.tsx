@@ -1,19 +1,22 @@
 /**
- * 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。
+ * 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。
  *
- * ## 为什么这页是「观测」的宿主
+ * ## P9B-2 之后这页打的是**聚合端点**（TODO-065）
  *
- * T5 的 `WorkflowProgressPanel` 需要一个**宿主**才有意义 —— 本页就是它。
- * 本批**只 SIGN**（后端三类工作流的 `workflow_id` 语义不同：
- * `SIGN` → 版本 ID；`CHANGE_NOTICE` → 变更单自身的 deliverable_id
- * ⇒ 前端凑不齐 ⇒ 聚合端点延到 P9B-2，见 TODO-065）。
+ * `GET /deliverables/{id}/progress` ⇒ 一次返回**两类**工作流的进度：
+ * `SIGN`（workflow_id = 版本 id）与 `CUSTOMER_APPROVAL_PROXY`（= 交付物 id）。
+ *
+ * ⚠️ **没有 `CHANGE_NOTICE` 段**（R-13）：变更单**本身就是交付物** ⇒ 它自己
+ * 一行、自有 SIGN 进度；靠 `parent_deliverable_id` 反查**永远查不到** ⇒
+ * 留着一个**永远为假**的段比没有更坏。
  *
  * ## 四条不能省的
  *
- * 1. ⚠️ **行展开才拉 progress**（列表加载时**不**预取）⇒ 无 N+1。
- * 2. ⚠️ SIGN 的 `workflow_id` 用 **`current_version_id`**（**不**用 rev 匹配 ——
- *    rev 是自由文本，匹配不出唯一版本）。
- * 3. ⚠️ **空状态三态可区分**：无版本 / 有版本但流程未开始 / 无权限。
+ * 1. ⚠️ **行展开才拉**（列表加载时**不**预取）⇒ 无 N+1。
+ * 2. ⚠️ **面板受控**（R-15）⇒ 展开一行**不**发分段请求
+ *    （`workflow-progress/...` **零调用**）⇒ 聚合端点的收益不被抵消。
+ * 3. ⚠️ **两种空态可分辨**：`available=false`（显示**原因**）≠
+ *    `available=true` 但 `total=0`（显示「尚无步骤记录」）。
  * 4. ⚠️ 前端**不得**自行按项目过滤交付物 —— 后端已做项目守卫
  *    （`check_project_access_or_404`）⇒ 前端过滤会把「无权限」说成「无数据」。
  */
@@ -38,7 +41,7 @@ const DELIVERABLES = [
     doc_no_mode: 'MANUAL',
     title: '泵计算书',
     current_rev: 'A',
-    current_version_id: null, // ⚠️ 无版本 ⇒ 空态 ①
+    current_version_id: null, // ⚠️ 无版本 ⇒ SIGN 段不可用
     version_purpose: 'ISSUED_FOR_CONSTRUCTION',
     sign_status: 'DRAFT',
     matrix_id: null,
@@ -66,40 +69,86 @@ const DELIVERABLES = [
   },
 ];
 
-let progressCalls = 0;
+let aggregateCalls = 0;
+let actionCalls = 0;
+/** 单条工作流端点的调用数 —— 受控模式下必须**恒为 0**（R-15）。 */
+let singleProgressCalls = 0;
+/** 聚合端点返回的段（测试按需改写）。 */
+let sections: unknown[] = [];
+
+const DEFAULT_SECTIONS = [
+  {
+    workflow_type: 'SIGN',
+    workflow_id: 'v-2',
+    available: true,
+    reason: null,
+    total: 1,
+    pending: 0,
+    in_progress: 1,
+    completed: 0,
+    skipped: 0,
+    failed: 0,
+    items: [
+      {
+        progress_id: 'p-1',
+        step_order: 1,
+        step_role: 'DESIGNER',
+        step_status: 'IN_PROGRESS',
+        started_at: '2026-10-20T10:00:00Z',
+        completed_at: null,
+        assignee: 'alice',
+        result_hash: null,
+      },
+    ],
+  },
+  {
+    workflow_type: 'CUSTOMER_APPROVAL_PROXY',
+    workflow_id: VERSIONED_ID,
+    available: false,
+    reason: '尚未签发版本，无签署流程',
+    total: 0,
+    pending: 0,
+    in_progress: 0,
+    completed: 0,
+    skipped: 0,
+    failed: 0,
+    items: [],
+  },
+];
 
 const server = setupServer(
   http.get('/api/v1/deliverables', () =>
     HttpResponse.json({ items: DELIVERABLES, total: DELIVERABLES.length }),
   ),
-  http.get('/api/v1/workflow-progress/:type/:id', ({ params }) => {
-    progressCalls += 1;
-    if (params.id === 'v-forbidden') {
-      return HttpResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
-    }
+  // ⚠️ **聚合端点**（P9B-2 · TODO-065）
+  http.get('/api/v1/deliverables/:id/progress', ({ params }) => {
+    aggregateCalls += 1;
     return HttpResponse.json({
-      workflow_type: 'SIGN',
-      workflow_id: String(params.id),
-      project_id: '00000000-0000-0000-0000-000000000001',
-      total: 1,
-      pending: 0,
-      in_progress: 1,
-      completed: 0,
-      skipped: 0,
-      failed: 0,
+      deliverable_id: String(params.id),
+      sections,
+    });
+  }),
+  http.get('/api/v1/deliverables/:id/actions', ({ params }) => {
+    actionCalls += 1;
+    return HttpResponse.json({
+      deliverable_id: String(params.id),
       items: [
         {
-          progress_id: 'p-1',
-          step_order: 1,
-          step_role: 'DESIGNER',
-          step_status: 'IN_PROGRESS',
-          started_at: '2026-10-20T10:00:00Z',
-          completed_at: null,
-          assignee: 'alice',
-          result_hash: null,
+          action: 'DELIVERABLE_ISSUED',
+          resource_type: 'deliverable',
+          resource_id: String(params.id),
+          actor_user_id: 'u-1',
+          detail_json: '{"version_purpose":"ISSUED_FOR_CONSTRUCTION"}',
+          created_at: '2026-10-20T10:00:00Z',
         },
       ],
+      total: 1,
     });
+  }),
+  // ⚠️ 单条工作流端点 —— 受控模式下**不得**被调用（R-15）
+  http.get('/api/v1/workflow-progress/:type/:id', () => {
+    singleProgressCalls += 1;
+    return HttpResponse.json({ items: [], total: 0 });
   }),
 );
 
@@ -107,7 +156,10 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
   afterAll(() => server.close());
   beforeEach(() => {
-    progressCalls = 0;
+    aggregateCalls = 0;
+    actionCalls = 0;
+    singleProgressCalls = 0;
+    sections = DEFAULT_SECTIONS;
   });
 
   it('列表渲染：doc_no + title + sign_status', async () => {
@@ -117,94 +169,109 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(screen.getByText('CB-002')).toBeTruthy();
   });
 
-  it('⚠️ 行**展开**才拉 progress（列表加载时**不**预取 ⇒ 无 N+1）', async () => {
+  it('⚠️ **不展开** ⇒ 0 个请求（列表加载时**不**预取 ⇒ 无 N+1）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-001')).toBeTruthy());
-    // 列表加载后**一次都**不该拉 progress
-    expect(progressCalls).toBe(0);
-
-    // 展开第一行（无版本的那行）⇒ 空态 ①
-    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[0]);
-    await waitFor(() => expect(screen.getByTestId('deliverable-no-version')).toBeTruthy());
-    expect(screen.getByTestId('deliverable-no-version').textContent).toContain('尚未签发');
+    expect(aggregateCalls).toBe(0);
+    expect(actionCalls).toBe(0);
   });
 
-  it('SIGN 的 workflow_id 用 **current_version_id**（不是 rev 匹配）', async () => {
+  it('⚠️ 展开一行 ⇒ 打的是 **GET /deliverables/{id}/progress**（不是 workflow-progress/SIGN/...）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
 
-    // 展开**第二**行（有版本）
     fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
-    await waitFor(() => expect(progressCalls).toBe(1));
-    // ⚠️ 请求的 id 是**版本 ID**（v-2），**不是** rev 文本（'B'）
-    expect(screen.getByTestId('deliverable-progress-panel').textContent).toContain('IN_PROGRESS');
+    await waitFor(() => expect(aggregateCalls).toBe(1));
+    expect(screen.getByTestId('deliverable-progress-panel')).toBeTruthy();
   });
 
-  it('空状态三态可区分：① 无版本 / ② 流程未开始 / ③ 无权限', async () => {
+  it('⚠️ R-15：展开一行 ⇒ **分段请求零调用**（面板受控 ⇒ 不自己拉）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
 
-    // ① 无版本
-    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[0]);
-    await waitFor(() => expect(screen.getByTestId('deliverable-no-version')).toBeTruthy());
-    expect(screen.getByTestId('deliverable-no-version').textContent).toContain('尚未签发');
-
-    // ② 有版本但进度为空 ⇒ 「签署流程尚未开始」
-    server.use(
-      http.get('/api/v1/workflow-progress/:type/:id', () =>
-        HttpResponse.json({
-          workflow_type: 'SIGN',
-          workflow_id: 'v-2',
-          project_id: 'p-1',
-          total: 0,
-          pending: 0,
-          in_progress: 0,
-          completed: 0,
-          skipped: 0,
-          failed: 0,
-          items: [],
-        }),
-      ),
-    );
     fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
-    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
-    expect(screen.getByTestId('workflow-progress-empty').textContent).toContain(
-      '尚未开始',
-    );
+    await waitFor(() => expect(aggregateCalls).toBe(1));
+    await new Promise((r) => setTimeout(r, 50));
+    // ⚠️ **必须**是 0 —— 否则聚合端点的收益被完全抵消，且两套数据源可能不一致
+    expect(singleProgressCalls).toBe(0);
   });
 
-  it('③ 无权限（progress 403）⇒ 「你无权查看此交付物的进度」', async () => {
-    server.use(
-      http.get('/api/v1/workflow-progress/:type/:id', () =>
-        HttpResponse.json({ code: 'FORBIDDEN' }, { status: 403 }),
-      ),
-    );
+  it('⚠️ **两段都渲染**（SIGN / CUSTOMER_APPROVAL_PROXY），且**没有** CHANGE_NOTICE 段（R-13）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
-    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
-    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
-    expect(screen.getByTestId('workflow-progress-empty').textContent).toContain(
-      '无权查看',
-    );
-  });
 
-  it('只有 SIGN tab 被渲染（CHANGE_NOTICE / 代录 disabled ⇒ P9B-2 开）', async () => {
-    render(<DeliverableProgressPage />);
-    await waitFor(() => expect(screen.getByText('CB-001')).toBeTruthy());
     fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
     await waitFor(() => expect(screen.getByTestId('deliverable-progress-panel')).toBeTruthy());
-    // ⚠️ 本批只 SIGN ⇒ 面板里只有「签署」一个 tab
-    expect(screen.getByTestId('deliverable-progress-panel').textContent).toContain('签署');
-    expect(screen.getByTestId('deliverable-progress-panel').textContent).not.toContain('变更单');
-    expect(screen.getByTestId('deliverable-progress-panel').textContent).not.toContain('代录');
+
+    expect(screen.getByTestId('deliverable-section-SIGN')).toBeTruthy();
+    expect(screen.getByTestId('deliverable-section-CUSTOMER_APPROVAL_PROXY')).toBeTruthy();
+    expect(screen.queryByTestId('deliverable-section-CHANGE_NOTICE')).toBeNull();
   });
 
-  /**
-   * ⚠️ **列表必须分页**（最终评审 Important ⑤）。
-   *
-   * 此前是 `pagination={false}` + 硬编码 `limit: 100` ⇒ 交付物超过 100 个时
-   * **只显示前 100 个，且没有任何提示** ⇒ 用户以为「就这些」。
-   */
+  it('⚠️ `available=false` 的段 ⇒ 显示 **reason 原文**（不是空列表）（RF-6）', async () => {
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByTestId('deliverable-progress-panel')).toBeTruthy());
+
+    const block = screen.getByTestId('deliverable-section-CUSTOMER_APPROVAL_PROXY');
+    expect(block.textContent).toContain('尚未签发版本，无签署流程');
+  });
+
+  it('⚠️ `available=true` 但 `total=0` ⇒ 「尚无步骤记录」（与「不可用」**不同**）', async () => {
+    sections = [
+      {
+        workflow_type: 'SIGN',
+        workflow_id: 'v-2',
+        available: true,
+        reason: null,
+        total: 0,
+        pending: 0,
+        in_progress: 0,
+        completed: 0,
+        skipped: 0,
+        failed: 0,
+        items: [],
+      },
+    ];
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByTestId('workflow-progress-empty')).toBeTruthy());
+    expect(screen.getByTestId('workflow-progress-empty').textContent).toContain('尚无步骤记录');
+  });
+
+  it('⚠️ 动作时间线渲染 actions.items；`detail_json` 是 JSON **文本** ⇒ 解析且畸形时不崩', async () => {
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByTestId('deliverable-actions')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByTestId('deliverable-action-item').length).toBe(1));
+    expect(screen.getByTestId('deliverable-action-item').textContent).toContain(
+      'DELIVERABLE_ISSUED',
+    );
+    expect(screen.getByTestId('deliverable-action-item').textContent).toContain(
+      'version_purpose',
+    );
+  });
+
+  it('⚠️ 动作时间线空态是「尚无动作记录」（**不是**「尚无编辑记录」—— R-10）', async () => {
+    server.use(
+      http.get('/api/v1/deliverables/:id/actions', () =>
+        HttpResponse.json({ deliverable_id: VERSIONED_ID, items: [], total: 0 }),
+      ),
+    );
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(screen.getByTestId('deliverable-actions-empty')).toBeTruthy());
+    expect(screen.getByTestId('deliverable-actions-empty').textContent).toContain('动作记录');
+  });
+
   it('⚠️ 列表**分页**（不得静默截断到前 100 条）', async () => {
     const seen: Array<{ limit: string | null; offset: string | null }> = [];
     server.use(

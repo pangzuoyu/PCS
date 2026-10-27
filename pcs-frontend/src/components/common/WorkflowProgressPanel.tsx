@@ -50,6 +50,25 @@ interface Props {
   workflowType: WorkflowType;
   workflowId: string;
   /**
+   * **受控模式**（R-15）：传了 `data` 面板就**不自己拉**。
+   *
+   * ⚠️ 为什么需要：聚合端点（TODO-065）一次返回两类工作流的进度 ⇒ 若每段
+   * 各渲染一个「自拉」面板 ⇒ 展开一行发 **1 聚合 + 每段 1 次** = 多个请求
+   * ⇒ 聚合端点的收益被完全抵消，且两套数据源可能不一致。
+   * ⇒ 受控模式 ⇒ 展开一行 = **1 个请求**。
+   *
+   * ⚠️ **既有自拉用法保持不变**（回归）：不传 `data` ⇒ 面板照旧自己拉。
+   */
+  data?: {
+    total: number;
+    pending: number;
+    in_progress: number;
+    completed: number;
+    skipped: number;
+    failed: number;
+    items?: ProgressItem[];
+  };
+  /**
    * 空态文案（宿主可定制）。
    *
    * ⚠️ **空态与「请求失败」是两回事**（SPEC §6.24 的宿主三态：
@@ -57,21 +76,41 @@ interface Props {
    * **不得**也渲染成「暂无步骤记录」（那是**说谎**）。
    */
   emptyDescription?: string;
-  /** 请求失败（403 / 404 / 网络）时的文案。 */
+  /**
+   * 请求失败（**网络 / 其它**）时的文案。
+   *
+   * ⚠️ TODO-067 #7：403 / 404 / 网络错误**不得**映射成同一句 ——
+   * **404 被读成「无权限」**会让用户以为自己没权限（其实是不存在）。
+   * ⇒ 403 ⇒ 「无权查看」（固定口径）；404 ⇒ 「该工作流不存在」（固定口径）；
+   * 其它 ⇒ 本 prop。
+   */
   errorDescription?: string;
+  /**
+   * **不渲染**顶部的 tab 行（聚合端点的宿主用）。
+   *
+   * ⚠️ 聚合端点一次返回**两段** ⇒ 每段各渲染一个面板 ⇒ 两个面板各带一行
+   * tab 会让人以为「可以切换」⇒ 宿主自己给每段起标题，面板只管内容。
+   */
+  showTabs?: boolean;
 }
 
 export function WorkflowProgressPanel({
   workflowType,
   workflowId,
+  data,
   emptyDescription = '该工作流暂无步骤记录',
   errorDescription = '无法读取该工作流的进度',
+  showTabs = true,
 }: Props): JSX.Element {
-  const [data, setData] = useState<ProgressResponse | null>(null);
+  const [fetched, setFetched] = useState<ProgressResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  const controlled = data !== undefined;
 
   useEffect(() => {
+    // ⚠️ **受控模式**：宿主已经喂了数据 ⇒ **不自己拉**（R-15）
+    if (controlled) return;
     let cancelled = false;
     setLoading(true);
     void api
@@ -79,13 +118,18 @@ export function WorkflowProgressPanel({
         `/workflow-progress/${workflowType}/${encodeURIComponent(workflowId)}`,
       )
       .then((res) => {
-        if (!cancelled) setData(res.data);
+        if (!cancelled) {
+          setFetched(res.data);
+          setErrorStatus(null);
+        }
       })
-      .catch(() => {
+      .catch((err) => {
         // ⚠️ 拿不到就**明说失败**（与「无步骤」是两回事）
         if (!cancelled) {
-          setData(null);
+          setFetched(null);
           setFailed(true);
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          setErrorStatus(typeof status === 'number' ? status : null);
         }
       })
       .finally(() => {
@@ -94,36 +138,57 @@ export function WorkflowProgressPanel({
     return () => {
       cancelled = true;
     };
-  }, [workflowType, workflowId]);
+  }, [workflowType, workflowId, controlled]);
 
-  const items: ProgressItem[] = [...(data?.items ?? [])].sort(
+  const effective = controlled
+    ? {
+        pending: data.pending,
+        in_progress: data.in_progress,
+        completed: data.completed,
+        skipped: data.skipped,
+        failed: data.failed,
+        items: data.items ?? [],
+      }
+    : fetched;
+
+  const items: ProgressItem[] = [...(effective?.items ?? [])].sort(
     (a, b) => a.step_order - b.step_order,
   );
 
+  // ⚠️ TODO-067 #7：403 / 404 / 网络**三种文案**（404 不是「无权限」）
+  const errorText =
+    errorStatus === 403
+      ? '无权查看该工作流的进度'
+      : errorStatus === 404
+        ? '该工作流不存在'
+        : errorDescription;
+
   return (
     <div data-testid="workflow-progress-panel">
-      <Tabs
-        size="small"
-        activeKey={workflowType}
-        // ⚠️ **只渲染 enabled 的 tab**（本批只有 SIGN）
-        items={WORKFLOW_TABS.filter((t) => t.enabled).map((t) => ({
-          key: t.type,
-          label: t.label,
-        }))}
-      />
+      {showTabs && (
+        <Tabs
+          size="small"
+          activeKey={workflowType}
+          // ⚠️ **只渲染 enabled 的 tab**（CHANGE_NOTICE 已被 R-13 删掉）
+          items={WORKFLOW_TABS.filter((t) => t.enabled).map((t) => ({
+            key: t.type,
+            label: t.label,
+          }))}
+        />
+      )}
 
-      {data && (
+      {effective && (
         <Space
           size={16}
           wrap
           data-testid="workflow-progress-counts"
           style={{ marginBottom: 12 }}
         >
-          <span>待办 {data.pending}</span>
-          <span>进行中 {data.in_progress}</span>
-          <span>完成 {data.completed}</span>
-          <span>跳过 {data.skipped}</span>
-          <span>失败 {data.failed}</span>
+          <span>待办 {effective.pending}</span>
+          <span>进行中 {effective.in_progress}</span>
+          <span>完成 {effective.completed}</span>
+          <span>跳过 {effective.skipped}</span>
+          <span>失败 {effective.failed}</span>
         </Space>
       )}
 
@@ -131,12 +196,7 @@ export function WorkflowProgressPanel({
         <Empty
           data-testid="workflow-progress-empty"
           description={
-            loading
-              ? '加载中…'
-              : failed
-                ? errorDescription
-                : emptyDescription
-          }
+            loading ? '加载中…' : failed ? errorText : emptyDescription}
         />
       ) : (
         <Space direction="vertical" size={4} style={{ width: '100%' }}>
