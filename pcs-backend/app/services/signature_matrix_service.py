@@ -769,7 +769,7 @@ class SignatureMatrixService:
     @classmethod
     async def list_project_bindings(
         cls, db: AsyncSession, *, project_id: uuid.UUID
-    ) -> list["ProjectMatrixBinding"]:
+    ) -> list[ProjectMatrixBinding]:
         """列项目绑的矩阵（**带归一化的步骤**）。
 
         ⚠️ **为什么归一化**：前端要的是「第 1 步该谁签」⇒ 直接给

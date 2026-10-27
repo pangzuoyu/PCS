@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T02:54:00.114Z",
-    "fileCount": 1059,
+    "lastScanned": "2026-10-27T03:25:12.112Z",
+    "fileCount": 1060,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "346fe2967113538bb68cbbee6db424d303def149f3b5f0c01745940315f9233c",
-    "storeUpdatedAt": "2026-10-27T02:54:00.125Z",
-    "rootHash": "fb2edf767b0dce24"
+    "renderedHash": "65b20e1eec66a993adfb9e710be9dc1db60faaffef6245ca26db35a86301d75a",
+    "storeUpdatedAt": "2026-10-27T03:25:12.123Z",
+    "rootHash": "dc502156b77939e4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21324,67 +21324,67 @@
     },
     "pcs-backend/app/schemas/deliverable.py": {
       "description": "交付物 API schema（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 1181,
-      "hash": "969066edbea5ffe5",
-      "size": 5206,
-      "mtimeMs": 1792545348291.6555,
-      "updatedAt": "2026-10-21T01:15:48.343Z",
+      "tokens": 1210,
+      "hash": "5d6d9184254709a9",
+      "size": 5384,
+      "mtimeMs": 1793070487622.335,
+      "updatedAt": "2026-10-27T03:08:07.669Z",
       "source": "hook",
       "symbols": [
         {
           "name": "DeliverableResponse",
           "kind": "class",
           "startLine": 20,
-          "endLine": 54,
-          "tokens": 315
+          "endLine": 56,
+          "tokens": 344
         },
         {
           "name": "DeliverableListResponse",
           "kind": "class",
-          "startLine": 55,
-          "endLine": 64,
+          "startLine": 57,
+          "endLine": 66,
           "tokens": 52
         },
         {
           "name": "DeliverableVersionResponse",
           "kind": "class",
-          "startLine": 65,
-          "endLine": 83,
+          "startLine": 67,
+          "endLine": 85,
           "tokens": 147
         },
         {
           "name": "RecordBindingResponse",
           "kind": "class",
-          "startLine": 84,
-          "endLine": 98,
+          "startLine": 86,
+          "endLine": 100,
           "tokens": 100
         },
         {
           "name": "DeliverableSnapshotResponse",
           "kind": "class",
-          "startLine": 99,
-          "endLine": 115,
+          "startLine": 101,
+          "endLine": 117,
           "tokens": 147
         },
         {
           "name": "DeliverableActionRow",
           "kind": "class",
-          "startLine": 116,
-          "endLine": 132,
+          "startLine": 118,
+          "endLine": 134,
           "tokens": 132
         },
         {
           "name": "TodoResponse",
           "kind": "class",
-          "startLine": 133,
-          "endLine": 143,
+          "startLine": 135,
+          "endLine": 145,
           "tokens": 83
         },
         {
           "name": "TodoListResponse",
           "kind": "class",
-          "startLine": 144,
-          "endLine": 149,
+          "startLine": 146,
+          "endLine": 151,
           "tokens": 40
         }
       ]
@@ -35651,11 +35651,11 @@
     },
     "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
       "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。",
-      "tokens": 2319,
-      "hash": "f2b7ac3daaa7deb3",
-      "size": 9251,
-      "mtimeMs": 1792579313531.1897,
-      "updatedAt": "2026-10-21T10:41:53.581Z",
+      "tokens": 2300,
+      "hash": "e4371e7db22e7516",
+      "size": 9185,
+      "mtimeMs": 1793071284058.102,
+      "updatedAt": "2026-10-27T03:21:24.102Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
@@ -35678,11 +35678,11 @@
     },
     "pcs-frontend/src/mocks/seed/deliverables.ts": {
       "description": "交付物的 seed（P9B-1 · SPEC §6.24 · 交付物进度页）。",
-      "tokens": 699,
-      "hash": "4e57ab0a79def857",
-      "size": 2684,
-      "mtimeMs": 1792552490179.7207,
-      "updatedAt": "2026-10-21T03:14:50.229Z",
+      "tokens": 680,
+      "hash": "95f53258f9f8e5c0",
+      "size": 2618,
+      "mtimeMs": 1793071268405.3716,
+      "updatedAt": "2026-10-27T03:21:08.461Z",
       "source": "hook"
     },
     "pcs-frontend/e2e/result_edit_conflict.spec.ts": {
@@ -35917,11 +35917,11 @@
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 7830,
-      "hash": "48444244f899f38d",
-      "size": 33061,
-      "mtimeMs": 1793069558550.359,
-      "updatedAt": "2026-10-27T02:52:38.610Z",
+      "tokens": 7829,
+      "hash": "f4eee1ceb7ca715b",
+      "size": 33059,
+      "mtimeMs": 1793071501374.697,
+      "updatedAt": "2026-10-27T03:25:01.423Z",
       "source": "hook",
       "symbols": [
         {
@@ -35943,7 +35943,7 @@
           "kind": "class",
           "startLine": 100,
           "endLine": 813,
-          "tokens": 7102
+          "tokens": 7101
         }
       ]
     },
@@ -36359,11 +36359,11 @@
     },
     "pcs-backend/app/models/deliverable.py": {
       "description": "交付物 ORM 模型（P5-3 报告/文档输出）。",
-      "tokens": 2950,
-      "hash": "77dcd3391cccdf99",
-      "size": 11212,
-      "mtimeMs": 1792972933052.68,
-      "updatedAt": "2026-10-26T00:02:13.099Z",
+      "tokens": 3084,
+      "hash": "4a2c80592ec6fca4",
+      "size": 11995,
+      "mtimeMs": 1793070484104.4968,
+      "updatedAt": "2026-10-27T03:08:04.153Z",
       "source": "hook",
       "symbols": [
         {
@@ -36371,7 +36371,7 @@
           "kind": "class",
           "startLine": 31,
           "endLine": 100,
-          "tokens": 873
+          "tokens": 892
         },
         {
           "name": "DeliverableVersion",
@@ -36391,35 +36391,35 @@
           "name": "SignatureMatrix",
           "kind": "class",
           "startLine": 148,
-          "endLine": 167,
-          "tokens": 212
+          "endLine": 177,
+          "tokens": 327
         },
         {
           "name": "ProjectSignatureMatrixBinding",
           "kind": "class",
-          "startLine": 168,
-          "endLine": 199,
+          "startLine": 178,
+          "endLine": 209,
           "tokens": 298
         },
         {
           "name": "CustomerApprovalAttachment",
           "kind": "class",
-          "startLine": 200,
-          "endLine": 224,
+          "startLine": 210,
+          "endLine": 234,
           "tokens": 289
         },
         {
           "name": "ChangeNoticeDetail",
           "kind": "class",
-          "startLine": 225,
-          "endLine": 244,
+          "startLine": 235,
+          "endLine": 254,
           "tokens": 221
         },
         {
           "name": "RecordChangeSnapshot",
           "kind": "class",
-          "startLine": 245,
-          "endLine": 274,
+          "startLine": 255,
+          "endLine": 284,
           "tokens": 355
         }
       ]
@@ -38382,11 +38382,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md",
-      "tokens": 420,
-      "hash": "e0b24aa18faa0c54",
-      "size": 1732,
-      "mtimeMs": 1793069252886.1636,
-      "updatedAt": "2026-10-27T02:47:32.938Z",
+      "tokens": 687,
+      "hash": "95cf624383f0b864",
+      "size": 3449,
+      "mtimeMs": 1793071432535.7148,
+      "updatedAt": "2026-10-27T03:23:52.590Z",
       "source": "hook"
     },
     "pcs-backend/tests/api/v1/test_project_creation.py": {
@@ -38518,6 +38518,15 @@
           "tokens": 246
         }
       ]
+    },
+    "pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py": {
+      "description": "删死列 `deliverables.parent_deliverable_id`（P9B-2 · T-2 · 用户 2026-10-27 裁决）。",
+      "tokens": 406,
+      "hash": "e7190b7273892152",
+      "size": 2011,
+      "mtimeMs": 1793071512064.5435,
+      "updatedAt": "2026-10-27T03:25:12.111Z",
+      "source": "hook"
     }
   }
 }

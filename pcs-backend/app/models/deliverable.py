@@ -57,9 +57,9 @@ class Deliverable(TimestampMixin, Base):
         String(20), comment="PROJECT_ALL/UNIT/SUB_PROJECT/CUSTOM"
     )
     scope_value: Mapped[str] = mapped_column(String(100), comment="ALL 或 '5000'/'ISBL'")
-    parent_deliverable_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("deliverables.deliverable_id")
-    )
+    # ⚠️ 原 `parent_deliverable_id`（FK → 自身）**已删**（P9B-2 · T-2 · 迁移 `p9_012`）：
+    #    0 行数据 + 0 处写入 + R-13 后零依赖 ⇒ 变更单**自己就是交付物**
+    #    （`deliverable_type=CHANGE_NOTICE`），不存在「挂在父交付物上」这回事。
     doc_no: Mapped[str] = mapped_column(String(200), index=True)
     doc_no_mode: Mapped[str] = mapped_column(String(20), comment="MANUAL/WORLEY_STD/CUSTOM")
     numbering_template_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -25177,18 +25177,6 @@
             ],
             "title": "Matrix Id"
           },
-          "parent_deliverable_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Deliverable Id"
-          },
           "customer_approval_date": {
             "anyOf": [
               {

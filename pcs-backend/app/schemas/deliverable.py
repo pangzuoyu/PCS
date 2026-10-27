@@ -46,7 +46,9 @@ class DeliverableResponse(BaseModel):
     version_purpose: str
     sign_status: str
     matrix_id: uuid.UUID | None = None
-    parent_deliverable_id: uuid.UUID | None = None
+    # ⚠️ 原 `parent_deliverable_id` **已删**（P9B-2 · T-2 · 迁移 `p9_012`）：
+    #    变更单**自己就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒
+    #    不存在「父交付物」这层关系。
     customer_approval_date: date | None = None
     customer_approver_name: str | None = None
     created_at: datetime | None = None

@@ -9128,8 +9128,6 @@ export interface components {
             sign_status: string;
             /** Matrix Id */
             matrix_id?: string | null;
-            /** Parent Deliverable Id */
-            parent_deliverable_id?: string | null;
             /** Customer Approval Date */
             customer_approval_date?: string | null;
             /** Customer Approver Name */

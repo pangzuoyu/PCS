@@ -2522,3 +2522,14 @@
 | 10:53 | Edited pcs-backend/app/api/v1/signature_matrices.py | modified list_project_matrix_bindings() | ~492 |
 | 10:53 | Edited pcs-backend/app/api/v1/signature_matrices.py | 10→11 lines | ~86 |
 | 10:54 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified test_create_project_unknown_workspace_is_404() | ~176 |
+| 11:08 | Created pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py | — | ~371 |
+| 11:08 | Edited pcs-backend/app/models/deliverable.py | 5→5 lines | ~99 |
+| 11:08 | Edited pcs-backend/app/schemas/deliverable.py | 3→5 lines | ~68 |
+| 11:13 | Edited pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py | modified upgrade() | ~64 |
+| 11:21 | Edited pcs-frontend/src/mocks/seed/deliverables.ts | 8→7 lines | ~47 |
+| 11:21 | Edited pcs-frontend/src/mocks/seed/deliverables.ts | 7→6 lines | ~39 |
+| 11:21 | Edited pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | 8→7 lines | ~49 |
+| 11:21 | Edited pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | 7→6 lines | ~39 |
+| 11:23 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | expanded (+18 lines) | ~291 |
+| 11:25 | Edited pcs-backend/app/services/signature_matrix_service.py | inline fix | ~11 |
+| 11:25 | Edited pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py | 4→4 lines | ~24 |

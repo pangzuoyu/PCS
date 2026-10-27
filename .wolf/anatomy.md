@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T02:54:00.114Z
-> Files: 1059 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T03:25:12.112Z
+> Files: 1060 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -292,7 +292,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~420 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~687 tok)
 
 ## .vite/vitest/
 
@@ -1184,6 +1184,7 @@
 - `p9_009_numbering_template_name_unique.py` — P9A-DLV-011 收官批：`numbering_templates.template_name` 加唯一约束（TODO-073）。 (~471 tok)
 - `p9_010_matrix_name_status_unique.py` — P9A-DLV-011 收官批：`signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）。 (~546 tok)
 - `p9_011_schema_aware_constraints.py` — 把 6 条约束**按 schema** 补齐（TODO-088）。 (~1208 tok)
+- `p9_012_drop_parent_deliverable_id.py` — 删死列 `deliverables.parent_deliverable_id`（P9B-2 · T-2 · 用户 2026-10-27 裁决）。 (~406 tok)
 
 ## pcs-backend/app/
 
@@ -1239,7 +1240,7 @@
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~17119 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
-- `deliverable.py` — 交付物 ORM 模型（P5-3 报告/文档输出）。 (~2950 tok)
+- `deliverable.py` — 交付物 ORM 模型（P5-3 报告/文档输出）。 (~3084 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5203 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `mixins.py` — ORM mixin 集合（公用字段 + 状态机 hook）。 (~1382 tok)
@@ -1257,7 +1258,7 @@
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
-- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1181 tok)
+- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1210 tok)
 - `edit_conflict.py` — 编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。 (~775 tok)
 - `lock.py` — 编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。 (~404 tok)
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
@@ -1293,7 +1294,7 @@
 - `record_snapshot_codec.py` — 记录快照的**数据编解码**（TODO-087）。 (~1917 tok)
 - `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~3082 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
-- `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~7830 tok)
+- `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~7829 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5544 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
@@ -1653,7 +1654,7 @@
 
 ## pcs-frontend/src/mocks/seed/
 
-- `deliverables.ts` — 交付物的 seed（P9B-1 · SPEC §6.24 · 交付物进度页）。 (~699 tok)
+- `deliverables.ts` — 交付物的 seed（P9B-1 · SPEC §6.24 · 交付物进度页）。 (~680 tok)
 - `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~1043 tok)
 - `results.ts` — 6 类可编辑结果记录的 seed（P9B-1 · SPEC §6.21）。 (~2332 tok)
 
@@ -1751,7 +1752,7 @@
 
 ## pcs-frontend/tests/pages/deliverables/
 
-- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2319 tok)
+- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24）。 (~2300 tok)
 - `signature_matrix_page.test.tsx` — 签署矩阵管理页的守卫（TODO-079 · P9A-DLV-011 T3 的前端）。 (~881 tok)
 
 ## pcs-frontend/tests/pages/pipe_class/
