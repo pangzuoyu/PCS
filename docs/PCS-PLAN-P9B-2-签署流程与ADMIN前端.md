@@ -2332,10 +2332,17 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_found → **计划已按裁决更新** | 9 issues, 0 critical gaps, 3 处机械修正 |
+| 专家委员会（用户） | 第二轮 | 计划一致性 | 2 轮 | **CLEARED TO START**（第二轮） | 第一轮 3 条 P1 → 闭环；第二轮 4 条 P2 + 3 条 P3 → 闭环 |
+| 第三方（Hermes） | 独立复核 | 事实核查 | 1 | 6 条发现 → **已全部核实并处理** | 3 条真缺陷（`row.detail_json` / 行号漂移 / 测试名）+ 3 条已核实项（`counts` 键类型、`need_mixin`、`module='*'` 通配） |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | 待 P9B-2 落地后跑 |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
 - **ENG:** 2026-10-27 —— 发现**计划的事实基础已过期 6 天**（R-1 / R-3 / R-6 的前提全部失效）
   ⇒ 追加 9 条裁决（R-11~R-19）+ 3 处机械修正 ⇒ 任务从 T0~T7 扩到 **T0~T10**。
-- **UNRESOLVED:** 0（9 条裁决已全部落到计划正文）
-- **VERDICT:** ENG CLEARED — 计划已更新，可开工。⚠️ 落地时若与 SPEC §6.3 的冻结按钮表冲突 ⇒ **以 `meta/state-machine` 为准**并登记 `docs/PCS-UI-SPEC.md` §12.4。
+- **UNRESOLVED:** 0（9 条裁决 + 委员会 6 条 P1 + 5 条 P2 + 6 条 P3 全部落到计划正文）
+- **VERDICT:** ENG CLEARED + **委员会 CLEARED TO START**（2026-10-27 第二轮）——
+  计划可开工。⚠️ 落地时若与 SPEC §6.3 的冻结按钮表冲突 ⇒ **以 `meta/state-machine`
+  为准**并登记 `docs/PCS-UI-SPEC.md` §12.4。
+- ⚠️ **两轮审查的共同教训**（写进 cerebrum）：**改一个决策要把它在文档里的所有
+  落点一起改** —— 只改最显眼的那处会留下**反向残留**（第一轮的断言 5 / 7、
+  第二轮的旧文段与骨架注释，都是「同一决策的其它落点」没跟上）。
