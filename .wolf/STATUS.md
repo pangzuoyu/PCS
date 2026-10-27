@@ -4,12 +4,24 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-27（P9A-DLV-011 **收尾批 #2**：TODO-088/089/090 + 「逃生口」）。
+> Read this FIRST when starting a session. Last updated: 2026-10-27（**P9B-2 计划三审全闭环并已推送远端**；上批：P9A-DLV-011 收尾批 #2）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ Done
+
+### 第 17 轮：**P9B-2 计划审查**（三审全闭环，已推送 `origin/main` @ `5fa2f59`）
+
+`694ba21` `/plan-eng-review` 复审（**9 条裁决 R-11~R-19** + 3 处机械修正）
+· `801048b` 委员会 + 第三方 3 P1 + 5 P2 + 3 P3 闭环 · `93485bb` 用户两条裁决
+（**T-1** 项目创建 + 默认绑 RECORD 矩阵 / **T-2** 删死列 `parent_deliverable_id`）
+· `530d0e3` 委员会第二轮 4 P2 + 3 P3（含 **P2-4** 新端点
+`GET /projects/{id}/signature-matrices`）· `6339fac` 审查报告 · `5fa2f59` cerebrum
++ STATUS。计划 1617 → **2348 行**，任务 **T-1/T-2 → T0…T10**。
+⚠️ 核心发现：计划写于 2026-10-21 ⇒ **R-1 / R-3 / R-6 前提全部失效**（P9A-DLV-011
+落了矩阵管理面 + 变更单链路）⇒ 原样开工会做出**三个永远点不动的按钮**。
+⇒ 教训入 cerebrum：「**改一个决策要改它的所有落点**」。
 
 ### 第 16 轮：**P9A-DLV-011 收尾批 #2**（用户「顺序解决 1-4 未解决问题」）
 
