@@ -169,10 +169,12 @@ P9 SPEC §4.3/§4.4 的 P9B 共 8 个工作项（7.5–10 人周）。P9B-1 做�
 meta 驱动的 `RecordActions` 渲染 ⇒ 归 `ChangeNoticeAction`（R-12 澄清）；
 `INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` **是**成员 ⇒ 归
 `RecordActions`（meta 驱动）。
-⚠️ **13 个状态机事件里，只有 6 个有端点**（**这句已过时** —— 见上）：`MARK_STALE` /
-`INITIATE_CHANGE` / `APPLY_CHANGE` / `RESOLVE_STALE_NO_CHANGE` /
-`RESOLVE_STALE_CHANGED` **无端点**
-⇒ SPEC §6.3 的「变更申请」「创建交付物」「关闭凭证」**本批无后端可调**（见 R-6）。
+> ~~**历史（2026-10-21，已被推翻）**：13 个状态机事件里只有 6 个有端点 ——
+> `MARK_STALE` / `INITIATE_CHANGE` / `APPLY_CHANGE` / `RESOLVE_STALE_NO_CHANGE` /
+> `RESOLVE_STALE_CHANGED` 无端点 ⇒ SPEC §6.3 的「变更申请」「创建交付物」「关闭凭证」
+> 本批无后端可调（见 R-6）。~~ ⇒ **2026-10-27：`INITIATE_CHANGE` / `APPLY_CHANGE`
+> **已有端点**（见上表）⇒ 只剩 `MARK_STALE` / `RESOLVE_STALE_NO_CHANGE` /
+> `RESOLVE_STALE_CHANGED` 无端点；R-6 已失效 ⇒ 那三个按钮**可用**。
 
 ⚠️ **端点层会映射异常**：`RoleForbidden` → 403 `RECORD_ROLE_FORBIDDEN`；
 `InvalidTransition` → 409 `RECORD_INVALID_TRANSITION`；
@@ -364,6 +366,9 @@ meta mock，要新加」—— 它**早就在** `src/mocks/handlers.ts:966`（5 
 | ADMIN 导出 | CSV 含逗号 / 引号 / 换行 | ✔ T7 断言 6 | ✔ `csvCell()` | 文件不破行 |
 | ADMIN 导出 | 结果 > 5000 行 | ✔ T7（RF-11） | ✔ 显式提示截断 | 「已导出前 5000 行」 |
 | mock | seed 与后端漂移 ⇒ 按钮可点但 403 | ✔ T10 守卫测试（R-19） | — | （漂移即红，进不了主干） |
+| 读项目绑定端点 | 别人项目的绑定 | ✔ T-1 断言 8 | ✔ 404 | 「无权查看」 |
+| 读项目绑定端点 | 项目**没绑** RECORD 矩阵 | ✔ T-1 断言 8 | ✔ 空列表 | 前端**不禁用**（不猜）⇒ 后端 422 兜底 |
+| 读项目绑定端点 | 拉取失败（网络） | ✔ T4（缓存失败 ⇒ 不禁用） | ✔ catch | 按钮可用 + 后端 403 兜底 |
 
 ⇒ **0 个「无测试 + 无错误处理 + 静默」的三重缺口**（critical gap = 0）。
 
@@ -452,7 +457,10 @@ COVERAGE: 31/31 路径有测试计划（100%）  |  GAPS: 0  |  E2E: 2 条（T10
 | T9 TODO-067 七条 | `src/components/common/` `src/pages/results/` `src/api/` `tests/` | T1/T4/T6（同文件 ⇒ 须在其**后**） |
 | T10 QA + 收口 | 全仓（只跑不改） | 全部 |
 
-⇒ **一条 lane，顺序执行**（T0→T1→T2→T3→T4→T5→T6→T7→T8→T9→T10）：
+⇒ **一条 lane，顺序执行**（**T-1 → T-2 → T0→T1→T2→T3→T4→T5→T6→T7→T8→T9→T10**）：
+**T-1 / T-2 是后端纯增量**（项目创建 + 删死列）⇒ **先做**，且两者都只碰
+`app/api/v1/` + `app/models/` + `app/schemas/` ⇒ 可与 **T0 / T1 合并成一次
+契约滚动**（省一次 `export_openapi` + baseline 滚）。
 T3 卡在 T2 的契约变更后面；T9 的 #2/#6/#7 与 T4/T1/T6 **同文件** ⇒ 只能在其后；
 T8/T7 都改 `src/api/` ⇒ 只能在其后。
 ⇒ 唯一能真正并行的是 **T0 与 T1**（不同文件、都只碰后端）⇒ 但它们都在
@@ -496,6 +504,8 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 `pcs-backend/app/schemas/project.py`（加 `ProjectCreate`，T-1）、
 `pcs-backend/app/models/deliverable.py` + `app/schemas/deliverable.py`
 （删死列，T-2）、
+`pcs-backend/app/api/v1/signature_matrices.py`（**新增 GET 读项目绑定端点**，T-1）、
+`pcs-backend/app/schemas/signature_matrix.py`（加 `ProjectMatrixBindingOut`，T-1）、
 `pcs-backend/app/api/v1/__init__.py`（挂 `record_edits` 路由，T1）、
 `pcs-backend/app/services/signature_matrix_service.py`（加 `resolve_project_matrix`，T2）、
 `pcs-backend/app/api/v1/records_actions.py` + `pcs-backend/app/services/state_machine.py`
@@ -543,7 +553,7 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 
 ---
 
-## Task T-1：后端 —— 项目创建 `POST /projects` + **默认绑一份 RECORD 矩阵**（2026-10-27 复审新增）
+## Task T-1：后端 —— 项目创建 `POST /projects` + **项目 × 矩阵绑定**（默认绑 + 读绑定）（2026-10-27 复审新增）
 
 **Why（实测）**：`app/api/v1/projects.py` **只有** `GET /{project_id}` 与
 `PATCH /{project_id}` ⇒ **没有 `POST /projects`** ⇒ 项目**建不出来** ⇒
@@ -557,7 +567,8 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 - Modify: `app/schemas/project.py`（加 `ProjectCreate`）
 - Modify: `app/api/v1/projects.py`（加 `POST /projects`）
 - Modify: `app/services/signature_matrix_service.py`（加
-  `ensure_default_record_matrix(db, project_id)` —— 幂等）
+  `ensure_default_record_matrix(db, project_id)` —— 幂等；加
+  `list_project_bindings(db, project_id)` —— 带**归一化的步骤**）
 - Test: `tests/api/v1/test_project_creation.py`
 
 **必填字段（实测自 `app/models/project.py` 的 `Project` —— 类型非 `Optional`
@@ -578,8 +589,35 @@ T8/T7 都改 `src/api/` ⇒ 只能在其后。
 5. **默认矩阵已被人工改过**（绑了别的矩阵）⇒ **不覆盖**（不夺走「谁该签」的
    决定权）。
 6. `workspace_id` 指向不存在的工作区 ⇒ **404**（不建孤儿项目）。
+7. **非 SYSTEM_ADMIN ⇒ 403**（与同文件既有的 `PATCH /{id}/product-category`
+   同口径 —— 创建项目是管理动作）。
+8. **读项目绑定**（新增端点，见下）⇒ `GET /projects/{project_id}/signature-matrices`
+   ⇒ 返回该项目绑的矩阵**列表**，每项含**归一化的步骤**；`module='RECORD'` 那条
+   的 `steps[0].sign_role` = 记录级批准链的**第 1 步角色** ⇒ **前端据此判定
+   「矩阵第 1 步角色 == 我 ⇒ 送审禁用」**（T4 断言 10 的数据来源）。
+   ⚠️ **这个读端点此前不存在**（实测：`signature_matrices.py` 只有
+   `GET /signature-matrices`、`GET /signature-matrices/{id}`、`POST /signature-matrices`、
+   `PUT /signature-matrices/{id}`、`POST /projects/{id}/signature-matrices`、
+   `DELETE /projects/{id}/signature-matrices/{module}` ⇒ **没有 GET 绑定**）⇒
+   不补它 ⇒ 前端**拿不到**「矩阵第 1 步角色」⇒ T4 断言 10 无法实现 ⇒
+   只能退化成「点了才吃 403」（违背 SPEC §5.1「门禁前置」）。
 
 **Step 2: 跑测试确认失败** ⇒ FAIL（端点不存在）。
+
+**Step 2b: 读绑定的端点（新 · P2-4 的落地）**
+
+`GET /projects/{project_id}/signature-matrices` ⇒
+`list[ProjectMatrixBindingOut]`：
+
+| 字段 | 说明 |
+|---|---|
+| `module` | `RECORD` / `STREAM` / `EQUIP` / `CHANGE_NOTICE` / `*` |
+| `matrix_id` / `matrix_name` / `status` | 矩阵本身 |
+| `steps` | **归一化**后的步骤（`SignatureMatrixService.parse_steps` 的形状：`step_order` / `sign_role` / `required` / `can_self_check` / `can_skip`）⇒ 与前端 `SignatureMatrixPage` 显示的**同一套** |
+
+⚠️ **守卫**：项目访问权（`check_project_access_or_404`）⇒ 别人项目 ⇒ **404**。
+⚠️ **为什么要归一化的步骤**：前端要的是「第 1 步该谁签」⇒ 直接给 `steps_json`
+原样 ⇒ 前端得自己解析 `steps_json`（**第二份解析逻辑**）⇒ 归一化由后端做一次。
 
 **Step 3: 实现**
 
@@ -602,7 +640,7 @@ cd pcs-backend && uv run python scripts/export_openapi.py
 bash pcs-backend/scripts/gate_08_openapi_contract.sh
 ```
 
-**Step 5: 提交** ⇒ `feat(P9B-2): POST /projects + 默认绑 RECORD 矩阵`
+**Step 5: 提交** ⇒ `feat(P9B-2): POST /projects + 项目×矩阵绑定（默认绑 + 读绑定）`
 
 ---
 
@@ -637,6 +675,8 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh
 #   ⚠️ `downgrade` 只能把列**加回来**（数据回不来）⇒ 降级是**有损**的，
 #   这是删列的固有代价，不在降级路径里修。
 ```
+`revision = "p9_012"` · `down_revision = "p9_011"`（当前 head；执行时以
+`alembic heads` 为准）⇒
 `op.drop_column("parent_deliverable_id", table_name="deliverables")`；
 `downgrade` = `op.add_column(...)`（**有损**，注释写明）。
 
@@ -1547,7 +1587,11 @@ git commit -m "feat(P9B-2): 记录动作 / 交付物进度 / meta / ADMIN 的 ap
 
 **Interfaces:**
 - Consumes: `metaApi`（T3）、`recordActionsApi`（T3）、`useAuth`（`role`）、
-  `EditableRecordType`。
+  `EditableRecordType`、
+  ⚠️ **`signatureMatricesApi.listProjectBindings(projectId)`（T-1 的新端点
+  `GET /projects/{project_id}/signature-matrices`）** ⇒ 取 `module='RECORD'`
+  那条的 `steps[0].sign_role` = **矩阵第 1 步角色** ⇒ 断言 10 的判据来源。
+  **打开抽屉时拉一次并缓存**（同一项目只拉一次 ⇒ 不是每行一次）。
 - Produces:
   ```ts
   interface RecordActionsProps {
@@ -1628,11 +1672,16 @@ hasSignStatus: boolean;
  * - 前置条件（`preconditions`）非空 ⇒ 禁用 + Tooltip 列出前置条件
  * - 理由必填的动作（弃用 / 发起撤销）理由为空 ⇒ 禁用 + Tooltip 说明
  *
- * ## 没有后端端点的动作
+ * ## 变更类动作**也**在这张表里（R-12）
  *
- * SPEC §6.3 里的「变更申请 / 创建交付物 / 关闭凭证」**没有端点**
- * （`INITIATE_CHANGE` / `APPLY_CHANGE` 无 API）⇒ 渲染成**禁用**按钮 +
- * Tooltip「后端未提供该操作」，**不静默隐藏、也不发假请求**（R-6）。
+ * `INITIATE_CHANGE` / `APPLY_CHANGE` / `ABANDON_CHANGE` 本来就在
+ * `ALLOWED_TRANSITIONS` 里 ⇒ meta 驱动会**自动**包含它们 ⇒ 端点**都有**
+ * （`initiate-change` / `apply-change` / `abandon-change`）⇒ 渲染成**可用**按钮。
+ * ⚠️ **R-6 已失效**（2026-10-27）—— 旧文说这三个按钮「没有后端端点 ⇒ 禁用」，
+ * **那是被推翻的旧文**，别照它写。
+ *
+ * ⚠️ **但 `change-notice`（建单）/ `change-notice/cancel`（作废）不是状态机
+ * 事件** ⇒ meta 驱动**不会**渲染它们 ⇒ 它们归 `ChangeNoticeAction`（R-12b）。
  */
 ```
 
@@ -1655,6 +1704,13 @@ export function RecordActions({
       .catch(() => { if (!cancelled) setError('无法读取状态机定义'); });
     return () => { cancelled = true; };
   }, []);
+
+  // ⚠️ **矩阵第 1 步角色**（断言 10 的判据）：来自 **T-1 的读绑定端点**
+  //    `GET /projects/{project_id}/signature-matrices` ⇒ 取 `module='RECORD'`
+  //    那条的 `steps[0].sign_role`。⇒ **打开抽屉时拉一次并缓存**（同一项目
+  //    只拉一次 ⇒ 不是每行一次 ⇒ 不是 N+1）。
+  //    ⚠️ 没绑矩阵 / 拉失败 ⇒ **不禁用**（前端不知道 ⇒ 不猜）⇒ 后端 403 兜底。
+  const [firstStepRole, setFirstStepRole] = useState<string | null>(null);
 
   if (!signStatus) return null;                       // RF-4：无 9 态列 ⇒ 不渲染
   if (!sm) return <Skeleton active />;
@@ -2048,7 +2104,10 @@ git commit -m "feat(P9B-2): ADMIN 用户管理页 + 审计日志筛选与导出"
    `{version_id, decision, reason?}`。
 8. `deliverablesApi.customerApprovalProxy` 打
    **`POST /deliverables/{id}/customer-approval/proxy`**，请求体逐字取后端 schema
-   （**先读** `app/api/v1/deliverables.py` 的该端点签名，不要凭印象写字段名）。
+   （起点：`app/api/v1/deliverables.py` 的该端点 → 它调
+   `app/services/deliverable_service.py` 的**客户批准代录**方法 ⇒ 观测写入点
+   `record_step(workflow_type=CUSTOMER_APPROVAL_PROXY)` 也在那儿；**先读**签名，
+   不要凭印象写字段名）。
 
 **Step 2: 跑测试确认失败** ⇒ FAIL（组件不存在）。
 
@@ -2209,6 +2268,9 @@ git add -A && git commit -m "chore(P9B-2): QA gate + 收口"
 - [ ] **TODO-067 的 7 条**全部闭环（每条一个测试 + 一次改动）。
 - [ ] **项目能创建**（T-1）：`POST /projects` ⇒ 201 ⇒ **自动绑一份 ACTIVE 的
       RECORD 矩阵**（3 步 CHECKER→REVIEWER→APPROVER）⇒ 新项目**当场能送审**。
+- [ ] **前端读得到项目绑定的矩阵**（T-1 的新 GET）：`GET
+      /projects/{id}/signature-matrices` ⇒ 带**归一化的步骤** ⇒ T4 的断言 10
+      （矩阵第 1 步角色 == 当前用户 ⇒ 送审禁用）**可实现**。
 - [ ] **死列已删**（T-2）：`parent_deliverable_id` 不再出现在 model / schema /
       DB；`alembic check` 两库 + 隔离 schema 各 exit 0。
 - [ ] ADMIN：停用后**重拉列表**；AD 同步的失败方向**不显示成成功**；
