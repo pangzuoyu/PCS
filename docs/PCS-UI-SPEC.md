@@ -1,8 +1,8 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V2.3
-发布日期: 2026-10-21
+当前版本: V2.4
+发布日期: 2026-10-28
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
   - PCS-REQ-2026-002-SPEC-P0 V1.2
@@ -268,6 +268,7 @@ text
    复用设备库
 ▾ 系统
    用户管理
+   建项目
    角色权限
    审计日志
    AI 配置
@@ -2069,6 +2070,8 @@ text
 7.20 ADMIN
 用户管理（AD 同步）
 
+建项目
+
 角色分配
 
 审计日志（查询 + 导出）
@@ -2335,6 +2338,8 @@ V1.9	2026-10-20	P9A-4 D3 补 §6.7.1 变更影响的「确认」动作（P9A-CIA
 V2.0	2026-10-20	P9A-5 Task A 归一 `record_type` 词表（TODO-060）：①**全仓只有一套词表** —— `RECORD_TYPE_REGISTRY` 的键，取代此前 `/change-impact`（键）与 `/locks`+`/results`（表名）的分叉；⚠️ 推翻了 V1.9 登记的「§6.7.1 用类名」—— 实测注册表 21 个键里 **5 个 ≠ 类名**（`cv_result`/`restriction_result`/`flare_system_result`/`cooling_tower_result`/`psychro_result`）⇒「类名」不是一套词表；②**破坏性变更**：`/locks/{record_type}` 三端点改为只接受注册表键、**并校验**（未登记 ⇒ 404）。原先完全不校验 ⇒ 传错拼写 200 成功、锁写进 `lock:edit:{错拼写}:{id}`，与正确拼写**互不可见** ⇒ 两个人能同时编辑同一条记录；且 `has_conflict_detection(错拼写)`=False 会让降级横幅**错误地**说「本次编辑无冲突检测」；③`{record_type}` 参数在 OpenAPI 里带 `enum`（前端不必再读 SPEC 源码才知道取值）；④SPEC §6.7.1 与 §6.21 的词表句同步修订。**风格不统一**（3 snake + 3 Pascal）是 `RECORD_TYPE_REGISTRY` 的历史遗留（TODO-055）⇒ 统一风格要动 `/change-impact` 与 `/records/{module}` 两个已发布契约 + 存量 DB 列，本版不做。	Claude Code
 V2.1	2026-10-21	P9A Z 收口补写 **ADR-0047 §后果 / ADR-0049 §⑥ 承诺而至今 0 命中的 10 条 SPEC 条款**（P9A-OBS-001~004 / P9A-NOT-001~006，V1.6/V1.7 两版都登记为欠账）：①新增 **§6.22 TodoPanel**（P9A-NOT-002 待办实时计算 —— 待办**不落库**，真值是「签署矩阵当前步骤 × 当前用户角色」；`GET /todos` 逐字字段；`total` ≠ `items.length` 时计数用 `total`；待办为空不得断言「你没有待办」—— 也可能是无签署职责）；②新增 **§6.23 RealtimeStatus**（P9A-NOT-005/006 —— `WS /api/v1/ws/notifications` 的下行帧逐字取实现；**真值是 `notifications` 表**，WS 只是及时性通道，「WS 推送成功」≠「通知已送达」；重连走 `?after=<last_seen>` 补齐；降级读 `/health` 的 `realtime`/`realtime_reason`，`realtime` 只承诺 **pub/sub 可达性**、**不得**用于 liveness/readiness；降级 ⇒ 自动切轮询，通知**仍可达**，横幅**不阻断**）；③新增 **§6.24 WorkflowProgressPanel**（P9A-OBS-001~004 —— `GET /workflow-progress/{workflow_type}/{workflow_id}`；`{workflow_id}` **多态**（SIGN→版本 ID，其余→交付物 ID）；**五态不得归并成三态**（PENDING 与 SKIPPED 都是「没完成」但语义不同）；**不得显示百分比**（`total` 是节点数不是工作量）；观测层**保证「流程进度可信」不保证「通知已送达」**；CHANGE_NOTICE 写入点当前不可达 ⇒ 该类型面板恒为空，前端不得显示成「流程异常」）；④**扩写 §6.20**：通知条目**逐字绑定契约**（`kind`/`title`/`body`/`created_at`/`read_at`/`detail`）、未读判定 = `read_at` 为 null、铃铛红点 = 响应 `unread_count`（**不是**前端数 `items`）、`kind` 只有后端四值（**不得**映射成自造三档分类）、标已读后**重新拉列表**、通知**只保留 30 天**；⑤**补齐 §6.20 四个分组的数据来源**（V1.0 只锁了分组名没锁来源，P9A 交付了「通知」与「待办」两个来源）：待办 ← `GET /todos`（**不是**通知）、变更 ← `kind=CHANGE_NOTICE_APPROVED`、系统 ← 其余三种 kind、全部 ← 全部**通知**（不含待办）。	Claude Code
 V2.2	2026-10-27	P9B-2 T2（TODO-054 · R-17）—— **契约破坏性变更**「送审选角色」取消：①§6.3 `DRAFT` 态的「提交批准」**没有角色选择器** ⇒ 批准链由**后端**从**项目绑定的 `module='RECORD'` 签署矩阵**推导 ⇒ `POST /records/{module}/{id}/submit-approval` 的请求体**只收** `{reason?}`（**不再收** `approval_role` / `approval_depth`，多传 ⇒ 422）；②项目**没绑** RECORD 矩阵 ⇒ 前端送审按钮**禁用** + Tooltip「项目未绑定记录级签署矩阵」，后端 **422** `RECORD_APPROVAL_MATRIX_NOT_BOUND`；③矩阵**第 1 步**角色 == 当前用户 ⇒ 送审按钮**禁用** + Tooltip（替代原「排除自己的角色」的选择器），后端 **403** `APPROVAL_SELF_REVIEW_FORBIDDEN`；④「通过 / 退回（当前步骤角色）」的「当前步骤角色」改由**矩阵**给出 ⇒ 中间步骤批完后后端把 `approval_role` **推进到链上下一步的角色**；⑤后端 `TRANSITION_ROLES[PASS_CHECK]` / `[REJECT_CHECK]` **新增 REVIEWER**（内置记录级矩阵 CHECKER→REVIEWER→APPROVER 的第 2 步是 REVIEWER，不加则第 2 步**谁也批不了**且前端 meta 驱动会禁用按钮）；⑥`approval_depth` 语义**不变** = 链的**总步数**（`approval_step` = 当前步）⇒ N 步链恰好批 N 次。	Claude CodeV2.3	2026-10-27	P9B-2 **最终整支评审的修复批**（R-12b / RF-2 / RF-16 / T4 Step 7 的欠账）：①**自审判据从「第 1 步」改成「任一步」** —— 后端 `APPROVAL_SELF_REVIEW_FORBIDDEN` 判的是「提交人自己的角色出现在批准链**任何一步**」（只挡第 1 步会留下「在第 2 步自己批自己」的洞）⇒ V2.2 的表写窄了 ⇒ 前端只挡第 1 步 ⇒ APPROVER 之类的角色点了必吃 403 ⇒ **前后端判据必须同口径**；②**项目没绑 RECORD 矩阵 ⇒ 前端禁用送审 + Tooltip「项目未绑定记录级签署矩阵」**（V2.2 ② 此前只是**承诺**，代码里没有这个分支 ⇒ 本批补齐；⚠️ 「拉取失败」与「没绑」必须**分开**：拉失败 ⇒ 前端不知道 ⇒ 不猜 ⇒ 不禁用，后端 422 兜底）；③**行内变更动作降级**（R-12b）—— `CHECKED → 变更申请` 与 `CHANGE_PENDING → 提交变更完成` 是**状态机事件** ⇒ 只在**详情抽屉**的 `RecordActions` 里出现 ⇒ 行内只留**两个非状态机动作**（`change-notice` 建单 / `change-notice/cancel` 作废，都发生在 CHANGED 态）⇒ 同一状态**不会有两个入口**；④**行内「建单」也加角色闸**（RF-1）：角色取 `meta/state-machine` 的 `INITIATE_CHANGE.allowed_roles`（**页面取一次**传下去 ⇒ 不是每行一次 ⇒ 无 N+1）⇒ 角色不够 ⇒ 禁用 + 写明原因；⑤**三个变更动作的理由必填**（后端 `ChangeActionRequest.reason` = `min_length=1` ⇒ 空理由直接 422 ⇒ 此前「放弃变更」在 UI 上**永远点不动**，且它是变更单唯一的退出路径 ⇒ 卡死）；⑥**§6.3 的状态→按钮表 vs `meta/state-machine` 的逐条比对**（T4 Step 7 的欠账，本批补登记）：`meta` 在 **IN_APPROVAL / CHECKED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING** 六个态都含 **OBSOLETE**（后端允许**任意态**弃用）⇒ 本表这六行**漏了**「弃用」⇒ 以前端为准补上；反向地本表有「创建交付物 / 确认并重算 / 手动调整」三个按钮而后端**没有对应端点**（meta 里对应的是 `MARK_STALE` / `RESOLVE_STALE_NO_CHANGE` / `RESOLVE_STALE_CHANGED`）⇒ **按钮表以 `meta/state-machine` 为准**（它是后端从 `ALLOWED_TRANSITIONS` 生成的），本表的三处措辞留待下次修订；⑦本版**不含**交付物级签署写面（`DeliverableSignDialog`）与 ADMIN 两页的条款（它们在 §7.19 / §7.20 ⇒ 见对应章节）。	Claude Code
+V2.4	2026-10-28	P9B-2 **延后的 minor 批**（Batch B~F）—— 前端行为补登记：①**§7.20 新增「建项目」页**（`/admin/projects`，**SYSTEM_ADMIN 才可见** —— 后端 `POST /projects` 同口径）：8 个必填字段（后端 `ProjectCreate`：project_no / project_name / owner_company / location / project_type / design_phase / unit_system / workspace_id）+ `product_category`（契约枚举 REFINING / ETHYLENE / OTHER，**电折标口径由它派生** —— 炼油 / 乙烯用**等价值** 0.21，其余用**当量值** 0.086 kg 标油/kWh）；**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；建完**明说**「已自动绑定记录级签署矩阵，可以提交批准了」（后端**同一事务**里绑 ACTIVE 的 RECORD 矩阵 ⇒ 不说 ⇒ 用户以为还要去矩阵页手动绑）；②**§3.3 菜单「系统」组**同步加「建项目」（与 §7.20 对齐）；③**审计日志页**：表格改**服务端分页**（页数由后端 `total` 决定 —— 此前前端分页 ⇒ 永远只有 50 行却写「共 N 条」）；导出用**已应用**的筛选条件（点「查询」时冻结，不是输入框实时值 —— 否则 CSV 与屏幕上的行对不上），输入框改了没点「查询」时**明说**；截断判据 =「结果集**比上限还大**」（恰好 5000 行**不是**截断）；导出**第一列是 `audit_id`（LogID）** —— 同一秒的多条记录靠时间戳分不开 ⇒ 没有 LogID 就**无法回指**原审计行；④**权限错误提示不可关闭**且**不渲染空表**（关掉退化成「共 0 条」的空表 ⇒ 读成「系统里什么都没有」⇒ 真相是「你没权限」）；⑤**ADMIN 用户列表**补 `email` / `department` / `last_login_at`（后端 `AdminUserOut` 本来就返回）；**停用要二次确认**（停用 ⇒ token_version 递增 ⇒ 在手 refresh 全失效 ⇒ 误点即误伤）；⑥**交付物进度页**：动作时间线被截断时**明说**「只显示最近 N 条（共 M 条）」。	Claude Code
+
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
