@@ -51,6 +51,8 @@ from app.models.enums import (
 from app.models.project import Project
 from app.models.system import AuditLog
 from app.models.workflow_progress import WorkflowProgress
+from app.schemas.deliverable_progress import WorkflowProgressSection
+from app.schemas.workflow_progress import WorkflowProgressItemResponse
 from app.services.audit_service import AuditService
 from app.services.notifications.notify import publish
 from app.services.notifications.payload import NotificationPayload
@@ -248,6 +250,111 @@ class DeliverableService:
                 status=404,
             )
         return row
+
+    @classmethod
+    async def progress_sections(
+        cls, db: AsyncSession, *, deliverable: Deliverable
+    ) -> list[WorkflowProgressSection]:
+        """两类工作流各自的进度段（TODO-065 · R-13 删掉了 CHANGE_NOTICE 段）。
+
+        ## 关联规则**留在后端**
+
+        两类工作流的 `workflow_id` 语义**各不相同**（SIGN = 版本 id、
+        CUSTOMER_APPROVAL_PROXY = **交付物 id**）⇒ 「哪个 id 配哪类工作流」
+        是**后端的业务规则**，不是前端的拼装活 ⇒ 前端拿到的永远是一份
+        「这段对应哪个工作流」的答案。
+
+        ## ⚠️ **只有两类工作流**（R-13）
+
+        `CHANGE_NOTICE` 段**删掉** ——
+        ①变更单**本身就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒ 它在
+        进度页上**自己一行**、自己有 SIGN 进度；
+        ②唯一能把它挂到父交付物上的列 `Deliverable.parent_deliverable_id`
+        **全仓从未被写** ⇒ 靠它反查**永远查不到** ⇒ 留着一个**永远为假**的段，
+        比没有更坏（用户会以为是数据问题）。
+
+        ## ⚠️ **一条批量查询**（R-16）
+
+        两段的观测行**一次取回** ⇒ Python 侧按 `(workflow_type, workflow_id)`
+        分组 ⇒ 不 N+1 ⇒ 整次请求的 SELECT 数 ≤ 5 成立。
+
+        ⇒ **不复用** `WorkflowProgressService.get`：它每次都 `_resolve` 反查
+        项目（`db.get(DeliverableVersion)` + `db.get(Deliverable)`）⇒ 两段就是
+        4~6 条 ⇒ 与守卫自相矛盾。**调用方已鉴权**（端点里 `_authorize` 过）
+        ⇒ 两个 `workflow_id` 都属于已授权交付物 ⇒ 该反查冗余。
+        """
+        # ⚠️ 「当前版本 id」是**派生**的（`rev == current_rev` 的那条版本行）——
+        #    `deliverables` 表**没有** `current_version_id` 列 ⇒ 与
+        #    `GET /deliverables` 的 `current_version_id` 同一口径。
+        current_version_id = (
+            await cls.current_version_ids(db, deliverables=[deliverable])
+        ).get(deliverable.deliverable_id)
+
+        # ① SIGN —— workflow_id = **版本 id**；无版本 ⇒ 这一段「不可用」
+        sign_target: tuple[WorkflowType, uuid.UUID] | None = (
+            (WorkflowType.SIGN, current_version_id)
+            if current_version_id is not None
+            else None
+        )
+        # ② CUSTOMER_APPROVAL_PROXY —— workflow_id = **交付物 id**（实测 R-2）
+        proxy_target = (WorkflowType.CUSTOMER_APPROVAL_PROXY, deliverable.deliverable_id)
+
+        targets = [sign_target, proxy_target]
+        # ⚠️ 先过滤掉 `None`（SIGN 无版本时）—— 推导式里 `for` 子句的解包
+        #    发生在 `if` **之前** ⇒ 直接解包 `None` 会 TypeError。
+        valid_targets = [t for t in targets if t is not None]
+        conditions = [
+            and_(
+                WorkflowProgress.workflow_type == wf_type,
+                WorkflowProgress.workflow_id == wf_id,
+            )
+            for wf_type, wf_id in valid_targets
+        ]
+        rows = (
+            await db.execute(
+                select(WorkflowProgress)
+                .where(or_(*conditions))
+                .order_by(WorkflowProgress.step_order, WorkflowProgress.progress_id)
+            )
+        ).scalars().all()
+        grouped: dict[tuple[WorkflowType, uuid.UUID], list[WorkflowProgress]] = {}
+        for row in rows:
+            grouped.setdefault((row.workflow_type, row.workflow_id), []).append(row)
+
+        sections: list[WorkflowProgressSection] = []
+        for target in targets:
+            if target is None:
+                # ⚠️ **不可用**（不是空数组）—— 空数组会被读成「一个节点都没有」
+                sections.append(
+                    WorkflowProgressSection(
+                        workflow_type=WorkflowType.SIGN.value,
+                        workflow_id=None,
+                        available=False,
+                        reason="尚未签发版本，无签署流程",
+                    )
+                )
+                continue
+            wf_type, wf_id = target
+            items = grouped.get(target, [])
+            counts = {state: 0 for state in WorkflowProgressState}
+            for row in items:
+                counts[row.step_status] = counts.get(row.step_status, 0) + 1
+            sections.append(
+                WorkflowProgressSection(
+                    workflow_type=wf_type.value,
+                    workflow_id=wf_id,
+                    available=True,
+                    reason=None,
+                    total=len(items),
+                    pending=counts.get(WorkflowProgressState.PENDING, 0),
+                    in_progress=counts.get(WorkflowProgressState.IN_PROGRESS, 0),
+                    completed=counts.get(WorkflowProgressState.COMPLETED, 0),
+                    skipped=counts.get(WorkflowProgressState.SKIPPED, 0),
+                    failed=counts.get(WorkflowProgressState.FAILED, 0),
+                    items=[WorkflowProgressItemResponse.model_validate(r) for r in items],
+                )
+            )
+        return sections
 
     @classmethod
     async def list_versions(

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T03:25:12.112Z
-> Files: 1060 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-27T03:58:32.138Z
+> Files: 1063 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -292,7 +292,8 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~687 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md (~723 tok)
+- `run-migration-checks.sh` — 迁移漂移守门（CLAUDE.md「漂移盲区」纪律）： (~559 tok)
 
 ## .vite/vitest/
 
@@ -1200,7 +1201,7 @@
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
-- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~4223 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~4748 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
@@ -1257,6 +1258,7 @@
 ## pcs-backend/app/schemas/
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
+- `deliverable_progress.py` — 交付物工作流进度聚合响应（TODO-065 · P9B-2 · T0）。 (~552 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1210 tok)
 - `edit_conflict.py` — 编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。 (~775 tok)
@@ -1280,7 +1282,7 @@
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~10750 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~12027 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~14059 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
@@ -1424,6 +1426,7 @@
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
 - `test_deliverables_current_version.py` — 交付物「当前版本 id」（P9B-1 Task T0）。 (~2582 tok)
+- `test_deliverables_progress_aggregate.py` — TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。 (~3941 tok)
 - `test_edit_acl_order.py` — 编辑端点的**鉴权顺序**守卫 —— P9A-4 D2 修的既有越权洞。 (~1157 tok)
 - `test_edit_conflict.py` — 编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。 (~2340 tok)
 - `test_edit_lock_api.py` — 编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。 (~2367 tok)

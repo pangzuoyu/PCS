@@ -4433,6 +4433,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables/{deliverable_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 交付物的工作流进度聚合（两类工作流一次拿全）
+         * @description 一次返回本交付物两类工作流的进度（TODO-065）。
+         *
+         *     关联规则**留在后端**：两类工作流的 `workflow_id` 语义各不相同
+         *     （SIGN = 版本 id，CUSTOMER_APPROVAL_PROXY = **交付物 id**），
+         *     「变更单怎么关联到本交付物」是**后端的业务规则**，不是前端的拼装活。
+         *
+         *     ⚠️ 每段都带 `available` + `reason`：`available=false` 时前端显示**原因**
+         *     （不是空列表）—— 空数组与「这条流程不存在」在界面上长得一样。
+         */
+        get: operations["get_deliverable_progress_api_v1_deliverables__deliverable_id__progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/deliverables/{deliverable_id}/actions": {
         parameters: {
             query?: never;
@@ -9078,6 +9105,19 @@ export interface components {
             items: components["schemas"]["DeliverableResponse"][];
             /** Total */
             total: number;
+        };
+        /**
+         * DeliverableProgressResponse
+         * @description 一个交付物的两类工作流进度（R-13：CHANGE_NOTICE 段已删）。
+         */
+        DeliverableProgressResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /** Sections */
+            sections: components["schemas"]["WorkflowProgressSection"][];
         };
         /**
          * DeliverableResponse
@@ -20019,6 +20059,64 @@ export interface components {
             items: components["schemas"]["WorkflowProgressItemResponse"][];
         };
         /**
+         * WorkflowProgressSection
+         * @description 一类工作流在本交付物上的进度。
+         */
+        WorkflowProgressSection: {
+            /**
+             * Workflow Type
+             * @description SIGN / CUSTOMER_APPROVAL_PROXY（R-13：CHANGE_NOTICE 段已删）
+             */
+            workflow_type: string;
+            /**
+             * Workflow Id
+             * @description 该类工作流的主键；不可用时为 null
+             */
+            workflow_id?: string | null;
+            /**
+             * Available
+             * @description 该类工作流是否可解析（false 时 reason 必填，不得返回空数组冒充「无步骤」）
+             */
+            available: boolean;
+            /**
+             * Reason
+             * @description available=false 时的原因（中文原文，前端原样显示）
+             */
+            reason?: string | null;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+            /**
+             * In Progress
+             * @default 0
+             */
+            in_progress: number;
+            /**
+             * Completed
+             * @default 0
+             */
+            completed: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /** Items */
+            items?: components["schemas"]["WorkflowProgressItemResponse"][];
+        };
+        /**
          * WorkspaceCreate
          * @description 创建工作区请求体（POST /workspaces）。
          *
@@ -27989,6 +28087,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerApprovalProxyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deliverable_progress_api_v1_deliverables__deliverable_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableProgressResponse"];
                 };
             };
             /** @description Validation Error */

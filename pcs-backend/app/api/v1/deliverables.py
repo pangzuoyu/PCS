@@ -41,6 +41,7 @@ from app.schemas.deliverable_actions import (
     DeliverableActionResponse,
     DeliverableActionsListResponse,
 )
+from app.schemas.deliverable_progress import DeliverableProgressResponse
 from app.schemas.deliverable_write import (
     CustomerApprovalProxyRequest,
     CustomerApprovalProxyResponse,
@@ -380,6 +381,33 @@ async def proxy_customer_approval(
         is_proxy=True,
         proxied_at=outcome.signed_at,
     )
+
+@router.get(
+    "/deliverables/{deliverable_id}/progress",
+    response_model=DeliverableProgressResponse,
+    summary="交付物的工作流进度聚合（两类工作流一次拿全）",
+)
+async def get_deliverable_progress(
+    deliverable_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> DeliverableProgressResponse:
+    """一次返回本交付物两类工作流的进度（TODO-065）。
+
+    关联规则**留在后端**：两类工作流的 `workflow_id` 语义各不相同
+    （SIGN = 版本 id，CUSTOMER_APPROVAL_PROXY = **交付物 id**），
+    「变更单怎么关联到本交付物」是**后端的业务规则**，不是前端的拼装活。
+
+    ⚠️ 每段都带 `available` + `reason`：`available=false` 时前端显示**原因**
+    （不是空列表）—— 空数组与「这条流程不存在」在界面上长得一样。
+    """
+    require_roles(actor, *_READ_ROLES)
+    deliverable = await _authorize(db, actor, deliverable_id)
+    sections = await DeliverableService.progress_sections(db, deliverable=deliverable)
+    return DeliverableProgressResponse(
+        deliverable_id=deliverable_id, sections=sections
+    )
+
 
 @router.get(
     "/deliverables/{deliverable_id}/actions",

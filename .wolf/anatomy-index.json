@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T03:25:12.112Z",
-    "fileCount": 1060,
+    "lastScanned": "2026-10-27T03:58:32.138Z",
+    "fileCount": 1063,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "65b20e1eec66a993adfb9e710be9dc1db60faaffef6245ca26db35a86301d75a",
-    "storeUpdatedAt": "2026-10-27T03:25:12.123Z",
-    "rootHash": "dc502156b77939e4"
+    "renderedHash": "5265da06b91c56d95ef6097b25c721a52c0447e7c4018dee70f1809749ae7a11",
+    "storeUpdatedAt": "2026-10-27T03:58:32.149Z",
+    "rootHash": "23817656c4c1aa1e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21391,127 +21391,134 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 12027,
-      "hash": "3b12bfd01671f06d",
-      "size": 50145,
-      "mtimeMs": 1793031575149.2112,
-      "updatedAt": "2026-10-26T16:19:35.204Z",
+      "tokens": 14059,
+      "hash": "cc4809a044bd2e61",
+      "size": 58628,
+      "mtimeMs": 1793072890001.805,
+      "updatedAt": "2026-10-27T03:48:10.048Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_utcnow",
           "kind": "fn",
-          "startLine": 68,
-          "endLine": 76,
+          "startLine": 70,
+          "endLine": 78,
           "tokens": 54
         },
         {
           "name": "_read_credential",
           "kind": "fn",
-          "startLine": 77,
-          "endLine": 103,
+          "startLine": 79,
+          "endLine": 105,
           "tokens": 237
         },
         {
           "name": "SignStepOutcome",
           "kind": "class",
-          "startLine": 104,
-          "endLine": 120,
+          "startLine": 106,
+          "endLine": 122,
           "tokens": 103
         },
         {
           "name": "CustomerApprovalProxyOutcome",
           "kind": "class",
-          "startLine": 121,
-          "endLine": 130,
+          "startLine": 123,
+          "endLine": 132,
           "tokens": 62
         },
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 131,
-          "endLine": 1221,
-          "tokens": 10959
+          "startLine": 133,
+          "endLine": 1406,
+          "tokens": 12951
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。",
-      "tokens": 4223,
-      "hash": "0eb9b020484967c9",
-      "size": 18014,
-      "mtimeMs": 1792545365490.696,
-      "updatedAt": "2026-10-21T01:16:05.545Z",
+      "tokens": 4748,
+      "hash": "5cb1c2e76adc5b1d",
+      "size": 20374,
+      "mtimeMs": 1793072852524.61,
+      "updatedAt": "2026-10-27T03:47:32.577Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 98,
+          "startLine": 78,
+          "endLine": 102,
           "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 148,
+          "startLine": 103,
+          "endLine": 152,
           "tokens": 440
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 174,
+          "startLine": 153,
+          "endLine": 178,
           "tokens": 239
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 196,
+          "startLine": 179,
+          "endLine": 200,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 197,
-          "endLine": 234,
+          "startLine": 201,
+          "endLine": 238,
           "tokens": 364
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 274,
-          "tokens": 382
+          "startLine": 239,
+          "endLine": 282,
+          "tokens": 459
         },
         {
           "name": "sign_step",
           "kind": "fn",
-          "startLine": 275,
-          "endLine": 319,
-          "tokens": 441
+          "startLine": 283,
+          "endLine": 331,
+          "tokens": 511
         },
         {
           "name": "proxy_customer_approval",
           "kind": "fn",
-          "startLine": 320,
-          "endLine": 373,
-          "tokens": 556
+          "startLine": 332,
+          "endLine": 389,
+          "tokens": 631
+        },
+        {
+          "name": "get_deliverable_progress",
+          "kind": "fn",
+          "startLine": 390,
+          "endLine": 416,
+          "tokens": 268
         },
         {
           "name": "list_deliverable_actions",
           "kind": "fn",
-          "startLine": 374,
-          "endLine": 428,
+          "startLine": 417,
+          "endLine": 471,
           "tokens": 558
         },
         {
           "name": "list_todos",
           "kind": "fn",
-          "startLine": 429,
-          "endLine": 456,
+          "startLine": 472,
+          "endLine": 499,
           "tokens": 234
         }
       ]
@@ -38382,11 +38389,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md",
-      "tokens": 687,
-      "hash": "95cf624383f0b864",
-      "size": 3449,
-      "mtimeMs": 1793071432535.7148,
-      "updatedAt": "2026-10-27T03:23:52.590Z",
+      "tokens": 723,
+      "hash": "bb8128cf1bc6bc75",
+      "size": 3610,
+      "mtimeMs": 1793072621141.0264,
+      "updatedAt": "2026-10-27T03:43:41.189Z",
       "source": "hook"
     },
     "pcs-backend/tests/api/v1/test_project_creation.py": {
@@ -38527,6 +38534,156 @@
       "mtimeMs": 1793071512064.5435,
       "updatedAt": "2026-10-27T03:25:12.111Z",
       "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/run-migration-checks.sh": {
+      "description": "迁移漂移守门（CLAUDE.md「漂移盲区」纪律）：",
+      "tokens": 559,
+      "hash": "8cd4162705a38e4e",
+      "size": 2243,
+      "mtimeMs": 1793072386827.606,
+      "updatedAt": "2026-10-27T03:39:46.879Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py": {
+      "description": "TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。",
+      "tokens": 3941,
+      "hash": "16367bccd6c2b020",
+      "size": 15786,
+      "mtimeMs": 1793073512085.1377,
+      "updatedAt": "2026-10-27T03:58:32.138Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 62,
+          "tokens": 42
+        },
+        {
+          "name": "_guard_client",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 92,
+          "tokens": 262
+        },
+        {
+          "name": "select_counter",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 105,
+          "tokens": 124
+        },
+        {
+          "name": "_make_deliverable",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 160,
+          "tokens": 483
+        },
+        {
+          "name": "_seed_progress",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 188,
+          "tokens": 212
+        },
+        {
+          "name": "test_progress_sections_cover_two_workflow_types",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 221,
+          "tokens": 306
+        },
+        {
+          "name": "test_sign_section_uses_version_id_as_workflow_id",
+          "kind": "fn",
+          "startLine": 222,
+          "endLine": 238,
+          "tokens": 164
+        },
+        {
+          "name": "test_customer_approval_proxy_section_uses_deliverable_id",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 263,
+          "tokens": 263
+        },
+        {
+          "name": "test_sign_section_unavailable_when_no_version",
+          "kind": "fn",
+          "startLine": 264,
+          "endLine": 285,
+          "tokens": 196
+        },
+        {
+          "name": "test_available_section_with_zero_steps_is_not_unavailable",
+          "kind": "fn",
+          "startLine": 286,
+          "endLine": 307,
+          "tokens": 207
+        },
+        {
+          "name": "test_five_state_counts_always_present",
+          "kind": "fn",
+          "startLine": 308,
+          "endLine": 323,
+          "tokens": 186
+        },
+        {
+          "name": "test_counts_reflect_seeded_rows",
+          "kind": "fn",
+          "startLine": 324,
+          "endLine": 364,
+          "tokens": 369
+        },
+        {
+          "name": "test_other_project_deliverable_is_404",
+          "kind": "fn",
+          "startLine": 365,
+          "endLine": 386,
+          "tokens": 205
+        },
+        {
+          "name": "test_unknown_deliverable_is_404_with_code",
+          "kind": "fn",
+          "startLine": 387,
+          "endLine": 401,
+          "tokens": 144
+        },
+        {
+          "name": "test_request_does_not_n_plus_one",
+          "kind": "fn",
+          "startLine": 402,
+          "endLine": 434,
+          "tokens": 306
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/deliverable_progress.py": {
+      "description": "交付物工作流进度聚合响应（TODO-065 · P9B-2 · T0）。",
+      "tokens": 552,
+      "hash": "cabfa063efdb0636",
+      "size": 2689,
+      "mtimeMs": 1793073500102.3425,
+      "updatedAt": "2026-10-27T03:58:20.150Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "WorkflowProgressSection",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 65,
+          "tokens": 218
+        },
+        {
+          "name": "DeliverableProgressResponse",
+          "kind": "class",
+          "startLine": 66,
+          "endLine": 71,
+          "tokens": 49
+        }
+      ]
     }
   }
 }

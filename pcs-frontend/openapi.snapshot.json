@@ -13780,6 +13780,66 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/progress": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "交付物的工作流进度聚合（两类工作流一次拿全）",
+        "description": "一次返回本交付物两类工作流的进度（TODO-065）。\n\n关联规则**留在后端**：两类工作流的 `workflow_id` 语义各不相同\n（SIGN = 版本 id，CUSTOMER_APPROVAL_PROXY = **交付物 id**），\n「变更单怎么关联到本交付物」是**后端的业务规则**，不是前端的拼装活。\n\n⚠️ 每段都带 `available` + `reason`：`available=false` 时前端显示**原因**\n（不是空列表）—— 空数组与「这条流程不存在」在界面上长得一样。",
+        "operationId": "get_deliverable_progress_api_v1_deliverables__deliverable_id__progress_get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableProgressResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/deliverables/{deliverable_id}/actions": {
       "get": {
         "tags": [
@@ -25094,6 +25154,29 @@
         ],
         "title": "DeliverableListResponse",
         "description": "项目下的交付物列表。\n\n`total` 供前端分页；P8 REPORT 生成页要按 deliverable_type 分组展示。"
+      },
+      "DeliverableProgressResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowProgressSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "sections"
+        ],
+        "title": "DeliverableProgressResponse",
+        "description": "一个交付物的两类工作流进度（R-13：CHANGE_NOTICE 段已删）。"
       },
       "DeliverableResponse": {
         "properties": {
@@ -43741,6 +43824,89 @@
         ],
         "title": "WorkflowProgressResponse",
         "description": "一条工作流的节点进度（甘特图的横轴 = `items` 的 `step_order`）。"
+      },
+      "WorkflowProgressSection": {
+        "properties": {
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type",
+            "description": "SIGN / CUSTOMER_APPROVAL_PROXY（R-13：CHANGE_NOTICE 段已删）"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id",
+            "description": "该类工作流的主键；不可用时为 null"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "该类工作流是否可解析（false 时 reason 必填，不得返回空数组冒充「无步骤」）"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "available=false 时的原因（中文原文，前端原样显示）"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "default": 0
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress",
+            "default": 0
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowProgressItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_type",
+          "available"
+        ],
+        "title": "WorkflowProgressSection",
+        "description": "一类工作流在本交付物上的进度。"
       },
       "WorkspaceCreate": {
         "properties": {

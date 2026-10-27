@@ -2533,3 +2533,17 @@
 | 11:23 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | expanded (+18 lines) | ~291 |
 | 11:25 | Edited pcs-backend/app/services/signature_matrix_service.py | inline fix | ~11 |
 | 11:25 | Edited pcs-backend/alembic/versions/p9_012_drop_parent_deliverable_id.py | 4→4 lines | ~24 |
+| 11:39 | Created .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/run-migration-checks.sh | — | ~559 |
+| 11:43 | Edited .superpowers/sdd/PCS-PLAN-P9B-2-签署流程与ADMIN前端/progress.md | 1→2 lines | ~91 |
+| 11:44 | Created pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | — | ~3892 |
+| 11:46 | Created pcs-backend/app/schemas/deliverable_progress.py | — | ~562 |
+| 11:46 | Edited pcs-backend/app/services/deliverable_service.py | added 2 import(s) | ~72 |
+| 11:47 | Edited pcs-backend/app/services/deliverable_service.py | added 1 condition(s) | ~1235 |
+| 11:47 | Edited pcs-backend/app/api/v1/deliverables.py | modified get_deliverable_progress() | ~310 |
+| 11:47 | Edited pcs-backend/app/api/v1/deliverables.py | added 1 import(s) | ~34 |
+| 11:47 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 6→9 lines | ~108 |
+| 11:48 | Edited pcs-backend/app/services/deliverable_service.py | 9→11 lines | ~128 |
+| 11:48 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 4→6 lines | ~57 |
+| 11:58 | Edited pcs-backend/app/schemas/deliverable_progress.py | 4→4 lines | ~69 |
+| 11:58 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 4→4 lines | ~70 |
+| 11:58 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 6→5 lines | ~59 |
