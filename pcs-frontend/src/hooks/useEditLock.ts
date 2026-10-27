@@ -100,6 +100,10 @@ export function useEditLock({
           if (res.degraded) {
             setState({ status: 'degraded', message: res.message ?? null });
             degradedRef.current?.(res.message ?? null);
+          } else {
+            // ⚠️ **成功路径必须清降级横幅**（TODO-067 #3）—— 锁服务恢复了，
+            //    横幅还挂着 ⇒ 用户以为仍在降级（而实际已经不降级了）。
+            degradedRef.current?.(null);
           }
         }).catch(() => {
           // ⚠️ 网络错误同样视为「续期失败」⇒ 转只读（**不重试**）。
@@ -133,6 +137,9 @@ export function useEditLock({
         held = true;
         if (cancelled) return;
         setState({ status: 'held', ttlSeconds: res.ttl_seconds });
+        // ⚠️ **成功路径必须清降级横幅**（TODO-067 #3）—— 否则上一条记录留下的
+        //    降级横幅会一直挂着（`onDegraded(null)` 从不被调）。
+        degradedRef.current?.(null);
         startRenew();
       })
       .catch(() => {

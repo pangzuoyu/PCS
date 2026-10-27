@@ -238,3 +238,79 @@ describe('useEditLock —— 取锁 / 心跳 / 只读化', () => {
     await expect(result.current.release()).resolves.toBeUndefined();
   });
 });
+
+
+/**
+ * TODO-067 #3 / #4（P9B-2 · T9）。
+ *
+ * | # | 事项 | 现象 |
+ * |---|---|---|
+ * | #3 | 降级横幅成功后**不消失**（`onDegraded(null)` 从不被调） | 锁服务恢复后横幅**还在** ⇒ 用户以为还在降级 |
+ * | #4 | `enabled` 翻 false 时状态**不复位** | 换一条记录短暂显示上一条的「他人正在编辑」 |
+ */
+describe('useEditLock —— TODO-067 #3 / #4', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('⚠️ #3 取锁成功 ⇒ `onDegraded(null)`（降级横幅**消失**）', async () => {
+    vi.spyOn(editLockApi, 'acquire').mockResolvedValue(lockResponse() as never);
+    const onDegraded = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEditLock({
+        recordType: 'CostEstResult',
+        recordId: RECORD_ID,
+        enabled: true,
+        onDegraded,
+      }),
+    );
+
+    await flush();
+    expect(result.current.state.status).toBe('held');
+    // ⚠️ 成功路径必须**清**降级横幅（否则上一条记录的降级横幅一直挂着）
+    expect(onDegraded).toHaveBeenCalledWith(null);
+  });
+
+  it('⚠️ #3 续期**不再降级** ⇒ `onDegraded(null)`（锁服务恢复了 ⇒ 横幅消失）', async () => {
+    vi.spyOn(editLockApi, 'acquire').mockResolvedValue(lockResponse() as never);
+    // ⚠️ 第 1 次续期降级（横幅出现），第 2 次恢复正常（横幅必须消失）
+    const renew = vi
+      .spyOn(editLockApi, 'renew')
+      .mockResolvedValueOnce(
+        lockResponse({ degraded: true, message: '锁服务不可用' }) as never,
+      )
+      .mockResolvedValueOnce(lockResponse({ degraded: false, message: null }) as never);
+    const onDegraded = vi.fn();
+
+    const { result } = renderHook(() =>
+      useEditLock({
+        recordType: 'CostEstResult',
+        recordId: RECORD_ID,
+        enabled: true,
+        onDegraded,
+      }),
+    );
+
+    await flush();
+    expect(onDegraded).toHaveBeenLastCalledWith(null);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(result.current.state.status).toBe('degraded');
+    expect(onDegraded).toHaveBeenLastCalledWith('锁服务不可用');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(renew).toHaveBeenCalledTimes(2);
+    // ⚠️ 锁服务恢复 ⇒ 横幅消失
+    expect(onDegraded).toHaveBeenLastCalledWith(null);
+  });
+
+});
