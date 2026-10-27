@@ -309,6 +309,7 @@ async def sign_step(
         decision=body.decision,
         actor_user_id=actor.user_id,
         actor_role=actor.role,
+        reason=body.reason,
     )
     return SignStepResponse(
         deliverable_id=outcome.deliverable.deliverable_id,

@@ -808,6 +808,7 @@ class DeliverableService:
         decision: str,
         actor_user_id: uuid.UUID,
         actor_role: str,
+        reason: str = "",
     ) -> SignStepOutcome:
         """推进签署矩阵的一步（SPEC P9A-DLV-007）。
 
@@ -923,16 +924,21 @@ class DeliverableService:
 
         summary = dict(version.signature_summary_json or {})
         signatures = list(summary.get("signatures", []))
-        signatures.append(
-            {
-                "step_order": step.get("step_order", step_index),
-                "step_role": sign_role,
-                "decision": decision,
-                "actor_user_id": str(actor_user_id),
-                "actor_role": actor_role,
-                "at": now.isoformat(),
-            }
-        )
+        signature_entry = {
+            "step_order": step.get("step_order", step_index),
+            "step_role": sign_role,
+            "decision": decision,
+            "actor_user_id": str(actor_user_id),
+            "actor_role": actor_role,
+            "at": now.isoformat(),
+        }
+        # ⚠️ **退回理由要落库**（P9B-2 · T8）—— 退回是签署流程里唯一能纠错的
+        # 路径，没有理由作者无从知道要改什么 ⇒ 理由必须**可回读**
+        # （`GET /deliverables/{id}/versions/{rev}/snapshot`）。
+        # ⚠️ 空理由**不写**键（不是空串占位）⇒ 「没填」与「填了空的」可区分。
+        if reason:
+            signature_entry["reason"] = reason
+        signatures.append(signature_entry)
         summary["signatures"] = signatures
         version.signature_summary_json = summary
 

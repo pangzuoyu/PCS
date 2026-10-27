@@ -15,6 +15,55 @@ export type WorkflowProgressSection = components['schemas']['WorkflowProgressSec
 export type DeliverableActionsListResponse =
   components['schemas']['DeliverableActionsListResponse'];
 
+// === P9B-2 · T8：交付物级签署**写面** ===
+export type DeliverableIssueRequest = components['schemas']['DeliverableIssueRequest'];
+export type SignStepRequest = components['schemas']['SignStepRequest'];
+export type CustomerApprovalProxyRequest =
+  components['schemas']['CustomerApprovalProxyRequest'];
+export type DeliverableIssueResult = components['schemas']['DeliverableIssueResponse'];
+export type SignStepResult = components['schemas']['SignStepResponse'];
+export type CustomerApprovalProxyResult =
+  components['schemas']['CustomerApprovalProxyResponse'];
+export type DeliverableSnapshotResponse =
+  components['schemas']['DeliverableSnapshotResponse'];
+
+/** 版本目的 13 值（后端 `VersionPurpose` Literal · 合并数据字典）。 */
+export type VersionPurpose = DeliverableIssueRequest['version_purpose'];
+
+/**
+ * ⚠️ **运行期**词表（生成的类型只能在编译期用）⇒ 值取自后端 Literal，
+ * `satisfies` 让**编译期**校对它仍是合法取值（打错 ⇒ 编译不过）。
+ */
+export const VERSION_PURPOSES = [
+  'INTER_DISCIPLINE_CHECK',
+  'INTERNAL_REVIEW',
+  'CUSTOMER_REVIEW',
+  'RE_CUSTOMER_REVIEW',
+  'ISSUED_FOR_DESIGN',
+  'ISSUED_FOR_PURCHASE',
+  'ISSUED_FOR_CONSTRUCTION',
+  'ISSUED_FOR_USE',
+  'ISSUED_FOR_BID',
+  'ISSUED_FOR_CHANGE',
+  'AS_BUILT',
+  'INFORMATION_ONLY',
+  'VOID',
+] as const satisfies readonly VersionPurpose[];
+
+/** 签署决策 3 值（后端 `SignDecision` Literal）。 */
+export const SIGN_DECISIONS = ['SIGN', 'RETURN', 'SKIP'] as const;
+
+/** 客户批准方式 4 值（后端 `CustomerApprovalMethod` Literal · ADR-0007）。 */
+export const CUSTOMER_APPROVAL_METHODS = [
+  'EMAIL',
+  'LETTER',
+  'EDMS',
+  'SIGNED_DOC',
+] as const;
+
+/** 凭证附件类型 4 值（后端 `CredentialFileType` Literal）。 */
+export const CREDENTIAL_FILE_TYPES = ['PDF', 'JPG', 'PNG', 'EML'] as const;
+
 export const deliverablesApi = {
   progress: (deliverableId: string): Promise<DeliverableProgressResponse> =>
     api
@@ -29,5 +78,52 @@ export const deliverablesApi = {
       .get<DeliverableActionsListResponse>(`/deliverables/${deliverableId}/actions`, {
         params,
       })
+      .then((r) => r.data),
+
+  /**
+   * 取某 Rev 的快照（含**版本冻结的签署步骤**）。
+   *
+   * ⚠️ 前端算「下一步该谁签」必须用**版本快照**（`signature_summary_json.steps`），
+   * **不是**活矩阵 —— 后端 `_steps_for_version` 读的也是快照（bug-2063：
+   * 模板中途改小会把在飞版本永久卡在 PENDING）⇒ 两端**同源**。
+   */
+  versionSnapshot: (
+    deliverableId: string,
+    rev: string,
+  ): Promise<DeliverableSnapshotResponse> =>
+    api
+      .get<DeliverableSnapshotResponse>(
+        `/deliverables/${deliverableId}/versions/${rev}/snapshot`,
+      )
+      .then((r) => r.data),
+
+  /** 签发（送审）：建版本行 + 定 doc_no + DRAFT → PENDING。 */
+  issue: (
+    deliverableId: string,
+    body: DeliverableIssueRequest,
+  ): Promise<DeliverableIssueResult> =>
+    api
+      .post<DeliverableIssueResult>(`/deliverables/${deliverableId}/issue`, body)
+      .then((r) => r.data),
+
+  /** 推进签署矩阵的一步（签 / 退 / 跳）。 */
+  signStep: (
+    deliverableId: string,
+    body: SignStepRequest,
+  ): Promise<SignStepResult> =>
+    api
+      .post<SignStepResult>(`/deliverables/${deliverableId}/sign-step`, body)
+      .then((r) => r.data),
+
+  /** 代录客户在系统外的批准（凭证 + 二次认证）。 */
+  customerApprovalProxy: (
+    deliverableId: string,
+    body: CustomerApprovalProxyRequest,
+  ): Promise<CustomerApprovalProxyResult> =>
+    api
+      .post<CustomerApprovalProxyResult>(
+        `/deliverables/${deliverableId}/customer-approval/proxy`,
+        body,
+      )
       .then((r) => r.data),
 };

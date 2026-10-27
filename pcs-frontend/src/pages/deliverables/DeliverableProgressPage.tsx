@@ -26,12 +26,18 @@
  *    （`check_project_access_or_404`）⇒ 前端过滤会把「无权限」说成「无数据」。
  */
 import { useEffect, useState } from 'react';
-import { Empty, List, Spin, Table, Typography } from 'antd';
+import { Button, Empty, List, Space, Spin, Table, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { StateBadge } from '../../components/common/StateBadge';
 import { WorkflowProgressPanel } from '../../components/common/WorkflowProgressPanel';
+import {
+  DeliverableSignDialog,
+  type SignDialogMode,
+  type SignDialogStep,
+  type SignNextStep,
+} from '../../components/deliverables/DeliverableSignDialog';
 import { api } from '../../api/client';
 import {
   deliverablesApi,
@@ -39,6 +45,7 @@ import {
   type DeliverableProgressResponse,
   type WorkflowProgressSection,
 } from '../../api/deliverables';
+import { useAuth } from '../../store/auth';
 import { PROJECT_ID } from '../../constants/env';
 import type { components } from '../../types/api';
 
@@ -66,6 +73,15 @@ export function DeliverableProgressPage(): JSX.Element {
   const [actionList, setActionList] = useState<DeliverableActionsListResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  // ⚠️ **写面**（P9B-2 · T8）：签发 / 签署 / 代录
+  const [dialogMode, setDialogMode] = useState<SignDialogMode | null>(null);
+  const [dialogTarget, setDialogTarget] = useState<Deliverable | null>(null);
+  const [nextStep, setNextStep] = useState<SignNextStep | null>(null);
+  /** 读签署上下文（版本快照 + 进度）失败时的原因 —— **不得**与「没有步骤」混淆。 */
+  const [contextError, setContextError] = useState<string | null>(null);
+  /** 列表刷新令牌（写操作成功后 ⇒ 重新拉列表，不乐观更新）。 */
+  const [reloadToken, setReloadToken] = useState(0);
+  const role = useAuth((s) => s.role);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +107,7 @@ export function DeliverableProgressPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize]);
+  }, [page, pageSize, reloadToken]);
 
   // ⚠️ **行展开才拉**（列表加载时**不**预取）⇒ 无 N+1。
   useEffect(() => {
@@ -127,6 +143,66 @@ export function DeliverableProgressPage(): JSX.Element {
     };
   }, [expandedId]);
 
+  /**
+   * 写操作成功 ⇒ **重新拉数据**（不乐观更新）。
+   *
+   * ⚠️ 重新拉**该行的进度**（计划 T8 断言 4）⇒ 步骤推进看得见；
+   * ⚠️ 重新拉**列表**（`current_version_id` / `sign_status` 变了）。
+   */
+  function refreshAfterAction(target: Deliverable): void {
+    setReloadToken((t) => t + 1);
+    void deliverablesApi
+      .progress(target.deliverable_id)
+      .then((p) => {
+        if (expandedId === target.deliverable_id) setProgress(p);
+      })
+      .catch(() => {/* 进度拉不到 ⇒ 展开时再拉 */});
+  }
+
+  function openIssue(row: Deliverable): void {
+    setDialogTarget(row);
+    setNextStep(null);
+    setContextError(null);
+    setDialogMode('issue');
+  }
+
+  function openProxy(row: Deliverable): void {
+    setDialogTarget(row);
+    setNextStep(null);
+    setContextError(null);
+    setDialogMode('proxy');
+  }
+
+  /**
+   * 打开签署弹窗 ⇒ 先算出「当前该签哪一步」。
+   *
+   * ⚠️ 步骤取**版本冻结快照**（`signature_summary_json.steps`）—— 与后端
+   * `_steps_for_version` **同源**（bug-2063）；已完成的步骤取**观测行**
+   * （`COMPLETED` / `SKIPPED`）—— 与后端 `_assert_step_order` 同口径。
+   */
+  async function openSign(row: Deliverable): Promise<void> {
+    setDialogTarget(row);
+    setNextStep(null);
+    setContextError(null);
+    setDialogMode('sign');
+    if (!row.current_rev) {
+      setContextError('该交付物尚无版本（没有版本就没有可签的步骤）');
+      return;
+    }
+    try {
+      const [snap, prog] = await Promise.all([
+        deliverablesApi.versionSnapshot(row.deliverable_id, row.current_rev),
+        deliverablesApi.progress(row.deliverable_id),
+      ]);
+      const steps = (snap.signature_summary_json as { steps?: unknown })?.steps;
+      setNextStep(computeNextStep(Array.isArray(steps) ? (steps as SignDialogStep[]) : [], prog));
+    } catch {
+      setNextStep(null);
+      // ⚠️ **读不到 ≠ 没有** —— 说清是「读不到」
+      setContextError('无法读取该交付物的签署步骤（网络 / 权限 / 交付物不存在）');
+    }
+  }
+
   const columns: ColumnsType<Deliverable> = [
     { title: '编号', dataIndex: 'doc_no', key: 'doc_no' },
     { title: '名称', dataIndex: 'title', key: 'title' },
@@ -140,6 +216,74 @@ export function DeliverableProgressPage(): JSX.Element {
       dataIndex: 'sign_status',
       key: 'sign_status',
       render: (v: string) => <StateBadge status={v as never} />,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_v: unknown, row: Deliverable) => {
+        // ⚠️ **已有版本且不在 DRAFT ⇒ 签发禁用**（后端会 409
+        //    `DELIVERABLE_ALREADY_ISSUED` ⇒ 禁用优先于报错）。
+        // ⚠️ **DRAFT 例外**：退回后必须能再签发，否则变更单被驳回一次就
+        //    **永久卡死**（后端 `issue` 的幂等判据是「有没有未退回的版本」）。
+        const canIssue = !row.current_version_id || row.sign_status === 'DRAFT';
+        const canSign = Boolean(row.current_version_id);
+        return (
+          <Space>
+            <Tooltip
+              title={
+                canIssue
+                  ? '签发新版本（送审）'
+                  : '该交付物已在签署中，不能重复签发'
+              }
+            >
+              {/* ⚠️ Tooltip 包 **span**（disabled 按钮不派发鼠标事件） */}
+              <span>
+                <Button
+                  size="small"
+                  data-testid={`deliverable-issue-${row.deliverable_id}`}
+                  disabled={!canIssue}
+                  onClick={() => openIssue(row)}
+                >
+                  签发
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip title={canSign ? '推进签署矩阵的一步' : '该交付物尚无版本，不能签署'}>
+              {/* ⚠️ Tooltip 包 **span**（disabled 按钮不派发鼠标事件） */}
+              <span>
+                <Button
+                  size="small"
+                  data-testid={`deliverable-sign-${row.deliverable_id}`}
+                  disabled={!canSign}
+                  onClick={() => void openSign(row)}
+                >
+                  签署
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip
+              title={
+                canSign
+                  ? '代录客户在系统外的批准（凭证 + 二次认证）'
+                  : '该交付物尚无版本，不能代录'
+              }
+            >
+              {/* ⚠️ Tooltip 包 **span**：disabled 的 Button 不派发鼠标事件 ⇒
+                  包在 span 里 tooltip 才生效（否则用户只看到灰按钮、不知道为什么）。 */}
+              <span>
+                <Button
+                  size="small"
+                  data-testid={`deliverable-proxy-${row.deliverable_id}`}
+                  disabled={!canSign}
+                  onClick={() => openProxy(row)}
+                >
+                  代录
+                </Button>
+              </span>
+            </Tooltip>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -168,6 +312,8 @@ export function DeliverableProgressPage(): JSX.Element {
           },
         }}
         scroll={{ x: 'max-content' }}
+        // ⚠️ 写面弹窗（P9B-2 · T8）—— 宿主在**页面**里，不在表格里
+        //    （antd 的 `Modal` 走 portal ⇒ 放在 Table 外面更稳）
         expandable={{
           onExpand: (expanded, record) => {
             // ⚠️ **行展开才拉**（列表加载时不预取）
@@ -234,8 +380,67 @@ export function DeliverableProgressPage(): JSX.Element {
           },
         }}
       />
+      {/* ⚠️ 写面弹窗（P9B-2 · T8）—— 宿主在**页面**里（不在表格里），
+          antd `Modal` 走 portal ⇒ 放在 Table 外面更稳。 */}
+      <DeliverableSignDialog
+        open={dialogMode !== null}
+        mode={dialogMode ?? 'sign'}
+        deliverable={
+          dialogTarget
+            ? {
+                deliverable_id: dialogTarget.deliverable_id,
+                doc_no: dialogTarget.doc_no,
+                title: dialogTarget.title,
+                current_rev: dialogTarget.current_rev,
+                current_version_id: dialogTarget.current_version_id,
+              }
+            : { deliverable_id: '', doc_no: '', title: '' }
+        }
+        nextStep={nextStep}
+        role={role}
+        contextError={contextError}
+        onClose={() => {
+          setDialogMode(null);
+          setDialogTarget(null);
+          setNextStep(null);
+          setContextError(null);
+        }}
+        onDone={() => {
+          if (dialogTarget) refreshAfterAction(dialogTarget);
+        }}
+      />
     </div>
   );
+}
+
+/**
+ * 「当前该签哪一步」—— 与后端 `_assert_step_order` **同口径**。
+ *
+ * ⚠️ 已完成的步骤 = 观测行里 `COMPLETED` / `SKIPPED` 的那些（**不是**
+ * `FAILED` —— 退回是失败态，但退回后整个交付物回 DRAFT，不能继续往下走）。
+ * ⚠️ `step_index` = 矩阵步骤列表里的 **1-based 位置**（后端取
+ * `steps[step_index - 1]`）—— 不是 `step_order`（两者在坏数据下可能不一致）。
+ */
+function computeNextStep(
+  steps: SignDialogStep[],
+  progress: DeliverableProgressResponse,
+): SignNextStep | null {
+  if (!steps.length) return null;
+  const signSection = progress.sections.find((s) => s.workflow_type === 'SIGN');
+  const done = new Set(
+    (signSection?.items ?? [])
+      .filter((i) => i.step_status === 'COMPLETED' || i.step_status === 'SKIPPED')
+      .map((i) => i.step_order),
+  );
+  const idx = steps.findIndex((s) => !done.has(s.step_order));
+  if (idx < 0) return null;
+  const step = steps[idx];
+  return {
+    step_index: idx + 1,
+    step_order: step.step_order,
+    sign_role: step.sign_role,
+    can_skip: Boolean(step.can_skip),
+  };
 }
 
 /** `detail_json` 是 JSON **文本** ⇒ 解析；**畸形时不崩**（显示原文）。 */

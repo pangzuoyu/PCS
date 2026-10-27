@@ -83,6 +83,16 @@ class SignStepRequest(BaseModel):
     version_id: uuid.UUID = Field(description="被签的版本行")
     step_index: int = Field(ge=1, description="步骤序号，1 起")
     decision: SignDecision = Field(description="SIGN / RETURN / SKIP")
+    reason: str = Field(
+        default="",
+        max_length=2000,
+        description=(
+            "退回理由。`decision=RETURN` 时**前端必填**（退回是签署流程里唯一"
+            "能纠错的路径 —— 没有理由，作者无从知道要改什么）。"
+            "写进版本的签署汇总（`signature_summary_json.signatures[].reason`），"
+            "可经 snapshot 端点回读。"
+        ),
+    )
 
 
 class SignStepResponse(BaseModel):

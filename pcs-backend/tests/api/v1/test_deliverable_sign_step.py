@@ -670,3 +670,73 @@ class TestSignUsesFrozenSnapshot:
             client, reviewer, deliverable.deliverable_id, version_id, step_index=2
         )
         assert second.status_code == 200, second.text
+
+
+class TestSignStepReason:
+    """退回理由必须**落库**（P9B-2 · T8）。
+
+    ⚠️ **为什么加这个字段**：计划的 T8 要求「退回 ⇒ 理由必填（前端拦）」，
+    但交付的 `SignStepRequest` **没有** `reason` ⇒ 前端若必填而后端不收，
+    FastAPI 会**静默丢弃**它 ⇒ 用户以为自己留下了理由、实际没留 ⇒
+    退回（签署流程里唯一能纠错的路径）就变成了「退回但没人知道要改什么」。
+
+    ⇒ 请求体加 `reason`（可选，additive），并写进版本的签署汇总 ⇒
+    理由**可回读**（`GET /deliverables/{id}/versions/{rev}/snapshot`）。
+    """
+
+    async def test_return_reason_is_persisted_in_signature_summary(
+        self, client, auth, db_session, project_id
+    ):
+        d, v = await _issued(db_session, project_id)
+        reason = "第 3 页设备清单与 P&ID 不一致"
+
+        resp = await _sign(
+            client,
+            auth,
+            d.deliverable_id,
+            v.version_id,
+            decision="RETURN",
+            reason=reason,
+        )
+
+        assert resp.status_code == 200, resp.text
+        await db_session.refresh(v)
+        signatures = (v.signature_summary_json or {}).get("signatures", [])
+        assert signatures, "签署汇总里应有这一步的记录"
+        assert signatures[-1]["reason"] == reason
+
+    async def test_return_reason_is_readable_via_snapshot_endpoint(
+        self, client, auth, db_session, project_id
+    ):
+        """理由要**能被用户看到** —— 写进去但读不出来等于没写。"""
+        d, v = await _issued(db_session, project_id)
+        reason = "P&ID 缺 E-101"
+
+        resp = await _sign(
+            client,
+            auth,
+            d.deliverable_id,
+            v.version_id,
+            decision="RETURN",
+            reason=reason,
+        )
+        assert resp.status_code == 200, resp.text
+
+        snap = await client.get(
+            f"/api/v1/deliverables/{d.deliverable_id}/versions/{v.rev}/snapshot",
+            headers=auth,
+        )
+        assert snap.status_code == 200, snap.text
+        signatures = (snap.json()["signature_summary_json"] or {}).get("signatures", [])
+        assert signatures[-1]["reason"] == reason
+
+    async def test_reason_is_optional_for_sign(self, client, auth, db_session, project_id):
+        """签名不写理由 ⇒ 汇总里**没有** `reason` 键（不是空串占位）。"""
+        d, v = await _issued(db_session, project_id)
+
+        resp = await _sign(client, auth, d.deliverable_id, v.version_id)
+
+        assert resp.status_code == 200, resp.text
+        await db_session.refresh(v)
+        signatures = (v.signature_summary_json or {}).get("signatures", [])
+        assert "reason" not in signatures[-1]

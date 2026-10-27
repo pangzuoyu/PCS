@@ -16712,6 +16712,12 @@ export interface components {
              * @enum {string}
              */
             decision: "SIGN" | "RETURN" | "SKIP";
+            /**
+             * Reason
+             * @description 退回理由。`decision=RETURN` 时**前端必填**（退回是签署流程里唯一能纠错的路径 —— 没有理由，作者无从知道要改什么）。写进版本的签署汇总（`signature_summary_json.signatures[].reason`），可经 snapshot 端点回读。
+             * @default
+             */
+            reason: string;
         };
         /**
          * SignStepResponse
