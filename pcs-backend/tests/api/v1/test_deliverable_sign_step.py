@@ -770,3 +770,42 @@ class TestSignStepRequestStrict:
         )
 
         assert resp.status_code == 200, resp.text
+
+
+class TestCheckerCanReadDeliverables:
+    """校核人必须**读得到**交付物（用户 2026-10-27 裁决放行 · 评审 HIGH-4）。
+
+    ⚠️ 此前 `_READ_ROLES` **没有** CHECKER（只有 `_SIGN_ROLES` 有）⇒
+    **能签、不能看** ⇒ 校核人打开「签署进度」吃 403 ⇒ 前端把它渲染成**空表**
+    ⇒ 用户以为「这个项目没有交付物」。
+    ⚠️ 这条是**权限放行的回归守卫** ⇒ 以后谁把 CHECKER 从读角色里删掉 ⇒ 红。
+    """
+
+    async def test_checker_can_list_project_deliverables(
+        self, client, db_session, project_id
+    ):
+        await _issued(db_session, project_id)
+        await _grant_project(db_session, _actor_id("chk"), project_id)
+
+        resp = await client.get(
+            f"/api/v1/deliverables?project_id={project_id}",
+            headers=_token(subject="chk", role="CHECKER"),
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["total"] >= 1
+
+    async def test_checker_still_cannot_issue(
+        self, client, db_session, project_id
+    ):
+        """⚠️ 放行的是**读** —— 签发仍限作者侧（DESIGNER / SYSTEM_ADMIN）。"""
+        d, _ = await _issued(db_session, project_id)
+        await _grant_project(db_session, _actor_id("chk"), project_id)
+
+        resp = await client.post(
+            f"/api/v1/deliverables/{d.deliverable_id}/issue",
+            headers=_token(subject="chk", role="CHECKER"),
+            json={"version_purpose": "ISSUED_FOR_CONSTRUCTION"},
+        )
+
+        assert resp.status_code == 403, resp.text
