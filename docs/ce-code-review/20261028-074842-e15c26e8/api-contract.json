@@ -1,0 +1,35 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "Snapshot endpoint leaks enum class name in sign_status",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/deliverables.py",
+      "line": 241,
+      "why_it_matters": "GET /deliverables/{id}/versions/{rev}/snapshot returns sign_status as \"DeliverableSignStatus.APPROVED\" instead of \"APPROVED\": the handler calls str() on a (str, enum.Enum) member whose Enum.__str__ prefixes the class name (verified: str(DeliverableSignStatus.PENDING) == 'DeliverableSignStatus.PENDING'; the enum at app/models/enums.py defines no __str__ override). Any consumer comparing against the documented DRAFT/PENDING/APPROVED/OBSOLETE vocabulary silently fails on snapshot data — the frontend already does exactly this style of comparison for the sibling list field (DeliverableProgressPage.tsx:326 `row.sign_status === 'DRAFT'`). The line predates this batch, but this batch rolled a fresh openapi-baseline.json over this endpoint and corrected the identical pattern elsewhere in the same file (.value at lines 289 and 339) without fixing this one, so the newly frozen baseline documents a string field whose runtime value violates the documented vocabulary. Switching to .value matches the file's own corrected idiom and makes the snapshot endpoint agree with the list/issue/sign-step responses.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Change `sign_status=str(deliverable.sign_status)` to `sign_status=str(deliverable.sign_status.value)` at pcs-backend/app/api/v1/deliverables.py:241, matching line 289 in the same file; add a test asserting the snapshot response's sign_status is a bare value (e.g. 'PENDING') — no existing test pins this (grep of tests/api/v1/test_deliverable*.py shows no snapshot sign_status assertion).",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/deliverables.py:241 -- sign_status=str(deliverable.sign_status),",
+        "pcs-backend/app/api/v1/deliverables.py:289 -- sign_status=str(deliverable.sign_status.value),  (correct idiom used by this batch's new issue endpoint)",
+        "pcs-backend/app/models/enums.py -- class DeliverableSignStatus(str, enum.Enum): ... DRAFT = \"DRAFT\" ... (no __str__ override; python3 check: str(member) -> 'DeliverableSignStatus.PENDING')",
+        "pcs-backend/app/api/v1/deliverables.py:115 -- @router.get(\"/deliverables/{deliverable_id}/versions/{rev}/snapshot\", response_model=DeliverableSnapshotResponse ...)",
+        "provenance: 23c8c25 pangzy 2026-10-07 - feat(deliverables): 补交付物读面 4 端点（P8 前置项 ② 的 P8 实际依赖部分）"
+      ],
+      "pre_existing": true
+    }
+  ],
+  "residual_risks": [
+    "GET /deliverables?sign_status=... filter accepts an arbitrary string (deliverables.py:126 -> deliverable_service.py:159-160 raw == compare against the PG native enum column); invalid values are not mapped to 422. Pre-existing and unchanged this batch; exact failure mode between silent-empty and a DB lookup error was not run, so it is recorded rather than emitted as a finding.",
+    "Business error codes introduced/used by the new workflow endpoints (422 RECORD_APPROVAL_MATRIX_NOT_BOUND / RECORD_MODULE_UNKNOWN, 403 APPROVAL_SELF_REVIEW_FORBIDDEN / APPROVAL_ROLE_MISMATCH, 409 SIGN_STEP_OUT_OF_ORDER / RECORD_INVALID_TRANSITION) are not declared via responses= in OpenAPI, so they exist only in source. This is family-consistent (only the calc-module endpoints use responses=) and the frontend parses the {code, message, detail, trace_id} envelope generically via src/api/errors.ts, so no consumer breakage — but contract consumers cannot discover these codes from the baseline.",
+    "MSW mock for GET /records/:module/:record_id/edits (pcs-frontend/src/mocks/signFlow.ts:276-285) ignores limit/offset and returns the full seed, while the same batch fixed the audit-logs mock to honor pagination (handlers.ts:795-811). Current frontend callers (RecordTimeline.tsx:33, EditConflictModal.tsx:73) pass no pagination params, so no observable dev/prod drift today; a future paginated UI would silently show the unpaginated seed in dev.",
+    "StateTransition name collision (app/api/v1/meta.py:92 pydantic BaseModel vs app/models/enums.py:267 enum) is real but confined to separate modules with no cross-import; already registered as plan constraint #1 — no runtime contract impact found."
+  ],
+  "testing_gaps": [
+    "No test pins GET /deliverables/{id}/versions/{rev}/snapshot sign_status to a bare enum value; the pre-existing class-name leak is invisible to the suite.",
+    "No negative test documents behavior for GET /deliverables?sign_status=<invalid value> (which HTTP status, if any, a bad filter yields)."
+  ]
+}

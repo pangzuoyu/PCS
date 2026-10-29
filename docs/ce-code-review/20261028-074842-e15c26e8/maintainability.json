@@ -1,0 +1,137 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "errorText copy-pasted in two components; central formatter added same batch",
+      "severity": "P2",
+      "file": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx",
+      "line": 97,
+      "why_it_matters": "Users of the signing UI get inconsistent error copy depending on which surface renders it. This same batch added `describePcsError`/`isPermissionError` to src/api/errors.ts as the unified envelope formatter (used by UserAdminPage, ProjectAdminPage, AuditLogPage), yet DeliverableSignDialog and DeliverableProgressPage each define their own local `errorText` with a near-identical body — one formats with a halfwidth colon (`${data.code}: ${data.message}`), the other fullwidth (`${data.code}：${data.message}`), and neither gets the 403 「无权查看：」 prefix that describePcsError applies. DeliverableProgressPage even renders its copy for the list-level 403 error, so a permission failure on the progress page shows a raw code while the same failure on the audit page shows 「无权查看：…」. Three formatters now must be updated in step when the error envelope changes. Moving one helper into api/errors.ts (or calling describePcsError from both) restores a single formatting path.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Delete both local copies (DeliverableSignDialog.tsx:95-107, DeliverableProgressPage.tsx:77-89) and export a single `errorText(err, fallback)` from src/api/errors.ts next to describePcsError, importing it in both components. Assumption: the intentional difference (no 403 special-casing inside the sign dialog) is acceptable to unify — if the 403 prefix is wanted everywhere, call describePcsError instead. Re-run deliverable_sign / deliverable_progress tests after.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:97 -- function errorText(err: unknown, fallback: string): string {",
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:79 -- function errorText(err: unknown, fallback: string): string {",
+        "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:103 -- return data.code ? `${data.code}: ${data.message}` : data.message;",
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:85 -- return data.code ? `${data.code}：${data.message}` : data.message;",
+        "pcs-frontend/src/api/errors.ts:77 -- export function describePcsError(err: unknown, fallback: string): string {"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "ProjectCreate docstring contradicts its own fields",
+      "severity": "P3",
+      "file": "pcs-backend/app/schemas/project.py",
+      "line": 61,
+      "why_it_matters": "A maintainer reading the schema docstring will remove or distrust two working fields. The docstring asserts `status` / `product_category` 「有模型默认 ⇒ 不由客户端重复指定（要客户端复述一个默认值只是噪音）」, but the very class declares both as client-settable optional fields (`status` line 77, `product_category` line 78), the endpoint consumes them (`projects.py:99-100` uses `payload.status` / `payload.product_category.value`), and the frontend ProjectAdminPage sends `product_category` explicitly. Acting on the docstring (dropping the fields as 'noise') would break the admin create form's product-category selection. The fix is documentation-only but prevents a wrong-direction refactor.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Reword the docstring at pcs-backend/app/schemas/project.py:58-62 to: 「status / product_category 有模型默认 ⇒ 不必填：客户端可显式传（显式优先），不传用默认 ACTIVE / OTHER」— matching the code and the endpoint's use of payload values.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/schemas/project.py:61 -- ⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。",
+        "pcs-backend/app/schemas/project.py:77 -- status: str = Field(default=\"ACTIVE\", max_length=20, description=\"项目状态\")",
+        "pcs-backend/app/api/v1/projects.py:99-100 -- status=payload.status, ... product_category=payload.product_category.value,"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "record_edits imports private _load_record across API modules",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/record_edits.py",
+      "line": 33,
+      "why_it_matters": "Refactoring records_actions' private helper now silently breaks a different router. `record_edits.py` imports the underscore-private `_load_record` from `records_actions` — a coupling the underscore contract says doesn't exist — and this is the *second* same-named private loader in api/v1 (`change_impact.py:142` has its own `_load_record` with a different signature). The 'resolve record → project guard' logic that the new endpoint's authorization chain depends on has no public home, so three modules now reach the same concern three ways and will drift independently. Promoting one public loader makes the authorization path visible and greppable.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Rename records_actions' `_load_record` to public `load_record` (keeping the underscore-free name as the cross-module contract) and update `record_edits.py:33` to import that; alternatively move it into the existing shared-guard module next to `check_project_access_or_404`. Assumption: change_impact.py's simpler variant stays as-is (it predates this diff and has a different signature).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/record_edits.py:33 -- from app.api.v1.records_actions import _load_record",
+        "pcs-backend/app/api/v1/change_impact.py:142 -- async def _load_record(session: AsyncSession, record_type: str, record_id: uuid.UUID):"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "appliedFilter 'frozen at query' invariant broken by pagination",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/audit/AuditLogPage.tsx",
+      "line": 133,
+      "why_it_matters": "Editing filter inputs and then paging silently applies the un-submitted filter to the table and to the export baseline — contradicting the state's own comment (「已应用的筛选条件（点『查询』时冻结）—— 导出必须用它 … 否则 CSV 与屏幕上看到的行对不上」) and dismissing the 「改过但还没点查询」 warning. `setAppliedFilter(auditFilter)` sits inside `loadAuditLogs`, which the page effect also invokes on every page/pageSize change, so the freeze happens on pagination too, not just on 查询. A maintainer reasoning from the comment will mis-predict export behavior; a user can export under conditions they believed were not yet applied.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Move the freeze out of `loadAuditLogs` (AuditLogPage.tsx:133): freeze `setAppliedFilter(auditFilter)` only in the 查询 handler (e.g. inside `reloadFromFirstPage` before delegating), and have `loadAuditLogs` query with the already-applied filter (pass it as a parameter or read `appliedFilter` state) so pagination uses exactly what the user last confirmed. Update AuditLogPage.export.test.tsx expectations accordingly.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:133 -- setAppliedFilter(auditFilter);",
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:73-75 -- // ⚠️ **已应用**的筛选条件（点「查询」时冻结）—— 导出必须用**它**，",
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:239-247 -- useEffect(() => { … if (activeTab === 'audit-logs') void loadAuditLogs(offset); … }, [activeTab, assetId, projectId, page, pageSize]);"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Dead invisible text node in UserAdminPage",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/admin/UserAdminPage.tsx",
+      "line": 230,
+      "why_it_matters": "This node renders for no one: `display: none` hides it visually and removes it from the accessibility tree, and no test or e2e spec references its text (grep over tests/ and e2e/ finds nothing). It reads as a leftover from moving the token_version warning into the disable-confirmation modal (which does display it), and future maintainers will either puzzle over its purpose or 'fix' it into visibility, duplicating the modal's warning. Deleting it removes the ambiguity at zero cost.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Delete pcs-frontend/src/pages/admin/UserAdminPage.tsx:230-232 (the `<Typography.Text type=\"secondary\" style={{ display: 'none' }}>停用后 token_version 递增 …</Typography.Text>` block) — the disable-confirmation modal already shows this warning visibly.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/pages/admin/UserAdminPage.tsx:230-232 -- <Typography.Text type=\"secondary\" style={{ display: 'none' }}> 停用后 token_version 递增 ⇒ 在手 refresh 全部失效（ADR-0046 §⑤） </Typography.Text>"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "MOCK_PROJECT_ID exported but never used",
+      "severity": "P3",
+      "file": "pcs-frontend/src/mocks/seed/signFlow.ts",
+      "line": 193,
+      "why_it_matters": "Dead export: `MOCK_PROJECT_ID` is a re-export alias of PROJECT_ID with zero references anywhere in src/, tests/, or e2e/ (grep finds only the definition). It invites the next contributor to import it and grow a second project-id constant alongside `PROJECT_ID` already imported from constants/env — the kind of duplicate vocabulary the seed file's own header warns against. One line to delete.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Delete line 193 of pcs-frontend/src/mocks/seed/signFlow.ts (`export const MOCK_PROJECT_ID = PROJECT_ID;`). If it was intended as the mock's project handle, use the existing PROJECT_ID directly at the (currently nonexistent) call sites instead. Coverage note: verified by exhaustive identifier grep over pcs-frontend/src, tests, and e2e (text search is sufficient for TS import names).",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/mocks/seed/signFlow.ts:193 -- export const MOCK_PROJECT_ID = PROJECT_ID;"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "New `as never` casts defeat generated-type checking",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 646,
+      "why_it_matters": "`as never` is the strongest possible silencer — `never` is assignable to every type, so the compiler stops checking the prop entirely. This batch adds two new ones: `workflowType={section.workflow_type as never}` (DeliverableProgressPage:646) and `<StateBadge status={(signStatus ?? 'DRAFT') as never} />` (RecordDetailDrawer:54). For 646, `WorkflowProgressSection.workflow_type` is `string` in the generated contract; if the aggregate endpoint later emits a workflow type the panel doesn't know, the cast hides the mismatch that the batch's own discipline (types come from generated api.d.ts) was supposed to surface at compile time. A maintainer changing WorkflowProgressPanel's prop type gets no error at this call site. Widening the shared prop types deletes the casts instead of accumulating them.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "For StateBadge: widen its `status` prop to `string` (every call site already casts `as never`, so the narrower union buys nothing) and drop the casts, including RecordDetailDrawer:54. For DeliverableProgressPage:646: keep the panel's `workflowType` but pass a checked value — e.g. `(WORKFLOW_TABS.find(t => t.type === section.workflow_type)?.type ?? 'SIGN')` — or widen the prop to `string`. Verify with `npm run typecheck` + `npm run test`.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:646 -- workflowType={section.workflow_type as never}",
+        "pcs-frontend/src/pages/results/RecordDetailDrawer.tsx:54 -- <StateBadge status={(signStatus ?? 'DRAFT') as never} />",
+        "pcs-frontend/src/pages/results/ResultListPage.tsx:200 -- return value ? <StateBadge status={value as never} /> : '—';"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "deliverable_service.py grew 1298→1420 lines this batch and pcs-frontend/src/mocks/handlers.ts 1003→1029 — both were already past the 800-line ceiling from the user's coding rules before this diff (crossing pre-existing, not introduced here), and the per-batch growth pattern (+122 / +26) keeps accruing extraction debt nobody has scheduled.",
+    "RecordActions' module-level chainCache (RecordActions.tsx:149) caches the 'unbound' determination for the whole session with no invalidation: after an admin binds a RECORD matrix, already-mounted pages keep showing the disabled 送审 gate with the 「项目未绑定记录级签署矩阵」 hint until a full reload. Documented as a deliberate tradeoff (per-project fetch, cache-successes-only), but the staleness window is unbounded.",
+    "Two label vocabularies now describe the same workflow-type set: WORKFLOW_TABS (src/components/common/workflowTabs.ts) and SECTION_LABELS (DeliverableProgressPage.tsx) — adding a workflow type requires updating both, and their label texts already diverge ('签署' vs '签署进度')."
+  ],
+  "testing_gaps": [
+    "No test covers the chainCache staleness scenario: bind a RECORD matrix (or switch unbound→bound) while a ResultListPage/RecordActions is mounted and assert the 送审 gate re-evaluates — today the cache makes that path untestable without a reload.",
+    "The two local errorText copies are only exercised incidentally through page tests; after centralizing into api/errors.ts, the formatter itself needs direct unit tests for the 403-prefixed and non-403 formatting paths."
+  ]
+}

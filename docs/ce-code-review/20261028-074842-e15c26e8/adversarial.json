@@ -1,0 +1,126 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Two simultaneous signers: one signature silently erased",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/deliverable_service.py",
+      "line": 951,
+      "why_it_matters": "When two users holding the same role (two CHECKERs, or one user's retried request) sign the same step near-simultaneously, both requests pass `_assert_step_order` under READ COMMITTED (neither has committed yet), then each rebuilds `signature_summary_json` from the base it read and overwrites the whole column. The second commit erases the first signer's entry from the version snapshot — the legal signing evidence — while `audit_logs` and `workflow_progress` keep both writers, so the snapshot and the audit trail permanently disagree. The repo's own numbering path already uses `SELECT ... FOR UPDATE` (deliverable_service.py:706), so the pattern exists; sign_step just doesn't apply it to the version row before the read-modify-write, and has no idempotency key.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In `DeliverableService.sign_step`, load the version row with a row lock before any validation that derives from mutable state: replace `await db.get(DeliverableVersion, version_id)` with `select(DeliverableVersion).where(...).with_for_update()` (same pattern as the numbering path at deliverable_service.py:706), so the second concurrent signer blocks until the first commits and then fails `_assert_step_order` with 409. Add a two-session test (two async clients signing the same step concurrently) asserting exactly one 200 and one 409 and one signature entry. Assumption: serializing on the version row is acceptable; a jsonb array_append upsert would also work but changes the audit shape.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/deliverable_service.py:951 -- summary[\"signatures\"] = signatures",
+        "pcs-backend/app/services/deliverable_service.py:934 -- summary = dict(version.signature_summary_json or {})",
+        "pcs-backend/app/services/deliverable_service.py:841 -- version = await db.get(DeliverableVersion, version_id)  (plain read, no with_for_update)",
+        "pcs-backend/app/services/deliverable_service.py:706 -- 序号取自 `NumberingService.next_value`（`SELECT ... FOR UPDATE` 行锁 (pattern exists for numbering only)",
+        "grep with_for_update across deliverable_service.py / records_actions.py: 0 hits outside the numbering comment"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Duplicate project_no POST returns 500, not 409",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/projects.py",
+      "line": 99,
+      "why_it_matters": "An admin who re-submits the create form after a timeout, or types an existing 项目编号 (the Field description itself says 全局唯一), gets an unhandled IntegrityError surfaced as a raw 500 instead of an actionable conflict message. `create_project` carefully maps the missing-workspace case to a typed 404 (`WorkspaceNotFoundError`) but leaves the documented-unique `project_no` collision to the database, and no global IntegrityError handler exists in app/core or main.py. The user cannot tell 'already exists, pick another number' from 'server broken', and monitoring sees a 500 spike.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In `create_project`, wrap `db.flush()` (or the commit) in `try/except IntegrityError: await db.rollback(); raise PcsError(code=\"PROJECT_NO_CONFLICT\", message=f\"项目编号 {payload.project_no} 已存在\", status=409)` — mirroring the WorkspaceNotFoundError branch five lines up. Add a test: two POSTs with the same project_no → second is 409.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/models/project.py:54 -- project_no: Mapped[str] = mapped_column(String(50), unique=True)",
+        "pcs-backend/app/api/v1/projects.py:89 -- raise WorkspaceNotFoundError(f\"工作区 {payload.workspace_id} 不存在\")  (only existence errors are mapped; no IntegrityError branch)",
+        "grep 'IntegrityError' in app/core/ and app/main.py: 0 matches (no global handler)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Project in PERSONAL workspace: success notice, dead signing",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/projects.py",
+      "line": 87,
+      "why_it_matters": "`create_project` only checks the workspace EXISTS, not that it is FORMAL, while every downstream signing action gates on `require_formal_project_workspace` (403 for non-FORMAL, _guard.py:95). The admin UI offers every workspace returned by `GET /workspaces` — `listWorkspaces` does not filter despite its own comment claiming 只取 FORMAL — and the Select only shows the type in the label. Picking a PERSONAL workspace yields a 201 plus the notice '已自动绑定记录级签署矩阵，可以提交批准了', but every submit-approval for that project 403s forever: exactly the 「项目建好了但送不了审」半成品 state the endpoint's docstring promises cannot happen.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Default: enforce at the backend — after `db.get(Workspace, ...)`, `if workspace.workspace_type != 'FORMAL': raise PcsError(code='WORKSPACE_NOT_FORMAL', status=422, ...)` matching the gate the rest of the signing flow already applies (_guard.py). Also make the frontend match its own comment: filter `listWorkspaces` results to `workspace_type === 'FORMAL'` in ProjectAdminPage.tsx. Assumption: FORMAL is the only valid type for projects; if TEMPORARY should also be allowed, adjust the check accordingly.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/projects.py:87 -- workspace = await db.get(Workspace, payload.workspace_id) / :89 raise WorkspaceNotFoundError (type never checked)",
+        "pcs-frontend/src/api/projects.ts:27 -- listWorkspaces: (): Promise<WorkspaceOut[]> => api.get<WorkspaceOut[]>('/workspaces').then((r) => r.data)  (comment above claims 只取 FORMAL, no filter)",
+        "pcs-backend/app/api/v1/_guard.py:95 -- | 工作区不是 FORMAL | 403 | 403 |  (submit-approval/approval-step both call require_formal_project_workspace)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "First-project race: default-matrix insert 500s without fallback",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "line": 813,
+      "why_it_matters": "On a database where `DEFAULT_RECORD_3_LEVEL` does not exist yet (fresh install; p9_013 only backfills already-migrated DBs), two concurrent `POST /projects` both run `_get_or_create_default_record_matrix`, both SELECT-see nothing (READ COMMITTED), both INSERT — and the loser hits the (matrix_name, status) unique constraint that migration p9_010 added specifically because of this race. Unlike its sibling `_ensure_binding` (line 514) which catches IntegrityError, re-reads and returns the winner's row, this method has no handler: the second admin's request dies with a 500 and the whole project creation rolls back. The asymmetric fallback already exists in the same file and was deliberately built for the identical race shape.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Copy the `_ensure_binding` pattern into `_get_or_create_default_record_matrix`: wrap the `db.add(matrix); await db.flush()` in try/except IntegrityError, `await db.rollback()` is NOT safe here (caller's project INSERT would be lost) — instead use a nested-transaction savepoint (`async with db.begin_nested():`) around the insert, then re-SELECT the matrix by (name, ACTIVE) and return the existing row. Add a test with two concurrent create_project calls against an empty signature_matrices table asserting both succeed.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/signature_matrix_service.py:813 -- db.add(matrix); await db.flush()  (no IntegrityError handling)",
+        "pcs-backend/app/services/signature_matrix_service.py:514 -- except IntegrityError:  (_ensure_binding handles the same race for bindings)",
+        "pcs-backend/alembic/versions/p9_010_matrix_name_status_unique.py:1 -- `signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）… 并发下两个事务各建一份 (DB-level constraint exists)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Pagination silently applies the un-applied audit filter",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/audit/AuditLogPage.tsx",
+      "line": 133,
+      "why_it_matters": "The page's own invariant (comment at lines 73-75 and the pending-hint at line 480) is that the table and CSV export use the filter frozen at the last 查询 click, not the live inputs. But `loadAuditLogs` runs from the pagination effect too (deps at line 248 omit `auditFilter`, yet the closure reads it), and its first statement re-freezes `appliedFilter = auditFilter`. Sequence: user changes the action filter without clicking 查询 (hint shows), then clicks page 2 — page 2 is fetched with the NEW filter while page 1 showed the OLD one, the hint vanishes as if 查询 had been clicked, and a subsequent CSV export uses a filter the user never applied. The table then mixes two different result sets under one total.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Move the freeze out of the load path: only the 查询 handler sets `appliedFilter` (and resets page to 1); make `loadAuditLogs` query with `appliedFilter` instead of `auditFilter`, and have the effect depend on `appliedFilter`. Then page changes can never pull un-applied inputs. Add a test: type a new filter, click page 2, assert the request still carries the previously applied action.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:133 -- setAppliedFilter(auditFilter);  (inside loadAuditLogs, which pagination also calls)",
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:135 -- const r = await auditApi.listAuditLogs({ ...auditFilter, limit: pageSize, offset, });",
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:248 -- }, [activeTab, assetId, projectId, page, pageSize]);  (auditFilter not a dep, but loadAuditLogs reads it at call time)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Empty steps_json matrix turns submit-approval into 500",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 416,
+      "why_it_matters": "parse_steps documents (RF-1) that a matrix with no usable steps must fail loudly with 422 SIGNATURE_MATRIX_INVALID — '不能当空矩阵返回：那会让变更单按 0 步走'. It keeps that promise only for the all-entries-invalid case; a matrix whose `steps_json` is `[]` or NULL falls through `if matrix is None or not matrix.steps_json: return []` as a legitimate empty list. If such a row is bound to a project (API writes require ≥1 step today, but legacy/DB-direct rows can exist and resolve_project_matrix accepts any ACTIVE matrix), submit-approval passes the empty-set self-review check and then dereferences `steps[0]` → IndexError → 500, instead of the promised 422 telling the admin the matrix is misconfigured.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In `submit_approval`, right after `steps = SignatureMatrixService.parse_steps(matrix)`, add `if not steps: raise PcsError(code=\"SIGNATURE_MATRIX_INVALID\", message=f\"矩阵 {matrix.matrix_name!r} 没有可用步骤\", status=422)` — the same loud-failure philosophy the parse_steps docstring already commits to. Test: bind a matrix with steps_json=[] and POST submit-approval → 422.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/signature_matrix_service.py:163 -- if matrix is None or not matrix.steps_json: return []",
+        "pcs-backend/app/api/v1/records_actions.py:416 -- record.approval_role = steps[0].sign_role  (no guard for empty steps; submit already verified matrix is not None)"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "approval-step / submit-approval under concurrent double-submit converge on the scalar columns but write duplicate APPROVAL_STEP_PASSED / RECORD_TRANSITION audit rows (no row lock); lesser sibling of the sign_step lost-update finding — audit trail shows two approvals for one step advance.",
+    "e2e specs (pcs-frontend/e2e/deliverable_sign.spec.ts, record_actions.spec.ts, audit_log.spec.ts) were not adversarially reviewed this run (budget); mock approval-step is fully static (always step 2 of 2, never CHECKED), so no e2e exercises the terminal state of the record approval chain.",
+    "Mock sign-step enforces order but not sign_role / can_self_check / can_skip, although its header claims 语义照抄后端 — the 403 role-mismatch and 409 skip-forbidden branches cannot be reproduced in dev, so the dialog's disable-gates are the only defense ever exercised.",
+    "Audit export loop verified safe against the persona's partial-file scenario: downloadCsv runs only after the loop completes, so a page-26 failure yields an error alert and no file; a session-over 401 mid-loop still redirects via the (now code-gated) interceptor, which is intended."
+  ],
+  "testing_gaps": [
+    "No concurrency test anywhere in test_deliverable_sign_step.py (30 tests) or test_record_approval_chain.py (9 tests) for two simultaneous signers/approvers — the lost-update and duplicate-audit classes are unguarded by CI.",
+    "handlers.test.ts '新端点的 handler 都注册了' ratchet lists only 9 of the ~17 signFlow endpoints (record write-actions ×6, submit-approval, approval-step, version snapshot, admin disable, POST /projects are absent), and for issue/sign-step/proxy it Ajv-validates test-authored literals rather than actual handler output — a response-shape drift in those handlers keeps the suite green (partially mitigated by signFlow.test.ts, which hits handlers but only asserts status/state fields).",
+    "Mock submit-approval returns approval_depth 2 / approval_role CHECKER while the backend default RECORD matrix is depth 3 (CHECKER→REVIEWER→APPROVER) — dev UI shows 'Step 1/2' against a system that will really run 3; no test pins the mock depth to SignatureMatrixService.DEFAULT_RECORD_STEPS.",
+    "The state-machine seed guard chain is sound (backend get_state_machine == seed JSON == served by mock via meta.ts:19/115), but nothing pins the meta handler's served shape beyond seed equality — if handlers.ts:992 ever serializes through a different transform, the pytest guard stays green."
+  ]
+}

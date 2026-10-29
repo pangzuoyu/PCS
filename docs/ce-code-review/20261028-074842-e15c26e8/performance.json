@@ -1,0 +1,8 @@
+{
+  "reviewer": "performance",
+  "findings": [],
+  "residual_risks": [
+    "AuditLogPage.tsx:181-183 comment claims the audit endpoints order 'occurred_at DESC 无 tiebreaker', but this same batch added audit_id tiebreakers (audit.py:87, audit.py:230). The export mismatch notice ('collected.length !== total') is now only reachable via rows inserted concurrently during the 25-page export loop, not by unstable pagination — the stale comment will mislead future maintainers about why that check exists and whether offset paging here is safe."
+  ],
+  "testing_gaps": []
+}

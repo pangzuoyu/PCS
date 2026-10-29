@@ -1,0 +1,51 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "建项目 accepts non-FORMAL workspace; claimed 404 guard absent",
+      "severity": "P2",
+      "file": "pcs-frontend/src/api/projects.ts",
+      "line": 29,
+      "why_it_matters": "On the new /admin/projects page (SPEC §7.20, V2.4 ①) an admin can create a project in a PERSONAL/TEMPORARY workspace: the dropdown lists every workspace (GET /workspaces has no type filter) and POST /projects only checks existence, never workspace_type — even though three places in this batch document FORMAL as the requirement (frontend comment projects.ts:29 claims \"只取 FORMAL…后端 404\", and the backend schema field says \"所属 FORMAL 工作区（必须已存在）\"). A project created in a personal workspace is a dead end for exactly the workflow this batch ships: every submit-approval on its records returns 403 via require_formal_project_workspace (app/api/v1/_guard.py:95, UI-SPEC §5.3 gate matrix), so the admin gets a project whose records can never enter the approval chain the page promises (\"建完当场就能提交批准\"). Enforcing FORMAL in create_project (same shape as the existing WorkspaceNotFoundError branch) plus a client-side filter in listWorkspaces makes the code match its own documented contract.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In pcs-backend/app/api/v1/projects.py create_project, after the existence check, add: if workspace.workspace_type != WorkspaceType.FORMAL: raise PcsError(code=\"WORKSPACE_NOT_FORMAL\", message=..., status=422) (or reuse the 404 WorkspaceNotFoundError shape — assumption: 422 matches the batch's other loud-config-failure convention RECORD_APPROVAL_MATRIX_NOT_BOUND). Also filter client-side: in pcs-frontend/src/api/projects.ts listWorkspaces, map r.data.filter((w) => w.workspace_type === 'FORMAL'), and add a negative test (POST /projects with a PERSONAL workspace ⇒ 4xx) to tests/api/v1/test_project_creation.py, which today only ever uses a FORMAL fixture (line 99).",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/api/projects.ts:29-30 -- * ⚠️ 只取 FORMAL：`projects.workspace_id` 指向 FORMAL 工作区 ⇒ 选了别的 / *    类型 ⇒ 后端 404。",
+        "pcs-frontend/src/api/projects.ts:32-33 -- listWorkspaces: (): Promise<WorkspaceOut[]> => api.get<WorkspaceOut[]>('/workspaces').then((r) => r.data)  // no workspace_type filter anywhere in the chain",
+        "pcs-backend/app/api/v1/projects.py:85-89 -- workspace = await db.get(Workspace, payload.workspace_id) ... if workspace is None: raise WorkspaceNotFoundError(f\"工作区 {payload.workspace_id} 不存在\")  // existence-only check; zero occurrences of workspace_type in projects.py",
+        "pcs-backend/app/api/v1/workspaces.py:64-78 -- @router.get(\"\", response_model=list[WorkspaceOut]) async def list_workspaces(...) -- docstring: \"无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制\"; WorkspaceService.list_for_user filters only by owner_id, not type",
+        "pcs-backend/app/api/v1/_guard.py:95 -- | 工作区不是 FORMAL | 403 | 403 |   (submit_approval calls require_formal_project_workspace — records_actions.py: \"await require_formal_project_workspace(db, project_id=record.project_id)\")",
+        "pcs-backend/app/schemas/project.py:76 -- workspace_id: uuid.UUID = Field(description=\"所属 FORMAL 工作区（必须已存在）\")"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "UI-SPEC revision table: V2.3 row glued into V2.2 row",
+      "severity": "P3",
+      "file": "docs/PCS-UI-SPEC.md",
+      "line": 2340,
+      "why_it_matters": "The SPEC is the repo's sole UI coding basis, and its §12.4 revision register is the mechanism CLAUDE.md's 前端 UI 规范 mandates for recording OpenAPI-conflict revisions. The V2.3 entry (the 2026-10-27 fix-batch: self-review criterion widened from step 1 to any step, matrix-not-bound UI branch, inline change-action demotion, reason-required fix) was appended to the end of the V2.2 row with no line break, so the register jumps V2.2 → V2.4 and V2.3 exists only as text inside the V2.2 cell — grepping or reading the table for V2.3 finds nothing. Anyone tracing the approval-chain contract history (e.g. why the frontend blocks any-step self-review) silently misses an entire revision. One newline before \"V2.3\\t2026-10-27\" restores the row.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "In docs/PCS-UI-SPEC.md line 2340, split the row: replace \"…⇒ N 步链恰好批 N 次。\\tClaude CodeV2.3\\t2026-10-27\\tP9B-2 …\" with \"…⇒ N 步链恰好批 N 次。\\tClaude Code\\nV2.3\\t2026-10-27\\tP9B-2 …\" so V2.3 becomes its own table row like V2.2/V2.4.",
+      "confidence": 100,
+      "evidence": [
+        "docs/PCS-UI-SPEC.md:2340 -- …⇒ N 步链恰好批 N 次。\\tClaude CodeV2.3\\t2026-10-27\\tP9B-2 **最终整支评审的修复批**（R-12b / RF-2 / RF-16 / T4 S…  (V2.3 entry embedded mid-line at the tail of the V2.2 row)",
+        "docs/PCS-UI-SPEC.md:2341 -- V2.4\\t2026-10-28\\tP9B-2 **延后的 minor 批**…  (next line is V2.4; no line in the file starts with V2.3)"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "Downgrade paths of the two new migrations were never exercised on a live schema (test_p9_013 asserts SQL shape only; pcs and pcs_test were verified at p9_013 head via upgrade). p9_012's downgrade re-adds the column plus an FK named fk_deliverables_parent_deliverable_id_deliverables — if the original create-table constraint name differed, a downgraded-then-upgraded DB drifts by constraint name and alembic check would flag it. CLAUDE.md's per-DB alembic check reading rules apply if anyone ever runs downgrade+check.",
+    "CLAUDE.md 知识库 asks that new solutions be written back to docs/solutions/, not left in commit messages. This 30-commit batch added none (verified: git log 346c696..751826f -- docs/solutions is empty); the durable lessons (migration must inline the default-matrix definition with a test asserting equality to the service constant; pre-commit seed↔state-machine guard) currently live only in code comments, TODOS.md and local-only .gstack QA reports. Marginal because TODOS.md capture is thorough, but the solutions KB and the QA reports diverge in persistence (gitignored .gstack vs repo)."
+  ],
+  "testing_gaps": [
+    "pcs-backend/tests/api/v1/test_project_creation.py only ever constructs a FORMAL workspace (line 99); no negative test for POST /projects with a PERSONAL/TEMPORARY workspace, which is exactly the hole finding 1 slipped through.",
+    "GET /projects/{project_id}/signature-matrices (new read endpoint) has no test in the diff for the cross-project guard (check_project_access_or_404) — the sibling write endpoint's guard is tested; the new read endpoint's 404-on-foreign-project path appears untested."
+  ]
+}

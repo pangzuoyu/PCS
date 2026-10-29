@@ -1,0 +1,826 @@
+{
+ "run_id": "20261028-074842-e15c26e8",
+ "generated_by": "merge-leaf (Stage 5 + Stage 5b steps 1-3)",
+ "mechanics": {
+  "input_candidates": 25,
+  "pass1_primary": 23,
+  "pass1_pre_existing": 1,
+  "pass1_suppressed": 1,
+  "semantic_merges": [
+   {
+    "into": 4,
+    "from": [
+     "project-standards '建项目 accepts non-FORMAL workspace' (api/projects.ts:29)",
+     "adversarial 'Project in PERSONAL workspace' (projects.py:87)"
+    ],
+    "basis": "same defect (no workspace_type gate at creation) and same fix path (backend 422 + frontend filter + negative test)"
+   },
+   {
+    "into": 6,
+    "from": [
+     "learnings 'Default-matrix get-or-create lacks the collision reread' (:790)",
+     "adversarial 'First-project race' (:813)"
+    ],
+    "basis": "same defect (unhandled IntegrityError on concurrent default-matrix insert) and same fix path (savepoint + reread from in-file siblings)"
+   },
+   {
+    "into": 10,
+    "from": [
+     "adversarial 'Pagination silently applies the un-applied audit filter' (AuditLogPage.tsx:133)",
+     "maintainability 'appliedFilter frozen-at-query invariant' (same line)"
+    ],
+    "basis": "same defect and same fix path (freeze only in the 查询 handler)"
+   }
+  ],
+  "settlement_discards": 0,
+  "settlement_basis": "inferred plan with no settled decisions",
+  "final_primary": 12,
+  "final_pre_existing": 1,
+  "suppressed_by_confidence": {
+   "50": 1
+  },
+  "malformed_findings": 0,
+  "malformed_returns": 0,
+  "first_evidence_backfilled": 0,
+  "quotes_recovered_by_synthesis": 24
+ },
+ "fold_in_outcome": {
+  "peer_outcome": "not-run",
+  "note": "in-process adversarial return is in raw-returns.json; no peer artifact exists or is expected; no independence_verified promotion anywhere in this run"
+ },
+ "primary_findings": [
+  {
+   "#": 1,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "records_actions.py:512 -- record.approval_role = await _next_approval_role(",
+    "records_actions.py:348-350 -- matrix = await SignatureMatrixService.resolve_project_matrix(\\n        db, project_id=project_id, module=SignatureMatrixService.RECORD_MODULE\\n    )",
+    "signature_matrices.py:299-301 -- if binding is not None:\\n            binding.matrix_id = matrix.matrix_id\\n            await db.flush()",
+    "records_actions.py:406 -- if actor.role in {s.sign_role for s in steps}:",
+    "records_actions.py:479 -- if record.approval_role and record.approval_role != actor.role:",
+    "deliverable_service.py:1127-1129 -- snapshot = (version.signature_summary_json or {}).get(\"steps\")\\n        if isinstance(snapshot, list) and snapshot:\\n            return [s for s in snapshot if isinstance(s, dict)]"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "records_actions.py:512 -- record.approval_role = await _next_approval_role(",
+   "line": 512,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Freeze the approval chain at submit the same way deliverable versions do: store the normalized steps (matrix_id + parsed steps) in a JSON column on the record at submit-approval and have `_next_approval_role` read that snapshot instead of calling `resolve_project_matrix` live (mirroring the snapshot-first pattern in deliverable_service.py:1105-1130). As a complementary belt, re-assert the self-review rule at each approval step: reject with 403 APPROVAL_SELF_REVIEW_FORBIDDEN when the approving actor is the submitter (compare actor.user_id against the submitter recorded in the APPROVAL_STEP audit trail / a submitted_by column). Assumption: adding a nullable chain-snapshot column is acceptable; if schema change must be avoided, the per-step submitter-identity check alone closes the self-approval path.",
+   "title": "Mid-flight matrix rebind defeats APPROVAL_SELF_REVIEW_FORBIDDEN (CWE-863)",
+   "why_it_matters": "A project lead can approve their own record after submission. The self-review prohibition is checked only once, at submit-approval (records_actions.py:406), against the matrix bound at that moment. But when an intermediate step is approved, the pending role is re-derived from the LIVE project matrix (`_next_approval_role` resolves `resolve_project_matrix` fresh, records_actions.py:348-356), and `bind_to_project` allows rebinding a project's RECORD matrix at any time with no guard for in-flight IN_APPROVAL records (signature_matrices.py:300 just overwrites matrix_id). Attack: lead (global DESIGNER, PROJECT_LEAD in project) submits a record while the matrix is CHECKER→REVIEWER→APPROVER (self-check passes, DESIGNER not in chain), rebinds to e.g. [CHECKER, DESIGNER], and after the CHECKER passes step 1 the pending role for step 2 becomes DESIGNER — the submitter then signs their own record's remaining steps (the step gate at records_actions.py:479 only compares `record.approval_role != actor.role`). Deliverable signing already fixed this class of bug by snapshotting steps on the version at issue time (`_steps_for_version`, deliverable_service.py:1127); the record-side chain has no equivalent snapshot.",
+   "validation_selected": true
+  },
+  {
+   "#": 2,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/deliverable_service.py:951 -- summary[\"signatures\"] = signatures",
+    "pcs-backend/app/services/deliverable_service.py:934 -- summary = dict(version.signature_summary_json or {})",
+    "pcs-backend/app/services/deliverable_service.py:841 -- version = await db.get(DeliverableVersion, version_id)  (plain read, no with_for_update)",
+    "pcs-backend/app/services/deliverable_service.py:706 -- 序号取自 `NumberingService.next_value`（`SELECT ... FOR UPDATE` 行锁 (pattern exists for numbering only)",
+    "grep with_for_update across deliverable_service.py / records_actions.py: 0 hits outside the numbering comment"
+   ],
+   "file": "pcs-backend/app/services/deliverable_service.py",
+   "first_evidence": "pcs-backend/app/services/deliverable_service.py:951 -- summary[\"signatures\"] = signatures",
+   "line": 951,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial"
+   ],
+   "severity": "P1",
+   "suggested_fix": "In `DeliverableService.sign_step`, load the version row with a row lock before any validation that derives from mutable state: replace `await db.get(DeliverableVersion, version_id)` with `select(DeliverableVersion).where(...).with_for_update()` (same pattern as the numbering path at deliverable_service.py:706), so the second concurrent signer blocks until the first commits and then fails `_assert_step_order` with 409. Add a two-session test (two async clients signing the same step concurrently) asserting exactly one 200 and one 409 and one signature entry. Assumption: serializing on the version row is acceptable; a jsonb array_append upsert would also work but changes the audit shape.",
+   "title": "Two simultaneous signers: one signature silently erased",
+   "why_it_matters": "When two users holding the same role (two CHECKERs, or one user's retried request) sign the same step near-simultaneously, both requests pass `_assert_step_order` under READ COMMITTED (neither has committed yet), then each rebuilds `signature_summary_json` from the base it read and overwrites the whole column. The second commit erases the first signer's entry from the version snapshot — the legal signing evidence — while `audit_logs` and `workflow_progress` keep both writers, so the snapshot and the audit trail permanently disagree. The repo's own numbering path already uses `SELECT ... FOR UPDATE` (deliverable_service.py:706), so the pattern exists; sign_step just doesn't apply it to the version row before the read-modify-write, and has no idempotency key.",
+   "validation_selected": true
+  },
+  {
+   "#": 3,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "secondary_auth.py:61 --     ldap_client.authenticate(username, password)",
+    "deliverables.py:382 -- secondary_username=body.secondary_username,",
+    "config.py:474-476 --     user_id: UUID\\n    username: str\\n    role: str"
+   ],
+   "file": "pcs-backend/app/services/secondary_auth.py",
+   "first_evidence": "secondary_auth.py:61 --     ldap_client.authenticate(username, password)",
+   "line": 61,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P1",
+   "suggested_fix": "In `record_customer_approval_proxy` (or `verify_secondary_auth` itself by passing the actor in), reject with 401 SECONDARY_AUTH_FAILED when `secondary_username != actor.username` before performing the LDAP bind — the actor object is already available at the call site (deliverables.py:382 has `actor`; the service receives `actor_user_id`). Keep the error message generic (do not reveal whether the mismatch or the bind failed).",
+   "title": "Secondary auth accepts any AD credential, not the actor's (CWE-287)",
+   "why_it_matters": "The two-factor gate on customer-approval proxy (ADR-0007 path B, 'recorder re-enters their own AD password') can be satisfied with ANY valid account's credentials. `verify_secondary_auth` binds to LDAP with the client-supplied username/password pair and never compares it to the acting identity (`actor.username` exists on `_Actor`, config.py:475, and the endpoint at deliverables.py:382 forwards `body.secondary_username` unchecked). An ISSUE-role user who phishes or reuses any single other credential — a colleague's or a shared/service account — passes 're-authentication' and proxies a customer approval under their own actor identity while the audit row (SIGN_2FA_FALLBACK, resource_id=username, user_id=None) points at the borrowed account, contaminating the very evidence trail the proxy rule exists to create. The gate currently proves 'the caller knows some password', not 'the caller is who they claim'.",
+   "validation_selected": true
+  },
+  {
+   "#": 4,
+   "autofix_class": "manual",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/api/v1/projects.py:87 -- workspace = await db.get(Workspace, payload.workspace_id) / :89 raise WorkspaceNotFoundError (type never checked)",
+    "pcs-frontend/src/api/projects.ts:27 -- listWorkspaces: (): Promise<WorkspaceOut[]> => api.get<WorkspaceOut[]>('/workspaces').then((r) => r.data)  (comment above claims 只取 FORMAL, no filter)",
+    "pcs-backend/app/api/v1/_guard.py:95 -- | 工作区不是 FORMAL | 403 | 403 |  (submit-approval/approval-step both call require_formal_project_workspace)",
+    "pcs-frontend/src/api/projects.ts:29-30 -- * ⚠️ 只取 FORMAL：`projects.workspace_id` 指向 FORMAL 工作区 ⇒ 选了别的 / *    类型 ⇒ 后端 404。",
+    "pcs-frontend/src/api/projects.ts:32-33 -- listWorkspaces: (): Promise<WorkspaceOut[]> => api.get<WorkspaceOut[]>('/workspaces').then((r) => r.data)  // no workspace_type filter anywhere in the chain",
+    "pcs-backend/app/api/v1/projects.py:85-89 -- workspace = await db.get(Workspace, payload.workspace_id) ... if workspace is None: raise WorkspaceNotFoundError(f\"工作区 {payload.workspace_id} 不存在\")  // existence-only check; zero occurrences of workspace_type in projects.py",
+    "pcs-backend/app/api/v1/workspaces.py:64-78 -- @router.get(\"\", response_model=list[WorkspaceOut]) async def list_workspaces(...) -- docstring: \"无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制\"; WorkspaceService.list_for_user filters only by owner_id, not type",
+    "pcs-backend/app/api/v1/_guard.py:95 -- | 工作区不是 FORMAL | 403 | 403 |   (submit_approval calls require_formal_project_workspace — records_actions.py: \"await require_formal_project_workspace(db, project_id=record.project_id)\")",
+    "pcs-backend/app/schemas/project.py:76 -- workspace_id: uuid.UUID = Field(description=\"所属 FORMAL 工作区（必须已存在）\")"
+   ],
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "first_evidence": "pcs-backend/app/api/v1/projects.py:87 -- workspace = await db.get(Workspace, payload.workspace_id) / :89 raise WorkspaceNotFoundError (type never checked)",
+   "line": 87,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "project-standards",
+    "adversarial"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Default: enforce at the backend — after `db.get(Workspace, ...)`, `if workspace.workspace_type != 'FORMAL': raise PcsError(code='WORKSPACE_NOT_FORMAL', status=422, ...)` matching the gate the rest of the signing flow already applies (_guard.py). Also make the frontend match its own comment: filter `listWorkspaces` results to `workspace_type === 'FORMAL'` in ProjectAdminPage.tsx. Assumption: FORMAL is the only valid type for projects; if TEMPORARY should also be allowed, adjust the check accordingly.",
+   "title": "Project in PERSONAL workspace: success notice, dead signing",
+   "why_it_matters": "`create_project` only checks the workspace EXISTS, not that it is FORMAL, while every downstream signing action gates on `require_formal_project_workspace` (403 for non-FORMAL, _guard.py:95). The admin UI offers every workspace returned by `GET /workspaces` — `listWorkspaces` does not filter despite its own comment claiming 只取 FORMAL — and the Select only shows the type in the label. Picking a PERSONAL workspace yields a 201 plus the notice '已自动绑定记录级签署矩阵，可以提交批准了', but every submit-approval for that project 403s forever: exactly the 「项目建好了但送不了审」半成品 state the endpoint's docstring promises cannot happen. || Standards-lens addendum: On the new /admin/projects page (SPEC §7.20, V2.4 ①) an admin can create a project in a PERSONAL/TEMPORARY workspace: the dropdown lists every workspace (GET /workspaces has no type filter) and POST /projects only checks existence, never workspace_type — even though three places in this batch document FORMAL as the requirement (frontend comment projects.ts:29 claims \"只取 FORMAL…后端 404\", and the backend schema field says \"所属 FORMAL 工作区（必须已存在）\"). A project created in a personal workspace is a dead end for exactly the workflow this batch ships: every submit-approval on its records returns 403 via require_formal_project_workspace (app/api/v1/_guard.py:95, UI-SPEC §5.3 gate matrix), so the admin gets a project whose records can never enter the approval chain the page promises (\"建完当场就能提交批准\"). Enforcing FORMAL in create_project (same shape as the existing WorkspaceNotFoundError branch) plus a client-side filter in listWorkspaces makes the code match its own documented contract.",
+   "validation_selected": true
+  },
+  {
+   "#": 5,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/models/project.py:54 -- project_no: Mapped[str] = mapped_column(String(50), unique=True)",
+    "pcs-backend/app/api/v1/projects.py:89 -- raise WorkspaceNotFoundError(f\"工作区 {payload.workspace_id} 不存在\")  (only existence errors are mapped; no IntegrityError branch)",
+    "grep 'IntegrityError' in app/core/ and app/main.py: 0 matches (no global handler)"
+   ],
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "first_evidence": "pcs-backend/app/models/project.py:54 -- project_no: Mapped[str] = mapped_column(String(50), unique=True)",
+   "line": 99,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial"
+   ],
+   "severity": "P2",
+   "suggested_fix": "In `create_project`, wrap `db.flush()` (or the commit) in `try/except IntegrityError: await db.rollback(); raise PcsError(code=\"PROJECT_NO_CONFLICT\", message=f\"项目编号 {payload.project_no} 已存在\", status=409)` — mirroring the WorkspaceNotFoundError branch five lines up. Add a test: two POSTs with the same project_no → second is 409.",
+   "title": "Duplicate project_no POST returns 500, not 409",
+   "why_it_matters": "An admin who re-submits the create form after a timeout, or types an existing 项目编号 (the Field description itself says 全局唯一), gets an unhandled IntegrityError surfaced as a raw 500 instead of an actionable conflict message. `create_project` carefully maps the missing-workspace case to a typed 404 (`WorkspaceNotFoundError`) but leaves the documented-unique `project_no` collision to the database, and no global IntegrityError handler exists in app/core or main.py. The user cannot tell 'already exists, pick another number' from 'server broken', and monitoring sees a 500 spike.",
+   "validation_selected": true
+  },
+  {
+   "#": 6,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/services/signature_matrix_service.py:790 -- async def _get_or_create_default_record_matrix(  (SELECT->first()->db.add+flush at :813-814; no IntegrityError handler in the method)",
+    "rule text: docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md symptom 2 -- \"Two ACTIVE styles in one scope coexist; the service-layer 'check current ACTIVE first' is lock-free so concurrent requests both pass it.\"",
+    "citation: (solution: docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md, symptom 2)",
+    "pcs-backend/app/services/signature_matrix_service.py:452+ -- bind_to_project docstring point 3: \"并发 ⇒ 撞唯一约束 ⇒ SAVEPOINT 回滚这一行 + 重读（不是 500）\" (the in-file savepoint precedent)",
+    "pcs-backend/app/services/signature_matrix_service.py:632+ -- _ensure_binding docstring: 撞约束 ⇒ 重读那一行（而不是 500）(the in-file reread precedent)",
+    "pcs-backend/alembic/versions/p9_010_matrix_name_status_unique.py:1 -- signature_matrices 加 (matrix_name, status) 唯一约束（TODO-074）并发下两个事务各建一份",
+    "pcs-backend/app/services/signature_matrix_service.py:813 -- db.add(matrix); await db.flush()  (no IntegrityError handling)",
+    "pcs-backend/app/services/signature_matrix_service.py:514 -- except IntegrityError:  (_ensure_binding handles the same race for bindings)",
+    "pcs-backend/alembic/versions/p9_010_matrix_name_status_unique.py:1 -- `signature_matrices` 加 (matrix_name, status) 唯一约束（TODO-074）… 并发下两个事务各建一份 (DB-level constraint exists)"
+   ],
+   "file": "pcs-backend/app/services/signature_matrix_service.py",
+   "first_evidence": "pcs-backend/app/services/signature_matrix_service.py:813 -- db.add(matrix); await db.flush()  (no IntegrityError handling)",
+   "line": 813,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "learnings",
+    "adversarial"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Wrap the db.add(matrix)+flush in _get_or_create_default_record_matrix (signature_matrix_service.py:813-814) in the same collision-recovery pattern the file already uses for the binding rows (bind_to_project's savepoint + reread, _ensure_binding's constraint-collision reread); plain db.rollback() is unsafe here because the caller's project INSERT shares the transaction. Add a two-concurrent-create_project test against an empty signature_matrices table.",
+   "title": "First-project race: default-matrix insert 500s without fallback",
+   "why_it_matters": "The solutions corpus (docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md, symptom 2) already documents this exact failure shape: a lock-free check-then-insert lets concurrent requests both pass the SELECT and collide on INSERT. On the first two concurrent POST /projects after a fresh install (or after the default template is renamed/disabled), both transactions run _get_or_create_default_record_matrix, both see no ACTIVE DEFAULT_RECORD_3_LEVEL, both INSERT, and the loser hits uq_signature_matrices_name_status (p9_010) with an unhandled IntegrityError -> 500 and the whole project creation rolls back. The in-file precedents (bind_to_project's savepoint+reread, _ensure_binding's collision reread) handle the identical race; this method skips it. || Adversarial-lens addendum: On a database where `DEFAULT_RECORD_3_LEVEL` does not exist yet (fresh install; p9_013 only backfills already-migrated DBs), two concurrent `POST /projects` both run `_get_or_create_default_record_matrix`, both SELECT-see nothing (READ COMMITTED), both INSERT — and the loser hits the (matrix_name, status) unique constraint that migration p9_010 added specifically because of this race. Unlike its sibling `_ensure_binding` (line 514) which catches IntegrityError, re-reads and returns the winner's row, this method has no handler: the second admin's request dies with a 500 and the whole project creation rolls back. The asymmetric fallback already exists in the same file and was deliberately built for the identical race shape.",
+   "validation_selected": true
+  },
+  {
+   "#": 8,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/audit.py:87 -- .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())",
+    "pcs-backend/app/api/v1/audit.py:84-86 -- # ⚠️ **必须有 tiebreaker**（`audit_id`）：`occurred_at` 是 … 并列行的 OFFSET 分页在 Postgres 里 **顺序不稳定** ⇒ 同一行跨页出现两次、另一行永远不出现",
+    "git show --stat 1fba41d: pcs-backend/app/api/v1/audit.py | 14 ± — the only backend file changed; no pcs-backend/tests file in the commit (test additions were all pcs-frontend)",
+    "pcs-backend/tests/test_audit_query.py — 15 tests; test_pagination_limit_offset (line 180) paginates without equal occurred_at rows and never asserts ordering/tie stability"
+   ],
+   "file": "pcs-backend/app/api/v1/audit.py",
+   "first_evidence": "pcs-backend/app/api/v1/audit.py:87 -- .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())",
+   "line": 87,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "testing"
+   ],
+   "severity": "P2",
+   "suggested_fix": "In tests/test_audit_query.py add a test: insert ~5 audit rows all with the same occurred_at (distinct audit_ids), fetch page 1 (limit=2, offset=0) and page 2 (offset=2), assert the two pages are disjoint and their union equals the full filtered set — red against `.order_by(AuditLog.occurred_at.desc())` alone, green with the audit_id tiebreaker. Mirror the same ordering assertion for the config-audit endpoint (line 230).",
+   "title": "Audit pagination tiebreaker fix shipped with no backend test",
+   "why_it_matters": "The batch's own convention is every fix lands with a red-first test, and commit 1fba41d's message repeats it — but the backend half of that commit (audit.py order_by tiebreaker) changed no backend test file. The fix's own comment names the user-visible failure: same-transaction audit rows (AD sync writes N rows with identical occurred_at) get unstable OFFSET pagination on Postgres, so the CSV export can contain a row twice and lose another, and the export row-count check the frontend added can never compensate because the frontend tests mock the backend. If the tiebreaker is reverted or reordered, tests/test_audit_query.py (test_pagination_limit_offset included) stays green. A test seeding rows with identical occurred_at and asserting the pages partition the set pins it.",
+   "validation_selected": true
+  },
+  {
+   "#": 9,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/signature_matrix_service.py:736-742 -- if matrix.status != \"ACTIVE\":\\n    raise PcsError(\\n        f\"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} \"\\n        f\"当前 {matrix.status}，不是 ACTIVE\",\\n        code=\"SIGNATURE_MATRIX_NOT_ACTIVE\",\\n        status=409,\\n    )",
+    "pcs-backend/app/api/v1/records_actions.py:348 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+    "pcs-backend/app/api/v1/records_actions.py:393 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+    "grep -rn 'SIGNATURE_MATRIX_NOT_ACTIVE' pcs-backend/tests/ → only tests/services/test_signature_matrix_service.py:376 (bind_to_project, expects 422) and :480 (ensure_change_notice_matrix, expects 409); no test reaches resolve_project_matrix's raise",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py — test names cover only: no-binding 422, other-module 422, chain derivation, step advance, wrong role 403, self-review 403, body rejects, reason accepted — no non-ACTIVE-bound-matrix case"
+   ],
+   "file": "pcs-backend/app/services/signature_matrix_service.py",
+   "first_evidence": "pcs-backend/app/services/signature_matrix_service.py:736-742 -- if matrix.status != \"ACTIVE\":\\n    raise PcsError(\\n        f\"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} \"\\n        f\"当前 {matrix.status}，不是 ACTIVE\",\\n        code=\"SIGNATURE_MATRIX_NOT_ACTIVE\",\\n        status=409,\\n    )",
+   "line": 737,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "testing"
+   ],
+   "severity": "P2",
+   "suggested_fix": "In tests/api/v1/test_record_approval_chain.py add a red-first test next to test_project_without_record_matrix_is_422: create a matrix with status=\"PENDING\", bind_to_project(module=\"RECORD\"), then POST submit-approval and assert 409 with code SIGNATURE_MATRIX_NOT_ACTIVE (and optionally the same for approval-step). Optionally also cover the dangling-binding branch (binding row present, matrix row deleted) asserting 422 RECORD_APPROVAL_MATRIX_NOT_BOUND.",
+   "title": "resolve_project_matrix non-ACTIVE 409 branch has no test",
+   "why_it_matters": "An admin can bind a RECORD matrix and later have it go non-ACTIVE (DRAFT/PENDING/OBSOLETE). When that project's users then submit-approval or approval-step, the contract promises a loud 409 SIGNATURE_MATRIX_NOT_ACTIVE instead of a silent fallback or a misleading 422 RECORD_APPROVAL_MATRIX_NOT_BOUND. That 409 branch is new in this batch, is reachable from both records_actions.py call sites, and nothing pins it: repo-wide grep shows the only two SIGNATURE_MATRIX_NOT_ACTIVE assertions target bind_to_project (422) and ensure_change_notice_matrix (409), not resolve_project_matrix. The branch (or its status code / error code) can be broken or changed while the whole suite stays green. A test parallel to test_project_without_record_matrix_is_422 closes the gap: bind a PENDING matrix, POST submit-approval, expect 409 + code.",
+   "validation_selected": true
+  },
+  {
+   "#": 10,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:133 -- setAppliedFilter(auditFilter);  (inside loadAuditLogs, which pagination also calls)",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:135 -- const r = await auditApi.listAuditLogs({ ...auditFilter, limit: pageSize, offset, });",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:248 -- }, [activeTab, assetId, projectId, page, pageSize]);  (auditFilter not a dep, but loadAuditLogs reads it at call time)",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:133 -- setAppliedFilter(auditFilter);",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:73-75 -- // ⚠️ **已应用**的筛选条件（点「查询」时冻结）—— 导出必须用**它**，",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:239-247 -- useEffect(() => { … if (activeTab === 'audit-logs') void loadAuditLogs(offset); … }, [activeTab, assetId, projectId, page, pageSize]);"
+   ],
+   "file": "pcs-frontend/src/pages/audit/AuditLogPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/audit/AuditLogPage.tsx:133 -- setAppliedFilter(auditFilter);  (inside loadAuditLogs, which pagination also calls)",
+   "line": 133,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial",
+    "maintainability"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Move the freeze out of `loadAuditLogs` (AuditLogPage.tsx:133): freeze `setAppliedFilter(auditFilter)` only in the 查询 handler (e.g. inside `reloadFromFirstPage` before delegating), and have `loadAuditLogs` query with the already-applied filter (pass it as a parameter or read `appliedFilter` state) so pagination uses exactly what the user last confirmed. Update AuditLogPage.export.test.tsx expectations accordingly.",
+   "title": "Pagination silently applies the un-applied audit filter",
+   "why_it_matters": "The page's own invariant (comment at lines 73-75 and the pending-hint at line 480) is that the table and CSV export use the filter frozen at the last 查询 click, not the live inputs. But `loadAuditLogs` runs from the pagination effect too (deps at line 248 omit `auditFilter`, yet the closure reads it), and its first statement re-freezes `appliedFilter = auditFilter`. Sequence: user changes the action filter without clicking 查询 (hint shows), then clicks page 2 — page 2 is fetched with the NEW filter while page 1 showed the OLD one, the hint vanishes as if 查询 had been clicked, and a subsequent CSV export uses a filter the user never applied. The table then mixes two different result sets under one total. || Maintainability-lens addendum: Editing filter inputs and then paging silently applies the un-submitted filter to the table and to the export baseline — contradicting the state's own comment (「已应用的筛选条件（点『查询』时冻结）—— 导出必须用它 … 否则 CSV 与屏幕上看到的行对不上」) and dismissing the 「改过但还没点查询」 warning. `setAppliedFilter(auditFilter)` sits inside `loadAuditLogs`, which the page effect also invokes on every page/pageSize change, so the freeze happens on pagination too, not just on 查询. A maintainer reasoning from the comment will mis-predict export behavior; a user can export under conditions they believed were not yet applied.",
+   "validation_selected": false,
+   "validation_note": "beyond the 8-finding validator cap; remains primary with no verdict (not validation-degraded)"
+  },
+  {
+   "#": 11,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:190 -- setListError(errorText(err, '无法读取该项目的交付物'));",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:426 -- {!listError && (  // gates the whole <Table> render",
+    "grep setListError in the file matches only the useState declaration (117) and the catch (190) — no reset path",
+    "pcs-frontend/src/pages/audit/AuditLogPage.tsx:86 -- setListError(null);  // parallel component clears it on every load"
+   ],
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:190 -- setListError(errorText(err, '无法读取该项目的交付物'));",
+   "line": 190,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "In the list-loading useEffect of DeliverableProgressPage.tsx (the one with deps [page, pageSize, reloadToken]), add `setListError(null)` before the api.get call — same convention as AuditLogPage.tsx:86. Add a test that fails the first GET /deliverables then succeeds on reloadToken bump and asserts the table renders.",
+   "title": "Deliverable progress list error never cleared",
+   "why_it_matters": "One failed deliverables-list fetch permanently hides the table for as long as the page is mounted. The error is set in the catch but nothing ever resets it, and rendering is gated on `{!listError && <Table/>}`, so every later successful refetch — page change, or the automatic reload after a successful sign/issue action (`refreshAfterAction` bumps reloadToken) — still populates items/total while the table stays unrendered. A user who signs a step successfully, closes the dialog, and then looks at a stale error with no table has no recovery except a full page reload. The parallel AuditLogPage clears its equivalent state at the top of each load (AuditLogPage.tsx:86 `setListError(null)`); matching that pattern fixes the root cause.",
+   "validation_selected": false,
+   "validation_note": "beyond the 8-finding validator cap; remains primary with no verdict (not validation-degraded)"
+  },
+  {
+   "#": 12,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "docs/PCS-UI-SPEC.md:2340 -- …⇒ N 步链恰好批 N 次。\\tClaude CodeV2.3\\t2026-10-27\\tP9B-2 **最终整支评审的修复批**（R-12b / RF-2 / RF-16 / T4 S…  (V2.3 entry embedded mid-line at the tail of the V2.2 row)",
+    "docs/PCS-UI-SPEC.md:2341 -- V2.4\\t2026-10-28\\tP9B-2 **延后的 minor 批**…  (next line is V2.4; no line in the file starts with V2.3)"
+   ],
+   "file": "docs/PCS-UI-SPEC.md",
+   "first_evidence": "docs/PCS-UI-SPEC.md:2340 -- …⇒ N 步链恰好批 N 次。\\tClaude CodeV2.3\\t2026-10-27\\tP9B-2 **最终整支评审的修复批**（R-12b / RF-2 / RF-16 / T4 S…  (V2.3 entry embedded mid-line at the tail of the V2.2 row)",
+   "line": 2340,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P3",
+   "suggested_fix": "In docs/PCS-UI-SPEC.md line 2340, split the row: replace \"…⇒ N 步链恰好批 N 次。\\tClaude CodeV2.3\\t2026-10-27\\tP9B-2 …\" with \"…⇒ N 步链恰好批 N 次。\\tClaude Code\\nV2.3\\t2026-10-27\\tP9B-2 …\" so V2.3 becomes its own table row like V2.2/V2.4.",
+   "title": "UI-SPEC revision table: V2.3 row glued into V2.2 row",
+   "why_it_matters": "The SPEC is the repo's sole UI coding basis, and its §12.4 revision register is the mechanism CLAUDE.md's 前端 UI 规范 mandates for recording OpenAPI-conflict revisions. The V2.3 entry (the 2026-10-27 fix-batch: self-review criterion widened from step 1 to any step, matrix-not-bound UI branch, inline change-action demotion, reason-required fix) was appended to the end of the V2.2 row with no line break, so the register jumps V2.2 → V2.4 and V2.3 exists only as text inside the V2.2 cell — grepping or reading the table for V2.3 finds nothing. Anyone tracing the approval-chain contract history (e.g. why the frontend blocks any-step self-review) silently misses an entire revision. One newline before \"V2.3\\t2026-10-27\" restores the row.",
+   "validation_selected": false,
+   "validation_note": "beyond the 8-finding validator cap; remains primary with no verdict (not validation-degraded)"
+  },
+  {
+   "#": 18,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:141-146 -- useEffect(() => { if (!open) return; setError(null); setSubmitting(false); setShowReason(false); setReason(''); // no proxyForm/purpose/description reset",
+    "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:129 -- const [proxyForm, setProxyForm] = useState({ ... secondary_password: '' });",
+    "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:152-158 (Modal) -- destroyOnHidden unmounts modal children only; dialog-level state persists across open/close"
+   ],
+   "file": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx",
+   "first_evidence": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:141-146 -- useEffect(() => { if (!open) return; setError(null); setSubmitting(false); setShowReason(false); setReason(''); // no proxyForm/purpose/description reset",
+   "line": 141,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P3",
+   "suggested_fix": "In the open-reset useEffect (DeliverableSignDialog.tsx:141-149), also `setProxyForm({ file_path: '', file_name: '', file_type: 'PDF', approver_name: '', approval_date: '', approval_method: 'EMAIL', secondary_username: '', secondary_password: '' })`, `setPurpose('ISSUED_FOR_CONSTRUCTION')`, and `setDescription('')`. Assumes resets are wanted for all three modes, matching the component's own comment.",
+   "title": "Sign dialog keeps stale proxy credentials",
+   "why_it_matters": "Reopening the proxy (代录) dialog pre-fills the previous submission's AD username/password and the previous issue description/purpose. The dialog's own discipline comment says every open resets prior state ('每次打开都重置（否则上一次的理由/错误留在下一次里）'), but the open-effect only resets error/submitting/showReason/reason/reasonRequired — `proxyForm` (including `secondary_password`) and the issue fields are never touched, and antd's `destroyOnHidden` only unmounts modal children, not this state which lives in the always-mounted dialog component. An operator proxying approvals for several deliverables in a row can silently submit with the previous entry's secondary credentials (Input.Password shows only dots, so staleness is not obvious), and a new issue can carry the previous version's description. Resetting `proxyForm` (to the initial literal), `purpose`, and `description` in the same open-effect restores the stated reset discipline.",
+   "validation_selected": false,
+   "validation_note": "beyond the 8-finding validator cap; remains primary with no verdict (not validation-degraded)"
+  }
+ ],
+ "pre_existing_findings": [
+  {
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/api/v1/deliverables.py:241 -- sign_status=str(deliverable.sign_status),",
+    "pcs-backend/app/api/v1/deliverables.py:289 -- sign_status=str(deliverable.sign_status.value),  (correct idiom used by this batch's new issue endpoint)",
+    "pcs-backend/app/models/enums.py -- class DeliverableSignStatus(str, enum.Enum): ... DRAFT = \"DRAFT\" ... (no __str__ override; python3 check: str(member) -> 'DeliverableSignStatus.PENDING')",
+    "pcs-backend/app/api/v1/deliverables.py:115 -- @router.get(\"/deliverables/{deliverable_id}/versions/{rev}/snapshot\", response_model=DeliverableSnapshotResponse ...)",
+    "provenance: 23c8c25 pangzy 2026-10-07 - feat(deliverables): 补交付物读面 4 端点（P8 前置项 ② 的 P8 实际依赖部分）"
+   ],
+   "file": "pcs-backend/app/api/v1/deliverables.py",
+   "first_evidence": "pcs-backend/app/api/v1/deliverables.py:241 -- sign_status=str(deliverable.sign_status),",
+   "line": 241,
+   "owner": "downstream-resolver",
+   "pre_existing": true,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Change `sign_status=str(deliverable.sign_status)` to `sign_status=str(deliverable.sign_status.value)` at pcs-backend/app/api/v1/deliverables.py:241, matching line 289 in the same file; add a test asserting the snapshot response's sign_status is a bare value (e.g. 'PENDING') — no existing test pins this (grep of tests/api/v1/test_deliverable*.py shows no snapshot sign_status assertion).",
+   "title": "Snapshot endpoint leaks enum class name in sign_status",
+   "why_it_matters": "GET /deliverables/{id}/versions/{rev}/snapshot returns sign_status as \"DeliverableSignStatus.APPROVED\" instead of \"APPROVED\": the handler calls str() on a (str, enum.Enum) member whose Enum.__str__ prefixes the class name (verified: str(DeliverableSignStatus.PENDING) == 'DeliverableSignStatus.PENDING'; the enum at app/models/enums.py defines no __str__ override). Any consumer comparing against the documented DRAFT/PENDING/APPROVED/OBSOLETE vocabulary silently fails on snapshot data — the frontend already does exactly this style of comparison for the sibling list field (DeliverableProgressPage.tsx:326 `row.sign_status === 'DRAFT'`). The line predates this batch, but this batch rolled a fresh openapi-baseline.json over this endpoint and corrected the identical pattern elsewhere in the same file (.value at lines 289 and 339) without fixing this one, so the newly frozen baseline documents a string field whose runtime value violates the documented vocabulary. Switching to .value matches the file's own corrected idiom and makes the snapshot endpoint agree with the list/issue/sign-step responses."
+  }
+ ],
+ "residual_risks": {
+  "persona_supplied": [
+   {
+    "source": "correctness",
+    "text": "RecordActions.tsx:149 `chainCache` is a module-level Map that is only written, never invalidated: after an admin binds/rebinds a project's RECORD matrix, an already-mounted SPA keeps the stale 'unbound'/'bound' verdict, so 提交批准 stays disabled with the '项目未绑定记录级签署矩阵' tooltip (or the self-review gate uses old roles) until a full page reload. Deliberate N+1-avoidance tradeoff, but the disable-until-reload consequence contradicts the component's own 门禁前置 goal.",
+    "also_found_by": [
+     "maintainability"
+    ]
+   },
+   {
+    "source": "correctness",
+    "text": "CommentPanel.send() appends the new comment to whichever page is currently viewed: posting while on a non-last page renders the comment on the wrong page and can render 21 items on a 20-item page (backend order stays correct; cosmetic only)."
+   },
+   {
+    "source": "correctness",
+    "text": "MSW snapshot handler always returns the seed rev-B snapshot regardless of the :rev path param, so in dev, after issuing a new version, openSign computes nextStep from a stale snapshot (dev-only fidelity gap; real backend keys on rev)."
+   },
+   {
+    "source": "correctness",
+    "text": "Frontend gates everywhere consume the singular `role` from auth state (menu visibility, self-review check, sign-role mismatch); verification was grep-only — if the token ever carries multiple roles, these gates diverge from backend checks that use `actor.roles`."
+   },
+   {
+    "source": "project-standards",
+    "text": "Downgrade paths of the two new migrations were never exercised on a live schema (test_p9_013 asserts SQL shape only; pcs and pcs_test were verified at p9_013 head via upgrade). p9_012's downgrade re-adds the column plus an FK named fk_deliverables_parent_deliverable_id_deliverables — if the original create-table constraint name differed, a downgraded-then-upgraded DB drifts by constraint name and alembic check would flag it. CLAUDE.md's per-DB alembic check reading rules apply if anyone ever runs downgrade+check."
+   },
+   {
+    "source": "project-standards",
+    "text": "CLAUDE.md 知识库 asks that new solutions be written back to docs/solutions/, not left in commit messages. This 30-commit batch added none (verified: git log 346c696..751826f -- docs/solutions is empty); the durable lessons (migration must inline the default-matrix definition with a test asserting equality to the service constant; pre-commit seed↔state-machine guard) currently live only in code comments, TODOS.md and local-only .gstack QA reports. Marginal because TODOS.md capture is thorough, but the solutions KB and the QA reports diverge in persistence (gitignored .gstack vs repo)."
+   },
+   {
+    "source": "testing",
+    "text": "Backend tests run against in-memory SQLite via conftest, not the Postgres the audit OFFSET-pagination comment targets; even after adding a tie test, cross-engine ordering guarantees are only truly exercised on Postgres (repo-known trap: a wrong migration stays green on SQLite)."
+   },
+   {
+    "source": "testing",
+    "text": "Coverage-by-absence claims (untested branches) were established with repo-wide text grep over tests/ plus reading the relevant test files in full; a test exercising a branch without asserting its error code could have been missed, though the relevant suites assert codes everywhere else."
+   },
+   {
+    "source": "maintainability",
+    "text": "deliverable_service.py grew 1298→1420 lines this batch and pcs-frontend/src/mocks/handlers.ts 1003→1029 — both were already past the 800-line ceiling from the user's coding rules before this diff (crossing pre-existing, not introduced here), and the per-batch growth pattern (+122 / +26) keeps accruing extraction debt nobody has scheduled."
+   },
+   {
+    "source": "maintainability",
+    "text": "Two label vocabularies now describe the same workflow-type set: WORKFLOW_TABS (src/components/common/workflowTabs.ts) and SECTION_LABELS (DeliverableProgressPage.tsx) — adding a workflow type requires updating both, and their label texts already diverge ('签署' vs '签署进度')."
+   },
+   {
+    "source": "security",
+    "text": "require_formal_project_workspace is deliberately fail-open for projects with no workspace metadata (documented TODO-076, _guard.py:110-117); an unattached legacy project therefore skips the workspace tier of the sign-flow gates."
+   },
+   {
+    "source": "security",
+    "text": "Mock login routes are claimed production-guarded (secondary_auth.py docstring; app/main.py not independently inspected in this pass) — if that guard ever regresses, the secondary-auth LDAP bind is the only remaining check on proxy recording."
+   },
+   {
+    "source": "performance",
+    "text": "AuditLogPage.tsx:181-183 comment claims the audit endpoints order 'occurred_at DESC 无 tiebreaker', but this same batch added audit_id tiebreakers (audit.py:87, audit.py:230). The export mismatch notice ('collected.length !== total') is now only reachable via rows inserted concurrently during the 25-page export loop, not by unstable pagination — the stale comment will mislead future maintainers about why that check exists and whether offset paging here is safe."
+   },
+   {
+    "source": "api-contract",
+    "text": "GET /deliverables?sign_status=... filter accepts an arbitrary string (deliverables.py:126 -> deliverable_service.py:159-160 raw == compare against the PG native enum column); invalid values are not mapped to 422. Pre-existing and unchanged this batch; exact failure mode between silent-empty and a DB lookup error was not run, so it is recorded rather than emitted as a finding."
+   },
+   {
+    "source": "api-contract",
+    "text": "Business error codes introduced/used by the new workflow endpoints (422 RECORD_APPROVAL_MATRIX_NOT_BOUND / RECORD_MODULE_UNKNOWN, 403 APPROVAL_SELF_REVIEW_FORBIDDEN / APPROVAL_ROLE_MISMATCH, 409 SIGN_STEP_OUT_OF_ORDER / RECORD_INVALID_TRANSITION) are not declared via responses= in OpenAPI, so they exist only in source. This is family-consistent (only the calc-module endpoints use responses=) and the frontend parses the {code, message, detail, trace_id} envelope generically via src/api/errors.ts, so no consumer breakage — but contract consumers cannot discover these codes from the baseline."
+   },
+   {
+    "source": "api-contract",
+    "text": "MSW mock for GET /records/:module/:record_id/edits (pcs-frontend/src/mocks/signFlow.ts:276-285) ignores limit/offset and returns the full seed, while the same batch fixed the audit-logs mock to honor pagination (handlers.ts:795-811). Current frontend callers (RecordTimeline.tsx:33, EditConflictModal.tsx:73) pass no pagination params, so no observable dev/prod drift today; a future paginated UI would silently show the unpaginated seed in dev."
+   },
+   {
+    "source": "api-contract",
+    "text": "StateTransition name collision (app/api/v1/meta.py:92 pydantic BaseModel vs app/models/enums.py:267 enum) is real but confined to separate modules with no cross-import; already registered as plan constraint #1 — no runtime contract impact found."
+   },
+   {
+    "source": "data-migration",
+    "text": "p9_013's _CREATE_BINDINGS INSERT has never inserted an actual row on any real database: dev pcs has 0 projects, pcs_test has 0 projects, and CI upgrades a fresh empty schema — the backfill's row-producing path (CROSS JOIN over existing projects) will run for the first time on the first project-bearing database this migration meets. SQL shape is standard correlated NOT EXISTS and was syntax-validated on PG18 by the dev/pcs_test upgrades, but the semantics on populated data are unexercised."
+   },
+   {
+    "source": "data-migration",
+    "text": "p9_013's downgrade deletes ALL module='RECORD' bindings whose matrix_id is the default ACTIVE matrix — including bindings created at runtime by the T-1 service for projects created after the upgrade (and any admin-made manual binds to that matrix), slightly broader than the docstring's '删掉回填的绑定'. Consistent with the lossy label and pre-T1 rollback semantics, but operators should know a downgrade unbinds post-upgrade-created projects too."
+   },
+   {
+    "source": "data-migration",
+    "text": "pcs-backend/docs/schema_compact_orm.md:73 still lists deliverables.parent_deliverable_id after the p9_012 drop. The doc was last regenerated in the P2 era (commit c051754) and is broadly stale, so this is one symptom of pre-existing doc drift rather than an omission introduced by this batch."
+   },
+   {
+    "source": "adversarial",
+    "text": "approval-step / submit-approval under concurrent double-submit converge on the scalar columns but write duplicate APPROVAL_STEP_PASSED / RECORD_TRANSITION audit rows (no row lock); lesser sibling of the sign_step lost-update finding — audit trail shows two approvals for one step advance."
+   },
+   {
+    "source": "adversarial",
+    "text": "e2e specs (pcs-frontend/e2e/deliverable_sign.spec.ts, record_actions.spec.ts, audit_log.spec.ts) were not adversarially reviewed this run (budget); mock approval-step is fully static (always step 2 of 2, never CHECKED), so no e2e exercises the terminal state of the record approval chain."
+   },
+   {
+    "source": "adversarial",
+    "text": "Mock sign-step enforces order but not sign_role / can_self_check / can_skip, although its header claims 语义照抄后端 — the 403 role-mismatch and 409 skip-forbidden branches cannot be reproduced in dev, so the dialog's disable-gates are the only defense ever exercised."
+   },
+   {
+    "source": "adversarial",
+    "text": "Audit export loop verified safe against the persona's partial-file scenario: downloadCsv runs only after the loop completes, so a page-26 failure yields an error alert and no file; a session-over 401 mid-loop still redirects via the (now code-gated) interceptor, which is intended."
+   }
+  ],
+  "demoted_findings": [
+   {
+    "stable_number_was": 7,
+    "title": "errorText copy-pasted in two components; central formatter added same batch",
+    "severity": "P2",
+    "file": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx",
+    "line": 97,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "Users of the signing UI get inconsistent error copy depending on which surface renders it. This same batch added `describePcsError`/`isPermissionError` to src/api/errors.ts as the unified envelope formatter (used by UserAdminPage, ProjectAdminPage, AuditLogPage), yet DeliverableSignDialog and DeliverableProgressPage each define their own local `errorText` with a near-identical body — one formats with a halfwidth colon (`${data.code}: ${data.message}`), the other fullwidth (`${data.code}：${data.message}`), and neither gets the 403 「无权查看：」 prefix that describePcsError applies. DeliverableProgressPage even renders its copy for the list-level 403 error, so a permission failure on the progress page shows a raw code while the same failure on the audit page shows 「无权查看：…」. Three formatters now must be updated in step when the error envelope changes. Moving one helper into api/errors.ts (or calling describePcsError from both) restores a single formatting path. Follow-up: after centralizing, the shared formatter needs direct unit tests for the 403-prefixed and non-403 paths (maintainability testing gap folded here).",
+    "evidence": [
+     "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:97 -- function errorText(err: unknown, fallback: string): string {",
+     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:79 -- function errorText(err: unknown, fallback: string): string {",
+     "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:103 -- return data.code ? `${data.code}: ${data.message}` : data.message;",
+     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:85 -- return data.code ? `${data.code}：${data.message}` : data.message;",
+     "pcs-frontend/src/api/errors.ts:77 -- export function describePcsError(err: unknown, fallback: string): string {"
+    ],
+    "suggested_fix": "Delete both local copies (DeliverableSignDialog.tsx:95-107, DeliverableProgressPage.tsx:77-89) and export a single `errorText(err, fallback)` from src/api/errors.ts next to describePcsError, importing it in both components. Assumption: the intentional difference (no 403 special-casing inside the sign dialog) is acceptable to unify — if the 403 prefix is wanted everywhere, call describePcsError instead. Re-run deliverable_sign / deliverable_progress tests after.",
+    "reason": "single-reviewer P2 advisory from maintainability: duplication cleanup, no runtime defect and no violated contract quoted; routed to residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": 13,
+    "title": "ProjectCreate docstring contradicts its own fields",
+    "severity": "P3",
+    "file": "pcs-backend/app/schemas/project.py",
+    "line": 61,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "A maintainer reading the schema docstring will remove or distrust two working fields. The docstring asserts `status` / `product_category` 「有模型默认 ⇒ 不由客户端重复指定（要客户端复述一个默认值只是噪音）」, but the very class declares both as client-settable optional fields (`status` line 77, `product_category` line 78), the endpoint consumes them (`projects.py:99-100` uses `payload.status` / `payload.product_category.value`), and the frontend ProjectAdminPage sends `product_category` explicitly. Acting on the docstring (dropping the fields as 'noise') would break the admin create form's product-category selection. The fix is documentation-only but prevents a wrong-direction refactor.",
+    "evidence": [
+     "pcs-backend/app/schemas/project.py:61 -- ⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。",
+     "pcs-backend/app/schemas/project.py:77 -- status: str = Field(default=\"ACTIVE\", max_length=20, description=\"项目状态\")",
+     "pcs-backend/app/api/v1/projects.py:99-100 -- status=payload.status, ... product_category=payload.product_category.value,"
+    ],
+    "suggested_fix": "Reword the docstring at pcs-backend/app/schemas/project.py:58-62 to: 「status / product_category 有模型默认 ⇒ 不必填：客户端可显式传（显式优先），不传用默认 ACTIVE / OTHER」— matching the code and the endpoint's use of payload values.",
+    "reason": "single-reviewer P3 advisory from maintainability (docstring wording, no runtime defect); residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": 14,
+    "title": "MOCK_PROJECT_ID exported but never used",
+    "severity": "P3",
+    "file": "pcs-frontend/src/mocks/seed/signFlow.ts",
+    "line": 193,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "Dead export: `MOCK_PROJECT_ID` is a re-export alias of PROJECT_ID with zero references anywhere in src/, tests/, or e2e/ (grep finds only the definition). It invites the next contributor to import it and grow a second project-id constant alongside `PROJECT_ID` already imported from constants/env — the kind of duplicate vocabulary the seed file's own header warns against. One line to delete.",
+    "evidence": [
+     "pcs-frontend/src/mocks/seed/signFlow.ts:193 -- export const MOCK_PROJECT_ID = PROJECT_ID;"
+    ],
+    "suggested_fix": "Delete line 193 of pcs-frontend/src/mocks/seed/signFlow.ts (`export const MOCK_PROJECT_ID = PROJECT_ID;`). If it was intended as the mock's project handle, use the existing PROJECT_ID directly at the (currently nonexistent) call sites instead. Coverage note: verified by exhaustive identifier grep over pcs-frontend/src, tests, and e2e (text search is sufficient for TS import names).",
+    "reason": "single-reviewer P3 advisory from maintainability (dead mock export); residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": 15,
+    "title": "Dead invisible text node in UserAdminPage",
+    "severity": "P3",
+    "file": "pcs-frontend/src/pages/admin/UserAdminPage.tsx",
+    "line": 230,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "This node renders for no one: `display: none` hides it visually and removes it from the accessibility tree, and no test or e2e spec references its text (grep over tests/ and e2e/ finds nothing). It reads as a leftover from moving the token_version warning into the disable-confirmation modal (which does display it), and future maintainers will either puzzle over its purpose or 'fix' it into visibility, duplicating the modal's warning. Deleting it removes the ambiguity at zero cost.",
+    "evidence": [
+     "pcs-frontend/src/pages/admin/UserAdminPage.tsx:230-232 -- <Typography.Text type=\"secondary\" style={{ display: 'none' }}> 停用后 token_version 递增 ⇒ 在手 refresh 全部失效（ADR-0046 §⑤） </Typography.Text>"
+    ],
+    "suggested_fix": "Delete pcs-frontend/src/pages/admin/UserAdminPage.tsx:230-232 (the `<Typography.Text type=\"secondary\" style={{ display: 'none' }}>停用后 token_version 递增 …</Typography.Text>` block) — the disable-confirmation modal already shows this warning visibly.",
+    "reason": "single-reviewer P3 advisory from maintainability (dead invisible UI node); residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": 16,
+    "title": "record_edits imports private _load_record across API modules",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/record_edits.py",
+    "line": 33,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "Refactoring records_actions' private helper now silently breaks a different router. `record_edits.py` imports the underscore-private `_load_record` from `records_actions` — a coupling the underscore contract says doesn't exist — and this is the *second* same-named private loader in api/v1 (`change_impact.py:142` has its own `_load_record` with a different signature). The 'resolve record → project guard' logic that the new endpoint's authorization chain depends on has no public home, so three modules now reach the same concern three ways and will drift independently. Promoting one public loader makes the authorization path visible and greppable.",
+    "evidence": [
+     "pcs-backend/app/api/v1/record_edits.py:33 -- from app.api.v1.records_actions import _load_record",
+     "pcs-backend/app/api/v1/change_impact.py:142 -- async def _load_record(session: AsyncSession, record_type: str, record_id: uuid.UUID):"
+    ],
+    "suggested_fix": "Rename records_actions' `_load_record` to public `load_record` (keeping the underscore-free name as the cross-module contract) and update `record_edits.py:33` to import that; alternatively move it into the existing shared-guard module next to `check_project_access_or_404`. Assumption: change_impact.py's simpler variant stays as-is (it predates this diff and has a different signature).",
+    "reason": "single-reviewer P3 advisory from maintainability (private-name import across modules); residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": 17,
+    "title": "Empty steps_json matrix turns submit-approval into 500",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 416,
+    "reviewers": [
+     "adversarial"
+    ],
+    "why_it_matters": "parse_steps documents (RF-1) that a matrix with no usable steps must fail loudly with 422 SIGNATURE_MATRIX_INVALID — '不能当空矩阵返回：那会让变更单按 0 步走'. It keeps that promise only for the all-entries-invalid case; a matrix whose `steps_json` is `[]` or NULL falls through `if matrix is None or not matrix.steps_json: return []` as a legitimate empty list. If such a row is bound to a project (API writes require ≥1 step today, but legacy/DB-direct rows can exist and resolve_project_matrix accepts any ACTIVE matrix), submit-approval passes the empty-set self-review check and then dereferences `steps[0]` → IndexError → 500, instead of the promised 422 telling the admin the matrix is misconfigured.",
+    "evidence": [
+     "pcs-backend/app/services/signature_matrix_service.py:163 -- if matrix is None or not matrix.steps_json: return []",
+     "pcs-backend/app/api/v1/records_actions.py:416 -- record.approval_role = steps[0].sign_role  (no guard for empty steps; submit already verified matrix is not None)"
+    ],
+    "suggested_fix": "In `submit_approval`, right after `steps = SignatureMatrixService.parse_steps(matrix)`, add `if not steps: raise PcsError(code=\"SIGNATURE_MATRIX_INVALID\", message=f\"矩阵 {matrix.matrix_name!r} 没有可用步骤\", status=422)` — the same loud-failure philosophy the parse_steps docstring already commits to. Test: bind a matrix with steps_json=[] and POST submit-approval → 422.",
+    "reason": "single-reviewer P3 from adversarial that does not prove a reachable defect: SignatureMatrixCreate/Update enforce steps min_length=1 (schemas/signature_matrix.py:68,79), so an empty-steps_json matrix is not creatable via the API; kept as a defense-in-depth residual"
+   },
+   {
+    "stable_number_was": 20,
+    "title": "New `as never` casts defeat generated-type checking",
+    "severity": "P3",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 646,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "`as never` is the strongest possible silencer — `never` is assignable to every type, so the compiler stops checking the prop entirely. This batch adds two new ones: `workflowType={section.workflow_type as never}` (DeliverableProgressPage:646) and `<StateBadge status={(signStatus ?? 'DRAFT') as never} />` (RecordDetailDrawer:54). For 646, `WorkflowProgressSection.workflow_type` is `string` in the generated contract; if the aggregate endpoint later emits a workflow type the panel doesn't know, the cast hides the mismatch that the batch's own discipline (types come from generated api.d.ts) was supposed to surface at compile time. A maintainer changing WorkflowProgressPanel's prop type gets no error at this call site. Widening the shared prop types deletes the casts instead of accumulating them.",
+    "evidence": [
+     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:646 -- workflowType={section.workflow_type as never}",
+     "pcs-frontend/src/pages/results/RecordDetailDrawer.tsx:54 -- <StateBadge status={(signStatus ?? 'DRAFT') as never} />",
+     "pcs-frontend/src/pages/results/ResultListPage.tsx:200 -- return value ? <StateBadge status={value as never} /> : '—';"
+    ],
+    "suggested_fix": "For StateBadge: widen its `status` prop to `string` (every call site already casts `as never`, so the narrower union buys nothing) and drop the casts, including RecordDetailDrawer:54. For DeliverableProgressPage:646: keep the panel's `workflowType` but pass a checked value — e.g. `(WORKFLOW_TABS.find(t => t.type === section.workflow_type)?.type ?? 'SIGN')` — or widen the prop to `string`. Verify with `npm run typecheck` + `npm run test`.",
+    "reason": "single-reviewer P3 advisory from maintainability (type-widening cleanup); residual_risks per Stage 5 step 4"
+   },
+   {
+    "stable_number_was": null,
+    "title": "Reason-modal action error hidden behind mask",
+    "severity": "P3",
+    "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+    "line": 319,
+    "reviewers": [
+     "correctness"
+    ],
+    "why_it_matters": "When a reason-required action (退回/弃用/放弃变更…) fails while the reason modal is open, the error message is rendered in the outer Space under the still-open modal's dimming mask, so the user sees the 确认 button do nothing and has no visible failure feedback until they cancel the modal. `run()` sets `actionError` on catch but leaves `reasonFor` set, and `actionError` is only rendered at line 319 — outside the Modal at line 324. Compare DeliverableSignDialog, which renders its error Alert inside the modal body; moving the error text into the Modal (or closing the modal on failure) restores visible feedback.",
+    "evidence": [
+     "pcs-frontend/src/components/common/RecordActions.tsx:319 -- {actionError && ( <Typography.Text type=\"danger\" data-testid=\"record-actions-error\"> — rendered in the outer Space, before the Modal at line 324",
+     "pcs-frontend/src/components/common/RecordActions.tsx:246-258 (run) -- catch sets setActionError but does not close the modal (reasonFor stays set)"
+    ],
+    "suggested_fix": "Render the actionError Typography inside the reason Modal's children (RecordActions.tsx:324-348), mirroring DeliverableSignDialog's in-modal error Alert, so failures during a modal action are visible above the mask.",
+    "reason": "P3 at anchor 50, below the confidence threshold; defect structurally verified by synthesis (error text renders outside the Modal at RecordActions.tsx:319-323, hidden behind the mask during modal actions); routed to residual_risks, not discarded"
+   }
+  ]
+ },
+ "testing_gaps": {
+  "persona_supplied": [
+   {
+    "source": "correctness",
+    "text": "No test asserts EXPORT_PAGE_SIZE (200) stays within the backend /audit-logs `le=200` cap — a future backend cap reduction breaks CSV export only against the real backend; MSW mocks and e2e would stay green."
+   },
+   {
+    "source": "project-standards",
+    "text": "pcs-backend/tests/api/v1/test_project_creation.py only ever constructs a FORMAL workspace (line 99); no negative test for POST /projects with a PERSONAL/TEMPORARY workspace, which is exactly the hole finding 1 slipped through."
+   },
+   {
+    "source": "project-standards",
+    "text": "GET /projects/{project_id}/signature-matrices (new read endpoint) has no test in the diff for the cross-project guard (check_project_access_or_404) — the sibling write endpoint's guard is tested; the new read endpoint's 404-on-foreign-project path appears untested."
+   },
+   {
+    "source": "testing",
+    "text": "ensure_default_record_matrix's dangling-binding repair branch (binding row exists, matrix row deleted → rebind the default matrix) is new in this batch and untested; test_ensure_default_record_matrix_does_not_override_existing_binding covers only the healthy-binding path."
+   },
+   {
+    "source": "testing",
+    "text": "POST /projects OpenAPI description promises full-transaction atomicity (建行 + 绑矩阵 + 建模板 same transaction, any failure rolls back); no test injects a mid-transaction failure to pin the no-half-built-project claim."
+   },
+   {
+    "source": "api-contract",
+    "text": "No negative test documents behavior for GET /deliverables?sign_status=<invalid value> (which HTTP status, if any, a bad filter yields)."
+   },
+   {
+    "source": "data-migration",
+    "text": "tests/alembic/test_p9_013_bind_default_record_matrix.py never executes the migration against any engine — it imports the module and asserts the rendered SQL strings (honestly documented in its docstring). A future column rename in signature_matrices or project_signature_matrix_bindings would pass every unit test and only surface in CI's fresh-schema alembic upgrade head (check-api-drift.yml, postgres:18)."
+   },
+   {
+    "source": "adversarial",
+    "text": "No concurrency test anywhere in test_deliverable_sign_step.py (30 tests) or test_record_approval_chain.py (9 tests) for two simultaneous signers/approvers — the lost-update and duplicate-audit classes are unguarded by CI."
+   },
+   {
+    "source": "adversarial",
+    "text": "handlers.test.ts '新端点的 handler 都注册了' ratchet lists only 9 of the ~17 signFlow endpoints (record write-actions ×6, submit-approval, approval-step, version snapshot, admin disable, POST /projects are absent), and for issue/sign-step/proxy it Ajv-validates test-authored literals rather than actual handler output — a response-shape drift in those handlers keeps the suite green (partially mitigated by signFlow.test.ts, which hits handlers but only asserts status/state fields)."
+   },
+   {
+    "source": "adversarial",
+    "text": "Mock submit-approval returns approval_depth 2 / approval_role CHECKER while the backend default RECORD matrix is depth 3 (CHECKER→REVIEWER→APPROVER) — dev UI shows 'Step 1/2' against a system that will really run 3; no test pins the mock depth to SignatureMatrixService.DEFAULT_RECORD_STEPS."
+   },
+   {
+    "source": "adversarial",
+    "text": "The state-machine seed guard chain is sound (backend get_state_machine == seed JSON == served by mock via meta.ts:19/115), but nothing pins the meta handler's served shape beyond seed equality — if handlers.ts:992 ever serializes through a different transform, the pytest guard stays green."
+   },
+   {
+    "source": "learnings-researcher + data-migration",
+    "text": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py asserts literal substrings on the evaluated SQL (\"NOT EXISTS\" in sql): presence-of-substring proves the clause exists somewhere, not that it guards the right relation — harden by asserting the NOT EXISTS subquery references project_signature_matrix_bindings (learning: docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md §2). Same weakness covers the double-bind guard scenario (mixed bound/unbound projects never exercised against populated tables)."
+   }
+  ],
+  "demoted_findings": [
+   {
+    "stable_number_was": 19,
+    "title": "resetMockSignState resets only sign state, not comments/admin seed",
+    "severity": "P3",
+    "file": "pcs-frontend/src/mocks/signFlow.ts",
+    "line": 59,
+    "reviewers": [
+     "testing"
+    ],
+    "why_it_matters": "resetMockSignState() is the test-isolation seam for anything mounting signFlowHandlers, but it only restores mockSignSteps and mockDeliverableSignStatus. The disable handler mutates the shared exported seedAdminUsers objects in place (user.status = 'DISABLED'; user.token_version += 1) and the comments handler pushes into a module-level array that nothing resets. Vitest isolates per file, so today no test breaks — but the next test added to tests/mocks/signFlow.test.ts (or a new file reusing these handlers) that exercises admin disable or comment POST inherits earlier tests' mutations: generated comment_id (`c-${comments.length + 1}`) and user status/token_version become order-dependent, producing exactly the flaky by-order green/red this reset function was created to prevent.",
+    "suggested_fix": "Extend resetMockSignState() in src/mocks/signFlow.ts to also restore the other mutable state: rebuild comments from seedRecordComments.items (comments.length = 0; comments.push(...seedRecordComments.items)) and restore each seedAdminUsers entry's status/token_version (or snapshot originals at module load and re-apply; alternatively have the disable handler operate on a per-request copy). Rename not needed.",
+    "reason": "single-reviewer P3 advisory from testing (mock-state reset completeness, dev-only surface); testing_gaps per Stage 5 step 4"
+   }
+  ]
+ },
+ "triage_groups": [
+  {
+   "title": "Record approval chain is resolved from the live matrix, not frozen at submit",
+   "findings": [
+    1,
+    9
+   ],
+   "kind": "decision-gate then apply-queue",
+   "context": "The pending approval role is re-derived from the current project binding at every intermediate step (records_actions.py:512), so a mid-approval rebind changes who may sign after the one-time self-review check at submit has already passed; the same resolver's new non-ACTIVE 409 branch ships untested.",
+   "preferred_resolution": "Decide the freeze mechanism first (#1: chain snapshot at submit, mirroring deliverable_service.py:1105-1130, or a per-step submitter-identity re-assert), then write #9's 409 test against the settled shape.",
+   "why": "APPROVAL_SELF_REVIEW_FORBIDDEN is enforced exactly once, at submit; everything after trusts mutable configuration."
+  },
+  {
+   "title": "POST /projects create-path guards",
+   "findings": [
+    4,
+    5,
+    6
+   ],
+   "kind": "one small decision, then apply-queue",
+   "context": "The new create endpoint checks existence but not workspace type, uniqueness, or concurrent first-use of the default matrix.",
+   "preferred_resolution": "Settle the FORMAL-only policy in #4 (backend 422 WORKSPACE_NOT_FORMAL + listWorkspaces filter), then apply #5 (IntegrityError -> 409 mapping at the flush) and #6 (savepoint + reread around the default-matrix INSERT, mirroring bind_to_project/_ensure_binding) mechanically.",
+   "why": "All three sit in the same 30-line create path; one review of the transaction covers all fixes."
+  },
+  {
+   "title": "AuditLogPage pagination correctness",
+   "findings": [
+    10,
+    8
+   ],
+   "kind": "apply-queue",
+   "context": "The applied-filter freeze happens inside loadAuditLogs, so pagination queries with un-applied edits, and this batch's new audit_id tiebreaker has no disjoint-pages test.",
+   "preferred_resolution": "Fix #10 first (only the 查询 handler sets appliedFilter; loadAuditLogs queries with the applied value), then add #8's ordering test, which also pins #10's behavior.",
+   "why": "Both concern the same list-loading path; the test written second should assert both the freeze and the stable ordering."
+  }
+ ],
+ "actionable_queue": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8,
+  9,
+  10,
+  11,
+  12,
+  18
+ ],
+ "validator_selection": {
+  "skip_count": 0,
+  "skip_evidence_basis": "no adversarial-<provider> artifact with independence_verified:true exists in this run (peer outcome not-run; in-process reviewers share the serving model)",
+  "selected_pool": 12,
+  "batch": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   8,
+   9
+  ],
+  "unvalidated_tail": [
+   10,
+   11,
+   12,
+   18
+  ]
+ },
+ "coverage_sentences": [
+  "Cross-model independent adversarial review: not run — no different-provider CLI installed on this machine (only the claude CLI, same serving family as the host); the adversarial lens ran in-process instead.",
+  "Standards criteria came from the instruction-file fallback: repo root CLAUDE.md (no CODING_STANDARDS.md or AGENTS.md exists in this repo).",
+  "Untracked files excluded from scope: five docs/superpowers/plans/2026-09-30-* plan drafts and spec/PCS-SPEC-P10*.md (untracked spec draft).",
+  "Dispatch degraded to serial single-agent redispatch: the initial 11-agent concurrent batch and a 6-agent retry each exhausted the account 5-hour API quota (429 code 1308); all 11 reviewers were ultimately collected via small serial batches. All artifacts landed; only wall-clock suffered.",
+  "A read-only file-presence monitor agent (statusboard) ran alongside; it reviewed no code.",
+  "Reviewer generational suffixes (-r3/-r4) in agent names are retry artifacts; each artifact's internal reviewer field is canonical.",
+  "25 candidates entered the merge (24 persona findings + 1 learnings-serialized solutions-corpus contradiction); the first mechanical pass produced 23 primary / 1 pre-existing / 1 suppressed; semantic reconciliation merged 3 pairs (workspace_type, default-matrix race, audit-filter freeze) and the final pass settled 20 primary / 1 pre-existing / 1 suppressed, 0 malformed, exact-fingerprint duplicates 0.",
+  "Every compact reviewer return omitted first_evidence (null) and the helper's evidence[0] backfill did not trigger, so synthesis recovered 24 quotes verbatim from the per-reviewer artifacts' evidence[0] (23 at anchor 75/100, 1 at anchor 50) before validation; the helper reports first_evidence_backfilled = 0 and quote-gate demotions at 75/100 = 0 (anchor-50 entry was quote-recovered to escape the malformed partition and was then confidence-suppressed, not quote-demoted).",
+  "Mode-aware demotion count: 8 (7 single-reviewer P2/P3 advisories from maintainability/adversarial routed to residual_risks, 1 testing-origin P3 routed to testing_gaps); 1 suppressed candidate (P3 anchor 50) was routed to residual_risks and no other suppressed candidate remained to discard.",
+  "suppressed_by_confidence: 1 finding at anchor 50; 0 at other anchors.",
+  "The learnings-researcher found one changed-line contradiction of the solutions corpus (dialect-options-invisible-on-sqlite.md symptom 2, lock-free check-then-insert); it was serialized as an anchor-100 learnings finding and merged into primary #6 with the citation preserved in its evidence. No Compound Packs were configured (roster.packs empty).",
+  "Plan was discovered as inferred (docs/PCS-PLAN-P9B-2-签署流程与ADMIN前端.md); it contains no session-settled decisions (settled_decisions empty, no session-settled markers in the document), so settlement reconciliation discarded 0 findings.",
+  "Intent summary confidence is inferred.",
+  "Validator shortcut-skips: 0 of 12 selected findings (basis: the cross-model peer did not run, and all in-process reviewers share one serving model, so no finding carries an adversarial-<provider> artifact with independence_verified:true).",
+  "Validator batch: 8 findings (#1, #2, #3, #4, #5, #6, #8, #9) ordered by severity and stable #; the normal cap applied with no P0/P1 overflow (3 P1s fit inside the cap); the 4 remaining actionable P2/P3 findings (#10, #11, #12, #18) stay primary without a verdict - a cap tail, not a validation-degraded status.",
+  "Failed or timed-out reviewers: none. Fast pass: no preliminary findings were emitted.",
+  "No claim was rejected outright during admission; every dropped-from-primary item is recorded in residual_risks or testing_gaps above with its reason.",
+  "No local apply was authorized (mode.apply_local false): Stage 5c did not run and the tree is untouched.",
+  "Soft-bucket dedup: 5 persona-supplied testing gaps were dropped as restatements of primary/pre-existing fix asks or of kept residual risks; 1 chainCache residual merged across two reviewers; 1 p9_013 assertion-strength gap merged across two reviewers."
+ ],
+ "removable_surface_note": {
+  "for_report_leaf": "deletion-oriented demoted findings #7 (errorText dedup: ~24 lines across DeliverableSignDialog.tsx:95-107 and DeliverableProgressPage.tsx:77-89 replaced by one shared helper), #14 (1 line), #15 (3 lines) - roughly 28 lines / 3 files if applied"
+ },
+ "learnings_notes_for_stage6": {
+  "artifact": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8/learnings.md",
+  "known_patterns": [
+   "guard-test-fooled-by-lying-comment: followed - state-machine seed test asserts whole-object equality against the live backend; seeds use satisfies-typed contract fixtures",
+   "sqlite-staticpool-hides-uncommitted: followed - STATUS.md hunk re-encodes the trap; did-fire coverage exists for CSV export; p9_013 PG-only SQL never executed by tests (documented posture, gated by manual per-DB alembic check)",
+   "alembic-create-table-silently-drops-schema-elements: followed - p9_012 column drop and ORM removal land together; downgrade FK name derived per NAMING_CONVENTION; manual per-DB alembic check (exit 255 semantics, current-vs-heads first) must actually run before release",
+   "narrow-declaration-is-not-a-constraint: followed - no semantic-fallback shape in changed components; resolver degrades loudly (409/422)",
+   "arq-028-worker-silent-failure-modes: out of scope - no worker code in the diff"
+  ],
+  "release_checklist_items": [
+   "run alembic check on pcs AND pcs_test before release (exit 255 = real drift; confirm current vs heads first)",
+   "fresh-DB CI upgrade is the gate that would catch any p9_013 SQL error"
+  ]
+ },
+ "deployment_verification_for_stage6": {
+  "artifact": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8/deployment-verification.md",
+  "key_items": [
+   "Blocking pre-deploy checks A-D: p9_012 provably safe to drop (0 data, 0 writers); p9_013 blast radius counted in advance; alembic state clean and actually up to date per DB; CI green on 751826f",
+   "Deploy-order coupling: no compatible mixed state - both orders break submit-approval during the gap; follow the documented backend-first sequence and cache guidance",
+   "Rollback: p9_012 drop is irreversible (accepted, 0 data); p9_013 downgrade unbinds post-upgrade-created projects too (broader than docstring)",
+   "First-24h monitoring: 4xx rate on /records/*/submit-approval (stale-bundle spike decaying to ~0)"
+  ]
+ }
+}

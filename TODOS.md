@@ -1701,6 +1701,53 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 **Depends on / blocked by:** 无（独立）。**归属：** P9B-3 或更后的 ADMIN 批次；
 **触发条件：** ADMIN 前端要能改角色时。
 
+## TODO-093: `sign_step` 并发无行锁 —— 两个签署者同时签，**后写的把先写的签名覆盖掉** 🔴
+
+**What:** `DeliverableService.sign_step`（`deliverable_service.py:694` 起）对
+`DeliverableVersion` 的读-改-写（`signature_summary_json` 整列覆盖）**没有行锁**：
+两个同角色用户（或一次重试）几乎同时签同一步 ⇒ READ COMMITTED 下都通过
+`_assert_step_order` ⇒ 各自基于读到的旧快照重建整列 ⇒ **后提交者把先签者的
+签名条目从版本快照里抹掉**——而 `audit_logs` / `workflow_progress` 两条都留着 ⇒
+**签署证据（快照）与审计轨迹永久不一致**。同文件编号路径已经用
+`SELECT ... FOR UPDATE`（:706），`sign_step` 没跟上。
+
+**Why:** 签名快照是**法定签署证据**；静默丢一条比报错严重得多。P9B-2 整批评审
+（2026-10-29，`docs/ce-code-review/20261028-074842-e15c26e8/`）由 adversarial 提出、
+验证者经**出处核查**判为 **pre-existing**（base `346c696` 的 :694 即如此，本批只加了
+`reason` 字段）⇒ 不阻塞 P9B-2，但**必须跟踪**。
+
+**Pros:** 按编号路径同款：`select(DeliverableVersion).where(...).with_for_update()`
+先锁行再校验 ⇒ 第二个签署者阻塞到第一个提交后吃 409。补一个双会话并发签测试。
+
+**Cons:** 无意义冲突窗口变窄（可忽略）；测试要起两个并发事务。
+
+**Context:** 评审报告 finding #2（REJECTED-as-pre-existing，证据链见该 run 的
+`validator-verdicts.json`）。**归属：** 下一批签署流程修复；**触发条件：** 任何时候
+（真实缺陷，双人签署即可能触发）。
+
+## TODO-094: 二次认证接受**任意** AD 凭据，不校验「就是操作者本人」 🔴
+
+**What:** `verify_secondary_auth`（`services/secondary_auth.py:61`）用客户端提交的
+`secondary_username`/`secondary_password` 直接 LDAP bind，**从不与操作者身份比对**
+（`actor.username` 在调用点就有，`deliverables.py:382` 原样转发未校验）⇒
+代录客户批准（ADR-0007 路径 B「重输本人 AD 密码」）可以用**任何人的**有效凭据通过
+⇒ 审计行（`SIGN_2FA_FALLBACK`，`resource_id=username`）指向**被借用的账号**，
+污染的恰是代录规则要建立的证据链。门现在证明的是「调用者知道某个密码」，
+不是「调用者就是他声称的人」。
+
+**Why:** 认证强度塌缩 + 审计指向错误 ⇒ 两层都失守。P9B-2 整批评审 finding #3，
+验证者经**出处核查**判 **pre-existing**（`77d2e78` / P9A 引入 `secondary_auth.py`
+全 76 行，本批 diff 未触及）⇒ 不阻塞 P9B-2，但**必须跟踪**。
+
+**Pros:** bind 前加一道：`secondary_username != actor.username` ⇒ 401
+`SECONDARY_AUTH_FAILED`（报错文案保持笼统，不泄漏是哪一步失败）。
+
+**Cons:** 几乎无（共享/服务账号被用于代录的场景本就该被拒）。
+
+**Context:** 评审报告 finding #3（REJECTED-as-pre-existing）。与 TODO-076 的
+fail-open、mock 登录生产守卫共同构成代录面，见报告 Residual risks。
+**归属：** P9B-3 或安全加固批；**触发条件：** 任何时候（真实缺陷）。
+
 ## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 
 **原症状：** TODO-080 第 3 条只把 service 变体做成了 core 变体的**子类**

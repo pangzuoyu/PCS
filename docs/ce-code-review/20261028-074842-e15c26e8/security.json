@@ -1,0 +1,53 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "title": "Mid-flight matrix rebind defeats APPROVAL_SELF_REVIEW_FORBIDDEN (CWE-863)",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 512,
+      "why_it_matters": "A project lead can approve their own record after submission. The self-review prohibition is checked only once, at submit-approval (records_actions.py:406), against the matrix bound at that moment. But when an intermediate step is approved, the pending role is re-derived from the LIVE project matrix (`_next_approval_role` resolves `resolve_project_matrix` fresh, records_actions.py:348-356), and `bind_to_project` allows rebinding a project's RECORD matrix at any time with no guard for in-flight IN_APPROVAL records (signature_matrices.py:300 just overwrites matrix_id). Attack: lead (global DESIGNER, PROJECT_LEAD in project) submits a record while the matrix is CHECKER→REVIEWER→APPROVER (self-check passes, DESIGNER not in chain), rebinds to e.g. [CHECKER, DESIGNER], and after the CHECKER passes step 1 the pending role for step 2 becomes DESIGNER — the submitter then signs their own record's remaining steps (the step gate at records_actions.py:479 only compares `record.approval_role != actor.role`). Deliverable signing already fixed this class of bug by snapshotting steps on the version at issue time (`_steps_for_version`, deliverable_service.py:1127); the record-side chain has no equivalent snapshot.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Freeze the approval chain at submit the same way deliverable versions do: store the normalized steps (matrix_id + parsed steps) in a JSON column on the record at submit-approval and have `_next_approval_role` read that snapshot instead of calling `resolve_project_matrix` live (mirroring the snapshot-first pattern in deliverable_service.py:1105-1130). As a complementary belt, re-assert the self-review rule at each approval step: reject with 403 APPROVAL_SELF_REVIEW_FORBIDDEN when the approving actor is the submitter (compare actor.user_id against the submitter recorded in the APPROVAL_STEP audit trail / a submitted_by column). Assumption: adding a nullable chain-snapshot column is acceptable; if schema change must be avoided, the per-step submitter-identity check alone closes the self-approval path.",
+      "confidence": 75,
+      "evidence": [
+        "records_actions.py:512 -- record.approval_role = await _next_approval_role(",
+        "records_actions.py:348-350 -- matrix = await SignatureMatrixService.resolve_project_matrix(\\n        db, project_id=project_id, module=SignatureMatrixService.RECORD_MODULE\\n    )",
+        "signature_matrices.py:299-301 -- if binding is not None:\\n            binding.matrix_id = matrix.matrix_id\\n            await db.flush()",
+        "records_actions.py:406 -- if actor.role in {s.sign_role for s in steps}:",
+        "records_actions.py:479 -- if record.approval_role and record.approval_role != actor.role:",
+        "deliverable_service.py:1127-1129 -- snapshot = (version.signature_summary_json or {}).get(\"steps\")\\n        if isinstance(snapshot, list) and snapshot:\\n            return [s for s in snapshot if isinstance(s, dict)]"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Secondary auth accepts any AD credential, not the actor's (CWE-287)",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/secondary_auth.py",
+      "line": 61,
+      "why_it_matters": "The two-factor gate on customer-approval proxy (ADR-0007 path B, 'recorder re-enters their own AD password') can be satisfied with ANY valid account's credentials. `verify_secondary_auth` binds to LDAP with the client-supplied username/password pair and never compares it to the acting identity (`actor.username` exists on `_Actor`, config.py:475, and the endpoint at deliverables.py:382 forwards `body.secondary_username` unchecked). An ISSUE-role user who phishes or reuses any single other credential — a colleague's or a shared/service account — passes 're-authentication' and proxies a customer approval under their own actor identity while the audit row (SIGN_2FA_FALLBACK, resource_id=username, user_id=None) points at the borrowed account, contaminating the very evidence trail the proxy rule exists to create. The gate currently proves 'the caller knows some password', not 'the caller is who they claim'.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In `record_customer_approval_proxy` (or `verify_secondary_auth` itself by passing the actor in), reject with 401 SECONDARY_AUTH_FAILED when `secondary_username != actor.username` before performing the LDAP bind — the actor object is already available at the call site (deliverables.py:382 has `actor`; the service receives `actor_user_id`). Keep the error message generic (do not reveal whether the mismatch or the bind failed).",
+      "confidence": 75,
+      "evidence": [
+        "secondary_auth.py:61 --     ldap_client.authenticate(username, password)",
+        "deliverables.py:382 -- secondary_username=body.secondary_username,",
+        "config.py:474-476 --     user_id: UUID\\n    username: str\\n    role: str"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "Record-level approval chains depend on live matrix reads at intermediate steps even outside the self-review scenario (e.g. a rebind mid-approval can hand a step to an unintended role); a chain snapshot as suggested in the P1 finding also closes this weaker variant.",
+    "require_formal_project_workspace is deliberately fail-open for projects with no workspace metadata (documented TODO-076, _guard.py:110-117); an unattached legacy project therefore skips the workspace tier of the sign-flow gates.",
+    "Mock login routes are claimed production-guarded (secondary_auth.py docstring; app/main.py not independently inspected in this pass) — if that guard ever regresses, the secondary-auth LDAP bind is the only remaining check on proxy recording."
+  ],
+  "testing_gaps": [
+    "No test exercises rebinding a project RECORD matrix while a record is IN_APPROVAL (the self-review bypass path in the P1 finding).",
+    "No test asserts that proxy secondary auth fails when secondary_username differs from the acting user's username."
+  ]
+}

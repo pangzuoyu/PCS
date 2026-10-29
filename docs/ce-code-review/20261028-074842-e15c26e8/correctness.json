@@ -1,0 +1,71 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "Deliverable progress list error never cleared",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 190,
+      "why_it_matters": "One failed deliverables-list fetch permanently hides the table for as long as the page is mounted. The error is set in the catch but nothing ever resets it, and rendering is gated on `{!listError && <Table/>}`, so every later successful refetch — page change, or the automatic reload after a successful sign/issue action (`refreshAfterAction` bumps reloadToken) — still populates items/total while the table stays unrendered. A user who signs a step successfully, closes the dialog, and then looks at a stale error with no table has no recovery except a full page reload. The parallel AuditLogPage clears its equivalent state at the top of each load (AuditLogPage.tsx:86 `setListError(null)`); matching that pattern fixes the root cause.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In the list-loading useEffect of DeliverableProgressPage.tsx (the one with deps [page, pageSize, reloadToken]), add `setListError(null)` before the api.get call — same convention as AuditLogPage.tsx:86. Add a test that fails the first GET /deliverables then succeeds on reloadToken bump and asserts the table renders.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:190 -- setListError(errorText(err, '无法读取该项目的交付物'));",
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:426 -- {!listError && (  // gates the whole <Table> render",
+        "grep setListError in the file matches only the useState declaration (117) and the catch (190) — no reset path",
+        "pcs-frontend/src/pages/audit/AuditLogPage.tsx:86 -- setListError(null);  // parallel component clears it on every load"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Sign dialog keeps stale proxy credentials",
+      "severity": "P3",
+      "file": "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx",
+      "line": 141,
+      "why_it_matters": "Reopening the proxy (代录) dialog pre-fills the previous submission's AD username/password and the previous issue description/purpose. The dialog's own discipline comment says every open resets prior state ('每次打开都重置（否则上一次的理由/错误留在下一次里）'), but the open-effect only resets error/submitting/showReason/reason/reasonRequired — `proxyForm` (including `secondary_password`) and the issue fields are never touched, and antd's `destroyOnHidden` only unmounts modal children, not this state which lives in the always-mounted dialog component. An operator proxying approvals for several deliverables in a row can silently submit with the previous entry's secondary credentials (Input.Password shows only dots, so staleness is not obvious), and a new issue can carry the previous version's description. Resetting `proxyForm` (to the initial literal), `purpose`, and `description` in the same open-effect restores the stated reset discipline.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In the open-reset useEffect (DeliverableSignDialog.tsx:141-149), also `setProxyForm({ file_path: '', file_name: '', file_type: 'PDF', approver_name: '', approval_date: '', approval_method: 'EMAIL', secondary_username: '', secondary_password: '' })`, `setPurpose('ISSUED_FOR_CONSTRUCTION')`, and `setDescription('')`. Assumes resets are wanted for all three modes, matching the component's own comment.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:141-146 -- useEffect(() => { if (!open) return; setError(null); setSubmitting(false); setShowReason(false); setReason(''); // no proxyForm/purpose/description reset",
+        "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:129 -- const [proxyForm, setProxyForm] = useState({ ... secondary_password: '' });",
+        "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx:152-158 (Modal) -- destroyOnHidden unmounts modal children only; dialog-level state persists across open/close"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Reason-modal action error hidden behind mask",
+      "severity": "P3",
+      "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+      "line": 319,
+      "why_it_matters": "When a reason-required action (退回/弃用/放弃变更…) fails while the reason modal is open, the error message is rendered in the outer Space under the still-open modal's dimming mask, so the user sees the 确认 button do nothing and has no visible failure feedback until they cancel the modal. `run()` sets `actionError` on catch but leaves `reasonFor` set, and `actionError` is only rendered at line 319 — outside the Modal at line 324. Compare DeliverableSignDialog, which renders its error Alert inside the modal body; moving the error text into the Modal (or closing the modal on failure) restores visible feedback.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Render the actionError Typography inside the reason Modal's children (RecordActions.tsx:324-348), mirroring DeliverableSignDialog's in-modal error Alert, so failures during a modal action are visible above the mask.",
+      "confidence": 50,
+      "evidence": [
+        "pcs-frontend/src/components/common/RecordActions.tsx:319 -- {actionError && ( <Typography.Text type=\"danger\" data-testid=\"record-actions-error\"> — rendered in the outer Space, before the Modal at line 324",
+        "pcs-frontend/src/components/common/RecordActions.tsx:246-258 (run) -- catch sets setActionError but does not close the modal (reasonFor stays set)"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "RecordActions.tsx:149 `chainCache` is a module-level Map that is only written, never invalidated: after an admin binds/rebinds a project's RECORD matrix, an already-mounted SPA keeps the stale 'unbound'/'bound' verdict, so 提交批准 stays disabled with the '项目未绑定记录级签署矩阵' tooltip (or the self-review gate uses old roles) until a full page reload. Deliberate N+1-avoidance tradeoff, but the disable-until-reload consequence contradicts the component's own 门禁前置 goal.",
+    "CommentPanel.send() appends the new comment to whichever page is currently viewed: posting while on a non-last page renders the comment on the wrong page and can render 21 items on a 20-item page (backend order stays correct; cosmetic only).",
+    "AuditLogPage's load effect reads the live `auditFilter`, so changing page after editing a filter (without clicking 查询) silently applies the edited filter and the pending-filter banner disappears — the banner's claim that table and export still use the last-applied filter holds only until any page change; data stays internally consistent afterwards.",
+    "MSW snapshot handler always returns the seed rev-B snapshot regardless of the :rev path param, so in dev, after issuing a new version, openSign computes nextStep from a stale snapshot (dev-only fidelity gap; real backend keys on rev).",
+    "Frontend gates everywhere consume the singular `role` from auth state (menu visibility, self-review check, sign-role mismatch); verification was grep-only — if the token ever carries multiple roles, these gates diverge from backend checks that use `actor.roles`."
+  ],
+  "testing_gaps": [
+    "No test covers DeliverableProgressPage list-error recovery (fail once → refetch succeeds → table renders); that exact gap is what finding 1 slipped through.",
+    "No test asserts EXPORT_PAGE_SIZE (200) stays within the backend /audit-logs `le=200` cap — a future backend cap reduction breaks CSV export only against the real backend; MSW mocks and e2e would stay green.",
+    "p9_013 backfill was a no-op on the dev DB (0 projects); the 'existing project gets a RECORD binding' path is exercised only by the alembic test fixture, never against real project data."
+  ]
+}

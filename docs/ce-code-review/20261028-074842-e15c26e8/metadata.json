@@ -1,0 +1,73 @@
+{
+  "branch": "main",
+  "completed_at": "2026-10-29T03:35:46Z",
+  "cost": {
+    "host": "claude",
+    "scope": {
+      "changed_lines": 17651,
+      "depth": "full",
+      "exec_nontest_lines": 6025,
+      "size_band": "large",
+      "unclassified_lines": ".json:4905,.md:680"
+    },
+    "stages": [
+      {
+        "elapsed_seconds": 10.941,
+        "ended_at": "2026-10-27T23:48:53.742389+00:00",
+        "facts": {
+          "changed_lines": 17651,
+          "depth": "full",
+          "exec_nontest_lines": 6025,
+          "size_band": "large",
+          "unclassified_lines": ".json:4905,.md:680"
+        },
+        "stage": "scope",
+        "started_at": "2026-10-27T23:48:42.801611+00:00"
+      },
+      {
+        "elapsed_seconds": 107.047,
+        "ended_at": "2026-10-27T23:50:40.789883+00:00",
+        "reviewers": 11,
+        "stage": "select",
+        "started_at": "2026-10-27T23:48:53.742389+00:00"
+      },
+      {
+        "candidates": 24,
+        "elapsed_seconds": 78286.634,
+        "ended_at": "2026-10-28T21:35:27.423863+00:00",
+        "stage": "dispatch",
+        "started_at": "2026-10-27T23:50:40.789883+00:00"
+      },
+      {
+        "candidates": 12,
+        "elapsed_seconds": 20150.858,
+        "ended_at": "2026-10-29T03:11:18.281401+00:00",
+        "stage": "merge",
+        "started_at": "2026-10-28T21:35:27.423863+00:00"
+      },
+      {
+        "elapsed_seconds": 866.307,
+        "ended_at": "2026-10-29T03:25:44.588873+00:00",
+        "stage": "validate",
+        "started_at": "2026-10-29T03:11:18.281401+00:00"
+      },
+      {
+        "elapsed_seconds": 606.657,
+        "ended_at": "2026-10-29T03:35:51.246020+00:00",
+        "stage": "report",
+        "started_at": "2026-10-29T03:25:44.588873+00:00"
+      }
+    ],
+    "status": "complete",
+    "totals": {
+      "artifact_bytes": 1751491,
+      "candidates": 24,
+      "elapsed_seconds": 100028.444,
+      "reviewers": 11
+    },
+    "truncated_events": 0
+  },
+  "head_sha": "751826f",
+  "run_id": "20261028-074842-e15c26e8",
+  "verdict": "Ready with fixes"
+}

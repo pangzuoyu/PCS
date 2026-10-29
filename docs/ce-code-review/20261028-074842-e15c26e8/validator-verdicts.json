@@ -1,0 +1,52 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": "authorization-authentication",
+      "reason": "Verified in code: self-review is checked only at submit (records_actions.py:406) against the then-bound matrix, while _next_approval_role re-derives each next role from the live project matrix (records_actions.py:348 -> resolve_project_matrix, both new in this diff), the bind endpoint lets plain DESIGNERs overwrite the binding with no in-flight guard (signature_matrices.py:287 _BIND_ROLES; bind_to_project just sets binding.matrix_id), and the step gate checks only record.approval_role != actor.role (records_actions.py:479) with no submitter-identity re-assertion; the precondition (mid-flight rebind placing the submitter's role at the next step index) is an unguarded normal operation, though incidence was not measured."
+    },
+    {
+      "#": 2,
+      "status": "rejected",
+      "protected_subject": "concurrency",
+      "reason": "Short-hash provenance refutes introduction: `git show 346c696:pcs-backend/app/services/deliverable_service.py` already contains `async def sign_step` (line 694) with the identical unlocked db.get + read-modify-write of signature_summary_json, and this diff's hunks inside sign_step only add the reason parameter/entry (the `version.signature_summary_json = summary` line is unchanged context), so the race is pre-existing and unaffected by this batch."
+    },
+    {
+      "#": 3,
+      "status": "rejected",
+      "protected_subject": "authorization-authentication",
+      "reason": "Short-hash provenance: the any-credential LDAP bind in verify_secondary_auth and the proxy path forwarding secondary_username unchecked were introduced in commit 77d2e78 (feat(P9A)), which git merge-base confirms is an ancestor of base 346c696, and this diff's deliverables.py changes (51 insertions) only add the role gate and require_formal_project_workspace call — the credential-acceptance behavior is unrelated pre-existing code untouched by this batch."
+    },
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified: create_project (new in this batch) checks only workspace existence (projects.py:85-89) while submit-approval and approval-step both 403 via require_formal_project_workspace for non-FORMAL workspaces (records_actions.py:392,469; _guard.py raises on workspace_type != FORMAL), GET /workspaces returns all workspaces unfiltered (workspaces.py:64-77), and the frontend listWorkspaces (projects.ts:32) likewise does not filter despite its own comment claiming FORMAL-only — a project in a PERSONAL workspace is created 201 yet can never enter approval."
+    },
+    {
+      "#": 5,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified: project_no is mapped unique=True (app/models/project.py `project_no: Mapped[str] = mapped_column(String(50), unique=True)`), create_project (new in this batch) maps the missing-workspace case to a typed 404 but has no IntegrityError handling, and app/core/errors.py install_exception_handlers registers only PcsError/HTTP/Validation/Exception handlers, so a duplicate project_no POST surfaces as a raw 500 with no conflict message."
+    },
+    {
+      "#": 6,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "Verified: _get_or_create_default_record_matrix (new in this diff, signature_matrix_service.py:794-814) does a lock-free check-then-insert with no IntegrityError handling around db.add+flush, migration p9_010 enforces uq_signature_matrices_name_status on (matrix_name, status) so two concurrent creates on a DB with no ACTIVE DEFAULT_RECORD_3_LEVEL row (fresh/un-backfilled or the template deactivated, since the SELECT requires status='ACTIVE') collide and the loser gets an unhandled IntegrityError rolling back the whole project creation, while the same file's siblings handle the identical race with savepoint+reread (lines 514, 677); incidence was not measured."
+    },
+    {
+      "#": 8,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified: the audit_id tiebreaker was added in this diff at both list endpoints (audit.py order_by(occurred_at.desc(), audit_id.desc())), while tests/test_audit_query.py's _insert_audit_log defaults occurred_at to a fresh datetime.now per row and test_pagination_limit_offset only asserts counts (total==15, len==10) with no identical-occurred_at seeding and no cross-page disjointness/union assertion, so no backend test fails if the tiebreaker is reverted."
+    },
+    {
+      "#": 9,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified: resolve_project_matrix and its 409 SIGNATURE_MATRIX_NOT_ACTIVE raise are new in this diff (signature_matrix_service.py:736-742) and reachable from both records_actions.py:393 and :348, while repo-wide grep shows the only two SIGNATURE_MATRIX_NOT_ACTIVE test assertions target bind_to_project 422 (tests/services/test_signature_matrix_service.py:376) and ensure_change_notice_matrix 409 (:480), and tests/api/v1/test_record_approval_chain.py contains no non-ACTIVE binding scenario — the branch is unpinned."
+    }
+  ]
+}

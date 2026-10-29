@@ -1,0 +1,13 @@
+{
+  "reviewer": "data-migration",
+  "findings": [],
+  "residual_risks": [
+    "p9_013's _CREATE_BINDINGS INSERT has never inserted an actual row on any real database: dev pcs has 0 projects, pcs_test has 0 projects, and CI upgrades a fresh empty schema — the backfill's row-producing path (CROSS JOIN over existing projects) will run for the first time on the first project-bearing database this migration meets. SQL shape is standard correlated NOT EXISTS and was syntax-validated on PG18 by the dev/pcs_test upgrades, but the semantics on populated data are unexercised.",
+    "p9_013's downgrade deletes ALL module='RECORD' bindings whose matrix_id is the default ACTIVE matrix — including bindings created at runtime by the T-1 service for projects created after the upgrade (and any admin-made manual binds to that matrix), slightly broader than the docstring's '删掉回填的绑定'. Consistent with the lossy label and pre-T1 rollback semantics, but operators should know a downgrade unbinds post-upgrade-created projects too.",
+    "pcs-backend/docs/schema_compact_orm.md:73 still lists deliverables.parent_deliverable_id after the p9_012 drop. The doc was last regenerated in the P2 era (commit c051754) and is broadly stale, so this is one symptom of pre-existing doc drift rather than an omission introduced by this batch."
+  ],
+  "testing_gaps": [
+    "tests/alembic/test_p9_013_bind_default_record_matrix.py never executes the migration against any engine — it imports the module and asserts the rendered SQL strings (honestly documented in its docstring). A future column rename in signature_matrices or project_signature_matrix_bindings would pass every unit test and only surface in CI's fresh-schema alembic upgrade head (check-api-drift.yml, postgres:18).",
+    "The double-bind guard (projects that already have a RECORD binding must be skipped) is only string-asserted ('NOT EXISTS' in SQL); no test exercises the scenario with populated tables — e.g. an upgrade-time database with mixed bound/unbound projects — where a wrong predicate would either violate uq_project_signature_matrix_bindings_project_module or silently rebind projects."
+  ]
+}

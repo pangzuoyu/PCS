@@ -1,0 +1,71 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "resolve_project_matrix non-ACTIVE 409 branch has no test",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/signature_matrix_service.py",
+      "line": 737,
+      "why_it_matters": "An admin can bind a RECORD matrix and later have it go non-ACTIVE (DRAFT/PENDING/OBSOLETE). When that project's users then submit-approval or approval-step, the contract promises a loud 409 SIGNATURE_MATRIX_NOT_ACTIVE instead of a silent fallback or a misleading 422 RECORD_APPROVAL_MATRIX_NOT_BOUND. That 409 branch is new in this batch, is reachable from both records_actions.py call sites, and nothing pins it: repo-wide grep shows the only two SIGNATURE_MATRIX_NOT_ACTIVE assertions target bind_to_project (422) and ensure_change_notice_matrix (409), not resolve_project_matrix. The branch (or its status code / error code) can be broken or changed while the whole suite stays green. A test parallel to test_project_without_record_matrix_is_422 closes the gap: bind a PENDING matrix, POST submit-approval, expect 409 + code.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In tests/api/v1/test_record_approval_chain.py add a red-first test next to test_project_without_record_matrix_is_422: create a matrix with status=\"PENDING\", bind_to_project(module=\"RECORD\"), then POST submit-approval and assert 409 with code SIGNATURE_MATRIX_NOT_ACTIVE (and optionally the same for approval-step). Optionally also cover the dangling-binding branch (binding row present, matrix row deleted) asserting 422 RECORD_APPROVAL_MATRIX_NOT_BOUND.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/signature_matrix_service.py:736-742 -- if matrix.status != \"ACTIVE\":\\n    raise PcsError(\\n        f\"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} \"\\n        f\"当前 {matrix.status}，不是 ACTIVE\",\\n        code=\"SIGNATURE_MATRIX_NOT_ACTIVE\",\\n        status=409,\\n    )",
+        "pcs-backend/app/api/v1/records_actions.py:348 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+        "pcs-backend/app/api/v1/records_actions.py:393 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+        "grep -rn 'SIGNATURE_MATRIX_NOT_ACTIVE' pcs-backend/tests/ → only tests/services/test_signature_matrix_service.py:376 (bind_to_project, expects 422) and :480 (ensure_change_notice_matrix, expects 409); no test reaches resolve_project_matrix's raise",
+        "pcs-backend/tests/api/v1/test_record_approval_chain.py — test names cover only: no-binding 422, other-module 422, chain derivation, step advance, wrong role 403, self-review 403, body rejects, reason accepted — no non-ACTIVE-bound-matrix case"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Audit pagination tiebreaker fix shipped with no backend test",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/audit.py",
+      "line": 87,
+      "why_it_matters": "The batch's own convention is every fix lands with a red-first test, and commit 1fba41d's message repeats it — but the backend half of that commit (audit.py order_by tiebreaker) changed no backend test file. The fix's own comment names the user-visible failure: same-transaction audit rows (AD sync writes N rows with identical occurred_at) get unstable OFFSET pagination on Postgres, so the CSV export can contain a row twice and lose another, and the export row-count check the frontend added can never compensate because the frontend tests mock the backend. If the tiebreaker is reverted or reordered, tests/test_audit_query.py (test_pagination_limit_offset included) stays green. A test seeding rows with identical occurred_at and asserting the pages partition the set pins it.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "In tests/test_audit_query.py add a test: insert ~5 audit rows all with the same occurred_at (distinct audit_ids), fetch page 1 (limit=2, offset=0) and page 2 (offset=2), assert the two pages are disjoint and their union equals the full filtered set — red against `.order_by(AuditLog.occurred_at.desc())` alone, green with the audit_id tiebreaker. Mirror the same ordering assertion for the config-audit endpoint (line 230).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/audit.py:87 -- .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())",
+        "pcs-backend/app/api/v1/audit.py:84-86 -- # ⚠️ **必须有 tiebreaker**（`audit_id`）：`occurred_at` 是 … 并列行的 OFFSET 分页在 Postgres 里 **顺序不稳定** ⇒ 同一行跨页出现两次、另一行永远不出现",
+        "git show --stat 1fba41d: pcs-backend/app/api/v1/audit.py | 14 ± — the only backend file changed; no pcs-backend/tests file in the commit (test additions were all pcs-frontend)",
+        "pcs-backend/tests/test_audit_query.py — 15 tests; test_pagination_limit_offset (line 180) paginates without equal occurred_at rows and never asserts ordering/tie stability"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "resetMockSignState resets only sign state, not comments/admin seed",
+      "severity": "P3",
+      "file": "pcs-frontend/src/mocks/signFlow.ts",
+      "line": 59,
+      "why_it_matters": "resetMockSignState() is the test-isolation seam for anything mounting signFlowHandlers, but it only restores mockSignSteps and mockDeliverableSignStatus. The disable handler mutates the shared exported seedAdminUsers objects in place (user.status = 'DISABLED'; user.token_version += 1) and the comments handler pushes into a module-level array that nothing resets. Vitest isolates per file, so today no test breaks — but the next test added to tests/mocks/signFlow.test.ts (or a new file reusing these handlers) that exercises admin disable or comment POST inherits earlier tests' mutations: generated comment_id (`c-${comments.length + 1}`) and user status/token_version become order-dependent, producing exactly the flaky by-order green/red this reset function was created to prevent.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Extend resetMockSignState() in src/mocks/signFlow.ts to also restore the other mutable state: rebuild comments from seedRecordComments.items (comments.length = 0; comments.push(...seedRecordComments.items)) and restore each seedAdminUsers entry's status/token_version (or snapshot originals at module load and re-apply; alternatively have the disable handler operate on a per-request copy). Rename not needed.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/mocks/signFlow.ts:397-398 -- user.status = 'DISABLED';\\n    user.token_version += 1;  (mutates the exported seedAdminUsers objects in place)",
+        "pcs-frontend/src/mocks/signFlow.ts:314 -- comments.push(created);  (module-level array, never reset)",
+        "pcs-frontend/src/mocks/signFlow.ts:59-64 -- export function resetMockSignState(): void {\\n  mockSignSteps = …;\\n  mockDeliverableSignStatus = 'PENDING';\\n}  — only these two are restored",
+        "pcs-frontend/tests/mocks/signFlow.test.ts:71,128 — the only call sites of resetMockSignState, both as beforeEach isolation"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "Backend tests run against in-memory SQLite via conftest, not the Postgres the audit OFFSET-pagination comment targets; even after adding a tie test, cross-engine ordering guarantees are only truly exercised on Postgres (repo-known trap: a wrong migration stays green on SQLite).",
+    "Coverage-by-absence claims (untested branches) were established with repo-wide text grep over tests/ plus reading the relevant test files in full; a test exercising a branch without asserting its error code could have been missed, though the relevant suites assert codes everywhere else."
+  ],
+  "testing_gaps": [
+    "ensure_default_record_matrix's dangling-binding repair branch (binding row exists, matrix row deleted → rebind the default matrix) is new in this batch and untested; test_ensure_default_record_matrix_does_not_override_existing_binding covers only the healthy-binding path.",
+    "POST /projects OpenAPI description promises full-transaction atomicity (建行 + 绑矩阵 + 建模板 same transaction, any failure rolls back); no test injects a mid-transaction failure to pin the no-half-built-project claim."
+  ]
+}

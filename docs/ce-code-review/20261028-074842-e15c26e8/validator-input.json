@@ -1,0 +1,158 @@
+{
+ "run_id": "20261028-074842-e15c26e8",
+ "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8",
+ "stage": "5b step 3 - validator batch construction (merge leaf)",
+ "skip": {
+  "count": 0,
+  "evidence_basis": "No finding qualifies for the validator shortcut: the cross-model adversarial peer did not run (peer.outcome=not-run, no different-provider CLI on this machine), and every in-process reviewer shares one serving model, so no finding carries an adversarial-<provider> artifact recording independence_verified:true. Same-model corroboration never licenses the shortcut."
+ },
+ "selection": {
+  "pool": 12,
+  "batch_size": 8,
+  "cap": "normal (8); no P0/P1 overflow - all 3 P1s fit inside the cap",
+  "ordering": "severity then stable #",
+  "unvalidated_tail": [
+   10,
+   11,
+   12,
+   18
+  ],
+  "tail_note": "Findings #10, #11, #12, #18 are actionable P2/P3 beyond the cap; they remain primary with no verdict (not validation-degraded)."
+ },
+ "findings": [
+  {
+   "#": 1,
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "line": 512,
+   "title": "Mid-flight matrix rebind defeats APPROVAL_SELF_REVIEW_FORBIDDEN (CWE-863)",
+   "claim": "A project lead can approve their own record after submission. The self-review prohibition is checked only once, at submit-approval (records_actions.py:406), against the matrix bound at that moment. But when an intermediate step is approved, the pending role is re-derived from the LIVE project matrix (`_next_approval_role` resolves `resolve_project_matrix` fresh, records_actions.py:348-356), and `bind_to_project` allows rebinding a project's RECORD matrix at any time with no guard for in-flight IN_APPROVAL records (signature_matrices.py:300 just overwrites matrix_id). Attack: lead (global DESIGNER, PROJECT_LEAD in project) submits a record while the matrix is CHECKER→REVIEWER→APPROVER (self-check passes, DESIGNER not in chain), rebinds to e.g. [CHECKER, DESIGNER], and after the CHECKER passes step 1 the pending role for step 2 becomes DESIGNER — the submitter then signs their own record's remaining steps (the step gate at records_actions.py:479 only compares `record.approval_role != actor.role`). Deliverable signing already fixed this class of bug by snapshotting steps on the version at issue time (`_steps_for_version`, deliverable_service.py:1127); the record-side chain has no equivalent snapshot.",
+   "first_evidence": "records_actions.py:512 -- record.approval_role = await _next_approval_role(",
+   "suggested_fix": "Freeze the approval chain at submit the same way deliverable versions do: store the normalized steps (matrix_id + parsed steps) in a JSON column on the record at submit-approval and have `_next_approval_role` read that snapshot instead of calling `resolve_project_matrix` live (mirroring the snapshot-first pattern in deliverable_service.py:1105-1130). As a complementary belt, re-assert the self-review rule at each approval step: reject with 403 APPROVAL_SELF_REVIEW_FORBIDDEN when the approving actor is the submitter (compare actor.user_id against the submitter recorded in the APPROVAL_STEP audit trail / a submitted_by column). Assumption: adding a nullable chain-snapshot column is acceptable; if schema change must be avoided, the per-step submitter-identity check alone closes the self-approval path.",
+   "reviewers": [
+    "security"
+   ]
+  },
+  {
+   "#": 2,
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/services/deliverable_service.py",
+   "line": 951,
+   "title": "Two simultaneous signers: one signature silently erased",
+   "claim": "When two users holding the same role (two CHECKERs, or one user's retried request) sign the same step near-simultaneously, both requests pass `_assert_step_order` under READ COMMITTED (neither has committed yet), then each rebuilds `signature_summary_json` from the base it read and overwrites the whole column. The second commit erases the first signer's entry from the version snapshot — the legal signing evidence — while `audit_logs` and `workflow_progress` keep both writers, so the snapshot and the audit trail permanently disagree. The repo's own numbering path already uses `SELECT ... FOR UPDATE` (deliverable_service.py:706), so the pattern exists; sign_step just doesn't apply it to the version row before the read-modify-write, and has no idempotency key.",
+   "first_evidence": "pcs-backend/app/services/deliverable_service.py:951 -- summary[\"signatures\"] = signatures",
+   "suggested_fix": "In `DeliverableService.sign_step`, load the version row with a row lock before any validation that derives from mutable state: replace `await db.get(DeliverableVersion, version_id)` with `select(DeliverableVersion).where(...).with_for_update()` (same pattern as the numbering path at deliverable_service.py:706), so the second concurrent signer blocks until the first commits and then fails `_assert_step_order` with 409. Add a two-session test (two async clients signing the same step concurrently) asserting exactly one 200 and one 409 and one signature entry. Assumption: serializing on the version row is acceptable; a jsonb array_append upsert would also work but changes the audit shape.",
+   "reviewers": [
+    "adversarial"
+   ]
+  },
+  {
+   "#": 3,
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/services/secondary_auth.py",
+   "line": 61,
+   "title": "Secondary auth accepts any AD credential, not the actor's (CWE-287)",
+   "claim": "The two-factor gate on customer-approval proxy (ADR-0007 path B, 'recorder re-enters their own AD password') can be satisfied with ANY valid account's credentials. `verify_secondary_auth` binds to LDAP with the client-supplied username/password pair and never compares it to the acting identity (`actor.username` exists on `_Actor`, config.py:475, and the endpoint at deliverables.py:382 forwards `body.secondary_username` unchecked). An ISSUE-role user who phishes or reuses any single other credential — a colleague's or a shared/service account — passes 're-authentication' and proxies a customer approval under their own actor identity while the audit row (SIGN_2FA_FALLBACK, resource_id=username, user_id=None) points at the borrowed account, contaminating the very evidence trail the proxy rule exists to create. The gate currently proves 'the caller knows some password', not 'the caller is who they claim'.",
+   "first_evidence": "secondary_auth.py:61 --     ldap_client.authenticate(username, password)",
+   "suggested_fix": "In `record_customer_approval_proxy` (or `verify_secondary_auth` itself by passing the actor in), reject with 401 SECONDARY_AUTH_FAILED when `secondary_username != actor.username` before performing the LDAP bind — the actor object is already available at the call site (deliverables.py:382 has `actor`; the service receives `actor_user_id`). Keep the error message generic (do not reveal whether the mismatch or the bind failed).",
+   "reviewers": [
+    "security"
+   ]
+  },
+  {
+   "#": 4,
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "line": 87,
+   "title": "Project in PERSONAL workspace: success notice, dead signing",
+   "claim": "`create_project` only checks the workspace EXISTS, not that it is FORMAL, while every downstream signing action gates on `require_formal_project_workspace` (403 for non-FORMAL, _guard.py:95). The admin UI offers every workspace returned by `GET /workspaces` — `listWorkspaces` does not filter despite its own comment claiming 只取 FORMAL — and the Select only shows the type in the label. Picking a PERSONAL workspace yields a 201 plus the notice '已自动绑定记录级签署矩阵，可以提交批准了', but every submit-approval for that project 403s forever: exactly the 「项目建好了但送不了审」半成品 state the endpoint's docstring promises cannot happen. || Standards-lens addendum: On the new /admin/projects page (SPEC §7.20, V2.4 ①) an admin can create a project in a PERSONAL/TEMPORARY workspace: the dropdown lists every workspace (GET /workspaces has no type filter) and POST /projects only checks existence, never workspace_type — even though three places in this batch document FORMAL as the requirement (frontend comment projects.ts:29 claims \"只取 FORMAL…后端 404\", and the backend schema field says \"所属 FORMAL 工作区（必须已存在）\"). A project created in a personal workspace is a dead end for exactly the workflow this batch ships: every submit-approval on its records returns 403 via require_formal_project_workspace (app/api/v1/_guard.py:95, UI-SPEC §5.3 gate matrix), so the admin gets a project whose records can never enter the approval chain the page promises (\"建完当场就能提交批准\"). Enforcing FORMAL in create_project (same shape as the existing WorkspaceNotFoundError branch) plus a client-side filter in listWorkspaces makes the code match its own documented contract.",
+   "first_evidence": "pcs-backend/app/api/v1/projects.py:87 -- workspace = await db.get(Workspace, payload.workspace_id) / :89 raise WorkspaceNotFoundError (type never checked)",
+   "suggested_fix": "Default: enforce at the backend — after `db.get(Workspace, ...)`, `if workspace.workspace_type != 'FORMAL': raise PcsError(code='WORKSPACE_NOT_FORMAL', status=422, ...)` matching the gate the rest of the signing flow already applies (_guard.py). Also make the frontend match its own comment: filter `listWorkspaces` results to `workspace_type === 'FORMAL'` in ProjectAdminPage.tsx. Assumption: FORMAL is the only valid type for projects; if TEMPORARY should also be allowed, adjust the check accordingly.",
+   "reviewers": [
+    "project-standards",
+    "adversarial"
+   ]
+  },
+  {
+   "#": 5,
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "line": 99,
+   "title": "Duplicate project_no POST returns 500, not 409",
+   "claim": "An admin who re-submits the create form after a timeout, or types an existing 项目编号 (the Field description itself says 全局唯一), gets an unhandled IntegrityError surfaced as a raw 500 instead of an actionable conflict message. `create_project` carefully maps the missing-workspace case to a typed 404 (`WorkspaceNotFoundError`) but leaves the documented-unique `project_no` collision to the database, and no global IntegrityError handler exists in app/core or main.py. The user cannot tell 'already exists, pick another number' from 'server broken', and monitoring sees a 500 spike.",
+   "first_evidence": "pcs-backend/app/models/project.py:54 -- project_no: Mapped[str] = mapped_column(String(50), unique=True)",
+   "suggested_fix": "In `create_project`, wrap `db.flush()` (or the commit) in `try/except IntegrityError: await db.rollback(); raise PcsError(code=\"PROJECT_NO_CONFLICT\", message=f\"项目编号 {payload.project_no} 已存在\", status=409)` — mirroring the WorkspaceNotFoundError branch five lines up. Add a test: two POSTs with the same project_no → second is 409.",
+   "reviewers": [
+    "adversarial"
+   ]
+  },
+  {
+   "#": 6,
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/app/services/signature_matrix_service.py",
+   "line": 813,
+   "title": "First-project race: default-matrix insert 500s without fallback",
+   "claim": "The solutions corpus (docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md, symptom 2) already documents this exact failure shape: a lock-free check-then-insert lets concurrent requests both pass the SELECT and collide on INSERT. On the first two concurrent POST /projects after a fresh install (or after the default template is renamed/disabled), both transactions run _get_or_create_default_record_matrix, both see no ACTIVE DEFAULT_RECORD_3_LEVEL, both INSERT, and the loser hits uq_signature_matrices_name_status (p9_010) with an unhandled IntegrityError -> 500 and the whole project creation rolls back. The in-file precedents (bind_to_project's savepoint+reread, _ensure_binding's collision reread) handle the identical race; this method skips it. || Adversarial-lens addendum: On a database where `DEFAULT_RECORD_3_LEVEL` does not exist yet (fresh install; p9_013 only backfills already-migrated DBs), two concurrent `POST /projects` both run `_get_or_create_default_record_matrix`, both SELECT-see nothing (READ COMMITTED), both INSERT — and the loser hits the (matrix_name, status) unique constraint that migration p9_010 added specifically because of this race. Unlike its sibling `_ensure_binding` (line 514) which catches IntegrityError, re-reads and returns the winner's row, this method has no handler: the second admin's request dies with a 500 and the whole project creation rolls back. The asymmetric fallback already exists in the same file and was deliberately built for the identical race shape.",
+   "first_evidence": "pcs-backend/app/services/signature_matrix_service.py:813 -- db.add(matrix); await db.flush()  (no IntegrityError handling)",
+   "suggested_fix": "Wrap the db.add(matrix)+flush in _get_or_create_default_record_matrix (signature_matrix_service.py:813-814) in the same collision-recovery pattern the file already uses for the binding rows (bind_to_project's savepoint + reread, _ensure_binding's constraint-collision reread); plain db.rollback() is unsafe here because the caller's project INSERT shares the transaction. Add a two-concurrent-create_project test against an empty signature_matrices table.",
+   "reviewers": [
+    "learnings",
+    "adversarial"
+   ]
+  },
+  {
+   "#": 8,
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/audit.py",
+   "line": 87,
+   "title": "Audit pagination tiebreaker fix shipped with no backend test",
+   "claim": "The batch's own convention is every fix lands with a red-first test, and commit 1fba41d's message repeats it — but the backend half of that commit (audit.py order_by tiebreaker) changed no backend test file. The fix's own comment names the user-visible failure: same-transaction audit rows (AD sync writes N rows with identical occurred_at) get unstable OFFSET pagination on Postgres, so the CSV export can contain a row twice and lose another, and the export row-count check the frontend added can never compensate because the frontend tests mock the backend. If the tiebreaker is reverted or reordered, tests/test_audit_query.py (test_pagination_limit_offset included) stays green. A test seeding rows with identical occurred_at and asserting the pages partition the set pins it.",
+   "first_evidence": "pcs-backend/app/api/v1/audit.py:87 -- .order_by(AuditLog.occurred_at.desc(), AuditLog.audit_id.desc())",
+   "suggested_fix": "In tests/test_audit_query.py add a test: insert ~5 audit rows all with the same occurred_at (distinct audit_ids), fetch page 1 (limit=2, offset=0) and page 2 (offset=2), assert the two pages are disjoint and their union equals the full filtered set — red against `.order_by(AuditLog.occurred_at.desc())` alone, green with the audit_id tiebreaker. Mirror the same ordering assertion for the config-audit endpoint (line 230).",
+   "reviewers": [
+    "testing"
+   ]
+  },
+  {
+   "#": 9,
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/services/signature_matrix_service.py",
+   "line": 737,
+   "title": "resolve_project_matrix non-ACTIVE 409 branch has no test",
+   "claim": "An admin can bind a RECORD matrix and later have it go non-ACTIVE (DRAFT/PENDING/OBSOLETE). When that project's users then submit-approval or approval-step, the contract promises a loud 409 SIGNATURE_MATRIX_NOT_ACTIVE instead of a silent fallback or a misleading 422 RECORD_APPROVAL_MATRIX_NOT_BOUND. That 409 branch is new in this batch, is reachable from both records_actions.py call sites, and nothing pins it: repo-wide grep shows the only two SIGNATURE_MATRIX_NOT_ACTIVE assertions target bind_to_project (422) and ensure_change_notice_matrix (409), not resolve_project_matrix. The branch (or its status code / error code) can be broken or changed while the whole suite stays green. A test parallel to test_project_without_record_matrix_is_422 closes the gap: bind a PENDING matrix, POST submit-approval, expect 409 + code.",
+   "first_evidence": "pcs-backend/app/services/signature_matrix_service.py:736-742 -- if matrix.status != \"ACTIVE\":\\n    raise PcsError(\\n        f\"项目 {project_id} 绑定的签署矩阵 {matrix.matrix_name!r} \"\\n        f\"当前 {matrix.status}，不是 ACTIVE\",\\n        code=\"SIGNATURE_MATRIX_NOT_ACTIVE\",\\n        status=409,\\n    )",
+   "suggested_fix": "In tests/api/v1/test_record_approval_chain.py add a red-first test next to test_project_without_record_matrix_is_422: create a matrix with status=\"PENDING\", bind_to_project(module=\"RECORD\"), then POST submit-approval and assert 409 with code SIGNATURE_MATRIX_NOT_ACTIVE (and optionally the same for approval-step). Optionally also cover the dangling-binding branch (binding row present, matrix row deleted) asserting 422 RECORD_APPROVAL_MATRIX_NOT_BOUND.",
+   "reviewers": [
+    "testing"
+   ]
+  }
+ ],
+ "scope_context": {
+  "scope_mode": "standalone",
+  "tree_is_reviewed_head": true,
+  "branch": "main",
+  "head_sha": "751826f",
+  "base": "346c696ed54cf1bb7e1db2cd484df569f93dac7c",
+  "diff_path": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8/full.diff",
+  "files_path": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8/files.txt",
+  "inspection_rule": "The working tree IS the reviewed head: inspect cited files, callers, guards, and targeted history with read-only tools directly in the repo at /home/pangzy/code_project/PCS.",
+  "untracked_excluded": [
+   "docs/superpowers/plans/2026-09-30-p5-0-1b-5-tables.md",
+   "docs/superpowers/plans/2026-09-30-p6-9-pickup-4-debt-cleanup-final.md",
+   "docs/superpowers/plans/2026-09-30-p6-9-pickup-5-non-process-debt.md",
+   "docs/superpowers/plans/2026-09-30-p6-9-pickup-6-docs-hygiene.md",
+   "docs/superpowers/plans/2026-09-30-p6-9-pickup-6-process-debt-tracking.md",
+   "spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md"
+  ],
+  "intent_summary": "P9B-2 batch (30 commits, 346c696..751826f): signing workflow + ADMIN frontend plus supporting backend. Backend: POST /projects auto-binds ACTIVE RECORD matrix; migrations p9_012 (drop dead column) + p9_013 (backfill default RECORD matrix); GET /deliverables/{id}/progress aggregate; GET /records/{module}/{id}/edits project-guarded; approval chain derived from project RECORD matrix (submit-approval extra=forbid breaking change); SignStepRequest + reason. Frontend: RecordActions with role gates, record drawer + comments + timeline, deliverable progress page + sign dialog, ADMIN user management + audit log (server pagination + CSV export), mock fidelity (backend-generated state-machine seed + pytest ratchet). Gates must be pre-positioned (role/matrix/reason => disable + reason), no silent degradation; plan RF-1..RF-16 are named acceptance criteria."
+ },
+ "verdicts_file": "/tmp/compound-engineering-1000/ce-code-review/20261028-074842-e15c26e8/validator-verdicts.json"
+}
