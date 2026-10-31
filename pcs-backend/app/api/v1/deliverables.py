@@ -238,7 +238,10 @@ async def get_deliverable_snapshot(
         version_purpose=version.version_purpose,
         description=version.description,
         doc_no=deliverable.doc_no,
-        sign_status=str(deliverable.sign_status),
+        # ⚠️ `.value`（PE-1）：`RecordSignStatus9` 继承 `(str, Enum)` ⇒ 裸 str()
+        # 出来是 "DeliverableSignStatus.APPROVED" —— 本批滚的 openapi-baseline
+        # 记的是裸词表值 ⇒ 运行时违反自己冻结的契约。同文件 :289 已是 .value。
+        sign_status=str(deliverable.sign_status.value),
         record_snapshot_json=version.record_snapshot_json or {},
         signature_summary_json=version.signature_summary_json or {},
         bindings=[

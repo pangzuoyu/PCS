@@ -91,12 +91,12 @@ async def _guard_client(db_engine):
         yield ac
 
 
-async def _make_workspace(db: AsyncSession) -> uuid.UUID:
+async def _make_workspace(db: AsyncSession, workspace_type: str = "FORMAL") -> uuid.UUID:
     workspace_id = uuid.uuid4()
     db.add(
         Workspace(
             workspace_id=workspace_id,
-            workspace_type="FORMAL",
+            workspace_type=workspace_type,
             name="WS",
             status="ACTIVE",
         )
@@ -456,3 +456,41 @@ async def test_list_project_bindings_404_for_other_project(
             headers=designer_headers,
         )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 评审 #4 / #5（P9B-2 整批评审 · 2026-10-29）
+# ---------------------------------------------------------------------------
+
+
+async def test_create_project_in_personal_workspace_is_rejected(
+    client, admin_headers, db_session
+):
+    """PERSONAL 工作区里建项目 ⇒ 4xx（响亮），不是 201 + 「能送审」的假承诺。
+
+    下游每个签署动作都过 `require_formal_project_workspace`（非 FORMAL ⇒ 403）
+    ⇒ 收 201 的项目**永远送不了审** —— 正是端点 docstring 承诺不会出现的
+    「项目建好了但送不了审」半成品。
+    """
+    ws_id = await _make_workspace(db_session, workspace_type="PERSONAL")
+
+    resp = await client.post(
+        "/api/v1/projects", headers=admin_headers, json=_payload(ws_id)
+    )
+
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["code"] == "WORKSPACE_NOT_FORMAL"
+
+
+async def test_create_project_duplicate_no_is_409_not_500(
+    client, admin_headers, db_session, workspace
+):
+    """project_no 全局唯一 ⇒ 重复 POST ⇒ 409（可操作），不是裸 500。"""
+    payload = _payload(workspace.workspace_id)
+
+    r1 = await client.post("/api/v1/projects", headers=admin_headers, json=payload)
+    assert r1.status_code == 201, r1.text
+    r2 = await client.post("/api/v1/projects", headers=admin_headers, json=payload)
+
+    assert r2.status_code == 409, r2.text
+    assert r2.json()["code"] == "PROJECT_NO_CONFLICT"

@@ -479,3 +479,64 @@ async def test_ensure_change_notice_matrix_rejects_inactive_binding(db, project_
         )
     assert exc.value.code == "SIGNATURE_MATRIX_NOT_ACTIVE"
     assert exc.value.status == 409
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_default_matrix_recovers_from_concurrent_insert(
+    db, monkeypatch
+):
+    """⚠️ 评审 #6：首个项目并发建 ⇒ 默认矩阵撞 `(matrix_name, status)` 唯一约束。
+
+    竞态窗口：两个 POST /projects 在空 `signature_matrices` 上同时跑
+    `_get_or_create_default_record_matrix` ⇒ 都 SELECT-见空（READ COMMITTED）
+    ⇒ 都 INSERT ⇒ 输家撞 p9_010 的唯一约束 ⇒ **未捕获 IntegrityError ⇒ 500**，
+    整个项目创建回滚（对手 `_ensure_binding` 同族场景已修，本方法漏了）。
+    修后：savepoint 内 INSERT + 撞约束 ⇒ **重读赢家的行**返回。
+    """
+    real_execute = db.execute
+    injected = {"done": False}
+
+    class _EmptyScalars:
+        def scalars(self):
+            return self
+
+        def first(self):
+            return None
+
+    async def _execute(stmt, *args, **kwargs):
+        if (
+            "signature_matrices" in str(stmt)
+            and "SELECT" in str(stmt).upper()
+            and not injected["done"]
+        ):
+            injected["done"] = True
+            # 竞态窗口：方法自己的 SELECT 看不到 ⇒ 对手先插赢了
+            winner = SignatureMatrix(
+                matrix_name=SignatureMatrixService.DEFAULT_RECORD_MATRIX_NAME,
+                module=SignatureMatrixService.RECORD_MODULE,
+                doc_type=SignatureMatrixService.RECORD_MODULE,
+                version_purpose="PUBLISHED",
+                steps_json=[dict(s) for s in SignatureMatrixService.DEFAULT_RECORD_STEPS],
+                status="ACTIVE",
+            )
+            db.add(winner)
+            await db.flush()
+            return _EmptyScalars()
+        return await real_execute(stmt, *args, **kwargs)
+
+    monkeypatch.setattr(db, "execute", _execute)
+
+    matrix = await SignatureMatrixService._get_or_create_default_record_matrix(db)
+
+    # 输家必须拿到**赢家那一行**（不 500、不建第二行）
+    rows = (
+        await real_execute(
+            select(SignatureMatrix).where(
+                SignatureMatrix.matrix_name
+                == SignatureMatrixService.DEFAULT_RECORD_MATRIX_NAME,
+                SignatureMatrix.status == "ACTIVE",
+            )
+        )
+    ).scalars().all()
+    assert len(rows) == 1, f"默认矩阵只能有一行，got {len(rows)}"
+    assert matrix.matrix_id == rows[0].matrix_id

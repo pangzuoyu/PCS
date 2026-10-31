@@ -14121,10 +14121,13 @@ export interface components {
          *     `workspace_id`。
          *
          *     ⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）
-         *     ⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。
+         *     ⇒ **有默认、可省略**：客户端**可以**显式传（显式优先），不传则用服务端
+         *     默认（两者词表一致，显式传不会引入新值）。
          *     ⇒ `project_id` **不暴露**（服务端生成）。
          *
-         *     ⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）。
+         *     ⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）；
+         *     且必须是 **FORMAL** 工作区（评审 #4）⇒ PERSONAL/TEMPORARY ⇒
+         *     **422** `WORKSPACE_NOT_FORMAL`（非 FORMAL 项目永远送不了审）。
          */
         ProjectCreate: {
             /**

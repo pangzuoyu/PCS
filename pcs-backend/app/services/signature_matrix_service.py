@@ -790,7 +790,13 @@ class SignatureMatrixService:
     async def _get_or_create_default_record_matrix(
         cls, db: AsyncSession
     ) -> SignatureMatrix:
-        """全局内置记录级模板（**幂等**：有就用，没有才建）。"""
+        """全局内置记录级模板（**幂等**：有就用，没有才建）。
+
+        ⚠️ 并发兜底（评审 #6，与 `_ensure_binding` / bug-2062 同族同修）：
+        首个项目并发建时两个事务都 SELECT-见空（READ COMMITTED）⇒ 都 INSERT
+        ⇒ 输家撞 `(matrix_name, status)` 唯一约束（p9_010）⇒ 未捕获 ⇒ 500
+        且**整个项目创建回滚** ⇒ savepoint 内 INSERT + 撞约束**重读赢家的行**。
+        """
         matrix = (
             await db.execute(
                 select(SignatureMatrix).where(
@@ -809,8 +815,25 @@ class SignatureMatrixService:
             steps_json=[dict(s) for s in cls.DEFAULT_RECORD_STEPS],
             status="ACTIVE",
         )
-        db.add(matrix)
-        await db.flush()
+        try:
+            # ⚠️ `db.add` 必须在 savepoint **之内**（`begin_nested()` 会先 flush
+            # pending ⇒ savepoint 之外的 INSERT 撞约束时会**中止整个事务**——
+            # 调用方（POST /projects）的项目 INSERT 与本插入同事务，整体回滚。
+            async with db.begin_nested():
+                db.add(matrix)
+                await db.flush()
+        except IntegrityError:
+            winner = (
+                await db.execute(
+                    select(SignatureMatrix).where(
+                        SignatureMatrix.matrix_name == cls.DEFAULT_RECORD_MATRIX_NAME,
+                        SignatureMatrix.status == "ACTIVE",
+                    )
+                )
+            ).scalars().first()
+            if winner is None:
+                raise
+            return winner
         return matrix
 
     @classmethod

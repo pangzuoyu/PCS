@@ -430,3 +430,28 @@ class TestIssueResponseContract:
 # (project, template, scope)，断言 10 个 doc_no 互不相同。
 # **必须真 PG**：`SELECT ... FOR UPDATE` 在 SQLite 上是空操作，
 # 用内存 SQLite 跑并发会给「不撞号」的假绿，而撞号的后果是两份交付物同号。
+
+
+async def test_snapshot_sign_status_is_bare_value(
+    client, auth, db_session, project_id
+):
+    """PE-1（P9B-2 评审）：snapshot 的 `sign_status` 必须是**裸词表值**。
+
+    `RecordSignStatus9` 继承 `(str, Enum)` ⇒ 裸 `str()` 出来是
+    `"DeliverableSignStatus.APPROVED"` 这种类名前缀 ⇒ 违反本批滚进
+    openapi-baseline 的契约词表（同文件 :289 一直是 `.value`）。
+    """
+    deliverable = await _make_deliverable(db_session, project_id)
+    resp = await _issue(client, auth, deliverable.deliverable_id)
+    assert resp.status_code == 200, resp.text
+    rev = resp.json()["rev"]
+
+    snap = await client.get(
+        f"/api/v1/deliverables/{deliverable.deliverable_id}"
+        f"/versions/{rev}/snapshot",
+        headers=auth,
+    )
+    assert snap.status_code == 200, snap.text
+    value = snap.json()["sign_status"]
+    assert "." not in value, f"sign_status 泄漏了枚举类名: {value!r}"
+    assert value == value.upper()

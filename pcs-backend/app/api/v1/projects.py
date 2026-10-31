@@ -25,6 +25,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi import status as http_status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import check_project_access_or_404
@@ -87,6 +88,19 @@ async def create_project(
         # ⚠️ **不建孤儿项目**：`projects.workspace_id` 是 FK ⇒ 指向不存在的工作区
         # ⇒ 404（明确说「工作区没有」，而不是 500 的 FK 违约）。
         raise WorkspaceNotFoundError(f"工作区 {payload.workspace_id} 不存在")
+    if workspace.workspace_type != "FORMAL":
+        # ⚠️ **只收 FORMAL**（评审 #4）：下游每个签署动作都过
+        #    `require_formal_project_workspace`（非 FORMAL ⇒ 403）⇒ 收下
+        #    PERSONAL/TEMPORARY 的项目 = 建一个**永远送不了审**的半成品，
+        #    却回 201 + 「已自动绑矩阵，可以提交批准了」的假承诺。
+        raise PcsError(
+            code="WORKSPACE_NOT_FORMAL",
+            message=(
+                f"工作区 {payload.workspace_id} 是 {workspace.workspace_type}，"
+                "只有 FORMAL 工作区能建项目（个人/临时区无工程效力）"
+            ),
+            status=422,
+        )
     record = Project(
         project_no=payload.project_no,
         project_name=payload.project_name,
@@ -100,7 +114,17 @@ async def create_project(
         product_category=payload.product_category.value,
     )
     db.add(record)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # ⚠️ `project_no` 全局唯一（评审 #5）⇒ 重复编号是**可操作的冲突**，
+        #    不是服务器坏了 —— 表单超时重提 / 手输已有编号都会走到这。
+        await db.rollback()
+        raise PcsError(
+            code="PROJECT_NO_CONFLICT",
+            message=f"项目编号 {payload.project_no} 已存在（全局唯一），请换一个",
+            status=409,
+        )
     await SignatureMatrixService.ensure_default_record_matrix(
         db, project_id=record.project_id
     )

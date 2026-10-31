@@ -33418,7 +33418,7 @@
           "workspace_id"
         ],
         "title": "ProjectCreate",
-        "description": "建项目的请求体（P9B-2 · T-1）。\n\n## 为什么只收这 8 个必填字段\n\n它们是 `app/models/project.py::Project` 里**类型非 Optional**（⇒ NOT NULL）\n且**没有模型默认**的列：`project_no` · `project_name` · `owner_company` ·\n`location` · `project_type` · `design_phase` · `unit_system` ·\n`workspace_id`。\n\n⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）\n⇒ **不由客户端重复指定**（要客户端复述一个默认值只是噪音）。\n⇒ `project_id` **不暴露**（服务端生成）。\n\n⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）。"
+        "description": "建项目的请求体（P9B-2 · T-1）。\n\n## 为什么只收这 8 个必填字段\n\n它们是 `app/models/project.py::Project` 里**类型非 Optional**（⇒ NOT NULL）\n且**没有模型默认**的列：`project_no` · `project_name` · `owner_company` ·\n`location` · `project_type` · `design_phase` · `unit_system` ·\n`workspace_id`。\n\n⚠️ `status` / `product_category` **有模型默认**（`ACTIVE` / `OTHER`）\n⇒ **有默认、可省略**：客户端**可以**显式传（显式优先），不传则用服务端\n默认（两者词表一致，显式传不会引入新值）。\n⇒ `project_id` **不暴露**（服务端生成）。\n\n⚠️ `workspace_id` 是 FK ⇒ 必须先有工作区；不存在 ⇒ **404**（不建孤儿项目）；\n且必须是 **FORMAL** 工作区（评审 #4）⇒ PERSONAL/TEMPORARY ⇒\n**422** `WORKSPACE_NOT_FORMAL`（非 FORMAL 项目永远送不了审）。"
       },
       "ProjectMatrixBindingOut": {
         "properties": {
