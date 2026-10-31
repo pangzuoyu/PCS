@@ -194,6 +194,55 @@ class TestAuditLogsEndpoint:
         assert len(body["items"]) == 10
         assert len(body["items"]) == 10
 
+    async def test_pagination_tiebreaker_identical_timestamps(
+        self, client, db, admin_token
+    ):
+        """⚠️ P9B-2 评审 #8：同一 `occurred_at` 的行 ⇒ OFFSET 分页必须**稳定**。
+
+        AD 同步一秒写 N 行 ⇒ 并列时间戳在无 tiebreaker 的 ORDER BY 下顺序
+        不定 ⇒ 第 1 页与第 2 页**重复 / 漏行** ⇒ CSV 导出（RFC 证据链）
+        拿到的是残缺数据。`audit_id` 决胜列（audit.py:87）钉住全序。
+        断言：两页不相交、并集 = 全集。
+        """
+        from datetime import timezone
+
+        same = datetime(2026, 10, 27, 12, 0, 0, tzinfo=timezone.utc)
+        for i in range(5):
+            await _insert_audit_log(db, resource_id=f"tie-{i}", occurred_at=same)
+        await db.commit()
+
+        page1 = (
+            await client.get(
+                "/api/v1/audit-logs",
+                params={"limit": 2, "offset": 0},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
+        page2 = (
+            await client.get(
+                "/api/v1/audit-logs",
+                params={"limit": 2, "offset": 2},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
+        page3 = (
+            await client.get(
+                "/api/v1/audit-logs",
+                params={"limit": 2, "offset": 4},
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        ).json()
+        ids1 = [item["audit_id"] for item in page1["items"]]
+        ids2 = [item["audit_id"] for item in page2["items"]]
+        ids3 = [item["audit_id"] for item in page3["items"]]
+        assert not (set(ids1) & set(ids2)), f"第 1/2 页重复: {set(ids1) & set(ids2)}"
+        assert not (set(ids1) & set(ids3)) and not (set(ids2) & set(ids3))
+        assert len(set(ids1) | set(ids2) | set(ids3)) == 5, "三页并集必须覆盖全部 5 行"
+        # ⚠️ 钉住**决胜列本身**：只断「不重不漏」在 SQLite 上删掉决胜列也绿
+        #    （rowid 序恰好稳定）⇒ 再断页序 ≡ (occurred_at desc, audit_id desc)
+        #    全序 —— 删掉 `audit_id` 决胜列 ⇒ 序变成插入序 ⇒ 必红。
+        assert ids1 + ids2 + ids3 == sorted(ids1 + ids2 + ids3, reverse=True)
+
 
 # ---------------------------------------------------------------------------
 # /equipment-deletion-audit

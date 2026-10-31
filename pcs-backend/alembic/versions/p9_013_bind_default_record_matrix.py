@@ -28,10 +28,19 @@
   （人工改过的绑定不被夺走 —— 与 `ensure_default_record_matrix` 同口径：
   「谁该签」的决定权不在系统手里）。
 
-## ⚠️ `downgrade` 是**有损**的
+## ⚠️ `downgrade` 是**有损**的（评审 A-4：范围比「回填的」更广，如实登记）
 
-降级删掉**回填的绑定**（矩阵行**保留** —— 它是全局模板，删了会让**升级之后
-新建**的项目绑定悬空）。
+降级删除的是**所有**指向默认 ACTIVE 矩阵的 `module='RECORD'` 绑定 ——
+不止本迁移回填的，还包括：
+
+- **运行时**创建的绑定（升级后 `POST /projects` 自动绑的）；
+- **管理员手工**绑到该矩阵的绑定。
+
+矩阵行本身**保留**（全局模板，删了会让升级之后新建的项目绑定悬空）。
+被删的绑定是**用户配置**，降级不恢复、重跑 `upgrade head` 会按「没绑的
+项目」重新补齐（代价：期间该项目送审吃 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`
+的**中断窗口**）。没有只删「回填行」的精确途径（回填与运行时写入同构，
+无标记列可区分 —— 加标记列的成本高于收益，裁决：docstring 如实说）。
 
 ## Revision
 
@@ -99,7 +108,7 @@ WHERE NOT EXISTS (
 )
 """
 
-# ③ 降级：删掉回填的绑定（矩阵行**保留** —— 见模块 docstring）
+# ③ 降级：删掉**所有**指向默认矩阵的 RECORD 绑定（矩阵行保留 —— 范围见模块 docstring 的有损声明）
 _DROP_BINDINGS = f"""
 DELETE FROM project_signature_matrix_bindings
 WHERE module = '{_MODULE}'
@@ -117,5 +126,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删掉回填的绑定（⚠️ **有损** —— 矩阵行保留）。"""
+    """删掉所有指向默认矩阵的 RECORD 绑定（⚠️ **有损且比回填范围广** —— 见模块 docstring）。"""
     op.execute(_DROP_BINDINGS)
