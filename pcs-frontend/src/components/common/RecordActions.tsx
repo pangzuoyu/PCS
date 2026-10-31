@@ -122,10 +122,14 @@ function buildSpecs(
 }
 
 /**
- * 项目绑定的 RECORD 矩阵的**整条链**（每一步的角色）缓存。
+ * 项目绑定的 RECORD 矩阵的**整条链**（每一步的角色）。
  *
- * ⚠️ 同一项目只拉一次 ⇒ 不是每行一次 ⇒ 不是 N+1。
- * ⚠️ **只缓存成功的结果** ⇒ 拉失败不缓存（下次重试）。
+ * ⚠️ **挂载级拉取，不跨挂载缓存**（评审 #1）：曾有模块级 Map 永生缓存 ⇒
+ * 管理员重绑矩阵后，已挂载的 SPA 拿旧链直到整页刷新 ⇒ 送审门禁与后端
+ * 实际判据不一致。现在**每次挂载拉一次**（本组件只在记录详情抽屉 / 变更
+ * 动作弹窗里单实例出现，抽屉按 `recordType+recordId` 重建 ⇒ 重开即新拉，
+ * 不是每行一次 ⇒ 不是 N+1）。已提交记录的链由后端 `approval_chain_snapshot`
+ * 冻结 ⇒ 这里的链只服务**送审前**的门禁（RF-2 / RF-16）。
  *
  * ## 为什么是「整条链」而不是「第 1 步」
  *
@@ -146,19 +150,13 @@ type ChainState =
   | { kind: 'unbound' }
   | { kind: 'failed' };
 
-const chainCache = new Map<string, ChainState>();
-
 async function loadChain(projectId: string): Promise<ChainState> {
-  const cached = chainCache.get(projectId);
-  if (cached) return cached;
   try {
     const bindings = await signatureMatricesApi.listProjectBindings(projectId);
     const recordBinding = bindings.find((b) => b.module === 'RECORD');
-    const state: ChainState = recordBinding
+    return recordBinding
       ? { kind: 'bound', roles: (recordBinding.steps ?? []).map((s) => s.sign_role) }
       : { kind: 'unbound' };
-    chainCache.set(projectId, state);
-    return state;
   } catch {
     // ⚠️ 拉失败 ⇒ **不禁用**（前端不知道 ⇒ 不猜）⇒ 后端 422/403 兜底
     return { kind: 'failed' };
@@ -316,7 +314,8 @@ export function RecordActions({
           </Tooltip>
         );
       })}
-      {actionError && (
+      {/* ⚠️ 弹窗开着时错误只渲染在弹窗内（避免双份/遮罩盖住） */}
+      {actionError && reasonFor === null && (
         <Typography.Text type="danger" data-testid="record-actions-error">
           {actionError}
         </Typography.Text>
@@ -345,6 +344,17 @@ export function RecordActions({
           }
           rows={3}
         />
+        {/* ⚠️ 评审清理：动作失败的错误渲染在**弹窗内** —— 外层那份会被 Modal
+            遮罩盖住（jsdom 里看得见 DOM、真浏览器里用户看不见）。 */}
+        {actionError && (
+          <Typography.Text
+            type="danger"
+            data-testid="record-actions-error"
+            style={{ display: 'block', marginTop: 8 }}
+          >
+            {actionError}
+          </Typography.Text>
+        )}
       </Modal>
     </Space>
   );

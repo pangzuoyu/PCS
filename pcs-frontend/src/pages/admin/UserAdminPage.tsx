@@ -8,7 +8,7 @@
  * `skipped_empty=true` = 枚举到 0 个用户 ⇒ 两种都不是「同步成功」。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Modal, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Modal, Space, Table, Tag } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { adminApi, type AdminUser } from '../../api/admin';
@@ -227,9 +227,6 @@ export function UserAdminPage(): JSX.Element {
         />
       </Card>
       )}
-      <Typography.Text type="secondary" style={{ display: 'none' }}>
-        停用后 token_version 递增 ⇒ 在手 refresh 全部失效（ADR-0046 §⑤）
-      </Typography.Text>
 
       {/* ⚠️ **停用二次确认** —— 误点即误伤一个人（在手 refresh 全失效） */}
       <Modal

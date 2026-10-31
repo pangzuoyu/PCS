@@ -126,14 +126,19 @@ export function AuditLogPage(): JSX.Element {
     }
   }
 
-  async function loadAuditLogs(offset: number): Promise<void> {
+  async function loadAuditLogs(
+    offset: number,
+    filter: ListAuditLogsParams = appliedFilter,
+  ): Promise<void> {
     setListError(null);
     setLoading(true);
-    // ⚠️ 本次查询用的筛选条件 = **已应用**的筛选条件（冻结）
-    setAppliedFilter(auditFilter);
+    // ⚠️ 本次查询用的筛选条件 = **已应用**的筛选条件（冻结）——
+    //    ⚠️ 评审 #10：**冻结只发生在点「查询」时**（那里显式 setAppliedFilter +
+    //    把新条件传进来）。默认读 state ⇒ 翻页（effect 调本函数）永远用
+    //    上次应用的条件 ⇒ 不会把「改了没查」的条件**偷换**进第 2 页。
     try {
       const r = await auditApi.listAuditLogs({
-        ...auditFilter,
+        ...filter,
         limit: pageSize,
         offset,
       });
@@ -177,11 +182,10 @@ export function AuditLogPage(): JSX.Element {
         if (r.items.length < EXPORT_PAGE_SIZE) break;
         offset += EXPORT_PAGE_SIZE;
       }
-      // ⚠️ **与后端 `total` 核对**（RF-11）：后端按 `occurred_at DESC` 排序、
-      //    **无 tiebreaker** ⇒ 并列行的 OFFSET 分页**不稳定** ⇒ 同一行可能跨页
-      //    出现两次、另一行永远不出现 ⇒ 导出行数 ≠ 结果集行数 ⇒ 文案写「全部
-      //    结果」就是**骗人**。⇒ 对不上就**明说**（用户据此判断能不能用这份
-      //    文件当证据）。
+      // ⚠️ **与后端 `total` 核对**（RF-11）：排序是 `occurred_at DESC, audit_id
+      //    DESC`（**有**决胜列，P9B-2 评审 #8 已钉测试）⇒ 分页稳定；这个核对
+      //    防的是**导出循环期间新行写入**（25 页拉取窗口内 total 漂移）⇒ 行数
+      //    对不上就**明说**（用户据此判断能不能用这份文件当证据）。
       const total = lastTotal;
       // ⚠️ **截断**的判据是「结果集**比上限还大**」，不是「刚好导满了上限」——
       //    恰好 5000 行 ⇒ **没截断** ⇒ 误报「已截断」会让用户以为少了数据。
@@ -459,7 +463,15 @@ export function AuditLogPage(): JSX.Element {
                     <Button
                       type="primary"
                       data-testid="audit-filter-submit"
-                      onClick={() => reloadFromFirstPage(loadAuditLogs)}
+                      onClick={() => {
+                        // ⚠️ 评审 #10：**冻结发生在这里且只在这里** ——
+                        //    直查路径显式传新条件（setState 不更新当帧闭包），
+                        //    翻页路径由 effect 读已更新的 state。
+                        setAppliedFilter(auditFilter);
+                        reloadFromFirstPage((offset) =>
+                          loadAuditLogs(offset, auditFilter),
+                        );
+                      }}
                     >
                       查询
                     </Button>

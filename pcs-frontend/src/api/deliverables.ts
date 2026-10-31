@@ -8,10 +8,29 @@
  */
 import { api } from './client';
 import type { components } from '../types/api';
+import type { WorkflowType } from '../components/common/workflowTabs';
 
-export type DeliverableProgressResponse =
-  components['schemas']['DeliverableProgressResponse'];
-export type WorkflowProgressSection = components['schemas']['WorkflowProgressSection'];
+export type DeliverableProgressResponse = Omit<
+  components['schemas']['DeliverableProgressResponse'],
+  'sections'
+> & { sections: WorkflowProgressSection[] };
+
+/** 交付物签审 4 态（后端 `DeliverableSignStatus`）—— 契约生成裸 string，边界收窄。 */
+export type DeliverableSignStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'OBSOLETE';
+
+/** 列表/详情行（`sign_status` 收窄为 4 态，见上）。 */
+export type Deliverable = Omit<
+  components['schemas']['DeliverableResponse'],
+  'sign_status'
+> & { sign_status: DeliverableSignStatus };
+/**
+ * ⚠️ 评审 #20：契约把 `workflow_type` 生成为裸 `string`，后端实际返回的是
+ * `WorkflowType` 三值枚举 ⇒ 在 **api 边界**收窄（消费方不再 `as never`）。
+ */
+export type WorkflowProgressSection = Omit<
+  components['schemas']['WorkflowProgressSection'],
+  'workflow_type'
+> & { workflow_type: WorkflowType };
 export type DeliverableActionsListResponse =
   components['schemas']['DeliverableActionsListResponse'];
 

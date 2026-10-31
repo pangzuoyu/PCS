@@ -18,16 +18,23 @@ const RECORD_ID = '11111111-2222-3333-4444-555555555555';
 
 let listStatus = 200;
 let created: { comment_id: string; body: string; author_id: string; created_at: string }[] = [];
-let listTotal = 0;
 /** ⚠️ 服务端返回的**升序**列表（后端 `ORDER BY created_at, comment_id`）。 */
 let listItems: { comment_id: string; body: string; author_id: string; created_at: string }[] = [];
 
 const server = setupServer(
-  http.get('/api/v1/records/:module/:recordId/comments', () => {
+  http.get('/api/v1/records/:module/:recordId/comments', ({ request }) => {
     if (listStatus === 403) {
       return HttpResponse.json({ code: 'HTTP_403', message: '无权' }, { status: 403 });
     }
-    return HttpResponse.json({ items: listItems, total: listTotal });
+    // ⚠️ 保真：合并 created（升序 ⇒ 新批注在末尾）+ 认 offset/limit
+    const url = new URL(request.url);
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    const limit = Number(url.searchParams.get('limit') ?? '20');
+    const full = [...listItems, ...created.slice().reverse()];
+    return HttpResponse.json({
+      items: full.slice(offset, offset + limit),
+      total: full.length,
+    });
   }),
   http.post('/api/v1/records/:module/:recordId/comments', async ({ request }) => {
     const body = (await request.json()) as { body: string };
@@ -39,7 +46,6 @@ const server = setupServer(
       created_at: '2026-10-20T10:00:00Z',
     };
     created = [item, ...created];
-    listTotal += 1;
     return HttpResponse.json(item);
   }),
 );
@@ -50,7 +56,6 @@ describe('CommentPanel —— 批注', () => {
   beforeEach(() => {
     listStatus = 200;
     created = [];
-    listTotal = 0;
     listItems = [];
   });
 
@@ -92,7 +97,6 @@ describe('CommentPanel —— 批注', () => {
       { comment_id: 'c-1', body: '最早的一条', author_id: 'u-1', created_at: '2026-10-20T10:00:00Z' },
       { comment_id: 'c-2', body: '第二条', author_id: 'u-1', created_at: '2026-10-20T11:00:00Z' },
     ];
-    listTotal = listItems.length;
     render(<CommentPanel module={MODULE} recordId={RECORD_ID} />);
     await waitFor(() => expect(screen.getByTestId('comment-item-c-1')).toBeTruthy());
 
@@ -110,9 +114,37 @@ describe('CommentPanel —— 批注', () => {
 
   it('⚠️ total=2、limit=1 ⇒ 渲染**分页**（不是「加载更多」）（RF-8）', async () => {
     // ⚠️ 页数 = ceil(total / limit) ⇒ total > 一页容量才出分页控件
-    listTotal = 21;
+    //    （mock 认 offset/limit 后 total 来自真实行数 ⇒ 种 21 条）
+    listItems = Array.from({ length: 21 }, (_, i) => ({
+      comment_id: `c-${i + 1}`,
+      body: `第 ${i + 1} 条`,
+      author_id: 'u-1',
+      created_at: '2026-10-20T10:00:00Z',
+    }));
     render(<CommentPanel module={MODULE} recordId={RECORD_ID} />);
     await waitFor(() => expect(screen.getByTestId('comment-pagination')).toBeTruthy());
+  });
+
+  it('⚠️ 评审 B-4：非最后一页发送 ⇒ **跳到最后一页**（新批注的位置）', async () => {
+    // ⚠️ 此前 send() 把新批注 append 到**当前页**：在第 1 页发 ⇒ 新批注
+    //    渲染在第 1 页末尾（后端升序里它在**最后一页**）⇒ 刷新后位置跳走，
+    //    且第 1 页可能显示 21 条。
+    listItems = Array.from({ length: 20 }, (_, i) => ({
+      comment_id: `c-${i + 1}`,
+      body: `第 ${i + 1} 条`,
+      author_id: 'u-1',
+      created_at: '2026-10-20T10:00:00Z',
+    }));
+    render(<CommentPanel module={MODULE} recordId={RECORD_ID} />);
+    await waitFor(() => expect(screen.getByTestId('comment-item-c-20')).toBeTruthy());
+
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: '压轴新批注' } });
+    fireEvent.click(screen.getByTestId('comment-send'));
+
+    // 新批注在最后一页（第 2 页）⇒ 发送后自动跳过去并显示它
+    await waitFor(() => expect(screen.getByTestId('comment-item-c-21')).toBeTruthy());
+    const active = document.querySelector('.ant-pagination-item-active');
+    expect(active?.textContent).toBe('2');
   });
 
   it('⚠️ 403 ⇒ 显示「无权查看」**而不是**空列表（RF-12）', async () => {

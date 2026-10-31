@@ -26,9 +26,12 @@ export const projectsApi = {
   /**
    * 列工作区（建项目要选一个**已存在**的 FORMAL 工作区 ⇒ 后端不建孤儿项目）。
    *
-   * ⚠️ 只取 FORMAL：`projects.workspace_id` 指向 FORMAL 工作区 ⇒ 选了别的
-   *    类型 ⇒ 后端 404。
+   * ⚠️ 只取 FORMAL（评审 #4 落实）：`projects.workspace_id` 指向 FORMAL 工作区
+   * ⇒ 选了别的类型 ⇒ 后端 422 `WORKSPACE_NOT_FORMAL`（非 FORMAL 项目永远
+   * 送不了审）⇒ 下拉里干脆不给选。
    */
   listWorkspaces: (): Promise<WorkspaceOut[]> =>
-    api.get<WorkspaceOut[]>('/workspaces').then((r) => r.data),
+    api
+      .get<WorkspaceOut[]>('/workspaces')
+      .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),
 };

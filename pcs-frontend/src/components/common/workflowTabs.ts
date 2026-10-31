@@ -22,6 +22,21 @@
  */
 export type WorkflowType = 'SIGN' | 'CHANGE_NOTICE' | 'CUSTOMER_APPROVAL_PROXY';
 
+/**
+ * 工作流词表（**唯一真相源**，评审 A-3）：tab 标签与进度段标题**同源**——
+ * 此前 `DeliverableProgressPage` 自带一份 `SECTION_LABELS`，两处文本已经
+ * 分叉（「签署」vs「签署进度」），新增工作流类型要改两处（漏一处 = 静默
+ * 显示裸枚举键）。`Record<WorkflowType, …>` ⇒ 加类型不改这里 = **编译红**。
+ */
+export const WORKFLOW_LABELS: Record<
+  WorkflowType,
+  { tab: string; section: string }
+> = {
+  SIGN: { tab: '签署', section: '签署进度' },
+  CHANGE_NOTICE: { tab: '变更单', section: '变更单进度' },
+  CUSTOMER_APPROVAL_PROXY: { tab: '代录', section: '客户批准代录' },
+};
+
 export interface WorkflowTab {
   type: WorkflowType;
   label: string;
@@ -30,8 +45,12 @@ export interface WorkflowTab {
 }
 
 export const WORKFLOW_TABS: readonly WorkflowTab[] = [
-  { type: 'SIGN', label: '签署', enabled: true },
+  { type: 'SIGN', label: WORKFLOW_LABELS.SIGN.tab, enabled: true },
   // ⚠️ **仍然禁用**（R-13）：变更单自己就是交付物 ⇒ 不作为聚合段出现
-  { type: 'CHANGE_NOTICE', label: '变更单', enabled: false },
-  { type: 'CUSTOMER_APPROVAL_PROXY', label: '代录', enabled: true },
+  { type: 'CHANGE_NOTICE', label: WORKFLOW_LABELS.CHANGE_NOTICE.tab, enabled: false },
+  {
+    type: 'CUSTOMER_APPROVAL_PROXY',
+    label: WORKFLOW_LABELS.CUSTOMER_APPROVAL_PROXY.tab,
+    enabled: true,
+  },
 ];

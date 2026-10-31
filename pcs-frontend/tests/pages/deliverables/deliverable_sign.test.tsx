@@ -375,6 +375,36 @@ describe('交付物级签署写面（T8）', () => {
     expect(screen.queryByTestId('sign-no-step')).toBeNull();
   });
 
+  it('⚠️ 评审 #18：重开代录弹窗 ⇒ **不残留**上一次的 AD 凭据/表单（Input.Password 只有圆点）', async () => {
+    await renderPage();
+
+    // 第一次：填入凭据后关掉（没提交）
+    fireEvent.click(screen.getByTestId('deliverable-proxy-d-pending'));
+    await waitFor(() => expect(screen.getByTestId('proxy-submit')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('proxy-secondary-username'), {
+      target: { value: 'colleague@ad' },
+    });
+    fireEvent.change(screen.getByTestId('proxy-secondary-password'), {
+      target: { value: 'Sup3rSecret!' },
+    });
+    // footer=null ⇒ 关闭走 Modal 右上角 X
+    fireEvent.click(document.querySelector('.ant-modal-close') as HTMLElement);
+    await waitFor(() =>
+      expect(screen.queryByTestId('proxy-submit')).toBeNull(),
+    );
+
+    // 第二次打开：凭据必须清空 —— 操作员连着代录几条时，静默带上
+    // **上一个人的 AD 密码**提交是不可接受的（且密码框只显示圆点，看不见）。
+    fireEvent.click(screen.getByTestId('deliverable-proxy-d-pending'));
+    await waitFor(() => expect(screen.getByTestId('proxy-submit')).toBeTruthy());
+    expect(
+      (screen.getByTestId('proxy-secondary-username') as HTMLInputElement).value,
+    ).toBe('');
+    expect(
+      (screen.getByTestId('proxy-secondary-password') as HTMLInputElement).value,
+    ).toBe('');
+  });
+
   it('⚠️ 代录 **401**（二次认证失败）⇒ 显示原文 + **不登出**（会话没过期！）', async () => {
     // ⚠️ axios 拦截器此前对**任何** 401 都 clearSession + 跳登录 ⇒ AD 密码打错
     //    ⇒ 用户被踢回登录页、填好的凭证全丢、且**看不到**「用户名或密码错误」。

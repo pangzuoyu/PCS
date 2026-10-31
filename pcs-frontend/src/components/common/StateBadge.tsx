@@ -44,6 +44,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { RecordSignStatus } from '../../types/records';
+import type { DeliverableSignStatus } from '../../api/deliverables';
 import type { components } from '../../types/api';
 
 export type StateBadgeSize = 'sm' | 'md';
@@ -109,7 +110,11 @@ type StateBadgeBase = {
 export type StateBadgeProps = StateBadgeBase & (
   | { module: 'PIPE_CLASS'; status: PipeClassStatus }
   /** 省略 `module` 时按 CONFIG（9 态全集）处理，见组件内 defaultProps。 */
-  | { module?: SignModule; status: RecordSignStatus }
+  | {
+      module?: SignModule;
+      /** ⚠️ 评审 #20：`module='DELIVERABLE'` 的 4 态（api 层单一词表）。 */
+      status: RecordSignStatus | DeliverableSignStatus;
+    }
 );
 
 interface StatusMeta {

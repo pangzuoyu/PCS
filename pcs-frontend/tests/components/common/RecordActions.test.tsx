@@ -134,9 +134,8 @@ const server = setupServer(
 );
 
 /**
- * ⚠️ **每个用例用不同的 projectId** —— `RecordActions` 按项目缓存**整条链**
- * （模块级 Map ⇒ 避免 N+1）⇒ 共用同一个 projectId 会让**前一个用例的缓存**
- * 污染后一个（实测：先跑「已绑」再跑「没绑」，后者拿到的是缓存的「已绑」）。
+ * 各用例仍用不同的 projectId（历史惯例：曾有模块级链缓存跨用例污染，
+ * 评审 #1 后改为**挂载级**拉取 —— 见「重绑后重新挂载」用例）。
  */
 let projectSeq = 0;
 
@@ -331,6 +330,33 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
     expect(recordCalls).toBe(1);
   });
 
+  it('⚠️ 评审清理：理由弹窗**开着**时动作失败 ⇒ 错误渲染在弹窗**内**（不被遮罩盖住）', async () => {
+    server.use(
+      http.post('/api/v1/records/:module/:recordId/:action', () =>
+        HttpResponse.json(
+          { code: 'APPROVAL_SELF_REVIEW_FORBIDDEN', message: '不允许自审' },
+          { status: 403 },
+        ),
+      ),
+    );
+    renderActions('CHECKED');
+    await waitFor(() => expect(screen.getByTestId('record-action-INITIATE_CHANGE')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('record-action-INITIATE_CHANGE'));
+    const modal = await waitFor(() => document.querySelector('.ant-modal-content'));
+    expect(modal).toBeTruthy();
+    fireEvent.change(screen.getByTestId('record-action-reason-input'), {
+      target: { value: '塔径调整' },
+    });
+    fireEvent.click(screen.getByTestId('record-action-reason-ok'));
+    await waitFor(() =>
+      expect(screen.getByTestId('record-actions-error').textContent).toContain(
+        'APPROVAL_SELF_REVIEW_FORBIDDEN',
+      ),
+    );
+    // ⚠️ 错误必须**在弹窗里**（外面那份被 Modal 遮罩盖住 ⇒ 用户看不见）
+    expect(modal?.contains(screen.getByTestId('record-actions-error'))).toBe(true);
+  });
+
   it('⚠️ 失败**明说**（错误码 + 原文），不静默', async () => {
     server.use(
       http.post('/api/v1/records/:module/:recordId/:action', () =>
@@ -349,5 +375,34 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
       ),
     );
     expect(screen.getByTestId('record-actions-error').textContent).toContain('不允许自审');
+  });
+
+  it('⚠️ 重绑矩阵后**重新挂载**（重开抽屉）⇒ 读到**新链**（评审 #1：链缓存不跨挂载）', async () => {
+    // 场景：管理员把项目 RECORD 矩阵重绑成「含当前用户角色」的链 ⇒
+    // 已挂载的 SPA 若用模块级永生缓存 ⇒ 重开抽屉仍拿旧链 ⇒ 送审门禁
+    // 与后端实际判据不一致（自审 403 变成「前端说能点」）。
+    useAuth.setState({ role: 'DESIGNER' });
+    matrixRoles = ['CHECKER'];
+    const projectId = `project-same-${++projectSeq}`;
+    const first = renderActions('DRAFT', projectId);
+    await waitFor(() =>
+      expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK')).toBeTruthy(),
+    );
+    await waitFor(() => {
+      const btn = screen.getByTestId('record-action-SUBMIT_FOR_CHECK') as HTMLButtonElement;
+      expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(false);
+    });
+    first.unmount();
+
+    // 管理员重绑：DESIGNER 进链 ⇒ 重开（新挂载，同 projectId）必须看到新链
+    matrixRoles = ['CHECKER', 'DESIGNER'];
+    renderActions('DRAFT', projectId);
+    await waitFor(() =>
+      expect(screen.getByTestId('record-action-SUBMIT_FOR_CHECK-hint').textContent).toContain(
+        '自己',
+      ),
+    );
+    const btn = screen.getByTestId('record-action-SUBMIT_FOR_CHECK') as HTMLButtonElement;
+    expect(btn.disabled || btn.getAttribute('aria-disabled') === 'true').toBe(true);
   });
 });

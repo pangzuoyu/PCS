@@ -25,6 +25,8 @@ import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import { Alert, Button, Input, Modal, Select, Space, Typography } from 'antd';
 
+import { errorText } from '../../api/errors';
+
 import {
   CUSTOMER_APPROVAL_METHODS,
   CREDENTIAL_FILE_TYPES,
@@ -93,17 +95,6 @@ const TITLES: Record<SignDialogMode, string> = {
   proxy: '代录客户批准',
 };
 
-/** 取后端错误原文（`{code, message}` 信封）。 */
-function errorText(err: unknown, fallback: string): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const data = (err as { response?: { data?: { code?: string; message?: string } } }).response
-      ?.data;
-    if (data?.message) {
-      return data.code ? `${data.code}: ${data.message}` : data.message;
-    }
-  }
-  return fallback;
-}
 
 export function DeliverableSignDialog({
   open,
@@ -137,7 +128,9 @@ export function DeliverableSignDialog({
     secondary_password: '',
   });
 
-  // ⚠️ 每次打开都**重置**（否则上一次的理由/错误留在下一次里）
+  // ⚠️ 每次打开都**重置**（否则上一次的理由/错误/表单留在下一次里）。
+  //    评审 #18：代录凭据（Input.Password 只有圆点，残留**看不见**）与
+  //    签发描述也必须复位 —— 连续代录的操作员会静默带上上一个人的密码提交。
   useEffect(() => {
     if (!open) return;
     setError(null);
@@ -145,6 +138,18 @@ export function DeliverableSignDialog({
     setShowReason(false);
     setReason('');
     setReasonRequired(false);
+    setPurpose('ISSUED_FOR_CONSTRUCTION');
+    setDescription('');
+    setProxyForm({
+      file_path: '',
+      file_name: '',
+      file_type: 'PDF',
+      approver_name: '',
+      approval_date: '',
+      approval_method: 'EMAIL',
+      secondary_username: '',
+      secondary_password: '',
+    });
   }, [open]);
 
   const versionId = deliverable.current_version_id ?? '';

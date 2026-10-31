@@ -219,6 +219,29 @@ export const signFlowHandlers = [
         { status: 409 },
       );
     }
+    // ⚠️ 评审 B-1：**矩阵未允许跳过 ⇒ 409**（后端同码 `SIGN_STEP_SKIP_FORBIDDEN`）。
+    //    与后端**同源**：读的是版本快照里**冻结的矩阵步骤**
+    //    （`seedDeliverableSnapshot.signature_summary_json.steps`，对应后端
+    //    `_steps_for_version`）⇒ dev 的「跳过」分支与生产同响。
+    const frozenSteps = (
+      seedDeliverableSnapshot.signature_summary_json as
+        | { steps?: { can_skip?: boolean }[] }
+        | undefined
+    )?.steps;
+    const frozenStep = frozenSteps?.[stepIndex - 1];
+    if (decision === 'SKIP' && frozenStep && frozenStep.can_skip === false) {
+      return HttpResponse.json(
+        {
+          code: 'SIGN_STEP_SKIP_FORBIDDEN',
+          message: `签署矩阵未允许跳过第 ${stepIndex} 步（can_skip=false）`,
+        },
+        { status: 409 },
+      );
+    }
+    // ⚠️ 评审 B-1 已知边界：sign_role 403 / can_self_check 403 在 dev mock 里
+    //    **不可复现** —— mock 的 token 是固定共享串（MOCK_TOKEN），请求侧没有
+    //    角色身份可判（前端 UI 门禁已挡这两个分支；后端 403 由
+    //    test_deliverable_sign_step.py 30 条真单测覆盖）。
     const now = new Date().toISOString();
     const state = decision === 'SIGN' ? 'COMPLETED' : decision === 'RETURN' ? 'FAILED' : 'SKIPPED';
     step.step_status = state;

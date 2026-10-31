@@ -38,7 +38,9 @@ import {
   type SignDialogStep,
   type SignNextStep,
 } from '../../components/deliverables/DeliverableSignDialog';
+import { WORKFLOW_LABELS } from '../../components/common/workflowTabs';
 import { api } from '../../api/client';
+import { errorText } from '../../api/errors';
 import {
   deliverablesApi,
   type DeliverableActionsListResponse,
@@ -49,10 +51,9 @@ import { useAuth } from '../../store/auth';
 import { metaApi } from '../../api/meta';
 import { signatureMatricesApi } from '../../api/signatureMatrices';
 import { PROJECT_ID } from '../../constants/env';
-import type { components } from '../../types/api';
 
-type Deliverable = components['schemas']['DeliverableResponse'];
-type DeliverableList = components['schemas']['DeliverableListResponse'];
+type Deliverable = import('../../api/deliverables').Deliverable;
+type DeliverableList = { items: Deliverable[]; total: number };
 
 /** 某个交付物的详情（进度 + 动作时间线 + 各自的错误）。 */
 interface DetailState {
@@ -75,23 +76,7 @@ const EMPTY_DETAIL: DetailState = {
   actionsError: null,
 };
 
-/** 取后端错误原文（`{code, message}` 信封）—— 前端不自造文案。 */
-function errorText(err: unknown, fallback: string): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const data = (err as { response?: { data?: { code?: string; message?: string } } }).response
-      ?.data;
-    if (data?.message) {
-      return data.code ? `${data.code}：${data.message}` : data.message;
-    }
-  }
-  return fallback;
-}
 
-/** 段标题（与 `workflowTabs` 的词表一致）。 */
-const SECTION_LABELS: Record<string, string> = {
-  SIGN: '签署进度',
-  CUSTOMER_APPROVAL_PROXY: '客户批准代录',
-};
 
 export function DeliverableProgressPage(): JSX.Element {
   const [items, setItems] = useState<Deliverable[]>([]);
@@ -172,6 +157,10 @@ export function DeliverableProgressPage(): JSX.Element {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    // ⚠️ 评审 #11：**先清上一次的错** —— 不清的话一次失败后 `listError` 永远
+    //    卡住渲染闸（`!listError && <Table/>`）⇒ 后续成功重拉数据进来了、
+    //    表格却**永远不渲染**（配合「重试」按钮才有恢复路径）。
+    setListError(null);
     void api
       .get<DeliverableList>('/deliverables', {
         params: { project_id: PROJECT_ID, limit: pageSize, offset: (page - 1) * pageSize },
@@ -313,7 +302,7 @@ export function DeliverableProgressPage(): JSX.Element {
       title: '状态',
       dataIndex: 'sign_status',
       key: 'sign_status',
-      render: (v: string) => <StateBadge status={v as never} />,
+      render: (v: Deliverable['sign_status']) => <StateBadge status={v} />,
     },
     {
       title: '操作',
@@ -419,9 +408,20 @@ export function DeliverableProgressPage(): JSX.Element {
       {/* ⚠️ **列表加载失败 ⇒ 不渲染表格**（渲染空表会被读成「这个项目没有
           交付物」；真相可能是「你没权限」⇒ 403 ≠ 空表，RF-12）。 */}
       {listError && (
-        <Typography.Text type="danger" data-testid="deliverable-list-error">
-          {listError}
-        </Typography.Text>
+        <Space>
+          <Typography.Text type="danger" data-testid="deliverable-list-error">
+            {listError}
+          </Typography.Text>
+          {/* ⚠️ 评审 #11：失败后**页内可恢复** —— 分页在 total=0 时死了、
+              签署按钮在被隐藏的表里 ⇒ 没有这个按钮用户只能整页刷新。 */}
+          <Button
+            size="small"
+            data-testid="deliverable-list-retry"
+            onClick={() => setReloadToken((t) => t + 1)}
+          >
+            重试
+          </Button>
+        </Space>
       )}
       {!listError && (
       <Table<Deliverable>
@@ -625,7 +625,9 @@ function parseDetail(raw: string): string {
 
 /** 一段进度（SIGN / CUSTOMER_APPROVAL_PROXY）。 */
 function SectionBlock({ section }: { section: WorkflowProgressSection }): JSX.Element {
-  const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;
+  // ⚠️ 评审 A-3：段标题词表与 tab **同源**（`WORKFLOW_LABELS` 唯一真相源，
+  //    `Record<WorkflowType,…>` 强制穷尽 ⇒ 新增类型漏改 = 编译红）。
+  const label = WORKFLOW_LABELS[section.workflow_type].section;
   // ⚠️ **不可用** ⇒ 显示**原因**（不是空列表）—— 空数组会被读成
   //    「这条流程一个节点都没有」，而真相是「这类工作流对本交付物不存在」。
   if (!section.available) {
@@ -643,7 +645,7 @@ function SectionBlock({ section }: { section: WorkflowProgressSection }): JSX.El
       <Typography.Text strong>{label}</Typography.Text>
       {/* ⚠️ **受控模式**（R-15）：数据由聚合端点喂 ⇒ 面板不自己拉 */}
       <WorkflowProgressPanel
-        workflowType={section.workflow_type as never}
+        workflowType={section.workflow_type}
         workflowId={section.workflow_id ?? ''}
         data={section}
         showTabs={false}

@@ -30,6 +30,18 @@ const WORKSPACES = [
     retention_days: null,
     status: 'ACTIVE',
   },
+  {
+    // 评审 #4：PERSONAL 工作区建的项目永远送不了审（后端 403）⇒ 不许出现在选项里
+    workspace_id: 'ws-personal-001',
+    workspace_type: 'PERSONAL',
+    name: '张三的草稿区',
+    project_id: null,
+    owner_id: null,
+    created_at: '2026-08-01T09:00:00Z',
+    last_active_at: '2026-09-16T03:00:00Z',
+    retention_days: 90,
+    status: 'ACTIVE',
+  },
 ];
 
 let createCalls = 0;
@@ -92,6 +104,22 @@ describe('ProjectAdminPage —— 建项目', () => {
     const opt = within(dropdown).getByText(/30 万吨乙烯项目/).closest('.ant-select-item');
     fireEvent.click(opt as HTMLElement);
   }
+
+  it('⚠️ 评审 #4：工作区下拉**只列 FORMAL**（PERSONAL 建的项目永远送不了审）', async () => {
+    render(<ProjectAdminPage />);
+    const select = await waitFor(() => screen.getByTestId('project-workspace'));
+    fireEvent.mouseDown(select.querySelector('.ant-select-selector') as HTMLElement);
+    const dropdown = await waitFor(() =>
+      document.querySelector('.ant-select-dropdown'),
+    );
+    await waitFor(() =>
+      expect(within(dropdown as HTMLElement).getByText(/30 万吨乙烯项目/)).toBeTruthy(),
+    );
+    // PERSONAL 不许出现
+    expect(
+      within(dropdown as HTMLElement).queryByText(/张三的草稿区/),
+    ).toBeNull();
+  });
 
   it('⚠️ 建项目 ⇒ POST 带**全部必填字段** + 工作区', async () => {
     render(<ProjectAdminPage />);

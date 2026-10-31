@@ -302,6 +302,19 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(screen.queryByText('暂无数据')).toBeNull();
   });
 
+  it('⚠️ 评审 #11：列表失败后**页内可恢复**（重试 ⇒ 表格回来，不用整页刷新）', async () => {
+    listStatus = 403;
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByTestId('deliverable-list-error')).toBeTruthy());
+    expect(screen.queryByText('CB-002')).toBeNull();
+
+    // 后端恢复（或权限拿到）⇒ 点「重试」⇒ 同一挂载内表格回来
+    listStatus = 200;
+    fireEvent.click(screen.getByTestId('deliverable-list-retry'));
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+    expect(screen.queryByTestId('deliverable-list-error')).toBeNull();
+  });
+
   it('⚠️ R-15：展开一行 ⇒ **分段请求零调用**（面板受控 ⇒ 不自己拉）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());

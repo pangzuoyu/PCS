@@ -16,7 +16,6 @@ type RecordEdits = components['schemas']['RecordEditsResponse'];
 type CommentList = components['schemas']['CommentListResponse'];
 type AdminUser = components['schemas']['AdminUserOut'];
 
-const PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 /**
  * 交付物的**聚合**进度（TODO-065 · R-13）。
@@ -190,4 +189,3 @@ export const seedAdminUsers: AdminUser[] = [
   },
 ];
 
-export const MOCK_PROJECT_ID = PROJECT_ID;

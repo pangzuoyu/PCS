@@ -108,6 +108,18 @@ describe('mock 保真度 —— 签署流程', () => {
     expect(res.data['code']).toBe('SIGN_STEP_OUT_OF_ORDER');
   });
 
+  it('⚠️ 评审 B-1：矩阵未允许跳过（can_skip=false）⇒ 409 SIGN_STEP_SKIP_FORBIDDEN', async () => {
+    // ⚠️ 后端读的是**版本快照里冻结的矩阵步骤**（_steps_for_version）⇒ mock
+    //    同源（seedDeliverableSnapshot.signature_summary_json.steps，两步均
+    //    can_skip=false）⇒ dev 里「跳过」分支与生产同响。
+    const r = await postSignStep({ version_id: 'v-2', step_index: 1, decision: 'SKIP' });
+    expect(r.status).toBe(409);
+    expect(r.data['code']).toBe('SIGN_STEP_SKIP_FORBIDDEN');
+    // 状态不得被改
+    const sec = signSection(await getProgress());
+    expect(sec.items[0].step_status).toBe('IN_PROGRESS');
+  });
+
   it('⚠️ **退回** ⇒ 交付物回 DRAFT（ADR-0008）', async () => {
     const res = await postSignStep({
       version_id: 'v-2',

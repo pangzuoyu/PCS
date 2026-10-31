@@ -81,13 +81,14 @@ export function CommentPanel({ module, recordId }: CommentPanelProps): JSX.Eleme
     setSending(true);
     setError(null);
     try {
-      const created = await commentsApi.create(module, recordId, text);
-      // ⚠️ **追加到末尾**（不是 prepend）—— 后端按 `created_at ASC` 返回
-      //    ⇒ prepend ⇒ 发送后新批注跳到**顶部**、一刷新又回**末尾**
-      //    ⇒ 用户以为「批注丢了」。
-      setItems((prev) => [...prev, created]);
-      setTotal((prev) => prev + 1);
+      await commentsApi.create(module, recordId, text);
       setBody('');
+      // ⚠️ 评审 B-4：**重拉最后一页**（不是本地 append 到当前页）——
+      //    后端按 `created_at ASC` 排 ⇒ 新批注永远在**最后一页**的末尾；
+      //    在非最后一页发送时本地 append 会把它放错页（刷新后跳走），
+      //    还可能让当前页显示 21 条。重拉 = 位置来自后端真相。
+      const nextPage = Math.max(1, Math.ceil((total + 1) / PAGE_SIZE));
+      await load(nextPage);
     } catch (err) {
       const envelope = extractPcsError(err);
       setError(

@@ -319,6 +319,37 @@ describe('AuditLogPage —— 筛选 + CSV 导出', () => {
     expect(screen.getByTestId('audit-filter-pending-hint').textContent).toContain('查询');
   });
 
+  it('⚠️ 评审 #10：翻页用**已应用**的筛选（改了没点「查询」⇒ 翻页不得偷换条件）', async () => {
+    // ⚠️ `loadAuditLogs` 曾把 `setAppliedFilter(auditFilter)` 写在函数体里 ⇒
+    //    effect 在**每次翻页**也调它 ⇒ 改了筛选没点查询、一点第 2 页：
+    //    第 2 页用的是**新**条件（第 1 页还是旧的）⇒ 两页数据来自两个结果集，
+    //    「未应用」提示条还消失了 —— 冻结只该发生在点「查询」时。
+    totalRows = 120;
+    await openAuditLogsTab();
+    // 应用条件 A（点查询）
+    fireEvent.change(screen.getByTestId('audit-filter-action'), {
+      target: { value: 'APPLIED_A' },
+    });
+    fireEvent.click(screen.getByTestId('audit-filter-submit'));
+    await waitFor(() => {
+      const withA = seenParams.filter((p) => p.get('action') === 'APPLIED_A');
+      expect(withA.length).toBeGreaterThan(0);
+    });
+    // 改成条件 B（**不点查询**）
+    fireEvent.change(screen.getByTestId('audit-filter-action'), {
+      target: { value: 'EDIT_B' },
+    });
+    await waitFor(() => expect(screen.getByTestId('audit-filter-pending-hint')).toBeTruthy());
+    seenParams = [];
+    // 翻到第 2 页 ⇒ 必须仍按 A 查
+    fireEvent.click(screen.getByTitle('2'));
+    await waitFor(() => expect(seenParams.length).toBeGreaterThan(0));
+    const last = seenParams[seenParams.length - 1];
+    expect(last?.get('action')).toBe('APPLIED_A');
+    // 提示条**还在**（条件仍未应用）
+    expect(screen.getByTestId('audit-filter-pending-hint').textContent).toContain('查询');
+  });
+
   it('⚠️ 导出**第一列是 `audit_id`（LogID）** ⇒ 能回指原审计行', async () => {
     // ⚠️ 同一秒的多条记录靠 `occurred_at` **分不开** ⇒ 没有 LogID ⇒ 合规场景
     //    拿这份 CSV 当证据时**无法回指**。

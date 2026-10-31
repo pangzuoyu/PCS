@@ -74,6 +74,20 @@ export function isPermissionError(err: unknown): boolean {
  *    前者说清了**发生了什么**，后者只给了一个机器码；而且 403 与「查出来是空」
  *    **必须区分开**（空表会被读成「没有数据」⇒ RF-12）。
  */
+/**
+ * 取后端错误原文（`{code, message}` 信封，code 存在才带前缀）—— 前端不自造文案。
+ * ⚠️ 评审 #7：此前同一函数在 DeliverableSignDialog / DeliverableProgressPage
+ * 各复制一份 ⇒ 统一到这里（与 describePcsError 的差别：无信封时返回**纯
+ * fallback**，不编造 `HTTP_500：` 前缀）。
+ */
+export function errorText(err: unknown, fallback: string): string {
+  const envelope = extractPcsError(err);
+  if (envelope?.message) {
+    return envelope.code ? `${envelope.code}：${envelope.message}` : envelope.message;
+  }
+  return fallback;
+}
+
 export function describePcsError(err: unknown, fallback: string): string {
   const envelope = extractPcsError(err);
   const code = envelope?.code ?? 'HTTP_500';
