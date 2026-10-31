@@ -137,17 +137,36 @@ def resolve_record_model(module: str, *, need_mixin: bool = True) -> type[Any]:
     return model
 
 
-async def _load_record(
+async def load_record(
     db: AsyncSession,
     *,
     module: str,
     record_id: uuid.UUID,
     actor: _Actor,
     need_mixin: bool = True,
+    for_update: bool = False,
 ) -> Any:
-    """解析模块 → 取行 → 项目鉴权（无权 404）。"""
+    """解析模块 → 取行 → 项目鉴权（无权 404）。
+
+    `for_update=True` ⇒ `SELECT ... FOR UPDATE` + `populate_existing`：
+    - PG 上**行锁**串行化并发写同一行（第二个事务阻塞到第一个提交，
+      且绕过 identity map 读到**已提交**的新状态）；
+    - SQLite（单测）无 FOR UPDATE ⇒ 语法被方言省略，靠共享连接的
+      语句级串行 + `populate_existing` 尽力复读。
+    """
     model = resolve_record_model(module, need_mixin=need_mixin)
-    record = await db.get(model, record_id)
+    if for_update:
+        pk = model.__mapper__.primary_key[0]
+        record = (
+            await db.execute(
+                select(model)
+                .where(pk == record_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+    else:
+        record = await db.get(model, record_id)
     if record is None:
         raise PcsError(
             code="RECORD_NOT_FOUND",
@@ -247,7 +266,7 @@ async def obsolete_record(
     """
     require_roles(actor, *_roles_for(StateTransition.OBSOLETE))
     model = resolve_record_model(module)
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
+    await load_record(db, module=module, record_id=record_id, actor=actor)
     result = await RecordCancellationService.obsolete(
         db,
         record_id=record_id,
@@ -277,7 +296,7 @@ async def request_reversal(
     """
     require_roles(actor, *_roles_for(StateTransition.REQUEST_REVERSAL))
     model = resolve_record_model(module)
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
+    await load_record(db, module=module, record_id=record_id, actor=actor)
     result = await ReversalApprovalService.request_reversal(
         db,
         record_id=record_id,
@@ -311,7 +330,7 @@ async def reversal_decision(
         *_roles_for(StateTransition.APPROVE_REVERSAL, StateTransition.REJECT_REVERSAL),
     )
     model = resolve_record_model(module)
-    await _load_record(db, module=module, record_id=record_id, actor=actor)
+    await load_record(db, module=module, record_id=record_id, actor=actor)
     if body.decision == "APPROVE":
         result = await ReversalApprovalService.approve_reversal(
             db, record_id=record_id, actor=actor, record_table=model
@@ -334,17 +353,30 @@ async def _next_approval_role(
     project_id: uuid.UUID,
     step_index: int,
     fallback: str | None,
+    snapshot: dict | None = None,
 ) -> str | None:
-    """批准链第 `step_index` 步该谁批（1 起）。
+    """批准链第 `step_index` 步该谁批（1 起）—— **快照优先**（评审 #1）。
+
+    - 有 `snapshot`（submit 时冻结的链）⇒ **只读快照**：中途重绑矩阵 /
+      矩阵被禁用 / 矩阵行被删，都**不再影响**已提交记录的链
+      （与交付物侧 `_steps_for_version` 同构）。
+    - 无快照（修法上线前已 IN_APPROVAL 的存量行）⇒ 回退实时矩阵，
+      行为不劣于修前（部署窗口兼容）。
 
     ⚠️ **矩阵查不到 ⇒ 保留原角色**（`fallback`），**不**静默清空 ——
     清空后 `record.approval_role` 为空 ⇒ 端点的角色闸会**放行任何人**
     （判据是 `if record.approval_role and ...`）⇒ 任何人都能批这一步。
 
-    ⚠️ **矩阵中途被改**（步骤数变少）⇒ 取不到第 `step_index` 步 ⇒ 同上，
-    保留原角色 ⇒ 链条**卡住**（响亮：批下一步会吃
-    `APPROVAL_ROLE_MISMATCH`），而不是「放行给任何人」。
+    ⚠️ 快照里取不到该步（链比步骤短，理论不可达——快照随 depth 一起写）
+    ⇒ 同上保留原角色 ⇒ 链条**响亮卡住**（`APPROVAL_ROLE_MISMATCH`），
+    而不是「放行给任何人」。
     """
+    if snapshot and snapshot.get("steps"):
+        steps = snapshot["steps"]
+        if step_index < 1 or step_index > len(steps):
+            return fallback
+        role = steps[step_index - 1].get("sign_role")
+        return role or fallback
     matrix = await SignatureMatrixService.resolve_project_matrix(
         db, project_id=project_id, module=SignatureMatrixService.RECORD_MODULE
     )
@@ -386,7 +418,11 @@ async def submit_approval(
     ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。
     """
     require_roles(actor, *_roles_for(StateTransition.SUBMIT_FOR_CHECK))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # ⚠️ **行锁**（评审 #1 并发位）：并发 submit 必须一胜一拒 ——
+    #    双 200 = 双快照/双审计写（后写覆盖先写）。
+    record = await load_record(
+        db, module=module, record_id=record_id, actor=actor, for_update=True
+    )
     # ⚠️ **工作区门禁**（UI-SPEC §5.3「提交批准」）：个人草稿区里的送审没有
     #    工程效力，却会占用签署流程 ⇒ 403（TODO-076）。
     await require_formal_project_workspace(db, project_id=record.project_id)
@@ -403,6 +439,17 @@ async def submit_approval(
             status=422,
         )
     steps = SignatureMatrixService.parse_steps(matrix)
+    if not steps:
+        # ⚠️ 评审 #17（纵深防御）：API 建矩阵时拦 min 1 步，但直插 DB / 存量
+        #    脏数据可达空链 ⇒ 不挡的话下面 `steps[0]` 是 IndexError ⇒ 500。
+        raise PcsError(
+            code="SIGNATURE_MATRIX_EMPTY_CHAIN",
+            message=(
+                f"项目 {record.project_id} 绑定的签署矩阵 {matrix.matrix_name!r} "
+                "步骤为空 ⇒ 无法推导批准链（请修复矩阵定义）"
+            ),
+            status=422,
+        )
     if actor.role in {s.sign_role for s in steps}:
         raise PcsError(
             code="APPROVAL_SELF_REVIEW_FORBIDDEN",
@@ -416,6 +463,19 @@ async def submit_approval(
     record.approval_role = steps[0].sign_role
     record.approval_depth = len(steps)
     record.approval_step = 1
+    # ⚠️ **冻结批准链**（评审 #1 · 委员会裁决：快照）：此后中间步骤只读
+    #    `approval_chain_snapshot`，实时矩阵只管「新提交」—— 中途重绑 /
+    #    禁用矩阵都动不了已提交记录的链。`submitted_by` 是自审二次断言
+    #    的依据（approval-step 每步都比一次，submit 时的一次检查不再是唯一防线）。
+    record.approval_chain_snapshot = {
+        "matrix_id": str(matrix.matrix_id),
+        "matrix_name": matrix.matrix_name,
+        "steps": [
+            {"step_order": s.step_order, "sign_role": s.sign_role} for s in steps
+        ],
+        "submitted_by": str(actor.user_id),
+        "submitted_by_role": actor.role,
+    }
     await _transition(
         db,
         record=record,
@@ -463,7 +523,13 @@ async def approval_step(
     链条卡死（这正是「深度 > 1 不可用」的根因）。
     """
     require_roles(actor, *_roles_for(StateTransition.PASS_CHECK))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    # ⚠️ **行锁**（评审 A-2：并发双批 = 重复审计行 + 步数双跳）：与 submit
+    #    同款 —— PG 上第二个并发批注者阻塞到第一个提交后重读新状态
+    #    （`approval_step` 已被推进 / `approval_role` 已换人）⇒ 一成一拒，
+    #    `APPROVAL_STEP_PASSED` 审计只落一条（ADR-0047 观测层不重不漏）。
+    record = await load_record(
+        db, module=module, record_id=record_id, actor=actor, for_update=True
+    )
     # ⚠️ **工作区门禁**（UI-SPEC §5.3「提交批准」）：批这一步也是批准流程的一环
     #    ⇒ 个人草稿区里不许批（TODO-076）。
     await require_formal_project_workspace(db, project_id=record.project_id)
@@ -475,6 +541,16 @@ async def approval_step(
                 f"（只有 IN_APPROVAL 能批；DRAFT 请先 submit-approval）"
             ),
             status=409,
+        )
+    # ⚠️ **自审二次断言**（评审 #1）：submit 时的一次检查不是唯一防线 ——
+    #    快照里记了提交人，**每一步**都比对一次。即使矩阵被中途重绑、
+    #    角色恰好匹配被注入的下一步，提交人也批不了自己的记录。
+    snapshot = record.approval_chain_snapshot
+    if snapshot and snapshot.get("submitted_by") == str(actor.user_id):
+        raise PcsError(
+            code="APPROVAL_SELF_REVIEW_FORBIDDEN",
+            message="提交人不得批自己的记录（每步都比对提交人身份）",
+            status=403,
         )
     if record.approval_role and record.approval_role != actor.role:
         raise PcsError(
@@ -514,6 +590,7 @@ async def approval_step(
             project_id=record.project_id,
             step_index=final_step,
             fallback=record.approval_role,
+            snapshot=snapshot,
         )
         await db.flush()
         # 中间步骤不发状态机事件，但**必须留痕**：记录表上没有「第几步谁批的」列，
@@ -567,7 +644,7 @@ async def abandon_change(
     + 审计 `CHANGE_ABANDONED`。
     """
     require_roles(actor, *_roles_for(StateTransition.ABANDON_CHANGE))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
     from_status = record.sign_status
     await _transition(
         db, record=record, transition=StateTransition.ABANDON_CHANGE,
@@ -605,7 +682,7 @@ async def create_comment(
     require_roles(actor, *_COMMENT_ROLES)
     # 批注**不需要** 9 态列：任何有归属项目的记录都能留言。
     # need_mixin=False 让「没有 sign_status 的表」也能被留言，而不是被 422 挡掉。
-    record = await _load_record(
+    record = await load_record(
         db, module=module, record_id=record_id, actor=actor, need_mixin=False
     )
     comment = RecordComment(
@@ -642,7 +719,7 @@ async def list_comments(
     只按 created_at 排序时并列行的返回顺序不确定 ⇒ 翻页会漏批注或重复。
     """
     require_roles(actor, *_COMMENT_ROLES)
-    record = await _load_record(
+    record = await load_record(
         db, module=module, record_id=record_id, actor=actor, need_mixin=False
     )
     conditions = [
@@ -705,7 +782,7 @@ async def initiate_change(
     ⇒ 新旧哈希可比对（ADR-0008）。
     """
     require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
     from_status = record.sign_status
     await _transition(
         db,
@@ -740,7 +817,7 @@ async def apply_change(
     （不是新版交付物）⇒ 记录要到变更单被签完才回 CHECKED。
     """
     require_roles(actor, *_roles_for(StateTransition.APPLY_CHANGE))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
     from_status = record.sign_status
     await _transition(
         db,
@@ -787,7 +864,7 @@ async def read_open_change_notice(
     （再建一张会被 409 `CHANGE_NOTICE_ALREADY_EXISTS` 挡掉）。
     """
     require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
 
     from app.services.change_notice_service import ChangeNoticeService
 
@@ -818,7 +895,7 @@ async def cancel_change_notice(
     ⇒ 作废后该记录**可以另起一张**变更单（作废的单不挡新单）。
     """
     require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
 
     from app.services.change_notice_service import ChangeNoticeService
 
@@ -863,7 +940,7 @@ async def create_change_notice(
     """
     require_roles(actor, *_roles_for(StateTransition.INITIATE_CHANGE))
     model = resolve_record_model(module)
-    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    record = await load_record(db, module=module, record_id=record_id, actor=actor)
     # ⚠️ 工作区门禁（UI-SPEC §5.3）：个人草稿区里的变更单没有工程效力。
     await require_formal_project_workspace(db, project_id=record.project_id)
 

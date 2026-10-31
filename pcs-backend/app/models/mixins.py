@@ -74,6 +74,13 @@ class RecordMixin(TimestampMixin):
     approval_role: Mapped[str | None] = mapped_column(
         String(30), comment="当前待批角色 ApprovalRole"
     )
+    approval_chain_snapshot: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment=(
+            "提交送审时冻结的批准链 {matrix_id, steps[], submitted_by, submitted_by_role}；"
+            "审批中间步骤只读它，不回查实时矩阵（防中途重绑改链 / 矩阵禁用卡链）"
+        ),
+    )
     locked_by_deliverable: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

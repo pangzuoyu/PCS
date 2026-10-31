@@ -30,7 +30,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
-from app.api.v1.records_actions import _load_record
+from app.api.v1.records_actions import load_record
 from app.db.session import get_db
 from app.models.enums import AuditAction
 from app.models.system import AuditLog
@@ -63,7 +63,7 @@ async def list_record_edits(
     require_roles(actor, *_READ_ROLES)
     # need_mixin=False：编辑历史对**任何有归属项目**的记录都开放
     # （没有 sign_status 的表也能查它改过什么）。
-    await _load_record(
+    await load_record(
         db, module=module, record_id=record_id, actor=actor, need_mixin=False
     )
     conditions = [

@@ -33,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import create_access_token
 from app.models.calc import PipingResult
+from app.models.deliverable import ProjectSignatureMatrixBinding
 from app.models.enums import RecordSignStatus9
 from app.services.signature_matrix_service import SignatureMatrixService
 
@@ -331,3 +332,198 @@ async def test_reason_is_accepted(client, auth, db_session, project_id, workspac
     )
 
     assert resp.status_code == 200, resp.text
+
+
+# ---------------------------------------------------------------------------
+# 批准链**快照**（P9B-2 评审 #1：中途重绑矩阵不得改变已提交记录的链）
+#
+# 攻击路径（评审 validator 确认，CWE-863）：SYSTEM_ADMIN 可送审（粗闸含）
+# 也可批步（PASS_CHECK 粗闸含）⇒ 提交时链里没有自己（自审过关）⇒ 中途把
+# 项目重绑到「含自己角色」的矩阵 ⇒ 第 2 步起就轮到自己批自己。
+# 修法（委员会裁决：快照，与交付物侧 _steps_for_version 同构）：
+# submit 时把链冻进 record.approval_chain_snapshot，中间步骤只读快照。
+# ---------------------------------------------------------------------------
+
+_ADMIN = _token("SYSTEM_ADMIN")
+
+
+async def test_submit_persists_chain_snapshot(
+    client, auth, db_session, project_id, workspace
+):
+    """submit ⇒ 链（矩阵 id + 角色序列 + 提交人）冻进 `approval_chain_snapshot`。"""
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    mid = await _bind_record_matrix(db_session, project_id=project_id)
+
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(rec)
+    snap = rec.approval_chain_snapshot
+    assert snap is not None, "提交必须冻结批准链"
+    assert [s["sign_role"] for s in snap["steps"]] == ["CHECKER", "REVIEWER", "APPROVER"]
+    assert snap["matrix_id"] == str(mid)
+    assert snap["submitted_by"], "提交人必须留痕（自审二次断言的依据）"
+
+
+async def test_midflight_rebind_cannot_change_pending_role(
+    client, auth, db_session, project_id, workspace
+):
+    """提交后重绑矩阵 ⇒ 已提交记录的链**不变**（读快照，不读实时矩阵）。
+
+    且提交人自己批任何一步 ⇒ 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`
+    （快照里有 submitted_by，二次断言不再只靠 submit 时的一次检查）。
+    """
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    await _bind_record_matrix(db_session, project_id=project_id)
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert resp.status_code == 200, resp.text
+
+    # 攻击：重绑到「第 2 步是 SYSTEM_ADMIN」的矩阵
+    await _bind_record_matrix(
+        db_session,
+        project_id=project_id,
+        steps=[
+            {"step_order": 1, "sign_role": "CHECKER"},
+            {"step_order": 2, "sign_role": "SYSTEM_ADMIN"},
+            {"step_order": 3, "sign_role": "APPROVER"},
+        ],
+    )
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(rec)
+    assert rec.approval_role == "REVIEWER", "中途重绑不得改变已冻结的链"
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_ADMIN, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "APPROVAL_SELF_REVIEW_FORBIDDEN", (
+        "提交人（即使角色恰好匹配被注入的下一步）不得批自己的记录"
+    )
+
+
+async def test_matrix_disabled_mid_approval_keeps_chain(
+    client, auth, db_session, project_id, workspace
+):
+    """提交后矩阵被禁用 ⇒ 链照常走完（快照语义；实时矩阵只管「新提交」）。"""
+    from app.models.deliverable import SignatureMatrix
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    mid = await _bind_record_matrix(db_session, project_id=project_id)
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert resp.status_code == 200, resp.text
+
+    matrix = await db_session.get(SignatureMatrix, mid)
+    matrix.status = "DISABLED"
+    await db_session.commit()
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(rec)
+    assert rec.approval_role == "REVIEWER"
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_REVIEWER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 200, resp.text
+
+
+async def test_second_submit_after_commit_is_409(
+    client, auth, db_session, project_id, workspace
+):
+    """第二次 submit（第一个已提交）⇒ 409，且快照仍属第一个提交人。
+
+    ⚠️ **为什么是串行不是 gather**：本仓单测的 in-memory SQLite 走
+    StaticPool —— 两个请求共享**同一条连接/同一个事务域**，根本没有
+    隔离 ⇒ 真并发在本 fixture 上不可表达（CLAUDE.md 已记载的坑）。
+    `submit_approval` 的 `FOR UPDATE` 行锁（SQLite 方言静默省略）在
+    **PG** 上把并发提交串行化成与本测试等价的先后序列 —— CI 的
+    fresh-PG api-drift job 负责那条链路，这里钉住串行语义与快照归属。
+    """
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    await _bind_record_matrix(db_session, project_id=project_id)
+
+    r1 = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert r1.status_code == 200, r1.text
+    r2 = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
+    assert r2.status_code == 409, r2.text
+
+    await db_session.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.IN_APPROVAL
+    assert rec.approval_chain_snapshot["submitted_by_role"] == "SYSTEM_ADMIN", (
+        "第二个 submit 被拒后，快照必须仍属于第一个提交人"
+    )
+
+
+async def test_inactive_bound_matrix_is_409_not_422(
+    client, auth, db_session, project_id, workspace
+):
+    """⚠️ 评审 #9：绑了**非 ACTIVE** 矩阵 ⇒ 409 `SIGNATURE_MATRIX_NOT_ACTIVE`。
+
+    「没绑」(422 RECORD_APPROVAL_MATRIX_NOT_BOUND) 与「绑了但配错状态」(409)
+    必须分开 —— 混了 ⇒ 管理员看到 422 会去「绑矩阵」，而实际要做的是
+    「把矩阵启回 ACTIVE」。该 409 分支此前无任何测试钉住。
+    """
+    from app.models.deliverable import SignatureMatrix
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    matrix = await SignatureMatrixService.create_matrix(
+        db_session,
+        matrix_name=f"矩阵-{uuid.uuid4().hex[:8]}",
+        module="RECORD",
+        doc_type="RECORD",
+        version_purpose="PUBLISHED",
+        steps=[{"step_order": 1, "sign_role": "CHECKER"}],
+        status="PENDING",
+    )
+    # 直接写绑定行（bind_to_project 会拒非 ACTIVE —— 模拟「绑过之后矩阵被停用」）
+    db_session.add(
+        ProjectSignatureMatrixBinding(
+            project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+        )
+    )
+    await db_session.commit()
+
+    resp = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
+
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["code"] == "SIGNATURE_MATRIX_NOT_ACTIVE"
+    await db_session.refresh(rec)
+    assert rec.sign_status == RecordSignStatus9.DRAFT, "被拒的提交不得改状态"
+
+
+async def test_empty_steps_matrix_is_loud_not_500(
+    client, auth, db_session, project_id, workspace
+):
+    """⚠️ 评审 #17（纵深防御）：`steps_json` 为**空数组**的矩阵（API 会拦
+    min 1 步，但直插 DB / 存量脏数据可达）⇒ submit 必须**响亮失败**，
+    不是 `steps[0]` IndexError ⇒ 500。"""
+    from app.models.deliverable import ProjectSignatureMatrixBinding, SignatureMatrix
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    matrix = SignatureMatrix(
+        matrix_name=f"空链-{uuid.uuid4().hex[:6]}",
+        module="RECORD",
+        doc_type="RECORD",
+        version_purpose="PUBLISHED",
+        steps_json=[],
+        status="ACTIVE",
+    )
+    db_session.add(matrix)
+    await db_session.flush()
+    db_session.add(
+        ProjectSignatureMatrixBinding(
+            project_id=project_id, module="RECORD", matrix_id=matrix.matrix_id
+        )
+    )
+    await db_session.commit()
+
+    resp = await client.post(_url(rec, "submit-approval"), headers=auth, json={})
+
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["code"] == "SIGNATURE_MATRIX_EMPTY_CHAIN"
