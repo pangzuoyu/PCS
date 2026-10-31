@@ -1748,6 +1748,48 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 fail-open、mock 登录生产守卫共同构成代录面，见报告 Residual risks。
 **归属：** P9B-3 或安全加固批；**触发条件：** 任何时候（真实缺陷）。
 
+## TODO-095: `GET /deliverables?sign_status=` 接受任意字符串 🟢
+
+**What:** 列表端点对 `sign_status` 查询参数不做词表校验（deliverables.py:126 →
+service 裸 `==` 比对 PG 原生枚举列）⇒ 传非法值时的行为介于「静默空表」与
+「DB 查询错误」之间（未实测）。**Pre-existing**（P9B-2 评审 api-contract 登记）。
+
+**Fix 方向:** Pydantic `Literal`/枚举参数化 ⇒ 非法值 422 + 一条负向测试。
+
+## TODO-096: 新工作流业务错误码未在 OpenAPI `responses=` 声明 🟢
+
+**What:** 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND` / 403 `APPROVAL_SELF_REVIEW_FORBIDDEN` /
+409 `SIGN_STEP_OUT_OF_ORDER` 等业务码只活在代码里，baseline 的 responses 段查不到
+⇒ 契约消费者无法从 OpenAPI 发现它们（前端是按信封泛解析的，不受影响）。
+**Pre-existing、族群一致**（全部 workflow 端点都这样）⇒ 要做就整族做。
+
+**Fix 方向:** 批量补 `responses={4xx: {"model": ErrorResponse}}` + baseline 滚动。
+
+## TODO-097: MSW edits mock 忽略 `limit/offset` 🟢
+
+**What:** `GET /records/:module/:record_id/edits` 的 mock（signFlow.ts）不认分页参数，
+而同批已把 audit-logs mock 修成认分页 ⇒ 未来的分页 UI 在 dev 里静默看到未分页种子。
+当前调用方不传分页 ⇒ 无可观察漂移。**Pre-existing**（P9B-2 评审 api-contract 登记）。
+
+**Fix 方向:** 照 audit-logs mock 的 `slice(offset, offset+limit)` 同款补上。
+
+## TODO-098: `deliverable_service.py` / `mocks/handlers.ts` 超 800 行上限 🟢
+
+**What:** 1420 / 1029 行（本批前已超），每批继续长 ⇒ 提取债务无人排期。
+**Pre-existing**（评审 maintainability 登记）。
+
+**Fix 方向:** deliverable_service 按读面/写面/客户批准拆；handlers 按域拆文件
+（MSW 注册顺序无关 ⇒ 拆分安全）。
+
+## TODO-099: 后端单测全跑内存 SQLite，PG 语义无自动化车道 🟢
+
+**What:** CLAUDE.md 已记载的「漂移盲区」：迁移/方言相关缺陷在 SQLite 上不红。
+本批已补两条 **skipif 有 PG 才跑**的引擎级测试（p9_013 真跑 + 降级环），但那是
+逐案补的，不是车道。**Pre-existing**（评审 testing 登记）。
+
+**Fix 方向:** 起一条 PG-backed pytest lane（CI service 容器 + `TEST_DATABASE_URL`），
+把 `tests/alembic/` 的 skipif 测试与「双并发」类用例挂上去。
+
 ## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 
 **原症状：** TODO-080 第 3 条只把 service 变体做成了 core 变体的**子类**
