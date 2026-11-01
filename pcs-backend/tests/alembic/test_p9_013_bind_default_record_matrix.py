@@ -286,11 +286,15 @@ async def main():
                 )
             )
         ).scalar()
+        # ⚠️ information_schema **不受 search_path 约束**（public 库也有同名表）
+        # ⇒ 必须按 current_schema() 限定，否则 public 升到 p9_014 后计数跨库
+        # 相加、断言值随 public 的迁移状态漂移。
         has_col = (
             await conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.columns "
-                    "WHERE table_name = 'deliverables' "
+                    "WHERE table_schema = current_schema() "
+                    "AND table_name = 'deliverables' "
                     "AND column_name = 'parent_deliverable_id'"
                 )
             )
@@ -299,7 +303,8 @@ async def main():
             await conn.execute(
                 text(
                     "SELECT count(*) FROM information_schema.columns "
-                    "WHERE table_name = 'flash_results' "
+                    "WHERE table_schema = current_schema() "
+                    "AND table_name = 'flash_results' "
                     "AND column_name = 'approval_chain_snapshot'"
                 )
             )
