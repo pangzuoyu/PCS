@@ -449,6 +449,13 @@ SPEC 正文），就当作「客户端读不到」。** 因为**读文档的人�
 ## Key Learnings
 
 '
+       '- **information_schema 不受 search_path 约束**（2026-11-01 降级环测试实测）：隔离 schema 测试里查'
+       ' `information_schema.columns`/`tables` 必须加 `table_schema = current_schema()`，否则 public 库的同名表'
+       ' 列会跨 schema 相加 ⇒ 断言值随 public 的迁移状态漂移（测试写时 public 恰在旧版本 ⇒ 绿，public 升级后必红）。'
+       ' 普通表查询（`SELECT ... FROM signature_matrices`）受 search_path 约束，不受此影响——两类查询别混用同一直觉。
+'
+
+'
        '- **一次性守卫 + 实时配置回查 = 纸门**（P9B-2R #1）：「检查一次、之后每次回查可变配置」等价于配置可以事后改掉规则——'
        '凡守卫判据源自可变配置（矩阵/模板/角色表），必须在动作发起时**冻结判据快照**进业务行（记录侧 approval_chain_snapshot 与'
        '交付物侧 _steps_for_version 同构）；配套：前端同类信息不得用跨挂载缓存（chainCache 教训）。详见'
