@@ -2697,3 +2697,57 @@
 | 00:58 | Created pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | — | ~928 |
 | 00:58 | Created pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | — | ~931 |
 | 07:03 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md | — | ~814 |
+
+## Session: 2026-10-27 07:37
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 07:37 | Session end: 189 writes across 79 files (progress.md, test_project_creation.py, project.py, signature_matrix_service.py, projects.py) | 169 reads | ~348031 tok |
+
+## Session: 2026-10-27 07:46
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:42 | Created docs/ce-code-review/20261028-074842-e15c26e8/README.md | — | ~538 |
+| 11:44 | Edited TODOS.md | expanded (+47 lines) | ~541 |
+| 16:20 | P9B-2 ce-code-review 整批审查（11 reviewer + 验证批）产物归档 + TODO-093/094 登记 | docs/ce-code-review/20261028-074842-e15c26e8/, TODOS.md, .wolf/cerebrum.md | commit 2bc2398，判定 Ready with fixes | ~6k |
+| 17:01 | Session end: 2 writes across 2 files (README.md, TODOS.md) | 126 reads | ~311869 tok |
+| 21:32 | Edited pcs-backend/app/models/mixins.py | expanded (+7 lines) | ~102 |
+| 21:41 | Created pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py | — | ~571 |
+| 21:41 | Edited pcs-backend/app/api/v1/records_actions.py | modified _load_record() | ~259 |
+| 21:41 | Edited pcs-backend/app/api/v1/records_actions.py | modified _next_approval_role() | ~381 |
+| 21:41 | Edited pcs-backend/app/api/v1/records_actions.py | 2→6 lines | ~77 |
+| 21:41 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+13 lines) | ~196 |
+| 21:41 | Edited pcs-backend/app/api/v1/records_actions.py | modified str() | ~228 |
+| 21:42 | Edited pcs-backend/app/api/v1/records_actions.py | 6→7 lines | ~67 |
+| 21:43 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified test_second_submit_after_commit_is_409() | ~303 |
+| 21:44 | Edited pcs-frontend/src/components/common/RecordActions.tsx | modified loadChain() | ~374 |
+| 21:46 | Edited pcs-backend/app/api/v1/projects.py | added error handling | ~472 |
+| 21:46 | Edited pcs-backend/app/api/v1/projects.py | added 1 import(s) | ~22 |
+| 21:47 | Edited pcs-backend/tests/services/test_signature_matrix_service.py | modified scalars() | ~36 |
+| 21:55 | Edited pcs-backend/app/services/signature_matrix_service.py | added error handling | ~526 |
+| 21:56 | Edited pcs-backend/app/api/v1/deliverables.py | 3→6 lines | ~102 |
+| 21:58 | Edited pcs-frontend/src/api/projects.ts | 8→11 lines | ~111 |
+| 21:59 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | added 2 import(s) | ~25 |
+| 22:02 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | modified loadAuditLogs() | ~193 |
+| 22:02 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | expanded (+7 lines) | ~163 |
+| 22:02 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | CSS: filter | ~141 |
+| 22:02 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 8→9 lines | ~125 |
+| 07:13 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | 4→8 lines | ~74 |
+| 07:13 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | expanded (+11 lines) | ~142 |
+| 07:14 | Edited pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx | expanded (+14 lines) | ~177 |
+| 07:18 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+6 lines) | ~113 |
+| 11:08 | Session end: 27 writes across 16 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 123 reads | ~269289 tok |
+| 20:47 | Edited pcs-frontend/src/components/common/workflowTabs.ts | expanded (+19 lines) | ~297 |
+| 20:48 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added 1 import(s) | ~79 |
+| 20:49 | Edited pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py | expanded (+9 lines) | ~116 |
+| 20:52 | Edited pcs-frontend/src/components/common/CommentPanel.tsx | modified catch() | ~114 |
+| 04:34 | Edited pcs-frontend/src/mocks/signFlow.ts | added optional chaining | ~339 |
+| 04:36 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+11 lines) | ~143 |
+| 09:44 | Created pcs-frontend/tests/api/errors.test.ts | — | ~291 |
+| 09:49 | Created docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md | — | ~432 |
+| 09:49 | Created docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md | — | ~510 |
+| 09:49 | Created docs/ce-code-review/20261028-074842-e15c26e8/ROLLBACK-RUNBOOK.md | — | ~708 |
+| 10:01 | Session end: 37 writes across 24 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 128 reads | ~266155 tok |
+| 16:00 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md | — | ~382 |
+| 16:00 | P9B-2R 评审修复批：A 档4+B 档5+清理8 全落地（快照/三守卫/词表合一/降级环/保真），三库 p9_014+check 绿，QA 0C/0H/0M | 41 文件（pcs-backend+pcs-frontend+docs） | 5 commits 58341eb..369e855；buglog +10（2101-2110） | ~30k |

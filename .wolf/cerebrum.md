@@ -448,6 +448,23 @@ SPEC 正文），就当作「客户端读不到」。** 因为**读文档的人�
 
 ## Key Learnings
 
+'
+       '- **一次性守卫 + 实时配置回查 = 纸门**（P9B-2R #1）：「检查一次、之后每次回查可变配置」等价于配置可以事后改掉规则——'
+       '凡守卫判据源自可变配置（矩阵/模板/角色表），必须在动作发起时**冻结判据快照**进业务行（记录侧 approval_chain_snapshot 与'
+       '交付物侧 _steps_for_version 同构）；配套：前端同类信息不得用跨挂载缓存（chainCache 教训）。详见'
+       ' docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md（2026-10-31）
+'
+       '- **get-or-create 默认行必须带 savepoint 兜底**（P9B-2R #6）：新写 get-or-create 前先 grep 同文件同形方法——'
+       '_ensure_binding（bug-2062）修好的模式直接抄；三细节：add 在 begin_nested 内 / 恢复分支只读 / 别裸 rollback（调用方同事务）。'
+       '详见 docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md（2026-10-31）
+'
+       '- **管道尾 tail 会吃掉 pytest 退出码**（2026-10-31 实测）：`uv run pytest | tail -1` 使 8 个 Redis 环境失败被 exit 0 掩盖——'
+       '验证套件时看**文本结果行**，别信管道退出码；全量跑前先确认 Redis 起着（docker compose up -d redis），'
+       'ws/broadcaster 系列失败 = 环境未起，--lf 复核即可区分回归与环境。
+'
+
+- **多 agent 并发评审会打爆 5h API 配额（429/1308）**：ce-code-review 这类 11-agent 并发批在本账户上撑不过几分钟，且重试越猛配额窗口结束越晚（reset 时间被推后）。**恢复姿势 = 小批串行重派（1-2 个在飞）**，首轮失败的部分进度会丢但产物以磁盘为准；报告归档按 `docs/ce-code-review/<run-id>/` 惯例（full.diff 不入库）。（2026-10-29 P9B-2 整批评审实测，见 docs/ce-code-review/20261028-074842-e15c26e8/README.md）
+
 ### contextvars.reset(token) 模块级陷阱（bug-098, 2026-09-18）
 
 - **陷阱**：以为 `contextvars` 模块有 `reset()` 函数 → `import contextvars; contextvars.reset(token)` 报 `AttributeError: module 'contextvars' has no attribute 'reset'`

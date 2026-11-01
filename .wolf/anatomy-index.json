@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-27T23:03:30.619Z",
-    "fileCount": 1105,
+    "lastScanned": "2026-11-01T08:00:04.779Z",
+    "fileCount": 1112,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ecba35d061c64d3f56c908bcf1253bfb796743b74be5641e95aa9e60643b2447",
-    "storeUpdatedAt": "2026-10-27T23:03:30.631Z",
-    "rootHash": "ccd1decd4144e03a"
+    "renderedHash": "5b321c2acdf3b3e28d83f9b4a92229e8211a8a37b0c179174527fde2372cefeb",
+    "storeUpdatedAt": "2026-11-01T08:00:04.791Z",
+    "rootHash": "1a69ba4dcdca7bfc"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 18682,
-      "hash": "2e5e08519d52d1f1",
-      "size": 124145,
-      "mtimeMs": 1793055669534.7795,
-      "updatedAt": "2026-10-26T23:01:09.585Z",
+      "tokens": 19584,
+      "hash": "3b88fe097a63640b",
+      "size": 130292,
+      "mtimeMs": 1793245447873.844,
+      "updatedAt": "2026-10-29T03:44:07.924Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -13559,19 +13559,19 @@
     },
     "pcs-frontend/src/pages/audit/AuditLogPage.tsx": {
       "description": "AuditLogPage — 审计日志查询（F-P2-009 Sprint 3 / Issue 7 · **P9B-2 扩展**）。",
-      "tokens": 4851,
-      "hash": "ee89384da05225de",
-      "size": 19273,
-      "mtimeMs": 1793118634435.9238,
-      "updatedAt": "2026-10-27T16:30:34.489Z",
+      "tokens": 5248,
+      "hash": "16befdf7b4a0e2e2",
+      "size": 21349,
+      "mtimeMs": 1793282541793.9795,
+      "updatedAt": "2026-10-29T14:02:21.845Z",
       "source": "hook",
       "symbols": [
         {
           "name": "AuditLogPage",
           "kind": "fn",
           "startLine": 54,
-          "endLine": 520,
-          "tokens": 4405
+          "endLine": 548,
+          "tokens": 4803
         }
       ]
     },
@@ -17652,39 +17652,39 @@
     },
     "pcs-backend/app/api/v1/projects.py": {
       "description": "项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
-      "tokens": 1752,
-      "hash": "db8cfc1f5905e1ab",
-      "size": 7368,
-      "mtimeMs": 1793069590094.3984,
-      "updatedAt": "2026-10-27T02:53:10.144Z",
+      "tokens": 2008,
+      "hash": "276c3a6ea1ff4413",
+      "size": 8583,
+      "mtimeMs": 1793281598440.6472,
+      "updatedAt": "2026-10-29T13:46:38.487Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_out",
           "kind": "fn",
-          "startLine": 46,
-          "endLine": 64,
+          "startLine": 47,
+          "endLine": 65,
           "tokens": 155
         },
         {
           "name": "create_project",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 112,
-          "tokens": 451
+          "startLine": 66,
+          "endLine": 136,
+          "tokens": 695
         },
         {
           "name": "get_project",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 139,
+          "startLine": 137,
+          "endLine": 163,
           "tokens": 248
         },
         {
           "name": "set_product_category",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 188,
+          "startLine": 164,
+          "endLine": 212,
           "tokens": 457
         }
       ]
@@ -21423,88 +21423,88 @@
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。",
-      "tokens": 4756,
-      "hash": "d5831ce59f57aee1",
-      "size": 20402,
-      "mtimeMs": 1793098676148.0896,
-      "updatedAt": "2026-10-27T10:57:56.195Z",
+      "tokens": 5000,
+      "hash": "158e10e494404c7c",
+      "size": 21817,
+      "mtimeMs": 1793282161504.8745,
+      "updatedAt": "2026-10-29T13:56:01.550Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 102,
+          "startLine": 94,
+          "endLine": 118,
           "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 103,
-          "endLine": 152,
+          "startLine": 119,
+          "endLine": 168,
           "tokens": 440
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 178,
+          "startLine": 169,
+          "endLine": 194,
           "tokens": 239
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 179,
-          "endLine": 200,
+          "startLine": 195,
+          "endLine": 216,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 201,
-          "endLine": 238,
-          "tokens": 364
+          "startLine": 217,
+          "endLine": 257,
+          "tokens": 423
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 239,
-          "endLine": 282,
+          "startLine": 258,
+          "endLine": 301,
           "tokens": 459
         },
         {
           "name": "sign_step",
           "kind": "fn",
-          "startLine": 283,
-          "endLine": 332,
+          "startLine": 302,
+          "endLine": 351,
           "tokens": 519
         },
         {
           "name": "proxy_customer_approval",
           "kind": "fn",
-          "startLine": 333,
-          "endLine": 390,
+          "startLine": 352,
+          "endLine": 409,
           "tokens": 631
         },
         {
           "name": "get_deliverable_progress",
           "kind": "fn",
-          "startLine": 391,
-          "endLine": 417,
+          "startLine": 410,
+          "endLine": 436,
           "tokens": 268
         },
         {
           "name": "list_deliverable_actions",
           "kind": "fn",
-          "startLine": 418,
-          "endLine": 472,
+          "startLine": 437,
+          "endLine": 491,
           "tokens": 558
         },
         {
           "name": "list_todos",
           "kind": "fn",
-          "startLine": 473,
-          "endLine": 500,
+          "startLine": 492,
+          "endLine": 519,
           "tokens": 234
         }
       ]
@@ -29896,11 +29896,11 @@
     },
     "pcs-backend/app/api/v1/records_actions.py": {
       "description": "records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。",
-      "tokens": 8413,
-      "hash": "621fe58fc10f6a3a",
-      "size": 35937,
-      "mtimeMs": 1793074974796.9382,
-      "updatedAt": "2026-10-27T04:22:54.852Z",
+      "tokens": 9213,
+      "hash": "cbaf358aace41216",
+      "size": 39874,
+      "mtimeMs": 1793392586188.2742,
+      "updatedAt": "2026-10-30T20:36:26.239Z",
       "source": "hook",
       "symbols": [
         {
@@ -29911,129 +29911,129 @@
           "tokens": 469
         },
         {
-          "name": "_load_record",
+          "name": "load_record",
           "kind": "fn",
           "startLine": 140,
-          "endLine": 162,
-          "tokens": 173
+          "endLine": 181,
+          "tokens": 347
         },
         {
           "name": "_roles_for",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 170,
+          "startLine": 182,
+          "endLine": 189,
           "tokens": 74
         },
         {
           "name": "_transition",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 219,
+          "startLine": 190,
+          "endLine": 238,
           "tokens": 414
         },
         {
           "name": "_response",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 233,
+          "startLine": 239,
+          "endLine": 252,
           "tokens": 121
         },
         {
           "name": "obsolete_record",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 266,
+          "startLine": 253,
+          "endLine": 285,
           "tokens": 300
         },
         {
           "name": "request_reversal",
           "kind": "fn",
-          "startLine": 267,
-          "endLine": 296,
-          "tokens": 265
+          "startLine": 286,
+          "endLine": 315,
+          "tokens": 264
         },
         {
           "name": "reversal_decision",
           "kind": "fn",
-          "startLine": 297,
-          "endLine": 330,
-          "tokens": 312
+          "startLine": 316,
+          "endLine": 349,
+          "tokens": 311
         },
         {
           "name": "_next_approval_role",
           "kind": "fn",
-          "startLine": 331,
-          "endLine": 363,
-          "tokens": 293
+          "startLine": 350,
+          "endLine": 395,
+          "tokens": 430
         },
         {
           "name": "submit_approval",
           "kind": "fn",
-          "startLine": 364,
-          "endLine": 442,
-          "tokens": 760
+          "startLine": 396,
+          "endLine": 502,
+          "tokens": 1058
         },
         {
           "name": "approval_step",
           "kind": "fn",
-          "startLine": 443,
-          "endLine": 550,
-          "tokens": 1071
+          "startLine": 503,
+          "endLine": 627,
+          "tokens": 1265
         },
         {
           "name": "abandon_change",
           "kind": "fn",
-          "startLine": 551,
-          "endLine": 591,
+          "startLine": 628,
+          "endLine": 668,
           "tokens": 414
         },
         {
           "name": "create_comment",
           "kind": "fn",
-          "startLine": 592,
-          "endLine": 629,
-          "tokens": 327
+          "startLine": 669,
+          "endLine": 706,
+          "tokens": 326
         },
         {
           "name": "list_comments",
           "kind": "fn",
-          "startLine": 630,
-          "endLine": 693,
+          "startLine": 707,
+          "endLine": 770,
           "tokens": 616
         },
         {
           "name": "initiate_change",
           "kind": "fn",
-          "startLine": 694,
-          "endLine": 729,
+          "startLine": 771,
+          "endLine": 806,
           "tokens": 316
         },
         {
           "name": "apply_change",
           "kind": "fn",
-          "startLine": 730,
-          "endLine": 774,
+          "startLine": 807,
+          "endLine": 851,
           "tokens": 409
         },
         {
           "name": "read_open_change_notice",
           "kind": "fn",
-          "startLine": 775,
-          "endLine": 806,
+          "startLine": 852,
+          "endLine": 883,
           "tokens": 288
         },
         {
           "name": "cancel_change_notice",
           "kind": "fn",
-          "startLine": 807,
-          "endLine": 846,
-          "tokens": 374
+          "startLine": 884,
+          "endLine": 923,
+          "tokens": 373
         },
         {
           "name": "create_change_notice",
           "kind": "fn",
-          "startLine": 847,
-          "endLine": 907,
+          "startLine": 924,
+          "endLine": 984,
           "tokens": 618
         }
       ]
@@ -35789,12 +35789,21 @@
     },
     "pcs-frontend/src/components/common/workflowTabs.ts": {
       "description": "工作流类型 tab 的**词表**（P9B-1 · SPEC §6.24）。",
-      "tokens": 344,
-      "hash": "3969cbb3a7b53062",
-      "size": 1670,
-      "mtimeMs": 1793097365416.2522,
-      "updatedAt": "2026-10-27T10:36:05.469Z",
-      "source": "hook"
+      "tokens": 506,
+      "hash": "d988725a55c0fe44",
+      "size": 2457,
+      "mtimeMs": 1793364437562.9768,
+      "updatedAt": "2026-10-30T12:47:17.616Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "WorkflowTab",
+          "kind": "section",
+          "startLine": 40,
+          "endLine": 57,
+          "tokens": 140
+        }
+      ]
     },
     "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
       "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。",
@@ -35807,40 +35816,54 @@
     },
     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
       "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。",
-      "tokens": 4334,
-      "hash": "0d3a544086ec47c8",
-      "size": 17504,
-      "mtimeMs": 1793098956641.895,
-      "updatedAt": "2026-10-27T11:02:36.691Z",
+      "tokens": 6586,
+      "hash": "364bf46522a3c1ed",
+      "size": 27905,
+      "mtimeMs": 1793364511449.2595,
+      "updatedAt": "2026-10-30T12:48:31.505Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "DetailState",
+          "kind": "section",
+          "startLine": 59,
+          "endLine": 79,
+          "tokens": 143
+        },
+        {
+          "name": "errorText",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 91,
+          "tokens": 104
+        },
+        {
           "name": "DeliverableProgressPage",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 394,
-          "tokens": 3143
+          "startLine": 92,
+          "endLine": 599,
+          "tokens": 5099
         },
         {
           "name": "computeNextStep",
           "kind": "fn",
-          "startLine": 395,
-          "endLine": 417,
+          "startLine": 600,
+          "endLine": 622,
           "tokens": 209
         },
         {
           "name": "parseDetail",
           "kind": "fn",
-          "startLine": 418,
-          "endLine": 432,
+          "startLine": 623,
+          "endLine": 637,
           "tokens": 111
         },
         {
           "name": "SectionBlock",
           "kind": "fn",
-          "startLine": 433,
-          "endLine": 463,
-          "tokens": 298
+          "startLine": 638,
+          "endLine": 670,
+          "tokens": 326
         }
       ]
     },
@@ -35969,127 +35992,162 @@
     },
     "pcs-backend/tests/services/test_signature_matrix_service.py": {
       "description": "签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 3143,
-      "hash": "5ef1a707e7ea9816",
-      "size": 13179,
-      "mtimeMs": 1792973071495.108,
-      "updatedAt": "2026-10-26T00:04:31.545Z",
+      "tokens": 5024,
+      "hash": "aca8e27e121c2d81",
+      "size": 20676,
+      "mtimeMs": 1793281648495.2375,
+      "updatedAt": "2026-10-29T13:47:28.551Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_matrix",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 57,
+          "startLine": 41,
+          "endLine": 58,
           "tokens": 145
         },
         {
           "name": "test_parse_steps_sorts_by_step_order",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 71,
+          "startLine": 59,
+          "endLine": 72,
           "tokens": 145
         },
         {
           "name": "test_parse_steps_empty_matrix",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 77,
+          "startLine": 73,
+          "endLine": 78,
           "tokens": 58
         },
         {
           "name": "test_parse_steps_skips_broken_items",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 101,
+          "startLine": 79,
+          "endLine": 102,
           "tokens": 233
         },
         {
           "name": "test_parse_steps_all_broken_raises",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 110,
+          "startLine": 103,
+          "endLine": 111,
           "tokens": 95
         },
         {
           "name": "test_parse_steps_defaults",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 120,
+          "startLine": 112,
+          "endLine": 121,
           "tokens": 121
         },
         {
           "name": "test_parse_steps_strips_sign_role",
           "kind": "fn",
-          "startLine": 121,
-          "endLine": 133,
+          "startLine": 122,
+          "endLine": 134,
           "tokens": 127
         },
         {
           "name": "test_parse_steps_logs_skipped_count",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 160,
+          "startLine": 135,
+          "endLine": 161,
           "tokens": 242
         },
         {
           "name": "test_ensure_creates_builtin_template_and_binding",
           "kind": "fn",
-          "startLine": 161,
-          "endLine": 185,
+          "startLine": 162,
+          "endLine": 186,
           "tokens": 254
         },
         {
           "name": "test_ensure_is_idempotent",
           "kind": "fn",
-          "startLine": 186,
-          "endLine": 206,
+          "startLine": 187,
+          "endLine": 207,
           "tokens": 194
         },
         {
           "name": "test_ensure_is_project_scoped",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 239,
+          "startLine": 208,
+          "endLine": 240,
           "tokens": 315
         },
         {
           "name": "test_deliverable_matrix_steps_delegates_to_parse_steps",
           "kind": "fn",
-          "startLine": 240,
-          "endLine": 264,
+          "startLine": 241,
+          "endLine": 265,
           "tokens": 219
         },
         {
           "name": "test_deliverable_matrix_steps_all_broken_raises",
           "kind": "fn",
-          "startLine": 265,
-          "endLine": 276,
+          "startLine": 266,
+          "endLine": 277,
           "tokens": 111
         },
         {
           "name": "test_deliverable_matrix_steps_empty_matrix_is_empty_list",
           "kind": "fn",
-          "startLine": 277,
-          "endLine": 283,
+          "startLine": 278,
+          "endLine": 284,
           "tokens": 74
         },
         {
           "name": "test_ensure_binding_recovers_from_concurrent_insert",
           "kind": "fn",
-          "startLine": 284,
-          "endLine": 342,
-          "tokens": 534
+          "startLine": 285,
+          "endLine": 358,
+          "tokens": 681
+        },
+        {
+          "name": "test_bind_rejects_non_active_matrix",
+          "kind": "fn",
+          "startLine": 359,
+          "endLine": 380,
+          "tokens": 199
+        },
+        {
+          "name": "test_bind_rejects_module_mismatch",
+          "kind": "fn",
+          "startLine": 381,
+          "endLine": 401,
+          "tokens": 196
+        },
+        {
+          "name": "test_bind_recovers_from_concurrent_insert",
+          "kind": "fn",
+          "startLine": 402,
+          "endLine": 456,
+          "tokens": 491
+        },
+        {
+          "name": "test_ensure_change_notice_matrix_rejects_inactive_binding",
+          "kind": "fn",
+          "startLine": 457,
+          "endLine": 484,
+          "tokens": 255
+        },
+        {
+          "name": "test_get_or_create_default_matrix_recovers_from_concurrent_insert",
+          "kind": "fn",
+          "startLine": 485,
+          "endLine": 543,
+          "tokens": 594
         }
       ]
     },
     "pcs-backend/app/services/signature_matrix_service.py": {
       "description": "签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。",
-      "tokens": 8290,
-      "hash": "97250c31ac824cac",
-      "size": 35207,
-      "mtimeMs": 1793074904353.7852,
-      "updatedAt": "2026-10-27T04:21:44.402Z",
+      "tokens": 8562,
+      "hash": "37426aec47089d09",
+      "size": 36399,
+      "mtimeMs": 1793282136687.7698,
+      "updatedAt": "2026-10-29T13:55:36.734Z",
       "source": "hook",
       "symbols": [
         {
@@ -36110,8 +36168,8 @@
           "name": "SignatureMatrixService",
           "kind": "class",
           "startLine": 100,
-          "endLine": 860,
-          "tokens": 7562
+          "endLine": 883,
+          "tokens": 7834
         }
       ]
     },
@@ -38447,11 +38505,11 @@
     },
     "pcs-backend/app/models/mixins.py": {
       "description": "ORM mixin 集合（公用字段 + 状态机 hook）。",
-      "tokens": 1382,
-      "hash": "cc841a7c7843a481",
-      "size": 5632,
-      "mtimeMs": 1793054356209.6912,
-      "updatedAt": "2026-10-26T22:39:16.264Z",
+      "tokens": 1453,
+      "hash": "f99d9ecbf87ef7db",
+      "size": 5967,
+      "mtimeMs": 1793280762782.6138,
+      "updatedAt": "2026-10-29T13:32:42.840Z",
       "source": "hook",
       "symbols": [
         {
@@ -38465,14 +38523,14 @@
           "name": "RecordMixin",
           "kind": "class",
           "startLine": 44,
-          "endLine": 128,
-          "tokens": 981
+          "endLine": 135,
+          "tokens": 1052
         },
         {
           "name": "TaggedRecordMixin",
           "kind": "class",
-          "startLine": 129,
-          "endLine": 138,
+          "startLine": 136,
+          "endLine": 145,
           "tokens": 99
         }
       ]
@@ -39012,11 +39070,11 @@
     },
     "pcs-backend/tests/api/v1/test_record_approval_chain.py": {
       "description": "记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。",
-      "tokens": 3156,
-      "hash": "d49b12e8e2be7a72",
-      "size": 12611,
-      "mtimeMs": 1793075049749.997,
-      "updatedAt": "2026-10-27T04:24:09.803Z",
+      "tokens": 4501,
+      "hash": "5e097bfb52478f77",
+      "size": 18316,
+      "mtimeMs": 1793281387058.4058,
+      "updatedAt": "2026-10-29T13:43:07.121Z",
       "source": "hook",
       "symbols": [
         {
@@ -39114,8 +39172,36 @@
           "name": "test_reason_is_accepted",
           "kind": "fn",
           "startLine": 324,
-          "endLine": 334,
-          "tokens": 121
+          "endLine": 348,
+          "tokens": 256
+        },
+        {
+          "name": "test_submit_persists_chain_snapshot",
+          "kind": "fn",
+          "startLine": 349,
+          "endLine": 366,
+          "tokens": 216
+        },
+        {
+          "name": "test_midflight_rebind_cannot_change_pending_role",
+          "kind": "fn",
+          "startLine": 367,
+          "endLine": 406,
+          "tokens": 401
+        },
+        {
+          "name": "test_matrix_disabled_mid_approval_keeps_chain",
+          "kind": "fn",
+          "startLine": 407,
+          "endLine": 434,
+          "tokens": 291
+        },
+        {
+          "name": "test_second_submit_after_commit_is_409",
+          "kind": "fn",
+          "startLine": 435,
+          "endLine": 460,
+          "tokens": 303
         }
       ]
     },
@@ -39220,11 +39306,11 @@
     },
     "pcs-frontend/src/components/common/RecordActions.tsx": {
       "description": "RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。",
-      "tokens": 2815,
-      "hash": "a8881ae481f12d23",
-      "size": 11537,
-      "mtimeMs": 1793075591101.3135,
-      "updatedAt": "2026-10-27T04:33:11.150Z",
+      "tokens": 3139,
+      "hash": "d345242fcb7028a2",
+      "size": 13547,
+      "mtimeMs": 1793281498212.2761,
+      "updatedAt": "2026-10-29T13:44:58.260Z",
       "source": "hook",
       "symbols": [
         {
@@ -39245,22 +39331,22 @@
           "name": "buildSpecs",
           "kind": "fn",
           "startLine": 58,
-          "endLine": 128,
-          "tokens": 592
+          "endLine": 152,
+          "tokens": 834
         },
         {
-          "name": "loadFirstStepRole",
+          "name": "loadChain",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 144,
-          "tokens": 157
+          "startLine": 153,
+          "endLine": 165,
+          "tokens": 134
         },
         {
           "name": "RecordActions",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 322,
-          "tokens": 1542
+          "startLine": 166,
+          "endLine": 350,
+          "tokens": 1648
         }
       ]
     },
@@ -39275,11 +39361,11 @@
     },
     "pcs-frontend/src/components/common/CommentPanel.tsx": {
       "description": "批注面板（P9B-2 · T5 · SPEC §7.19.1「批注面板：右侧抽屉」）。",
-      "tokens": 1335,
-      "hash": "c6f4971232d8e05d",
-      "size": 5195,
-      "mtimeMs": 1793096793120.1792,
-      "updatedAt": "2026-10-27T10:26:33.167Z",
+      "tokens": 1391,
+      "hash": "bd86dd32e1c34126",
+      "size": 5569,
+      "mtimeMs": 1793364774056.748,
+      "updatedAt": "2026-10-30T12:52:54.103Z",
       "source": "hook",
       "symbols": [
         {
@@ -39293,8 +39379,8 @@
           "name": "CommentPanel",
           "kind": "fn",
           "startLine": 30,
-          "endLine": 162,
-          "tokens": 1083
+          "endLine": 166,
+          "tokens": 1139
         }
       ]
     },
@@ -39456,11 +39542,11 @@
     },
     "pcs-frontend/src/components/deliverables/DeliverableSignDialog.tsx": {
       "description": "DeliverableSignDialog —— 交付物级签署**写面**（P9B-2 · T8 · SPEC §7.19）。",
-      "tokens": 3825,
-      "hash": "af012e7821e49aa1",
-      "size": 14940,
-      "mtimeMs": 1793099141476.0654,
-      "updatedAt": "2026-10-27T11:05:41.524Z",
+      "tokens": 4149,
+      "hash": "2074da8fdd75d5ab",
+      "size": 16514,
+      "mtimeMs": 1793315687862.8438,
+      "updatedAt": "2026-10-29T23:14:47.907Z",
       "source": "hook",
       "symbols": [
         {
@@ -39481,22 +39567,22 @@
           "name": "DeliverableSignDialogProps",
           "kind": "section",
           "startLine": 56,
-          "endLine": 88,
-          "tokens": 224
+          "endLine": 96,
+          "tokens": 282
         },
         {
           "name": "errorText",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 99,
+          "startLine": 97,
+          "endLine": 107,
           "tokens": 104
         },
         {
           "name": "DeliverableSignDialog",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 432,
-          "tokens": 3059
+          "startLine": 108,
+          "endLine": 467,
+          "tokens": 3326
         }
       ]
     },
@@ -39511,19 +39597,33 @@
     },
     "pcs-frontend/src/mocks/signFlow.ts": {
       "description": "签署流程 + ADMIN 的 MSW handlers（P9B-2 · T10）。",
-      "tokens": 2738,
-      "hash": "71d8b37f3fdb002a",
-      "size": 10215,
-      "mtimeMs": 1793100131272.4163,
-      "updatedAt": "2026-10-27T11:22:11.325Z",
+      "tokens": 4273,
+      "hash": "20992ac1cd222dff",
+      "size": 16569,
+      "mtimeMs": 1793392462416.2468,
+      "updatedAt": "2026-10-30T20:34:22.464Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 290,
-          "tokens": 2458
+          "startLine": 38,
+          "endLine": 58,
+          "tokens": 185
+        },
+        {
+          "name": "resetMockSignState",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 67,
+          "tokens": 82
+        },
+        {
+          "name": "currentSignSection",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 445,
+          "tokens": 3612
         }
       ]
     },
@@ -39640,11 +39740,11 @@
     },
     "pcs-frontend/src/api/projects.ts": {
       "description": "项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。",
-      "tokens": 328,
-      "hash": "944def7e426b6e27",
-      "size": 1624,
-      "mtimeMs": 1793120118813.561,
-      "updatedAt": "2026-10-27T16:55:18.861Z",
+      "tokens": 364,
+      "hash": "907f5805fe451d5c",
+      "size": 1799,
+      "mtimeMs": 1793282286663.3318,
+      "updatedAt": "2026-10-29T13:58:06.709Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/admin/ProjectAdminPage.tsx": {
@@ -39676,36 +39776,36 @@
     },
     "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py": {
       "description": "给**存量项目**回填默认的 RECORD 签署矩阵（P9B-2 · Batch F）。",
-      "tokens": 884,
-      "hash": "df2d5213415a3e67",
-      "size": 4256,
-      "mtimeMs": 1793120291470.1484,
-      "updatedAt": "2026-10-27T16:58:11.520Z",
+      "tokens": 975,
+      "hash": "a2e143786b00b7cc",
+      "size": 4933,
+      "mtimeMs": 1793364581801.5996,
+      "updatedAt": "2026-10-30T12:49:41.849Z",
       "source": "hook",
       "symbols": [
         {
           "name": "upgrade",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 118,
+          "startLine": 122,
+          "endLine": 127,
           "tokens": 36
         },
         {
           "name": "downgrade",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 122,
+          "startLine": 128,
+          "endLine": 131,
           "tokens": 28
         }
       ]
     },
     "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py": {
       "description": "`p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。",
-      "tokens": 931,
-      "hash": "cbbcba10a2bb1c53",
-      "size": 4368,
-      "mtimeMs": 1793120324542.9202,
-      "updatedAt": "2026-10-27T16:58:44.591Z",
+      "tokens": 2176,
+      "hash": "e61233d1e78f4593",
+      "size": 9097,
+      "mtimeMs": 1793282399693.6587,
+      "updatedAt": "2026-10-29T13:59:59.738Z",
       "source": "hook",
       "symbols": [
         {
@@ -39747,8 +39847,43 @@
           "name": "test_downgrade_deletes_bindings_but_keeps_the_matrix_row",
           "kind": "fn",
           "startLine": 91,
-          "endLine": 99,
-          "tokens": 107
+          "endLine": 105,
+          "tokens": 161
+        },
+        {
+          "name": "_pg_url",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 119,
+          "tokens": 124
+        },
+        {
+          "name": "test_p9_013_runs_on_fresh_postgres_schema",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 159,
+          "tokens": 342
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 189,
+          "tokens": 289
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 224,
+          "tokens": 314
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 239,
+          "tokens": 122
         }
       ]
     },
@@ -39759,6 +39894,85 @@
       "size": 4634,
       "mtimeMs": 1793142210571.9824,
       "updatedAt": "2026-10-27T23:03:30.619Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261028-074842-e15c26e8/README.md": {
+      "description": "Project documentation",
+      "tokens": 504,
+      "hash": "d446cd53ae91118c",
+      "size": 3054,
+      "mtimeMs": 1793245343592.9553,
+      "updatedAt": "2026-10-29T03:42:23.646Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py": {
+      "description": "给全部记录表加 `approval_chain_snapshot`（P9B-2 评审 #1 · 委员会裁决：快照）。",
+      "tokens": 571,
+      "hash": "e51a6f67f48d37f8",
+      "size": 2733,
+      "mtimeMs": 1793281262620.7686,
+      "updatedAt": "2026-10-29T13:41:02.674Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 79,
+          "tokens": 36
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 83,
+          "tokens": 29
+        }
+      ]
+    },
+    "pcs-frontend/tests/api/errors.test.ts": {
+      "description": "api/errors —— 共享错误格式化器（评审 #7：errorText 统一到 api 层后需直测）。",
+      "tokens": 291,
+      "hash": "2861b7f3a051beb1",
+      "size": 1340,
+      "mtimeMs": 1793411051770.4365,
+      "updatedAt": "2026-10-31T01:44:11.820Z",
+      "source": "hook"
+    },
+    "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md": {
+      "description": "中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照）",
+      "tokens": 405,
+      "hash": "db81de4af241198f",
+      "size": 2934,
+      "mtimeMs": 1793411350174.6812,
+      "updatedAt": "2026-10-31T01:49:10.227Z",
+      "source": "hook"
+    },
+    "docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md": {
+      "description": "get-or-create 默认行的并发兜底：savepoint 内插 + 撞约束重读赢家",
+      "tokens": 478,
+      "hash": "3da8e7ca2efdf402",
+      "size": 2947,
+      "mtimeMs": 1793411364141.0464,
+      "updatedAt": "2026-10-31T01:49:24.187Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261028-074842-e15c26e8/ROLLBACK-RUNBOOK.md": {
+      "description": "P9B-2 Roll-forward Runbook（追问 1 补件）",
+      "tokens": 664,
+      "hash": "9cee57acdf2c96ac",
+      "size": 3921,
+      "mtimeMs": 1793411384862.1052,
+      "updatedAt": "2026-10-31T01:49:44.920Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md": {
+      "description": "QA 报告 — P9B-2 评审修复批（P9B-2R）",
+      "tokens": 358,
+      "hash": "ccbab159454b3eef",
+      "size": 2068,
+      "mtimeMs": 1793520004731.303,
+      "updatedAt": "2026-11-01T08:00:04.779Z",
       "source": "hook"
     }
   }
