@@ -45,6 +45,8 @@ async def test_create_outlet_stream_deep_copies_properties(monkeypatch):
             src.stream_name = "S-1"
             src.case_type = "LIQUID"
             src.data_mode = "CHEMICAL"
+            # ⚠️ `source`（录入通道 4 值）—— 出口流**继承**上游的（TODO-107）
+            src.source = "SIM_IMPORT"
             src.composition_json = None
             src.temp = None
             src.press = None

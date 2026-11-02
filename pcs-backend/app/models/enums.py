@@ -121,6 +121,24 @@ class StreamSourceType(str, enum.Enum):
     DEVICE_CALCULATED = "DEVICE_CALCULATED"
 
 
+class StreamSource(str, enum.Enum):
+    """物流**录入通道** 4 态（`streams.source`，String(20)）。
+
+    ⚠️ **与 `StreamSourceType`（13 值）不是一回事**：
+    - 本枚举 = **怎么进系统的**（手动向导 / 模拟软件导出 / Excel 导入 / 化验报告）
+    - `StreamSourceType` = **数据怎么算出来的**（3 人工/导入 + 10 个设备计算出口流）
+
+    ⚠️ 两者有 3 处重叠且拼写不同（`SIM_IMPORT` 同名 / `MANUAL_ENTRY`↔`MANUAL` /
+    `LAB_REPORT`↔`LAB`）⇒ **两列必须由同一处写入**（见 `import_service` /
+    `outlet_stream` 的映射），并有测试钉住配对关系。
+    """
+
+    MANUAL = "MANUAL"
+    SIM_IMPORT = "SIM_IMPORT"  # 模拟软件导出（PRO/II · HYSYS · Aspen 都归它）
+    EXCEL = "EXCEL"
+    LAB = "LAB"  # 化验报告（预留）
+
+
 class DeliverableSignStatus(str, enum.Enum):
     """交付物签审状态 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）。
 

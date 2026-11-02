@@ -28,6 +28,7 @@ const stream: Stream = {
   case_type: 'NORMAL',
   data_mode: 'CHEMICAL',
   source_type: 'MANUAL_ENTRY',
+  source: 'MANUAL',
   approval_depth: 2,
   created_at: '2026-09-15 14:00',
   updated_at: '2026-09-15 14:32',

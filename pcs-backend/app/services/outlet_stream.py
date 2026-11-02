@@ -153,6 +153,12 @@ async def create_outlet_stream(
         data_mode=source.data_mode,
         description=f"出口物流（{source_type} / {calc_type}）",
         source_type=source_type,
+        # ⚠️ `source`（录入通道 4 值）**继承上游** ——
+        #    10 个 `*_CALCULATED` 出口流在 4 值词表里**无对应值**
+        #    （TODO-107）⇒ 继承上游的 source（不造第 5 值、不撒谎）。
+        #    ⚠️ 与 `source_type`（13 值 · 产出方式）**成对赋值**：本列仍写
+        #    `*_CALCULATED`（产出方式），那一列**不动**。
+        source=source.source,
         sign_status=StreamSignStatus.DRAFT,
         approval_depth=1,
         upstream_stream_id=source.stream_id,

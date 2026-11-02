@@ -161,6 +161,9 @@ def _proii_preview_entry(
         "case_type": "NORMAL",  # PRO/II 默认设计工况
         "data_mode": "CHEMICAL",
         "source_type": "SIM_IMPORT",
+        # ⚠️ `source`（录入通道 4 值）与 `source_type`（产出方式 13 值）**成对赋值**
+        #    —— PRO/II 两列都是 SIM_IMPORT（用户裁决 1a · P9B-3 T2.5）。
+        "source": "SIM_IMPORT",
         # phase 归一 + 原值（词表外时留原样，phase 置 None）
         "phase": _phase_norm(s.phase),
         "raw_phase": _phase_and_raw(s.phase)[1],
@@ -187,6 +190,10 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
         "case_type": "NORMAL",
         "data_mode": "CHEMICAL",
         "source_type": "SIM_IMPORT",
+        # ⚠️ Excel 行上两列**取值不同是有意的**：`source`（录入通道）写 EXCEL，
+        #    `source_type`（产出方式）**仍是** SIM_IMPORT —— 既有 `source_type`
+        #    词表里没有 EXCEL，本批**不扩**它（已登记为未解决问题）。
+        "source": "EXCEL",
         # L/V → LIQUID/VAPOR；词表外 → None 且原值留 raw_phase
         "phase": _phase_and_raw(s.phase)[0],
         "raw_phase": _phase_and_raw(s.phase)[1],

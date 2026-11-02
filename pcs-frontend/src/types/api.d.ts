@@ -2479,7 +2479,7 @@ export interface paths {
         };
         /**
          * List Project Streams
-         * @description 项目下物流列表。
+         * @description 项目下物流列表（工况 / 相态 / 状态 / 来源 四项筛选，AND 组合）。
          */
         get: operations["list_project_streams_api_v1_projects__project_id__streams_get"];
         put?: never;
@@ -18215,6 +18215,11 @@ export interface components {
             /** @description 来源类型 13 值。⚠️ description 此前只列了 5 个，漏掉全部 10 个 `*_CALCULATED` 出口流值 —— 照它收窄会把合法值砍光。 */
             source_type: components["schemas"]["StreamSourceType"];
             /**
+             * @description 录入通道 4 值：MANUAL（手动创建）/ SIM_IMPORT（模拟软件导出，PRO/II·HYSYS·Aspen 都归它）/ EXCEL / LAB（化验报告，预留）。⚠️ **不是** `source_type`（那是产出方式 13 值）
+             * @default MANUAL
+             */
+            source: components["schemas"]["StreamSource"];
+            /**
              * Source File
              * @description 源文件路径
              */
@@ -18297,6 +18302,20 @@ export interface components {
          * @enum {string}
          */
         StreamSignStatus: "DRAFT" | "IN_APPROVAL" | "CHECKED" | "CHECK_REJECTED" | "STALE" | "CHANGE_PENDING" | "CHANGED" | "REVERSAL_PENDING" | "OBSOLETE";
+        /**
+         * StreamSource
+         * @description 物流**录入通道** 4 态（`streams.source`，String(20)）。
+         *
+         *     ⚠️ **与 `StreamSourceType`（13 值）不是一回事**：
+         *     - 本枚举 = **怎么进系统的**（手动向导 / 模拟软件导出 / Excel 导入 / 化验报告）
+         *     - `StreamSourceType` = **数据怎么算出来的**（3 人工/导入 + 10 个设备计算出口流）
+         *
+         *     ⚠️ 两者有 3 处重叠且拼写不同（`SIM_IMPORT` 同名 / `MANUAL_ENTRY`↔`MANUAL` /
+         *     `LAB_REPORT`↔`LAB`）⇒ **两列必须由同一处写入**（见 `import_service` /
+         *     `outlet_stream` 的映射），并有测试钉住配对关系。
+         * @enum {string}
+         */
+        StreamSource: "MANUAL" | "SIM_IMPORT" | "EXCEL" | "LAB";
         /**
          * StreamSourceType
          * @description 物流来源类型 13 值（`streams.source_type`，String(30)）。
@@ -24606,6 +24625,12 @@ export interface operations {
             query?: {
                 /** @description 按工况过滤：NORMAL/... */
                 case_type?: string | null;
+                /** @description 按相态过滤：VAPOR/LIQUID/... */
+                phase?: components["schemas"]["StreamPhase"] | null;
+                /** @description 按签署状态过滤 */
+                sign_status?: components["schemas"]["StreamSignStatus"] | null;
+                /** @description 按录入通道过滤：MANUAL/SIM_IMPORT/EXCEL/LAB */
+                source?: components["schemas"]["StreamSource"] | null;
             };
             header?: {
                 authorization?: string | null;

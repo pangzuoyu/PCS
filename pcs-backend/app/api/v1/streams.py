@@ -41,7 +41,10 @@ from app.models.enums import StateTransition
 from app.models.project import Project, Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
+    StreamPhase,
     StreamResponse,
+    StreamSignStatus,
+    StreamSource,
     StreamStatePointCreate,
     StreamStatePointUpdate,
     StreamUpdate,
@@ -292,8 +295,13 @@ async def list_project_streams(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
     case_type: str | None = Query(None, description="按工况过滤：NORMAL/..."),
+    phase: StreamPhase | None = Query(None, description="按相态过滤：VAPOR/LIQUID/..."),
+    sign_status: StreamSignStatus | None = Query(None, description="按签署状态过滤"),
+    source: StreamSource | None = Query(
+        None, description="按录入通道过滤：MANUAL/SIM_IMPORT/EXCEL/LAB"
+    ),
 ) -> list[StreamResponse]:
-    """项目下物流列表。"""
+    """项目下物流列表（工况 / 相态 / 状态 / 来源 四项筛选，AND 组合）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 P7-7+: project_id 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
     actor_roles_list = list(user.roles)
@@ -302,7 +310,12 @@ async def list_project_streams(
         actor_roles=actor_roles_list,
     )
     streams = await StreamService.list_by_project(
-        db, project_id, case_type=case_type
+        db,
+        project_id,
+        case_type=case_type,
+        phase=phase,
+        sign_status=sign_status,
+        source=source,
     )
     return [_to_response_dict(s) for s in streams]
 

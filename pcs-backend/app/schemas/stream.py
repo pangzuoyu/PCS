@@ -26,6 +26,7 @@ from app.models.enums import (
     StreamDataMode,
     StreamPhase,
     StreamSignStatus,
+    StreamSource,
     StreamSourceType,
 )
 
@@ -239,6 +240,19 @@ class StreamBase(BaseModel):
         description=(
             "来源类型 13 值。⚠️ description 此前只列了 5 个，"
             "漏掉全部 10 个 `*_CALCULATED` 出口流值 —— 照它收窄会把合法值砍光。"
+        ),
+    )
+    # ⚠️ **录入通道**（4 值）—— 与上面的 `source_type`（13 值 · 产出方式）**正交**。
+    #    放 `StreamBase` ⇒ `StreamCreate` / `StreamResponse` 都自动带上（响应带
+    #    `source`，前端列表的「来源」列与筛选才有数据源）。
+    #    ⚠️ `StreamUpdate` **不加** `source` —— 来源是录入通道，创建后不改 ⇒
+    #    免掉一处可漂移的写入面。
+    source: StreamSource = Field(
+        default=StreamSource.MANUAL,
+        description=(
+            "录入通道 4 值：MANUAL（手动创建）/ SIM_IMPORT（模拟软件导出，"
+            "PRO/II·HYSYS·Aspen 都归它）/ EXCEL / LAB（化验报告，预留）。"
+            "⚠️ **不是** `source_type`（那是产出方式 13 值）"
         ),
     )
     source_file: str | None = Field(None, max_length=200, description="源文件路径")

@@ -216,11 +216,18 @@ class StreamService:
         project_id: uuid.UUID,
         *,
         case_type: str | None = None,
+        phase: str | None = None,
+        sign_status: str | None = None,
+        source: str | None = None,
     ) -> list[Stream]:
-        """项目下物流列表（可选 case_type 过滤）。
+        """项目下物流列表（四个筛选**都可选**、可组合 · AND 关系）。
 
         SIM-13 D-3 闭环：selectinload(Stream.state_points) 防 N+1。
         触发查询恒为 2（streams + state_points），与流数量无关。
+
+        ⚠️ `phase` / `sign_status` / `source` 三个筛选是 P9B-3 T2.5 补的 ——
+        此前端点**只支持** `case_type` ⇒ 前端发的其余 query 会被**静默忽略**
+        ⇒ 筛选看着生效（其实没筛）⇒ 断言不会红。
         """
         stmt = (
             select(Stream)
@@ -229,6 +236,12 @@ class StreamService:
         )
         if case_type is not None:
             stmt = stmt.where(Stream.case_type == case_type)
+        if phase is not None:
+            stmt = stmt.where(Stream.phase == phase)
+        if sign_status is not None:
+            stmt = stmt.where(Stream.sign_status == sign_status)
+        if source is not None:
+            stmt = stmt.where(Stream.source == source)
         stmt = stmt.order_by(Stream.stream_name)
         result = await db.execute(stmt)
         return list(result.scalars().all())

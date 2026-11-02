@@ -260,9 +260,20 @@ class Stream(TimestampMixin, Base):
             "'HEAT_CALCULATED','RESTRICTION_CALCULATED','DEVICE_CALCULATED')",
             name="ck_streams_source_type",
         ),
+        # ⚠️ `source`（4 值 · 录入通道）与 `source_type`（13 值 · 产出方式）
+        #    **不是同一列** ⇒ 两条 CHECK 各管各的词表（用户裁决 1a · P9B-3 T2.5）。
+        #    ⚠️ 名字与文本必须与迁移 `p9_015` **逐字一致**，否则 `alembic check`
+        #    报漂移（CLAUDE.md「漂移盲区」）。
+        CheckConstraint(
+            "source IN ('MANUAL','SIM_IMPORT','EXCEL','LAB')",
+            name="ck_streams_source_valid",
+        ),
         Index("ix_streams_estimated", "estimated"),
         Index("ix_streams_liquid_fraction", "liquid_fraction"),
         Index("ix_streams_simulation_status", "simulation_status"),
+        # ⚠️ **复合**索引（不是 `index=True`）—— 单列索引会生成
+        #    `ix_streams_source`，与迁移里的复合索引对不上 ⇒ `alembic check` 报漂移。
+        Index("ix_streams_project_source", "project_id", "source"),
     )
     stream_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -444,6 +455,17 @@ class Stream(TimestampMixin, Base):
     source_type: Mapped[str] = mapped_column(
         String(30),
         comment="SIM_IMPORT/MANUAL_ENTRY/LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED",
+    )
+    # ⚠️ **录入通道**（4 值 · 与上面的 `source_type` 正交）——
+    #    `source` = 这条物流**怎么进系统的**；`source_type` = 它的数据**怎么算出来的**。
+    #    ⚠️ 存量行默认 MANUAL（存量都是早期建的，无录入通道信息 ⇒
+    #    默认「手动」是最诚实的近似）。
+    source: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="MANUAL",
+        server_default="MANUAL",
+        comment="录入通道 4 值：MANUAL/SIM_IMPORT/EXCEL/LAB（与 source_type 正交）",
     )
     source_file: Mapped[str | None] = mapped_column(String(200))
     sign_status: Mapped[StreamSignStatus] = mapped_column(
