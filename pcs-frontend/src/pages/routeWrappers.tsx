@@ -123,6 +123,10 @@ export function TemplateFileRoute(): JSX.Element {
 }
 
 // === 物流 ===
+import { StreamManualWizardPage } from './sim/StreamManualWizardPage';
+export function StreamManualWizardRoute(): JSX.Element {
+  return <StreamManualWizardPage projectId={PROJECT_ID} />;
+}
 export function StreamListRoute(): JSX.Element {
   // ⚠️ 页面**自己取数**（T6 / SPEC §7.7.1）：筛选要带 query 参数**重新请求后端**
   // ⇒ 筛选状态与请求都在页面里（`useFetch` 拿不到「带参数重新取」的口径）。

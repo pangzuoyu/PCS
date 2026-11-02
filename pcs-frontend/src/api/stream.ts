@@ -57,6 +57,51 @@ export interface StreamListItem {
   subphase?: string;
 }
 
+/** 契约的 `ValidateStreamResponse`（校验三色）。 */
+export type ValidateStreamResponse = components['schemas']['ValidateStreamResponse'];
+
+/**
+ * 写入载荷 —— **契约派生**（字段名取自 `StreamResponse`）。
+ *
+ * ⚠️ 契约里 `CreateStreamRequest.payload` 是**裸 object**
+ * （`additionalProperties: true`，**没有结构**）⇒ 没有具名 schema 可引用 ⇒
+ * 这里从**响应** schema 取字段名（`StreamBase` 与 `StreamResponse` 同名同义）。
+ * ⚠️ 这是裸载荷闸门里的**已知缺口**（登记为 TODO-110）⇒ 后端把 payload
+ * 收紧成具名 schema 后，这里换成 `components['schemas'][...]` 即可。
+ */
+export type StreamCreatePayload = Pick<
+  Stream,
+  | 'stream_name'
+  | 'description'
+  | 'case_type'
+  | 'data_mode'
+  | 'phase'
+  | 'temp'
+  | 'press'
+  | 'mass_flow'
+  | 'molar_flow'
+  | 'composition_json'
+>;
+
+/**
+ * 状态点载荷 —— ⚠️ **手写**（契约里 state-points 的 body 同样是裸 object）。
+ *
+ * 字段与后端 `StreamStatePointBase` 逐字一致；必填项：
+ * `state_label` / `case_type` / `temp` / `press` / `phase` / `mass_flow` /
+ * `composition_json` / `source_type`。
+ */
+export interface StatePointPayload {
+  state_label: string;
+  case_type: 'NORMAL' | 'MIN' | 'MAX' | 'ALTERNATE';
+  temp: number;
+  press: number;
+  phase: components['schemas']['StreamPhase'];
+  mass_flow: number;
+  composition_json: Record<string, unknown>;
+  vapor_fraction?: number | null;
+  source_type: components['schemas']['StreamSourceType'];
+}
+
 export const streamApi = {
   /** 物流列表（契约派生 + 四项筛选）—— 物流列表页用。 */
   list: (projectId: string, filters: StreamListFilters = {}): Promise<Stream[]> =>
@@ -84,5 +129,38 @@ export const streamApi = {
   initiateChange: (streamId: string, reason?: string): Promise<unknown> =>
     api
       .post(`/streams/${streamId}/initiate-change`, { reason: reason ?? null })
+      .then((r) => r.data),
+
+  /**
+   * 校验（POST /projects/{id}/streams/validate）—— **写入前**的门禁。
+   *
+   * ⚠️ 返回的 `blocks` / `warnings` / `infos` 是**裸 object 数组**（契约无结构）
+   * ⇒ 前端**防御性**读 `code` / `message`。
+   */
+  validate: (
+    projectId: string,
+    payload: StreamCreatePayload,
+  ): Promise<ValidateStreamResponse> =>
+    api
+      .post<ValidateStreamResponse>(`/projects/${projectId}/streams/validate`, { payload })
+      .then((r) => r.data),
+
+  /** 写入 DRAFT（POST /projects/{id}/streams）。 */
+  create: (projectId: string, payload: StreamCreatePayload): Promise<Stream> =>
+    api.post<Stream>(`/projects/${projectId}/streams`, { payload }).then((r) => r.data),
+
+  /** 状态点（POST /streams/{id}/state-points）。 */
+  createStatePoint: (streamId: string, payload: StatePointPayload): Promise<unknown> =>
+    api.post(`/streams/${streamId}/state-points`, payload).then((r) => r.data),
+
+  /**
+   * 物性估算（POST /streams/{id}/properties/estimate）。
+   *
+   * ⚠️ **失败不阻塞**提交校对（用户裁决 2：估算���增强，不是门禁）⇒ 调用方
+   * 自行决定「提示后继续」。
+   */
+  estimateProperties: (streamId: string, casList: string[]): Promise<unknown> =>
+    api
+      .post(`/streams/${streamId}/properties/estimate`, { cas_list: casList })
       .then((r) => r.data),
 };

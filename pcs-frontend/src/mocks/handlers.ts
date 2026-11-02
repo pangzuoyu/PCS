@@ -32,6 +32,8 @@ import { http, HttpResponse } from "msw";
 
 import type { components } from "../types/api";
 
+type StreamResponse = components["schemas"]["StreamResponse"];
+
 type MeResponse = components["schemas"]["MeResponse"];
 type ChecklistCompleteness = components["schemas"]["ChecklistCompleteness"];
 type PsvCalculateResponse = components["schemas"]["app__api__v1__psv__CalculateResponse"];
@@ -210,6 +212,56 @@ const devOnlyMockHandlers = [
       return true;
     });
     return HttpResponse.json(filtered);
+  }),
+  // === 物流手动创建向导（P9B-3 · T7）===
+  // ⚠️ 写入 / 校验 / 估算 / 提交 / 状态点 —— 形状取契约类型；
+  //    响应体是**裸 dict** 的那几个（提交校对 / 估算）照抄后端的形状。
+  http.post("/api/v1/projects/:project_id/streams/validate", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      valid: true,
+      blocks: [],
+      warnings: [],
+      infos: [],
+      stats: { BLOCK: 0, WARN: 0, INFO: 0, TOTAL: 0 },
+    });
+  }),
+  http.post("/api/v1/projects/:project_id/streams", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { payload?: Record<string, unknown> };
+    const payload = body.payload ?? {};
+    const created: StreamResponse = {
+      stream_id: "s-new-mock",
+      stream_name: String(payload["stream_name"] ?? "新物流"),
+      case_type: (payload["case_type"] as StreamResponse["case_type"]) ?? "NORMAL",
+      data_mode: (payload["data_mode"] as StreamResponse["data_mode"]) ?? "CHEMICAL",
+      source_type: "MANUAL_ENTRY",
+      source: "MANUAL",
+      sign_status: "DRAFT",
+      approval_depth: 1,
+      record_hash: "mockrecordhash0001",
+      created_at: "2026-11-03 10:00:00",
+      updated_at: "2026-11-03 10:00:00",
+      phase: (payload["phase"] as StreamResponse["phase"]) ?? null,
+      description: (payload["description"] as string | null) ?? null,
+      temp: (payload["temp"] as number | null) ?? null,
+      press: (payload["press"] as number | null) ?? null,
+      mass_flow: (payload["mass_flow"] as number | null) ?? null,
+      composition_json: (payload["composition_json"] as StreamResponse["composition_json"]) ?? null,
+    };
+    return HttpResponse.json(created, { status: 201 });
+  }),
+  http.post("/api/v1/streams/:stream_id/state-points", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ state_point_id: "sp-mock-1" }, { status: 201 });
+  }),
+  http.post("/api/v1/streams/:stream_id/properties/estimate", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ estimated: 1 });
+  }),
+  http.post("/api/v1/streams/:stream_id/submit", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({ stream_id: "s-new-mock", sign_status: "IN_APPROVAL" });
   }),
   http.get("/api/v1/streams/:stream_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });

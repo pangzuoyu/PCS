@@ -2305,3 +2305,25 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 统一走 `list`。
 
 **归属**：下一批（与 §7.7.1 其余筛选/列口径一并收口）。
+
+## TODO-110: `CreateStreamRequest.payload` 与 state-points body 是**裸 object** ⇒ 前端拿不到具名类型 🟡
+
+**现状**（2026-11-03 实测）：契约里
+
+- `POST /projects/{id}/streams` 的 body = `{payload: {…}}`，而 `payload` 是
+  `additionalProperties: true` 的**裸 object**（**无结构**）⇒ 前端**没有**
+  `StreamCreate` 的具名 schema 可引用；
+- `POST /streams/{id}/state-points` 的 body 同样是裸 object。
+
+⇒ 本批前端只能：① 从**响应** schema `StreamResponse` 取字段名（`StreamBase` 与
+`StreamResponse` 同名同义）拼出载荷类型；② 状态点载荷**手写**一份
+（`src/api/stream.ts::StatePointPayload`）。
+
+⚠️ 这是**裸载荷闸门**（`check_openapi_payload_coverage.py`）里的已知缺口之一
+⇒ 前端类型与后端字段名**没有编译期约束** ⇒ 后端改字段名时前端不会红。
+
+**建议**：后端把 `StreamBase` / `StreamStatePointBase` 提成**具名 schema**
+（`CreateStreamRequest.payload` → `$ref`）⇒ 前端直接
+`components['schemas']['StreamBase']` ⇒ 同时把裸字段数降 2。
+
+**归属**：下一批（契约面统一收口时一并做）。

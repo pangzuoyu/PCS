@@ -36,6 +36,7 @@ import {
   SepEquipRoute,
   StreamDetailRoute,
   StreamListRoute,
+  StreamManualWizardRoute,
   SymbolTableRoute,
   TemplateFileRoute,
   ToxicityRoute,
@@ -73,6 +74,9 @@ const router = createBrowserRouter([
 
       // 物流
       { path: 'sim/streams', element: <StreamListRoute /> },
+      // ⚠️ 手动创建向导（SPEC §7.7.3「手工」分支）—— 必须在 `sim/streams/:id`
+      //    **之前**登记，否则「new」会被当成 stream_id。
+      { path: 'sim/streams/new', element: <StreamManualWizardRoute /> },
       { path: 'sim/streams/:id', element: <StreamDetailRoute /> },
       { path: 'sim/import', element: <ImportWizardRoute /> },
 
