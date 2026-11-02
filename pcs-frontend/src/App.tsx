@@ -46,6 +46,7 @@ import {
   AuditLogRoute,
   UserAdminRoute,
   ProjectAdminRoute,
+  SystemSettingsRoute,
   ResultListRoute,
   DeliverableProgressRoute,
   SignatureMatrixRoute,
@@ -119,6 +120,8 @@ const router = createBrowserRouter([
       { path: 'admin/users', element: <UserAdminRoute /> },
       // ⚠️ 「建项目」限 SYSTEM_ADMIN（前端隐藏 + 后端 `POST /projects` 鉴权）
       { path: 'admin/projects', element: <ProjectAdminRoute /> },
+      // ⚠️ 「系统参数」限 SYSTEM_ADMIN（后端 GET/PUT 都限 SYSTEM_ADMIN）
+      { path: 'admin/system-settings', element: <SystemSettingsRoute /> },
 
       // P9B-1 结果记录（SPEC §6.21：通用页 + 6 个模块描述符）
       { path: 'results/cool-tower', element: <ResultListRoute module="cooling_tower_result" /> },

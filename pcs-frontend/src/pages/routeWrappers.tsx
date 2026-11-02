@@ -307,6 +307,12 @@ export function ProjectAdminRoute(): JSX.Element {
   return <ProjectAdminPage />;
 }
 
+// === ADMIN 系统参数（P9B-3 · T5 · SPEC §7.20.1）===
+import { SystemSettingsPage } from './admin/SystemSettingsPage';
+export function SystemSettingsRoute(): JSX.Element {
+  return <SystemSettingsPage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);

@@ -96,6 +96,8 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
           { key: '/admin/users', label: '用户管理' },
           // ⚠️ 「建项目」也限 SYSTEM_ADMIN（后端 `POST /projects` 同口径）
           { key: '/admin/projects', label: '建项目' },
+          // ⚠️ 「系统参数」限 SYSTEM_ADMIN（后端 GET/PUT 都限 SYSTEM_ADMIN）
+          { key: '/admin/system-settings', label: '系统参数' },
         ]
       : []),
     { key: '/audit/logs', label: '审计日志' },
