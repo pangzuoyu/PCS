@@ -30,7 +30,7 @@ cd pcs-backend && uv run python scripts/gen_compact_orm.py
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -117,11 +117,9 @@ def _unique_suffix(table) -> str:
     from sqlalchemy import UniqueConstraint
 
     groups = sorted(
-        (
-            (con.name or "", "+".join(c.name for c in con.columns))
-            for con in table.constraints
-            if isinstance(con, UniqueConstraint)
-        )
+        (con.name or "", "+".join(c.name for c in con.columns))
+        for con in table.constraints
+        if isinstance(con, UniqueConstraint)
     )
     if not groups:
         return ""
@@ -149,7 +147,7 @@ def render(metadata) -> str:
 
     out = [
         "# PCS 紧凑对照表（ORM 版 · **生成物**）",
-        f"> 生成时间：{datetime.now(timezone.utc).date().isoformat()} | "
+        f"> 生成时间：{datetime.now(UTC).date().isoformat()} | "
         "来源：app/models/*.py（**生成物，勿手改**）",
         "> 重新生成：`cd pcs-backend && uv run python scripts/gen_compact_orm.py`",
         f"> 表数量：**{len(tables)}**（= ORM metadata 的全部表）",
