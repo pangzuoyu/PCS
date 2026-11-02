@@ -7574,7 +7574,7 @@
           "streams"
         ],
         "summary": "Submit Stream",
-        "description": "DRAFT → IN_APPROVAL（提交校对）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n（具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）",
+        "description": "DRAFT → IN_APPROVAL（提交校对）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n（具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）\n\n⚠️ **组成合计门禁**（SPEC §7.7.2「100±0.5%」）—— 送审**前**校验，\n不合法不放进校对（门禁前置，SPEC §5.1）：校对人看到的组成必须是合法的。",
         "operationId": "submit_stream_api_v1_streams__stream_id__submit_post",
         "parameters": [
           {
@@ -14995,6 +14995,118 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system-settings": {
+      "get": {
+        "tags": [
+          "system-settings"
+        ],
+        "summary": "Get System Settings",
+        "description": "GET /system-settings：全部系统参数（键 / 值 / 说明 / 更新时间）。",
+        "operationId": "get_system_settings_api_v1_system_settings_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SystemSettingOut"
+                  },
+                  "title": "Response Get System Settings Api V1 System Settings Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "system-settings"
+        ],
+        "summary": "Put System Settings",
+        "description": "PUT /system-settings：**一次**提交全部改动（全改或全不改）。\n\n⚠️ 键不存在 ⇒ 404 `SYSTEM_SETTING_NOT_FOUND` ⇒ **一个键都不改**\n（校验在写入之前 ⇒ 天然原子）。",
+        "operationId": "put_system_settings_api_v1_system_settings_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingBatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingBatchOut"
+                }
               }
             }
           },
@@ -40901,6 +41013,78 @@
         ],
         "title": "SubmitApprovalResponse",
         "description": "提交结果。"
+      },
+      "SystemSettingBatchIn": {
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/SystemSettingValueMap",
+            "description": "setting_key → 新值；整批原子提交"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "SystemSettingBatchIn",
+        "description": "批量保存的请求体 —— **一次 PUT 提交全部改动**（硬约束 1）。"
+      },
+      "SystemSettingBatchOut": {
+        "properties": {
+          "updated": {
+            "items": {
+              "$ref": "#/components/schemas/SystemSettingOut"
+            },
+            "type": "array",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "title": "SystemSettingBatchOut",
+        "description": "批量保存的结果。"
+      },
+      "SystemSettingOut": {
+        "properties": {
+          "setting_key": {
+            "type": "string",
+            "title": "Setting Key"
+          },
+          "setting_value_json": {
+            "title": "Setting Value Json"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting_key",
+          "setting_value_json",
+          "updated_at"
+        ],
+        "title": "SystemSettingOut",
+        "description": "一条系统参数。"
+      },
+      "SystemSettingValueMap": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SystemSettingValueMap",
+        "description": "`setting_key → 新值` 的映射（值是 JSONB，形态随键而异）。"
       },
       "TableStyle": {
         "properties": {

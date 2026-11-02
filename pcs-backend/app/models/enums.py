@@ -425,6 +425,11 @@ class AuditAction(str, enum.Enum):
     CONFIG_ASSET_REJECTED = "CONFIG_ASSET_REJECTED"
     CONFIG_VERSION_DIFF_VIEWED = "CONFIG_VERSION_DIFF_VIEWED"
 
+    # === 系统参数（P9B-3 · SPEC §7.20.1）===
+    # 系统参数是**全局**开关（会话超时 / 编辑锁 TTL……）⇒ 谁改的必须留痕。
+    # 一批（一次 PUT）只写**一条**审计（detail 带 keys + before）。
+    SYSTEM_SETTINGS_UPDATED = "SYSTEM_SETTINGS_UPDATED"
+
     # === P9A 交付物（签发面）===
     # issue 是「谁把哪一版送审了」的唯一留痕点：doc_no 在这一步才最终确定，
     # 而 doc_no 是交付物对外身份（报告封面、二维码溯源都用它）。

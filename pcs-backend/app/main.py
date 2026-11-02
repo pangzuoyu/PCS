@@ -27,6 +27,7 @@ from app.db.session import (
     get_async_session_factory,
 )
 from app.services.coefficient_service import CoefficientService
+from app.services.system_setting_service import seed_defaults as seed_system_setting_defaults
 
 
 @asynccontextmanager
@@ -54,9 +55,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "mock-login route MUST NOT be mounted in production"
                 )
     # V1.4 P2-OPEN-005 / SPEC-P2 §3.2.3：启动时 seed CATEGORY_3 默认 6 张系数表（幂等）
+    # P9B-3 §7.20.1：启动时 seed 系统参数默认 7 键（幂等）
+    # ⚠️ `system_settings` 真库 0 行 ⇒ 不 seed 的话管理员打开参数页**一片空白**
+    #（「没有参数可改」与「参数加载失败」看起来一样）⇒ 启动补齐。
     factory = get_async_session_factory()
     async with factory() as session:
         await CoefficientService.seed_default_tables(session)
+        await seed_system_setting_defaults(session)
     try:
         yield
     finally:

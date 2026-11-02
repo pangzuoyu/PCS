@@ -2612,6 +2612,9 @@ export interface paths {
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
          *     （具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）
+         *
+         *     ⚠️ **组成合计门禁**（SPEC §7.7.2「100±0.5%」）—— 送审**前**校验，
+         *     不合法不放进校对（门禁前置，SPEC §5.1）：校对人看到的组成必须是合法的。
          */
         post: operations["submit_stream_api_v1_streams__stream_id__submit_post"];
         delete?: never;
@@ -4820,6 +4823,33 @@ export interface paths {
          */
         get: operations["export_deviation_report_api_v1_equipment__equipment_id__deviation_report_export_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get System Settings
+         * @description GET /system-settings：全部系统参数（键 / 值 / 说明 / 更新时间）。
+         */
+        get: operations["get_system_settings_api_v1_system_settings_get"];
+        /**
+         * Put System Settings
+         * @description PUT /system-settings：**一次**提交全部改动（全改或全不改）。
+         *
+         *     ⚠️ 键不存在 ⇒ 404 `SYSTEM_SETTING_NOT_FOUND` ⇒ **一个键都不改**
+         *     （校验在写入之前 ⇒ 天然原子）。
+         */
+        put: operations["put_system_settings_api_v1_system_settings_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -18422,6 +18452,46 @@ export interface components {
             /** Approval Role */
             approval_role: string;
         };
+        /**
+         * SystemSettingBatchIn
+         * @description 批量保存的请求体 —— **一次 PUT 提交全部改动**（硬约束 1）。
+         */
+        SystemSettingBatchIn: {
+            /** @description setting_key → 新值；整批原子提交 */
+            settings: components["schemas"]["SystemSettingValueMap"];
+        };
+        /**
+         * SystemSettingBatchOut
+         * @description 批量保存的结果。
+         */
+        SystemSettingBatchOut: {
+            /** Updated */
+            updated: components["schemas"]["SystemSettingOut"][];
+        };
+        /**
+         * SystemSettingOut
+         * @description 一条系统参数。
+         */
+        SystemSettingOut: {
+            /** Setting Key */
+            setting_key: string;
+            /** Setting Value Json */
+            setting_value_json: unknown;
+            /** Description */
+            description?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SystemSettingValueMap
+         * @description `setting_key → 新值` 的映射（值是 JSONB，形态随键而异）。
+         */
+        SystemSettingValueMap: {
+            [key: string]: unknown;
+        };
         /** TableStyle */
         TableStyle: {
             /**
@@ -28863,6 +28933,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_settings_api_v1_system_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_system_settings_api_v1_system_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SystemSettingBatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingBatchOut"];
                 };
             };
             /** @description Validation Error */
