@@ -5106,6 +5106,187 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-10-31"
+  },
+  {
+   "id": "bug-2111",
+   "timestamp": "2026-11-02",
+   "severity": "high",
+   "error_message": "审批链的行锁（`.with_for_update()`）只在注释里被声称有保证：删掉它整个套件照样全绿；且测试 docstring 把 PG 验证推给「CI fresh-PG api-drift job」，而那个 job 一条后端 pytest 都不跑",
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "root_cause": "①in-memory SQLite 把 `with_for_update()` 编译成空串 ⇒ 单测里根本没有锁，且真并发在 StaticPool 共享连接上不可表达；②被指派的「CI job」实际步骤只有 alembic upgrade head / OpenAPI 导出与漂移检查 / 迁移幂等脚本 / 可视化渲染器测试 / 前端 typecheck ⇒ 引擎级测试在 CI 上永远 skip ⇒ 绿灯证明不了它们跑过（false delegation：下一个维护者以为 CI 在验 ⇒ 不会去补测试）",
+   "fix": "抽出 `_locked_select(model, record_id)` 供测试用 PG 方言编译并断言 SQL 含 `FOR UPDATE`（钉机制）+ `test_write_paths_request_row_lock` 断言两个写路径都传 `for_update=True`（钉接线）；同时删掉 docstring 里那条 false delegation，改为如实写明「本仓无自动化作业验证 PG 上的并发结果」；另把「PG-only 语义」的教训落进 docs/solutions 语料与 CLAUDE.md",
+   "fix_commit": "0586693",
+   "tags": [
+    "concurrency",
+    "row-lock",
+    "false-delegation",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-2101"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2112",
+   "timestamp": "2026-11-02",
+   "severity": "high",
+   "error_message": "快照列（p9_014）落地前就在审批中的存量行 `approval_chain_snapshot IS NULL` ⇒ 每步的 submitted_by 二次断言整段短路 + 链条回落实时矩阵 ⇒ 委员会裁决要堵的自审绕过（CWE-863）在存量路径上仍然开着",
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "root_cause": "修法只覆盖「submit 时冻结」这条路径；`if snapshot and snapshot.get(\"submitted_by\") == ...` 在快照为 NULL 时短路 ⇒ 二次断言不触发；`_next_approval_role` 同时回退实时矩阵 ⇒ 中途重绑矩阵可改链。根因是「一次性守卫 + 实时配置回查」的形状在存量行上没被修掉",
+   "fix": "新增 `_submitter_from_audit()`（从 RECORD_TRANSITION / SUBMIT_FOR_CHECK 审计行反推当初的提交人）与 `_legacy_chain_snapshot()`（首次触达就冻结一条链，含 submitted_by）；查不到提交人 ⇒ 响亮 409 `APPROVAL_SUBMITTER_UNKNOWN`，不放行 fail-open；helper 只读 ⇒ 403 判定在落盘之前",
+   "fix_commit": "0586693",
+   "tags": [
+    "CWE-863",
+    "self-review",
+    "legacy-rows",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-2101"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2113",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "交付物的 `sign_status` 在 OpenAPI 里是裸 `{\"type\":\"string\"}` ⇒ 契约不记词表 ⇒ 词表漂移任何漂移检查都抓不到；前端只能手写一份四值 union，与后端完全脱钩",
+   "file": "pcs-backend/app/schemas/deliverable.py",
+   "root_cause": "schema 字段声明成裸 `str` ⇒ pydantic 不产出 enum ⇒ 生成的契约里没有任何取值信息；同时前端因为契约没词表而手写 union（bug-2040 那类漂移根因：手写自由类型与契约脱钩）",
+   "fix": "两个 schema 的 sign_status 声明成 `DeliverableSignStatus` 枚举 ⇒ 契约产出带 enum 的组件；前端 union 改契约派生；新增 tests/api/v1/test_deliverable_sign_status_vocabulary.py 钉「生成的 OpenAPI 里带 enum」",
+   "fix_commit": "1e5a4d9",
+   "tags": [
+    "openapi",
+    "contract",
+    "enum",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-2105",
+    "bug-2040"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2114",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "服务端返回前端词表之外的 workflow_type ⇒ `WORKFLOW_LABELS[type].section` 抛 TypeError ⇒ 整页崩（不是「那一段显示得难看」）",
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "root_cause": "A-3 词表合一（Record<WorkflowType,…> 强制穷尽）时被误当成「运行期也有保护」⇒ 删掉了 `?? section.workflow_type` 兜底；但契约把 workflow_type 生成为裸 string，后端的 WorkflowType 是另一处定义 ⇒ 后端加第 4 种工作流时前端 tsc 看不见 ⇒ 运行期没有任何保护",
+   "fix": "恢复优雅降级 `WORKFLOW_LABELS[type]?.section ?? type`，并把注释改成如实描述（编译期保护只对前端侧改动成立）；新增用例让服务端返回未知 workflow_type ⇒ 不得整页崩",
+   "fix_commit": "ef3f438",
+   "tags": [
+    "frontend",
+    "runtime-safety",
+    "narrowing",
+    "P9B-2F"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2115",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "交付物进度页的列表信封是手写的 `{ items: Deliverable[]; total: number }` ⇒ 与契约脱钩 ⇒ 后端给 DeliverableListResponse 加字段时 tsc 照样绿、前端静默丢掉",
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "root_cause": "清理批把契约类型换成手写副本（当时为了窄化 items），把「类型来源」从契约换成了本地抄写 ⇒ 契约后续加字段时前端无感",
+   "fix": "改成契约派生：`Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] }`（只摘掉要窄化的槽，其余跟着契约走）；行类型改走既有 import 块",
+   "fix_commit": "ef3f438",
+   "tags": [
+    "frontend",
+    "contract-derived-types",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-2040"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2116",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "理由弹窗关闭后，页面上有两个 `data-testid=\"record-actions-error\"` 节点 ⇒ `getByTestId` 抛「found multiple elements」⇒ 后续断言全变噪音",
+   "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+   "root_cause": "错误挪进弹窗后，外层那份由 `reasonFor === null` 抑制，内层判定却只有 `actionError &&` ⇒ 弹窗一关外层重新渲染；而 antd Modal 默认 destroyOnClose=false 且 rc-dialog 在关闭动画期间**保留上一次的 children** ⇒ 弹窗那份仍挂载 ⇒ 两份共存（实测 count = 2）",
+   "fix": "内层判定加 `reasonFor !== null`，并给 Modal 加 `destroyOnHidden`（关闭后销毁面板；本仓既有 4 处弹窗口径一致）⇒ 任一状态下恰好一个节点",
+   "fix_commit": "ef3f438",
+   "tags": [
+    "frontend",
+    "testid",
+    "antd-modal",
+    "P9B-2F"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2117",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "p9_014 迁移里硬编码的 20 张记录表名无任何守卫 ⇒ 哪天加第 21 张 RecordMixin 表，ORM 有列而真库没有 ⇒ 单测照绿（单测从 ORM metadata 建表）⇒ 首次症状是该记录类型每次读都 column does not exist",
+   "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+   "root_cause": "迁移自包含（不 import 应用模型）⇒ 清单必须硬编码；硬编码没有对照物 ⇒ 漂移不可见；而 alembic check 只在「当前连着的那个库」上成立，不是每次提交都跑",
+   "fix": "新增 tests/alembic/test_p9_014_record_approval_chain_snapshot.py：ORM 的 RecordMixin 叶子表集合 ≡ 迁移的 _TABLES（双向，迁移少 = 真库缺列）；另加 jsonb/可空的真引擎断言与降级环。变异实测：清单多一张表 ⇒ 3 个测试红",
+   "fix_commit": "a44c354",
+   "tags": [
+    "alembic",
+    "schema-drift",
+    "guard",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-143",
+    "bug-137"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2118",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "隔离 schema 的 DROP SCHEMA 清理失败被静默吞掉 ⇒ 孤儿 schema 留在开发库里而 DDL 已落地；且 `finally` 里的 assert 会**顶掉**正在传播的原始异常 ⇒ 真正的失败原因被掩盖",
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "root_cause": "CREATE SCHEMA 那步断言了子进程返回码，finally 里的 DROP SCHEMA 那步没有；把判定写在 finally 里 ⇒ finally 抛出的异常取代在飞异常（Python 语义）",
+   "fix": "两处补返回码断言（带 stderr），并把判定**移出** finally（放到 try/finally 之后）⇒ 原始异常优先传播，清理失败另行报告",
+   "fix_commit": "a44c354",
+   "tags": [
+    "alembic",
+    "test-infra",
+    "exception-masking",
+    "P9B-2F"
+   ],
+   "related_bugs": [],
+   "occurrences": 2,
+   "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2119",
+   "timestamp": "2026-11-02",
+   "severity": "low",
+   "error_message": "errors.ts 的 403 规则（「403 ⇒ 无权查看，而不是 HTTP_403：需要角色 […]」）挂在 errorText 上，而 errorText 并不实现该规则 ⇒ 下一个维护者以为 errorText 会改写 403",
+   "file": "pcs-frontend/src/api/errors.ts",
+   "root_cause": "本批在 describePcsError 与它的 docblock 之间插进了 errorText ⇒ docblock 与实现分离",
+   "fix": "docblock 归位到 describePcsError，并给两个 helper 各补一张「什么时候用哪个」的对照表（403 的改写只在 describePcsError 里）",
+   "fix_commit": "ef3f438",
+   "tags": [
+    "frontend",
+    "docblock",
+    "P9B-2F"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
   }
  ]
 }

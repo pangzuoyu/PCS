@@ -448,6 +448,8 @@ SPEC 正文），就当作「客户端读不到」。** 因为**读文档的人�
 
 ## Key Learnings
 
+- **同进程改 os.environ['DATABASE_URL'] 跑第二个库 = 没跑**（2026-11-01 实测打脸）：alembic env.py 用的 settings 是 **pydantic 缓存实例** ⇒ 进程内第二次改环境变量**不生效** ⇒ 第二遍连的仍是第一个库。而 upgrade 幂等 ⇒ 两次都打印 p9_014 (head)，**输出无法区分** ⇒ 据此写的「三库已验」是**假证据**（pcs_test 实际停在 p9_013，是评审员 + 直查库才发现的）。⇒ 验多库**一律每库一个独立进程**，且**必须直查库的 alembic_version + 列存在性**，不能只信命令输出。CLAUDE.md 的「进程内派生 URL」配方只适用于**单库**。
+
 '
        '- **information_schema 不受 search_path 约束**（2026-11-01 降级环测试实测）：隔离 schema 测试里查'
        ' `information_schema.columns`/`tables` 必须加 `table_schema = current_schema()`，否则 public 库的同名表'
@@ -1610,3 +1612,52 @@ P9B-2 的实例（两轮审查各抓到一次）：
 状态**（同一测试里建两份同名同状态的矩阵）⇒ 改**测试**（名字逐条不同），
 不是改约束。⚠️ 反过来：若约束是**手写**的、而测试是**没读**约束 ⇒ 症状会
 出现在最不相干的地方（这里是 `test_deliverables_api` 的列表用例）。
+
+## Do-Not-Repeat: 「CI 在验」之前必须核对 CI 的**步骤清单**（2026-11-02，P9B-2F）
+
+**本仓已两次**把「某个 CI job 覆盖了它」写成事实，而那个 job **根本不覆盖**：
+
+1. 行锁的 PG 验证 ⇒ 被推给「CI fresh-PG api-drift job」⇒ 那个 job 的步骤是
+   `alembic upgrade head` / OpenAPI 导出与漂移检查 / 迁移幂等脚本 / 可视化
+   渲染器测试 / 前端 typecheck —— **一条后端 pytest 都不跑**；
+2. p9_013 / p9_014 的引擎级测试（含降级环）⇒ 同样被推给同一个 job ⇒ 在 CI
+   上永远 `pytest.skip` ⇒ **绿灯证明不了它们跑过**。
+
+⇒ **false delegation 比没有测试更糟**：下一个维护者**不会**去补测试，因为他
+以为 CI 在验 ⇒ 缺陷被静默保留 ⇒ 上一次「评审说已覆盖」变成下一轮的假前提。
+
+⇒ 写「由 CI 覆盖」之前：**把那个 workflow 的 steps 逐条读一遍**（本仓：
+`grep -n "run:" .github/workflows/*.yml`），确认它**真的**跑那条命令。
+⇒ 引擎级测试（要 PG）在本仓**没有**自动化车道 ⇒ 文档里一律写「须在有本地
+PostgreSQL 的机器上手动跑」，**不写**「CI 承担」。
+
+## Do-Not-Repeat: `finally` 里的 assert 会**顶掉**原始异常（2026-11-02）
+
+清理（`DROP SCHEMA`）的判定写在 `finally` 里 ⇒ 主体失败时，`finally` 抛出的
+异常**取代**正在传播的那个 ⇒ 真正的失败原因被掩盖（实测：CREATE SCHEMA 因
+f-string 漏了 `f` 前缀而失败，报出来的却是清理失败）。
+
+⇒ **清理的判定放 `try/finally` 之后**（主体异常优先传播），清理失败另行报告。
+⇒ 子进程脚本里的 `{schema}` 这类插值**必须**确认 f-string 前缀（漏了 ⇒ PG
+收到字面量 `CREATE SCHEMA {schema}` ⇒ `syntax error at or near "{"`）。
+
+## Do-Not-Repeat: 方言级断言必须**抽生产代码出来**（2026-11-02）
+
+`with_for_update()` 在 SQLite 上被方言省略 ⇒ 只能「用 PG 方言编译这条
+SELECT，断言 SQL 含 FOR UPDATE」。但若 select 语句**写在** `load_record`
+里面，测试只能**照抄**一遍 ⇒ 照抄的那份与生产代码可以各改各的 ⇒ **删掉锁、
+测试照样绿**。
+
+⇒ 把那一条 SQL **抽成独立函数**（`_locked_select`）⇒ 测试打的是**生产代码**
+⇒ 再补一条**接线**断言（端点确实传了 `for_update=True`）⇒ 机制 + 接线两条
+合起来 ⇒ 「删掉行锁必红」。
+
+## 评审的「全绿」结论：先做**变异实测**再转述（2026-11-02）
+
+上一轮评审写「删掉 `.with_for_update()` 整个套件照样全绿」—— 那是**基于代码
+阅读的推断**（SQLite 编译行为 + CI workflow 步骤核对），**不是实测**。
+
+⇒ 转述这类结论前**自己跑一遍变异**（临时删掉那一行 ⇒ 跑套件 ⇒ 看红不红 ⇒
+还原）⇒ 推断变实测，且**证据可复现**。
+⇒ 本仓已用这个手法实测 4 处变异（行锁机制 / 行锁接线 / 存量行反推 / 迁移
+清单漂移）⇒ 全部按预期变红。

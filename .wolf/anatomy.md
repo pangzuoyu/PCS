@@ -1,14 +1,14 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-01T08:00:04.779Z
-> Files: 1112 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-02T03:20:10.829Z
+> Files: 1118 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~1346 tok)
+- `CLAUDE.md` — OpenWolf (~1463 tok)
 - `CONCEPTS.md` — Concepts (~1673 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~915 tok)
@@ -186,6 +186,7 @@
 - `qa-report-pcs-frontend-2026-10-27-p9b-2.md` — QA Report: pcs-frontend 2026-10-27 P9B-2（签署流程 + ADMIN 前端） (~835 tok)
 - `qa-report-pcs-frontend-2026-10-28-p9b-2-minors.md` — QA Report: pcs-frontend 2026-10-28 P9B-2 延后的 minor 批（B~F） (~763 tok)
 - `qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md` — QA 报告 — P9B-2 评审修复批（P9B-2R） (~358 tok)
+- `qa-report-pcs-frontend-2026-11-02-p9b2f.md` — QA 报告 — P9B-2F（follow-up 评审修复批） (~1034 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -448,6 +449,10 @@
 - `README.md` — Project documentation (~504 tok)
 - `ROLLBACK-RUNBOOK.md` — P9B-2 Roll-forward Runbook（追问 1 补件） (~664 tok)
 
+## docs/ce-code-review/20261102-004658-08a55f5c/
+
+- `README.md` — Project documentation (~736 tok)
+
 ## docs/contracts/
 
 - `p45-contract-reconciliation-2026-09-16.md` — 后端 ↔ PCS-UI-SPEC 契约对账报告 (~1285 tok)
@@ -467,6 +472,7 @@
 - `alembic-create-table-silently-drops-schema-elements.md` — Hand-written `op.create_table` silently drops inherited columns and foreign keys (~3714 tok)
 - `dialect-options-invisible-on-sqlite.md` — Dialect-specific constraint options: three ways SQLite tests go blind (or lie) (~1224 tok)
 - `get-or-create-default-row-race-savepoint-reread.md` — get-or-create 默认行的并发兜底：savepoint 内插 + 撞约束重读赢家 (~478 tok)
+- `information-schema-not-scoped-by-search-path.md` — `information_schema` 不受 `search_path` 约束 —— 隔离 schema 测试的隐形跨库计数 (~584 tok)
 
 ## docs/solutions/framework-integration-issues/
 
@@ -474,10 +480,11 @@
 
 ## docs/solutions/security-issues/
 
-- `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~405 tok)
+- `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
 
 ## docs/solutions/testing-issues/
 
+- `engine-level-migration-tests-skipif-pg.md` — 引擎级迁移测试：隔离 schema + 子进程 alembic（本仓无自动化 PG 通道） (~736 tok)
 - `guard-test-fooled-by-lying-comment.md` — 守门测试会被它所守护的那行注释骗过 (~926 tok)
 - `narrow-declaration-is-not-a-constraint.md` — 「窄的类型声明」是有意的约束，还是无意的遗漏？ (~842 tok)
 - `sqlite-staticpool-hides-uncommitted.md` — `sqlite+aiosqlite:///:memory:` is StaticPool: "read it from another session" proves nothing (~1111 tok)
@@ -1216,7 +1223,7 @@
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
-- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~5000 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~5047 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
@@ -1232,7 +1239,7 @@
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
-- `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~9213 tok)
+- `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~10933 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5099 tok)
@@ -1276,7 +1283,7 @@
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable_progress.py` — 交付物工作流进度聚合响应（TODO-065 · P9B-2 · T0）。 (~552 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1290 tok)
-- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1210 tok)
+- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1340 tok)
 - `edit_conflict.py` — 编辑冲突的请求/响应契约（ADR-0048 §⑥ §⑦ · SPEC §6.21 P9A-LCK-005）。 (~775 tok)
 - `lock.py` — 编辑锁 API 的响应 schema（ADR-0048 §①⑤ · SPEC §6.21）。 (~404 tok)
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
@@ -1430,7 +1437,8 @@
 - `test_p9_006_cost_est_record_hash.py` — P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。 (~1558 tok)
 - `test_p9_007_cost_est_project_id.py` — `p9_007`（cost_est_results 补 project_id）的迁移形状断言 —— P9A-5 Task B。 (~981 tok)
 - `test_p9_008_project_matrix_binding_unique.py` — P9A-DLV-011 T2 迁移基座的 schema 断言 —— (project_id, module) 唯一约束。 (~1072 tok)
-- `test_p9_013_bind_default_record_matrix.py` — `p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。 (~2176 tok)
+- `test_p9_013_bind_default_record_matrix.py` — `p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。 (~3600 tok)
+- `test_p9_014_record_approval_chain_snapshot.py` — `p9_014`（记录表加 `approval_chain_snapshot`）的迁移形状断言 —— P9B-2F（评审 #5）。 (~3463 tok)
 
 ## pcs-backend/tests/api/v1/
 
@@ -1442,6 +1450,7 @@
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
+- `test_deliverable_sign_status_vocabulary.py` — 交付物 `sign_status` 的**词表必须在契约产物里** —— P9B-2F（评审 #6）。 (~674 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
 - `test_deliverables_current_version.py` — 交付物「当前版本 id」（P9B-1 Task T0）。 (~2582 tok)
 - `test_deliverables_progress_aggregate.py` — TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。 (~3941 tok)
@@ -1455,7 +1464,7 @@
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
 - `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~4169 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
-- `test_record_approval_chain.py` — 记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。 (~4501 tok)
+- `test_record_approval_chain.py` — 记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。 (~6911 tok)
 - `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3498 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~4315 tok)
@@ -1638,8 +1647,8 @@
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~994 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
-- `deliverables.ts` — 交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。 (~1197 tok)
-- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~998 tok)
+- `deliverables.ts` — 交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。 (~1437 tok)
+- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~1257 tok)
 - `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `meta.ts` — Meta API 客户端（状态机 + 权限矩阵）—— P9B-2 · T4 的数据源。 (~324 tok)
@@ -1659,7 +1668,7 @@
 - `EditLockIndicator.tsx` — EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。 (~527 tok)
 - `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
 - `RealtimeStatusBanner.tsx` — RealtimeStatusBanner —— 通知实时推送的状态与降级（P9B-1 · SPEC §6.23）。 (~381 tok)
-- `RecordActions.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~3139 tok)
+- `RecordActions.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~3443 tok)
 - `RecordTimeline.tsx` — 记录状态时间线（P9B-2 · T5 · SPEC §7.19.1「状态时间线」）。 (~750 tok)
 - `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~2752 tok)
 - `TodoPanel.tsx` — TodoPanel —— 我的待办（P9B-1 · SPEC §6.22 · ADR-0049 §②）。 (~787 tok)
@@ -1721,7 +1730,7 @@
 
 ## pcs-frontend/src/pages/deliverables/
 
-- `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。 (~6586 tok)
+- `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。 (~6697 tok)
 - `SignatureMatrixPage.tsx` — SignatureMatrixPage —— 签署矩阵管理面（TODO-079 · P9A-DLV-011 T3 的前端）。 (~3742 tok)
 
 ## pcs-frontend/src/pages/report/
@@ -1779,7 +1788,7 @@
 - `EditLockIndicator.test.tsx` — EditLockIndicator 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-003）。 (~607 tok)
 - `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~2283 tok)
 - `RealtimeStatusBanner.test.tsx` — RealtimeStatusBanner 的守卫（P9B-1 Task T5 · SPEC §6.23）。 (~499 tok)
-- `RecordActions.test.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~2901 tok)
+- `RecordActions.test.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~4828 tok)
 - `RecordTimeline.test.tsx` — 记录状态时间线（P9B-2 · T5 · SPEC §7.19.1）。 (~811 tok)
 - `TodoPanel.test.tsx` — TodoPanel 的守卫（P9B-1 Task T5 · SPEC §6.22）。 (~575 tok)
 - `WorkflowProgressPanel.test.tsx` — WorkflowProgressPanel 的守卫（P9B-1 Task T5 · SPEC §6.24）。 (~2850 tok)
@@ -1816,7 +1825,7 @@
 
 ## pcs-frontend/tests/pages/deliverables/
 
-- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。 (~2878 tok)
+- `deliverable_progress.test.tsx` — 交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。 (~4668 tok)
 - `deliverable_sign.test.tsx` — 交付物级签署**写面**（P9B-2 · T8 · SPEC §7.19）。 (~3295 tok)
 - `signature_matrix_page.test.tsx` — 签署矩阵管理页的守卫（TODO-079 · P9A-DLV-011 T3 的前端）。 (~881 tok)
 

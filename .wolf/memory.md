@@ -2751,3 +2751,41 @@
 | 10:01 | Session end: 37 writes across 24 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 128 reads | ~266155 tok |
 | 16:00 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md | — | ~382 |
 | 16:00 | P9B-2R 评审修复批：A 档4+B 档5+清理8 全落地（快照/三守卫/词表合一/降级环/保真），三库 p9_014+check 绿，QA 0C/0H/0M | 41 文件（pcs-backend+pcs-frontend+docs） | 5 commits 58341eb..369e855；buglog +10（2101-2110） | ~30k |
+| 00:45 | Session end: 38 writes across 25 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 128 reads | ~266565 tok |
+| 09:09 | Created docs/ce-code-review/20261102-004658-08a55f5c/README.md | — | ~785 |
+| 09:21 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified test_locking_select_emits_for_update_on_postgres() | ~1505 |
+| 09:21 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | added 1 import(s) | ~28 |
+| 09:22 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified _make_legacy_row() | ~255 |
+| 09:22 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | inline fix | ~18 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | modified _locked_select() | ~446 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | added error handling | ~1340 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | modified str() | ~276 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | added 1 import(s) | ~26 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+17 lines) | ~299 |
+| 09:23 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+26 lines) | ~358 |
+| 10:33 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | expanded (+14 lines) | ~246 |
+| 10:34 | Edited CLAUDE.md | expanded (+9 lines) | ~149 |
+| 10:35 | Created pcs-backend/tests/api/v1/test_deliverable_sign_status_vocabulary.py | — | ~674 |
+| 10:35 | Edited pcs-backend/app/schemas/deliverable.py | added 1 import(s) | ~29 |
+| 10:35 | Edited pcs-backend/app/schemas/deliverable.py | 3→8 lines | ~115 |
+| 10:36 | Edited pcs-backend/app/schemas/deliverable.py | 5→6 lines | ~68 |
+| 10:36 | Edited pcs-backend/app/api/v1/deliverables.py | 4→7 lines | ~120 |
+| 10:38 | Edited pcs-frontend/src/api/deliverables.ts | expanded (+7 lines) | ~148 |
+| 10:41 | Created pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | — | ~3396 |
+| 10:47 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | modified _orm_record_mappers() | ~229 |
+| 10:47 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | modified test_orm_column_name_matches_the_migration() | ~114 |
+| 10:50 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | expanded (+14 lines) | ~332 |
+| 10:50 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | 2→6 lines | ~78 |
+| 10:50 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | 7→10 lines | ~93 |
+| 10:54 | Edited pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | expanded (+34 lines) | ~570 |
+| 10:54 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | expanded (+21 lines) | ~185 |
+| 10:54 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added 1 import(s) | ~132 |
+| 10:54 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | added optional chaining | ~109 |
+| 10:55 | Edited pcs-frontend/src/api/errors.ts | modified errorText() | ~328 |
+| 10:55 | Edited pcs-frontend/tests/components/common/RecordActions.test.tsx | expanded (+32 lines) | ~458 |
+| 10:55 | Edited pcs-frontend/src/components/common/RecordActions.tsx | 11→15 lines | ~178 |
+| 10:58 | Edited pcs-frontend/src/components/common/RecordActions.tsx | expanded (+7 lines) | ~133 |
+| 11:03 | Created docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md | — | ~785 |
+| 11:03 | Created docs/solutions/database-issues/information-schema-not-scoped-by-search-path.md | — | ~623 |
+| 11:04 | Edited docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md | expanded (+23 lines) | ~314 |
+| 11:20 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-02-p9b2f.md | — | ~1103 |
