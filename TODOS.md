@@ -1790,6 +1790,86 @@ service 裸 `==` 比对 PG 原生枚举列）⇒ 传非法值时的行为介于�
 **Fix 方向:** 起一条 PG-backed pytest lane（CI service 容器 + `TEST_DATABASE_URL`），
 把 `tests/alembic/` 的 skipif 测试与「双并发」类用例挂上去。
 
+⚠️ **2026-11-02 补充（P9B-2F）**：P9B-2R 的行锁保证已由**方言级**断言钉住
+（`test_locking_select_emits_for_update_on_postgres` = PG 方言编译出的 SQL
+里含 `FOR UPDATE`）+ **接线**断言钉住（`test_write_paths_request_row_lock`）
+⇒ 「删掉行锁必红」已是**实测**结论。但 **PG 上的实际并发结果**（一胜一拒、
+审计不重不漏）**仍无自动化覆盖** ⇒ 本条（PG 车道）仍然是那条路的唯一解。
+
+## TODO-100: 下一轮 review **必须**覆盖的未深审部分（复审追问 2） 🟢
+
+**What:** P9B-2R follow-up review 的 Coverage 段如实登记了盲区：以下**本批次的
+实质交付物**未被深审 ——
+
+- `pcs-backend/tests/api/v1/test_deliverable_issue.py`（PE-1 修复的测试面）；
+- `deliverables` / `record_edits` 两个 API 的改动；
+- 该批 diff 里余下的部分（14279 行中的其余部分）。
+
+**Why:** 这不是「本轮的失败」，是**已知盲区** —— 但 `record_edits` 是**本批次
+新增的端点**（TODO-066），`test_deliverable_issue.py` 是 PE-1 的测试 ⇒ 两者的
+交付物有一部分**没被验证过**。
+
+**归属:** 下一轮 ce-code-review 的 scope（**不是**「如果时间允许」，是 scope
+的一部分）。
+
+**触发条件:** 下一次跑 `ce-code-review` 时，在 scope 段显式列出这三项。
+
+**依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §Coverage
+（委员会追问 2，2026-11-02）。
+
+## TODO-101: `StateBadge` 的 DELIVERABLE 强调词表是**记录侧 9 态** ⇒ 交付物半透明 🟢
+
+**What:** `pcs-frontend/src/components/common/StateBadge.tsx` 的
+`MODULE_ACTIVATED.DELIVERABLE` 装的是 **9 态记录词表**
+（DRAFT/IN_APPROVAL/CHECKED/...）⇒ 交付物自己的 4 态里 **`PENDING` 与
+`APPROVED` 不在集合里** ⇒ 这两个状态渲染成 **opacity 0.4**（半透明），
+看起来像「过期/不可用」，而真相是「待审 / 已批准」。
+
+**Why:** 该文件头明确写「`MODULE_ACTIVATED` **只**决定 opacity，从不做有效性
+检查」⇒ 半透明**不是**错误信号，但交付物用错了词表 ⇒ 用户会把「待审」读成
+「过期」。**Pre-existing**（本批之前就在），但 P9B-2R 新引入的
+`DeliverableSignStatus`（4 态）把这个分叉**显形**了。
+
+**Fix 方向:** `DELIVERABLE` 的强调集改成它自己的 4 态
+（`DRAFT/PENDING/APPROVED/OBSOLETE`）；改前先确认「已作废的交付物」该全透明
+还是半透明（产品裁决），再配一条渲染测试。
+
+**依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §Pre-existing
+（maintainability 登记）。
+
+## TODO-102: `POST /projects` 的 `IntegrityError → 409 PROJECT_NO_CONFLICT` 映射**过宽** 🟢
+
+**What:** `pcs-backend/app/api/v1/projects.py` 里项目 INSERT 捕获**任何**
+`IntegrityError` ⇒ 一律报 409「项目编号已存在」。真正的约束只有
+`project_no` 全局唯一，但**别的**约束违约（NOT NULL / FK / CHECK）也会被
+说成「编号重复」⇒ 用户照着提示去换编号，换了还是错。
+
+**Why:** 错误消息把「唯一的已知原因」说成了「唯一的原因」。**Pre-existing**
+（P9B-2R 引入 409 时带的）。
+
+**Fix 方向:** 只在约束名/列名命中 `project_no` 的唯一约束时映射 409，其余
+`IntegrityError` 重新抛出（⇒ 500 + 服务端日志留详情）。
+
+**依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §R5 与
+§Residual risks。
+
+## TODO-103: `schema_compact_orm.md` 是 **53 表快照**（ORM 现有 107 张） 🟢
+
+**What:** `pcs-backend/docs/schema_compact_orm.md` 头部写「表数量：53」，生成
+于 2026-09-02 ⇒ ORM 现有 **107** 张表，文件里**缺 54 张**（含 4 张记录表
+`relief_results` / `column_sizing` / `mixer_results` /
+`thermosiphon_circulation_results`）⇒ 它**不能**当完整的 ORM 参考用。
+
+**Why:** 该文件被当成「照这张表手写 SQL」的依据 ⇒ 缺表 = 照着查不到的表去
+写 SQL。本批（P9B-2F #10）已把 16 张在表内的记录表补上快照列，并在表头**如实
+标注**了它是快照 —— 但**重新生成**（107 表）本身没人排期。
+
+**Fix 方向:** 写一个生成脚本（从 `SA_Base.metadata` 导出，格式沿用现有
+`col|type!` 风格）⇒ 每次改 mixin 后重跑 ⇒ 文件变成**派生**产物而不是手工
+维护物。
+
+**依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` #10。
+
 ## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 
 **原症状：** TODO-080 第 3 条只把 service 变体做成了 core 变体的**子类**
