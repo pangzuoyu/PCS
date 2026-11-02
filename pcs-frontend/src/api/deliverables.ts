@@ -15,14 +15,21 @@ export type DeliverableProgressResponse = Omit<
   'sections'
 > & { sections: WorkflowProgressSection[] };
 
-/** 交付物签审 4 态（后端 `DeliverableSignStatus`）—— 契约生成裸 string，边界收窄。 */
-export type DeliverableSignStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'OBSOLETE';
+/**
+ * 交付物签审 4 态 —— **契约派生**（评审 #6）。
+ *
+ * ⚠️ 此前是**手写**的 union（`'DRAFT' | 'PENDING' | ...`），而后端把该字段
+ * 声明成裸 `str` ⇒ 契约里**没有词表** ⇒ 任何漂移检查都抓不到回归，
+ * 而前端这份手写词表与后端**完全脱钩**（bug-2040 记的那类漂移根因：
+ * 「响应体取契约类型；手写自由 dict 是根因」）。
+ *
+ * ⇒ 后端 schema 改成 `DeliverableSignStatus` 枚举后，契约里带 `enum` 词表
+ * ⇒ 这里直接取契约类型，**不再手写**。
+ */
+export type DeliverableSignStatus = components['schemas']['DeliverableSignStatus'];
 
-/** 列表/详情行（`sign_status` 收窄为 4 态，见上）。 */
-export type Deliverable = Omit<
-  components['schemas']['DeliverableResponse'],
-  'sign_status'
-> & { sign_status: DeliverableSignStatus };
+/** 列表/详情行（`sign_status` 的词表由契约给 ⇒ 整个行类型直接用契约）。 */
+export type Deliverable = components['schemas']['DeliverableResponse'];
 /**
  * ⚠️ 评审 #20：契约把 `workflow_type` 生成为裸 `string`，后端实际返回的是
  * `WorkflowType` 三值枚举 ⇒ 在 **api 边界**收窄（消费方不再 `as never`）。

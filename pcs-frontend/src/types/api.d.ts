@@ -9245,8 +9245,7 @@ export interface components {
             current_version_id?: string | null;
             /** Version Purpose */
             version_purpose: string;
-            /** Sign Status */
-            sign_status: string;
+            sign_status: components["schemas"]["DeliverableSignStatus"];
             /** Matrix Id */
             matrix_id?: string | null;
             /** Customer Approval Date */
@@ -9256,6 +9255,15 @@ export interface components {
             /** Created At */
             created_at?: string | null;
         };
+        /**
+         * DeliverableSignStatus
+         * @description 交付物签审状态 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）。
+         *
+         *     业务：交付物版本全生命周期（草稿→待审→已批→作废）；与 record_sign_status
+         *     不同的是交付物不参与 REVERSAL_PENDING（直接 APPROVED 后作废走 OBSOLETE）。
+         * @enum {string}
+         */
+        DeliverableSignStatus: "DRAFT" | "PENDING" | "APPROVED" | "OBSOLETE";
         /**
          * DeliverableSnapshotResponse
          * @description 某 Rev 的完整快照：Rev 元信息 + 记录绑定明细 + 签署汇总。
@@ -9277,8 +9285,7 @@ export interface components {
             description: string;
             /** Doc No */
             doc_no: string;
-            /** Sign Status */
-            sign_status: string;
+            sign_status: components["schemas"]["DeliverableSignStatus"];
             /** Record Snapshot Json */
             record_snapshot_json?: {
                 [key: string]: unknown;

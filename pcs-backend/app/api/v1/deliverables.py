@@ -238,9 +238,12 @@ async def get_deliverable_snapshot(
         version_purpose=version.version_purpose,
         description=version.description,
         doc_no=deliverable.doc_no,
-        # ⚠️ `.value`（PE-1）：`RecordSignStatus9` 继承 `(str, Enum)` ⇒ 裸 str()
-        # 出来是 "DeliverableSignStatus.APPROVED" —— 本批滚的 openapi-baseline
-        # 记的是裸词表值 ⇒ 运行时违反自己冻结的契约。同文件 :289 已是 .value。
+        # ⚠️ `.value`（PE-1）：`DeliverableSignStatus` 继承 `(str, Enum)` ⇒ 裸
+        # str() 出来是 "DeliverableSignStatus.APPROVED" —— **枚举类名前缀**泄漏到
+        # 响应里，违反契约记的裸词表值。同文件 :289 已是 .value。
+        # ⚠️ schema 侧现在把该字段声明成 `DeliverableSignStatus` 枚举（评审 #6）
+        #    ⇒ 契约里带 `enum` 词表 ⇒ 词表漂移能被漂移检查抓到（此前是裸
+        #    `{"type":"string"}` ⇒ 契约无从判漂移，前端只能手写一份 union）。
         sign_status=str(deliverable.sign_status.value),
         record_snapshot_json=version.record_snapshot_json or {},
         signature_summary_json=version.signature_summary_json or {},

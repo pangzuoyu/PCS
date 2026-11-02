@@ -25337,8 +25337,7 @@
             "title": "Version Purpose"
           },
           "sign_status": {
-            "type": "string",
-            "title": "Sign Status"
+            "$ref": "#/components/schemas/DeliverableSignStatus"
           },
           "matrix_id": {
             "anyOf": [
@@ -25404,6 +25403,17 @@
         "title": "DeliverableResponse",
         "description": "交付物列表项 / 详情。\n\n只暴露报表与签署流程要用的字段；`record_snapshot_json` 等大 JSONB 不进列表响应，\n走 snapshot 端点按需取（spec §3.2 的 snapshot 端点正是为此存在）。"
       },
+      "DeliverableSignStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "PENDING",
+          "APPROVED",
+          "OBSOLETE"
+        ],
+        "title": "DeliverableSignStatus",
+        "description": "交付物签审状态 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）。\n\n业务：交付物版本全生命周期（草稿→待审→已批→作废）；与 record_sign_status\n不同的是交付物不参与 REVERSAL_PENDING（直接 APPROVED 后作废走 OBSOLETE）。"
+      },
       "DeliverableSnapshotResponse": {
         "properties": {
           "deliverable_id": {
@@ -25428,8 +25438,7 @@
             "title": "Doc No"
           },
           "sign_status": {
-            "type": "string",
-            "title": "Sign Status"
+            "$ref": "#/components/schemas/DeliverableSignStatus"
           },
           "record_snapshot_json": {
             "additionalProperties": true,

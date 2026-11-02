@@ -16,6 +16,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.enums import DeliverableSignStatus
+
 
 class DeliverableResponse(BaseModel):
     """交付物列表项 / 详情。
@@ -44,7 +46,12 @@ class DeliverableResponse(BaseModel):
         ),
     )
     version_purpose: str
-    sign_status: str
+    # ⚠️ 声明成**枚举**而不是裸 `str`（评审 #6）：契约里必须带 `enum` 词表 ⇒
+    #    按契约生成/校验客户端的消费者看得见有哪几个值，且词表漂移能被
+    #    漂移检查抓到。⚠️ 交付物是 **4 态**（DRAFT/PENDING/APPROVED/OBSOLETE），
+    #    **不是**记录侧的 9 态（`RecordSignStatus9`）—— 两套词表长得像，
+    #    复制粘贴最容易出错（见 `tests/api/v1/test_deliverable_sign_status_vocabulary.py`）。
+    sign_status: DeliverableSignStatus
     matrix_id: uuid.UUID | None = None
     # ⚠️ 原 `parent_deliverable_id` **已删**（P9B-2 · T-2 · 迁移 `p9_012`）：
     #    变更单**自己就是交付物**（`deliverable_type=CHANGE_NOTICE`）⇒
@@ -110,7 +117,8 @@ class DeliverableSnapshotResponse(BaseModel):
     version_purpose: str
     description: str
     doc_no: str
-    sign_status: str
+    # ⚠️ 同 `DeliverableResponse.sign_status`：声明成枚举 ⇒ 契约带词表（评审 #6）。
+    sign_status: DeliverableSignStatus
     record_snapshot_json: dict[str, Any] = Field(default_factory=dict)
     signature_summary_json: dict[str, Any] = Field(default_factory=dict)
     bindings: list[RecordBindingResponse]
