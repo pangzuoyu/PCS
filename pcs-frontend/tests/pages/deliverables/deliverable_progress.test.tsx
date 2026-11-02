@@ -436,4 +436,38 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(seen[0]?.limit).toBeTruthy();
     expect(seen[0]?.offset).toBe('0');
   });
+
+  it('⚠️ 评审 #14：服务端返回**未知 workflow_type** ⇒ **降级**显示原始 key，**不得整页崩**', async () => {
+    // ⚠️ 契约把 `workflow_type` 生成为**裸 string**（`src/types/api.d.ts`），
+    //    后端的 `WorkflowType` 是**另一处**定义 ⇒ 后端加第 4 种工作流时
+    //    前端 `tsc` **看不见** ⇒ 若前端直接下标 `WORKFLOW_LABELS[type].section`
+    //    ⇒ `TypeError: Cannot read properties of undefined` ⇒ **整页崩**
+    //    （不是「那一段显示得难看」）。
+    //    ⇒ 必须**优雅降级**：显示原始 key，页面其余部分照常。
+    sections = [
+      {
+        workflow_type: 'FUTURE_WORKFLOW',
+        workflow_id: VERSIONED_ID,
+        available: false,
+        reason: '后端新增的工作流类型',
+        total: 0,
+        pending: 0,
+        in_progress: 0,
+        completed: 0,
+        skipped: 0,
+        failed: 0,
+        items: [],
+      },
+    ];
+
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-002')).toBeTruthy());
+    fireEvent.click(document.querySelectorAll('.ant-table-row-expand-icon')[1]);
+    await waitFor(() => expect(aggregateCalls).toBe(1));
+
+    // 降级：显示原始 key（而不是崩掉，也不是显示成别的段的标题）
+    await waitFor(() => expect(screen.getByText('FUTURE_WORKFLOW')).toBeTruthy());
+    // 页面其余部分照常
+    expect(screen.getByText('CB-002')).toBeTruthy();
+  });
 });

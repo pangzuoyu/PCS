@@ -322,6 +322,13 @@ export function RecordActions({
       )}
       <Modal
         open={reasonFor !== null}
+        // ⚠️ 评审 #12：`destroyOnHidden` ⇒ 关闭后**销毁**面板。
+        //    ⚠️ 只改内层判定（`reasonFor !== null`）**不够** —— rc-dialog 在
+        //    关闭动画期间**保留上一次的 children** ⇒ 弹窗里那份错误节点
+        //    在 DOM 里**留到动画结束** ⇒ 与外层那份**同时**存在 ⇒ 两个节点
+        //    共享同一个 testid ⇒ `getByTestId` 抛「found multiple elements」。
+        //    （本仓既有的 4 处弹窗都用 `destroyOnHidden`，口径一致。）
+        destroyOnHidden
         title={reasonSpec?.label ?? ''}
         onCancel={() => setReasonFor(null)}
         onOk={() => {
@@ -345,8 +352,12 @@ export function RecordActions({
           rows={3}
         />
         {/* ⚠️ 评审清理：动作失败的错误渲染在**弹窗内** —— 外层那份会被 Modal
-            遮罩盖住（jsdom 里看得见 DOM、真浏览器里用户看不见）。 */}
-        {actionError && (
+            遮罩盖住（jsdom 里看得见 DOM、真浏览器里用户看不见）。
+            ⚠️ 评审 #12：判定必须**同时**看 `reasonFor !== null` —— 弹窗**关闭**
+            后外层那份会重新渲染，而 antd Modal 默认 `destroyOnClose=false`
+            ⇒ 弹窗这份**仍挂载** ⇒ 两个节点共享同一个 testid ⇒
+            `getByTestId` 抛「found multiple elements」，后续断言全变噪音。 */}
+        {actionError && reasonFor !== null && (
           <Typography.Text
             type="danger"
             data-testid="record-actions-error"

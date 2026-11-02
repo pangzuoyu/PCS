@@ -43,6 +43,7 @@ import { api } from '../../api/client';
 import { errorText } from '../../api/errors';
 import {
   deliverablesApi,
+  type Deliverable as ApiDeliverable,
   type DeliverableActionsListResponse,
   type DeliverableProgressResponse,
   type WorkflowProgressSection,
@@ -51,9 +52,31 @@ import { useAuth } from '../../store/auth';
 import { metaApi } from '../../api/meta';
 import { signatureMatricesApi } from '../../api/signatureMatrices';
 import { PROJECT_ID } from '../../constants/env';
+import type { components } from '../../types/api';
 
-type Deliverable = import('../../api/deliverables').Deliverable;
-type DeliverableList = { items: Deliverable[]; total: number };
+/**
+ * 列表行类型 —— **从 api 模块的既有 import 拿**（评审 #13）。
+ *
+ * ⚠️ 此前是 `import('../../api/deliverables').Deliverable` 的**内联 import
+ * 类型**，而同一文件上方已经有该模块的 import 块 ⇒ 两处取同一个类型。
+ */
+type Deliverable = ApiDeliverable;
+
+/**
+ * 列表信封 —— **必须从契约派生**（评审 #13）。
+ *
+ * ⚠️ 此前是**手写**的 `{ items: Deliverable[]; total: number }` ⇒ 与契约
+ * **完全脱钩**：后端给 `DeliverableListResponse` 加字段（下一页游标、过滤
+ * 回显）⇒ `tsc` 照样绿，前端**静默丢掉**那个字段 —— 正是 bug-2040 记的
+ * 漂移根因（「响应体取契约类型；手写自由 dict 是根因」）。
+ *
+ * ⇒ `Omit` 只摘掉 `items`（行类型要窄化成 `Deliverable`），其余字段
+ * **跟着契约走**。
+ */
+type DeliverableList = Omit<
+  components['schemas']['DeliverableListResponse'],
+  'items'
+> & { items: Deliverable[] };
 
 /** 某个交付物的详情（进度 + 动作时间线 + 各自的错误）。 */
 interface DetailState {
@@ -627,7 +650,11 @@ function parseDetail(raw: string): string {
 function SectionBlock({ section }: { section: WorkflowProgressSection }): JSX.Element {
   // ⚠️ 评审 A-3：段标题词表与 tab **同源**（`WORKFLOW_LABELS` 唯一真相源，
   //    `Record<WorkflowType,…>` 强制穷尽 ⇒ 新增类型漏改 = 编译红）。
-  const label = WORKFLOW_LABELS[section.workflow_type].section;
+  // ⚠️ 评审 #14：**运行期**仍要兜底 —— 契约把 `workflow_type` 生成为裸
+  //    `string`，后端加第 4 种工作流时前端 `tsc` **看不见** ⇒ 直接下标会
+  //    `TypeError` ⇒ **整页崩**（不是「那一段显示得难看」）。
+  //    ⇒ 优雅降级：显示原始 key。
+  const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;
   // ⚠️ **不可用** ⇒ 显示**原因**（不是空列表）—— 空数组会被读成
   //    「这条流程一个节点都没有」，而真相是「这类工作流对本交付物不存在」。
   if (!section.available) {

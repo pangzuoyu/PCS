@@ -357,6 +357,38 @@ describe('RecordActions —— 按状态渲染（meta 驱动）', () => {
     expect(modal?.contains(screen.getByTestId('record-actions-error'))).toBe(true);
   });
 
+  it('⚠️ 评审 #12：弹窗关闭后 ⇒ `record-actions-error` **只能有一个**（不得重复 testid）', async () => {
+    server.use(
+      http.post('/api/v1/records/:module/:recordId/:action', () =>
+        HttpResponse.json(
+          { code: 'APPROVAL_SELF_REVIEW_FORBIDDEN', message: '不允许自审' },
+          { status: 403 },
+        ),
+      ),
+    );
+    renderActions('CHECKED');
+    await waitFor(() => expect(screen.getByTestId('record-action-INITIATE_CHANGE')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('record-action-INITIATE_CHANGE'));
+    const modal = await waitFor(() => document.querySelector('.ant-modal-content'));
+    expect(modal).toBeTruthy();
+    fireEvent.change(screen.getByTestId('record-action-reason-input'), {
+      target: { value: '塔径调整' },
+    });
+    fireEvent.click(screen.getByTestId('record-action-reason-ok'));
+    await waitFor(() => expect(screen.getAllByTestId('record-actions-error').length).toBe(1));
+
+    // ⚠️ 关闭弹窗 ⇒ 外层那份重新渲染；但 antd Modal 默认 `destroyOnClose=false`
+    //    ⇒ 弹窗那份**仍挂载**（rc-dialog 保留已退出的面板）⇒ 两个节点共享
+    //    同一个 testid ⇒ `getByTestId` 抛「found multiple elements」
+    //    ⇒ 任何后续断言都变成噪音，而不是真断言。
+    fireEvent.click(screen.getByTestId('record-action-reason-cancel'));
+    await waitFor(() => expect(screen.getAllByTestId('record-actions-error').length).toBe(1));
+    // 错误文案**仍在**（关掉弹窗不等于错误消失）
+    expect(screen.getByTestId('record-actions-error').textContent).toContain(
+      'APPROVAL_SELF_REVIEW_FORBIDDEN',
+    );
+  });
+
   it('⚠️ 失败**明说**（错误码 + 原文），不静默', async () => {
     server.use(
       http.post('/api/v1/records/:module/:recordId/:action', () =>

@@ -68,17 +68,22 @@ export function isPermissionError(err: unknown): boolean {
 }
 
 /**
- * 错误提示文案（**统一**）。
- *
- * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——
- *    前者说清了**发生了什么**，后者只给了一个机器码；而且 403 与「查出来是空」
- *    **必须区分开**（空表会被读成「没有数据」⇒ RF-12）。
- */
-/**
  * 取后端错误原文（`{code, message}` 信封，code 存在才带前缀）—— 前端不自造文案。
  * ⚠️ 评审 #7：此前同一函数在 DeliverableSignDialog / DeliverableProgressPage
  * 各复制一份 ⇒ 统一到这里（与 describePcsError 的差别：无信封时返回**纯
  * fallback**，不编造 `HTTP_500：` 前缀）。
+ *
+ * ## 什么时候用哪个（评审 #2：此前这两个 helper 的文档是**错位**的）
+ *
+ * | helper | 403 的呈现 | 用在哪 |
+ * |---|---|---|
+ * | `errorText` | **原样**给后端原文（可能带 `HTTP_403：` 前缀） | 不需要按状态分流的地方 |
+ * | `describePcsError` | **改写**成「无权查看：…」 | 需要把「无权」与「空」区分开的地方（RF-12） |
+ *
+ * ⚠️ 403 的「改写」规则**只**在 `describePcsError` 里实现 —— 本函数**不**
+ * 做状态分流（它就是「原样拿后端原文」）。此前那段 403 规则被**错挂**在
+ * 本函数头上（插进来的新函数把 docblock 与实现分开了）⇒ 下一个维护者会
+ * 以为 `errorText` 会把 403 改写，而它**不会**。
  */
 export function errorText(err: unknown, fallback: string): string {
   const envelope = extractPcsError(err);
@@ -88,6 +93,13 @@ export function errorText(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * 错误提示文案（**统一**）—— 按 HTTP 状态**分流**。
+ *
+ * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——
+ *    前者说清了**发生了什么**，后者只给了一个机器码；而且 403 与「查出来是空」
+ *    **必须区分开**（空表会被读成「没有数据」⇒ RF-12）。
+ */
 export function describePcsError(err: unknown, fallback: string): string {
   const envelope = extractPcsError(err);
   const code = envelope?.code ?? 'HTTP_500';
