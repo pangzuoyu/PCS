@@ -1796,6 +1796,19 @@ service 裸 `==` 比对 PG 原生枚举列）⇒ 传非法值时的行为介于�
 ⇒ 「删掉行锁必红」已是**实测**结论。但 **PG 上的实际并发结果**（一胜一拒、
 审计不重不漏）**仍无自动化覆盖** ⇒ 本条（PG 车道）仍然是那条路的唯一解。
 
+✅ **2026-11-02 已落地（P9B-3 · T0）**：本地 PG 车道已建 ——
+`pcs-backend/scripts/pytest_pg.sh`（**唯一**入口，fail-closed 三约束：
+PG 没起 / 收集到 0 个 PG 测试 / 全 skip ⇒ 三种情况都非零退出）+
+`docker-compose.yml` 的 `pg` profile（独立实例 `postgres-pgtest`，库 `pcs_pgtest`，
+端口 5433）+ `pg` pytest marker。
+⚠️ 决策修正：委员会原议的「CI service 容器」**不做**（沿用「CI/CD 流水线不做」
+的既有裁决）⇒ 车道是**本地**的，发布前由人手动跑 ⇒ 见 CLAUDE.md §「发布前检查（必做）」。
+
+⚠️ **复审触发（2026-11-02 委员会）**：若未来 **2–3 个发布周期内**出现至少一次
+「PG-specific bug 因为没跑 `scripts/pytest_pg.sh` 而在发布后暴露」⇒
+2026-08-29 的「CI/CD 流水线不做」裁决**必须被重新提出**（不是被绕过），
+依据是「自己记得跑」这个前提被证伪 N 次。
+
 ## TODO-100: 下一轮 review **必须**覆盖的未深审部分（复审追问 2） 🟢
 
 **What:** P9B-2R follow-up review 的 Coverage 段如实登记了盲区：以下**本批次的

@@ -88,6 +88,22 @@ For the full operating protocol (session handoff, memory discipline, bug logging
      那条延迟迁移得有人手写，否则 DB 上压根没这个约束（`projects` 曾整表零外键，
      bug-146）。
 
+## 发布前检查（必做）
+
+- [ ] `alembic check` 在两库（pcs / pcs_test）各 exit 0 —— ⚠️ 必须**独立进程**跑，
+      见 cerebrum「alembic settings 缓存」；且**直查库**确认 revision 与目标列
+- [ ] `scripts/pytest_pg.sh` exit 0 —— 覆盖 `tests/alembic/` 的引擎级用例与并发类用例
+- [ ] `check_openapi_payload_coverage.py` RC 0（裸字段 ≤ 基线）
+- [ ] `check_migration_idempotency.py` RC 0
+- [ ] 前后端全量测试绿
+
+⚠️ 第 1 条验「迁移与 ORM 一致」，第 2 条验「迁移在**真实 PG** 上跑得通 + 并发语义正确」
+⇒ 两者**不互相替代** ⇒ 「只跑 alembic check」不算发布前检查通过。
+
+⚠️ PG 车道（`scripts/pytest_pg.sh`）是**唯一**入口：`pg` marker 的用例平时被
+`pytest.skip` 静默跳过 ⇒ 绿灯**证明不了**它们跑过 ⇒ **不得**在别处教
+「也可以直接 `DATABASE_URL=... pytest`」。
+
 # 前端 UI 规范
 
 前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。

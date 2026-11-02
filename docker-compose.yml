@@ -15,6 +15,29 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  postgres-pgtest:
+    # ⚠️ **独立实例**（不是复用开发库那个 postgres）：PG 车道跑的是
+    # 迁移 / 降级环 / 并发用例 ⇒ 绝不能污染开发数据（CLAUDE.md「漂移盲区」）。
+    # 独立 database（pcs_pgtest）防「开发时 alembic upgrade head 误把
+    # 测试数据升了」。裁决 4 修正 2 明确要求独立实例 + 独立 database。
+    profiles: ["pg"]
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pcs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pcs_dev}
+      POSTGRES_DB: pcs_pgtest
+    ports: ["5433:5432"]
+    # ⚠️ **必须挂在 `/var/lib/postgresql`**（不是 `/var/lib/postgresql/data`）：
+    #    PG 18 的官方镜像把 PGDATA 设为 `/var/lib/postgresql/18/docker`，
+    #    且启动时**拒绝**发现 `/var/lib/postgresql/data` 里有数据 ⇒ 挂在
+    #    data 上会直接 Exited(1)（实测 2026-11-02）。
+    #    见 https://github.com/docker-library/postgres/pull/1259
+    volumes: [pgtestdata:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pcs -d pcs_pgtest"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
@@ -95,3 +118,4 @@ volumes:
   pgdata:
   ldap-seed:
   redisdata:
+  pgtestdata:

@@ -95,6 +95,7 @@ addopts = "-m 'not visual'"
 markers = [
     "slow: 慢速验收用例（SPEC 指标类，如 P9A-OBS-004 的 p99）；本地全量跑会执行。",
     "visual: 像素级渲染验证，需 poppler-utils(pdftoppm)。CI 用 `pytest -m visual` 单独跑。",
+    "pg: PG 专属用例（需真 PostgreSQL）。只能经 scripts/pytest_pg.sh 跑 —— 平时被 skipif 静默跳过。",
 ]
 
 # P4-TASK0 架构层依赖约束（ADR-0031 残余）。

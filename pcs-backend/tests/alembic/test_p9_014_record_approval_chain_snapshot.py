@@ -28,6 +28,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 MIGRATION = (
     Path(__file__).resolve().parents[2]
     / "alembic"
@@ -150,6 +152,7 @@ def _pg_url() -> str | None:
     return url if url and url.startswith("postgres") else None
 
 
+@pytest.mark.pg
 def test_p9_014_column_is_jsonb_and_nullable_on_every_record_table():
     """在**隔离 schema** 上从零 `alembic upgrade head` ⇒ 20 张表都有
     `approval_chain_snapshot`，且类型是 **jsonb**、**可空**。
@@ -160,8 +163,11 @@ def test_p9_014_column_is_jsonb_and_nullable_on_every_record_table():
     `IS NULL` 回退（`records_actions._legacy_chain_snapshot` 从审计流水
     反推提交人）。
 
-    无 PG ⇒ skip。**本仓没有任何自动化作业跑它**（CI 的 api-drift job 只跑
-    `alembic upgrade head`，不跑后端 pytest）⇒ 要验就在本地手动跑这个文件。
+    无 PG ⇒ skip。⚠️ 引擎级验证**必须**在发布前经
+    `scripts/pytest_pg.sh` 手动跑（唯一入口）。
+    CI **不**跑 pytest —— `check-api-drift` job 只跑 `alembic upgrade head` 与
+    OpenAPI 导出；见 `CLAUDE.md` §「发布前检查（必做）」。
+    ⇒ 平时（含 CI）这里永远 skip ⇒ 绿灯**证明不了**它跑过。
     """
     import os
     import subprocess
@@ -174,8 +180,7 @@ def test_p9_014_column_is_jsonb_and_nullable_on_every_record_table():
     if url is None:
         pytest.skip(
             "无 PostgreSQL URL（DATABASE_URL / .env）—— "
-            "本仓无自动化 PG 测试通道（CI api-drift job 不跑后端 pytest），"
-            "需本地有 PG 时手动跑本文件"
+            "引擎级验证须经 scripts/pytest_pg.sh 跑（唯一入口）"
         )
 
     schema = f"iso_p9_014_{uuid.uuid4().hex[:8]}"
@@ -275,6 +280,7 @@ asyncio.run(main())
     )
 
 
+@pytest.mark.pg
 def test_p9_014_downgrade_drops_the_column():
     """降级环：`head → p9_013 → head` ⇒ 列被删掉、再被加回来。
 

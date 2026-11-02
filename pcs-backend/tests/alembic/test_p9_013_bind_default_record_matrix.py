@@ -10,13 +10,11 @@
 
 - `scripts/check_migration_idempotency.py` + `alembic check`（每库各一次，
   退出码 **255** = 真有漂移）—— 这是**部署前**的人工守门；
-- ⚠️ **CI 的 `check-api-drift` job 覆盖不到本文件**：那个 job 的步骤是
-  `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` /
-  `check_migration_idempotency.py` / 可视化渲染器测试 / 前端 typecheck ——
-  **它一条后端 pytest 都不跑** ⇒ 本文件里那两个引擎级测试在 CI 上**静默
-  skip**（无 PG URL 时 `pytest.skip`）⇒ 绿灯**证明不了**它们跑过。
-  ⇒ 本文件必须在**有本地 PostgreSQL** 时手动跑（本仓无自动化 PG 测试通道，
-  该债已登记为 TODO-099）。
+- ⚠️ **引擎级验证**（本文件那两个 `@pytest.mark.pg` 用例）**必须**在发布前
+  经 `scripts/pytest_pg.sh` 手动跑（唯一入口）。
+  CI **不**跑 pytest —— `check-api-drift` job 只跑 `alembic upgrade head` 与
+  OpenAPI 导出；见 `CLAUDE.md` §「发布前检查（必做）」。
+  ⇒ 平时跑 `pytest` 时这两个用例**静默 skip** ⇒ 绿灯**证明不了**它们跑过。
 
 ## 最要紧的一条：迁移里的矩阵定义 ≡ 服务常量
 
@@ -39,6 +37,8 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+
+import pytest
 
 from app.services.signature_matrix_service import SignatureMatrixService
 
@@ -131,6 +131,7 @@ def _pg_url() -> str | None:
     return url if url and url.startswith("postgres") else None
 
 
+@pytest.mark.pg
 def test_p9_013_runs_on_fresh_postgres_schema():
     """p9_013 的 SQL（`gen_random_uuid()` / `::jsonb`）在 SQLite 上跑不了 ⇒
     单测从未**执行**过它 —— 首次执行留给生产是不可接受的（委员会追问 2）。
@@ -140,24 +141,22 @@ def test_p9_013_runs_on_fresh_postgres_schema():
     1. 全链升级到 head 不炸；
     2. p9_013 的 ①号 INSERT 真的插出了 `DEFAULT_RECORD_3_LEVEL`（ACTIVE、3 步）。
 
-    无 PG ⇒ **skip**。⚠️ **本仓没有任何自动化作业跑它**：CI 的
-    `check-api-drift` job 只跑 `alembic upgrade head` / OpenAPI 导出与漂移
-    检查 / 迁移幂等脚本 / 可视化渲染器测试 / 前端 typecheck，**一条后端
-    pytest 都不跑** ⇒ 这里在 CI 上永远 skip ⇒ 绿灯**证明不了**它跑过。
-    ⇒ 需本地有 PostgreSQL 时手动跑本文件（该债已登记为 TODO-099）。
+    无 PG ⇒ **skip**。⚠️ 引擎级验证**必须**在发布前经
+    `scripts/pytest_pg.sh` 手动跑（唯一入口）。
+    CI **不**跑 pytest —— `check-api-drift` job 只跑 `alembic upgrade head` 与
+    OpenAPI 导出；见 `CLAUDE.md` §「发布前检查（必做）」。
+    ⇒ 平时（含 CI）这里永远 skip ⇒ 绿灯**证明不了**它跑过。
     """
     import os
     import subprocess
     import sys
     import uuid
 
-    import pytest
-
     url = _pg_url()
     if url is None:
         pytest.skip(
-            "无 PostgreSQL URL（DATABASE_URL / .env）——"
-            "该验证由 CI fresh-PG api-drift job 承担"
+            "无 PostgreSQL URL（DATABASE_URL / .env）—— "
+            "引擎级验证须经 scripts/pytest_pg.sh 跑（唯一入口）"
         )
 
     schema = f"iso_p9_013_{uuid.uuid4().hex[:8]}"
@@ -265,6 +264,7 @@ asyncio.run(main())
     )
 
 
+@pytest.mark.pg
 def test_p9_013_p9_012_downgrade_upgrade_roundtrip():
     """⚠️ 评审 B-5：两条新迁移的 `downgrade` 从未在任何引擎上执行过。
 
@@ -287,7 +287,9 @@ def test_p9_013_p9_012_downgrade_upgrade_roundtrip():
 
     url = _pg_url()
     if url is None:
-        pytest.skip("无 PostgreSQL URL —— 该验证由 CI fresh-PG job 承担")
+        pytest.skip(
+            "无 PostgreSQL URL —— 引擎级验证须经 scripts/pytest_pg.sh 跑（唯一入口）"
+        )
 
     schema = f"iso_rt_{uuid.uuid4().hex[:8]}"
     root = Path(__file__).resolve().parents[2]
