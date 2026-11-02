@@ -528,6 +528,20 @@ async def _transition_endpoint(
     }
 
 
+def _composition_mole_fraction_total(stream: Stream) -> float | None:
+    """物流的组成摩尔分率合计；**无组成**（`None`）返回 None。
+
+    ⚠️ `composition_json` 是 `{CAS 号: 摩尔分率}` 字典，值域 **0~1 的小数**
+    （**不是**百分数）—— 实测真库的组成合计恒为 `1.0000`，且
+    `flash_persist._extract_composition` 直接把 `comp[c]` 当摩尔分率喂闪蒸。
+    ⇒ 判定用 `|合计 − 1| ≤ 0.005`（≡ SPEC §7.7.2 的「100±0.5%」）。
+    """
+    composition = stream.composition_json
+    if composition is None:
+        return None
+    return sum(float(v) for v in composition.values())
+
+
 @router.post("/streams/{stream_id}/submit")
 async def submit_stream(
     stream_id: uuid.UUID,
@@ -538,8 +552,31 @@ async def submit_stream(
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     （具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）
+
+    ⚠️ **组成合计门禁**（SPEC §7.7.2「100±0.5%」）—— 送审**前**校验，
+    不合法不放进校对（门禁前置，SPEC §5.1）：校对人看到的组成必须是合法的。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+
+    # ⚠️ 组成合计门禁 —— 在 `_transition_endpoint`（拿行锁 + 转移）**之前**：
+    #    先校验再转移 ⇒ 非法组成**不会**留下「已进校对」的半成品。
+    stream = await db.get(Stream, stream_id)
+    if stream is not None:
+        composition = stream.composition_json
+        # `None` = 无组成（纯物质）⇒ **跳过**；`{}` = 未填写 ⇒ **拒绝**。
+        if composition is not None:
+            total = _composition_mole_fraction_total(stream)
+            # 空对象 ⇒ total = 0.0 ⇒ 落在范围外 ⇒ 拒绝（与「未填写」语义一致）。
+            if total is None or abs(total - 1.0) > 0.005:
+                raise CorePcsError(
+                    code="SIM_STREAM_COMPOSITION_OUT_OF_RANGE",
+                    message=(
+                        f"物流 {stream_id} 的组成摩尔分率合计 {total * 100:.2f}%，"
+                        "不在 100±0.5% 内 ⇒ 不能提交校对"
+                    ),
+                    status=422,
+                )
+
     return await _transition_endpoint(
         stream_id, StateTransition.SUBMIT_FOR_CHECK, user, db, reason=None
     )
