@@ -62,11 +62,15 @@ def designer_headers() -> dict:
 
 
 @contextlib.asynccontextmanager
-async def _guard_client(db_engine):
+async def _guard_client(db_engine, raise_server_exceptions: bool = True):
     """独立 client —— **不**套 conftest 的 `check_user_project_access` bypass mock。
 
     默认 `client` fixture 把项目守卫 mock 成永远 True，在它上面测「越权被拒」
     是空断言：守卫根本没跑，测的只是一条不存在的路径。
+
+    ⚠️ `raise_server_exceptions=False`：httpx ASGITransport 默认 **True**
+    ⇒ 未捕获异常直接冒泡成测试失败，**看不到响应信封** ⇒ 断「全局兜底 500
+    INTERNAL_ERROR」时必须显式关掉它。
     """
     from fastapi import FastAPI
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -86,7 +90,8 @@ async def _guard_client(db_engine):
     app.include_router(api_router)
     app.dependency_overrides[get_db] = _override_get_db
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app, raise_app_exceptions=raise_server_exceptions),
+        base_url="http://test",
     ) as ac:
         yield ac
 
@@ -494,3 +499,54 @@ async def test_create_project_duplicate_no_is_409_not_500(
 
     assert r2.status_code == 409, r2.text
     assert r2.json()["code"] == "PROJECT_NO_CONFLICT"
+
+
+async def test_create_project_other_integrity_error_is_not_409(
+    db_engine, db_session, admin_headers, workspace
+):
+    """⚠️ **别的**约束违约 ⇒ 不能说成「项目编号已存在」（TODO-102）。
+
+    此前端点把**任何** `IntegrityError` 都报成 409「项目编号已存在」
+    ⇒ 用户照提示去换编号，换了还是错（真相是另一个约束违约）。
+
+    ## 为什么用 SQLite 触发器而不是「传个坏值」
+
+    ⚠️ 计划建议的「`project_name=None` 触发 NOT NULL」**测不到这条** ——
+    `project_name` 在 `ProjectCreate`（Pydantic）上就是必填 ⇒ 请求会先被
+    **422** 拦掉（`min_length=1`），**根本走不到 DB** ⇒ 断言的是另一条路径。
+
+    ⇒ 改用**真触发器**：在 `projects` 上挂一个 BEFORE INSERT 触发器，
+    让**另一个**约束违约时抛 `IntegrityError`（SQLite 的 `RAISE(ABORT, …)`），
+    消息里**不含** `project_no` ⇒ 端点必须**重新抛出**（⇒ 全局兜底 500），
+    而不是映射成 409。
+
+    ## 为什么用 `raise_server_exceptions=False` 的 client
+
+    httpx ASGITransport 默认 `raise_server_exceptions=True` ⇒ 未捕获异常直接
+    冒泡成测试失败，看不到**响应信封** ⇒ 这里用 False 断真实 500 信封。
+    """
+    from sqlalchemy import text
+
+    await db_session.execute(
+        text(
+            "CREATE TRIGGER t_projects_other_violation BEFORE INSERT ON projects "
+            "WHEN NEW.project_no = 'P-TRIGGER-FAIL' "
+            "BEGIN SELECT RAISE(ABORT, 'CHECK constraint failed: some_other_rule'); END"
+        )
+    )
+    await db_session.commit()
+
+    async with _guard_client(db_engine, raise_server_exceptions=False) as ac:
+        resp = await ac.post(
+            "/api/v1/projects",
+            headers=admin_headers,
+            json=_payload(workspace.workspace_id, project_no="P-TRIGGER-FAIL"),
+        )
+
+    assert resp.status_code != 409, (
+        f"别的约束违约被说成了「项目编号已存在」：{resp.text}"
+    )
+    assert resp.status_code == 500, resp.text
+    body = resp.json()
+    assert body["code"] == "INTERNAL_ERROR", body
+    assert body["code"] != "PROJECT_NO_CONFLICT", body

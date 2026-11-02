@@ -44,6 +44,38 @@ from app.services.util.utility_energy_summary_service import (
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
+def _is_project_no_unique_violation(exc: IntegrityError) -> bool:
+    """这条 `IntegrityError` 是不是 `project_no` 的**唯一约束**冲突？（TODO-102）
+
+    ⚠️ **只**对 `project_no` 唯一约束说 True —— 别的约束违约（NOT NULL /
+    FK / CHECK）必须让调用方重新抛出（⇒ 500 + 服务端留详情），
+    否则用户会被「项目编号已存在」这条**假提示**引到错误的方向
+    （照提示换编号，换了还是错）。
+
+    ## 两条判据（跨方言）
+
+    1. **PG**：`exc.orig.diag.constraint_name` = `uq_projects_project_no`
+       （本仓 `NAMING_CONVENTION` 的 `uq_%(table_name)s_%(column_0_name)s`）
+       ⇒ 精确匹配约束名。
+    2. **SQLite**：没有 `diag` ⇒ 消息形如
+       `UNIQUE constraint failed: projects.project_no`
+       ⇒ 匹配 `UNIQUE` + `project_no`。
+
+    ⚠️ 两边都**必须**判「唯一」这一层 —— 只判「消息里有没有 project_no」
+    会把 `projects.project_name` 的 NOT NULL 违约也算进去（子串）⇒
+    又变回「另一种错说成编号重复」。
+    """
+    orig = getattr(exc, "orig", None)
+    diag = getattr(orig, "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    if constraint_name:
+        # PG：约束名精确匹配（本仓命名约定 ⇒ uq_projects_project_no）
+        return constraint_name == "uq_projects_project_no"
+    # SQLite（及任何没有 diag 的方言）：消息里必须**同时**有 UNIQUE 与 project_no
+    text = str(orig if orig is not None else exc)
+    return "UNIQUE" in text.upper() and "project_no" in text
+
+
 def _to_out(record: Project) -> ProjectOut:
     return ProjectOut(
         project_id=record.project_id,
@@ -116,15 +148,22 @@ async def create_project(
     db.add(record)
     try:
         await db.flush()
-    except IntegrityError:
-        # ⚠️ `project_no` 全局唯一（评审 #5）⇒ 重复编号是**可操作的冲突**，
-        #    不是服务器坏了 —— 表单超时重提 / 手输已有编号都会走到这。
+    except IntegrityError as exc:
+        # ⚠️ **只有** `project_no` 唯一约束冲突才是 409（TODO-102）；
+        #    其它约束违约（NOT NULL / FK / CHECK）重新抛 ⇒ 500 + 服务端留详情，
+        #    不把「另一种错」说成「编号重复」。
+        #    —— 此前把**任何** IntegrityError 都报成 409 ⇒ 用户照提示换编号，
+        #    换了还是错（真相是另一个约束违约）。
+        if not _is_project_no_unique_violation(exc):
+            raise
+        # `project_no` 全局唯一（评审 #5）⇒ 重复编号是**可操作的冲突**，
+        # 不是服务器坏了 —— 表单超时重提 / 手输已有编号都会走到这。
         await db.rollback()
         raise PcsError(
             code="PROJECT_NO_CONFLICT",
             message=f"项目编号 {payload.project_no} 已存在（全局唯一），请换一个",
             status=409,
-        )
+        ) from exc
     await SignatureMatrixService.ensure_default_record_matrix(
         db, project_id=record.project_id
     )
