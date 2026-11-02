@@ -2393,3 +2393,46 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 `SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK` 三条。
 
 **归属**：P9B-4 或独立技术债（**不要**靠放开 `/audit-logs` 解决）。
+
+## TODO-113: `GET /streams/{id}`（物流详情）**没有项目守卫** 🟡
+
+**现状**（2026-11-03 实测 · P9B-3 评审顺带发现 · **非本批引入**，`8b6d9ef` 已如此）：
+`GET /api/v1/streams/{stream_id}` 只做 `require_roles(user, "DESIGNER", …)`，
+**不校验该物流所属项目** ⇒ 任何 DESIGNER 持**任意 UUID**即可跨项目读物流详情。
+
+⚠️ 本批的物流详情页（`/sim/streams/:id`）**依赖这个端点** ⇒ 前端做的任何
+项目级过滤都挡不住后端放行。
+
+**建议**：按 `check_project_access_or_404`（`app/api/v1/_guard.py`）补项目守卫
+⇒ 跨项目访问返回 404（不泄露「存在但无权」）。
+
+**归属**：独立技术债（**不要**在 P9B-3b 里顺手改 —— 那是批量端点，不是权限面）。
+
+## TODO-114: `GET /lineage/{record_type}/{record_id}/graph` 对 `streams` **跳过访问校验** 🟡
+
+**现状**（2026-11-03 实测 · P9B-3 评审顺带发现 · **非本批引入**）：
+`app/api/v1/lineage.py::_guard_record_access` 里
+`if record_type != "PipingResult": return` ⇒ **`record_type='streams'` 完全跳过**
+访问校验。
+
+⚠️ 本批新增的「血缘」Tab 是**首次以 `record_type='streams'`** 调它 ⇒
+本批把这条既有缺口**暴露出来**（不是本批引入的，但本批是第一个消费者）。
+
+**建议**：把守卫按记录类型注册表扩到 `streams`（及其它记录型表）⇒
+与 TODO-113 一并收口。
+
+**归属**：独立技术债（与 TODO-113 同批做更省事）。
+
+## TODO-115: 多数物流在 `data_lineage` 里**没有行** ⇒ 血缘 Tab 显示 404 报错 🟢
+
+**现状**（2026-11-03 实测 · P9B-3 评审顺带发现）：
+`GET /lineage/streams/{id}/graph` 在该物流没有血缘行时返 **404
+`no lineage for record`** ⇒ 前端血缘 Tab 显示的是**错误提示**，而不是
+「（无血缘记录）」。
+
+⚠️ dev mock 恒返回 root ⇒ **浏览器 QA 查不出来**（本批 QA 就是这么漏掉的）。
+
+**建议**：后端把「无血缘」当**空图**（200 + `{root: null, upstream: [], downstream: []}`）
+⇒ 前端已有的「（无血缘记录）」分支才会走到。
+
+**归属**：下一批（血缘 Tab 收口时一并做）。

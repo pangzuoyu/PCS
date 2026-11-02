@@ -9,7 +9,7 @@ budget_tokens: 1200
 
 ---
 
-## ✅ Done（第 24 轮：P9B-3 整批 · `b127495..a220cec` 14 commit）
+## ✅ Done（第 24 轮：P9B-3 整批 · `8b6d9ef..100ab91` 16 commit）
 
 计划 `docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md`，用 **superpowers:executing-plans**（inline）
 执行，ledger 在 `.superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/progress.md`（含全部 `Ruling:`）。
@@ -31,10 +31,16 @@ budget_tokens: 1200
 - **T7 手动创建向导**（`30f4dfb`）：`/sim/streams/new`，7 步，校验红项 ⇒ 写入禁用，**估算失败不阻塞**提交校对。
 - **T8 详情 7 Tab**（`a220cec`）：基本信息/组成/物性/状态点/设备连接/血缘/**校核记录**（前端按
   `detail_json.transition` 过滤）。⚠️ 校核记录端点**限 SYSTEM_ADMIN** ⇒ 非管理员见「无权查看」（TODO-112）。
-- **T9 收口**：QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3.md`（Health 97/100，
-  唯一 HIGH 是 antd `rowKey` index 弃用 ⇒ 批内已修并复验）；契约 baseline 已滚（G-08 4/4）。
+- **T9 收口**（`614f696`）：QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3.md`
+  （Health 97/100；唯一 HIGH 是 antd `rowKey` index 弃用 ⇒ 批内已修并复验）；契约 baseline 已滚（G-08 4/4）。
+- **整批评审 + 修复批**（`100ab91`）：fresh context · opus ⇒ **2 Critical + 4 Important + 8 Minor** ⇒
+  Critical/Important **全修**：**C-1** 加锁读被 identity map 旧副本遮蔽（**T3 引入的回归** ⇒ 并发提交
+  校对两次都成功）⇒ 加锁 select 加 `populate_existing=True`；**C-2** 详情页未知 `sign_status` 整页崩
+  （计划 Review Focus #2 的另一半没做）⇒ 共享 `StateBadgeBoundary`；I-1 写路径 ACL 无测试 / I-2 dev
+  mock 的批量 PUT 不原子 / I-3 PG 车道第三条闸无测试 / I-4 后端 `?phase=` `?sign_status=` 无测试
+  ⇒ 全部补上（**每条都做了变异实测：能红**）。8 条 Minor 记进 ledger 延后。
 
-**批末实测**：后端 5433 passed / PG 车道 4 passed / 前端 1004 passed（110 files）/ typecheck+lint clean /
+**批末实测**：后端 5439 passed / PG 车道 4 passed / 前端 1008 passed（111 files）/ typecheck+lint clean /
 裸载荷 71（未涨）/ `pcs`+`pcs_test` 均 `p9_015` + `alembic check` exit 0（独立进程 + 直查库）/ 浏览器 0 error 0×404。
 
 ---
@@ -49,7 +55,9 @@ budget_tokens: 1200
    ⚠️ 最关键的测试：**并发提交同一条 stream ⇒ 一胜一拒**（行锁）⇒ 方言级 SQL 断言 + 接线断言。
 2. **下一轮 ce-code-review**：scope **必须**含 TODO-100 点名的三处未深审部分
    （`test_deliverable_issue.py` + deliverables/record_edits API 改动 + 其余 diff）。
-3. 开放 TODO：**091-112**（本批新登记 104~112；099/101/102/103 已关闭）；57 手写类型长期债；ADR-0050「先不做」。
+3. 开放 TODO：**091-115**（本批新登记 104~115；099/101/102/103 已关闭）；57 手写类型长期债；ADR-0050「先不做」。
+   ⚠️ **TODO-113/114** 是**既有**的越权缺口（`GET /streams/{id}` 无项目守卫 · `lineage/graph`
+   对 `record_type='streams'` 跳过校验）—— 本批详情页与血缘 Tab 依赖这两条端点。
 4. **未跟踪的 6 个遗留文件**（`docs/superpowers/plans/2026-09-30-*.md` ×5 +
    `spec/PCS-SPEC-P10 V1.3.1….md`）—— 非本会话产出，处置由用户定。
 
