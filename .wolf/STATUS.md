@@ -27,12 +27,14 @@ actionable（1 P1 + 12 P2 + 4 P3）。委员会 3 条补充裁决 + 1 条 fix or
 | `ef3f438` | **#14** 未知 `workflow_type` 降级（不再整页崩）· **#13** 列表信封契约派生 · **#2** 403 docblock 归位 · **#12** `record-actions-error` testid 去重（含 `destroyOnHidden`） |
 | `780b1ab` | **#4** SPEC V2.5 登记 · **#10** compact ORM 补 16 行 + 表头标注快照性质 · **#15** 补 `engine-level-migration-tests-skipif-pg` 条目 · R16 第三课（`information_schema` 不受 search_path 约束）· 回滚清单补 p9_014 行 + 多库独立进程规则 |
 | `c7fb6c9` | TODOS **100-103** 登记（下一轮 review 必审范围 / StateBadge 交付物词表 / 409 映射过宽 / compact ORM 快照）· TODO-099 补并发覆盖说明 |
+| `c962758` | 归档报告补「委员会裁决」errata（**不改写正文** —— 评审产物是时点快照） |
+| `9f08a0d` | ⚠️ **自审发现**：存量行反推提交人取了**第一条**送审审计 ⇒ 「送审→驳回→再送审」的记录会用上一轮的人当提交人 ⇒ 本轮提交人可批自己的记录 ⇒ 改取**最后**一条 + 变异实测 |
 
-**验收**：后端 **5404 passed / 77 skipped / 1 xfailed / 0 failed**（基线 5390 ⇒ +14）·
+**验收**：后端 **5405 passed / 77 skipped / 1 xfailed / 0 failed**（基线 5390 ⇒ +15）·
 前端 typecheck/lint clean + **989 tests 全过**（+2）· G-08 契约门禁 4 阶段全过（baseline 已滚动）·
 **三库 `p9_014` 且 `alembic check` exit 0**（**每库独立进程** + 直查库确认，非推断）·
 浏览器 QA 0C/0H/0M（7 条路由 + 建项目 FORMAL 下拉实测 + 签署进度展开实测）·
-**4 处变异实测全部按预期变红** · buglog +9（2111-2119）· cerebrum +4 条 Do-Not-Repeat。
+**5 处变异实测全部按预期变红** · buglog +10（2111-2120）· cerebrum +5 条 Do-Not-Repeat。
 
 **QA 报告**：`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-02-p9b2f.md`
 （**certified `77e3293..c7fb6c9`** ⇒ 顺带覆盖上一份报告漏掉的 3 个 commit）。
@@ -81,3 +83,5 @@ DATABASE_URL 验多库 = 没跑」）进 **CLAUDE.md + cerebrum + 两份部署�
 - `finally` 里的 assert 会**顶掉**原始异常 ⇒ 清理判定放 try/finally **之后**。
 - 方言级断言必须**抽生产代码出来**，否则测试只能照抄 ⇒ 删了锁照样绿。
 - 评审的「全绿」结论：**先变异实测再转述**（推断 ≠ 实测）。
+- 从审计流水反推「当前轮次的执行者」⇒ 取**最后**一条（构造多轮测试 +
+  时间戳显式设值，别依赖时钟分辨率）。
