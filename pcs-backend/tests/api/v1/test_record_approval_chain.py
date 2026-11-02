@@ -698,3 +698,87 @@ async def test_legacy_row_without_audit_row_is_loud_not_silent(
 
     assert resp.status_code == 409, resp.text
     assert resp.json()["code"] == "APPROVAL_SUBMITTER_UNKNOWN", resp.text
+
+
+async def test_legacy_row_uses_the_LATEST_submitter_not_the_first(
+    client, auth, db_session, project_id, workspace
+):
+    """⚠️「送审 → 驳回 → 再送审」⇒ 流水里有**两条** SUBMIT_FOR_CHECK ⇒
+    **当前这一轮**的提交人是**最后**那条。
+
+    取错（拿上一轮的人）⇒ 本轮提交人就能批自己的记录 ⇒ 正是 #9 要堵的
+    绕过 —— 且这在**存量行**（无快照）上才会发生（有快照的行走的是 submit
+    时写入的 `submitted_by`，天然是当前轮的）。
+
+    ⚠️ 时间戳：PG 侧 `occurred_at` 是事务时间戳（微秒）⇒ 两次请求必然不同；
+    SQLite 侧 `CURRENT_TIMESTAMP` 只到**秒** ⇒ 本例**显式**把两条送审审计行
+    的 `occurred_at` 设成不同的值 ⇒ 测试确定性不依赖时钟分辨率。
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update
+
+    from app.models.system import AuditLog
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    # ⚠️ **1 步**链（CHECKER）—— 这样「提交人」才能既**不在**链里（否则
+    #    submit 时就被自审拦了）、又**有**批注权（`PASS_CHECK` 的角色集含
+    #    REVIEWER）⇒ 三个角色（dan / reviewer / checker）可区分。
+    await _bind_record_matrix(
+        db_session,
+        project_id=project_id,
+        steps=[{"step_order": 1, "sign_role": "CHECKER"}],
+    )
+
+    # 第一轮：dan（SYSTEM_ADMIN，链外）送审
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert resp.status_code == 200, resp.text
+    await db_session.execute(
+        update(AuditLog)
+        .where(AuditLog.resource_id == str(rec.pipe_id))
+        .values(occurred_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+    )
+    await db_session.commit()
+
+    # 驳回 ⇒ 回到 CHECK_REJECTED（CHECKER 是这一步该批的角色）
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "REJECT"}
+    )
+    assert resp.status_code == 200, resp.text
+
+    # 第二轮：**approver**（链外、且送审/批注两个角色集都含他）送审
+    # ⇒ 当前轮次的提交人是他
+    # ⚠️ 不能用 REVIEWER：`TRANSITION_ROLES[SUBMIT_FOR_CHECK]` **不含**
+    #    REVIEWER ⇒ 他连送审都做不了。
+    resp = await client.post(_url(rec, "submit-approval"), headers=_APPROVER, json={})
+    assert resp.status_code == 200, resp.text
+    await db_session.execute(
+        update(AuditLog)
+        .where(AuditLog.resource_id == str(rec.pipe_id))
+        .values(occurred_at=datetime(2026, 1, 2, tzinfo=timezone.utc))
+    )
+    await db_session.commit()
+
+    # 抹掉快照 ⇒ 存量行形状
+    await db_session.execute(
+        update(PipingResult)
+        .where(PipingResult.pipe_id == rec.pipe_id)
+        .values(approval_chain_snapshot=None)
+    )
+    await db_session.commit()
+
+    # ⚠️ **本轮**的提交人是 reviewer ⇒ 他批自己的记录 ⇒ 403
+    #    `APPROVAL_SELF_REVIEW_FORBIDDEN`。
+    #    ⚠️ 若实现取了**第一条**（dan）⇒ reviewer 不会被自审拦 ⇒ 落到角色闸
+    #    ⇒ 返回的是 `APPROVAL_ROLE_MISMATCH` ⇒ **码不同** ⇒ 本例抓得住。
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_APPROVER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "APPROVAL_SELF_REVIEW_FORBIDDEN", resp.text
+
+    # CHECKER 批 ⇒ 放行（证明取到的确实是 approver，不是上一轮的 dan）
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 200, resp.text

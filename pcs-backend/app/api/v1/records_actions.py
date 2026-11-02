@@ -427,26 +427,39 @@ async def _submitter_from_audit(
     ⇒ 从 `RECORD_TRANSITION` 审计行把提交人捞回来 —— 状态机每次转移都写
     一行（`detail.transition` / `detail.role` / `user_id`），而进入
     `IN_APPROVAL` 的转移**只有** `SUBMIT_FOR_CHECK` 一个
-    （`state_machine.ALLOWED_TRANSITIONS`）⇒ 审计流水里有且只有一条这样的行。
+    （`state_machine.ALLOWED_TRANSITIONS`）。
+
+    ⚠️ **取最后一条**，不是第一条：一条记录可以被「送审 → 驳回 → 再送审」
+    （`SUBMIT_FOR_CHECK` → `REJECT_CHECK` → `SUBMIT_FOR_CHECK`）⇒ 流水里
+    有**多条** SUBMIT_FOR_CHECK ⇒ **当前这一轮**的提交人是**最后**那条。
+    取错一条 ⇒ 用上一轮的人当提交人 ⇒ **本轮提交人就能批自己的记录**
+    （正是本条要堵的绕过）。
 
     ⚠️ `detail_json` 是 JSONB，SQLite 单测没有 `->>` 运算符 ⇒ 过渡到
     Python 侧筛 `transition`（按 `resource_id` 收窄，量级个位数）。
+    ⚠️ 排序用 `occurred_at`（PG 侧 = 事务时间戳，微秒精度 ⇒ 两次不同的请求
+    必然不同 ⇒ 无并列）；SQLite 侧 `CURRENT_TIMESTAMP` 只到**秒** ⇒ 并列时
+    按返回顺序取最后一条（等价于插入顺序）。
     """
     table = record.__mapper__.local_table.name
     rows = (
         await db.execute(
-            select(AuditLog.user_id, AuditLog.detail_json).where(
+            select(AuditLog.user_id, AuditLog.detail_json)
+            .where(
                 AuditLog.action == AuditAction.RECORD_TRANSITION.value,
                 AuditLog.resource_type == table,
                 AuditLog.resource_id == str(record_id),
             )
+            .order_by(AuditLog.occurred_at.asc())
         )
     ).all()
+    submitter: tuple[uuid.UUID | None, str | None] = (None, None)
     for user_id, detail in rows:
         detail = detail or {}
         if detail.get("transition") == StateTransition.SUBMIT_FOR_CHECK.value:
-            return user_id, detail.get("role")
-    return None, None
+            # ⚠️ **不 break** —— 要的是**最后**一条（见 docstring）
+            submitter = (user_id, detail.get("role"))
+    return submitter
 
 
 async def _legacy_chain_snapshot(
