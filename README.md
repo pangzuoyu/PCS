@@ -37,7 +37,11 @@ PCS/
 ├── docs/
 │   ├── adr/                  # 架构决策记录
 │   ├── PCS-PLAN-*.md         # 实施计划
-│   └── PCS-P*-CLOSE-REPORT.md
+│   ├── PCS-P*-CLOSE-REPORT.md
+│   ├── ce-code-review/       # 代码评审产物归档（每轮一个目录：report.md + 证据链）
+│   └── solutions/            # 已记录的问题解法（按 problem_type 分目录）
+├── TODOS.md                  # 延后工作清单（编号是追溯索引）
+├── .wolf/                    # OpenWolf 状态（STATUS / cerebrum / buglog）
 ├── spec/                     # 需求规格 / 数据字典
 ├── sample/                   # PRO/II 工程实例（不入 git）
 ├── infra/                    # 部署相关
@@ -99,22 +103,27 @@ npm run dev                       # 默认 http://localhost:5173
 ### 4. 测试
 
 ```bash
-# 后端（pcs_test 库需先对齐迁移，见 CLAUDE.md）
+# 后端（⚠️ 跑之前先起 Redis：ws / broadcaster 系列失败 = 环境未起，不是回归）
 cd pcs-backend
-DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
-    uv run alembic upgrade head
-DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
-    uv run pytest -q                # baseline 5157 passed / 77 skipped
-uv run ruff check .               # 0 错为目标
+docker compose up -d redis
+uv run pytest -q                    # baseline 5405 passed / 77 skipped / 1 xfailed
+uv run ruff check .                 # 0 错为目标
 
 # 前端（pcs-frontend/）
-npx vitest run                     # baseline 725 passed / 75 files
-npx tsc --noEmit                   # 0 错为目标
-npx eslint src/ tests/            # 0 错为目标
+npm run test                        # baseline 989 tests / 107 files
+npm run typecheck                   # = tsc --noEmit，0 错为目标
+npm run lint                        # eslint . --max-warnings 0，0 错为目标
 
-# OpenAPI 契约门禁（G-08，每批末必跑）
+# OpenAPI 契约门禁（G-08，每批末必跑；--check-baseline 需先滚 baseline）
 bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 ```
+
+⚠️ **要连 `pcs_test` 跑迁移/测试时，别把口令写在命令行上**（会被权限分类器拦，
+且口令会进 shell 历史）⇒ 用 `CLAUDE.md`「测试前检查」里的**进程内派生 URL**
+配方（`dotenv_values('.env')` 读口令 ⇒ 只改 `os.environ`）。
+⚠️ **验多个库 ⇒ 每库一个独立进程**（alembic 的 `settings` 是 pydantic 缓存实例 ⇒
+同进程第二次改 `DATABASE_URL` 不生效 ⇒ 两遍都打印同一个 `(head)` ⇒ 输出无法
+区分）⇒ 且**必须直查库**（`alembic_version` + 目标列存在性），不能只信命令输出。
 
 ## 当前进度
 
@@ -146,21 +155,19 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 | **P6-9-PICKUP-4** | **ce-code-review P5+P6 残留 debt 闭环（4 commits active）**：9 pre-existing pytest failures 修复（psychro schema drift + 4 类 DB drift，`f9f1360`）+ 5 ruff errors 清零（calibrate_behr_coefficients.py rebase）+ 21 LOW/INFO 项 4 维分类（5 PROCo + 8 HYG + 6 DOC + 2 REF，`15b6edd`/`6271db7`）+ 工艺室 2026-11-15 交付对账预留位（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1/2 等 5 项状态字段 + 前置条件，`b15512a`）；3515 passed / ruff 0 errors / vitest 548 持平 / G-08 drift=0；下游推荐 P6-9-PICKUP-5（工艺对账 + 重构 ~2.0 天）+ P6-9-PICKUP-6（HYG+DOC 14 项 ~1.0 天）；ce-code-review P5+P6 summary 详见 [`docs/P6-9-PICKUP-4.md`](./docs/P6-9-PICKUP-4.md) | **CLOSED 2026-09-30** |
 | **P8** | **报表生成 + REPORT_BUILDER（17 个端点）**：`/report/generate` + `/report/{id}/download\|hash\|status` + `/report/verify/{id}`（二维码验签）+ `/report/styles` 四操作（增 / 改 / 激活 / 修订）+ `/report-builder/{datasources,definitions}`（定义 CRUD + publish / obsolete + 异步 execute + 执行状态轮询）；前端 4 页（`ReportDefinitionListPage` / `ReportDefinitionEditorPage` / `ReportExecutePage` / `ReportStylePage`）+ ARQ 异步渲染 worker + 报告样式 5 态版本链 | **CLOSED 2026-10-13** |
 | **P9A** | **P9 后端 lane（四条 lane 全闭环 + Z 收口）**：**A 身份**（`users.token_version` + 停用即刻作废 + AD 同步 cron + `/admin/users` 三端点）· **B 交付物写面 + 观测层**（`issue` / `sign-step` / `customer-approval/proxy` + records 9 端点 + 批注 + `workflow_progress` 同步写与读 API）· **C 通知待办**（`notifications` 建表 + `NotificationChannel` 抽象 + WS 推送走 Redis pub/sub + ARQ 30 天清理 + 待办实时计算）· **D 编辑锁 + CIA**（Redis 锁三端点 + 降级放行 + 409 契约与编辑审计 + `cost_est` 补 `record_hash` + CIA 哈希判定分流）· **Z 收口**（OpenAPI 冻结至 `p9_008`：**247 paths / 348 schemas** / 0 删除；裸字段仍 71） | **CLOSED 2026-10-21** |
+| **P9B-1** | **结果记录页与编辑锁（前端）**：6 类结果记录页（从零建）+ 编辑锁 UI（取锁 / 60s 心跳 / 他人持锁只读化 / 降级横幅）+ 409 弹窗（按 `basis` 三值分流）+ PATCH 回传 `expected_hash` + CIA 确认动作；API 层类型化模块描述符 + 清掉 18 个漂移的手写类型；最终评审修掉 1 Critical + 5 Important（表单空白 / 哈希泄漏 / 锁泄漏 / 无宿主横幅 / 分页截断 / 未捕获 rejection） | **CLOSED 2026-10-21** |
+| **P9B-2** | **签署流程 + ADMIN 前端**：送审批准链从项目 `RECORD` 矩阵推导（**契约破坏性变更**：`submit-approval` 不再收 `approval_role` / `approval_depth`）+ 交付物级签署写面（签发 / 签署 / 代录）+ 记录操作栏（meta 状态机驱动 + 门禁前置）+ 交付物进度页接聚合端点 + 动作时间线 + ADMIN 用户管理页 + 审计日志筛选与导出 + 交付物工作流进度聚合端点 + 按项目守卫的编辑审计读端点；随后落 minor 批（B~F） | **CLOSED 2026-10-28** |
+| **P9B-2R** | **P9B-2 整批评审的修复批**：11 reviewer + 独立验证（6 confirmed / 2 rejected-as-pre-existing）⇒ 1 P1（审批链**提交时冻结快照** + 每步重断言提交人 + 写路径行锁 · 迁移 `p9_014` × 20 表）+ 建项目三守卫（FORMAL 422 / 重号 409 / 默认矩阵 savepoint 兜底）+ 审计分页决胜列 + `p9_013` 真跑引擎与降级环 + 前端修复组 + A-3 词表合一 + 8 项清理批 | **CLOSED 2026-10-31** |
+| **P9B-2F** | **follow-up 评审的修复批**：复审 8 reviewer + 独立验证（8/8 confirmed）⇒ 17 条 actionable 全修（1 P1 + 12 P2 + 4 P3）—— 行锁**可观测**（方言级 SQL 断言 + 接线断言 · 5 处变异实测）+ 存量行自审防护（从审计流水反推提交人 + 首次触达冻结）+ `sign_status` 词表进契约 + p9_014 表清单守卫 + SPEC V2.5 登记 + 未知 `workflow_type` 降级 + 列表信封契约派生；另批内自审发现并修掉「审计反推取错行」的自造缺陷（bug-2120）。pytest 5405 / vitest 989 / G-08 四阶段全过 / 三库 `p9_014`（每库独立进程 + 直查库）/ 浏览器 QA 0C-0H-0M | **CLOSED 2026-11-02** |
 
 ### ⏳ 待启动批次
 
-- **P9B-1（下一条）**：前端接 SPEC §6.21 / §6.7.1 —— 编辑锁 UI（取锁 / 60s 心跳 /
-  他人持锁只读化 / 降级横幅）、409 弹窗（按 `basis` 三值分流）、PATCH 回传
-  `expected_hash`、CIA 确认动作、**6 类结果记录页**（从零建）。计划
-  [`docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md`](./docs/PCS-PLAN-P9B-1-结果记录页与编辑锁.md)
-  已过 `/plan-eng-review` + 决策委员会复审，**T0~T7 七个任务可直接开工**。
-  ⚠️ 计划里最容易漏的两条：**基线分三档**（`record_hash` 空 ⇒ 退到
-  `expected_updated_at`；两档皆无 ⇒ 该行不可编辑）+ **基线时间戳原样透传**
-  （过 `new Date()` ⇒ 微秒丢失 ⇒ 每次假 409）。
-- **P9B-2 / P9B-3**：签署流程前端（操作栏 / 批注 / 状态时间线）· ADMIN 前端
-  （用户管理 / 审计日志）· 系统参数 · 物流手动创建向导 + 校对 UI
-  ⇒ 另两条欠账见 [`TODOS.md`](./TODOS.md) TODO-065（交付物进度聚合端点）/
-  TODO-066（按项目守卫的编辑审计读端点）
+- **P9B-3（下一条）**：系统参数前端 + 物流手动创建向导 + 校对 UI ——
+  SPEC §7.20 的「AI 开关 / 系统参数 / Prompt 模板 / 角色分配」几页仍未落地
+  （TODO-092 同面）。
+  ⚠️ P9B-1 / P9B-2 已闭环（见上表）⇒ **下一轮 ce-code-review 的 scope 须含
+  TODO-100 点名的三处未深审部分**（`test_deliverable_issue.py` + deliveries /
+  record_edits API 改动 + 该批 diff 的其余部分）。
 - **P6-7**（OPEN-P6-6A-6 后续）：glycol dehydration service 4 子模块扩展（reboiler / stripping / full column / lean glycol）+ T9 CONFIG 典型工况范围已就位
 - **OPEN-P6-6A-9.1~9.4**（P6-6B 工程团队接管）：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
 - **OPEN-P6-6A-10**（P6-6B 工程团队接管）：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
@@ -237,6 +244,13 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 - **观测层写入点锁在 service 层**（ADR-0047）：cron 驱动的状态变更也必须留下观测行
   ⇒ 写在 API 层会让 cron 驱动的变更在观测层**系统性隐形**（不报错、不告警）
 - **三处历史**：变更前快照 / 交付物版本绑定 / 审计日志（废除 xxx_History 快照流水表）
+- **批准链在提交时冻结**（P9B-2R / P9B-2F）：`submit-approval` 把当时的链
+  （矩阵 id + 角色序列 + **提交人身份**）冻进记录行 `approval_chain_snapshot`
+  ⇒ 中间步骤**只读快照**，中途重绑矩阵 / 矩阵被禁用**动不了**已提交记录的链；
+  **每一步**都重断言提交人 ⇒ 提交人批不了自己的记录。
+  ⚠️ 快照列落地**前**就在审批中的**存量行**（`IS NULL`）⇒ 从**审计流水**
+  （`RECORD_TRANSITION` / `SUBMIT_FOR_CHECK`）反推提交人并**首次触达就冻结**
+  ⇒ 查不到提交人 ⇒ **响亮 409**，不放行「查不到就当没有提交人」。
 
 详见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)。
 
