@@ -213,6 +213,52 @@ const devOnlyMockHandlers = [
     });
     return HttpResponse.json(filtered);
   }),
+  // === 物流详情页的 Tab 数据源（P9B-3 · T8）===
+  // ⚠️ 契约里这三条的响应都是**裸 dict / 裸 object 数组**（无结构）⇒
+  //    mock 照抄后端形状（后端也没有具名 schema）。
+  http.get("/api/v1/streams/:stream_id/properties", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      stream_id: String(params["stream_id"]),
+      user_provided: { molecular_weight: 28.01 },
+      calculated: { molecular_weight: 28.0 },
+      effective: { molecular_weight: 28.01 },
+      conflict_resolutions: {},
+    });
+  }),
+  http.get("/api/v1/streams/:stream_id/state-points", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json([
+      {
+        state_label: "设计工况",
+        case_type: "NORMAL",
+        temp: 25,
+        press: 0.5,
+        phase: "LIQUID",
+        mass_flow: 10000,
+        vapor_fraction: null,
+      },
+    ]);
+  }),
+  http.get("/api/v1/lineage/:record_type/:record_id/graph", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      root: {
+        lineage_id: "l-root",
+        record_type: String(params["record_type"]),
+        record_id: String(params["record_id"]),
+        parent_lineage_id: null,
+        source: "MANUAL_ENTRY",
+        source_ref_type: null,
+        source_ref_id: null,
+        actor_user_id: null,
+        change_summary: "创建",
+        occurred_at: "2026-09-15 14:00:00",
+      },
+      upstream: [],
+      downstream: [],
+    });
+  }),
   // === 物流手动创建向导（P9B-3 · T7）===
   // ⚠️ 写入 / 校验 / 估算 / 提交 / 状态点 —— 形状取契约类型；
   //    响应体是**裸 dict** 的那几个（提交校对 / 估算）照抄后端的形状。

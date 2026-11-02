@@ -2327,3 +2327,37 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 `components['schemas']['StreamBase']` ⇒ 同时把裸字段数降 2。
 
 **归属**：下一批（契约面统一收口时一并做）。
+
+## TODO-111: 物流详情三个端点的响应是**裸 dict / 裸 object 数组** ⇒ 前端手写本地类型 🟡
+
+**现状**（2026-11-03 实测）：契约里
+
+- `GET /streams/{id}/properties` ⇒ 裸 dict（`additionalProperties: true`）
+- `GET /streams/{id}/state-points` ⇒ 裸 object 数组
+- `GET /lineage/{record_type}/{record_id}/graph` ⇒ 裸 dict
+
+⇒ 前端**没有**具名 schema 可引用 ⇒ 本地手写了三份类型
+（`src/api/stream.ts::StreamProperties` / `StreamStatePoint` / `LineageGraph`）
+⇒ **字段名没有编译期约束**（后端改字段名时前端不会红）。
+
+**建议**：后端把这三条的响应提成具名 schema（`StreamPropertiesResponse` /
+`StreamStatePointResponse` / `LineageGraphResponse`）⇒ 前端改用
+`components['schemas'][...]` ⇒ 同时把裸字段数降 3。
+
+**归属**：下一批（契约面统一收口时一并做 · 与 TODO-110 同族）。
+
+## TODO-112: 物流详情「校核记录」Tab 对**非 SYSTEM_ADMIN 不可见** 🟡
+
+**现状**（2026-11-03 实测）：`GET /audit-logs` **限 SYSTEM_ADMIN**
+（`audit_logs` 表**没有** `project_id` ⇒ 端点无法按项目守卫 ⇒ 放开就等于
+把**全公司**的审计流水暴露给每个设计员）。
+
+⇒ 后果：DESIGNER 打开物流详情的「校核记录」Tab 看到的是「无权查看」——
+**他看不到这条物流的校核经过**（而校核记录正是他最需要的东西）。
+
+**建议**：新增**按项目守卫**的端点（参考 `GET /records/{module}/{record_id}/edits`
+的守卫口径 —— 它就是为「普通用户点得开差异」而做的）⇒ 例如
+`GET /streams/{id}/review-log`，只返回该物流的
+`SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK` 三条。
+
+**归属**：P9B-4 或独立技术债（**不要**靠放开 `/audit-logs` 解决）。

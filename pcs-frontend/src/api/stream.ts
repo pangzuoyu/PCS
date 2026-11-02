@@ -102,6 +102,51 @@ export interface StatePointPayload {
   source_type: components['schemas']['StreamSourceType'];
 }
 
+/**
+ * 物性（`GET /streams/{id}/properties`）—— ⚠️ 契约里响应是**裸 dict**
+ * （`additionalProperties: true`，**无结构**）⇒ 本地类型（见 TODO-111）。
+ */
+export interface StreamProperties {
+  [key: string]: unknown;
+}
+
+/**
+ * 状态点（`GET /streams/{id}/state-points`）—— ⚠️ 裸 object 数组（TODO-111）。
+ *
+ * ⚠️ 值类型一律**可选**：后端可能返回缺字段的行 ⇒ 渲染层必须防御性读。
+ */
+export interface StreamStatePoint {
+  state_label?: string;
+  case_type?: string;
+  temp?: number | null;
+  press?: number | null;
+  phase?: string | null;
+  mass_flow?: number | null;
+  vapor_fraction?: number | null;
+  [key: string]: unknown;
+}
+
+/** 血缘条目（`GET /lineage/{record_type}/{record_id}/graph` 的一项）。 */
+export interface LineageEntry {
+  lineage_id?: string;
+  record_type?: string;
+  record_id?: string;
+  parent_lineage_id?: string | null;
+  source?: string | null;
+  source_ref_type?: string | null;
+  source_ref_id?: string | null;
+  actor_user_id?: string | null;
+  change_summary?: string | null;
+  occurred_at?: string | null;
+}
+
+/** 血缘图 —— ⚠️ 契约里是**裸 dict**（TODO-111）。 */
+export interface LineageGraph {
+  root?: LineageEntry;
+  upstream?: LineageEntry[];
+  downstream?: LineageEntry[];
+}
+
 export const streamApi = {
   /** 物流列表（契约派生 + 四项筛选）—— 物流列表页用。 */
   list: (projectId: string, filters: StreamListFilters = {}): Promise<Stream[]> =>
@@ -152,6 +197,18 @@ export const streamApi = {
   /** 状态点（POST /streams/{id}/state-points）。 */
   createStatePoint: (streamId: string, payload: StatePointPayload): Promise<unknown> =>
     api.post(`/streams/${streamId}/state-points`, payload).then((r) => r.data),
+
+  /** 物性（GET /streams/{id}/properties）。 */
+  properties: (streamId: string): Promise<StreamProperties> =>
+    api.get<StreamProperties>(`/streams/${streamId}/properties`).then((r) => r.data),
+
+  /** 状态点（GET /streams/{id}/state-points）。 */
+  statePoints: (streamId: string): Promise<StreamStatePoint[]> =>
+    api.get<StreamStatePoint[]>(`/streams/${streamId}/state-points`).then((r) => r.data),
+
+  /** 血缘图（GET /lineage/{record_type}/{record_id}/graph）。 */
+  lineageGraph: (recordType: string, recordId: string): Promise<LineageGraph> =>
+    api.get<LineageGraph>(`/lineage/${recordType}/${recordId}/graph`).then((r) => r.data),
 
   /**
    * 物性估算（POST /streams/{id}/properties/estimate）。

@@ -14,6 +14,19 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { StreamDetailPage } from '../../../src/pages/sim/StreamDetailPage';
 import type { Stream } from '../../../src/types/stream';
 
+/**
+ * 切到「组成」Tab（T8 起组成表在下沉后的 Tab 里，默认不渲染）。
+ *
+ * ⚠️ antd 的 Tabs **懒渲染**未激活的面板 ⇒ 断言组成表前必须先切过去。
+ */
+function clickCompositionTab(): void {
+  const tab = Array.from(document.querySelectorAll('.ant-tabs-tab')).find((el) =>
+    el.textContent?.includes('组成'),
+  );
+  if (!tab) throw new Error('找不到「组成」Tab');
+  fireEvent.click(tab);
+}
+
 const stream: Stream = {
   stream_id: 's-1',
   stream_name: '新鲜进料',
@@ -64,6 +77,7 @@ describe('StreamDetailPage — 渲染 (P45-3-1)', () => {
 
   it('组成 JSON 表格：3 组分', () => {
     render(<StreamDetailPage stream={stream} />);
+    clickCompositionTab();
     const compRows = document.querySelectorAll('[data-testid="stream-composition-row"]');
     expect(compRows.length).toBe(3);
     expect(compRows[0].textContent).toContain('N2');
@@ -117,6 +131,7 @@ describe('StreamDetailPage — 可空字段不得崩页', () => {
         stream={{ ...stream, composition_json: { WATER: '0.6' } as never }}
       />,
     );
+    clickCompositionTab();
     expect(document.body.textContent).toContain('WATER');
     expect(document.body.textContent).toContain('0.6');
   });

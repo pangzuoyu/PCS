@@ -1,11 +1,13 @@
 /**
- * StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。
+ * StreamDetailPage — SIM 物流详情（SPEC §7.7.2 · P9B-3 · T8）。
  *
- * SPEC §7.7.2：
- * - PageHeader（标题 = stream_name；状态徽章；版本 hash；操作）
- * - 基础信息 Descriptions（相态/温压/流量/更新人/时间）
- * - 组成 JSON 表格（组分 + 摩尔分率）
- * - 复用 SignatureMatrix（签署矩阵）
+ * ## 结构：**Tab 宿主**
+ *
+ * 7 个 Tab（SPEC §7.7.2）：基本信息 / 组成 / 物性 / 状态点 / 设备连接 / 血缘 /
+ * 校核记录 ⇒ 内容全部下沉到 `tabs/` 下 7 个文件（每个 ≤ 150 行）。
+ *
+ * ⚠️ **只有当前 Tab 会取数**（antd 的 Tabs 默认懒渲染未激活的面板）⇒ 打开
+ * 详情页**不会**打 4 个请求 ⇒ 首屏不被拖慢。
  *
  * Props：
  *   stream: Stream
@@ -13,30 +15,23 @@
  *   onSubmit?: () => void
  *   onObsolete?: () => void
  */
-import {
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  Row,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Button, Space, Tabs } from 'antd';
 
-import { ModuleLayout } from '../../components/common/ModuleLayout';
 import { PageHeader } from '../../components/common/PageHeader';
-import { SignatureMatrix, type SignatureRecord, type SignatureStep } from '../../components/common/SignatureMatrix';
-import { ApprovalStepBar, type ApprovalStep } from '../../components/common/ApprovalStepBar';
-import { ConflictResolver, type Conflict } from '../../components/common/ConflictResolver';
-import { LineageGraph, type LineageNode, type LineageEdge } from '../../components/common/LineageGraph';
+import type { ApprovalStep } from '../../components/common/ApprovalStepBar';
+import type { Conflict } from '../../components/common/ConflictResolver';
+import type { SignatureRecord, SignatureStep } from '../../components/common/SignatureMatrix';
 import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../../components/common/ChangeImpactPanel';
 import { changeImpactApi } from '../../api/changeImpact';
-import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
-import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
-import { streamPhaseColor, streamPhaseLabel, type Stream } from '../../types/stream';
-import type { StrictColumns } from '../../types/strictColumns';
+import type { UiSchemaResponse } from '../../components/common/SchemaForm';
+import { StreamBasicTab } from './tabs/StreamBasicTab';
+import { StreamCompositionTab } from './tabs/StreamCompositionTab';
+import { StreamConnectionsTab } from './tabs/StreamConnectionsTab';
+import { StreamLineageTab } from './tabs/StreamLineageTab';
+import { StreamPropertiesTab } from './tabs/StreamPropertiesTab';
+import { StreamReviewLogTab } from './tabs/StreamReviewLogTab';
+import { StreamStatePointsTab } from './tabs/StreamStatePointsTab';
+import type { Stream } from '../../types/stream';
 
 interface Props {
   stream: Stream;
@@ -45,7 +40,6 @@ interface Props {
   approvalSteps?: ApprovalStep[];
   currentApprovalStep?: number;
   conflicts?: Conflict[];
-  lineage?: { center: string; nodes: LineageNode[]; edges: LineageEdge[] };
   changeImpact?: { source: ChangeSource; records: AffectedRecord[] } | null;
   uiSchema?: UiSchemaResponse;
   onBack?: () => void;
@@ -53,55 +47,19 @@ interface Props {
   onObsolete?: () => void;
 }
 
-const DEFAULT_MATRIX: SignatureStep[] = [
-  { step_index: 1, role: '设计' },
-  { step_index: 2, role: '校核' },
-  { step_index: 3, role: '审核' },
-];
-
-const DEFAULT_SIGNATURES: SignatureRecord[] = [
-  { step_index: 1, signer_name: '张三', signed_at: '2026-09-10' },
-  { step_index: 2, signer_name: '李四', signed_at: '2026-09-12' },
-  { step_index: 3, signer_name: '王五', signed_at: '2026-09-15' },
-];
-
 export function StreamDetailPage({
   stream,
-  matrix = DEFAULT_MATRIX,
-  signatures = DEFAULT_SIGNATURES,
+  matrix,
+  signatures,
   approvalSteps,
   currentApprovalStep = 0,
   conflicts = [],
-  lineage,
   changeImpact,
   uiSchema,
   onBack,
   onSubmit,
   onObsolete,
 }: Props): JSX.Element {
-  // 契约里 composition_json 是 `Record<string, unknown> | null | undefined` ——
-  // 直接 Object.entries(null) **会崩**（没有组成的物流在详情页白屏）。
-  const composition = Object.entries(stream.composition_json ?? {}).map(
-    ([component, mole_fraction]) => ({ component, mole_fraction }),
-  );
-
-  // 契约里 composition_json 是 `Record<string, unknown>`（additionalProperties
-  // 无约束）⇒ 值不保证是数字，`v.toFixed(4)` 会崩。显示层按「能当数字才格式化」
-  // 处理，非法值原样展示 —— 不吞、不抛。
-  const compositionColumns: StrictColumns<{ component: string; mole_fraction: unknown }> = [
-    {
-      title: '组分',
-      dataIndex: 'component',
-      width: 120,
-    },
-    {
-      title: '摩尔分率',
-      dataIndex: 'mole_fraction',
-      width: 160,
-      render: (v: unknown) => (typeof v === 'number' ? v.toFixed(4) : String(v ?? '—')),
-    },
-  ];
-
   return (
     <div data-testid="stream-detail-page">
       <PageHeader
@@ -133,133 +91,75 @@ export function StreamDetailPage({
         }
       />
 
-      <ModuleLayout
-        input={
-          <Card title="基础信息" size="small">
-            <Descriptions
-              column={2}
-              bordered
-              size="small"
-              data-testid="stream-detail-descriptions"
-            >
-              <Descriptions.Item label="名称">{stream.stream_name}</Descriptions.Item>
-              <Descriptions.Item label="相态">
-                <Tag color={streamPhaseColor(stream.phase)}>
-                  {streamPhaseLabel(stream.phase)}
-                </Tag>
-                <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                  {stream.phase ?? '—'}
-                </Typography.Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="温度">{stream.temp} °C</Descriptions.Item>
-              <Descriptions.Item label="压力">{stream.press} MPaG</Descriptions.Item>
-              <Descriptions.Item label="质量流量">{stream.mass_flow} kg/h</Descriptions.Item>
-              <Descriptions.Item label="摩尔流量">{stream.molar_flow} kmol/h</Descriptions.Item>
-              {stream.updated_at && (
-                <Descriptions.Item label="更新时间">{stream.updated_at}</Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
-        }
-        result={
-          <Card title="组成（摩尔分率）" size="small">
-            <Table
-              rowKey="component"
-              columns={compositionColumns}
-              dataSource={composition}
-              pagination={false}
-              size="small"
-              onRow={(_, idx) =>
-                ({
-                  'data-testid': 'stream-composition-row',
-                  'data-component-index': idx,
-                }) as React.HTMLAttributes<HTMLElement>
-              }
-            />
-          </Card>
-        }
-        lineage={
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Card title="签署矩阵" size="small">
-                <SignatureMatrix matrix={matrix} signatures={signatures} currentStep={signatures.length} />
-              </Card>
-            </Col>
-          </Row>
-        }
+      <Tabs
+        data-testid="stream-detail-tabs"
+        defaultActiveKey="basic"
+        items={[
+          {
+            key: 'basic',
+            label: '基本信息',
+            children: (
+              <StreamBasicTab
+                stream={stream}
+                matrix={matrix}
+                signatures={signatures}
+                approvalSteps={approvalSteps}
+                currentApprovalStep={currentApprovalStep}
+                conflicts={conflicts}
+                uiSchema={uiSchema}
+              />
+            ),
+          },
+          {
+            key: 'composition',
+            label: '组成',
+            children: <StreamCompositionTab stream={stream} />,
+          },
+          {
+            key: 'properties',
+            label: '物性',
+            children: <StreamPropertiesTab streamId={stream.stream_id} />,
+          },
+          {
+            key: 'state-points',
+            label: '状态点',
+            children: <StreamStatePointsTab streamId={stream.stream_id} />,
+          },
+          {
+            key: 'connections',
+            label: '设备连接',
+            children: <StreamConnectionsTab stream={stream} />,
+          },
+          {
+            key: 'lineage',
+            label: '血缘',
+            children: <StreamLineageTab streamId={stream.stream_id} />,
+          },
+          {
+            key: 'review-log',
+            label: '校核记录',
+            children: <StreamReviewLogTab streamId={stream.stream_id} />,
+          },
+        ]}
       />
 
-      {/* 8 组件实例化 P2：审批链 / 冲突 / 血缘 / 变更影响 / 表单 */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        {approvalSteps && approvalSteps.length > 0 && (
-          <Col span={24}>
-            <Card title="审批链" size="small" data-testid="stream-detail-approval-bar">
-              <ApprovalStepBar
-                currentStep={currentApprovalStep}
-                totalSteps={approvalSteps.length}
-                role="CHECKER"
-                steps={approvalSteps}
-              />
-            </Card>
-          </Col>
-        )}
-        {conflicts.length > 0 && (
-          <Col span={24}>
-            <Card title="物性冲突" size="small" data-testid="stream-detail-conflict-resolver">
-              <ConflictResolver conflicts={conflicts} />
-            </Card>
-          </Col>
-        )}
-        {lineage && lineage.nodes.length > 0 && (
-          <Col span={24}>
-            <Card title="数据血缘" size="small" data-testid="stream-detail-lineage">
-              <LineageGraph centerRecord={lineage.center} direction="upstream" data={{ nodes: lineage.nodes, edges: lineage.edges }} />
-            </Card>
-          </Col>
-        )}
-        {changeImpact && (
-          <Col span={24}>
-            <Card title="变更影响" size="small" data-testid="stream-detail-change-impact">
-              <ChangeImpactPanel
-                changeSource={changeImpact.source}
-                affectedRecords={changeImpact.records}
-                // ⚠️ **两个端点，不合并**（SPEC §6.7.1）：系统判定 confirm /
-                // 人工判定 manual-adjust。`record_type` 已是注册表键 ⇒ 后端不 404。
-                onConfirmSystem={(recordType, recordId) =>
-                  changeImpactApi.confirm(recordType, recordId)
-                }
-                onManualAdjust={(recordType, recordId, decision, reason) =>
-                  changeImpactApi.manualAdjust(recordType, recordId, { decision, reason })
-                }
-              />
-            </Card>
-          </Col>
-        )}
-        {uiSchema && (
-          <Col span={24}>
-            <Card title="表单 Schema（只读）" size="small" data-testid="stream-detail-schema-form">
-              <SchemaForm
-                schema={uiSchema}
-                value={{
-                  stream_name: stream.stream_name,
-                  phase: stream.phase,
-                  // 键名随数据一起对齐契约 StreamResponse（SchemaForm 的 value
-                  // 是自由键值对象，键名应与实际数据同源，否则表单显示空值）
-                  temp: stream.temp,
-                  press: stream.press,
-                  mass_flow: stream.mass_flow,
-                }}
-              />
-              {stream.sign_status === 'STALE' && (
-                <div style={{ marginTop: 8 }}>
-                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.mass_flow == null ? '—' : String(stream.mass_flow)} />
-                  <span style={{ marginLeft: 8 }}>流量为假设值</span>
-                </div>
-              )}
-            </Card>
-          </Col>
-        )}
-      </Row>
+      {/* 变更影响：与「血缘」同属「谁受影响」⇒ 放在 Tab 之外的操作区 */}
+      {changeImpact && (
+        <div data-testid="stream-detail-change-impact">
+          <ChangeImpactPanel
+            changeSource={changeImpact.source}
+            affectedRecords={changeImpact.records}
+            // ⚠️ **两个端点，不合并**（SPEC §6.7.1）：系统判定 confirm /
+            // 人工判定 manual-adjust。`record_type` 已是注册表键 ⇒ 后端不 404。
+            onConfirmSystem={(recordType, recordId) =>
+              changeImpactApi.confirm(recordType, recordId)
+            }
+            onManualAdjust={(recordType, recordId, decision, reason) =>
+              changeImpactApi.manualAdjust(recordType, recordId, { decision, reason })
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }
