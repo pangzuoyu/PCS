@@ -5309,6 +5309,26 @@
    ],
    "occurrences": 1,
    "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2121",
+   "timestamp": "2026-11-02",
+   "severity": "medium",
+   "error_message": "MCP server 'code-review-graph' failed to connect — connection timed out after 30000ms（`claude mcp list` 显示 ✘ Failed to connect）",
+   "file": "/home/pangzy/code_project/.mcp.json（仓库外的父目录）",
+   "root_cause": "`.mcp.json` 用 `uvx code-review-graph serve` 启动 ⇒ uvx 每次都要「查 latest → 下 wheel → 建隔离环境 → 装 fastmcp/tree-sitter/mcp 等依赖」；而 **files.pythonhosted.org 在本机连接被重置**（`Recv failure: 连接被对方重置`），pypi.org 的**索引**域名却正常（200）⇒ 卡在 Claude Code 的 30s MCP 连接超时 ⇒ **MCP 进程压根没启动**（不是它自己慢）。旁证：`~/.cache/uv/` 里 **930 个 `.tmp*` 孤儿目录**（其中 7 个含 `code_review_graph`，2026-09-26~29 每次尝试的残骸）；uv 缓存里并存 2.3.2/2.3.6/2.3.7/2.3.8/2.3.9 五个版本 ⇒ uvx 每次解析到 latest ⇒ 缓存永远命中不了。",
+   "fix": "把 `.mcp.json` 的 command 从 `uvx` 改为**本地已装二进制** `/home/pangzy/miniconda3/bin/code-review-graph`（conda 环境里已有 2.3.2），args 只留 `serve` ⇒ 绕开下载环节。实测：握手 6.5s，`claude mcp list` → ✔ Connected，30 个工具全部可用。备份在 /tmp/mcp.json.bak。⚠️ 该 `.mcp.json` 在**仓库外的父目录**（/home/pangzy/code_project/），改动对 code_project 下所有项目生效。 ⚠️ **该修复不在本仓内**（`.mcp.json` 在父目录，无对应 commit）⇒ `fix_commit` 记的是**同会话**的仓库 commit（计划落盘 ac09ad8），实际改动见父目录文件本身。",
+   "fix_commit": "ac09ad8",
+   "tags": [
+    "mcp",
+    "tooling",
+    "network",
+    "uvx",
+    "environment"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
   }
  ]
 }

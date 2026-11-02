@@ -968,6 +968,28 @@ SPEC 正文），就当作「客户端读不到」。** 因为**读文档的人�
 
 **scope 限定**：仅 TEG 全套公式（GPSA §20.4）；DEG partial coverage 暂维持 out_of_scope，helper 全部 TEG-only（`_validate_input` 抛 422）。当前 K=7.1187 越界 WARNING；多工况标定走 OPEN-P6-6A-9.2；真 Wichert-Azix 非线性形式走 OPEN-P6-6A-9.3；brentq low-T Bukacek 走 OPEN-P6-6A-9.4。
 
+- **裁决的前提可能不成立 ⇒ 落地前先核事实**（2026-11-02 实测）：委员会裁决「加 `streams.source` 列」时，
+  计划里写「`streams` 无来源字段」——**这句是错的**：既有 `streams.source_type`（VARCHAR(30) NOT NULL +
+  CHECK，**13 值** = 3 人工/导入 + 10 个 `*_CALCULATED` 设备计算出口流）**早就在**。
+  ⇒ 新列与它**语义正交**（产出方式 vs 录入通道）但**取值重叠 3 处**（`SIM_IMPORT` 同名 /
+  `MANUAL_ENTRY`↔`MANUAL` / `LAB_REPORT`↔`LAB`）⇒ 这正是「同一概念两份定义 ⇒ 漂移」的温床。
+  ⇒ **裁决 ≠ 事实**：把裁决落进计划文档时**顺手核一遍它依赖的前提**，发现不符就**在计划里写明**
+  （本轮写进了「事实基础」表 + 未解决问题 #9~#12），别默默按错前提实现。
+  同批还实测到：Excel 导入路径把 `source_type` 也写成 `SIM_IMPORT`（`import_service._excel_preview_entry`）
+  ⇒ 既有契约里**分不出 PRO/II 与 Excel**。
+
+- **MCP 服务器连不上，先量「启动耗时」再怀疑它自己**（2026-11-02 实测打脸）：
+  `code-review-graph` 报 `connection timed out after 30000ms`，看起来像「服务器起不来」；
+  实际是 `.mcp.json` 用 `uvx` 启动 ⇒ **每次**都要「查 latest → 下 wheel → 建隔离环境」，
+  而 **`files.pythonhosted.org` 在本机被重置**（`pypi.org/simple/` 索引却 200）⇒ 卡在 30s 超时，
+  **MCP 进程压根没启动**。⇒ 旁证三件套：(a) `curl` 分别打索引域名与**下载域名**；
+  (b) 数 `~/.cache/uv/.tmp*` 孤儿目录（本次 **930** 个，含 7 个 `code_review_graph`
+  ⇒ 每次尝试都被超时杀掉）；(c) 看 uv 缓存里是否**并存多个版本**（本次 2.3.2~2.3.9
+  ⇒ 每次解析到 latest ⇒ 缓存永远命中不了）。
+  ⇒ **修法：`.mcp.json` 直接指向本地已装的二进制**（本机 conda 里已有 2.3.2 ⇒ 握手 6.5s、30 工具全可用），
+  别去等 `uvx` 的网络。注意 `.mcp.json` 可能在**仓库外的父目录**（本仓在 `code_project/` 上一级）。
+  ⇒ 同类：`claude-mem` 的 observer 凭据被拒 ⇒ 症状是「存不进记忆」⇒ `/login`（不是重启 worker）。
+
 ## P7-7+ BLOCKER-3 endpoint guard 测试 pattern（2026-10-02 用户授权）
 
 - **client fixture monkeypatch `UserProjectService.check_user_project_access → True`**: 仿 P6 历史做法 (test_conftest_granted_user_project)。让 14+ endpoint 测试自动 bypass guard 拿真业务逻辑路径。ACL 测试 (test_user_project_service.py) 不受影响 — 它没 client。
