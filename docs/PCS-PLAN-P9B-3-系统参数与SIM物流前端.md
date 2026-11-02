@@ -4,8 +4,9 @@
 > （或 `superpowers:subagent-driven-development`）。
 > ledger: `.superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/progress.md`
 >
-> ⚠️ **本计划已吸收 2026-11-02 委员会的 8 条裁决 + 7 条前置核实**（见下）⇒
-> 开工前**不需要**再问同一批问题。**「尚未解决的问题」一节是唯一还需要裁决的**。
+> ⚠️ **本计划已吸收 2026-11-02 委员会的 8 条裁决 + 5 条用户裁决 + 3 条 P1 +
+> 5 条 P2 + 7 条前置核实**（见下各表）⇒ 开工前**不需要**再问同一批问题。
+> **「尚未解决的问题」一节是唯一还需要裁决的**（其中 2 条已在本次复审关闭）。
 
 **Goal:** 补上三块欠账 —— ①**本地 PG 车道**（TODO-099：PG 专属语义至今零自动化
 覆盖）②**§7.20 系统参数页**（`system_settings` 表存在但零 API，前端零页面）
@@ -25,6 +26,25 @@
 Playwright；后端 FastAPI + SQLAlchemy 2.x async + pytest + alembic。
 
 **Spec:** 本文档即设计（委员会 2026-11-02 裁决 + 前置核实结论）⇒ 计划自证其依据。
+
+### 任务执行顺序（委员会 2026-11-02 最终判定）
+
+```text
+T0    本地 PG 车道（fail-closed 三约束）
+T1    债项三条（TODO-101 / 102 / 103）—— 103 拆两个 commit
+T2    SPEC V2.6（✅/⏳/❌ 状态标记版）
+T2.5  streams.source 列 + 迁移 p9_015 + 枚举（MANUAL / SIM_IMPORT / EXCEL / LAB）
+T3    物流组成合计门禁（None 跳过 / {} 拒绝）
+T4    系统参数后端（7 项 seed + 批量原子 PUT）
+T5    系统参数前端
+T6    物流列表页（工具栏 / 四项筛选 / 单条提交校对）
+T7    物流手动创建向导（校验→写入→估算→提交）
+T8    物流详情页 7 Tab（含校核记录，前端过滤 + TODO 登记）
+T9    QA gate + 收口
+```
+
+⚠️ **T2.5 的位置不是任选的**：必须在 **T2 之后**（SPEC 先定义 source 枚举）
+与 **T3 之前**（T6 的「来源」列/筛选与 T7 的向导都依赖它）。
 
 ---
 
@@ -73,6 +93,32 @@ Playwright；后端 FastAPI + SQLAlchemy 2.x async + pytest + alembic。
 | 3 | 角色分配（TODO-092） | **本批不做**（选项 3）⇒ 「AD 同步覆盖 roles」是**当前行为**，必须写进计划；角色来源权威性**升格独立 ADR**（不是计划里能拍的） |
 | 4 | TODO-099 PG 车道 | **选项 1**（本地 PG 车道）+ 三条硬约束 + 一条复审触发（见 T0） |
 | 5 | 校对批量 | D1~D6 六条决策全部采纳 ⇒ **单列 P9B-3b**（见文末移交节） |
+| 6 | §7.20 系统参数 | **复用 `system_settings`**（表结构核实：主键 / JSONB / 0 行 / 无 `updated_by` 符合全仓口径）⇒ T4 |
+| 7 | Prompt 模板 | 覆盖式 + 审计（无版本要求）—— ⚠️ **随裁决 2 不做**（P10） |
+| 8 | 事实基础按**实测**写 | 状态名 `IN_APPROVAL` · 审计复用 `RECORD_TRANSITION` · 组成校验需新建 ⇒ 三处偏差已标注（见「与委员会 brief 的三处偏差」） |
+
+## 用户裁决（2026-11-02）
+
+| # | 项 | 裁决 | 落地 |
+|---|---|---|---|
+| 1a | `streams.source` 列 | **加**（迁移 `p9_015`） | **T2.5**（4 值：MANUAL / SIM_IMPORT / EXCEL / LAB） |
+| 1b | PRO/II 归属 | `SIM_IMPORT`（**不单列**一值） | T2.5 的 docstring + SPEC §7.7.1 |
+| 2 | T7 顺序 | 校验 → 写入 → 估算 → 提交；**估算失败可继续**（不阻塞） | T7 Step 3 的 7 步表 + 一条「估算失败仍可继续提交校对」的测试 |
+| 3 | SPEC 写法 | **B：状态标记（✅/⏳/❌）**，不用「本批」 | T2 的 Step 2~5（§12.4 约定 + §7.7.1 / §7.20 / §7.21 改写） |
+| 4 | T4 默认键清单 | **7 项**（含 `stream.batch_submit_limit` 预埋） | P1-1（`DEFAULT_SETTINGS` + `seed_defaults()`） |
+
+## 计划审查意见落地（2026-11-02 委员会复审 · CLEARED TO START）
+
+| # | 级别 | 意见 | 落地 |
+|---|---|---|---|
+| P1-1 | P1 | T4 缺「系统参数键初始化机制」（表 0 行 ⇒ 管理员看到空页面） | T4 Step 4b：`DEFAULT_SETTINGS` 7 项 + `seed_defaults()` + 启动钩子 + `test_seed_is_idempotent` |
+| P1-2 | P1 | T0 的 `test_fails_when_zero_pg_tests_are_collected` **测的不是它想测的**（PG 一定没起 ⇒ 脚本第一步就退出 ⇒ 永远走不到「收集到 0 个」分支） | T0：假 `docker` shim 放 PATH 让 PG 检查通过 ⇒ 才测得到目标分支 |
+| P1-3 | P1 | T2 让 SPEC 写「本批」「P9B-3b」⇒ 违反 SPEC 定位（需求规格书不该知道批次概念） | T2 Step 2~5：**✅/⏳/❌ 状态标记**（含 §12.4 约定） |
+| P2-1 | P2 | 空 `composition_json` 的策略没区分 | T3：`None` 跳过 / `{}` 拒绝（422）/ 有内容校验 `\|sum−1\| ≤ 0.005` + SPEC §7.7.2 补一句 |
+| P2-2 | P2 | T8 校核记录的前端过滤性能 | T8 Step 4b：保持前端过滤 + 登记 TODO-104（触发条件 / 方案 / 归属） |
+| P2-3 | P2 | T4 的「只能改不能增」是**已知限制**，得写明 | T4 的 docstring + SPEC §7.20.1 同款措辞 |
+| P2-4 | P2 | T1 的 TODO-103 diff 很大 | T1 拆**两个** commit（只加生成器 / 再跑生成器） |
+| P2-5 | P2 | T9 的「三库」表述模糊 | T9 Step 5 改成「**两库 + 一条车道**」表（`pcs` / `pcs_test` / `pcs_pgtest` 各验什么） |
 
 ## 事实基础（2026-11-02 实测，非推断）
 
@@ -81,6 +127,8 @@ Playwright；后端 FastAPI + SQLAlchemy 2.x async + pytest + alembic。
 | 面 | 现状 | 出处 |
 |---|---|---|
 | `streams` 写面 | `POST /streams`（创建）· `POST /streams/validate` · `PATCH/DELETE /streams/{id}` | `app/api/v1/streams.py:202,241,325,347` |
+| `streams.source_type` | **已存在**：`VARCHAR(30)` NOT NULL + CHECK `ck_streams_source_type`，**13 值**（3 人工/导入 + 10 个 `*_CALCULATED` 设备计算出口流）⇒ 语义 = **产出方式**，**不是** SPEC §7.7.1 的「来源」 | `app/models/project.py:256,444` + `pcs_test` 直查库（202 行：MANUAL_ENTRY 101 / PIPE_NET_CALCULATED 68 / PIPE_CALCULATED 33） |
+| `streams.source`（SPEC §7.7.1 的「来源」） | **不存在** ⇒ T2.5 新增（4 值：MANUAL / SIM_IMPORT / EXCEL / LAB） | 同上 |
 | 物流状态机 | `POST /streams/{id}/submit`（**DRAFT → IN_APPROVAL**）· `approve` · `reject` · `initiate-change` · `pass-change` · `mark-stale` | `streams.py:518…604` |
 | 物性 / 状态点 | `GET /streams/{id}/properties` · `POST .../estimate` · `GET /streams/{id}/state-points` | `streams.py:635,663,402` |
 | 血缘 | `GET /lineage/{record_type}/{record_id}/upstream|downstream|graph` | `app/api/v1/lineage.py:28,59,92` |
@@ -146,6 +194,8 @@ pcs-backend/scripts/pytest_pg.sh                 # T0：PG 车道唯一入口（
 pcs-backend/scripts/gen_compact_orm.py           # T1：compact ORM 表生成器（TODO-103）
 pcs-backend/tests/api/v1/test_system_settings.py # T4
 pcs-backend/tests/api/v1/test_stream_composition_sum.py  # T3
+pcs-backend/tests/api/v1/test_stream_source.py          # T2.5：source 列 + 筛选
+pcs-backend/alembic/versions/p9_015_stream_source.py     # T2.5：迁移
 pcs-backend/tests/scripts/test_pytest_pg_gate.py # T0：脚本的 fail-closed 行为
 pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py  # T0：docstring 再更正
 pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py  # T0：docstring 再更正
@@ -154,10 +204,15 @@ pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py  # T0：
 **后端（修改）**
 
 ```
-pcs-backend/app/models/enums.py                  # T4：AuditAction 加 SYSTEM_SETTINGS_UPDATED
-pcs-backend/app/api/v1/streams.py                # T3：submit 前加组成合计校验
+pcs-backend/app/models/enums.py                  # T4：AuditAction 加 SYSTEM_SETTINGS_UPDATED；T2.5：StreamSource 枚举
+pcs-backend/app/models/project.py                # T2.5：Stream.source 列 + CHECK + 复合索引
+pcs-backend/app/schemas/stream.py               # T2.5：StreamBase.source
+pcs-backend/app/services/import_service.py       # T2.5：导入路径写 source
+pcs-backend/app/services/outlet_stream.py        # T2.5：出口流继承上游 source
+pcs-backend/app/api/v1/streams.py                # T3：submit 前加组成合计校验；T2.5：?source= 筛选
 pcs-backend/app/api/v1/projects.py               # T1：IntegrityError 只在命中 project_no 时映射 409
 pcs-backend/app/api/v1/__init__.py               # T4：挂 system_settings router
+pcs-backend/app/main.py                          # T4：启动钩子调 seed_defaults（P1-1）
 pcs-backend/pyproject.toml                       # T0：注册 pg marker
 pcs-backend/docs/openapi.json                   # T4：契约重滚
 ```
@@ -260,16 +315,28 @@ def test_fails_when_pg_instance_is_not_running():
     assert "docker compose --profile pg up -d" in (r.stdout + r.stderr)
 
 
-def test_fails_when_zero_pg_tests_are_collected():
-    """收集到 0 个 PG 测试 ⇒ 非零退出（「收集到 0 个」不是「通过」）。"""
+def test_fails_when_zero_pg_tests_are_collected(tmp_path):
+    """收集到 0 个 PG 测试 ⇒ 非零退出（「收集到 0 个」不是「通过」）。
+
+    ⚠️ **必须让 PG 检查通过**才能测到这条分支 —— 否则脚本在「PG 没起」那步就
+    退出，这条测试实际测的是「PG 没起」而不是「收集到 0 个」
+    （`guard-test-fooled-by-lying-comment` 同形：守卫测的不是它声称的东西）。
+
+    ⇒ 用**假的 docker**（PATH 前置一个 shim，输出 `postgres-pgtest running`）
+    让第 ① 步通过。
+    """
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_docker = fake_bin / "docker"
+    fake_docker.write_text("#!/bin/sh\necho 'postgres-pgtest running'\nexit 0\n")
+    fake_docker.chmod(0o755)
+
     r = _run({
-        "PG_COMPOSE_PROJECT": "pcs_pg_absent_project",
-        "PG_PYTEST_MARK": "pg",  # 默认
+        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "PG_PYTEST_MARK": "no_such_marker_xyz",
     })
-    # 上例已因 PG 未起而失败；本例单独验证「收集到 0 个」这一条：
-    r2 = _run({"PG_COMPOSE_PROJECT": "pcs_pg_absent_project",
-               "PG_PYTEST_MARK": "no_such_marker_xyz"})
-    assert r2.returncode != 0
+    assert r.returncode != 0
+    assert "收集到 0 个 PG 测试" in (r.stdout + r.stderr)
 
 
 def test_script_does_not_teach_a_second_entry_point():
@@ -544,16 +611,34 @@ cd pcs-backend && uv run python scripts/gen_compact_orm.py
 grep -c "approval_chain_snapshot|jsonb" docs/schema_compact_orm.md   # 应为 20
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit（拆三个，P2-4）**
+
+⚠️ TODO-103 的 diff 会很大（53 表快照 → 107 表派生）⇒ **拆两个 commit**，让
+「实质改动」与「历史债清理」在历史里可分：
+
+```bash
+# ① 只加生成器，不跑（文件不变 ⇒ diff 小）
+git add pcs-backend/scripts/gen_compact_orm.py
+git commit -F <消息文件>
+# 首行：feat(P9B-3): compact ORM 生成器（TODO-103 第一部分）—— 只加脚本，不跑
+
+# ② 跑生成器，重新生成文件（diff 大）
+git add pcs-backend/docs/schema_compact_orm.md
+git commit -F <消息文件>
+# 首行：chore(P9B-3): compact ORM 重新生成（TODO-103 第二部分，历史债清理）
+# ⚠️ 消息里明确写「diff 大不是本批实质改动」
+```
+
+StateBadge / 409 收窄另外两个 commit：
 
 ```bash
 git add pcs-frontend/src/components/common/StateBadge.tsx \
-        pcs-frontend/tests/components/common/StateBadge.test.tsx \
-        pcs-backend/app/api/v1/projects.py pcs-backend/tests/api/v1/test_projects_api.py \
-        pcs-backend/scripts/gen_compact_orm.py pcs-backend/docs/schema_compact_orm.md
-git commit -F <消息文件>
+        pcs-frontend/tests/components/common/StateBadge.test.tsx
+git commit -F <消息文件>   # fix(P9B-3): StateBadge 交付物词表用错 9 态（TODO-101）
+
+git add pcs-backend/app/api/v1/projects.py pcs-backend/tests/api/v1/test_projects_api.py
+git commit -F <消息文件>   # fix(P9B-3): 409 映射收窄到 project_no 唯一约束（TODO-102）
 ```
-首行：`fix(P9B-3): 债项三条 —— StateBadge 交付物词表 / 409 映射收窄 / compact ORM 改派生`
 
 ---
 
@@ -582,50 +667,355 @@ git commit -F <消息文件>
 - 错误码：403 HTTP_403（无 SYSTEM_ADMIN）/ 404 SYSTEM_SETTING_NOT_FOUND（改不存在的键时）
 ```
 
-- [ ] **Step 2: §7.20 清单里标注 AI 开关 / Prompt 模板为 P10 前不做**
+- [ ] **Step 2: §12.4 写「状态标记约定」（P1-3：SPEC 不该知道批次概念）**
 
-在 §7.20 的「AI 开关」「Prompt 模板」两行后加注：
+⚠️ **SPEC 是需求规格说明书，不该出现「本批」「P9B-3b」这类批次概念** ⇒ 改用
+**状态标记**。在 §12.4 修订记录的说明处加：
 
 ```text
-⚠️ AI 开关 / Prompt 模板 **P10 前不做**（2026-11-02 委员会裁决）：
-   §7.21 明写「AI 助手 P10 前禁用」⇒ 这两个配置**当前没有任何下游消费者**
-   ⇒ 现在做等于写无消费者的配置（ADR-0049 §① 同族）⇒ 随 AI 助手本体同批交付（P10）。
+**状态标记约定**：
+- ✅ 已实现且可用
+- ⏳ 未实现，已排期（附归属：随 X 交付）
+- ❌ 明确不做（附理由）
+- （无标记）= 纯需求描述，未涉及实现状态
 ```
 
-- [ ] **Step 3: §7.21 补一句归属**
+- [ ] **Step 3: §7.7.1 改写（P1-3：行操作 / 工具栏 / 来源枚举）**
+
+```text
+- 工具栏：导入 / 新建物流 / 导出 / 批量提交校对（⏳ 待 P9B-3b）
+- 行操作：查看 / 校对（✅ 单条） / 变更
+- 来源（source）：MANUAL（手动）/ SIM_IMPORT（模拟软件：PRO/II·HYSYS·Aspen）/
+  EXCEL / LAB（预留）
+```
+
+⚠️ **PRO/II 归 `SIM_IMPORT`**，不单列一值（用户裁决 1b）⇒ `SIM_IMPORT` 的含义是
+「模拟软件导出」，PRO/II / HYSYS / Aspen 都属它。
+
+⚠️ **「来源」列的 4 值 = `streams.source`（T2.5 新增）**，与既有的
+`streams.source_type`（13 值 · 产出方式）**不是同一列** ⇒ SPEC 只写前者。
+
+- [ ] **Step 4: §7.20 改写（AI 开关 / Prompt 模板 用 ⏳）**
+
+```text
+⚠️ AI 开关（⏳ 未实现）：P10 随 AI 助手本体交付。
+   理由：AI 助手 P10 前禁用（§7.21）⇒ 当前无下游消费者。
+
+⚠️ Prompt 模板（⏳ 未实现）：P10 随 AI 助手本体交付。
+   理由：同 AI 开关。
+```
+
+- [ ] **Step 5: §7.21 补状态表（P1-3）**
 
 在 §7.21 末尾「P10 前禁用，Tooltip『AI 功能未启用』。」之后追加：
 
 ```text
-⚠️ **AI 开关与 Prompt 模板随本节同批交付**（P10）—— P9B-3 明确不做
-   （无消费者 ⇒ 空壳；且未来的参数化 / 版本 / A-B / 模型绑定形态未知，
-   现在做要全部推翻）。
+⚠️ **AI 开关与 Prompt 模板的状态**：
+   - 后端表/API：❌ 未实现（随 AI 助手本体）
+   - 前端页：❌ 未实现（随 AI 助手本体）
+   - 消费者：无（AI 助手本身未实现）
+
+   待 P10 开工时，随 AI 助手一并对齐最终形态（参数化 / 版本 / A-B / 模型绑定待定）。
 ```
 
-- [ ] **Step 4: §7.7.1 / §7.7.2 / §7.7.3 补齐口径**
+- [ ] **Step 6: §7.7.1 / §7.7.2 / §7.7.3 补齐口径**
 
-- §7.7.1：工具栏「提交校对」**本批为单条**（行操作用）；列表级批量见 P9B-3b；
-  筛选新增「工况 / 相态 / 状态 / 来源」四项；「引用 📎×N」的口径见「尚未解决的问题」第 1 条。
+- §7.7.1（Step 3 已改写工具栏 / 行操作 / 来源三块 ⇒ 这里只补**口径**）：
+  筛选新增「工况 / 相态 / 状态 / 来源」四项（来源取值 = `source` 的 4 值）；
+  ⚠️ 工具栏的「批量提交校对」标 ⏳ ⇒ **行操作的「校对」是 ✅ 单条**
+  （`POST /streams/{id}/submit`），两者不矛盾；
+  「引用 📎×N」的口径见「尚未解决的问题」第 1 条（本批先不渲染该列）。
 - §7.7.2：7 个 Tab 的清单与「校核记录」的数据来源（`GET /audit-logs?resource_type=streams&resource_id=…`）。
 - §7.7.3：明确「手工」分支 = **本批的手动创建向导**（T7）；Excel 列映射 / 模板库不在本批。
 
-- [ ] **Step 5: §12.4 加 V2.6 行 + 文件头版本号升到 V2.6**
+- [ ] **Step 7: §12.4 加 V2.6 行 + 文件头版本号升到 V2.6**
 
-- [ ] **Step 6: TODOS.md 登记**
+- [ ] **Step 8: TODOS.md 登记**
 
 - TODO-092 追加：「**角色来源权威性升格独立 ADR**」（不是计划里能拍的）；并写明
   「**AD 同步覆盖 `users.roles` 是当前行为**」（本批不做 ⇒ 行为不变，但必须留档）；
 - 新增一条 TODO 指向「角色分配 ADR」的立项（编号接 104）；
+- ⚠️ **新增 3 条**（T2.5 落地时暴露的，见「尚未解决的问题」第 9/10/11 条）：
+  ① `streams.source` 与 `streams.source_type` 长期是否合并（ADR 级）；
+  ② Excel 导入行的 `source_type` 仍是 `SIM_IMPORT` ⇒ 是否扩该词表；
+  ③ 10 个 `*_CALCULATED` 设备计算出口流在 `source` 的 4 值里无对应 ⇒
+  是否加第 5 值 `CALCULATED`（本批规则：出口流继承上游的 `source`）；
 - TODO-100 追加触发条件：「下一轮 ce-code-review 的 scope 须含
   `test_deliverable_issue.py` + deliveries / record_edits API 改动 + 该批 diff 其余部分」。
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add docs/PCS-UI-SPEC.md TODOS.md
 git commit -F <消息文件>
 ```
 首行：`docs(P9B-3): SPEC V2.6 —— §7.20.1 系统参数 + §7.7 物流三节口径 + AI/Prompt 移出 P9B-3`
+
+---
+
+## Task T2.5：`streams.source` 列 + 迁移 `p9_015`（用户裁决 1a）
+
+**位置：** 必须在 **T2 之后**（SPEC 先定义 source 枚举）、**T3 之前**（T6/T7 依赖它）。
+
+**Files:**
+- Create: `pcs-backend/alembic/versions/p9_015_stream_source.py`
+- Modify: `pcs-backend/app/models/enums.py`（新增 `StreamSource` 枚举，4 值）
+- Modify: `pcs-backend/app/models/project.py`（`Stream.source` 列 + CHECK + 复合索引）
+- Modify: `pcs-backend/app/schemas/stream.py`（`StreamBase.source` 契约字段）
+- Modify: `pcs-backend/app/services/import_service.py`（PRO/II 写 `SIM_IMPORT` / Excel 写 `EXCEL`）
+- Modify: `pcs-backend/app/services/outlet_stream.py`（出口流**继承上游**的 `source`）
+- Modify: `pcs-backend/app/api/v1/streams.py`（列表端点支持 `?source=` 筛选）
+- Test: `pcs-backend/tests/api/v1/test_stream_source.py`
+
+**Interfaces:**
+- Consumes: `streams.source_type`（**既有** 13 值 NOT NULL · `ck_streams_source_type`）·
+  `StreamBase` · `StreamService.create` / `list_by_project`。
+- Produces:
+  - `StreamSource` 枚举（4 值：`MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`）
+  - `streams.source` 列（`VARCHAR(20)` NOT NULL DEFAULT `'MANUAL'` + CHECK
+    `ck_streams_source_valid` + 复合索引 `ix_streams_project_source(project_id, source)`）
+  - `GET /projects/{project_id}/streams?source=<值>` 筛选
+
+### ⚠️ 与既有 `streams.source_type` 的关系（**先读，否则会把两列混为一谈**）
+
+实测（2026-11-02，`pcs_test` 直查库）：`streams` **已经有** `source_type` 列 ——
+`VARCHAR(30)` **NOT NULL** + CHECK `ck_streams_source_type`，**13 值**：
+`SIM_IMPORT` / `MANUAL_ENTRY` / `LAB_REPORT` + 10 个 `*_CALCULATED`
+（设备计算出口流）。本任务新增的 `source` 是**另一个轴**：
+
+| 列 | 语义 | 取值 | 谁写 |
+|---|---|---|---|
+| `source`（**新**） | **录入通道**（这条物流怎么进系统的） | 4 值：MANUAL / SIM_IMPORT / EXCEL / LAB | 创建路径（向导 / 导入） |
+| `source_type`（既有） | **产出方式**（这条物流的数据怎么算出来的） | 13 值：3 个人工/导入 + 10 个设备计算 | 导入路径 / 设备计算 |
+
+⇒ 两列**正交**，不是同一概念的两种写法；但有 3 处**取值重叠且拼写不同**
+（`SIM_IMPORT` 同名 / `MANUAL_ENTRY`↔`MANUAL` / `LAB_REPORT`↔`LAB`）⇒
+**这正是「同一概念两份定义 ⇒ 漂移」的温床**（bug-187~191 / bug-2040 同族）⇒
+本任务用三条规则钉死（见 Step 3b），并把「长期是否合并两列」登记为未解决问题。
+
+⚠️ **另外两处实测事实**（委员会裁决 1a 的前提未覆盖）：
+
+1. Excel 导入路径当前把 `source_type` 也写成 `SIM_IMPORT`
+   （`import_service._excel_preview_entry`）⇒ 新列 `source` 在 Excel 行上写
+   `EXCEL` ⇒ **同一行两列取值不同**是**有意的**（`source_type` 词表里没有
+   `EXCEL`，本批不扩它）⇒ 登记为未解决问题（是否扩 `source_type` 词表）。
+2. 10 个 `*_CALCULATED` 设备计算出口流在 4 值词表里**没有对应值** ⇒ 本批规则：
+   **出口流继承其上游物流的 `source`**（`outlet_stream.persist` 有上游 ORM 对象
+   ⇒ 直接抄）⇒ 登记为未解决问题（是否加第 5 值 `CALCULATED`）。
+
+- [ ] **Step 1: 写失败测试**
+
+```python
+# pcs-backend/tests/api/v1/test_stream_source.py
+"""`streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。
+
+## 这一列是什么
+
+SPEC §7.7.1 的物流列表有「来源」列（SIM导入 / 手动 / Excel / 化验）⇒ 后端
+得有一个**能筛能显示**的字段承载它。
+
+## ⚠️ 它与既有的 `streams.source_type` **不是同一列**
+
+| 列 | 语义 | 取值 |
+|---|---|---|
+| `source`（本列） | **录入通道**（怎么进系统的） | 4 值：MANUAL / SIM_IMPORT / EXCEL / LAB |
+| `source_type`（既有） | **产出方式**（数据怎么算出来的） | 13 值：SIM_IMPORT / MANUAL_ENTRY / LAB_REPORT + 10 个 `*_CALCULATED` |
+
+⚠️ 两者有 3 处取值重叠但拼写不同（SIM_IMPORT 同名 / MANUAL_ENTRY↔MANUAL /
+LAB_REPORT↔LAB）⇒ **防漂移靠本文件末尾的一致性断言**，不是靠「大家记得填对」。
+
+## 4 个取值
+
+| 值 | 含义 | 谁写 |
+|---|---|---|
+| `MANUAL` | 手动创建向导 | T7 向导 |
+| `SIM_IMPORT` | 模拟软件导出（**PRO/II / HYSYS / Aspen 都归它**，用户裁决 1b） | PRO/II 导入路径 |
+| `EXCEL` | Excel 双 Sheet 导入 | Excel 导入路径 |
+| `LAB` | 化验报告（**预留**，本批无写入路径） | — |
+"""
+```
+
+断言**七条**（前五条 = 委员会指定）：
+
+1. 创建物流**不传** `source` ⇒ 落库为 `MANUAL`（默认值）；
+2. 传 `source='SIM_IMPORT'` ⇒ 落库正确；
+3. ⚠️ 传 `source='INVALID'` ⇒ **422** ——
+   ⚠️ 注意**是谁拒的**：API 路径上是 **Pydantic 枚举**先拒（`StreamSource`
+   枚举 ⇒ `422`）；DB 的 CHECK 约束是**绕过 schema 的写入**（直连 SQL / 脚本）
+   的兜底 ⇒ **两条都断言**：
+   - API 路径：422（`StreamSource` 枚举）；
+   - DB 路径：ORM 声明了 `CheckConstraint("source IN (...)",
+     name="ck_streams_source_valid")` ⇒ 单测库（`create_all` 从 ORM metadata
+     建表，**不是**迁移产物）里该 CHECK **存在** ⇒ 直写非法值 ⇒ `IntegrityError`。
+     ⇒ 这条**不依赖 PG**，SQLite 也真跑（单测的 CHECK 从 ORM 来 ⇒ 存在）。
+4. 列表响应带 `source` 字段；
+5. `GET /projects/{id}/streams?source=MANUAL` ⇒ 只返回匹配的；
+6. ⚠️ **一致性**：PRO/II 导入 ⇒ `source='SIM_IMPORT'` **且**
+   `source_type='SIM_IMPORT'`；Excel 导入 ⇒ `source='EXCEL'` **且**
+   `source_type='SIM_IMPORT'`（⚠️ **有意不同**，见 T2.5 开头的实测事实 1）；
+7. ⚠️ **出口流继承**：`outlet_stream` 造的出口流 ⇒ `source` == 其上游物流的
+   `source`（不是默认 `MANUAL`）。
+
+- [ ] **Step 2: 跑测试确认红**
+
+Run: `cd pcs-backend && uv run pytest tests/api/v1/test_stream_source.py -v`
+Expected: FAIL（列不存在 / 端点不接受 `source` 筛选）。
+
+- [ ] **Step 3: 加枚举 + ORM 列**
+
+```python
+# app/models/enums.py
+class StreamSource(str, enum.Enum):
+    """物流**录入通道** 4 态（`streams.source`，String(20)）。
+
+    ⚠️ **与 `StreamSourceType`（13 值）不是一回事**：
+    - 本枚举 = **怎么进系统的**（手动向导 / 模拟软件导出 / Excel 导入 / 化验报告）
+    - `StreamSourceType` = **数据怎么算出来的**（3 人工/导入 + 10 个设备计算出口流）
+
+    ⚠️ 两者有 3 处重叠且拼写不同（SIM_IMPORT 同名 / MANUAL_ENTRY↔MANUAL /
+    LAB_REPORT↔LAB）⇒ **两列必须由同一处写入**（见
+    `import_service` / `outlet_stream` 的映射），并有测试钉住配对关系。
+    """
+
+    MANUAL = "MANUAL"
+    SIM_IMPORT = "SIM_IMPORT"   # 模拟软件导出（PRO/II · HYSYS · Aspen 都归它）
+    EXCEL = "EXCEL"
+    LAB = "LAB"                  # 化验报告（预留）
+```
+
+`Stream` 模型（`app/models/project.py`）：
+
+```python
+    source: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="MANUAL",
+        server_default="MANUAL",
+    )
+```
+
+⚠️ **不要用 `index=True`** —— 那会生成 `ix_streams_source`（单列），
+与迁移里的复合索引 `ix_streams_project_source` **对不上** ⇒ `alembic check`
+报漂移。复合索引必须显式声明在 `__table_args__`：
+
+```python
+        CheckConstraint(
+            "source IN ('MANUAL','SIM_IMPORT','EXCEL','LAB')",
+            name="ck_streams_source_valid",
+        ),
+        Index("ix_streams_project_source", "project_id", "source"),
+```
+
+⚠️ CHECK 约束的**名字与文本**必须与迁移**逐字一致** ⇒ 否则 `alembic check`
+报漂移（CLAUDE.md「漂移盲区」）。
+
+- [ ] **Step 3b: 钉死两列的写入规则（防漂移）**
+
+| 写入路径 | `source` | `source_type` |
+|---|---|---|
+| 手动向导（T7） | `MANUAL` | `MANUAL_ENTRY`（既有必填字段，不动） |
+| PRO/II 导入 | `SIM_IMPORT` | `SIM_IMPORT`（既有） |
+| Excel 导入 | `EXCEL` | `SIM_IMPORT`（**既有行为，本批不改**） |
+| 设备计算出口流 | **继承上游的 `source`** | `*_CALCULATED`（既有，不动） |
+| 化验报告（本批无路径） | `LAB` | `LAB_REPORT` |
+
+⇒ **两列在每个写入点成对赋值**（不是一个可选项）⇒ 测试断言 6/7 钉住。
+
+- [ ] **Step 4: 写迁移 `p9_015`**
+
+```python
+"""给 `streams` 加 `source` 列（SPEC §7.7.1「来源」· P9B-3 · T2.5 · 用户裁决 1a）。
+
+## 为什么
+
+SPEC §7.7.1 的物流列表有「来源」列（SIM导入 / 手动 / Excel / 化验）——
+后端此前**没有**承载它的字段（`data_mode` 是「数据模式」CHEMICAL/PETROLEUM/SOLID，
+**不是**来源）⇒ 前端要么画一列假的，要么不画。
+
+## ⚠️ 与既有 `streams.source_type` 的关系（别混）
+
+- `source`（本列）= **录入通道**（怎么进系统的），4 值
+- `source_type`（既有）= **产出方式**（数据怎么算出来的），13 值
+  （3 人工/导入 + 10 个 `*_CALCULATED` 设备计算出口流）
+
+两列正交；Excel 行上 `source='EXCEL'` 而 `source_type='SIM_IMPORT'` 是**有意的**
+（`source_type` 词表里没有 EXCEL，本批不扩它）⇒ 已登记为未解决问题。
+
+## 列形状（与 ORM `Stream.source` 一致）
+
+`VARCHAR(20) / NOT NULL / DEFAULT 'MANUAL'`：存量行默认 MANUAL
+（存量都是早期建的，无录入通道信息 ⇒ 默认「手动」是最诚实的近似）。
+
+⚠️ 改迁移 ⇒ 必须验「迁移与 ORM 一致」（每库各一次，独立进程 + 直查库）。
+"""
+
+revision = "p9_015"
+down_revision = "p9_014"
+```
+
+`upgrade()`：
+
+```python
+    op.add_column(
+        "streams",
+        sa.Column("source", sa.String(20), nullable=False, server_default="MANUAL"),
+    )
+    op.create_check_constraint(
+        "ck_streams_source_valid", "streams",
+        "source IN ('MANUAL','SIM_IMPORT','EXCEL','LAB')",
+    )
+    op.create_index("ix_streams_project_source", "streams", ["project_id", "source"])
+```
+
+`downgrade()`：三个反向操作（drop index → drop constraint → drop column）。
+
+- [ ] **Step 5: schema + 写入路径 + 筛选**
+
+- `app/schemas/stream.py`：`StreamBase.source: StreamSource = Field(default=StreamSource.MANUAL)`
+  ⇒ 「不传 ⇒ MANUAL」由**契约层**兜住（不靠 service 默认值）；
+  ⚠️ `StreamBase` 是 `StreamCreate` / `StreamResponse` 的共同基类 ⇒ 加在这里，
+  响应自动带 `source`（测试 4）；`StreamUpdate` **不加** `source`
+  （来源是录入通道，创建后不改 ⇒ 免掉一处可漂移的写入面）；
+- `app/services/import_service.py`：`_proii_preview_entry` 加
+  `"source": "SIM_IMPORT"`；`_excel_preview_entry` 加 `"source": "EXCEL"`
+  （preview entry 直接喂 `StreamCreate(**entry)` ⇒ 契约层收下）；
+- `app/services/outlet_stream.py`：出口流 `source=source.source`（继承上游）；
+- `app/api/v1/streams.py`：`list_project_streams` 加
+  `source: StreamSource | None = Query(None)` ⇒ `StreamService.list_by_project`
+  加同名可选参数并 `.where(Stream.source == source)`。
+
+⚠️ **顺带补齐另两个筛选**（计划自洽性 · 复审未覆盖）：T6 的断言是「工况 / 相态 /
+状态 / 来源**四项**筛选都带 query 参数重新请求」，但后端列表端点**实测只支持
+`case_type`**（`phase` / `sign_status` 无筛选参数）⇒ 前端发的 query 会被静默忽略
+⇒ 断言必红。⇒ 本步一并加：
+`phase: StreamPhase | None = Query(None)` 与
+`sign_status: StreamSignStatus | None = Query(None)`
+（`StreamService.list_by_project` 同步加可选参数 + `.where`）⇒ **三个都可选、
+可组合**（AND 关系）。
+
+⚠️ `sign_status` 走 `ix_streams_sign_status` 索引（既有）⇒ 无需新索引；
+`phase` 无索引（本批量级下全表扫可接受 ⇒ 登记为潜在性能债，见未解决问题第 12 条）。
+
+- [ ] **Step 6: 跑测试 + 迁移自检**
+
+```bash
+cd pcs-backend && uv run pytest tests/api/v1/test_stream_source.py -v
+# ⚠️ 改了迁移 ⇒ 必须验「迁移与 ORM 一致」（每库各一次，独立进程 + 直查库）
+```
+
+⚠️ **ORM 与迁移的 CHECK 名字/文本、索引名必须逐字一致** ⇒ 否则 `alembic check`
+报漂移（CLAUDE.md「漂移盲区」）。⚠️ `alembic check` 退出码是 **255** 不是 1。
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add pcs-backend/alembic/versions/p9_015_stream_source.py pcs-backend/app/models/enums.py \
+        pcs-backend/app/models/project.py pcs-backend/app/schemas/stream.py \
+        pcs-backend/app/services/import_service.py pcs-backend/app/services/outlet_stream.py \
+        pcs-backend/app/api/v1/streams.py pcs-backend/tests/api/v1/test_stream_source.py
+git commit -F <消息文件>
+```
+首行：`feat(P9B-3): streams.source 列（4 值录入通道 + 迁移 p9_015）`
 
 ---
 
@@ -697,8 +1087,16 @@ Expected: FAIL（现在放行）。
 - 合计 = `sum(float(v) for v in composition_json.values())`；
 - 判定 `abs(total - 1.0) > 0.005`（≡ SPEC §7.7.2 的「100±0.5%」）；
 - 错误消息里**同时给百分比**：`合计 {total * 100:.2f}%`；
-- `composition_json` 为空 ⇒ **跳过校验**（不拦 —— 没有组成就没有可校验的组成；
-  `flash_persist` 对空组成是单独抛错的，不在本门禁范围）。
+- ⚠️ **空 composition 的区分（P2-1）**：
+
+| `composition_json` | 行为 | 理由 |
+|---|---|---|
+| `None` | **跳过校验** | 纯物质物流（无组成是合法场景） |
+| `{}` | **拒绝**（422，同一错误码） | 未填写（用户忘了填）⇒ 空对象 ≠ 无组成 |
+| 有内容 | 校验 `\|sum−1\| ≤ 0.005` | 正常 |
+
+⇒ SPEC §7.7.2 补一句：「纯物质物流可以无组成（`composition_json = null`）；
+空对象 `{}` 视为未填写，拒绝提交。」
 
 - [ ] **Step 4: 跑测试确认绿 + 跑既有 streams 套件防回归**
 
@@ -723,6 +1121,8 @@ git commit -F <消息文件>
 - Create: `pcs-backend/app/api/v1/system_settings.py`
 - Modify: `pcs-backend/app/models/enums.py`（`AuditAction` 加 `SYSTEM_SETTINGS_UPDATED`）
 - Modify: `pcs-backend/app/api/v1/__init__.py`（挂 router）
+- Modify: `pcs-backend/app/main.py`（**启动钩子**调 `seed_defaults` —— 实测位置
+  `app/main.py:59`，与 `CoefficientService.seed_default_tables` 同处）
 - Modify: `pcs-backend/docs/openapi.json`（契约重滚，生成物）
 - Test: `pcs-backend/tests/api/v1/test_system_settings.py`
 
@@ -734,6 +1134,7 @@ git commit -F <消息文件>
   - `SystemSettingOut = {setting_key: str, setting_value_json: Any, description: str | None, updated_at: datetime}`
   - `SystemSettingBatchIn = {settings: dict[str, Any]}`
   - `SystemSettingBatchOut = {updated: list[SystemSettingOut]}`
+  - `seed_defaults(db)` —— **幂等**写入 7 项默认键（见 Step 4b）
   - 错误码：`HTTP_403`（非 SYSTEM_ADMIN）/ `SYSTEM_SETTING_NOT_FOUND`（404，改不存在的键）
 
 - [ ] **Step 1: 写失败测试**
@@ -799,6 +1200,56 @@ class SystemSettingBatchOut(BaseModel):
     updated: list[SystemSettingOut]
 ```
 
+- [ ] **Step 4b: 加 7 项默认键的幂等 seed（P1-1）**
+
+⚠️ `system_settings` **真库 0 行** ⇒ 不 seed 的话管理员打开页面**一片空白**
+（「没有参数可改」与「参数加载失败」看起来一样）⇒ 启动时幂等 seed：
+
+```python
+# app/services/system_setting_service.py
+DEFAULT_SETTINGS: list[dict] = [
+    {"key": "session.timeout_minutes",      "value": 30,    "description": "会话超时（分钟）"},
+    {"key": "notification.retention_days",  "value": 30,    "description": "已读通知保留天数"},
+    {"key": "edit_lock.ttl_minutes",        "value": 30,    "description": "编辑锁有效期（分钟）"},
+    {"key": "edit_lock.renew_enabled",      "value": True,  "description": "编辑锁自动续期"},
+    {"key": "record.self_check_allowed",    "value": False, "description": "是否允许设计兼任校核"},
+    {"key": "equip_list.auto_sync_enabled", "value": True,  "description": "CHECKED 触发设备表同步"},
+    {"key": "stream.batch_submit_limit",    "value": 100,   "description": "物流批量提交上限（P9B-3b 用）"},
+]
+
+
+async def seed_defaults(db: AsyncSession) -> None:
+    """幂等：缺失则写入，存在则跳过（**不覆盖**管理员改过的值）。"""
+```
+
+⚠️ 第 7 项 `stream.batch_submit_limit` 在**本批无消费者**（批量提交在 P9B-3b）——
+提前 seed 比 P9B-3b 再补省事（seed 幂等 ⇒ 多一个键零成本）⇒ 但 **T5 的页面上必须
+能编辑它**（否则管理员看到「有配置但改不了」会困惑）。
+
+调用位置：`app/main.py` 的启动钩子（与 `CoefficientService.seed_default_tables`
+同位置）⇒ **只插缺失的键**，已存在的**不覆盖**。
+
+测试（加到 `test_system_settings.py`）：
+
+```python
+async def test_seed_is_idempotent(db_session):
+    """启动两次 ⇒ 不多写行、且**不覆盖**管理员改过的值。"""
+    await seed_defaults(db_session)
+    await db_session.commit()
+    await db_session.execute(
+        update(SystemSetting)
+        .where(SystemSetting.setting_key == "session.timeout_minutes")
+        .values(setting_value_json={"v": 999})
+    )
+    await db_session.commit()
+    await seed_defaults(db_session)
+    await db_session.commit()
+    rows = (await db_session.execute(select(SystemSetting))).scalars().all()
+    assert len(rows) == len(DEFAULT_SETTINGS), "重复 seed 写出了重复行"
+    kept = next(r for r in rows if r.setting_key == "session.timeout_minutes")
+    assert kept.setting_value_json == {"v": 999}, "seed 覆盖了管理员改过的值"
+```
+
 - [ ] **Step 4: 写 service（原子写）**
 
 ```python
@@ -807,6 +1258,11 @@ class SystemSettingBatchOut(BaseModel):
 
 ⚠️ **原子性**（委员会硬约束 1）：批量保存是**一次事务** ⇒ 任一键失败 ⇒
 **全部不落** ⇒ 不留「半改」状态。实现上：先校验全部键存在，再一次性写。
+
+⚠️ **已知限制（P2-3）**：系统参数**只能改已有键的值，不能新增键**。新增键需要
+改代码（`DEFAULT_SETTINGS` 清单）+ 重启（或迁移）。理由：允许管理员新增键会导致
+键名拼写错误污染表 —— **键的集合由开发者控制，值由管理员控制**。
+（同一条限制写进 SPEC §7.20.1。）
 """
 ```
 
@@ -850,8 +1306,8 @@ Expected: 3 passed；契约重滚无漂移。
 ```bash
 git add pcs-backend/app/schemas/system_settings.py pcs-backend/app/services/system_setting_service.py \
         pcs-backend/app/api/v1/system_settings.py pcs-backend/app/api/v1/__init__.py \
-        pcs-backend/app/models/enums.py pcs-backend/docs/openapi.json \
-        pcs-backend/tests/api/v1/test_system_settings.py
+        pcs-backend/app/main.py pcs-backend/app/models/enums.py \
+        pcs-backend/docs/openapi.json pcs-backend/tests/api/v1/test_system_settings.py
 git commit -F <消息文件>
 ```
 首行：`feat(P9B-3): 系统参数后端（批量原子 PUT + 审计）`
@@ -968,7 +1424,8 @@ git commit -F <消息文件>
 断言四条：
 1. 工具栏出现 **导入 / 新建物流 / 导出** 三个按钮（**没有**「批量提交校对」——
    批量在 P9B-3b，SPEC §7.7.1 的工具栏批量口径由 T2 登记）；
-2. 筛选有 **工况 / 相态 / 状态 / 来源** 四项，且改了筛选会重新请求（带 query 参数）；
+2. 筛选有 **工况 / 相态 / 状态 / 来源** 四项，且改了筛选会重新请求（带 query 参数），
+   ⚠️ 其中「来源」带的参数是 `source=<4 值之一>`（T2.5 的后端筛选）；
 3. 行操作有 **查看 / 校对 / 变更** 三个入口；
 4. ⚠️ 点行「校对」⇒ 调 `POST /streams/{id}/submit` ⇒ 成功后该行状态徽章变
    `IN_APPROVAL`；失败（403）⇒ 显示错误**且状态不变**；
@@ -999,17 +1456,21 @@ git commit -F <消息文件>
 （OPEN-4-1：没注入 streams 时走 `streamApi.listByProject` 自取）⇒ 改名会破坏
 那个页面。本批只把它**返回类型**换成契约派生，**不动名字**。
 
-⚠️ **「来源」列与「来源」筛选本批不做** —— 实测 `streams` 表**没有「来源」字段**
-（`data_mode` 是「数据模式」CHEMICAL / PETROLEUM / SOLID，**不是** SPEC §7.7.1 的
-「SIM导入 / 手动 / Excel / 化验」）⇒ 无数据源可显示、可筛 ⇒ 硬画一列等于造假
-⇒ 登记为 SPEC ↔ 实现分叉（T2）+ 后端债（未解决问题第 3 条）。
+✅ **「来源」列与「来源」筛选本批做** —— 数据源由 **T2.5** 提供
+（`streams.source` 新列 · 4 值：MANUAL / SIM_IMPORT / EXCEL / LAB ·
+后端支持 `?source=` 筛选）⇒ 前端**契约派生**该枚举，不手写 union。
+
+⚠️ **只显示 `source`（4 值），不显示 `source_type`（13 值）** ——
+后者是「产出方式」（含 10 个 `*_CALCULATED` 设备计算出口流），塞进一列会爆。
+⚠️ 两列**正交但取值重叠**（`source_type` 已在既有契约里）⇒ 前端**只消费
+`source`** ⇒ 列表列不出现 13 值的来源。
 
 - [ ] **Step 4: 重写 StreamListPage**
 
 列（SPEC §7.7.1）：物流号（等宽）· 名称 · 工况 · 相态 · 温度 · 压力 ·
 质量流量 · 状态（StateBadge）· 来源 · 操作。
-筛选：工况 / 相态 / 状态 / 来源（来源是**自由文本** ⇒ 用 Select 的枚举，
-取值待与后端 `streams` 的来源口径对齐，见未解决问题第 3 条）。
+筛选：工况 / 相态 / 状态 / 来源（来源 = `source` 4 值枚举 ⇒ 用 Select；
+取值来自**契约派生**的 `StreamSource`，不手写）。
 工具栏：导入 / 新建物流 / 导出。
 
 ⚠️ 「新建物流」⇒ 跳 **T7** 的手动创建向导（路由 `/sim/streams/new`）。
@@ -1046,7 +1507,8 @@ git commit -F <消息文件>
 2. 「校验」步调 `POST /streams/validate` ⇒ 通过项绿 / 警告项黄 / 错误项红
    （SPEC §7.7.3「校验结果」）；
 3. ⚠️ **校验有红项 ⇒ 「写入 DRAFT」按钮禁用**（阻断项必须处理，SPEC §7.7.3）；
-4. 「写入 DRAFT」⇒ `POST /streams` ⇒ 成功 ⇒ 跳回列表；失败 ⇒ 显示错误。
+4. 「写入 DRAFT」⇒ `POST /streams` ⇒ 成功 ⇒ 跳回列表；失败 ⇒ 显示错误；
+5. ⚠️ **物性估算失败 ⇒ 提示 + 仍可继续提交校对**（用户裁决 2：估算不阻塞）。
 
 - [ ] **Step 2: 跑测试确认红**
 
@@ -1060,15 +1522,17 @@ git commit -F <消息文件>
 
 | 步 | 内容 | 后端 |
 |---|---|---|
-| 1 基本信息 | 物流号 / 名称 / 描述 / 相态 / 工况 / 来源 / 项目 / 工作区 | `StreamCreate` 必填字段 |
+| 1 基本信息 | 物流号 / 名称 / 描述 / 相态 / 工况 / 项目 / 工作区（**来源不暴露**：固定 `MANUAL`，用户裁决 2） | `StreamCreate` 必填字段（`source` 省略 ⇒ 默认 `MANUAL`） |
 | 2 组成 | 组分名 / 分子式 / 摩尔分率 / 质量分率 / 体积分率 + **底部合计校验（100±0.5%）** | `composition_json` |
-| 3 物性 | 温压 + 估算触发 | `POST /streams/{id}/properties/estimate`（写入后才有 id ⇒ 该步放在「写入」之后或先建后补 ⇒ 见未解决问题第 4 条） |
-| 4 状态点 | 标签 / 类型 / 温压 / 相态 / 汽化分率 | `state_points` |
-| 5 校验 | 绿 / 黄 / 红 三色结果 | `POST /streams/validate` |
-| 6 写入 DRAFT | 调 `POST /streams` ⇒ 得 `stream_id` | — |
+| 3 状态点 | 标签 / 类型 / 温压 / 相态 / 汽化分率 | `state_points` |
+| 4 校验 | 绿 / 黄 / 红 三色 | `POST /streams/validate` |
+| 5 写入 DRAFT | 调 `POST /streams` ⇒ 得 `stream_id` | — |
+| 6 物性估算 | 调 `POST /streams/{id}/properties/estimate` | ⚠️ **失败 ⇒ 提示 + 允许继续**（不阻塞） |
 | 7 提交校对 | 调 `POST /streams/{id}/submit` ⇒ DRAFT → IN_APPROVAL | — |
 
-⚠️ 步骤 3 与 6 的**顺序矛盾**（估算要先有 stream_id）⇒ 见未解决问题第 4 条。
+⚠️ **顺序（用户裁决 2）**：校验 → 写入 → 估算 → 提交。估算排在写入之后（估算要
+`stream_id`），且**失败不阻塞后续提交**（物性估算是增强，不是门禁）。
+⇒ T7 加一条测试：「物性估算失败 ⇒ 提示 + 仍可继续提交校对」。
 
 - [ ] **Step 4: 跑测试 + typecheck + lint**
 
@@ -1134,6 +1598,28 @@ const rows = audit.rows.filter((r) => REVIEW_TRANSITIONS.includes(r.detail_json?
 ⚠️ `audit_logs.detail_json` 在 OpenAPI 里是 `object`（任意）⇒ 前端要**防御性**读
 （`r.detail_json?.transition`），不能假设它存在。
 
+- [ ] **Step 4b: 登记「校核记录后端过滤」技术债（P2-2）**
+
+本批**保持前端过滤**（`GET /audit-logs?...&action=RECORD_TRANSITION` 返回该物流的
+全部状态转移，前端按 `detail_json.transition` 筛出校对相关的三条）⇒ 在
+`TODOS.md` 登记（编号接 104）：
+
+```markdown
+### TODO-104: 校核记录的后端过滤
+
+**现状**：`GET /audit-logs?...&action=RECORD_TRANSITION` 返回该物流的全部状态转移，
+前端按 `detail_json.transition` 过滤出校核相关的三条。
+
+**为什么本批不做**：当前一个物流平均 5–10 次状态转移，前端过滤可接受。
+
+**触发条件**：状态转移次数显著增长（如 > 50 次/物流），或校核记录 Tab 加载变慢。
+
+**方案**：`audit_logs.detail_json` 加 GIN 索引，或表达式索引
+`(detail_json->>'transition')`。
+
+**归属**：P9B-4 或独立技术债。
+```
+
 - [ ] **Step 5: 跑测试 + typecheck + lint + 全量前端测试**
 
 - [ ] **Step 6: Commit**
@@ -1182,10 +1668,18 @@ cp pcs-backend/docs/openapi.json pcs-backend/docs/openapi-baseline.json
 bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 ```
 
-- [ ] **Step 5: 三库验证（每库独立进程 + 直查库）**
+- [ ] **Step 5: 两库 + 一条车道（P2-5：不是「三库」）**
 
-⚠️ **必须每库一个独立进程**（alembic 的 settings 是 pydantic 缓存实例）⇒ 且
-**直查库**的 `alembic_version` 与目标列，不能只信命令输出。
+| 目标 | 验什么 | 怎么验 |
+|---|---|---|
+| `pcs`（开发库） | 迁移与 ORM 一致 | `alembic check` exit 0 —— **独立进程** + 直查 `alembic_version` + 目标列 |
+| `pcs_test`（测试库） | 同上 | 同上（**独立进程**） |
+| `pcs_pgtest`（PG 车道） | 迁移在**真实 PG** 上跑得通 + 并发语义 | `scripts/pytest_pg.sh` exit 0 |
+
+⚠️ 前两个**必须每库一个独立进程**（alembic 的 settings 是 pydantic 缓存实例）
+⇒ 且**直查库**的 `alembic_version` 与目标列，不能只信命令输出。
+⚠️ 第三个**不是**「第三库要 alembic check」⇒ 它由 **T0 的车道**覆盖（那个车道
+才是 PG 专属语义的验证通道）。
 
 - [ ] **Step 6: 浏览器 QA**
 
@@ -1248,14 +1742,18 @@ login 200 → dashboard → 逐条走 T5/T6/T7/T8 的新页面 ⇒ 控制台 0 e
 
 | # | 问题 | 现状 | 建议 | 归属 |
 |---|---|---|---|---|
-| 1 | SPEC §7.7.1「引用 📎×N」的 **N 是什么** | SPEC 只给了列名，未定义口径；后端列表响应**不返回**该字段 | N = 该物流被**下游引用**的条数（设备 + 物流，lineage downstream 口径）⇒ 需后端在列表响应里加 `reference_count`（**一次聚合，无 N+1**） | **本批开工前裁决**（T2 已登记「本批先不渲染引用列」） |
-| 2 | 组成合计的**气/液两相口径** | 主组成 `composition_json` 的口径已按实测钉死（CAS→摩尔分率，0~1，判定 \|sum−1\| ≤ 0.005，见 T3） | **但**两相流的 `vapor_composition_json` / `liquid_composition_json` 是否**各自**也要合计校验？ | 建议：**只校验主组成**（两相的两份是同一套组分的相态拆分，各自合计本就 ≈1 ⇒ 重复校验只会制造噪音） |
-| 3 | 物流列表「来源」列 —— **后端没有这个字段** | 实测 `streams` 无 `source` 列；`data_mode` 是「数据模式」（CHEMICAL / PETROLEUM / SOLID），**不是** SPEC §7.7.1 的「SIM导入 / 手动 / Excel / 化验」 ⇒ SPEC ↔ 实现分叉 | 二选一：**(a)** 后端加 `streams.source` 列 + 迁移（记录创建方式：手动向导写「手动」、导入写「SIM导入」）⇒ 一次迁移，且让 T7 向导能记录来源；**(b)** 改 SPEC §7.7.1 删掉「来源」列与筛选 | 建议 **(a)**（来源是业务真实维度，导入向导本来就分「PRO/II / 手工 / Excel」）—— 但它给本批加一次迁移 ⇒ **开工前裁决** |
-| 4 | 手动创建向导里「物性估算」与「写入 DRAFT」的**顺序** | 估算要 `stream_id`，写入要校验通过 | 建议：**先校验 → 写入 DRAFT → 再估算**（估算失败不回滚 DRAFT，只提示） | 开工前裁决（T7 依赖它） |
+| 1 | SPEC §7.7.1「引用 📎×N」的 **N 是什么** | SPEC 只给了列名，未定义口径；后端列表响应**不返回**该字段 | N = 该物流被**下游引用**的条数（设备 + 物流，lineage downstream 口径）⇒ 需后端在列表响应里加 `reference_count`（**一次聚合，无 N+1**） | ✅ **本批已定**：**不渲染该列**（T2 在 SPEC 标 ⏳，T6 不画）⇒ 口径与聚合留待下一批 |
+| 2 | 组成合计的**气/液两相口径** | 主组成 `composition_json` 的口径已按实测钉死（CAS→摩尔分率，0~1，判定 \|sum−1\| ≤ 0.005，见 T3） | **但**两相流的 `vapor_composition_json` / `liquid_composition_json` 是否**各自**也要合计校验？ | ✅ **本批已定：只校验主组成**（两相的两份是同一套组分的相态拆分，各自合计本就 ≈1 ⇒ 重复校验只会制造噪音）⇒ T3 按此实现 |
+| 3 | 物流列表「来源」列 —— **后端没有这个字段** | ✅ **已裁决（用户裁决 1a）**：加 `streams.source` 列 + 迁移 `p9_015`，4 值枚举 MANUAL / SIM_IMPORT / EXCEL / LAB ⇒ **落地在 T2.5** | ⚠️ 落地时注意：既有 `streams.source_type`（13 值 · **产出方式**）与新列**正交**但取值重叠 ⇒ 防漂移规则 + 一致性断言见 T2.5 的 Step 3b | **已裁决**（T2.5） |
+| 4 | 手动创建向导里「物性估算」与「写入 DRAFT」的**顺序** | ✅ **已裁决（用户裁决 2）**：校验 → 写入 → 估算 → 提交；**估算失败只提示、不阻塞**后续提交校对 | 落地在 T7（Step 3 的 7 步表 + 一条「估算失败仍可继续提交」的测试） | **已裁决**（T7） |
 | 5 | 「提交校对」要不要**理由** | 既有单条端点 `reason=None` | 本批**沿用不要求理由**（与既有行为一致，不扩语义） | 已定（无需裁决） |
 | 6 | 系统参数页显示**哪些键** | `system_settings` 是通用 KV，键由后端/运维写入 | 页面显示**全部键**（不做白名单）⇒ 白名单反而要求后端维护一份清单 | 已定（无需裁决） |
 | 7 | 角色分配 ADR 的**编号与立项时机** | 裁决 3 要求升格独立 ADR | 建议下一批开工前先立 ADR（与 P9B-3 并行不冲突） | 下一批 |
 | 8 | P9B-3b 的端点命名 | 委员会 brief 用 `POST /streams/batch/submit` | 与 FastAPI 现有前缀风格一致（`/streams/{id}/submit`）⇒ `POST /streams/batch/submit` 可用，但 `batch` 会与 `{stream_id}` 抢路由 ⇒ **建议** `/streams/batch-submit` | P9B-3b 开工前裁决 |
+| 9 | `streams.source`（新 · 4 值）与 `streams.source_type`（既有 · 13 值）**长期是否合并** | 实测两列**语义正交**（录入通道 vs 产出方式）但**取值重叠 3 处**（SIM_IMPORT 同名 / MANUAL_ENTRY↔MANUAL / LAB_REPORT↔LAB）⇒ 本批用「同一写入点成对赋值 + 一致性断言」防漂移（T2.5 Step 3b） | 长期看：要么把 `source_type` 的 3 个人工值收窄进 `source`（破坏既有契约，不划算），要么在 ADR 层写明「两列正交」并永久保留 | T2.5 落地后随 ADR 一并登记 |
+| 10 | Excel 导入行的 `source_type` 仍是 `SIM_IMPORT`（实测 `import_service._excel_preview_entry`） | Excel 双 Sheet 导入在 `source_type` 上与 PRO/II **同值** ⇒ 既有契约里分不出两者 | 本批：新增的 `source` 列写 `EXCEL`（两列取值不同是**有意的**）⇒ 前端按 `source` 区分 ⇒ **既有 `source_type` 保持不动**（改它要动既有枚举与契约） | 下一批或独立 ADR（是否扩 `source_type` 词表） |
+| 11 | 10 个 `*_CALCULATED` 设备计算出口流在 `source` 的 4 值里**无对应值** | 实测 `pcs_test` 202 行里 101 行是 `PIPE_CALCULATED`/`PIPE_NET_CALCULATED`（出口流） | 本批规则：出口流**继承其上游物流的 `source`**（不造第 5 值、不撒谎）⇒ 测试断言 7 钉住 | 下一批（是否加 `CALCULATED` 第 5 值） |
+| 12 | `streams.phase` 无索引 | 列表新增「相态」筛选后按 `phase` 过滤要全表扫（`sign_status` 有 `ix_streams_sign_status`，`project_id` 有 `ix_streams_project_id`，`phase` **没有**） | 本批量级（单项目物流数 ≪ 1000）可接受 ⇒ 先不加索引；触发条件：某项目物流数 > 1000 且列表明显变慢 | 下一批（按需加 `ix_streams_phase`） |
 
 ---
 
