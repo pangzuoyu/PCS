@@ -64,6 +64,35 @@ def test_fails_when_zero_pg_tests_are_collected(tmp_path):
     assert "收集到 0 个 PG 测试" in (r.stdout + r.stderr)
 
 
+def test_fails_when_all_pg_tests_are_skipped(tmp_path):
+    """⚠️ 收集到了但**全部 skip** ⇒ 非零退出（第三条 fail-closed 闸）。
+
+    ⚠️ 这条与「收集到 0 个」**不是同一件事**：前者说明 marker 选中了用例、
+    但它们没真跑（PG 起了但环境不满足 ⇒ `pytest.skip`）⇒ 与「PG 没起」
+    **无法区分** ⇒ 必须单独非零退出（委员会裁决 4 约束 1 的第三条）。
+
+    ⇒ 用**假的 docker**（让第 ① 步通过）+ **假的 uv**（收集报 3 个、
+    正式跑报 3 skipped）走到第 ③ 条闸。
+    """
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "docker").write_text("#!/bin/sh\necho 'postgres-pgtest running'\nexit 0\n")
+    (fake_bin / "uv").write_text(
+        "#!/bin/sh\n"
+        'case "$*" in\n'
+        "  *--collect-only*) echo '3 tests collected in 0.01s' ;;\n"
+        "  *) echo '3 skipped in 0.02s' ;;\n"
+        "esac\n"
+        "exit 0\n"
+    )
+    for name in ("docker", "uv"):
+        (fake_bin / name).chmod(0o755)
+
+    r = _run({"PATH": f"{fake_bin}:{os.environ['PATH']}"})
+    assert r.returncode != 0, "全部 skip 却退出 0 ⇒ 假绿"
+    assert "没有实际执行任何测试" in (r.stdout + r.stderr)
+
+
 def test_script_does_not_teach_a_second_entry_point():
     """⚠️ 唯一入口：脚本里不得出现「直接 DATABASE_URL=... pytest」的第二条路。"""
     body = SCRIPT.read_text(encoding="utf-8")

@@ -425,9 +425,19 @@ class StreamService:
             PcsError(422): 状态机非法转移
         """
         # SELECT FOR UPDATE 串行化并发转移
+        # ⚠️ **`populate_existing=True` 不是可选项**（P9B-3 评审 C-1）：
+        #    加锁读的**目的**就是读「锁住的那一行」⇒ 若 session 里已有同 PK 的
+        #    实体（identity map），SQLAlchemy **默认不覆盖**它的已加载属性
+        #    ⇒ 读到的是**过期**状态 ⇒ 并发时两个提交都基于同一个旧状态通过
+        #    ⇒ 行锁形同虚设。
+        #    （真实触发路径：`POST /streams/{id}/submit` 在转移**前**先
+        #     `db.get(Stream, id)` 读组成做合计门禁 ⇒ 实体提前进了 identity map。）
         stream = (
             await db.execute(
-                select(Stream).where(Stream.stream_id == stream_id).with_for_update()
+                select(Stream)
+                .where(Stream.stream_id == stream_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
         ).scalar_one_or_none()
         if stream is None:

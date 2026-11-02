@@ -81,6 +81,25 @@ async def test_get_settings_requires_system_admin(client, seeded, designer_heade
     assert resp.status_code == 403, resp.text
 
 
+async def test_put_settings_requires_system_admin(client, seeded, designer_headers):
+    """⚠️ **写路径**也限 SYSTEM_ADMIN —— 否则任何设计员都能改全局参数。
+
+    ⚠️ 「会话超时」「编辑锁 TTL」「是否允许设计兼任校核」「物流批量提交上限」
+       都是**全局**开关 ⇒ 越权写入 = 全公司受影响 ⇒ 必须有 403 断言
+       （评审 I-1：此前**只有 GET** 有 ACL 断言 ⇒ 写路径的 `require_roles`
+       被删掉也不会有任何测试变红）。
+    """
+    resp = await client.put(
+        "/api/v1/system-settings",
+        json={"settings": {"session.timeout_minutes": 999}},
+        headers=designer_headers,
+    )
+
+    assert resp.status_code == 403, resp.text
+    # ⚠️ 且**没有**生效（403 不是「改了但拒绝显示」）
+    assert await _read_value(seeded, "session.timeout_minutes") == 30
+
+
 async def test_get_settings_returns_all_seeded_keys(client, seeded, admin_headers):
     """SYSTEM_ADMIN ⇒ 200 + 全部默认键都在列表里。"""
     resp = await client.get("/api/v1/system-settings", headers=admin_headers)

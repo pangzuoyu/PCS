@@ -166,6 +166,26 @@ describe('StreamDetailPage —— 7 Tab（T8）', () => {
     expect(document.body.textContent).not.toContain('MARK_STALE');
   });
 
+  it('⚠️ 未知 sign_status ⇒ 详情页**照常渲染**（徽章降级，不整页崩）', () => {
+    // ⚠️ 计划 Review Focus #2 要求「钉在 T6（列表）**与 T8（详情）**」——
+    //    T6 已钉（列表页有局部边界），详情页此前**整页崩**（StateBadge 在 DEV
+    //    对未知状态抛错 ⇒ 整棵树被卸载 ⇒ 用户只看到「页面渲染异常」）。
+    render(
+      <StreamDetailPage
+        stream={{
+          ...stream,
+          sign_status: 'SOMETHING_NEW' as unknown as Stream['sign_status'],
+        }}
+      />,
+    );
+
+    // 页面其余部分照常渲染
+    expect(screen.getByTestId('stream-detail-page')).toBeTruthy();
+    expect(screen.getByTestId('stream-detail-descriptions')).toBeTruthy();
+    // 徽章**显形**「未知状态: X」（不回落成「草稿」—— 语义被静默改写更危险）
+    expect(screen.getByTestId('state-badge-label').textContent).toContain('SOMETHING_NEW');
+  });
+
   it('组成 Tab ⇒ 底部显示合计，超出 100±0.5% 时**标红**', async () => {
     render(<StreamDetailPage stream={stream} />);
     clickTab('组成');

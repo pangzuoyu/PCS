@@ -17,7 +17,8 @@ import type { ReactNode } from 'react';
 import { Space, Typography } from 'antd';
 
 import { HashBadge } from './HashBadge';
-import { StateBadge, type SignModule } from './StateBadge';
+import { StateBadgeBoundary } from './StateBadgeBoundary';
+import type { SignModule } from './StateBadge';
 import type { RecordSignStatus } from '../../types/records';
 
 interface VersionSlot {
@@ -73,7 +74,9 @@ export function PageHeader({
             data-module={module}
             style={{ display: 'inline-flex' }}
           >
-            <StateBadge status={status} module={module} />
+            {/* ⚠️ 局部错误边界：未知状态**只降级这一格**（不整页崩）——
+                后端新增一个状态时，详情页照常可读（P9B-3 评审 C-2）。*/}
+            <StateBadgeBoundary status={status} module={module} />
           </span>
         )}
         {version && (

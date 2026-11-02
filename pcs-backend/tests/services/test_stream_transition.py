@@ -240,6 +240,52 @@ async def test_mark_stale_writes_change_pending_since(db, make_stream):
 
 
 @pytest.mark.asyncio
+async def test_locked_read_is_not_shadowed_by_stale_identity_map(db, make_stream):
+    """⚠️ 加锁读必须返回**锁定后**的行 —— 不能被 session 里**旧的**副本遮蔽。
+
+    **回归背景**（P9B-3 · T3 引入）：`POST /streams/{id}/submit` 在转移**之前**
+    先 `db.get(Stream, id)` 读组成（合计门禁）⇒ 实体进了 session 的 identity map
+    ⇒ 随后的 `SELECT ... FOR UPDATE` **默认不覆盖**已加载属性
+    （SQLAlchemy 的 `populate_existing=False`）⇒ 并发时第二个提交读到**过期的
+    DRAFT** ⇒ **两次都成功** ⇒ 行锁形同虚设（计划 Review Focus #5）。
+
+    ⇒ 修法：加锁 select 上 `populate_existing=True` ⇒ **锁住的那行永远赢**。
+
+    ⚠️ 本用例不需要真并发：用「同 session 预读 + 另一个事务改库」复现**同一形态**
+    的陈旧读（SQLite 无 FOR UPDATE，但陈旧读的成因是 identity map，与方言无关）。
+    真并发（PG 行锁）随 P9B-3b 的批量端点一起做。
+    """
+    from sqlalchemy import update
+
+    stream = await make_stream("FRESH")
+    sid = stream.stream_id
+
+    # ① 预读（模拟 submit 的前置 db.get）⇒ 实体进 identity map
+    pre = await db.get(Stream, sid)
+    assert pre is not None and pre.sign_status == StreamSignStatus.DRAFT
+
+    # ② 另一个事务把它推进到 CHECKED（**不**同步 identity map ⇒ ORM 手里仍是 DRAFT）
+    await db.execute(
+        update(Stream)
+        .where(Stream.stream_id == sid)
+        .values(sign_status=StreamSignStatus.CHECKED)
+        .execution_options(synchronize_session=False)
+    )
+    await db.commit()
+
+    # ③ 转移必须看到**最新**状态（CHECKED）⇒ DRAFT→IN_APPROVAL 非法 ⇒ 422
+    with pytest.raises(PcsError) as exc_info:
+        await StreamService.transition(
+            db, sid,
+            transition=StateTransition.SUBMIT_FOR_CHECK,
+            actor_user_id=uuid.uuid4(), actor_role="DESIGNER",
+        )
+    assert exc_info.value.code == "SIM_STREAM_INVALID_TRANSITION", (
+        "转移读到了 identity map 里的**过期**状态 ⇒ 行锁被绕过（并发会两次都成功）"
+    )
+
+
+@pytest.mark.asyncio
 async def test_concurrent_transfer_serialized(db, make_stream):
     """并发两次 SUBMIT：第二方拿到最新状态（FOR UPDATE 串行化）。
 

@@ -25,12 +25,12 @@
  *   ⚠️ 与工具栏那条「批量提交校对」（⏳ P9B-3b）**不是同一件事**
  * - 变更 → `POST /streams/{id}/initiate-change`（CHECKED → CHANGE_PENDING）
  */
-import { Component, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Select, Space, Table, Tag, Typography } from 'antd';
 
 import { NumericCell } from '../../components/common/NumericCell';
-import { StateBadge } from '../../components/common/StateBadge';
+import { StateBadgeBoundary } from '../../components/common/StateBadgeBoundary';
 import { streamApi, type StreamListFilters } from '../../api/stream';
 import { describePcsError } from '../../api/errors';
 import { downloadCsv, toCsv } from '../../lib/csv';
@@ -48,40 +48,6 @@ import {
 interface Props {
   /** 项目 id（默认取环境常量，与其它页面同口径）。 */
   projectId?: string;
-}
-
-/**
- * 状态徽章的**局部**错误边界 —— 一个未知状态**不能打挂整张表**。
- *
- * ⚠️ `StateBadge` 在 DEV 下对未知状态**抛错**（bug-180 的 fail-fast 设计：
- * 让问题第一次出现就炸）⇒ 没有这层边界，后端新增一个状态就会让
- * **整页**白屏（根 `ErrorBoundary` 接管，用户只看到「页面渲染异常」）。
- *
- * ⚠️ 兜底**显形**（「未知状态: X」）而不是回落成「草稿」—— 语义被静默改写
- * 比报错更危险（同一族教训，见 StateBadge 文件头）。
- */
-class BadgeCell extends Component<{ status: Stream['sign_status'] }, { failed: boolean }> {
-  state: { failed: boolean } = { failed: false };
-
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
-  }
-
-  componentDidCatch(error: Error): void {
-    // ⚠️ 不静默吞：DEV 下 StateBadge 的 fail-fast 信号要留在控制台。
-    console.error('[StreamListPage] StateBadge 渲染失败（未知状态？）', error);
-  }
-
-  render(): ReactNode {
-    if (this.state.failed) {
-      return (
-        <span data-testid="state-badge" data-known="false">
-          <span data-testid="state-badge-label">未知状态: {this.props.status}</span>
-        </span>
-      );
-    }
-    return <StateBadge status={this.props.status} module="SIM" />;
-  }
 }
 
 export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
@@ -223,8 +189,8 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
         title: '状态',
         dataIndex: 'sign_status',
         width: 110,
-        // ⚠️ 未知状态由 `BadgeCell` 兜底（**不**打挂整表）。
-        render: (s: Stream['sign_status']) => <BadgeCell status={s} />,
+        // ⚠️ 未知状态由 `StateBadgeBoundary` 兜底（**不**打挂整表）。
+        render: (s: Stream['sign_status']) => <StateBadgeBoundary status={s} module="SIM" />,
       },
       {
         // ⚠️ 只显示 `source`（4 值 · 录入通道）—— 不是 `source_type`（13 值）。

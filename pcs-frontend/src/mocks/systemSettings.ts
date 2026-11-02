@@ -63,21 +63,29 @@ export const systemSettingsHandlers = [
     }
     const body = (await request.json()) as SystemSettingBatchIn;
     const settings = body.settings ?? {};
+    // ⚠️ **先校验全部键，再统一写** —— 照抄后端语义（原子）：
+    //    缺任何一个键 ⇒ 404 且**一个键都不改**。
+    //    ⚠️ 之前这里是「边遍历边写」⇒ 缺键时**前面的键已经改了** ⇒
+    //    dev 里演示的是**半改状态**（而真后端绝不会这样）⇒ 与本批头号硬约束
+    //    （一次 PUT / 全改或全不改）相反。
+    const missing = Object.keys(settings).filter(
+      (key) => !seedSystemSettings.some((s) => s.setting_key === key),
+    );
+    if (missing.length > 0) {
+      return HttpResponse.json(
+        {
+          code: 'SYSTEM_SETTING_NOT_FOUND',
+          message: `系统参数不存在：${missing.join(', ')}`,
+          detail: { missing },
+          trace_id: 'mock',
+        },
+        { status: 404 },
+      );
+    }
     const updated: SystemSettingOut[] = [];
     for (const [key, value] of Object.entries(settings)) {
       const row = seedSystemSettings.find((s) => s.setting_key === key);
-      // ⚠️ 照抄后端语义：键不存在 ⇒ 404 且**一个键都不改**（原子）。
-      if (!row) {
-        return HttpResponse.json(
-          {
-            code: 'SYSTEM_SETTING_NOT_FOUND',
-            message: `系统参数不存在：${key}`,
-            detail: { missing: [key] },
-            trace_id: 'mock',
-          },
-          { status: 404 },
-        );
-      }
+      if (!row) continue; // 上面的 missing 校验已保证存在（类型守卫）
       row.setting_value_json = value;
       row.updated_at = new Date().toISOString();
       updated.push(row);
