@@ -1,8 +1,22 @@
 """`p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。
 
-⚠️ 本文件只断言**迁移与运行时一致**（默认矩阵的定义 / 回填的幂等 / 降级口径），
-**不跑真库升级** —— 真库升级的验证口径见 `scripts/check_migration_idempotency.py`
-+ `alembic check`（每库各一次，退出码 **255**）。
+本文件分两段：
+
+1. **不需要 PG 的形状断言**（默认矩阵的定义 / 回填的幂等 / 降级口径）；
+2. **需要真 PG 的引擎级断言**（最后两个测试）：在**隔离 schema** 上从零
+   `alembic upgrade head`、以及 `head → p9_011 → head` 的降级环。
+
+## ⚠️ 真库升级的验证口径（评审 #11：原 docstring 说得**比实际**多）
+
+- `scripts/check_migration_idempotency.py` + `alembic check`（每库各一次，
+  退出码 **255** = 真有漂移）—— 这是**部署前**的人工守门；
+- ⚠️ **CI 的 `check-api-drift` job 覆盖不到本文件**：那个 job 的步骤是
+  `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` /
+  `check_migration_idempotency.py` / 可视化渲染器测试 / 前端 typecheck ——
+  **它一条后端 pytest 都不跑** ⇒ 本文件里那两个引擎级测试在 CI 上**静默
+  skip**（无 PG URL 时 `pytest.skip`）⇒ 绿灯**证明不了**它们跑过。
+  ⇒ 本文件必须在**有本地 PostgreSQL** 时手动跑（本仓无自动化 PG 测试通道，
+  该债已登记为 TODO-099）。
 
 ## 最要紧的一条：迁移里的矩阵定义 ≡ 服务常量
 
@@ -126,7 +140,11 @@ def test_p9_013_runs_on_fresh_postgres_schema():
     1. 全链升级到 head 不炸；
     2. p9_013 的 ①号 INSERT 真的插出了 `DEFAULT_RECORD_3_LEVEL`（ACTIVE、3 步）。
 
-    无 PG（CI 单测 job）⇒ skip —— CI 的 fresh-PG `api-drift` job 承担同口径验证。
+    无 PG ⇒ **skip**。⚠️ **本仓没有任何自动化作业跑它**：CI 的
+    `check-api-drift` job 只跑 `alembic upgrade head` / OpenAPI 导出与漂移
+    检查 / 迁移幂等脚本 / 可视化渲染器测试 / 前端 typecheck，**一条后端
+    pytest 都不跑** ⇒ 这里在 CI 上永远 skip ⇒ 绿灯**证明不了**它跑过。
+    ⇒ 需本地有 PostgreSQL 时手动跑本文件（该债已登记为 TODO-099）。
     """
     import os
     import subprocess
@@ -177,6 +195,7 @@ async def main():
     print("P9_013_ENGINE_OK")
 asyncio.run(main())
 """
+    cleanup = None
     try:
         # 建隔离 schema（用原 URL，不带 options）
         result = subprocess.run(
@@ -214,7 +233,7 @@ asyncio.run(main())
         assert result.returncode == 0, f"upgrade/断言失败:\n{result.stdout}\n{result.stderr}"
         assert "P9_013_ENGINE_OK" in result.stdout
     finally:
-        subprocess.run(
+        cleanup = subprocess.run(
             [
                 sys.executable,
                 "-c",
@@ -236,17 +255,28 @@ asyncio.run(main())
             text=True,
             timeout=120,
         )
+    # ⚠️ 清理失败**必须**报出来（评审 #18）：静默吞掉 ⇒ 隔离 schema 留在
+    # 开发库里，而 DDL 已经落地 ⇒ 下次跑会撞「schema 已存在」。
+    # ⚠️ 判定放在 try/finally **之后**（不在 finally 里）：finally 里抛的
+    #    异常会**顶掉**正在传播的原始异常 ⇒ 真正的失败原因会被这条掩盖。
+    assert cleanup is not None and cleanup.returncode == 0, (
+        f"DROP SCHEMA {schema} 失败（隔离 schema 可能残留在库里）:\n"
+        f"{cleanup.stdout}\n{cleanup.stderr}"
+    )
 
 
 def test_p9_013_p9_012_downgrade_upgrade_roundtrip():
     """⚠️ 评审 B-5：两条新迁移的 `downgrade` 从未在任何引擎上执行过。
 
-    在隔离 schema 上走完整环：`head → p9_012 → head` ⇒
+    在隔离 schema 上走完整环：`head → p9_011 → head` ⇒
     - p9_013 降级删绑定（矩阵行保留）⇒ 重升级 ⇒ 默认矩阵**仍恰好一行**、
       回填逻辑可重入；
     - p9_012 降级把列加回来（含约定名 FK）⇒ 再升级 ⇒ 列再删 ⇒ 不炸、不漂。
     ⚠️ 降级**有损**（绑定被删 = 用户配置不恢复）—— 这里不断言绑定存活，
     只断言链路可走 + 升级侧幂等。
+
+    ⚠️ 降级目标是 **p9_011**（不是 p9_012）—— `p9_013` 与 `p9_012` 都要退掉
+    才能验「p9_012 的列加回来再删掉」那一段。
     """
     import os
     import subprocess
@@ -316,6 +346,7 @@ async def main():
     print("ROUNDTRIP_OK")
 asyncio.run(main())
 """
+    cleanup = None
     try:
         result = subprocess.run(
             [sys.executable, "-c",
@@ -342,7 +373,7 @@ asyncio.run(main())
         assert result.returncode == 0, f"roundtrip 失败:\n{result.stdout}\n{result.stderr}"
         assert "ROUNDTRIP_OK" in result.stdout
     finally:
-        subprocess.run(
+        cleanup = subprocess.run(
             [sys.executable, "-c",
              f"""
 import asyncio, os
@@ -358,3 +389,11 @@ asyncio.run(main())
             env={**os.environ, "BASE_PG_URL": url},
             cwd=root, capture_output=True, text=True, timeout=120,
         )
+    # ⚠️ 清理失败**必须**报出来（评审 #18）：静默吞掉 ⇒ 隔离 schema 留在
+    # 开发库里，而 DDL 已经落地 ⇒ 下次跑会撞「schema 已存在」。
+    # ⚠️ 判定放在 try/finally **之后**（不在 finally 里）：finally 里抛的
+    #    异常会**顶掉**正在传播的原始异常 ⇒ 真正的失败原因会被这条掩盖。
+    assert cleanup is not None and cleanup.returncode == 0, (
+        f"DROP SCHEMA {schema} 失败（隔离 schema 可能残留在库里）:\n"
+        f"{cleanup.stdout}\n{cleanup.stderr}"
+    )
