@@ -27,6 +27,7 @@ TODO-054 登记的缺口 —— 记录侧「多级批准」的角色链**无定�
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -441,9 +442,23 @@ async def test_second_submit_after_commit_is_409(
     ⚠️ **为什么是串行不是 gather**：本仓单测的 in-memory SQLite 走
     StaticPool —— 两个请求共享**同一条连接/同一个事务域**，根本没有
     隔离 ⇒ 真并发在本 fixture 上不可表达（CLAUDE.md 已记载的坑）。
-    `submit_approval` 的 `FOR UPDATE` 行锁（SQLite 方言静默省略）在
-    **PG** 上把并发提交串行化成与本测试等价的先后序列 —— CI 的
-    fresh-PG api-drift job 负责那条链路，这里钉住串行语义与快照归属。
+
+    ## ⚠️ 本测试**不**验证行锁（评审 #1 的 true 说法已删除）
+
+    `submit_approval` 的 `FOR UPDATE` 行锁（SQLite 方言静默省略）在 **PG**
+    上把并发提交串行化成与本测试等价的先后序列 —— 但**本仓没有任何自动化
+    作业验证 PG 上的并发结果**：CI 的 `check-api-drift` job 只跑
+    `alembic upgrade head` / OpenAPI 导出与漂移检查 / 迁移幂等脚本 /
+    可视化渲染器测试 / 前端 typecheck，**一条后端 pytest 都不跑**。
+
+    ⇒ 行锁由另外两条测试钉住（**机制** + **接线**，都不需要 PG 服务器）：
+    - `test_locking_select_emits_for_update_on_postgres`（用 PG 方言编译
+      加锁 SELECT，断言 SQL 里含 `FOR UPDATE`）
+    - `test_write_paths_request_row_lock`（断言两个写路径都传
+      `for_update=True`）
+
+    ⇒ PG 上的**实际并发结果**（一胜一拒）目前**无自动化覆盖**，需真库
+    手工验证（见 `docs/ce-code-review/20261028-074842-e15c26e8/ROLLBACK-RUNBOOK.md`）。
     """
     rec = await _make_record(client, auth, db_session, project_id, workspace)
     await _bind_record_matrix(db_session, project_id=project_id)
@@ -527,3 +542,159 @@ async def test_empty_steps_matrix_is_loud_not_500(
 
     assert resp.status_code == 422, resp.text
     assert resp.json()["code"] == "SIGNATURE_MATRIX_EMPTY_CHAIN"
+
+
+# ---------------------------------------------------------------------------
+# 评审 #1（P1）：行锁**只写在注释里** ⇒ 删掉 `.with_for_update()` 套件照样全绿
+# ---------------------------------------------------------------------------
+
+
+async def test_locking_select_emits_for_update_on_postgres():
+    """方言级断言：加锁那一条 SELECT 在 **PG 方言**下真的带 `FOR UPDATE`。
+
+    ## 为什么是方言级而不是「真跑 PG 并发」
+
+    - in-memory SQLite 把 `with_for_update()` **编译成空串**（压根没有锁），
+      且 StaticPool 共享连接 ⇒ 真并发在本仓单测 fixture 上**不可表达**；
+    - 真 PG 双连接并发要起第二个进程 + 真库 ⇒ 那是部署验证，不是单测。
+
+    ⇒ 这里钉**机制**（SQL 形状），下一条钉**接线**（端点确实请求了锁）。
+    两条合起来 ⇒ 「删掉行锁」必红。
+
+    ⚠️ 这条**不**证明 PG 上的并发结果（一胜一拒）—— 那仍需真库，见
+    `test_record_approval_chain.py::test_second_submit_after_commit_is_409`
+    的 docstring（已改为如实说明 CI 不覆盖它）。
+    """
+    from sqlalchemy.dialects import postgresql
+
+    from app.api.v1.records_actions import _locked_select
+
+    stmt = _locked_select(PipingResult, uuid.uuid4())
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "FOR UPDATE" in sql, sql
+
+
+async def test_write_paths_request_row_lock(
+    client, auth, db_session, project_id, workspace, monkeypatch
+):
+    """接线断言：submit-approval 与 approval-step **都**请求行锁。
+
+    上一条钉机制（SQL 形状），这条钉**接线**（端点真的传了 `for_update=True`）
+    —— 少了任一条，「删掉行锁」仍可能全绿。
+    """
+    from app.api.v1 import records_actions
+
+    seen: list[Any] = []
+    original = records_actions.load_record
+
+    async def spy(*args, **kwargs):
+        seen.append(kwargs.get("for_update"))
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(records_actions, "load_record", spy)
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    await _bind_record_matrix(db_session, project_id=project_id)
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert resp.status_code == 200, resp.text
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert seen == [True, True], f"两个写路径都必须请求行锁，实际 {seen}"
+
+
+# ---------------------------------------------------------------------------
+# 评审 #9：快照列上线**前**就在审批中的存量行 ⇒ 自审二次断言对它整体失效
+# ---------------------------------------------------------------------------
+
+
+async def _make_legacy_row(client, auth, db_session, project_id, workspace):
+    """造一条「快照列上线前就在审批中」的存量行（`approval_chain_snapshot IS NULL`）。
+
+    ⚠️ 必须用**显式 UPDATE** 抹快照：ORM 属性赋值在「该属性从未被本 session
+    改过」时**不产生脏写** ⇒ 库里还留着快照 ⇒ 测的其实是新路径，不是存量路径。
+    """
+    from sqlalchemy import update
+
+    rec = await _make_record(client, auth, db_session, project_id, workspace)
+    await _bind_record_matrix(db_session, project_id=project_id)
+    resp = await client.post(_url(rec, "submit-approval"), headers=_ADMIN, json={})
+    assert resp.status_code == 200, resp.text
+    # 抹掉快照 ⇒ 模拟「迁移落地时它已经在审批中」
+    await db_session.execute(
+        update(PipingResult)
+        .where(PipingResult.pipe_id == rec.pipe_id)
+        .values(approval_chain_snapshot=None)
+    )
+    await db_session.commit()
+    await db_session.refresh(rec)
+    assert rec.approval_chain_snapshot is None, "存量行必须真的没有快照"
+    return rec
+
+
+async def test_legacy_row_without_snapshot_blocks_submitter_self_approval(
+    client, auth, db_session, project_id, workspace
+):
+    """⚠️ 评审 #9：`approval_chain_snapshot IS NULL` 的存量行 ⇒ 提交人不明 ⇒
+    每步的 `submitted_by` 二次断言**整段跳过** ⇒ 提交人能在第 2 步批自己的记录
+    （正是委员会裁决要堵的自审绕过）。
+
+    ⇒ 修法：从**审计流水**反推当初的提交人
+    （`RECORD_TRANSITION` / `detail.transition == 'SUBMIT_FOR_CHECK'`）
+    ⇒ 提交人批自己的存量行 ⇒ 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`。
+    """
+    rec = await _make_legacy_row(client, auth, db_session, project_id, workspace)
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_ADMIN, json={"decision": "PASS"}
+    )
+
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "APPROVAL_SELF_REVIEW_FORBIDDEN", resp.text
+
+
+async def test_legacy_row_freezes_chain_on_first_touch(
+    client, auth, db_session, project_id, workspace
+):
+    """存量行第一次被批 ⇒ **当场冻结**一条链快照（含提交人）⇒ 此后每一步都有
+    `submitted_by` 可比对 ⇒ 不再存在「无快照 ⇒ 零保护」的分支。"""
+    rec = await _make_legacy_row(client, auth, db_session, project_id, workspace)
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    await db_session.refresh(rec)
+    snap = rec.approval_chain_snapshot
+    assert snap is not None, "存量行首次触达必须冻结链快照"
+    assert snap["submitted_by"], "快照必须带提交人（自审二次断言的依据）"
+    assert snap.get("legacy") is True, "存量行冻结的快照要标出 legacy"
+
+
+async def test_legacy_row_without_audit_row_is_loud_not_silent(
+    client, auth, db_session, project_id, workspace
+):
+    """查不到提交人 ⇒ **响亮失败**（409 `APPROVAL_SUBMITTER_UNKNOWN`）。
+
+    ⚠️ 不放行「查不到就当没有提交人」—— 那等于把自审绕过又打开一次
+    （fail-open）。宁可这条记录卡住等人工处理。
+    """
+    from sqlalchemy import delete
+
+    from app.models.system import AuditLog
+
+    rec = await _make_legacy_row(client, auth, db_session, project_id, workspace)
+    # 抹掉送审审计行（模拟审计流水被裁剪/归档）
+    await db_session.execute(
+        delete(AuditLog).where(AuditLog.resource_id == str(rec.pipe_id))
+    )
+    await db_session.commit()
+
+    resp = await client.post(
+        _url(rec, "approval-step"), headers=_CHECKER, json={"decision": "PASS"}
+    )
+
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["code"] == "APPROVAL_SUBMITTER_UNKNOWN", resp.text

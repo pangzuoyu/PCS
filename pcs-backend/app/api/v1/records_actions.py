@@ -44,6 +44,7 @@ from app.models.enums import (
     to_value,
 )
 from app.models.record_comment import RecordComment
+from app.models.system import AuditLog
 from app.schemas.records_actions import (
     ApprovalStepRequest,
     ApprovalStepResponse,
@@ -137,6 +138,28 @@ def resolve_record_model(module: str, *, need_mixin: bool = True) -> type[Any]:
     return model
 
 
+def _locked_select(model: Any, record_id: uuid.UUID) -> Any:
+    """加锁取行用的 SELECT —— **单独抽出来**是为了让方言级测试能钉住它。
+
+    ## 为什么必须抽出来（评审 #1）
+
+    `with_for_update()` 在 SQLite 上被**方言省略**（单测里等于压根没有锁）
+    ⇒ 只能靠「用 PG 方言编译这条语句、断言 SQL 里含 `FOR UPDATE`」来钉住
+    机制。若把 select 写在 `load_record` 里，测试只能**照抄**一遍
+    ⇒ 照抄的那份与生产代码可以各改各的 ⇒ 删掉锁、测试照样绿。
+
+    `populate_existing` ⇒ 绕过 identity map 读到**已提交**的新状态
+    （第二个并发事务阻塞到第一个提交后，必须重读）。
+    """
+    pk = model.__mapper__.primary_key[0]
+    return (
+        select(model)
+        .where(pk == record_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 async def load_record(
     db: AsyncSession,
     *,
@@ -153,17 +176,16 @@ async def load_record(
       且绕过 identity map 读到**已提交**的新状态）；
     - SQLite（单测）无 FOR UPDATE ⇒ 语法被方言省略，靠共享连接的
       语句级串行 + `populate_existing` 尽力复读。
+
+    ⚠️ 行锁的**机制**由 `tests/api/v1/test_record_approval_chain.py::
+    test_locking_select_emits_for_update_on_postgres`（方言级 SQL 断言）
+    + `::test_write_paths_request_row_lock`（接线断言）钉住 ——
+    本仓单测跑在 SQLite 上，**测不出** PG 上的并发结果（一胜一拒）。
     """
     model = resolve_record_model(module, need_mixin=need_mixin)
     if for_update:
-        pk = model.__mapper__.primary_key[0]
         record = (
-            await db.execute(
-                select(model)
-                .where(pk == record_id)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
+            await db.execute(_locked_select(model, record_id))
         ).scalar_one_or_none()
     else:
         record = await db.get(model, record_id)
@@ -357,11 +379,13 @@ async def _next_approval_role(
 ) -> str | None:
     """批准链第 `step_index` 步该谁批（1 起）—— **快照优先**（评审 #1）。
 
-    - 有 `snapshot`（submit 时冻结的链）⇒ **只读快照**：中途重绑矩阵 /
-      矩阵被禁用 / 矩阵行被删，都**不再影响**已提交记录的链
+    - 有 `snapshot` 且快照里有 `steps`（submit 时冻结的链）⇒ **只读快照**：
+      中途重绑矩阵 / 矩阵被禁用 / 矩阵行被删，都**不再影响**已提交记录的链
       （与交付物侧 `_steps_for_version` 同构）。
-    - 无快照（修法上线前已 IN_APPROVAL 的存量行）⇒ 回退实时矩阵，
-      行为不劣于修前（部署窗口兼容）。
+    - 快照**没有** `steps` ⇒ 回退实时矩阵。两种情形：
+      (a) 完全没有快照（修法上线前已 IN_APPROVAL 的存量行）；
+      (b) 存量行首次触达时冻结的快照只记了 `submitted_by`、没记 steps
+      （当时的矩阵查不到 / 非 ACTIVE ⇒ 冻不了链）。
 
     ⚠️ **矩阵查不到 ⇒ 保留原角色**（`fallback`），**不**静默清空 ——
     清空后 `record.approval_role` 为空 ⇒ 端点的角色闸会**放行任何人**
@@ -388,6 +412,97 @@ async def _next_approval_role(
     return steps[step_index - 1].sign_role
 
 
+async def _submitter_from_audit(
+    db: AsyncSession, *, record: Any, record_id: uuid.UUID
+) -> tuple[uuid.UUID | None, str | None]:
+    """从**审计流水**反推当初的提交人（`user_id`, `role`）。
+
+    ## 为什么需要它（评审 #9）
+
+    批准链快照（`approval_chain_snapshot`）是 **p9_014** 才有的列 ⇒
+    迁移落地**前**就在审批中的存量行 `IS NULL` ⇒ 拿不到 `submitted_by`
+    ⇒ 每步的「提交人不得批自己的记录」二次断言对它们**整段失效**
+    ⇒ 委员会裁决的「每个 step re-assert submitter」在这条路径上没落地。
+
+    ⇒ 从 `RECORD_TRANSITION` 审计行把提交人捞回来 —— 状态机每次转移都写
+    一行（`detail.transition` / `detail.role` / `user_id`），而进入
+    `IN_APPROVAL` 的转移**只有** `SUBMIT_FOR_CHECK` 一个
+    （`state_machine.ALLOWED_TRANSITIONS`）⇒ 审计流水里有且只有一条这样的行。
+
+    ⚠️ `detail_json` 是 JSONB，SQLite 单测没有 `->>` 运算符 ⇒ 过渡到
+    Python 侧筛 `transition`（按 `resource_id` 收窄，量级个位数）。
+    """
+    table = record.__mapper__.local_table.name
+    rows = (
+        await db.execute(
+            select(AuditLog.user_id, AuditLog.detail_json).where(
+                AuditLog.action == AuditAction.RECORD_TRANSITION.value,
+                AuditLog.resource_type == table,
+                AuditLog.resource_id == str(record_id),
+            )
+        )
+    ).all()
+    for user_id, detail in rows:
+        detail = detail or {}
+        if detail.get("transition") == StateTransition.SUBMIT_FOR_CHECK.value:
+            return user_id, detail.get("role")
+    return None, None
+
+
+async def _legacy_chain_snapshot(
+    db: AsyncSession, *, record: Any, record_id: uuid.UUID, project_id: uuid.UUID
+) -> dict[str, Any]:
+    """给**无快照的存量行**造一条链快照（首次触达时冻结，见评审 #9）。
+
+    - `submitted_by` / `submitted_by_role`：**从审计流水反推**（必需）——
+      这是自审二次断言的依据；**查不到 ⇒ 响亮 409**（fail-closed），
+      不放行「查不到就当没有提交人」（fail-open = 自审绕过）。
+    - `steps`：存量行的**原链已不可知** ⇒ 取当前**实时矩阵**冻结下来 ——
+      冻结后不再随矩阵改动漂移（比「一直跟着实时矩阵走」严格）。
+      矩阵查不到 / 非 ACTIVE ⇒ 只记 `submitted_by`（链继续走实时矩阵，
+      `_next_approval_role` 对没有 `steps` 的快照会回退实时矩阵）。
+
+    ⚠️ 本函数**只读**，不写 `record` ⇒ 调用方可以先做 403 判定再落盘，
+    不会留下「被拒的请求改了行」的脏状态。
+    """
+    submitter, submitter_role = await _submitter_from_audit(
+        db, record=record, record_id=record_id
+    )
+    if submitter is None:
+        raise PcsError(
+            code="APPROVAL_SUBMITTER_UNKNOWN",
+            message=(
+                f"记录 {record_id} 在审批中，但审计流水里找不到送审记录"
+                "（RECORD_TRANSITION / SUBMIT_FOR_CHECK）⇒ 提交人不明 ⇒ "
+                "无法校验自审 ⇒ 拒绝推进（请撤回后重新送审）"
+            ),
+            status=409,
+        )
+    snapshot: dict[str, Any] = {
+        "submitted_by": str(submitter),
+        "submitted_by_role": submitter_role or "",
+        "legacy": True,
+    }
+    matrix = None
+    try:
+        matrix = await SignatureMatrixService.resolve_project_matrix(
+            db, project_id=project_id, module=SignatureMatrixService.RECORD_MODULE
+        )
+    except PcsError as e:
+        # 矩阵绑着但不是 ACTIVE（409）⇒ 冻不了链 ⇒ 只留提交人（自审仍有保护）
+        if e.code != "SIGNATURE_MATRIX_NOT_ACTIVE":
+            raise
+    if matrix is not None:
+        steps = SignatureMatrixService.parse_steps(matrix)
+        if steps:
+            snapshot["matrix_id"] = str(matrix.matrix_id)
+            snapshot["matrix_name"] = matrix.matrix_name
+            snapshot["steps"] = [
+                {"step_order": s.step_order, "sign_role": s.sign_role} for s in steps
+            ]
+    return snapshot
+
+
 @router.post(
     "/records/{module}/{record_id}/submit-approval",
     response_model=SubmitApprovalResponse,
@@ -411,11 +526,28 @@ async def submit_approval(
     （响亮失败，不是「默认深度 1」—— 静默降级会让用户以为走的是单级审批，
     而实际批准链是空的）。
 
+    ## ⚠️ **批准链在提交时冻结**（评审 #1 · 委员会裁决：快照）
+
+    本次提交会把当时的链（矩阵 id + 角色序列 + 提交人身份）冻进记录行的
+    `approval_chain_snapshot` ⇒ **之后的每一步只读这份快照**，不再回查
+    实时矩阵 ⇒ 中途重绑矩阵 / 矩阵被禁用 / 矩阵行被删，**都动不了**已提交
+    记录的链。
+
     ## 自审防护
 
     提交人自己的全局角色出现在链里**任何一步** ⇒ 403
     `APPROVAL_SELF_REVIEW_FORBIDDEN`。
-    ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。
+    ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己 ⇒ 快照里记了
+    提交人，`approval-step` **每一步都再比对一次**。
+
+    ## 错误码
+
+    - 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`：项目没绑 RECORD 矩阵
+    - 422 `SIGNATURE_MATRIX_EMPTY_CHAIN`：绑定的矩阵步骤为空（脏数据）
+    - 409 `SIGNATURE_MATRIX_NOT_ACTIVE`：绑定的矩阵不是 ACTIVE
+    - 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`：提交人的角色出现在链里
+    - 403 `WORKSPACE_NOT_FORMAL`：记录在个人草稿区里，送审没有工程效力
+    - 409 `RECORD_INVALID_TRANSITION`：当前状态不能送审
     """
     require_roles(actor, *_roles_for(StateTransition.SUBMIT_FOR_CHECK))
     # ⚠️ **行锁**（评审 #1 并发位）：并发 submit 必须一胜一拒 ——
@@ -521,6 +653,32 @@ async def approval_step(
     `approval_role` **推进到链上下一步的角色** ⇒ 否则第 2 步的角色永远
     匹配不上 `record.approval_role` ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒
     链条卡死（这正是「深度 > 1 不可用」的根因）。
+
+    ## ⚠️ **批准链来自 submit 时冻结的快照**（评审 #1 · 委员会裁决）
+
+    链在 `submit-approval` 时冻结进 `approval_chain_snapshot`（矩阵 id +
+    角色序列 + 提交人身份）⇒ 本端点**只读这份快照**，不回查实时矩阵 ⇒
+    中途重绑矩阵 / 矩阵被禁用 / 矩阵行被删，**都改变不了**已提交记录的链。
+
+    **存量行**（快照列落地前就在审批中 ⇒ `approval_chain_snapshot IS NULL`）：
+    本端点从**审计流水**反推当初的提交人（`RECORD_TRANSITION` /
+    `SUBMIT_FOR_CHECK`）并**首次触达就冻结**一条链 ⇒ 自审保护对存量行
+    同样生效，不再有「无快照 ⇒ 零保护」的分支。
+
+    ## 自审防护
+
+    快照里的 `submitted_by` **每一步都比对一次** ⇒ 提交人批不了自己的记录
+    （哪怕中途重绑把自己的角色注入下一步）。
+
+    ## 错误码
+
+    - 409 `APPROVAL_NOT_ACTIVE`：记录不在审批中
+    - 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`：提交人批自己的记录
+    - 403 `APPROVAL_ROLE_MISMATCH`：当前角色不是这一步该批的角色
+    - 409 `APPROVAL_SUBMITTER_UNKNOWN`：存量行的提交人无法从审计流水反推
+      （⇒ 响亮拒绝推进，不放行「查不到就当没有提交人」）
+    - 403 `WORKSPACE_NOT_FORMAL`：记录在个人草稿区里，批注没有工程效力
+    - 409 `RECORD_INVALID_TRANSITION`：当前状态不能批
     """
     require_roles(actor, *_roles_for(StateTransition.PASS_CHECK))
     # ⚠️ **行锁**（评审 A-2：并发双批 = 重复审计行 + 步数双跳）：与 submit
@@ -546,12 +704,24 @@ async def approval_step(
     #    快照里记了提交人，**每一步**都比对一次。即使矩阵被中途重绑、
     #    角色恰好匹配被注入的下一步，提交人也批不了自己的记录。
     snapshot = record.approval_chain_snapshot
+    if snapshot is None:
+        # ⚠️ 评审 #9：快照列（p9_014）落地**前**就在审批中的**存量行** ⇒
+        #    没有冻结的提交人 ⇒ 上面的二次断言对它**整段失效**（正是委员会
+        #    裁决要堵的自审绕过）。⇒ 这里从**审计流水**反推提交人，并在
+        #    **首次触达就冻结**一条链 ⇒ 此后每一步都有 `submitted_by` 可比对。
+        #    ⚠️ `_legacy_chain_snapshot` **只读** ⇒ 下面的 403 不会留下脏改。
+        snapshot = await _legacy_chain_snapshot(
+            db, record=record, record_id=record_id, project_id=record.project_id
+        )
     if snapshot and snapshot.get("submitted_by") == str(actor.user_id):
         raise PcsError(
             code="APPROVAL_SELF_REVIEW_FORBIDDEN",
             message="提交人不得批自己的记录（每步都比对提交人身份）",
             status=403,
         )
+    if record.approval_chain_snapshot is None:
+        # 过了自审闸才落盘 ⇒ 被拒的请求不会改行
+        record.approval_chain_snapshot = snapshot
     if record.approval_role and record.approval_role != actor.role:
         raise PcsError(
             code="APPROVAL_ROLE_MISMATCH",

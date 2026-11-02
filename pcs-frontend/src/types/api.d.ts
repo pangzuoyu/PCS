@@ -657,11 +657,28 @@ export interface paths {
          *     （响亮失败，不是「默认深度 1」—— 静默降级会让用户以为走的是单级审批，
          *     而实际批准链是空的）。
          *
+         *     ## ⚠️ **批准链在提交时冻结**（评审 #1 · 委员会裁决：快照）
+         *
+         *     本次提交会把当时的链（矩阵 id + 角色序列 + 提交人身份）冻进记录行的
+         *     `approval_chain_snapshot` ⇒ **之后的每一步只读这份快照**，不再回查
+         *     实时矩阵 ⇒ 中途重绑矩阵 / 矩阵被禁用 / 矩阵行被删，**都动不了**已提交
+         *     记录的链。
+         *
          *     ## 自审防护
          *
          *     提交人自己的全局角色出现在链里**任何一步** ⇒ 403
          *     `APPROVAL_SELF_REVIEW_FORBIDDEN`。
-         *     ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己。
+         *     ⚠️ 只挡第 1 步会留下一个洞：提交人在第 2 步自己批自己 ⇒ 快照里记了
+         *     提交人，`approval-step` **每一步都再比对一次**。
+         *
+         *     ## 错误码
+         *
+         *     - 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`：项目没绑 RECORD 矩阵
+         *     - 422 `SIGNATURE_MATRIX_EMPTY_CHAIN`：绑定的矩阵步骤为空（脏数据）
+         *     - 409 `SIGNATURE_MATRIX_NOT_ACTIVE`：绑定的矩阵不是 ACTIVE
+         *     - 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`：提交人的角色出现在链里
+         *     - 403 `WORKSPACE_NOT_FORMAL`：记录在个人草稿区里，送审没有工程效力
+         *     - 409 `RECORD_INVALID_TRANSITION`：当前状态不能送审
          */
         post: operations["submit_approval_api_v1_records__module___record_id__submit_approval_post"];
         delete?: never;
@@ -695,6 +712,32 @@ export interface paths {
          *     `approval_role` **推进到链上下一步的角色** ⇒ 否则第 2 步的角色永远
          *     匹配不上 `record.approval_role` ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒
          *     链条卡死（这正是「深度 > 1 不可用」的根因）。
+         *
+         *     ## ⚠️ **批准链来自 submit 时冻结的快照**（评审 #1 · 委员会裁决）
+         *
+         *     链在 `submit-approval` 时冻结进 `approval_chain_snapshot`（矩阵 id +
+         *     角色序列 + 提交人身份）⇒ 本端点**只读这份快照**，不回查实时矩阵 ⇒
+         *     中途重绑矩阵 / 矩阵被禁用 / 矩阵行被删，**都改变不了**已提交记录的链。
+         *
+         *     **存量行**（快照列落地前就在审批中 ⇒ `approval_chain_snapshot IS NULL`）：
+         *     本端点从**审计流水**反推当初的提交人（`RECORD_TRANSITION` /
+         *     `SUBMIT_FOR_CHECK`）并**首次触达就冻结**一条链 ⇒ 自审保护对存量行
+         *     同样生效，不再有「无快照 ⇒ 零保护」的分支。
+         *
+         *     ## 自审防护
+         *
+         *     快照里的 `submitted_by` **每一步都比对一次** ⇒ 提交人批不了自己的记录
+         *     （哪怕中途重绑把自己的角色注入下一步）。
+         *
+         *     ## 错误码
+         *
+         *     - 409 `APPROVAL_NOT_ACTIVE`：记录不在审批中
+         *     - 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`：提交人批自己的记录
+         *     - 403 `APPROVAL_ROLE_MISMATCH`：当前角色不是这一步该批的角色
+         *     - 409 `APPROVAL_SUBMITTER_UNKNOWN`：存量行的提交人无法从审计流水反推
+         *       （⇒ 响亮拒绝推进，不放行「查不到就当没有提交人」）
+         *     - 403 `WORKSPACE_NOT_FORMAL`：记录在个人草稿区里，批注没有工程效力
+         *     - 409 `RECORD_INVALID_TRANSITION`：当前状态不能批
          */
         post: operations["approval_step_api_v1_records__module___record_id__approval_step_post"];
         delete?: never;

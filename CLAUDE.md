@@ -46,6 +46,15 @@ For the full operating protocol (session handoff, memory discipline, bug logging
   ⇒ **exit 0 却根本没在 `pcs_test` 上跑**（与下面读法 ③ 同一形状）。
   ⇒ 换库后**先 `current` 确认 revision 真的变了**，再信 `check` 的结论。
   第二个库停在旧 revision 是产生困惑漂移结果的常见来源。
+- ⚠️⚠️ **验多个库 ⇒ 一库一个进程**（2026-11-01 实测打脸，见 `.wolf/cerebrum.md`）：
+  alembic 的 `settings` 是 **pydantic 缓存实例**（`alembic/env.py:18`）⇒ **同一进程内
+  第二次改 `os.environ['DATABASE_URL']` 不生效** ⇒ 第二遍连的仍是第一个库。而
+  `upgrade` 是幂等的 ⇒ 两遍都打印同一个 `(head)`，**输出无法区分** ⇒ 上一轮 QA 报告
+  据此写下「pcs / pcs_test 两库都已到 head 且 check exit 0」—— 那是**假证据**
+  （`pcs_test` 实际还停在旧 revision，是评审员直查库才发现的）。
+  ⇒ 上面的「进程内派生 URL」配方只适用于**单个**库；要验多个库 ⇒
+  **每库起独立进程**，且**必须直查库的 `alembic_version` + 目标列存在性**，
+  不能只信命令输出。
 - **Postgres 版本**：**18**。开发库是 apt 集群 `18-main`（5432，实测 18.6）；
   `docker-compose.yml` 与 CI 已于 2026-10-07 对齐到 18，CI 首次以 18 跑即全绿。
   历史：16 是 2026-09-16 为 `btree_gist` 有意装的旧集群（`docs/adr/signatures/dba-btree-gist-install-request.md`），
