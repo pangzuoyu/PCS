@@ -1,8 +1,8 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V2.5
-发布日期: 2026-11-02
+当前版本: V2.6
+发布日期: 2026-11-03
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
   - PCS-REQ-2026-002-SPEC-P0 V1.2
@@ -1277,11 +1277,19 @@ Tab	内容
 压力	NumericCell
 质量流量	NumericCell
 状态	StateBadge
-来源	SIM导入/手动/Excel/化验
-引用	📎×N
-操作	查看/校对/变更
-筛选：工况、相态、状态、来源。
-工具栏：导入 / 新建物流 / 提交校对 / 导出。
+来源	source: MANUAL（手动）/ SIM_IMPORT（模拟软件：PRO/II·HYSYS·Aspen）/ EXCEL / LAB（化验报告 · 预留）
+引用	📎×N（⏳ 未实现 —— 口径待定，见 TODO）
+操作	查看 / 校对（✅ 单条）/ 变更
+筛选：工况、相态、状态、来源（四项均随选择重新请求后端，后端按 AND 组合过滤）。
+工具栏：导入 / 新建物流 / 导出（✅ 已实现）；批量提交校对（⏳ 未实现）。
+
+⚠️ **「来源」是 `streams.source`（4 值 · 录入通道）** —— 与记录侧的
+`streams.source_type`（13 值 · 产出方式）**不是同一列** ⇒ 前端**只消费
+`source`** ⇒ 列表的「来源」列与筛选都**不得**出现 13 值的产出方式词表。
+
+⚠️ **行操作的「校对」= 单条提交校对**（`POST /streams/{id}/submit`，
+DRAFT → IN_APPROVAL）—— 与工具栏那条「批量提交校对」（⏳）是**两件事**，
+不矛盾。
 
 7.7.2 物流详情
 Tab：
@@ -1304,6 +1312,11 @@ Tab：
 
 组成：表格，组分名 / 分子式 / 摩尔分率 / 质量分率 / 体积分率；底部合计校验（100±0.5%）。
 
+⚠️ **合计校验的口径**（前端与后端同口径）：
+纯物质物流可以**无组成**（`composition_json = null`）⇒ **跳过**校验；
+**空对象 `{}`** 视为**未填写** ⇒ **拒绝**提交校对；
+有内容时校验 `|合计 − 100%| ≤ 0.5%` ⇒ 超出时在底部**标红**并阻断提交校对。
+
 物性：分组表，来源标记（实验值/估算值/标准值），估算值标 estimated=true。
 
 状态点：
@@ -1320,6 +1333,13 @@ Tab：
 
 血缘：LineageGraph 局部视图。
 
+校核记录：数据来源 = `GET /audit-logs?resource_type=streams&resource_id=<id>`
+⇒ 取该物流的**状态转移**审计行，按 `detail_json.transition` 过滤出
+校对相关的三条（`SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK`）
+⇒ **其它 transition 不显示**。
+⚠️ `detail_json` 在契约里是 `object`（任意）⇒ 前端**防御性**读
+（`detail_json?.transition`），不得假设它存在。
+
 7.7.3 导入向导
 步骤：
 
@@ -1329,7 +1349,7 @@ Tab：
 
 解析预览
 
-列映射（Excel）
+列映射（Excel · ⏳ 未实现）
 
 校验结果
 
@@ -1347,7 +1367,16 @@ Tab：
 
 阻断项必须处理
 
-Excel 列映射：模板库下拉 + 手动映射 + 保存为模板。
+⚠️ **「手工」分支 = 手动创建向导**（独立页面）—— 步骤裁剪版：
+基本信息 → 组成 → 状态点 → 校验 → 写入 DRAFT → 物性估算 → 提交校对。
+
+⚠️ **顺序固定**：校验 → 写入 → 估算 → 提交。
+**物性估算失败不阻塞提交校对**（估算是增强，不是门禁）⇒ 失败时**提示**，
+但「提交校对」仍可继续。
+
+⚠️ **「校验」有阻断项（红）⇒ 「写入 DRAFT」按钮禁用**。
+
+Excel 列映射：模板库下拉 + 手动映射 + 保存为模板（⏳ 未实现）。
 
 7.8 COMMON 物性库
 搜索：名称 / CAS / 分子式。
@@ -2072,15 +2101,34 @@ text
 
 建项目
 
-角色分配
+角色分配（⏳ 未实现）
 
 审计日志（查询 + 导出）
 
-AI 开关
+AI 开关（⏳ 未实现）
 
-系统参数
+系统参数（✅ 已实现，见 §7.20.1）
 
-Prompt 模板
+Prompt 模板（⏳ 未实现）
+
+7.20.1 系统参数
+页面：`/admin/system-settings`（**SYSTEM_ADMIN 才可见**，与「用户管理」/
+「建项目」同口径）。
+
+数据源：`system_settings` 表（`setting_key` 主键 / `setting_value_json` JSONB /
+`description` / `updated_at`）。
+
+- 键值表：每行一个参数（键 + 值）。
+- 值是 **JSONB** ⇒ 输入框给 **JSON 文本**，保存前 `JSON.parse`；
+  解析失败**就地报错**（**不发请求** —— 解析失败不是后端的错）。
+- **批量保存**：一次 `PUT` 提交**全部改动** ⇒ 事务内**全改或全不改**
+  （硬约束：不做「每个键一个 PATCH」—— 那会让保存变成 N 个请求且中途失败留半改状态）。
+- ⚠️ **已知限制**：系统参数**只能改已有键的值，不能新增键**
+  ⇒ **键的集合由开发者控制，值由管理员控制**。
+- 审计：每次写入一条 `audit_logs`（`action=SYSTEM_SETTINGS_UPDATED`，
+  `detail` 含变更前后的键集合）。
+- 错误码：403 `HTTP_403`（无 SYSTEM_ADMIN）/ 404 `SYSTEM_SETTING_NOT_FOUND`
+  （改不存在的键时）。
 
 7.21 AI 助手
 右下角悬浮入口
@@ -2094,6 +2142,15 @@ Prompt 模板
 审计留痕
 
 P10 前禁用，Tooltip“AI 功能未启用”。
+
+⚠️ **AI 开关与 Prompt 模板的状态**：
+
+对象	状态
+后端表 / API	❌ 未实现（随 AI 助手本体）
+前端页	❌ 未实现（随 AI 助手本体）
+消费者	无（AI 助手本身未实现）
+
+待 AI 助手开工时，随其一并对齐最终形态（参数化 / 版本 / A-B / 模型绑定待定）。
 
 8. 表单 Schema 驱动
 8.1 事实来源
@@ -2324,6 +2381,14 @@ STALE	上游数据已变更，当前结果可能失效
 无权限	无权限执行此操作
 AI 未启用	AI 功能未启用
 12.4 修订记录
+**状态标记约定**（本 SPEC 描述实现状态时使用；**不写批次概念** ——
+本文件是需求规格说明书，不认识「本批」「某某批次」）：
+
+- ✅ 已实现且可用
+- ⏳ 未实现，已排期（附归属）
+- ❌ 明确不做（附理由）
+- （无标记）= 纯需求描述，未涉及实现状态
+
 版本	日期	修改	编制
 V1.0	2026-09-15	初始版本，冻结全部裁决	联合项目组
 V1.1	2026-09-17	P5-1-4 VESSEL / P5-2-4 SEP_EQUIP / P5-3-6 PSV 设备计算 Page §7.11.3-5：①VESSEL CalculateRequest 由扁平工艺字段改为嵌套 sizing{SizingInputSchema} + hydraulics{HydraulicsInputSchema}（app/api/v1/vessel.py:46-78）；②SEP_EQUIP / PSV source_stream_id+device_type+params 扁平结构对齐后端 OpenAPI；③StateBadgeModule 扩展 +VESSEL/+SEP_EQUIP/+PSV（4 态子集）；④V1.0 SPEC §7.11.3-5 详细字段章节暂缺，本期仅落地导航与最小 Page 渲染，详细字段以 plan PCS-PLAN-P5-DEVICE-EQUIPMENT.md + 后端 OpenAPI 为准，SPEC 详细字段章节 P5-3 闭环后追加（TODO-2026-09-17-01）。	Claude Code
@@ -2341,6 +2406,8 @@ V2.2	2026-10-27	P9B-2 T2（TODO-054 · R-17）—— **契约破坏性变更**�
 V2.3	2026-10-27	P9B-2 **最终整支评审的修复批**（R-12b / RF-2 / RF-16 / T4 Step 7 的欠账）：①**自审判据从「第 1 步」改成「任一步」** —— 后端 `APPROVAL_SELF_REVIEW_FORBIDDEN` 判的是「提交人自己的角色出现在批准链**任何一步**」（只挡第 1 步会留下「在第 2 步自己批自己」的洞）⇒ V2.2 的表写窄了 ⇒ 前端只挡第 1 步 ⇒ APPROVER 之类的角色点了必吃 403 ⇒ **前后端判据必须同口径**；②**项目没绑 RECORD 矩阵 ⇒ 前端禁用送审 + Tooltip「项目未绑定记录级签署矩阵」**（V2.2 ② 此前只是**承诺**，代码里没有这个分支 ⇒ 本批补齐；⚠️ 「拉取失败」与「没绑」必须**分开**：拉失败 ⇒ 前端不知道 ⇒ 不猜 ⇒ 不禁用，后端 422 兜底）；③**行内变更动作降级**（R-12b）—— `CHECKED → 变更申请` 与 `CHANGE_PENDING → 提交变更完成` 是**状态机事件** ⇒ 只在**详情抽屉**的 `RecordActions` 里出现 ⇒ 行内只留**两个非状态机动作**（`change-notice` 建单 / `change-notice/cancel` 作废，都发生在 CHANGED 态）⇒ 同一状态**不会有两个入口**；④**行内「建单」也加角色闸**（RF-1）：角色取 `meta/state-machine` 的 `INITIATE_CHANGE.allowed_roles`（**页面取一次**传下去 ⇒ 不是每行一次 ⇒ 无 N+1）⇒ 角色不够 ⇒ 禁用 + 写明原因；⑤**三个变更动作的理由必填**（后端 `ChangeActionRequest.reason` = `min_length=1` ⇒ 空理由直接 422 ⇒ 此前「放弃变更」在 UI 上**永远点不动**，且它是变更单唯一的退出路径 ⇒ 卡死）；⑥**§6.3 的状态→按钮表 vs `meta/state-machine` 的逐条比对**（T4 Step 7 的欠账，本批补登记）：`meta` 在 **IN_APPROVAL / CHECKED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING** 六个态都含 **OBSOLETE**（后端允许**任意态**弃用）⇒ 本表这六行**漏了**「弃用」⇒ 以前端为准补上；反向地本表有「创建交付物 / 确认并重算 / 手动调整」三个按钮而后端**没有对应端点**（meta 里对应的是 `MARK_STALE` / `RESOLVE_STALE_NO_CHANGE` / `RESOLVE_STALE_CHANGED`）⇒ **按钮表以 `meta/state-machine` 为准**（它是后端从 `ALLOWED_TRANSITIONS` 生成的），本表的三处措辞留待下次修订；⑦本版**不含**交付物级签署写面（`DeliverableSignDialog`）与 ADMIN 两页的条款（它们在 §7.19 / §7.20 ⇒ 见对应章节）。	Claude Code
 V2.4	2026-10-28	P9B-2 **延后的 minor 批**（Batch B~F）—— 前端行为补登记：①**§7.20 新增「建项目」页**（`/admin/projects`，**SYSTEM_ADMIN 才可见** —— 后端 `POST /projects` 同口径）：8 个必填字段（后端 `ProjectCreate`：project_no / project_name / owner_company / location / project_type / design_phase / unit_system / workspace_id）+ `product_category`（契约枚举 REFINING / ETHYLENE / OTHER，**电折标口径由它派生** —— 炼油 / 乙烯用**等价值** 0.21，其余用**当量值** 0.086 kg 标油/kWh）；**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404；⚠️ **V2.5 起只收 FORMAL** ⇒ 非 FORMAL 工作区改 **422** `WORKSPACE_NOT_FORMAL`，404 只留给「工作区根本不存在」）；建完**明说**「已自动绑定记录级签署矩阵，可以提交批准了」（后端**同一事务**里绑 ACTIVE 的 RECORD 矩阵 ⇒ 不说 ⇒ 用户以为还要去矩阵页手动绑）；②**§3.3 菜单「系统」组**同步加「建项目」（与 §7.20 对齐）；③**审计日志页**：表格改**服务端分页**（页数由后端 `total` 决定 —— 此前前端分页 ⇒ 永远只有 50 行却写「共 N 条」）；导出用**已应用**的筛选条件（点「查询」时冻结，不是输入框实时值 —— 否则 CSV 与屏幕上的行对不上），输入框改了没点「查询」时**明说**；截断判据 =「结果集**比上限还大**」（恰好 5000 行**不是**截断）；导出**第一列是 `audit_id`（LogID）** —— 同一秒的多条记录靠时间戳分不开 ⇒ 没有 LogID 就**无法回指**原审计行；④**权限错误提示不可关闭**且**不渲染空表**（关掉退化成「共 0 条」的空表 ⇒ 读成「系统里什么都没有」⇒ 真相是「你没权限」）；⑤**ADMIN 用户列表**补 `email` / `department` / `last_login_at`（后端 `AdminUserOut` 本来就返回）；**停用要二次确认**（停用 ⇒ token_version 递增 ⇒ 在手 refresh 全失效 ⇒ 误点即误伤）；⑥**交付物进度页**：动作时间线被截断时**明说**「只显示最近 N 条（共 M 条）」。	Claude Code
 V2.5	2026-11-02	P9B-2R **评审修复批**（P9B-2F）的契约面登记：①**「建项目」的工作区只列 FORMAL**（评审 #4）—— 后端 `POST /projects` 现在**只收 FORMAL 工作区**，非 FORMAL（PERSONAL / TEMPORARY）⇒ **422** `WORKSPACE_NOT_FORMAL`（**取代** V2.4 那一版的 404；404 仍保留给「工作区根本不存在」）—— 理由：非 FORMAL 项目**永远送不了审**（下游每个签署动作都过 `require_formal_project_workspace`）⇒ 收下它等于建一个半成品却回 201 + 「已自动绑矩阵，可以提交批准了」的**假承诺**；前端 `listWorkspaces` 在 **api 层**过滤掉非 FORMAL ⇒ 下拉里只给 FORMAL（⚠️ 过滤在 api 层 ⇒ 未来任何调用方拿到的都是子集，不只是本页）；②**`project_no` 全局唯一** ⇒ 重复编号 ⇒ **409** `PROJECT_NO_CONFLICT`（取代「500 = 服务器坏了」的读法 —— 表单超时重提 / 手输已有编号都会走到，这是**可操作的冲突**）；⚠️ 业务错误码在 OpenAPI 的 `responses=` 里**仍未逐个登记**（仓库级 TODO-096），⇒ 上面两个码目前靠**运行时响应**与本条 SPEC 表达，契约消费者按 TODO-096 那一族一并处理；③**交付物 `sign_status` 的词表进契约**（评审 #6）—— 后端 schema 声明成 `DeliverableSignStatus` 枚举 ⇒ OpenAPI 带 `enum` 4 值（DRAFT / PENDING / APPROVED / OBSOLETE）⇒ 前端的 union 改**契约派生**，不再手写（⚠️ 交付物是 **4 态**，**不是**记录侧的 9 态 `RecordSignStatus9` —— 两套词表长得像，复制粘贴最容易出错）；④**记录级批准链的快照语义进契约**（评审 #1 / #8）—— `submit-approval` / `approval-step` 的端点描述改写为「**submit 时冻结链 → 中间步骤只读快照 → 每一步都重断言提交人**」，并列出 403 `APPROVAL_SELF_REVIEW_FORBIDDEN` / 409 `APPROVAL_SUBMITTER_UNKNOWN` / 409 `APPROVAL_NOT_ACTIVE` 等错误码；⑤**存量行**（快照列落地前就在审批中）由后端从**审计流水**反推提交人并在**首次触达就冻结**一条链 ⇒ 自审保护对存量行同样生效（`APPROVAL_SUBMITTER_UNKNOWN` = 提交人无从反推 ⇒ 响亮拒绝推进，不放行）。	Claude Code
+
+V2.6	2026-11-03	P9B-3 契约面登记（系统参数页 + SIM 物流前端）：①**§7.20.1 新增「系统参数」**（`/admin/system-settings`，SYSTEM_ADMIN 才可见）—— 键值表 + 值是 JSONB（输入框给 JSON 文本，保存前 `JSON.parse`，解析失败**就地报错不发请求**）+ **批量保存一次 PUT 提交全部改动**（事务内全改或全不改；不做逐键 PATCH）+ 审计 `SYSTEM_SETTINGS_UPDATED` + 错误码 `HTTP_403` / `SYSTEM_SETTING_NOT_FOUND` + **已知限制：只能改已有键的值，不能新增键**（键的集合由开发者控制，值由管理员控制）；②**§7.20 的「角色分配」/「AI 开关」/「Prompt 模板」标 ⏳**（未实现，附归属）+ **§7.21 补 AI 开关与 Prompt 模板的状态表**（后端表/API 与前端页均 ❌ 未实现，消费者无 —— AI 助手本身未实现 ⇒ 现在做要全部推翻）；③**§7.7.1 改写**（工具栏「批量提交校对」标 ⏳，行操作「校对」= **单条** `POST /streams/{id}/submit` —— 两者不矛盾；**「来源」= `streams.source` 的 4 值**（MANUAL / SIM_IMPORT / EXCEL / LAB）⇒ **不是**记录侧 `source_type` 的 13 值，前端**只消费 `source`**；筛选四项均随选择重新请求后端、按 AND 组合）；④**§7.7.2 补合计校验口径**（纯物质可无组成 `null` ⇒ 跳过；**空对象 `{}` 视为未填写 ⇒ 拒绝**；有内容校验 |合计−100%| ≤ 0.5% ⇒ 底部标红并阻断提交校对）+ **校核记录 Tab 的数据来源**（`GET /audit-logs?resource_type=streams&resource_id=<id>` ⇒ 按 `detail_json.transition` 过滤 `SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK`，其它 transition 不显示；`detail_json` 是任意 object ⇒ 前端**防御性**读）；⑤**§7.7.3 补「手工」分支的步骤口径**（校验 → 写入 → 估算 → 提交；**物性估算失败不阻塞提交校对**（提示但可继续）；**校验有红项 ⇒ 「写入 DRAFT」禁用**）+ Excel 列映射标 ⏳；⑥**§12.4 加状态标记约定**（✅ / ⏳ / ❌ / 无标记）—— 本 SPEC **不写批次概念**。	Claude Code
 
 文档结束。
 

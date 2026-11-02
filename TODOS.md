@@ -1701,6 +1701,14 @@ paths 246 不变 ⇒ `openapi.json` / baseline / 前端 snapshot + `api.d.ts`
 **Depends on / blocked by:** 无（独立）。**归属：** P9B-3 或更后的 ADMIN 批次；
 **触发条件：** ADMIN 前端要能改角色时。
 
+⚠️ **2026-11-02 委员会裁决 3（已登记，本批不做）**：
+① **「AD 同步覆盖 `users.roles`」是**当前行为**（不是缺陷，是现状）
+—— 记在此处是为了**留档**，不是待修；
+② 「角色来源的权威性」（AD 同步会不会冲掉手工改的角色）**升格为独立 ADR**
+—— **不是**计划里能拍的事 ⇒ 本批**不做**角色分配页，
+SPEC §7.20 的「角色分配」标 ⏳；
+③ 独立 ADR 的**编号与立项时机**待定（下一批开工前立）。
+
 ## TODO-093: `sign_step` 并发无行锁 —— 两个签署者同时签，**后写的把先写的签名覆盖掉** 🔴
 
 **What:** `DeliverableService.sign_step`（`deliverable_service.py:694` 起）对
@@ -1829,6 +1837,13 @@ PG 没起 / 收集到 0 个 PG 测试 / 全 skip ⇒ 三种情况都非零退出
 
 **依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §Coverage
 （委员会追问 2，2026-11-02）。
+
+⚠️ **2026-11-02 登记（下一轮 scope 的强制项）**：下一轮 ce-code-review 的
+scope **必须包含**以下三项（**不是**「如果时间允许」，是 scope 的一部分）：
+
+1. `pcs-backend/tests/api/v1/test_deliverable_issue.py`（PE-1 修复的测试面）；
+2. `deliverables` / `record_edits` 两个 API 的改动；
+3. 该批 diff 里余下的部分（14279 行中的其余部分）。
 
 ## TODO-101: `StateBadge` 的 DELIVERABLE 强调词表是**记录侧 9 态** ⇒ 交付物半透明 🟢
 
@@ -2198,3 +2213,74 @@ CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据�
 「变更前的数据指纹」、`tag_number` = 位号）。
 ⇒ 守卫测试（**新增**）：mixin 上的每一列，要么在跳过集里、要么在显式放行名单
 里 ⇒ **忘了**加就**测试变红**。
+
+## TODO-104: 校核记录的后端过滤 🟡
+
+**现状**：`GET /audit-logs?...&action=RECORD_TRANSITION` 返回该物流的全部状态转移，
+前端按 `detail_json.transition` 过滤出校核相关的三条。
+
+**为什么本批不做**：当前一个物流平均 5–10 次状态转移，前端过滤可接受。
+
+**触发条件**：状态转移次数显著增长（如 > 50 次/物流），或校核记录 Tab 加载变慢。
+
+**方案**：`audit_logs.detail_json` 加 GIN 索引，或表达式索引
+`(detail_json->>'transition')`。
+
+**归属：** P9B-4 或独立技术债。
+
+## TODO-105: `streams.source`（4 值 · 录入通道）与 `streams.source_type`（13 值 · 产出方式）长期是否合并 🟡
+
+**现状**（2026-11-02 实测）：两列**语义正交** —— `source` = 这条物流**怎么进系统的**
+（MANUAL / SIM_IMPORT / EXCEL / LAB），`source_type` = 这条物流的**数据怎么算出来的**
+（3 个人工/导入 + 10 个 `*_CALCULATED` 设备计算出口流）。
+
+⚠️ 两列有 **3 处取值重叠但拼写不同**（`SIM_IMPORT` 同名 / `MANUAL_ENTRY`↔`MANUAL` /
+`LAB_REPORT`↔`LAB`）⇒ **同一概念两份定义 ⇒ 漂移的温床**
+（bug-187~191 / bug-2040 同族）。
+
+**本批做法**（防漂移，不是合并）：**两列在每个写入点成对赋值**
+（`import_service` / `outlet_stream`），并有测试钉住配对关系。
+
+**长期选项**：① 把 `source_type` 的 3 个人工值收窄进 `source`（破坏既有契约，不划算）；
+② 在 ADR 层写明「两列正交」并永久保留。
+
+**归属：** T2.5 落地后随 ADR 一并登记。
+
+## TODO-106: Excel 导入行的 `source_type` 仍是 `SIM_IMPORT` ⇒ 是否扩该词表 🟡
+
+**现状**（2026-11-02 实测）：`import_service._excel_preview_entry` 把 Excel 行的
+`source_type` 也写成 `SIM_IMPORT` ⇒ 既有契约里**分不出** Excel 行与 PRO/II 行。
+
+**本批做法**：新增的 `source` 列写 `EXCEL`（⇒ 两列取值**不同是有意的**）
+⇒ 前端按 `source` 区分 ⇒ **既有 `source_type` 保持不动**
+（改它要动既有枚举与契约 ⇒ 破坏性变更）。
+
+**触发条件**：需要按 `source_type` 区分 Excel 与 PRO/II 时。
+
+**归属：** 下一批或独立 ADR。
+
+## TODO-107: 10 个 `*_CALCULATED` 设备计算出口流在 `source` 的 4 值里无对应 ⇒ 是否加第 5 值 `CALCULATED` 🟡
+
+**现状**（2026-11-02 实测）：`pcs_test` 的 202 行物流里 101 行是
+`PIPE_CALCULATED` / `PIPE_NET_CALCULATED`（设备计算出口流）⇒
+`source` 的 4 值（MANUAL / SIM_IMPORT / EXCEL / LAB）里**没有**对应值。
+
+**本批规则**：出口流**继承其上游物流的 `source`**（不造第 5 值、不撒谎）
+⇒ 测试钉住。
+
+**触发条件**：需要按「来源」区分「人工录入的物流」与「设备算出来的出口流」时。
+
+**归属：** 下一批。
+
+## TODO-108: SPEC §7.7.1「引用 📎×N」的 N 是什么 —— 口径待定 🟡
+
+**现状**：SPEC §7.7.1 的物流列表有一列「引用 📎×N」，但**只给了列名，没定义口径**；
+后端列表响应**不返回**该字段 ⇒ 前端**画不出**这一列。
+
+**本批做法**：SPEC §7.7.1 该列标 ⏳（未实现），前端**不渲染**这一列。
+
+**建议口径**（下一批裁决）：N = 该物流被**下游引用**的条数
+（设备 + 物流，lineage downstream 口径）⇒ 需后端在列表响应里加
+`reference_count`（**一次聚合，无 N+1**）。
+
+**归属：** 下一批（与 §7.7.1 其余筛选/列口径一并收口）。
