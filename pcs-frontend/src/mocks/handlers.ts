@@ -139,6 +139,37 @@ const MOCK_USER_IDS: Record<string, string> = {
 
 /** 通用 audit 的 seed 行（dev mock）—— 3 条 ⇒ 翻页看得出来。 */
 const SEED_AUDIT_LOG_ITEMS = [
+  // ⚠️ 物流详情「校核记录」Tab 的两条（**状态转移**审计 ⇒ 按
+  //    `detail_json.transition` 过滤）—— 另有一条**非**校对 transition
+  //    （MARK_STALE）⇒ dev 里能看出「过滤掉了」。
+  {
+    audit_id: '66666666-6666-6666-6666-6666666666a1',
+    user_id: '00000000-0000-0000-0000-000000000001',
+    action: 'RECORD_TRANSITION',
+    resource_type: 'streams',
+    resource_id: 's-102',
+    detail_json: { transition: 'SUBMIT_FOR_CHECK' },
+    occurred_at: '2026-09-16T02:00:00+00:00',
+  },
+  {
+    audit_id: '66666666-6666-6666-6666-6666666666a2',
+    user_id: '00000000-0000-0000-0000-000000000002',
+    action: 'RECORD_TRANSITION',
+    resource_type: 'streams',
+    resource_id: 's-102',
+    detail_json: { transition: 'PASS_CHECK' },
+    occurred_at: '2026-09-16T03:00:00+00:00',
+  },
+  {
+    audit_id: '66666666-6666-6666-6666-6666666666a3',
+    user_id: '00000000-0000-0000-0000-000000000001',
+    action: 'RECORD_TRANSITION',
+    resource_type: 'streams',
+    resource_id: 's-102',
+    // ⚠️ **不是**校对相关的 transition ⇒ 「校核记录」Tab 不得显示它
+    detail_json: { transition: 'MARK_STALE' },
+    occurred_at: '2026-09-16T04:00:00+00:00',
+  },
   {
     audit_id: '66666666-6666-6666-6666-666666666666',
     user_id: '00000000-0000-0000-0000-000000000001',

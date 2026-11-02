@@ -6867,7 +6867,7 @@
           "streams"
         ],
         "summary": "List Project Streams",
-        "description": "项目下物流列表。",
+        "description": "项目下物流列表（工况 / 相态 / 状态 / 来源 四项筛选，AND 组合）。",
         "operationId": "list_project_streams_api_v1_projects__project_id__streams_get",
         "parameters": [
           {
@@ -6897,6 +6897,60 @@
               "title": "Case Type"
             },
             "description": "按工况过滤：NORMAL/..."
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StreamPhase"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按相态过滤：VAPOR/LIQUID/...",
+              "title": "Phase"
+            },
+            "description": "按相态过滤：VAPOR/LIQUID/..."
+          },
+          {
+            "name": "sign_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StreamSignStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按签署状态过滤",
+              "title": "Sign Status"
+            },
+            "description": "按签署状态过滤"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/StreamSource"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按录入通道过滤：MANUAL/SIM_IMPORT/EXCEL/LAB",
+              "title": "Source"
+            },
+            "description": "按录入通道过滤：MANUAL/SIM_IMPORT/EXCEL/LAB"
           },
           {
             "name": "authorization",
@@ -7520,7 +7574,7 @@
           "streams"
         ],
         "summary": "Submit Stream",
-        "description": "DRAFT → IN_APPROVAL（提交校对）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n（具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）",
+        "description": "DRAFT → IN_APPROVAL（提交校对）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n（具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）\n\n⚠️ **组成合计门禁**（SPEC §7.7.2「100±0.5%」）—— 送审**前**校验，\n不合法不放进校对（门禁前置，SPEC §5.1）：校对人看到的组成必须是合法的。",
         "operationId": "submit_stream_api_v1_streams__stream_id__submit_post",
         "parameters": [
           {
@@ -14941,6 +14995,118 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system-settings": {
+      "get": {
+        "tags": [
+          "system-settings"
+        ],
+        "summary": "Get System Settings",
+        "description": "GET /system-settings：全部系统参数（键 / 值 / 说明 / 更新时间）。",
+        "operationId": "get_system_settings_api_v1_system_settings_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SystemSettingOut"
+                  },
+                  "title": "Response Get System Settings Api V1 System Settings Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "system-settings"
+        ],
+        "summary": "Put System Settings",
+        "description": "PUT /system-settings：**一次**提交全部改动（全改或全不改）。\n\n⚠️ 键不存在 ⇒ 404 `SYSTEM_SETTING_NOT_FOUND` ⇒ **一个键都不改**\n（校验在写入之前 ⇒ 天然原子）。",
+        "operationId": "put_system_settings_api_v1_system_settings_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingBatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingBatchOut"
+                }
               }
             }
           },
@@ -40357,6 +40523,11 @@
             "$ref": "#/components/schemas/StreamSourceType",
             "description": "来源类型 13 值。⚠️ description 此前只列了 5 个，漏掉全部 10 个 `*_CALCULATED` 出口流值 —— 照它收窄会把合法值砍光。"
           },
+          "source": {
+            "$ref": "#/components/schemas/StreamSource",
+            "description": "录入通道 4 值：MANUAL（手动创建）/ SIM_IMPORT（模拟软件导出，PRO/II·HYSYS·Aspen 都归它）/ EXCEL / LAB（化验报告，预留）。⚠️ **不是** `source_type`（那是产出方式 13 值）",
+            "default": "MANUAL"
+          },
           "source_file": {
             "anyOf": [
               {
@@ -40536,6 +40707,17 @@
         ],
         "title": "StreamSignStatus",
         "description": "SIM-13 扩展为 9 态全集（与 RecordSignStatus9 字面对齐）。\n\n状态机迁移：P3 活跃 4 态 → 9 态全集（PG enum streamsignstatus ADD VALUE）。\ncerebrum 2026-09-08 锁定：值与 RecordSignStatus9 完全一致，PG enum 扩展不可逆。"
+      },
+      "StreamSource": {
+        "type": "string",
+        "enum": [
+          "MANUAL",
+          "SIM_IMPORT",
+          "EXCEL",
+          "LAB"
+        ],
+        "title": "StreamSource",
+        "description": "物流**录入通道** 4 态（`streams.source`，String(20)）。\n\n⚠️ **与 `StreamSourceType`（13 值）不是一回事**：\n- 本枚举 = **怎么进系统的**（手动向导 / 模拟软件导出 / Excel 导入 / 化验报告）\n- `StreamSourceType` = **数据怎么算出来的**（3 人工/导入 + 10 个设备计算出口流）\n\n⚠️ 两者有 3 处重叠且拼写不同（`SIM_IMPORT` 同名 / `MANUAL_ENTRY`↔`MANUAL` /\n`LAB_REPORT`↔`LAB`）⇒ **两列必须由同一处写入**（见 `import_service` /\n`outlet_stream` 的映射），并有测试钉住配对关系。"
       },
       "StreamSourceType": {
         "type": "string",
@@ -40831,6 +41013,78 @@
         ],
         "title": "SubmitApprovalResponse",
         "description": "提交结果。"
+      },
+      "SystemSettingBatchIn": {
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/SystemSettingValueMap",
+            "description": "setting_key → 新值；整批原子提交"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings"
+        ],
+        "title": "SystemSettingBatchIn",
+        "description": "批量保存的请求体 —— **一次 PUT 提交全部改动**（硬约束 1）。"
+      },
+      "SystemSettingBatchOut": {
+        "properties": {
+          "updated": {
+            "items": {
+              "$ref": "#/components/schemas/SystemSettingOut"
+            },
+            "type": "array",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "title": "SystemSettingBatchOut",
+        "description": "批量保存的结果。"
+      },
+      "SystemSettingOut": {
+        "properties": {
+          "setting_key": {
+            "type": "string",
+            "title": "Setting Key"
+          },
+          "setting_value_json": {
+            "title": "Setting Value Json"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "setting_key",
+          "setting_value_json",
+          "updated_at"
+        ],
+        "title": "SystemSettingOut",
+        "description": "一条系统参数。"
+      },
+      "SystemSettingValueMap": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SystemSettingValueMap",
+        "description": "`setting_key → 新值` 的映射（值是 JSONB，形态随键而异）。"
       },
       "TableStyle": {
         "properties": {

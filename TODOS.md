@@ -1789,13 +1789,24 @@ service 裸 `==` 比对 PG 原生枚举列）⇒ 传非法值时的行为介于�
 **Fix 方向:** deliverable_service 按读面/写面/客户批准拆；handlers 按域拆文件
 （MSW 注册顺序无关 ⇒ 拆分安全）。
 
-## TODO-099: 后端单测全跑内存 SQLite，PG 语义无自动化车道 🟢
+## ✅ TODO-099: 后端单测全跑内存 SQLite，PG 语义无自动化车道（2026-11-03 关闭 · `b127495`）
 
 **What:** CLAUDE.md 已记载的「漂移盲区」：迁移/方言相关缺陷在 SQLite 上不红。
 本批已补两条 **skipif 有 PG 才跑**的引擎级测试（p9_013 真跑 + 降级环），但那是
 逐案补的，不是车道。**Pre-existing**（评审 testing 登记）。
 
 **Fix 方向:** 起一条 PG-backed pytest lane（CI service 容器 + `TEST_DATABASE_URL`），
+- **落地**: `pcs-backend/scripts/pytest_pg.sh` —— **唯一入口**，fail-closed 三道闸：
+  ① PG 实例未起 ⇒ 直接 exit 1（不静默跳过）；② 收集到 **0** 个 `pg` 用例 ⇒ exit 1
+  （绿灯**证明不了**它们跑过）；③ 输出里没有 `N passed` ⇒ exit 1（skip 不算过）。
+  配套：`docker-compose.yml` 的 `postgres-pgtest` 服务（`profiles: ["pg"]`，端口 5433，
+  ⚠️ 数据卷挂 `/var/lib/postgresql` —— PG-18 镜像拒绝 `/var/lib/postgresql/data`）；
+  `pyproject.toml` 注册 `pg` marker；4 个引擎级用例挂上 `@pytest.mark.pg`。
+- **验证**: 车道 exit 0 + **4 passed**（本批末复跑同）；`tests/scripts/test_pytest_pg_gate.py`
+  4 条（脚本存在且可执行 / PG 未起时失败 / 0 收集时失败 / 脚本里恰好 2 处 `uv run pytest`
+  且含字面量 `pytest -m pg`）。
+- ⚠️ **未覆盖**: CI **不**跑这条车道（单人开发裁决，见记忆「CI/CD 不做」）⇒ 车道是
+  **本地**闸门，需人工执行。
 把 `tests/alembic/` 的 skipif 测试与「双并发」类用例挂上去。
 
 ⚠️ **2026-11-02 补充（P9B-2F）**：P9B-2R 的行锁保证已由**方言级**断言钉住
@@ -1845,7 +1856,7 @@ scope **必须包含**以下三项（**不是**「如果时间允许」，是 sc
 2. `deliverables` / `record_edits` 两个 API 的改动；
 3. 该批 diff 里余下的部分（14279 行中的其余部分）。
 
-## TODO-101: `StateBadge` 的 DELIVERABLE 强调词表是**记录侧 9 态** ⇒ 交付物半透明 🟢
+## ✅ TODO-101: `StateBadge` 的 DELIVERABLE 强调词表是**记录侧 9 态** ⇒ 交付物半透明（2026-11-03 关闭 · `51657ac`）
 
 **What:** `pcs-frontend/src/components/common/StateBadge.tsx` 的
 `MODULE_ACTIVATED.DELIVERABLE` 装的是 **9 态记录词表**
@@ -1863,9 +1874,16 @@ scope **必须包含**以下三项（**不是**「如果时间允许」，是 sc
 还是半透明（产品裁决），再配一条渲染测试。
 
 **依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §Pre-existing
+- **落地**: `MODULE_ACTIVATED.DELIVERABLE` 改成**它自己的 4 态**
+  （`DRAFT/PENDING/APPROVED/OBSOLETE`，契约派生 `DeliverableSignStatus`）⇒
+  「待审 / 已批准」不再渲染成半透明（读成「过期」）。
+- **验证**: `DELIVERABLE_FOUR_STATE` 数组 + **编译期双向断言**（少一个 ⇒ 后端真值落进
+  「未知状态」兜底；多一个 ⇒ 契约里不存在的态被当成合法的）；渲染断言补上
+  （`DeliverableProgressPage` 改用 `<StateBadge module="DELIVERABLE">` —— 不传 module
+  的话强调修复是**空转**的）。
 （maintainability 登记）。
 
-## TODO-102: `POST /projects` 的 `IntegrityError → 409 PROJECT_NO_CONFLICT` 映射**过宽** 🟢
+## ✅ TODO-102: `POST /projects` 的 `IntegrityError → 409 PROJECT_NO_CONFLICT` 映射**过宽**（2026-11-03 关闭 · `909bc3a`）
 
 **What:** `pcs-backend/app/api/v1/projects.py` 里项目 INSERT 捕获**任何**
 `IntegrityError` ⇒ 一律报 409「项目编号已存在」。真正的约束只有
@@ -1879,9 +1897,15 @@ scope **必须包含**以下三项（**不是**「如果时间允许」，是 sc
 `IntegrityError` 重新抛出（⇒ 500 + 服务端日志留详情）。
 
 **依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` §R5 与
+- **落地**: `app/api/v1/projects.py` 新增 `_is_project_no_unique_violation(exc)` ——
+  只在**约束名**命中 `uq_projects_project_no`（或消息里同时含 UNIQUE + project_no）时
+  映射 409；**其余 `IntegrityError` 重新抛出**（⇒ 500 + 服务端日志留详情）。
+- **验证**: 新测试用**真实 SQLite 触发器**制造「别的约束违约」（NOT NULL / CHECK）
+  ⇒ 断言 **500 INTERNAL_ERROR**（**不是** 409）⇒ 「用户照着提示换编号，换了还是错」
+  的那条路径被钉死。
 §Residual risks。
 
-## TODO-103: `schema_compact_orm.md` 是 **53 表快照**（ORM 现有 107 张） 🟢
+## ✅ TODO-103: `schema_compact_orm.md` 是 **53 表快照**（ORM 现有 107 张）（2026-11-03 关闭 · `0a0efd5`/`b948044`/`72f20be`）
 
 **What:** `pcs-backend/docs/schema_compact_orm.md` 头部写「表数量：53」，生成
 于 2026-09-02 ⇒ ORM 现有 **107** 张表，文件里**缺 54 张**（含 4 张记录表
@@ -1897,6 +1921,14 @@ scope **必须包含**以下三项（**不是**「如果时间允许」，是 sc
 维护物。
 
 **依据:** `docs/ce-code-review/20261102-004658-08a55f5c/report.md` #10。
+- **落地**: `pcs-backend/scripts/gen_compact_orm.py` —— 从 `SA_Base.metadata`
+  **重新生成** `docs/schema_compact_orm.md` ⇒ 文件变成**派生**产物而不是手工维护物
+  （改 mixin 后重跑即可）。格式沿用既有 `col|type!` 风格 + PK/FK 后缀 + `[UNIQUE: …]`。
+- **验证**: `tests/scripts/test_gen_compact_orm.py` 5 条 —— 覆盖**每一张** ORM 表 /
+  提交态文件与重新生成的结果**一致**（忽略「生成时间」行）/ 格式标记 / 每张表恰好
+  出现在一个章节。
+- ⚠️ 踩坑记录：`table.constraints` 是 **set** ⇒ 迭代顺序不确定 ⇒ 生成物会漂 ⇒
+  `[UNIQUE: …]` 按**约束名排序**输出。
 
 ## ✅ DONE —— TODO-089: 两个 `PcsError` 变体**合并成一个类**（2026-10-27 落地）
 

@@ -16,8 +16,13 @@ function num(v: number | null | undefined): string {
   return v === null || v === undefined ? '—' : String(v);
 }
 
+/** 行 + **稳定 key** —— ⚠️ antd 5.29 弃用 `rowKey` 函数的 `index` 参数。 */
+interface StatePointRow extends StreamStatePoint {
+  key: string;
+}
+
 export function StreamStatePointsTab({ streamId }: { streamId: string }): JSX.Element {
-  const [rows, setRows] = useState<StreamStatePoint[]>([]);
+  const [rows, setRows] = useState<StatePointRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -28,7 +33,11 @@ export function StreamStatePointsTab({ streamId }: { streamId: string }): JSX.El
     streamApi
       .statePoints(streamId)
       .then((res) => {
-        if (!cancelled) setRows(res ?? []);
+        // ⚠️ key 在**取数时**算好（不用 antd 的 rowKey 回调 —— 它的 index
+        //    参数在 antd 5.29 已弃用，且会刷一条**错误级**控制台消息）。
+        if (!cancelled) {
+          setRows((res ?? []).map((r, i) => ({ ...r, key: r.state_label ?? `sp-${i}` })));
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) setErrorMsg(describePcsError(err, '加载状态点失败'));
@@ -52,9 +61,9 @@ export function StreamStatePointsTab({ streamId }: { streamId: string }): JSX.El
   return (
     <div data-testid="stream-tab-state-points">
       <Card title="状态点" size="small">
-        <Table<StreamStatePoint>
+        <Table<StatePointRow>
           size="small"
-          rowKey={(r, idx) => r.state_label ?? `sp-${idx}`}
+          rowKey="key"
           loading={loading}
           dataSource={rows}
           pagination={false}

@@ -4,60 +4,52 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-02（第 23 轮：**P9B-3 计划吸收委员会复审**）。
+> Read this FIRST when starting a session. Last updated: 2026-11-03（第 24 轮：**P9B-3 整批落地** T0→T9）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done（第 23 轮：P9B-3 计划）
+## ✅ Done（第 24 轮：P9B-3 整批 · `b127495..a220cec` 14 commit）
 
-**计划**：`docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md`（1740 行）· commit **`ac09ad8`**
-委员会复审判定 **CLEARED TO START**，本轮把**全部**意见落地进计划（此前 Pass 1+2 未提交，本次补完 Pass 3 一次提交）：
-**3 P1**（T4 的 7 项默认键 seed 含 `app/main.py` 启动钩子 + `test_seed_is_idempotent` · T0 的
-「收集到 0 个」测试改用**假 docker shim**（否则测的是「PG 没起」）· T2 改 **✅/⏳/❌ 状态标记**
-—— SPEC 不该知道批次概念）· **5 P2**（空 composition 区分 `None`/`{}` · TODO-104 · 「只能改不能增」
-写进 docstring · TODO-103 拆两 commit · T9「两库 + 一条车道」表）· **5 条用户裁决**
-（1a source 列 → **新增 T2.5** · 1b PRO/II 归 `SIM_IMPORT` · 2 T7 顺序（估算失败不阻塞）·
-3 SPEC 状态标记 · 4 T4 默认键 7 项）。
+计划 `docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md`，用 **superpowers:executing-plans**（inline）
+执行，ledger 在 `.superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/progress.md`（含全部 `Ruling:`）。
 
-**新增 Task T2.5**：`streams.source` 列（VARCHAR(20) NOT NULL DEFAULT 'MANUAL' + CHECK
-`ck_streams_source_valid` + 复合索引 `ix_streams_project_source`）+ 迁移 **`p9_015`** +
-`StreamSource` 4 值枚举（MANUAL / SIM_IMPORT / EXCEL / LAB）+ 后端 `?source=` 筛选。
+- **T0 本地 PG 车道**（`b127495` · TODO-099 关闭）：`scripts/pytest_pg.sh` = **唯一入口**，
+  fail-closed 三闸（PG 未起 / 收集到 0 个 / 无 `N passed` ⇒ exit 1）+ `postgres-pgtest` 服务
+  （⚠️ 卷挂 `/var/lib/postgresql`，PG-18 拒绝 `/var/lib/postgresql/data`）+ `pg` marker。
+- **T1 三处修正**（`51657ac`/`909bc3a`/`0a0efd5`+`b948044`/`72f20be` · TODO-101/102/103 关闭）：
+  StateBadge 交付物 4 态 / 409 收窄到 `uq_projects_project_no` / compact ORM **生成器**。
+- **T2 SPEC V2.6**（`3ba9587`）+ **T2.5 `streams.source`**（`baa916d` · 迁移 `p9_015`）：4 值录入通道
+  （MANUAL/SIM_IMPORT/EXCEL/LAB）+ `?source=` 筛选；**与既有 `source_type`（13 值）正交** ⇒ 前后端只消费 `source`。
+- **T3 组成合计门禁**（`d9937bc`）：送审前置 100±0.5%（`SIM_STREAM_COMPOSITION_OUT_OF_RANGE`）。
+  ⚠️ 计划说该校验「根本不存在」—— **实测存在**（`SIM-V09` 创建时 0.1%）⇒ 真正缺口是**送审这一关没有门禁**。
+- **T4 系统参数后端**（`a5d5229`）：批量**原子** PUT + `SYSTEM_SETTINGS_UPDATED` 审计 + 幂等 seed 7 键
+  （启动钩子）。⚠️ 计划的 `settings: dict[str, Any]` 会让裸载荷闸门 71→72 ⇒ 套 `RootModel`（JSON 形状不变）。
+- **T5 系统参数页**（`b5b6616`）：`/admin/system-settings`，**一次保存 = 一个 PUT**，JSON 文本 + `JSON.parse`。
+- **T6 物流列表页**（`a6cc93c`）：工具栏（导入/新建/导出，**无**批量提交校对）+ 四项筛选（重新请求后端）
+  + 单条「校对」+ 「变更」。⚠️ 未改 `listByProject` 的返回类型（会打破 4 个计算页）⇒ 另开 `streamApi.list`（TODO-109）。
+- **T7 手动创建向导**（`30f4dfb`）：`/sim/streams/new`，7 步，校验红项 ⇒ 写入禁用，**估算失败不阻塞**提交校对。
+- **T8 详情 7 Tab**（`a220cec`）：基本信息/组成/物性/状态点/设备连接/血缘/**校核记录**（前端按
+  `detail_json.transition` 过滤）。⚠️ 校核记录端点**限 SYSTEM_ADMIN** ⇒ 非管理员见「无权查看」（TODO-112）。
+- **T9 收口**：QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3.md`（Health 97/100，
+  唯一 HIGH 是 antd `rowKey` index 弃用 ⇒ 批内已修并复验）；契约 baseline 已滚（G-08 4/4）。
 
-**三处实测新事实**（裁决前提未覆盖，已写进计划）：**`streams.source_type` 已存在**
-（VARCHAR(30) NOT NULL + CHECK，**13 值** = 3 人工/导入 + 10 个 `*_CALCULATED` 设备计算出口流；
-`pcs_test` 202 行实测）⇒ 与新列**语义正交**（产出方式 vs 录入通道）但**取值重叠 3 处**
-⇒ 用「同一写入点成对赋值 + 一致性断言」防漂移（#9）· **Excel 导入把 `source_type` 也写成
-`SIM_IMPORT`** ⇒ 新列写 `EXCEL`，两列不同是**有意的**（#10）· **10 个 `*_CALCULATED`
-出口流在 4 值里无对应** ⇒ 本批规则：**继承上游的 `source`**（#11）。
-另修一处**计划自洽性**：T6 断言四项筛选都带 query 参数，但后端只支持 `case_type`
-⇒ T2.5 一并补 `phase` / `sign_status`（否则前端 query 被静默忽略 ⇒ 断言必红）；`streams.phase`
-无索引 ⇒ #12。
-
-**环境修复（不在仓库内）**：claude-mem 的 observer 凭据被拒 ⇒ `/login` 后读写实测正常；
-`code-review-graph` MCP 因 `uvx` 每次要下 wheel 而 **`files.pythonhosted.org` 在本机被重置**
-⇒ 卡到 30s MCP 超时、**进程压根没起来**（旁证：`~/.cache/uv/` 930 个 `.tmp*` 孤儿目录）
-⇒ 改 `/home/pangzy/code_project/.mcp.json` 直指
-`/home/pangzy/miniconda3/bin/code-review-graph`（备份 `/tmp/mcp.json.bak`）⇒ 握手 6.5s。
-
-**上一轮（第 22 轮 P9B-2F）**：follow-up 评审 17 条 actionable 全落地（`77e3293..9f08a0d`）·
-后端 5405 passed / 前端 989 tests · 三库 `p9_014` + `alembic check` exit 0 · QA 报告
-`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-02-p9b2f.md` · 详见 buglog 2111-2120。
+**批末实测**：后端 5433 passed / PG 车道 4 passed / 前端 1004 passed（110 files）/ typecheck+lint clean /
+裸载荷 71（未涨）/ `pcs`+`pcs_test` 均 `p9_015` + `alembic check` exit 0（独立进程 + 直查库）/ 浏览器 0 error 0×404。
 
 ---
 
 ## 🚀 Next quest
 
-1. **P9B-3 开工 T0**（本地 PG 车道 · TODO-099）：计划里的 `## Task T0`，12 步。
-   顺序 **T0 → T1 → T2 → T2.5 → T3 → T4 → T5 → T6 → T7 → T8 → T9**
-   （T2.5 在 T2 之后、T3 之前）。**TDD 红灯先行**：先写
-   `pcs-backend/tests/scripts/test_pytest_pg_gate.py`，再跑
-   `cd pcs-backend && uv run pytest tests/scripts/test_pytest_pg_gate.py -v` ⇒ 预期 FAIL
-   （`scripts/pytest_pg.sh` 尚不存在）。⚠️ 本会话这条命令被权限分类器拦过一次，
-   下次直接跑（别另跑 collect-only 探输出格式）。
+1. **P9B-3b（批量「提交校对」）** —— 委员会裁决 5：**单列计划**，本批**不做**。
+   契约决策（D1~D6 / 207 Multi-Status / 新动作 `STREAM_BATCH_SUBMITTED` / 上限取
+   `system_settings.stream.batch_submit_limit` / 幂等去重 / `dry_run`）与 12 条边界用例
+   已留档在 P9B-3 计划文档的「P9B-3b 移交」节 ⇒ **开工前先把那段抄成新计划**。
+   ⚠️ 端点命名待裁决：`POST /streams/batch/submit`（`batch` 会与 `{stream_id}` 抢路由 ⇒ 建议 `/streams/batch-submit`）。
+   ⚠️ 最关键的测试：**并发提交同一条 stream ⇒ 一胜一拒**（行锁）⇒ 方言级 SQL 断言 + 接线断言。
 2. **下一轮 ce-code-review**：scope **必须**含 TODO-100 点名的三处未深审部分
    （`test_deliverable_issue.py` + deliverables/record_edits API 改动 + 其余 diff）。
-3. 开放 TODO：**091-105**（104/105 本轮由 T2.5/T8 登记）；57 手写类型长期债；ADR-0050「先不做」。
+3. 开放 TODO：**091-112**（本批新登记 104~112；099/101/102/103 已关闭）；57 手写类型长期债；ADR-0050「先不做」。
 4. **未跟踪的 6 个遗留文件**（`docs/superpowers/plans/2026-09-30-*.md` ×5 +
    `spec/PCS-SPEC-P10 V1.3.1….md`）—— 非本会话产出，处置由用户定。
 
@@ -66,26 +58,23 @@ budget_tokens: 1200
 ## Context
 
 - main。**不要建 worktree**（历史事故）。`.wolf/*` 由 hook 自动维护，别手工 revert。
-- 两库均在 **`p9_014`**（head），`alembic check` exit 0。⇒ **`p9_015` 尚不存在**，作者是 T2.5。
-- ⚠️ **验多库必须每库独立进程**（alembic settings 是 pydantic 缓存实例）+ **直查库**
-  （`alembic_version` + 列存在性），不能只信命令输出。`alembic check` 退出码 **255** 不是 1。
-- ⚠️ **本仓无自动化 PG 测试通道**（CI 的 api-drift job 一条后端 pytest 都不跑）⇒
-  `tests/alembic/` 的引擎级测试**必须本地手动跑**；文档里不得写「CI 承担」。
-- **全量 pytest 前先 `docker compose up -d redis`**（ws/broadcaster 系列失败 = 环境未起）；
-  **别信 `pytest | tail` 的退出码**；`test_todos.py` 的 500ms 墙钟预算测试满负载下会抖（隔离即过）。
+- 两库均在 **`p9_015`**（head），`alembic check` exit 0（每库**独立进程** + **直查库**）。
+  ⚠️ `alembic check` 退出码 **255** 不是 1；「Target database is not up to date」= **检查失败**。
+- ⚠️ **验多库必须每库独立进程**（alembic `settings` 是 pydantic 缓存实例，第二次改 env 不生效）。
+- ⚠️ **全量 pytest 前先 `docker compose up -d redis`**；**别信 `pytest | tail` 的退出码**；
+  `test_notification_list_budget.py` 的 500ms 墙钟预算测试**满负载下会抖**（隔离即过 ⇒ 负载型 flake）。
+- ⚠️ **本仓 CI 一条后端 pytest 都不跑**（单人开发裁决）⇒ PG 车道是**本地**闸门，须人工跑。
 - 契约：批末滚 baseline（`cp openapi.json openapi-baseline.json`）后跑 G-08 `--check-baseline`。
 - 提交约定：conventional commits，**无 attribution 行**；长消息写文件后 `git commit -F`。
-- ⚠️ API 测试 `client` fixture mock 掉项目授权；StaticPool 共连接 ⇒ 真并发测试不可表达
-  （行锁只能**方言级**钉）。
-- ⚠️ 前端 e2e：`browse goto` 清 zustand ⇒ 路由可达性检查走 **SPA 菜单点击**。
+- ⚠️ 前端 e2e：`browse goto`/`reload` 会清 zustand ⇒ 路由可达性走 **SPA 菜单点击**。
+- ⚠️ 契约缺口（裸 dict）：`CreateStreamRequest.payload`、state-points body、properties/state-points/
+  lineage graph 响应 ⇒ 前端手写本地类型 ⇒ **字段名无编译期约束**（TODO-110/111）。
 
 ---
 
 ## 教训（已进 cerebrum）
 
-- 「CI 在验」之前必须**读那个 workflow 的 steps**（本仓已两次假委托）。
-- `finally` 里的 assert 会**顶掉**原始异常 ⇒ 清理判定放 try/finally **之后**。
-- 方言级断言必须**抽生产代码出来**，否则测试只能照抄 ⇒ 删了锁照样绿。
-- 评审的「全绿」结论：**先变异实测再转述**（推断 ≠ 实测）。
-- 从审计流水反推「当前轮次的执行者」⇒ 取**最后**一条（构造多轮测试 + 时间戳显式设值）。
-- **裁决的前提可能不成立** ⇒ 落地前先核事实（本轮就发现 `source_type` 已存在）。
+- 「裁决的前提可能不成立」⇒ 落地前先核事实（T3：组成合计校验**存在**）。
+- 计划的字段形状**要过契约闸门**再落地（裸载荷数会因「照抄计划」而涨）。
+- 计划自相矛盾时按「后一步能走到」那条读（T7：写入后跳走 ⇒ 后两步走不到）。
+- 测试辅助函数若假设「每次都从头开始」，第二次调用必假红（T7 `gotoStep`）。
