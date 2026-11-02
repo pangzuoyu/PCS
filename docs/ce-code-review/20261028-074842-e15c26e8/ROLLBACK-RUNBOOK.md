@@ -58,8 +58,16 @@ bundle，按 ③ 查配置、仍无解则升级**。
 | 想回滚的东西 | 命令 | 代价 |
 |---|---|---|
 | 只回代码（保留 DB 在 head） | 部署上一版镜像，**不跑** alembic | 旧 ORM 对 p9_014 新列不认识但无害（多列不炸）；旧代码对 p9_013 无依赖 ⇒ 可行 |
+| 回滚 p9_014（快照列层） | `command.downgrade(cfg, "p9_013")` | ⚠️ 删掉 20 张表的 `approval_chain_snapshot` ⇒ **在飞的冻结批准链一起没了** ⇒ 已提交待审的记录退回「实时矩阵」语义 ⇒ 中途重绑矩阵又可能改链（CWE-863）⇒ **回滚 p9_014 等于把 #1 的修复退回去**。回滚前先查有没有在飞的记录（见下方 SQL）；有则**优先 roll-forward**（修代码），别回滚列 |
 | 回滚 p9_013（ bindings 层） | 见下 | ⚠️ 删**所有**指向默认矩阵的 RECORD 绑定（含运行时/手工绑的，不只是回填的）⇒ R-1 的 SQL 可完整复原，代价是中断窗口 |
 | 回滚 p9_012（删列层） | **不存在**安全路径 | 列已物理删除，数据不可恢复（本批裁决：0 行 0 写入 ⇒ 可接受） |
+
+```sql
+-- 回滚 p9_014 前先看有没有在飞的批准链（IN_APPROVAL）
+SELECT r.pipe_id FROM piping_results r WHERE r.sign_status = 'IN_APPROVAL'
+UNION ALL SELECT r.flash_id FROM flash_results r WHERE r.sign_status = 'IN_APPROVAL';
+-- （20 张记录表各查一次；返回非空 ⇒ **不要**回滚 p9_014）
+```
 
 ```bash
 # 回滚 p9_013（会删绑定 ⇒ 先跑 R-1 的 SELECT 记下当前漏绑数，回滚后对比）
@@ -74,6 +82,13 @@ command.downgrade(Config('alembic.ini'), 'p9_012')
 # 恢复（roll-forward 修复一切）：
 #   同款脚本 command.upgrade(cfg, 'head')，然后跑 R-1 的 INSERT 补回绑定
 ```
+
+⚠️ **验多个库 ⇒ 一库一个进程**（2026-11-02 实测打脸）：alembic 的 `settings`
+是 **pydantic 缓存实例** ⇒ **同一进程内第二次改 `os.environ['DATABASE_URL']`
+不生效** ⇒ 第二遍连的仍是第一个库；而 `upgrade` 幂等 ⇒ 两遍都打印同一个
+`(head)`，**输出无法区分** ⇒ 上一轮 QA 据此得出的「两库都干净」是**假证据**。
+⇒ 上面的配方只适用于**单个**库；要验多个库 ⇒ **每库起独立进程**，且**直查
+库的 `alembic_version` + 目标列存在性**，不能只信命令输出。
 
 ## R-4 日志出现 `UndefinedColumn: parent_deliverable_id` / `approval_chain_snapshot`
 

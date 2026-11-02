@@ -1,0 +1,115 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "Snapshot-less fallback branch of the approval chain is untested",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 380,
+      "why_it_matters": "The snapshot fix added a second, older code path: when a record has no `approval_chain_snapshot` (i.e. it was already IN_APPROVAL when the fix was deployed), `_next_approval_role` falls back to reading the live matrix instead of the frozen chain. That fallback is the branch that protects the approval role gate — the code's own docstring warns that if it clears `record.approval_role`, the endpoint's role check `if record.approval_role and record.approval_role != actor.role` stops matching and lets any authenticated role approve the step. Every record that reaches `approval-step` in the test suite gets its snapshot from `submit-approval`, so the fallback never executes in any test; a regression there (a wrong step index, a matrix lookup that returns None, a mis-ordered step list) would silently apply to exactly the in-flight records that exist at deployment time, with the whole suite still green.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add a case to pcs-backend/tests/api/v1/test_record_approval_chain.py that simulates a pre-fix in-flight row: create a record already in `RecordSignStatus9.IN_APPROVAL` with `approval_role='CHECKER'` and `approval_chain_snapshot=None` (no submit-approval call), bind a 2-step RECORD matrix (CHECKER→REVIEWER), then POST `approval-step` as CHECKER and assert the response is 200 and `rec.approval_role == 'REVIEWER'` (proving the live-matrix fallback supplies the next role), plus a second case posting as APPROVER to assert 403 `APPROVAL_ROLE_MISMATCH` (proving the fallback does not clear the role and open the gate).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/records_actions.py:380 --     matrix = await SignatureMatrixService.resolve_project_matrix(",
+        "pcs-backend/app/api/v1/records_actions.py:363 -- - 无快照（修法上线前已 IN_APPROVAL 的存量行）⇒ 回退实时矩阵，",
+        "pcs-backend/app/api/v1/records_actions.py:367 -- 清空后 `record.approval_role` 为空 ⇒ 端点的角色闸会**放行任何人**",
+        "pcs-backend/tests/api/v1/test_record_approval_chain.py:361 --     snap = rec.approval_chain_snapshot",
+        "grep 'approval_chain_snapshot' over pcs-backend/tests/ returns hits ONLY in tests/api/v1/test_record_approval_chain.py (lines 361, 458) and the alembic test's information_schema string — i.e. every record that reaches approval-step in the suite got its snapshot from submit-approval, so the `snapshot is None` branch never executes"
+      ]
+    },
+    {
+      "title": "Concurrent-submit row lock asserted in a comment, verified nowhere",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 421,
+      "why_it_matters": "The submit endpoint claims a concurrency guarantee in a comment — concurrent submits must yield one success and one rejection, because two 200s would write two snapshots and two audit rows with the later write overwriting the earlier. The test that carries the guarantee is explicitly serial (the in-memory SQLite StaticPool fixture cannot express concurrency) and delegates the real check to \"CI 的 fresh-PG api-drift job\". That job does not do it: it runs `alembic upgrade head`, the OpenAPI export/drift check, the migration-idempotency script, the visual renderer tests and the frontend typecheck — it never runs the backend pytest suite and never fires concurrent requests. So the `for_update=True` row lock on the submit path can be dropped (or made ineffective) with the entire test suite staying green, and on PostgreSQL two concurrent submits would then both read DRAFT, both write a snapshot and both commit — exactly the double-snapshot / last-write-wins outcome the comment says the lock prevents.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add a PostgreSQL-backed concurrency test that reuses the isolated-schema harness already in pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py (CREATE SCHEMA → `alembic upgrade head` → drive two concurrent POST /records/PipingResult/{id}/submit-approval calls for the same record through two real connections) and assert exactly one 200 and one 409, and that the surviving snapshot's `submitted_by` belongs to the winner. If the PG harness is judged too heavy, the minimum that stops the silent regression is a test asserting `load_record` is invoked with `for_update=True` on the submit path (weaker — implementation-coupled — but it fails loudly if the lock is dropped).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/records_actions.py:421 -- # ⚠️ **行锁**（评审 #1 并发位）：并发 submit 必须一胜一拒 —— 双 200 = 双快照/双审计写（后写覆盖先写）。",
+        "pcs-backend/app/api/v1/records_actions.py:424 -- db, module=module, record_id=record_id, actor=actor, for_update=True",
+        "pcs-backend/tests/api/v1/test_record_approval_chain.py:446 --     fresh-PG api-drift job 负责那条链路，这里钉住串行语义与快照归属。",
+        "pcs-backend/tests/api/v1/test_record_approval_chain.py:441 --     ⚠️ **为什么是串行不是 gather**：本仓单测的 in-memory SQLite 走",
+        ".github/workflows/check-api-drift.yml -- the api-drift job's steps are: alembic upgrade head / export_openapi.py / check-api-drift.sh / check_migration_idempotency.py / visual renderer tests / npm run typecheck — no `uv run pytest` over the backend suite, so no concurrent request is ever issued",
+        "grep: no test under pcs-backend/tests/ issues two concurrent submit-approval requests (no asyncio.gather in tests/api/v1/)"
+      ]
+    },
+    {
+      "title": "p9_014 hardcoded 20-table list never cross-checked against ORM",
+      "severity": "P2",
+      "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+      "line": 51,
+      "why_it_matters": "The new `approval_chain_snapshot` column lives on the `RecordMixin` shared by 20 result tables, but the migration hardcodes that table list because a migration may not import application models. Nothing in the automated suite compares the two lists: the unit tests build their schema from ORM metadata (so a missing column is invisible — the table simply has it), and the PostgreSQL engine test only checks that the column exists on one of the twenty tables (`flash_results`). The migration's own comment admits the only guard is a manual `alembic check` per database. So adding the 21st `RecordMixin` table — or renaming one — leaves the migration unchanged while the ORM starts writing the column; every INSERT into that table then fails in production with an undefined-column error, with the whole test suite green and no automatic check failing. (Verified today: ORM RecordMixin tables (20) and migration `_TABLES` (20) match exactly, so this is a live tripwire, not a current defect.)",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py that imports the application models (the self-containment constraint applies to the migration, not to the test), collects every `RecordMixin` subclass's `__tablename__`, imports the migration module the same way tests/alembic/test_p9_013_bind_default_record_matrix.py already does, and asserts `set(orm_tables) == set(migration._TABLES)` with a message naming the missing/extra tables. Extend the existing PG roundtrip to assert the column's type is `jsonb` and that it is nullable on every table in the list, not merely that it exists on `flash_results`.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+        "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:27 -- 清单从 ORM 元数据反查（`RecordMixin` 的叶子子类），**硬编码**在下面 ——",
+        "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:28 -- 不 import 应用模型（迁移自包含）。漏表 ⇒ `alembic check` 立刻报漂移（红），",
+        "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:307 -- \"AND table_name = 'flash_results' \"",
+        "pcs-backend/tests/conftest.py -- `await conn.run_sync(SA_Base.metadata.create_all)` — the unit-test schema comes from ORM metadata, so a column missing from the migration can never be detected there",
+        "verified locally: ORM RecordMixin subclasses = 20 tables, migration _TABLES = 20, ORM-only = [], MIG-only = [] (correct today, unguarded going forward)"
+      ]
+    },
+    {
+      "title": "PG migration verification never runs automatically",
+      "severity": "P3",
+      "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+      "line": 129,
+      "why_it_matters": "Both PostgreSQL-backed checks (fresh-schema upgrade with assertions, and the head → downgrade → head roundtrip) skip whenever `DATABASE_URL` is absent, and the docstring reassures the reader that \"CI 的 fresh-PG api-drift job 承担同口径验证\". It does not: that job runs `alembic upgrade head` and a drift/idempotency check — it never executes this test file, and it never exercises a downgrade at all. The consequence is that the downgrade legs of the two migrations shipped in this batch (`p9_013.downgrade` deleting bindings, `p9_014.downgrade` dropping the column) are only ever executed when a developer with a local PostgreSQL happens to run this file by hand; a maintainer reading the docstring would reasonably believe the guarantee is enforced on every push.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "The existing workflow already provides everything needed: a `postgres:18` service and a `DATABASE_URL` env pointing at it. Add one step to .github/workflows/check-api-drift.yml (working-directory: pcs-backend, env DATABASE_URL set as the other steps do): `uv run pytest tests/alembic/test_p9_013_bind_default_record_matrix.py` so the engine-level assertions and the downgrade roundtrip run on every push. If adding a CI step is out of scope for this batch, correct the docstring instead to state what actually happens — the api-drift job only runs `alembic upgrade head` (no assertions, no downgrade leg) and this file must be run manually against a PostgreSQL instance.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 --     无 PG（CI 单测 job）⇒ skip —— CI 的 fresh-PG `api-drift` job 承担同口径验证。",
+        "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:260 --         pytest.skip(\"无 PostgreSQL URL —— 该验证由 CI fresh-PG job 承担\")",
+        ".github/workflows/check-api-drift.yml -- job api-drift steps: 'Run alembic upgrade head (pcs)' / 'Export OpenAPI snapshot' / 'Run check-api-drift (semantic)' / 'Run check-migration-idempotency (p7_s2_*)' / 'Visual renderer tests' / 'Typecheck frontend' — none of them runs pytest over tests/alembic/"
+      ]
+    },
+    {
+      "title": "Roundtrip docstring names the wrong downgrade target",
+      "severity": "P3",
+      "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+      "line": 244,
+      "why_it_matters": "The roundtrip test's docstring says it walks `head → p9_012 → head`, but the script it actually runs downgrades to `p9_011`, which drops p9_013 and p9_012 (the inline comment at the downgrade call is correct; only the docstring header is stale). Anyone reading the docstring to decide which migration legs are exercised — e.g. when a future migration is inserted between p9_011 and head — will reason about the wrong range and may believe a downgrade leg is covered when it is not.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "suggested_fix": "Change the docstring line to `在隔离 schema 上走完整环：`head → p9_011 → head` ⇒` and rename the test to `test_p9_014_p9_013_p9_012_downgrade_upgrade_roundtrip` so the function name matches the range it walks.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:244 --     在隔离 schema 上走完整环：`head → p9_012 → head` ⇒",
+        "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:274 -- command.downgrade(cfg, \"p9_011\")   # p9_013 + p9_012 都降掉"
+      ]
+    }
+  ],
+  "residual_risks": [
+    "Scope note: I verified the mandated backend items by reading source + tests, plus one standalone reproduction script (in /tmp, no repo file touched) that confirmed on in-memory SQLite that removing the `begin_nested()` savepoint around the losing INSERT makes the re-read raise PendingRollbackError — i.e. the race test in tests/services/test_signature_matrix_service.py IS mutation-resistant to both removal of the savepoint and removal of the re-read, and the unique constraint it depends on (uq_signature_matrices_name_status) is declared in the ORM, so the IntegrityError path is genuinely exercised.",
+    "I did not execute the backend pytest suite or the frontend vitest suite; the frontend verdicts (RecordActions remount test, AuditLogPage applied-filter pagination test, errors.test.ts, project_admin FORMAL-only dropdown) rest on reading the assertions, which are behavior-level (rendered disabled state, request query parameters, exact message text, absence of the PERSONAL workspace in the dropdown) and therefore survive the corresponding production changes.",
+    "call site completeness: grep-only. The claim that no test fires concurrent submit-approval requests rests on `grep -rn 'submit-approval' tests/` and `grep -rln 'asyncio.gather' tests/`, not on a symbol-aware reference search.",
+    "The audit pagination tiebreaker test (tests/test_audit_query.py::test_pagination_tiebreaker_identical_timestamps) relies on random audit_ids for its ordering assertion, so dropping the `audit_id desc` tiebreaker would fail it with probability 119/120 rather than deterministically; the disjointness half of the assertion alone would indeed survive the tiebreaker removal on SQLite, as the test's own comment notes.",
+    "Not inspected in depth (outside the mandated scope, flagged only as unexamined): tests/api/v1/test_deliverable_issue.py and the deliverables/record_edits API changes in this batch."
+  ],
+  "testing_gaps": [
+    "No test asserts the p9_014 column's type (jsonb) or nullability on a real engine — the PostgreSQL roundtrip only asserts existence on flash_results (information_schema.columns filtered by table_schema = current_schema()).",
+    "The 'snapshot is shorter than the current step' fallback at pcs-backend/app/api/v1/records_actions.py:376-377 (returns the previous role) has no test; it is described in the code as theoretically unreachable because the snapshot is written together with approval_depth.",
+    "The `resolve_project_matrix` 409 (SIGNATURE_MATRIX_NOT_ACTIVE) raised from inside `_next_approval_role`'s no-snapshot fallback path is not covered — the only 409 test for a disabled bound matrix (tests/api/v1/test_record_approval_chain.py::test_matrix_disabled_mid_approval_keeps_chain) exercises the snapshot path, where the live matrix is never consulted.",
+    "No test pins the approval-chain snapshot's JSON shape against the migration/ORM contract beyond three keys (matrix_id, steps, submitted_by/submitted_by_role) — e.g. matrix_name and step_order are written but never asserted."
+  ]
+}

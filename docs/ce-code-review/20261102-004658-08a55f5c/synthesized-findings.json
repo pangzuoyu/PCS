@@ -1,0 +1,1658 @@
+{
+ "run_id": "20261102-004658-08a55f5c",
+ "stage": "5",
+ "mode": {
+  "agent": false,
+  "apply_local": false,
+  "grouping": "auto",
+  "depth": "auto"
+ },
+ "scope": {
+  "mode": "standalone",
+  "base": "2bc239880f4c2241b8e274e0bef9770c3b4c6206",
+  "diff_a": "2bc239880f4c2241b8e274e0bef9770c3b4c6206",
+  "diff_b": null,
+  "pr": {
+   "number": null,
+   "url": null,
+   "title": null,
+   "body": null,
+   "base_ref_name": null,
+   "head_ref_oid": null,
+   "head_ref": null,
+   "base_ref": null,
+   "has_prior_comments": false
+  },
+  "branch": "main",
+  "head_sha": "77e3293",
+  "files": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/files.txt",
+  "diff": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/full.diff",
+  "tree_is_reviewed_head": true,
+  "untracked_excluded": [
+   "docs/superpowers/plans/2026-09-30-*（5 个计划草案）",
+   "spec/PCS-SPEC-P10*.md（未跟踪规格草案）"
+  ]
+ },
+ "findings": [
+  {
+   "#": 1,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:164 --                 .with_for_update()",
+    "pcs-backend/app/api/v1/records_actions.py:527 --     #    PG 上第二个并发批注者阻塞到第一个提交后重读新状态",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:446 --     fresh-PG `api-drift` job 负责那条链路，这里钉住串行语义与快照归属。",
+    "pcs-backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/sqlite/base.py:1517 --     def for_update_clause(self, select, **kw):  # sqlite has no \"FOR UPDATE\" AFAICT  ->  return \"\"",
+    ".github/workflows/check-api-drift.yml -- the repository's only workflow; steps are alembic upgrade head / export_openapi.py / check-api-drift.sh / check_migration_idempotency.py / pytest -m visual tests/services/report/test_renderer_visual.py / npm run typecheck -- no backend API test job, no concurrency test",
+    "pcs-backend/tests/api/v1/test_deliverable_issue.py:429 -- # [→E2E] test_doc_no_unique_under_concurrent_issue —— 10 并发签发同一 (project, template, scope)，断言 10 个 doc_no 互不相同。 (tombstone comment only; `grep -rn test_doc_no_unique_under_concurrent_issue` over the repo finds only this comment and a plan doc)",
+    "pcs-backend/app/api/v1/records_actions.py:154 --         SQLite（单测）无 FOR UPDATE ⇒ 语法被方言省略，靠共享连接的语句级串行 + `populate_existing` 尽力复读。",
+    "pcs-backend/app/services/advisory_lock.py:23 -- dialect-aware: SQLite → no-op (test path OK). PostgreSQL → re-raise on error   (the repo's established handling for a lock that is inert on SQLite — bug-119; `load_record` has no equivalent guard or test)",
+    "pcs-backend/app/api/v1/records_actions.py:421 -- # ⚠️ **行锁**（评审 #1 并发位）：并发 submit 必须一胜一拒 —— 双 200 = 双快照/双审计写（后写覆盖先写）。",
+    "pcs-backend/app/api/v1/records_actions.py:424 -- db, module=module, record_id=record_id, actor=actor, for_update=True",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:446 --     fresh-PG api-drift job 负责那条链路，这里钉住串行语义与快照归属。",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:441 --     ⚠️ **为什么是串行不是 gather**：本仓单测的 in-memory SQLite 走",
+    ".github/workflows/check-api-drift.yml -- the api-drift job's steps are: alembic upgrade head / export_openapi.py / check-api-drift.sh / check_migration_idempotency.py / visual renderer tests / npm run typecheck — no `uv run pytest` over the backend suite, so no concurrent request is ever issued",
+    "grep: no test under pcs-backend/tests/ issues two concurrent submit-approval requests (no asyncio.gather in tests/api/v1/)"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:164 --                 .with_for_update()",
+   "independent_reviewers": [
+    "adversarial",
+    "testing"
+   ],
+   "line": 164,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial",
+    "testing"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Pin the mechanism and stop the false delegation. (1) Add a dialect-level unit test that needs no PostgreSQL server: compile the locking SELECT against the PostgreSQL dialect and assert the emitted SQL contains `FOR UPDATE` (e.g. `assert 'FOR UPDATE' in str(select(PipingResult).where(PipingResult.pipe_id == pk).with_for_update().compile(dialect=postgresql.dialect()))`), so dropping or mistyping `.with_for_update()` fails loudly. (2) Fix the false delegation in `pcs-backend/tests/api/v1/test_record_approval_chain.py:441-446`: the comment claims \"CI 的 fresh-PG api-drift job 负责那条链路\", but that job's steps are `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` / `check_migration_idempotency.py` / visual renderer tests / `npm run typecheck` — it runs no backend test at all. Replace the sentence with a pointer to the test that actually exists. (3) If a real two-connection concurrency test is wanted, model it on the isolated-schema subprocess harness already in `tests/alembic/test_p9_013_bind_default_record_matrix.py` (create a throwaway PG schema, then drive two independent sessions at the same record row and assert exactly one 200 and one 409).",
+   "title": "Row-lock concurrency guarantee asserted but verified nowhere",
+   "why_it_matters": "This batch's headline concurrency fix is `SELECT ... FOR UPDATE` on the record row in `submit_approval` and `approval_step`, and the in-code comments state it as a hard guarantee: two concurrent submits must be \"一胜一拒\" and two concurrent approvals must produce exactly one `APPROVAL_STEP_PASSED` audit row. Nothing in the repository verifies that. The unit suite runs on in-memory SQLite, where SQLAlchemy's SQLite dialect compiles `with_for_update()` to an empty string (no lock at all). The new test that is supposed to cover this (`test_second_submit_after_commit_is_409`) is serial by construction and its own docstring hands the PG verification to the \"CI fresh-PG api-drift job\" — but the only workflow in this repo (`.github/workflows/check-api-drift.yml`) runs `alembic upgrade head`, the OpenAPI export/drift check, `check_migration_idempotency.py`, one visual-renderer test file and the frontend typecheck; it never runs the backend API tests and never issues a concurrent request. The repo's own established escape hatch for this exact class of test (`# [→E2E] test_doc_no_unique_under_concurrent_issue` in `tests/api/v1/test_deliverable_issue.py:429`) is likewise a tombstone comment with no test behind it anywhere in the tree. Concrete consequence: deleting `.with_for_update()` from `load_record` leaves the entire suite green, and on a real PostgreSQL two concurrent submits would both return 200 with the second overwriting the first's frozen chain and writing a duplicate audit row — precisely the harm the code comment claims the lock prevents. A maintainer reading the comment has no way to know the guarantee is unverified.",
+   "requirements": [
+    "R3",
+    "R17"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 2,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/api/errors.ts:71 --  * 错误提示文案（**统一**）。",
+    "pcs-frontend/src/api/errors.ts:73 --  * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——",
+    "pcs-frontend/src/api/errors.ts:83 -- export function errorText(err: unknown, fallback: string): string {",
+    "pcs-frontend/src/api/errors.ts:91 -- export function describePcsError(err: unknown, fallback: string): string {",
+    "provenance: 2bc2398:pcs-frontend/src/api/errors.ts:70-76 — the 403 docblock predates the batch and sat directly above describePcsError; the batch's only change to this region is the insertion of errorText (+14 lines) between the docblock and describePcsError"
+   ],
+   "file": "pcs-frontend/src/api/errors.ts",
+   "first_evidence": "pcs-frontend/src/api/errors.ts:71 --  * 错误提示文案（**统一**）。",
+   "independent_reviewers": [
+    "maintainability"
+   ],
+   "line": 71,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Move the 403 docblock back onto `describePcsError` (the function it documents: 403 ⇒ 「无权查看：…」 is implemented there, not in `errorText`), and give each helper a one-line «何时用哪个» note: `errorText` = 后端原文 + 无信封时返回纯 fallback; `describePcsError` = 403 ⇒ 「无权查看：…」 + 无信封时补 `HTTP_500：` 前缀. This batch inserted `errorText` between the 403 docblock and `describePcsError`, so the docblock now documents the wrong function and `describePcsError` carries no docblock at all.",
+   "title": "403 docblock orphaned onto errorText, describePcsError left undocumented",
+   "why_it_matters": "The 403 rule that errors.ts documents now belongs to a different function than the one it describes. The block that says «403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]`» used to sit directly above `describePcsError`; this batch inserted `errorText` between that docblock and `describePcsError`, so the block now attaches to `errorText` — which does NOT implement the rule (for a 403 envelope `errorText` returns exactly `HTTP_403：需要角色 […]`, the wording the text says must never reach a user). `describePcsError`, the function that actually performs the 无权查看 rewrite, is now the only exported helper in the file with no documentation at all. The next caller choosing between the two near-identical helpers reads `errorText`'s doc, concludes the 403 handling lives there, and ships a machine-code 403 message to users — the outcome the orphaned comment says to avoid.",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 3,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 -- - 日期：2026-11-01 · 批次：`58341eb..369e855`（5 commits，评审 A/B/C 档 + 清理）",
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:16 -- …降级环（head→p9_011→head）实测过",
+    "git log 2bc2398..HEAD --date=iso → 369e855 2026-10-31 09:56:38 / 5de4e7b 2026-11-01 16:01:15 / 9e4bfad 2026-11-02 00:13:33 / 77e3293 2026-11-02 00:44:59（报告之后还有 3 个 commit）",
+    "commit 9e4bfad -- \"test(P9B-2R): 降级环的 information_schema 查询按 current_schema() 限定\"（body: 「测试先于两库升级写就，当时 public 在 p9_013 ⇒ 恰好绿；升级后必红」）",
+    "CLAUDE.md（Per-Batch QA Gate · 何时跑）: \"每批 sprint 的**最后一个 commit 落地后**，开下一批之前。\""
+   ],
+   "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+   "first_evidence": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 -- - 日期：2026-11-01 · 批次：`58341eb..369e855`（5 commits，评审 A/B/C 档 + 清理）",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 3,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Re-run the gate at the batch head (77e3293) and record the real range `58341eb..77e3293` (8 commits) in a new report `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-02-p9b2-review-fixes.md`; the current report's header still says `58341eb..369e355`（5 commits）. The three commits after it are 5de4e7b (chore), 9e4bfad (changes the降级环 test's `information_schema` query to `current_schema()` — that test only runs with a PostgreSQL URL, so it skips without PG and must not be recorded as a pass) and 77e3293 (chore). If only part of the gate is re-run, write each gate's actual execution in the report rather than carrying the previous round's conclusion forward. Note that `.gstack/` is gitignored, so the report cannot be distributed with the repository; the key conclusions must also be mirrored into TODOS.md or a commit message.",
+   "title": "The batch QA gate covers only 5 of 8 commits, not the batch-end state",
+   "why_it_matters": "CLAUDE.md 的 Per-Batch QA Gate 规定闸门跑在「每批 sprint 的**最后一个 commit 落地后**」。这份报告自述批次是 `58341eb..369e855`（5 commits，日期 2026-11-01），而本批实际到 77e3293（2026-11-02 00:44）共 8 个 commit——报告之后还落了 5de4e7b（chore 记账）、9e4bfad（**改的正是报告声称实测过的那条降级环测试文件** tests/alembic/test_p9_013_bind_default_record_matrix.py 的 information_schema 查询）、77e3293（chore cerebrum）。后果：报告里「降级环（head→p9_011→head）实测过」这条证据所对应的测试代码在报告之后被改过（9e4bfad 承认原写法「public 升到 p9_014 后计数跨 schema 相加 ⇒ 升级后必红」），闸门证据因此不覆盖批末状态；下一批开工时读到的是一份并非针对最终状态签发的报告。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 4,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "docs/PCS-UI-SPEC.md:2342 -- \"**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；\"（V2.4 行，§7.20「建项目」页的现行登记，无 FORMAL / 422 / 409 的任何字样）",
+    "pcs-frontend/src/api/projects.ts:36 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+    "pcs-backend/app/api/v1/projects.py:97 -- code=\"WORKSPACE_NOT_FORMAL\",",
+    "pcs-backend/app/api/v1/projects.py:124 -- code=\"PROJECT_NO_CONFLICT\",",
+    "docs/PCS-UI-SPEC.md:4 -- 当前版本: V2.4（本批未新增 V2.5 行；`git diff 2bc2398..HEAD -- docs/PCS-UI-SPEC.md` 只有 1 行的 V2.3 拆分，+2/-1）",
+    "CLAUDE.md（前端 UI 规范）: \"前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。\"",
+    "pcs-frontend/src/api/projects.ts:33 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+    "docs/PCS-UI-SPEC.md:2342 -- V2.4 …①**§7.20 新增「建项目」页**…**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；建完**明说**…",
+    "CLAUDE.md -- 前端所有 UI 以 docs/PCS-UI-SPEC.md（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。",
+    "pcs-backend/docs/openapi.json -- paths['/api/v1/projects'].post.responses == {201, 422}（无 409；422 是 FastAPI 自动生成的 HTTPValidationError）"
+   ],
+   "file": "docs/PCS-UI-SPEC.md",
+   "first_evidence": "docs/PCS-UI-SPEC.md:2342 -- \"**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；\"（V2.4 行，§7.20「建项目」页的现行登记，无 FORMAL / 422 / 409 的任何字样）",
+   "independent_reviewers": [
+    "project-standards",
+    "api-contract"
+   ],
+   "line": 2342,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "project-standards",
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add a V2.5 row to the SPEC revision table (docs/PCS-UI-SPEC.md:2342 is the current V2.4 row) stating three things: (1) the §7.20 project-creation page's workspace dropdown lists FORMAL workspaces only (non-FORMAL projects can never be submitted for approval, so the frontend does not offer them); (2) a non-FORMAL workspace now yields backend 422 `WORKSPACE_NOT_FORMAL` instead of 404; (3) `project_no` is globally unique, so a duplicate yields 409 `PROJECT_NO_CONFLICT` (re-fill prompt, not a server fault). Also amend the V2.4 row's \"⇒ 404\" wording to \"不存在 ⇒ 404；非 FORMAL ⇒ 422\" so the older row does not keep contradicting the OpenAPI. Separately, the OpenAPI decorator for POST /projects still declares only {201, 422} — registering 409 there is the same fix family as TODO-096 (business error codes not declared in `responses=`), which the repo decided to do as a whole family rather than one code at a time.",
+   "title": "SPEC does not register the new project-creation contract (FORMAL-only + 422/409)",
+   "why_it_matters": "本批把建项目页的工作区下拉改成只列 FORMAL 工作区（前端过滤），后端同时新增 422 WORKSPACE_NOT_FORMAL 与 409 PROJECT_NO_CONFLICT。OpenAPI 已经跟着更新（ProjectCreate 的 description 写明了新规则），但 SPEC 的 §7.20 登记（V2.4 行）仍停留在旧口径「工作区只能选已存在的（projects.workspace_id 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）」，本批也没有新增 V2.5 修订行。CLAUDE.md 把 PCS-UI-SPEC.md 定为前端 UI 的唯一编码依据、并要求与 SPEC 冲突时「以 OpenAPI 为准**并登记 SPEC 修订**」——现在 OpenAPI 与 SPEC 已经分叉而修订没有登记，后果是：下一次照 SPEC §7.20 实现或复核建项目页的人会把所有类型的工作区都放进下拉、并以为非法 workspace_id 得到 404，而线上实际是 422 WORKSPACE_NOT_FORMAL / 409 PROJECT_NO_CONFLICT，UI 上会直接吃一个没有 SPEC 条目的错误码。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 5,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:27 -- 清单从 ORM 元数据反查（`RecordMixin` 的叶子子类），**硬编码**在下面 ——",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:28 -- 不 import 应用模型（迁移自包含）。漏表 ⇒ `alembic check` 立刻报漂移（红），",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:307 -- \"AND table_name = 'flash_results' \"",
+    "pcs-backend/tests/conftest.py -- `await conn.run_sync(SA_Base.metadata.create_all)` — the unit-test schema comes from ORM metadata, so a column missing from the migration can never be detected there",
+    "verified locally: ORM RecordMixin subclasses = 20 tables, migration _TABLES = 20, ORM-only = [], MIG-only = [] (correct today, unguarded going forward)",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:50 -- #: 全部 RecordMixin 消费表（20 张；与 ORM 元数据一致，新增记录表时在此追加）",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:55 -- 漏表 ⇒ `alembic check` 立刻报漂移（红），单测（从 metadata 建表）**不会**红 —— 这正是 CLAUDE.md「漂移盲区」。",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:308 -- \"AND column_name = 'approval_chain_snapshot'\" (the only PG-side probe of the new column; it filters on table_name = 'flash_results' only, so the other 19 tables are unchecked)",
+    "pcs-backend/app/models/mixins.py:77 --     approval_chain_snapshot: Mapped[dict | None] = mapped_column(\" (declared on the mixin => every RecordMixin leaf in the ORM metadata carries the column, whatever the migration's literal list says)",
+    "pcs-backend/app/models/mixins.py:3 -- 含 TimestampMixin（created_at/updated_at）+ RecordMixin（project_id/workspace_id declared_attr 自动注入）+ TaggedRecordMixin（追加 tag_number NOT NULL）。"
+   ],
+   "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+   "first_evidence": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+   "independent_reviewers": [
+    "testing",
+    "adversarial"
+   ],
+   "line": 51,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "testing",
+    "adversarial",
+    "data-migration"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add `pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py`: collect every RecordMixin leaf subclass's `__tablename__` from ORM metadata and assert the set equals the migration module's `_TABLES` (naming the missing/extra table on failure); in the PG roundtrip also assert all 20 tables' `approval_chain_snapshot` column is `jsonb` and nullable (the roundtrip currently probes `flash_results` only). The migration's hardcoded 20-table tuple is a silent-drift point: adding a RecordMixin table without a matching migration entry fails nothing today.",
+   "title": "p9_014 20-table list never cross-checked against the ORM",
+   "why_it_matters": "The migration hard-codes the 20 tables that must receive the new `approval_chain_snapshot` JSONB column, and its own docstring says the list was reverse-derived from the ORM's `RecordMixin` leaves. Nothing in the repository re-derives that list, so the two can drift apart silently. The migration's own docstring admits the blind spot: \"漏表 ⇒ `alembic check` 立刻报漂移（红），单测（从 metadata 建表）**不会**红\". `alembic check` is a manual gate that this repo's CLAUDE.md documents as per-database, exit-code-255, and refused outright when the database is not at head — and `scripts/gate_alembic_check.py` is not invoked by the only CI workflow, so it does not run automatically either. Concrete consequence: the day someone adds a 21st `RecordMixin` table, the ORM metadata gains `approval_chain_snapshot` on it while the real database never gets the column. Unit tests stay green (they build the schema from ORM metadata), the migration's own table list stays valid (the new table simply is not in it), and the first symptom is a runtime `column ... does not exist` on every SELECT of that table — i.e. every read of that record type starts 500-ing in production while the whole test suite is still green. The one PG engine-level assertion in the roundtrip test only checks `flash_results`, so 19 of the 20 tables are unchecked even there.",
+   "requirements": [],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 6,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/deliverables.py:244 -- sign_status=str(deliverable.sign_status.value),",
+    "pcs-backend/app/api/v1/deliverables.py:242 -- #    记的是裸词表值 ⇒ 运行时违反自己冻结的契约。同文件 :289 已是 .value。",
+    "pcs-backend/app/schemas/deliverable.py:113 -- sign_status: str",
+    "pcs-backend/app/schemas/deliverable.py:47 -- sign_status: str",
+    "pcs-backend/docs/openapi.json -- components.schemas.DeliverableSnapshotResponse.properties.sign_status == {\"type\": \"string\"}；2bc2398 与 HEAD 逐字相同（baseline 从未表达任何词表）",
+    "pcs-frontend/src/api/deliverables.ts:19 -- export type DeliverableSignStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'OBSOLETE';"
+   ],
+   "file": "pcs-backend/app/api/v1/deliverables.py",
+   "first_evidence": "pcs-backend/app/api/v1/deliverables.py:244 -- sign_status=str(deliverable.sign_status.value),",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 244,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Declare the field as an enum so FastAPI writes the vocabulary into the baseline and validates responses: change `DeliverableResponse.sign_status` (`pcs-backend/app/schemas/deliverable.py:47`) and `DeliverableSnapshotResponse.sign_status` (`:113`) from `str` to `DeliverableSignStatus` (`pcs-backend/app/models/enums.py:124`, 4 states DRAFT/PENDING/APPROVED/OBSOLETE); then re-roll the contract (`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`) and point the hand-written union in `pcs-frontend/src/api/deliverables.ts:19` at that enum. This batch already fixed the runtime leak (the snapshot endpoint now emits the bare value), but the contract still records a bare `string`, so nothing in the drift check can catch a regression back to `DeliverableSignStatus.APPROVED` — the exact defect PE-1 was. Assumption: the deliverable side really has only these four states (`app/models/enums.py:124` confirmed).",
+   "title": "sign_status vocabulary is not in the OpenAPI contract, so the PE-1 fix is unguarded",
+   "why_it_matters": "任何按 OpenAPI 生成或校验客户端的消费方都看不到交付物签审状态的词表：baseline 里 `DeliverableSnapshotResponse.sign_status` 至今是裸 `{\"type\": \"string\"}`，改前（2bc2398）改后（HEAD）逐字相同 ⇒ PE-1 把运行时的 \"DeliverableSignStatus.APPROVED\" 改成 \"APPROVED\" 这件事在契约层完全不可见，同类漏 `.value` 的回归也没有任何自动检查能挡住（契约测试 / 漂移检查都看不到这个字段有词表）。前端因此只能在 api 边界手写一份 4 值并集（src/api/deliverables.ts:19），与契约彻底脱钩。新加的注释还把这个事实说反了：它称「本批滚的 openapi-baseline 记的是裸词表值」，并把枚举名写成 `RecordSignStatus9`（实际是 4 态的 `DeliverableSignStatus`）—— 下一个维护者会据此以为契约已经钉住词表，从而不再去补 schema。",
+   "requirements": [
+    "R7"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 8,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:520 -- 批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把",
+    "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+    "pcs-backend/app/api/v1/records_actions.py:470 -- record.approval_chain_snapshot = {",
+    "pcs-backend/docs/openapi.json -- paths['/api/v1/records/{module}/{record_id}/approval-step'].post.description 含「批准链来自项目绑定的 RECORD 矩阵」（docstring 原文，baseline 与 HEAD 相同，responses 仅 {200, 422}）",
+    "pcs-frontend/src/components/common/RecordActions.tsx:131 -- * 不是每行一次 ⇒ 不是 N+1）。已提交记录的链由后端 `approval_chain_snapshot`"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:520 -- 批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 520,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Rewrite the `approval_step` docstring (it is the only source of the OpenAPI description): state that the chain is frozen into `record.approval_chain_snapshot` at submit time, that intermediate steps read only that snapshot (rows without a snapshot fall back to the live matrix), and that every step re-compares the submitter's identity so the submitter gets 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`. Add \"提交时冻结批准链\" to the `submit_approval` docstring and list the new error codes (422 `SIGNATURE_MATRIX_EMPTY_CHAIN`) in the error-code list. Then re-roll the contract: `pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen` (the frontend's `src/types/api.d.ts` descriptions are generated and must be regenerated).",
+   "title": "approval-step OpenAPI description still says the chain comes from the live matrix",
+   "why_it_matters": "批准链现在是 submit 时冻结进 `approval_chain_snapshot` 的快照、中间步骤只读快照；但 approval-step 的 OpenAPI 描述（= 该端点 docstring，契约消费者唯一能看到的说明）仍写着「批准链来自项目绑定的 RECORD 矩阵」⇒ 读契约的人会以为中途重绑矩阵会改变待批角色，而实现恰恰相反（这正是本批修复的目的）。同一段描述还完全没提新增的失败路径：approval-step 现在每一步都比对提交人身份 ⇒ 提交人本人会吃到 403 APPROVAL_SELF_REVIEW_FORBIDDEN，而描述里只列了 APPROVAL_ROLE_MISMATCH ⇒ 消费方按描述建的错误映射会漏掉这一支。本批的前端注释已经改成「已提交记录的链由后端 approval_chain_snapshot 冻结」，前后端两侧对同一机制的表述已经分叉。",
+   "requirements": [
+    "R1"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 9,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+    "pcs-backend/app/api/v1/records_actions.py:548 -- snapshot = record.approval_chain_snapshot",
+    "pcs-backend/app/api/v1/records_actions.py:374 -- if snapshot and snapshot.get(\"steps\"):",
+    "pcs-backend/app/api/v1/records_actions.py:380 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+    "pcs-backend/app/api/v1/records_actions.py:555 -- if record.approval_role and record.approval_role != actor.role:",
+    "pcs-backend/app/api/v1/records_actions.py:470 -- record.approval_chain_snapshot = {",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:39 -- - 存量 IN_APPROVAL 行没有快照 ⇒ 读路径对 `IS NULL` 回退到实时矩阵，",
+    "pcs-backend/app/services/state_machine.py:477 --             user_id=actor_user_id,",
+    "pcs-backend/app/services/state_machine.py:481 --                 \"transition\": transition.value,"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+   "independent_reviewers": [
+    "security"
+   ],
+   "line": 549,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Close the legacy path in `approval_step` instead of silently degrading it: when `record.approval_chain_snapshot` is None, (a) derive the submitter from the audit trail — the `audit_logs` row with action=RECORD_TRANSITION and `detail.transition == 'SUBMIT_FOR_CHECK'` for this resource, whose `user_id` is the submitting actor (`state_machine.py:477` writes `user_id=actor_user_id`, `state_machine.py:481` writes `\"transition\": transition.value`) — and raise 403 `APPROVAL_SELF_REVIEW_FORBIDDEN` if it equals `str(actor.user_id)`; (b) freeze the chain into `record.approval_chain_snapshot` on that first touch (matrix_id + steps + submitted_by + submitted_by_role) so every later step is snapshot-driven and a mid-flight rebind can no longer change the pending role. Assumption: legacy submissions went through the state machine (it is the only transition into IN_APPROVAL — `grep SUBMIT_FOR_CHECK app/` shows `records_actions.submit_approval` as the sole record-side caller), so a RECORD_TRANSITION/SUBMIT_FOR_CHECK audit row exists for the record.",
+   "title": "Snapshot-less records skip the per-step self-review check",
+   "why_it_matters": "The approval chain is only frozen for records submitted after the snapshot column shipped. A record that is already IN_APPROVAL when the migration lands has approval_chain_snapshot = NULL, and both halves of the CWE-863 fix silently switch off for it: the per-step `submitted_by` re-assertion is skipped entirely (the `if snapshot and ...` guard is False), and `_next_approval_role` falls back to the LIVE project matrix. That restores the exact bypass the committee ruled to close — an approver who is also the submitter (or whose role is injected into a later step by a mid-flight matrix rebind) can approve their own record at step 2+, because the pending role is re-read from the live matrix and nothing compares it against the submitter. The same legacy rows also hit the fail-open role gate (`if record.approval_role and ...`), so a legacy row whose approval_role is NULL can be advanced by any PASS_CHECK role (CHECKER/REVIEWER/APPROVER/SYSTEM_ADMIN). New submissions are fully protected — the snapshot path is correct and the user_id comparison dominates the role comparison, so an actor with several roles cannot launder a later step. The gap is confined to rows created before the column existed, which is why this is P2 rather than P1.",
+   "requirements": [
+    "R1",
+    "R2"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 10,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/docs/schema_compact_orm.md:51 -- `  flash_id|CHARPK!, stream_id|CHARFK!, calc_type|str!, method|str!, input_json|jsonb!, output_json|jsonb!, tag_number|str!, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, locked_by_deliverable|bool!, change_pending_since|dt, …` —— 无 approval_chain_snapshot",
+    "pcs-backend/app/models/mixins.py:77 -- approval_chain_snapshot: Mapped[dict | None] = mapped_column(",
+    "pcs-backend/docs/schema_compact_orm.md:2 -- > 生成时间：2026-09-02 | 来源：app/models/*.py",
+    "实测：`grep -c approval_chain_snapshot pcs-backend/docs/schema_compact_orm.md` → 0；ORM 侧 Base.metadata 反射出 20 张表带该列，与 p9_014 的 _TABLES 清单完全一致",
+    "同批维护记录：commit 369e855 -- \"schema_compact_orm.md 删已 drop 的 parent_deliverable_id（B-2）\"（同一份文档的同步义务本批已认领过一次）"
+   ],
+   "file": "pcs-backend/docs/schema_compact_orm.md",
+   "first_evidence": "pcs-backend/docs/schema_compact_orm.md:51 -- `  flash_id|CHARPK!, stream_id|CHARFK!, calc_type|str!, method|str!, input_json|jsonb!, output_json|jsonb!, tag_number|str!, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, locked_by_deliverable|bool!, change_pending_since|dt, …` —— 无 approval_chain_snapshot",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 51,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Insert `approval_chain_snapshot|jsonb` right after `approval_role|str` in each of the 20 record-table rows of `pcs-backend/docs/schema_compact_orm.md`, matching the document's existing `|`-separated style and the ORM's nullable JSONB column (`pcs-backend/app/models/mixins.py:77`; `grep -c approval_chain_snapshot` in the table is 0 today). Also update the header's \"生成时间：2026-09-02\" to this batch's date so the next reader does not treat the table as a frozen September snapshot. This batch already edited the same file (removing the dropped `parent_deliverable_id`), so the sync obligation is live.",
+   "title": "The compact ORM reference table does not list approval_chain_snapshot",
+   "why_it_matters": "schema_compact_orm.md 是本仓自称的 ORM 事实对照表（抬头写明「来源：app/models/*.py」），本批自己也维护它——同一个 docs commit（369e855）把已 drop 的 parent_deliverable_id 从 deliverables 行里删掉了。但同一批给 20 张记录表加了 approval_chain_snapshot 之后，这份对照表里 grep 不到该列，于是它对 20 张表描述的列集比 ORM 少一列。后果具体：审批中间步骤只读这一列（不再回查实时矩阵），任何照这份对照表手写 SQL、写数据订正脚本、或做 schema 审查的人，都会以为记录表根本没有快照列，从而在查链时绕回实时矩阵——恰好是本批要消灭的绕过路径。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 11,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 --     无 PG（CI 单测 job）⇒ skip —— CI 的 fresh-PG `api-drift` job 承担同口径验证。",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:260 --         pytest.skip(\"无 PostgreSQL URL —— 该验证由 CI fresh-PG job 承担\")",
+    ".github/workflows/check-api-drift.yml -- job api-drift steps: 'Run alembic upgrade head (pcs)' / 'Export OpenAPI snapshot' / 'Run check-api-drift (semantic)' / 'Run check-migration-idempotency (p7_s2_*)' / 'Visual renderer tests' / 'Typecheck frontend' — none of them runs pytest over tests/alembic/"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担",
+   "independent_reviewers": [
+    "testing"
+   ],
+   "line": 129,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "data-migration",
+    "testing"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the claim in the file true. The docstring at line 129 says \"该验证由 CI fresh-PG api-drift job 承担\", but that job's steps are `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` / `check_migration_idempotency.py` / visual renderer tests / `npm run typecheck` — it runs no pytest, so both engine-level tests skip silently on every push and the green suite proves nothing about them. In-scope fix (this repo has no CI/CD pipeline by standing decision, and the PG lane debt is already registered as TODO-099): correct both docstrings to state what actually happens — the api-drift job runs only `alembic upgrade head` (upgrade path, no assertions, no downgrade leg) and this file must be run manually against a PostgreSQL instance. If a PG lane is later wanted, the workflow already provides `postgres:18` plus `DATABASE_URL`, so the step is `uv run pytest tests/alembic/test_p9_013_bind_default_record_matrix.py` (working-directory: pcs-backend).",
+   "title": "The two PG engine-level tests never run automatically",
+   "why_it_matters": "Both PostgreSQL-backed checks (fresh-schema upgrade with assertions, and the head → downgrade → head roundtrip) skip whenever `DATABASE_URL` is absent, and the docstring reassures the reader that \"CI 的 fresh-PG api-drift job 承担同口径验证\". It does not: that job runs `alembic upgrade head` and a drift/idempotency check — it never executes this test file, and it never exercises a downgrade at all. The consequence is that the downgrade legs of the two migrations shipped in this batch (`p9_013.downgrade` deleting bindings, `p9_014.downgrade` dropping the column) are only ever executed when a developer with a local PostgreSQL happens to run this file by hand; a maintainer reading the docstring would reasonably believe the guarantee is enforced on every push.",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 12,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/components/common/RecordActions.tsx:349 -- {actionError && (",
+    "pcs-frontend/src/components/common/RecordActions.tsx:318 -- {actionError && reasonFor === null && (",
+    "node_modules/rc-dialog/lib/Dialog/Content/index.js:56 -- removeOnLeave: destroyOnLeave,",
+    "node_modules/rc-motion/es/CSSMotion.js:91 -- } else if (!removeOnLeave && renderedRef.current && leavedClassName) {",
+    "node_modules/rc-dialog/lib/Dialog/index.js:174 -- display: !animatedVisible ? 'none' : null"
+   ],
+   "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+   "first_evidence": "pcs-frontend/src/components/common/RecordActions.tsx:349 -- {actionError && (",
+   "independent_reviewers": [
+    "correctness"
+   ],
+   "line": 349,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the in-modal copy mutually exclusive with the outside copy instead of relying on the modal staying open: change the inner guard at RecordActions.tsx:349 to `{actionError && reasonFor !== null && (`. The outer copy at line 318 already covers the `reasonFor === null` state, so exactly one node exists in every state, and the inner node keeps the same `data-testid` (the existing assertion at tests/components/common/RecordActions.test.tsx:357 requires the modal to contain `record-actions-error`).",
+   "title": "record-actions-error testid is duplicated after the reason modal is closed",
+   "why_it_matters": "After an action fails while the reason modal is open, the fix moved the error copy inside the modal and suppressed the outside copy with `reasonFor === null`. But when the user then closes the modal (Cancel), `reasonFor` becomes null and the outside copy renders again — while the modal's own copy is still mounted in the DOM: antd Modal defaults `destroyOnClose` to false, so rc-dialog passes `removeOnLeave: false` to rc-motion, which keeps the exited panel rendered. Two nodes therefore share `data-testid=\"record-actions-error\"`, and any future test that exercises \"action fails -> modal closed -> error still shown\" fails with a confusing \"Found multiple elements with the data-testid attribute\" instead of a real assertion. The stated intent of this hunk (\"避免双份\") is only half-met: the duplication is suppressed while the modal is open but returns as soon as it closes.",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 13,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:55 -- type Deliverable = import('../../api/deliverables').Deliverable;",
+    "pcs-frontend/src/api/deliverables.ts:22 -- export type Deliverable = Omit<",
+    "diff (DeliverableProgressPage.tsx): -type DeliverableList = components['schemas']['DeliverableListResponse'];",
+    "pcs-frontend/src/api/projects.ts:14 -- ⚠️ 响应体取**契约类型**（`components['schemas'][...]`）—— 手写自由 dict 就是 bug-2040 的根源（mock 与真端点不同源 ⇒ 漂移被藏住）。",
+    "pcs-frontend/src/types/api.d.ts:9141 -- DeliverableListResponse: {",
+    "pcs-frontend/src/api/deliverables.ts:14 -- export type Deliverable = Omit<"
+   ],
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+   "independent_reviewers": [
+    "maintainability",
+    "correctness"
+   ],
+   "line": 56,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability",
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Keep the contract link and narrow only the element type, using the same Omit-and-re-narrow pattern already applied in `pcs-frontend/src/api/deliverables.ts`: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add the `import type { components } from '../../types/api';` that the same hunk removed) and import the item type through the module's existing import block instead of the inline `import('../../api/deliverables').Deliverable` alias. This batch replaced the contract-derived `components['schemas']['DeliverableListResponse']` with a hand-written `{ items, total }`, so a later contract change (a new field) no longer turns the frontend red — the repository's own rule for this layer says the response body must take the contract type.",
+   "title": "Deliverable list envelope is hand-written instead of contract-derived",
+   "why_it_matters": "The list response type was replaced by a hand-written copy of the OpenAPI shape: `type DeliverableList = { items: Deliverable[]; total: number }` where it used to be `components['schemas']['DeliverableListResponse']`. Nothing now ties the page's envelope to the contract, so the day the backend adds a field to `DeliverableListResponse` (a next-page cursor, a filter echo) `tsc` stays green and the frontend silently drops it — exactly the drift class this repo records as bug-2040 («响应体取契约类型…手写自由 dict 就是 bug-2040 的根源», src/api/projects.ts:14-16). The api module added in this same batch already demonstrates the pattern that keeps the link while narrowing the item type (`Omit<…> & { … }` at `src/api/deliverables.ts:22-25` and `:30-33`), so the page's copy is an inconsistency within the batch rather than a necessity. The same lines also reach the item type through an inline `import('../../api/deliverables').Deliverable` even though the file already has an import block for that module — the type is now sourced two different ways in one file.",
+   "requirements": [
+    "R14"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 14,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 --   const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/api/deliverables.ts:30 -- export type WorkflowProgressSection = Omit<",
+    "pcs-frontend/src/api/deliverables.ts:33 -- > & { workflow_type: WorkflowType };",
+    "diff (DeliverableProgressPage.tsx): -  const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;  →  +  const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 -- const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx (基线 2bc2398，本批删除) -- const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;",
+    "pcs-frontend/src/api/deliverables.ts:33 -- export type WorkflowProgressSection = Omit<components['schemas']['WorkflowProgressSection'], 'workflow_type'> & { workflow_type: WorkflowType };",
+    "pcs-backend/app/schemas/deliverable_progress.py:40 -- workflow_type: str = Field(",
+    "pcs-backend/app/models/enums.py:585 -- ADR 明写「3 个写入点若将来超出这个数，说明有第四类工作流被漏登记 —— 届时回 ADR 修订，不要就地加写入点」。"
+   ],
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 --   const label = WORKFLOW_LABELS[section.workflow_type].section;",
+   "independent_reviewers": [
+    "maintainability",
+    "api-contract"
+   ],
+   "line": 630,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability",
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Restore graceful degradation while keeping the single vocabulary: `const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;` (the `??` also keeps the raw key visible, which is what StateBadge's «未知状态: X» approach prefers over a crash). Optionally add a runtime guard in `deliverablesApi.progress` that narrows each section's `workflow_type` against `Object.keys(WORKFLOW_LABELS)` so the api-boundary narrowing stops being an unchecked promise. This batch replaced `SECTION_LABELS[section.workflow_type] ?? section.workflow_type` (graceful) with `WORKFLOW_LABELS[section.workflow_type].section` (unguarded): the contract types `workflow_type` as a bare `string`, and the api layer narrows it by assertion only, so any value outside the three-name union now throws a TypeError that takes the whole progress page down.",
+   "title": "The A-3 WORKFLOW_LABELS lookup dropped its runtime fallback, so an unknown workflow_type crashes the page",
+   "why_it_matters": "The section-title lookup is no longer total at runtime. `WORKFLOW_LABELS[section.workflow_type].section` throws `TypeError: Cannot read properties of undefined (reading 'section')` when the server sends a workflow_type outside the frontend's hand-written three-value union — the expanded deliverable row crashes instead of degrading. Before this batch the same lookup was `SECTION_LABELS[section.workflow_type] ?? section.workflow_type`, so an unknown key rendered the raw enum key. The comment's safety claim («`Record<WorkflowType, …>` ⇒ 加类型不改这里 = 编译红») only holds for frontend-side edits: `WorkflowType` is a hand-written frontend copy, the contract generates `workflow_type` as bare `string` (narrowed by an unchecked assertion at the api boundary — `deliverablesApi.progress` does `.then(r => r.data)` with no runtime validation), and the backend's own `WorkflowType` enum (`pcs-backend/app/models/enums.py:582`) is a separate definition. A backend-side fourth workflow type is invisible to `tsc` and now takes the page down instead of showing a raw key.",
+   "requirements": [
+    "R14"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 15,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md:47 -- PG 能验 ⇒ 见 [[engine-level-migration-tests-skipif-pg]]。",
+    "docs/solutions/ 全量条目（8 个，find docs/solutions -name '*.md'）：database-issues/{alembic-create-table-silently-drops-schema-elements, dialect-options-invisible-on-sqlite, get-or-create-default-row-race-savepoint-reread}.md · framework-integration-issues/arq-028-worker-silent-failure-modes.md · security-issues/midflight-config-rebind-defeeds-one-shot-guards.md · testing-issues/{guard-test-fooled-by-lying-comment, narrow-declaration-is-not-a-constraint, sqlite-staticpool-hides-uncommitted}.md —— 无 engine-level-migration-tests-skipif-pg",
+    "CLAUDE.md（知识库）: \"新增解法后回写一份，别只留在提交信息里。\""
+   ],
+   "file": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md",
+   "first_evidence": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md:47 -- PG 能验 ⇒ 见 [[engine-level-migration-tests-skipif-pg]]。",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 47,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Fix the dangling knowledge-base link in the entry added by this batch: either repoint line 47 at an existing entry (e.g. 「PG 能验 ⇒ 见 [[sqlite-staticpool-hides-uncommitted]]」) and add in the same paragraph that this batch landed the skip-if-PG engine-level sample at `pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py`; or create `docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md` with the repository's frontmatter shape (module / date / problem_type: testing_issue / component / severity / tags / symptoms / root_cause) and body text describing why concurrency and dialect behaviour are inexpressible on SQLite, so engine-level assertions must skip without PostgreSQL, plus this batch's isolated-schema recipe (in-process DATABASE_URL derivation, schema-name prefix, `finally` cleanup). `docs/solutions/` currently holds 8 entries and none is named `engine-level-migration-tests-skipif-pg`.",
+   "title": "The new solutions entry links to a non-existent [[engine-level-migration-tests-skipif-pg]]",
+   "why_it_matters": "这条新条目把本批自己产出的第三条教训（「行锁语义只有 PG 能验」）外包给了一份 docs/solutions/ 里并不存在的文档，读者点过去是死链。这条教训其实已经有现成的落点——同批新增的 tests/alembic/test_p9_013_bind_default_record_matrix.py 就是「skipif 无 PG 才跑」的引擎级测试样板（真跑 upgrade / 降级环），而 testing-issues/ 下已有 sqlite-staticpool-hides-uncommitted.md 讲同一族。CLAUDE.md 的知识库条款要求「新增解法后回写一份，别只留在提交信息里」：现在这条教训只存在于一条指向空气的 wiki 链接里，等于没回写。",
+   "requirements": [
+    "R16"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 16,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:244 --     在隔离 schema 上走完整环：`head → p9_012 → head` ⇒",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:274 -- command.downgrade(cfg, \"p9_011\")   # p9_013 + p9_012 都降掉"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:244 --     在隔离 schema 上走完整环：`head → p9_012 → head` ⇒",
+   "independent_reviewers": [
+    "testing"
+   ],
+   "line": 244,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "testing"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Correct the roundtrip docstring: it says 「在隔离 schema 上走完整环：`head → p9_012 → head`」 while the body calls `command.downgrade(cfg, \"p9_011\")` (the comment there notes it drops both p9_013 and p9_012). The document must name `head → p9_011 → head`.",
+   "title": "Roundtrip docstring names the wrong downgrade target",
+   "why_it_matters": "The roundtrip test's docstring says it walks `head → p9_012 → head`, but the script it actually runs downgrades to `p9_011`, which drops p9_013 and p9_012 (the inline comment at the downgrade call is correct; only the docstring header is stale). Anyone reading the docstring to decide which migration legs are exercised — e.g. when a future migration is inserted between p9_011 and head — will reason about the wrong range and may believe a downgrade leg is covered when it is not.",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 17,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**",
+   "independent_reviewers": [],
+   "line": 3,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Fix the module docstring: it still says 「**不跑真库升级**」, but this batch added two tests that do run a real PostgreSQL upgrade in an isolated schema (`test_p9_013_runs_on_fresh_postgres_schema` and the downgrade roundtrip). The header should say 「前 5 条只断言 SQL 形状；后 2 条在隔离 schema 上真跑 PG（无 PG 时 skip）」.",
+   "title": "p9_013 test module docstring contradicts what the file now does",
+   "why_it_matters": "头一句「不跑真库升级」会让下一个维护者以为该文件不碰引擎 ⇒ 可能删掉或改坏那两条真跑测试。",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 18,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)",
+   "independent_reviewers": [],
+   "line": 225,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Assert the cleanup subprocess result in the `finally` block: check `returncode == 0` on the `DROP SCHEMA IF EXISTS ... CASCADE` run (as the CREATE SCHEMA step already does) and fail loudly (or print stderr) when it does not, instead of letting an orphan schema stay in the development database.",
+   "title": "Isolated-schema cleanup failure is silently swallowed",
+   "why_it_matters": "CREATE SCHEMA 那步断言了返回码，DROP 那步没有 ⇒ 清理失败时开发库里会留下孤儿 iso_* schema（DDL 已落在开发实例上）。",
+   "requirements": [],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  }
+ ],
+ "actionable_findings": [
+  {
+   "#": 1,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:164 --                 .with_for_update()",
+    "pcs-backend/app/api/v1/records_actions.py:527 --     #    PG 上第二个并发批注者阻塞到第一个提交后重读新状态",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:446 --     fresh-PG `api-drift` job 负责那条链路，这里钉住串行语义与快照归属。",
+    "pcs-backend/.venv/lib/python3.12/site-packages/sqlalchemy/dialects/sqlite/base.py:1517 --     def for_update_clause(self, select, **kw):  # sqlite has no \"FOR UPDATE\" AFAICT  ->  return \"\"",
+    ".github/workflows/check-api-drift.yml -- the repository's only workflow; steps are alembic upgrade head / export_openapi.py / check-api-drift.sh / check_migration_idempotency.py / pytest -m visual tests/services/report/test_renderer_visual.py / npm run typecheck -- no backend API test job, no concurrency test",
+    "pcs-backend/tests/api/v1/test_deliverable_issue.py:429 -- # [→E2E] test_doc_no_unique_under_concurrent_issue —— 10 并发签发同一 (project, template, scope)，断言 10 个 doc_no 互不相同。 (tombstone comment only; `grep -rn test_doc_no_unique_under_concurrent_issue` over the repo finds only this comment and a plan doc)",
+    "pcs-backend/app/api/v1/records_actions.py:154 --         SQLite（单测）无 FOR UPDATE ⇒ 语法被方言省略，靠共享连接的语句级串行 + `populate_existing` 尽力复读。",
+    "pcs-backend/app/services/advisory_lock.py:23 -- dialect-aware: SQLite → no-op (test path OK). PostgreSQL → re-raise on error   (the repo's established handling for a lock that is inert on SQLite — bug-119; `load_record` has no equivalent guard or test)",
+    "pcs-backend/app/api/v1/records_actions.py:421 -- # ⚠️ **行锁**（评审 #1 并发位）：并发 submit 必须一胜一拒 —— 双 200 = 双快照/双审计写（后写覆盖先写）。",
+    "pcs-backend/app/api/v1/records_actions.py:424 -- db, module=module, record_id=record_id, actor=actor, for_update=True",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:446 --     fresh-PG api-drift job 负责那条链路，这里钉住串行语义与快照归属。",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:441 --     ⚠️ **为什么是串行不是 gather**：本仓单测的 in-memory SQLite 走",
+    ".github/workflows/check-api-drift.yml -- the api-drift job's steps are: alembic upgrade head / export_openapi.py / check-api-drift.sh / check_migration_idempotency.py / visual renderer tests / npm run typecheck — no `uv run pytest` over the backend suite, so no concurrent request is ever issued",
+    "grep: no test under pcs-backend/tests/ issues two concurrent submit-approval requests (no asyncio.gather in tests/api/v1/)"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:164 --                 .with_for_update()",
+   "independent_reviewers": [
+    "adversarial",
+    "testing"
+   ],
+   "line": 164,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial",
+    "testing"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Pin the mechanism and stop the false delegation. (1) Add a dialect-level unit test that needs no PostgreSQL server: compile the locking SELECT against the PostgreSQL dialect and assert the emitted SQL contains `FOR UPDATE` (e.g. `assert 'FOR UPDATE' in str(select(PipingResult).where(PipingResult.pipe_id == pk).with_for_update().compile(dialect=postgresql.dialect()))`), so dropping or mistyping `.with_for_update()` fails loudly. (2) Fix the false delegation in `pcs-backend/tests/api/v1/test_record_approval_chain.py:441-446`: the comment claims \"CI 的 fresh-PG api-drift job 负责那条链路\", but that job's steps are `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` / `check_migration_idempotency.py` / visual renderer tests / `npm run typecheck` — it runs no backend test at all. Replace the sentence with a pointer to the test that actually exists. (3) If a real two-connection concurrency test is wanted, model it on the isolated-schema subprocess harness already in `tests/alembic/test_p9_013_bind_default_record_matrix.py` (create a throwaway PG schema, then drive two independent sessions at the same record row and assert exactly one 200 and one 409).",
+   "title": "Row-lock concurrency guarantee asserted but verified nowhere",
+   "why_it_matters": "This batch's headline concurrency fix is `SELECT ... FOR UPDATE` on the record row in `submit_approval` and `approval_step`, and the in-code comments state it as a hard guarantee: two concurrent submits must be \"一胜一拒\" and two concurrent approvals must produce exactly one `APPROVAL_STEP_PASSED` audit row. Nothing in the repository verifies that. The unit suite runs on in-memory SQLite, where SQLAlchemy's SQLite dialect compiles `with_for_update()` to an empty string (no lock at all). The new test that is supposed to cover this (`test_second_submit_after_commit_is_409`) is serial by construction and its own docstring hands the PG verification to the \"CI fresh-PG api-drift job\" — but the only workflow in this repo (`.github/workflows/check-api-drift.yml`) runs `alembic upgrade head`, the OpenAPI export/drift check, `check_migration_idempotency.py`, one visual-renderer test file and the frontend typecheck; it never runs the backend API tests and never issues a concurrent request. The repo's own established escape hatch for this exact class of test (`# [→E2E] test_doc_no_unique_under_concurrent_issue` in `tests/api/v1/test_deliverable_issue.py:429`) is likewise a tombstone comment with no test behind it anywhere in the tree. Concrete consequence: deleting `.with_for_update()` from `load_record` leaves the entire suite green, and on a real PostgreSQL two concurrent submits would both return 200 with the second overwriting the first's frozen chain and writing a duplicate audit row — precisely the harm the code comment claims the lock prevents. A maintainer reading the comment has no way to know the guarantee is unverified.",
+   "requirements": [
+    "R3",
+    "R17"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 2,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/api/errors.ts:71 --  * 错误提示文案（**统一**）。",
+    "pcs-frontend/src/api/errors.ts:73 --  * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——",
+    "pcs-frontend/src/api/errors.ts:83 -- export function errorText(err: unknown, fallback: string): string {",
+    "pcs-frontend/src/api/errors.ts:91 -- export function describePcsError(err: unknown, fallback: string): string {",
+    "provenance: 2bc2398:pcs-frontend/src/api/errors.ts:70-76 — the 403 docblock predates the batch and sat directly above describePcsError; the batch's only change to this region is the insertion of errorText (+14 lines) between the docblock and describePcsError"
+   ],
+   "file": "pcs-frontend/src/api/errors.ts",
+   "first_evidence": "pcs-frontend/src/api/errors.ts:71 --  * 错误提示文案（**统一**）。",
+   "independent_reviewers": [
+    "maintainability"
+   ],
+   "line": 71,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Move the 403 docblock back onto `describePcsError` (the function it documents: 403 ⇒ 「无权查看：…」 is implemented there, not in `errorText`), and give each helper a one-line «何时用哪个» note: `errorText` = 后端原文 + 无信封时返回纯 fallback; `describePcsError` = 403 ⇒ 「无权查看：…」 + 无信封时补 `HTTP_500：` 前缀. This batch inserted `errorText` between the 403 docblock and `describePcsError`, so the docblock now documents the wrong function and `describePcsError` carries no docblock at all.",
+   "title": "403 docblock orphaned onto errorText, describePcsError left undocumented",
+   "why_it_matters": "The 403 rule that errors.ts documents now belongs to a different function than the one it describes. The block that says «403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]`» used to sit directly above `describePcsError`; this batch inserted `errorText` between that docblock and `describePcsError`, so the block now attaches to `errorText` — which does NOT implement the rule (for a 403 envelope `errorText` returns exactly `HTTP_403：需要角色 […]`, the wording the text says must never reach a user). `describePcsError`, the function that actually performs the 无权查看 rewrite, is now the only exported helper in the file with no documentation at all. The next caller choosing between the two near-identical helpers reads `errorText`'s doc, concludes the 403 handling lives there, and ships a machine-code 403 message to users — the outcome the orphaned comment says to avoid.",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 3,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 -- - 日期：2026-11-01 · 批次：`58341eb..369e855`（5 commits，评审 A/B/C 档 + 清理）",
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:16 -- …降级环（head→p9_011→head）实测过",
+    "git log 2bc2398..HEAD --date=iso → 369e855 2026-10-31 09:56:38 / 5de4e7b 2026-11-01 16:01:15 / 9e4bfad 2026-11-02 00:13:33 / 77e3293 2026-11-02 00:44:59（报告之后还有 3 个 commit）",
+    "commit 9e4bfad -- \"test(P9B-2R): 降级环的 information_schema 查询按 current_schema() 限定\"（body: 「测试先于两库升级写就，当时 public 在 p9_013 ⇒ 恰好绿；升级后必红」）",
+    "CLAUDE.md（Per-Batch QA Gate · 何时跑）: \"每批 sprint 的**最后一个 commit 落地后**，开下一批之前。\""
+   ],
+   "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+   "first_evidence": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 -- - 日期：2026-11-01 · 批次：`58341eb..369e855`（5 commits，评审 A/B/C 档 + 清理）",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 3,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Re-run the gate at the batch head (77e3293) and record the real range `58341eb..77e3293` (8 commits) in a new report `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-02-p9b2-review-fixes.md`; the current report's header still says `58341eb..369e355`（5 commits）. The three commits after it are 5de4e7b (chore), 9e4bfad (changes the降级环 test's `information_schema` query to `current_schema()` — that test only runs with a PostgreSQL URL, so it skips without PG and must not be recorded as a pass) and 77e3293 (chore). If only part of the gate is re-run, write each gate's actual execution in the report rather than carrying the previous round's conclusion forward. Note that `.gstack/` is gitignored, so the report cannot be distributed with the repository; the key conclusions must also be mirrored into TODOS.md or a commit message.",
+   "title": "The batch QA gate covers only 5 of 8 commits, not the batch-end state",
+   "why_it_matters": "CLAUDE.md 的 Per-Batch QA Gate 规定闸门跑在「每批 sprint 的**最后一个 commit 落地后**」。这份报告自述批次是 `58341eb..369e855`（5 commits，日期 2026-11-01），而本批实际到 77e3293（2026-11-02 00:44）共 8 个 commit——报告之后还落了 5de4e7b（chore 记账）、9e4bfad（**改的正是报告声称实测过的那条降级环测试文件** tests/alembic/test_p9_013_bind_default_record_matrix.py 的 information_schema 查询）、77e3293（chore cerebrum）。后果：报告里「降级环（head→p9_011→head）实测过」这条证据所对应的测试代码在报告之后被改过（9e4bfad 承认原写法「public 升到 p9_014 后计数跨 schema 相加 ⇒ 升级后必红」），闸门证据因此不覆盖批末状态；下一批开工时读到的是一份并非针对最终状态签发的报告。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 4,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "docs/PCS-UI-SPEC.md:2342 -- \"**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；\"（V2.4 行，§7.20「建项目」页的现行登记，无 FORMAL / 422 / 409 的任何字样）",
+    "pcs-frontend/src/api/projects.ts:36 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+    "pcs-backend/app/api/v1/projects.py:97 -- code=\"WORKSPACE_NOT_FORMAL\",",
+    "pcs-backend/app/api/v1/projects.py:124 -- code=\"PROJECT_NO_CONFLICT\",",
+    "docs/PCS-UI-SPEC.md:4 -- 当前版本: V2.4（本批未新增 V2.5 行；`git diff 2bc2398..HEAD -- docs/PCS-UI-SPEC.md` 只有 1 行的 V2.3 拆分，+2/-1）",
+    "CLAUDE.md（前端 UI 规范）: \"前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。\"",
+    "pcs-frontend/src/api/projects.ts:33 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+    "docs/PCS-UI-SPEC.md:2342 -- V2.4 …①**§7.20 新增「建项目」页**…**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；建完**明说**…",
+    "CLAUDE.md -- 前端所有 UI 以 docs/PCS-UI-SPEC.md（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。",
+    "pcs-backend/docs/openapi.json -- paths['/api/v1/projects'].post.responses == {201, 422}（无 409；422 是 FastAPI 自动生成的 HTTPValidationError）"
+   ],
+   "file": "docs/PCS-UI-SPEC.md",
+   "first_evidence": "docs/PCS-UI-SPEC.md:2342 -- \"**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；\"（V2.4 行，§7.20「建项目」页的现行登记，无 FORMAL / 422 / 409 的任何字样）",
+   "independent_reviewers": [
+    "project-standards",
+    "api-contract"
+   ],
+   "line": 2342,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "project-standards",
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add a V2.5 row to the SPEC revision table (docs/PCS-UI-SPEC.md:2342 is the current V2.4 row) stating three things: (1) the §7.20 project-creation page's workspace dropdown lists FORMAL workspaces only (non-FORMAL projects can never be submitted for approval, so the frontend does not offer them); (2) a non-FORMAL workspace now yields backend 422 `WORKSPACE_NOT_FORMAL` instead of 404; (3) `project_no` is globally unique, so a duplicate yields 409 `PROJECT_NO_CONFLICT` (re-fill prompt, not a server fault). Also amend the V2.4 row's \"⇒ 404\" wording to \"不存在 ⇒ 404；非 FORMAL ⇒ 422\" so the older row does not keep contradicting the OpenAPI. Separately, the OpenAPI decorator for POST /projects still declares only {201, 422} — registering 409 there is the same fix family as TODO-096 (business error codes not declared in `responses=`), which the repo decided to do as a whole family rather than one code at a time.",
+   "title": "SPEC does not register the new project-creation contract (FORMAL-only + 422/409)",
+   "why_it_matters": "本批把建项目页的工作区下拉改成只列 FORMAL 工作区（前端过滤），后端同时新增 422 WORKSPACE_NOT_FORMAL 与 409 PROJECT_NO_CONFLICT。OpenAPI 已经跟着更新（ProjectCreate 的 description 写明了新规则），但 SPEC 的 §7.20 登记（V2.4 行）仍停留在旧口径「工作区只能选已存在的（projects.workspace_id 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）」，本批也没有新增 V2.5 修订行。CLAUDE.md 把 PCS-UI-SPEC.md 定为前端 UI 的唯一编码依据、并要求与 SPEC 冲突时「以 OpenAPI 为准**并登记 SPEC 修订**」——现在 OpenAPI 与 SPEC 已经分叉而修订没有登记，后果是：下一次照 SPEC §7.20 实现或复核建项目页的人会把所有类型的工作区都放进下拉、并以为非法 workspace_id 得到 404，而线上实际是 422 WORKSPACE_NOT_FORMAL / 409 PROJECT_NO_CONFLICT，UI 上会直接吃一个没有 SPEC 条目的错误码。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 5,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:27 -- 清单从 ORM 元数据反查（`RecordMixin` 的叶子子类），**硬编码**在下面 ——",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:28 -- 不 import 应用模型（迁移自包含）。漏表 ⇒ `alembic check` 立刻报漂移（红），",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:307 -- \"AND table_name = 'flash_results' \"",
+    "pcs-backend/tests/conftest.py -- `await conn.run_sync(SA_Base.metadata.create_all)` — the unit-test schema comes from ORM metadata, so a column missing from the migration can never be detected there",
+    "verified locally: ORM RecordMixin subclasses = 20 tables, migration _TABLES = 20, ORM-only = [], MIG-only = [] (correct today, unguarded going forward)",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:50 -- #: 全部 RecordMixin 消费表（20 张；与 ORM 元数据一致，新增记录表时在此追加）",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:55 -- 漏表 ⇒ `alembic check` 立刻报漂移（红），单测（从 metadata 建表）**不会**红 —— 这正是 CLAUDE.md「漂移盲区」。",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:308 -- \"AND column_name = 'approval_chain_snapshot'\" (the only PG-side probe of the new column; it filters on table_name = 'flash_results' only, so the other 19 tables are unchecked)",
+    "pcs-backend/app/models/mixins.py:77 --     approval_chain_snapshot: Mapped[dict | None] = mapped_column(\" (declared on the mixin => every RecordMixin leaf in the ORM metadata carries the column, whatever the migration's literal list says)",
+    "pcs-backend/app/models/mixins.py:3 -- 含 TimestampMixin（created_at/updated_at）+ RecordMixin（project_id/workspace_id declared_attr 自动注入）+ TaggedRecordMixin（追加 tag_number NOT NULL）。"
+   ],
+   "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+   "first_evidence": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+   "independent_reviewers": [
+    "testing",
+    "adversarial"
+   ],
+   "line": 51,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "testing",
+    "adversarial",
+    "data-migration"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add `pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py`: collect every RecordMixin leaf subclass's `__tablename__` from ORM metadata and assert the set equals the migration module's `_TABLES` (naming the missing/extra table on failure); in the PG roundtrip also assert all 20 tables' `approval_chain_snapshot` column is `jsonb` and nullable (the roundtrip currently probes `flash_results` only). The migration's hardcoded 20-table tuple is a silent-drift point: adding a RecordMixin table without a matching migration entry fails nothing today.",
+   "title": "p9_014 20-table list never cross-checked against the ORM",
+   "why_it_matters": "The migration hard-codes the 20 tables that must receive the new `approval_chain_snapshot` JSONB column, and its own docstring says the list was reverse-derived from the ORM's `RecordMixin` leaves. Nothing in the repository re-derives that list, so the two can drift apart silently. The migration's own docstring admits the blind spot: \"漏表 ⇒ `alembic check` 立刻报漂移（红），单测（从 metadata 建表）**不会**红\". `alembic check` is a manual gate that this repo's CLAUDE.md documents as per-database, exit-code-255, and refused outright when the database is not at head — and `scripts/gate_alembic_check.py` is not invoked by the only CI workflow, so it does not run automatically either. Concrete consequence: the day someone adds a 21st `RecordMixin` table, the ORM metadata gains `approval_chain_snapshot` on it while the real database never gets the column. Unit tests stay green (they build the schema from ORM metadata), the migration's own table list stays valid (the new table simply is not in it), and the first symptom is a runtime `column ... does not exist` on every SELECT of that table — i.e. every read of that record type starts 500-ing in production while the whole test suite is still green. The one PG engine-level assertion in the roundtrip test only checks `flash_results`, so 19 of the 20 tables are unchecked even there.",
+   "requirements": [],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 6,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/deliverables.py:244 -- sign_status=str(deliverable.sign_status.value),",
+    "pcs-backend/app/api/v1/deliverables.py:242 -- #    记的是裸词表值 ⇒ 运行时违反自己冻结的契约。同文件 :289 已是 .value。",
+    "pcs-backend/app/schemas/deliverable.py:113 -- sign_status: str",
+    "pcs-backend/app/schemas/deliverable.py:47 -- sign_status: str",
+    "pcs-backend/docs/openapi.json -- components.schemas.DeliverableSnapshotResponse.properties.sign_status == {\"type\": \"string\"}；2bc2398 与 HEAD 逐字相同（baseline 从未表达任何词表）",
+    "pcs-frontend/src/api/deliverables.ts:19 -- export type DeliverableSignStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'OBSOLETE';"
+   ],
+   "file": "pcs-backend/app/api/v1/deliverables.py",
+   "first_evidence": "pcs-backend/app/api/v1/deliverables.py:244 -- sign_status=str(deliverable.sign_status.value),",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 244,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Declare the field as an enum so FastAPI writes the vocabulary into the baseline and validates responses: change `DeliverableResponse.sign_status` (`pcs-backend/app/schemas/deliverable.py:47`) and `DeliverableSnapshotResponse.sign_status` (`:113`) from `str` to `DeliverableSignStatus` (`pcs-backend/app/models/enums.py:124`, 4 states DRAFT/PENDING/APPROVED/OBSOLETE); then re-roll the contract (`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`) and point the hand-written union in `pcs-frontend/src/api/deliverables.ts:19` at that enum. This batch already fixed the runtime leak (the snapshot endpoint now emits the bare value), but the contract still records a bare `string`, so nothing in the drift check can catch a regression back to `DeliverableSignStatus.APPROVED` — the exact defect PE-1 was. Assumption: the deliverable side really has only these four states (`app/models/enums.py:124` confirmed).",
+   "title": "sign_status vocabulary is not in the OpenAPI contract, so the PE-1 fix is unguarded",
+   "why_it_matters": "任何按 OpenAPI 生成或校验客户端的消费方都看不到交付物签审状态的词表：baseline 里 `DeliverableSnapshotResponse.sign_status` 至今是裸 `{\"type\": \"string\"}`，改前（2bc2398）改后（HEAD）逐字相同 ⇒ PE-1 把运行时的 \"DeliverableSignStatus.APPROVED\" 改成 \"APPROVED\" 这件事在契约层完全不可见，同类漏 `.value` 的回归也没有任何自动检查能挡住（契约测试 / 漂移检查都看不到这个字段有词表）。前端因此只能在 api 边界手写一份 4 值并集（src/api/deliverables.ts:19），与契约彻底脱钩。新加的注释还把这个事实说反了：它称「本批滚的 openapi-baseline 记的是裸词表值」，并把枚举名写成 `RecordSignStatus9`（实际是 4 态的 `DeliverableSignStatus`）—— 下一个维护者会据此以为契约已经钉住词表，从而不再去补 schema。",
+   "requirements": [
+    "R7"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 8,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:520 -- 批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把",
+    "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+    "pcs-backend/app/api/v1/records_actions.py:470 -- record.approval_chain_snapshot = {",
+    "pcs-backend/docs/openapi.json -- paths['/api/v1/records/{module}/{record_id}/approval-step'].post.description 含「批准链来自项目绑定的 RECORD 矩阵」（docstring 原文，baseline 与 HEAD 相同，responses 仅 {200, 422}）",
+    "pcs-frontend/src/components/common/RecordActions.tsx:131 -- * 不是每行一次 ⇒ 不是 N+1）。已提交记录的链由后端 `approval_chain_snapshot`"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:520 -- 批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 520,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Rewrite the `approval_step` docstring (it is the only source of the OpenAPI description): state that the chain is frozen into `record.approval_chain_snapshot` at submit time, that intermediate steps read only that snapshot (rows without a snapshot fall back to the live matrix), and that every step re-compares the submitter's identity so the submitter gets 403 `APPROVAL_SELF_REVIEW_FORBIDDEN`. Add \"提交时冻结批准链\" to the `submit_approval` docstring and list the new error codes (422 `SIGNATURE_MATRIX_EMPTY_CHAIN`) in the error-code list. Then re-roll the contract: `pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen` (the frontend's `src/types/api.d.ts` descriptions are generated and must be regenerated).",
+   "title": "approval-step OpenAPI description still says the chain comes from the live matrix",
+   "why_it_matters": "批准链现在是 submit 时冻结进 `approval_chain_snapshot` 的快照、中间步骤只读快照；但 approval-step 的 OpenAPI 描述（= 该端点 docstring，契约消费者唯一能看到的说明）仍写着「批准链来自项目绑定的 RECORD 矩阵」⇒ 读契约的人会以为中途重绑矩阵会改变待批角色，而实现恰恰相反（这正是本批修复的目的）。同一段描述还完全没提新增的失败路径：approval-step 现在每一步都比对提交人身份 ⇒ 提交人本人会吃到 403 APPROVAL_SELF_REVIEW_FORBIDDEN，而描述里只列了 APPROVAL_ROLE_MISMATCH ⇒ 消费方按描述建的错误映射会漏掉这一支。本批的前端注释已经改成「已提交记录的链由后端 approval_chain_snapshot 冻结」，前后端两侧对同一机制的表述已经分叉。",
+   "requirements": [
+    "R1"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 9,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+    "pcs-backend/app/api/v1/records_actions.py:548 -- snapshot = record.approval_chain_snapshot",
+    "pcs-backend/app/api/v1/records_actions.py:374 -- if snapshot and snapshot.get(\"steps\"):",
+    "pcs-backend/app/api/v1/records_actions.py:380 -- matrix = await SignatureMatrixService.resolve_project_matrix(",
+    "pcs-backend/app/api/v1/records_actions.py:555 -- if record.approval_role and record.approval_role != actor.role:",
+    "pcs-backend/app/api/v1/records_actions.py:470 -- record.approval_chain_snapshot = {",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:39 -- - 存量 IN_APPROVAL 行没有快照 ⇒ 读路径对 `IS NULL` 回退到实时矩阵，",
+    "pcs-backend/app/services/state_machine.py:477 --             user_id=actor_user_id,",
+    "pcs-backend/app/services/state_machine.py:481 --                 \"transition\": transition.value,"
+   ],
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "first_evidence": "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+   "independent_reviewers": [
+    "security"
+   ],
+   "line": 549,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Close the legacy path in `approval_step` instead of silently degrading it: when `record.approval_chain_snapshot` is None, (a) derive the submitter from the audit trail — the `audit_logs` row with action=RECORD_TRANSITION and `detail.transition == 'SUBMIT_FOR_CHECK'` for this resource, whose `user_id` is the submitting actor (`state_machine.py:477` writes `user_id=actor_user_id`, `state_machine.py:481` writes `\"transition\": transition.value`) — and raise 403 `APPROVAL_SELF_REVIEW_FORBIDDEN` if it equals `str(actor.user_id)`; (b) freeze the chain into `record.approval_chain_snapshot` on that first touch (matrix_id + steps + submitted_by + submitted_by_role) so every later step is snapshot-driven and a mid-flight rebind can no longer change the pending role. Assumption: legacy submissions went through the state machine (it is the only transition into IN_APPROVAL — `grep SUBMIT_FOR_CHECK app/` shows `records_actions.submit_approval` as the sole record-side caller), so a RECORD_TRANSITION/SUBMIT_FOR_CHECK audit row exists for the record.",
+   "title": "Snapshot-less records skip the per-step self-review check",
+   "why_it_matters": "The approval chain is only frozen for records submitted after the snapshot column shipped. A record that is already IN_APPROVAL when the migration lands has approval_chain_snapshot = NULL, and both halves of the CWE-863 fix silently switch off for it: the per-step `submitted_by` re-assertion is skipped entirely (the `if snapshot and ...` guard is False), and `_next_approval_role` falls back to the LIVE project matrix. That restores the exact bypass the committee ruled to close — an approver who is also the submitter (or whose role is injected into a later step by a mid-flight matrix rebind) can approve their own record at step 2+, because the pending role is re-read from the live matrix and nothing compares it against the submitter. The same legacy rows also hit the fail-open role gate (`if record.approval_role and ...`), so a legacy row whose approval_role is NULL can be advanced by any PASS_CHECK role (CHECKER/REVIEWER/APPROVER/SYSTEM_ADMIN). New submissions are fully protected — the snapshot path is correct and the user_id comparison dominates the role comparison, so an actor with several roles cannot launder a later step. The gap is confined to rows created before the column existed, which is why this is P2 rather than P1.",
+   "requirements": [
+    "R1",
+    "R2"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 10,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/docs/schema_compact_orm.md:51 -- `  flash_id|CHARPK!, stream_id|CHARFK!, calc_type|str!, method|str!, input_json|jsonb!, output_json|jsonb!, tag_number|str!, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, locked_by_deliverable|bool!, change_pending_since|dt, …` —— 无 approval_chain_snapshot",
+    "pcs-backend/app/models/mixins.py:77 -- approval_chain_snapshot: Mapped[dict | None] = mapped_column(",
+    "pcs-backend/docs/schema_compact_orm.md:2 -- > 生成时间：2026-09-02 | 来源：app/models/*.py",
+    "实测：`grep -c approval_chain_snapshot pcs-backend/docs/schema_compact_orm.md` → 0；ORM 侧 Base.metadata 反射出 20 张表带该列，与 p9_014 的 _TABLES 清单完全一致",
+    "同批维护记录：commit 369e855 -- \"schema_compact_orm.md 删已 drop 的 parent_deliverable_id（B-2）\"（同一份文档的同步义务本批已认领过一次）"
+   ],
+   "file": "pcs-backend/docs/schema_compact_orm.md",
+   "first_evidence": "pcs-backend/docs/schema_compact_orm.md:51 -- `  flash_id|CHARPK!, stream_id|CHARFK!, calc_type|str!, method|str!, input_json|jsonb!, output_json|jsonb!, tag_number|str!, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, locked_by_deliverable|bool!, change_pending_since|dt, …` —— 无 approval_chain_snapshot",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 51,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Insert `approval_chain_snapshot|jsonb` right after `approval_role|str` in each of the 20 record-table rows of `pcs-backend/docs/schema_compact_orm.md`, matching the document's existing `|`-separated style and the ORM's nullable JSONB column (`pcs-backend/app/models/mixins.py:77`; `grep -c approval_chain_snapshot` in the table is 0 today). Also update the header's \"生成时间：2026-09-02\" to this batch's date so the next reader does not treat the table as a frozen September snapshot. This batch already edited the same file (removing the dropped `parent_deliverable_id`), so the sync obligation is live.",
+   "title": "The compact ORM reference table does not list approval_chain_snapshot",
+   "why_it_matters": "schema_compact_orm.md 是本仓自称的 ORM 事实对照表（抬头写明「来源：app/models/*.py」），本批自己也维护它——同一个 docs commit（369e855）把已 drop 的 parent_deliverable_id 从 deliverables 行里删掉了。但同一批给 20 张记录表加了 approval_chain_snapshot 之后，这份对照表里 grep 不到该列，于是它对 20 张表描述的列集比 ORM 少一列。后果具体：审批中间步骤只读这一列（不再回查实时矩阵），任何照这份对照表手写 SQL、写数据订正脚本、或做 schema 审查的人，都会以为记录表根本没有快照列，从而在查链时绕回实时矩阵——恰好是本批要消灭的绕过路径。",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 11,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 --     无 PG（CI 单测 job）⇒ skip —— CI 的 fresh-PG `api-drift` job 承担同口径验证。",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:260 --         pytest.skip(\"无 PostgreSQL URL —— 该验证由 CI fresh-PG job 承担\")",
+    ".github/workflows/check-api-drift.yml -- job api-drift steps: 'Run alembic upgrade head (pcs)' / 'Export OpenAPI snapshot' / 'Run check-api-drift (semantic)' / 'Run check-migration-idempotency (p7_s2_*)' / 'Visual renderer tests' / 'Typecheck frontend' — none of them runs pytest over tests/alembic/"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担",
+   "independent_reviewers": [
+    "testing"
+   ],
+   "line": 129,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "data-migration",
+    "testing"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the claim in the file true. The docstring at line 129 says \"该验证由 CI fresh-PG api-drift job 承担\", but that job's steps are `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` / `check_migration_idempotency.py` / visual renderer tests / `npm run typecheck` — it runs no pytest, so both engine-level tests skip silently on every push and the green suite proves nothing about them. In-scope fix (this repo has no CI/CD pipeline by standing decision, and the PG lane debt is already registered as TODO-099): correct both docstrings to state what actually happens — the api-drift job runs only `alembic upgrade head` (upgrade path, no assertions, no downgrade leg) and this file must be run manually against a PostgreSQL instance. If a PG lane is later wanted, the workflow already provides `postgres:18` plus `DATABASE_URL`, so the step is `uv run pytest tests/alembic/test_p9_013_bind_default_record_matrix.py` (working-directory: pcs-backend).",
+   "title": "The two PG engine-level tests never run automatically",
+   "why_it_matters": "Both PostgreSQL-backed checks (fresh-schema upgrade with assertions, and the head → downgrade → head roundtrip) skip whenever `DATABASE_URL` is absent, and the docstring reassures the reader that \"CI 的 fresh-PG api-drift job 承担同口径验证\". It does not: that job runs `alembic upgrade head` and a drift/idempotency check — it never executes this test file, and it never exercises a downgrade at all. The consequence is that the downgrade legs of the two migrations shipped in this batch (`p9_013.downgrade` deleting bindings, `p9_014.downgrade` dropping the column) are only ever executed when a developer with a local PostgreSQL happens to run this file by hand; a maintainer reading the docstring would reasonably believe the guarantee is enforced on every push.",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 12,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/components/common/RecordActions.tsx:349 -- {actionError && (",
+    "pcs-frontend/src/components/common/RecordActions.tsx:318 -- {actionError && reasonFor === null && (",
+    "node_modules/rc-dialog/lib/Dialog/Content/index.js:56 -- removeOnLeave: destroyOnLeave,",
+    "node_modules/rc-motion/es/CSSMotion.js:91 -- } else if (!removeOnLeave && renderedRef.current && leavedClassName) {",
+    "node_modules/rc-dialog/lib/Dialog/index.js:174 -- display: !animatedVisible ? 'none' : null"
+   ],
+   "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+   "first_evidence": "pcs-frontend/src/components/common/RecordActions.tsx:349 -- {actionError && (",
+   "independent_reviewers": [
+    "correctness"
+   ],
+   "line": 349,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the in-modal copy mutually exclusive with the outside copy instead of relying on the modal staying open: change the inner guard at RecordActions.tsx:349 to `{actionError && reasonFor !== null && (`. The outer copy at line 318 already covers the `reasonFor === null` state, so exactly one node exists in every state, and the inner node keeps the same `data-testid` (the existing assertion at tests/components/common/RecordActions.test.tsx:357 requires the modal to contain `record-actions-error`).",
+   "title": "record-actions-error testid is duplicated after the reason modal is closed",
+   "why_it_matters": "After an action fails while the reason modal is open, the fix moved the error copy inside the modal and suppressed the outside copy with `reasonFor === null`. But when the user then closes the modal (Cancel), `reasonFor` becomes null and the outside copy renders again — while the modal's own copy is still mounted in the DOM: antd Modal defaults `destroyOnClose` to false, so rc-dialog passes `removeOnLeave: false` to rc-motion, which keeps the exited panel rendered. Two nodes therefore share `data-testid=\"record-actions-error\"`, and any future test that exercises \"action fails -> modal closed -> error still shown\" fails with a confusing \"Found multiple elements with the data-testid attribute\" instead of a real assertion. The stated intent of this hunk (\"避免双份\") is only half-met: the duplication is suppressed while the modal is open but returns as soon as it closes.",
+   "requirements": [],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 13,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:55 -- type Deliverable = import('../../api/deliverables').Deliverable;",
+    "pcs-frontend/src/api/deliverables.ts:22 -- export type Deliverable = Omit<",
+    "diff (DeliverableProgressPage.tsx): -type DeliverableList = components['schemas']['DeliverableListResponse'];",
+    "pcs-frontend/src/api/projects.ts:14 -- ⚠️ 响应体取**契约类型**（`components['schemas'][...]`）—— 手写自由 dict 就是 bug-2040 的根源（mock 与真端点不同源 ⇒ 漂移被藏住）。",
+    "pcs-frontend/src/types/api.d.ts:9141 -- DeliverableListResponse: {",
+    "pcs-frontend/src/api/deliverables.ts:14 -- export type Deliverable = Omit<"
+   ],
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+   "independent_reviewers": [
+    "maintainability",
+    "correctness"
+   ],
+   "line": 56,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability",
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Keep the contract link and narrow only the element type, using the same Omit-and-re-narrow pattern already applied in `pcs-frontend/src/api/deliverables.ts`: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add the `import type { components } from '../../types/api';` that the same hunk removed) and import the item type through the module's existing import block instead of the inline `import('../../api/deliverables').Deliverable` alias. This batch replaced the contract-derived `components['schemas']['DeliverableListResponse']` with a hand-written `{ items, total }`, so a later contract change (a new field) no longer turns the frontend red — the repository's own rule for this layer says the response body must take the contract type.",
+   "title": "Deliverable list envelope is hand-written instead of contract-derived",
+   "why_it_matters": "The list response type was replaced by a hand-written copy of the OpenAPI shape: `type DeliverableList = { items: Deliverable[]; total: number }` where it used to be `components['schemas']['DeliverableListResponse']`. Nothing now ties the page's envelope to the contract, so the day the backend adds a field to `DeliverableListResponse` (a next-page cursor, a filter echo) `tsc` stays green and the frontend silently drops it — exactly the drift class this repo records as bug-2040 («响应体取契约类型…手写自由 dict 就是 bug-2040 的根源», src/api/projects.ts:14-16). The api module added in this same batch already demonstrates the pattern that keeps the link while narrowing the item type (`Omit<…> & { … }` at `src/api/deliverables.ts:22-25` and `:30-33`), so the page's copy is an inconsistency within the batch rather than a necessity. The same lines also reach the item type through an inline `import('../../api/deliverables').Deliverable` even though the file already has an import block for that module — the type is now sourced two different ways in one file.",
+   "requirements": [
+    "R14"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 14,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 --   const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/api/deliverables.ts:30 -- export type WorkflowProgressSection = Omit<",
+    "pcs-frontend/src/api/deliverables.ts:33 -- > & { workflow_type: WorkflowType };",
+    "diff (DeliverableProgressPage.tsx): -  const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;  →  +  const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 -- const label = WORKFLOW_LABELS[section.workflow_type].section;",
+    "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx (基线 2bc2398，本批删除) -- const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;",
+    "pcs-frontend/src/api/deliverables.ts:33 -- export type WorkflowProgressSection = Omit<components['schemas']['WorkflowProgressSection'], 'workflow_type'> & { workflow_type: WorkflowType };",
+    "pcs-backend/app/schemas/deliverable_progress.py:40 -- workflow_type: str = Field(",
+    "pcs-backend/app/models/enums.py:585 -- ADR 明写「3 个写入点若将来超出这个数，说明有第四类工作流被漏登记 —— 届时回 ADR 修订，不要就地加写入点」。"
+   ],
+   "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 --   const label = WORKFLOW_LABELS[section.workflow_type].section;",
+   "independent_reviewers": [
+    "maintainability",
+    "api-contract"
+   ],
+   "line": 630,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability",
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Restore graceful degradation while keeping the single vocabulary: `const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;` (the `??` also keeps the raw key visible, which is what StateBadge's «未知状态: X» approach prefers over a crash). Optionally add a runtime guard in `deliverablesApi.progress` that narrows each section's `workflow_type` against `Object.keys(WORKFLOW_LABELS)` so the api-boundary narrowing stops being an unchecked promise. This batch replaced `SECTION_LABELS[section.workflow_type] ?? section.workflow_type` (graceful) with `WORKFLOW_LABELS[section.workflow_type].section` (unguarded): the contract types `workflow_type` as a bare `string`, and the api layer narrows it by assertion only, so any value outside the three-name union now throws a TypeError that takes the whole progress page down.",
+   "title": "The A-3 WORKFLOW_LABELS lookup dropped its runtime fallback, so an unknown workflow_type crashes the page",
+   "why_it_matters": "The section-title lookup is no longer total at runtime. `WORKFLOW_LABELS[section.workflow_type].section` throws `TypeError: Cannot read properties of undefined (reading 'section')` when the server sends a workflow_type outside the frontend's hand-written three-value union — the expanded deliverable row crashes instead of degrading. Before this batch the same lookup was `SECTION_LABELS[section.workflow_type] ?? section.workflow_type`, so an unknown key rendered the raw enum key. The comment's safety claim («`Record<WorkflowType, …>` ⇒ 加类型不改这里 = 编译红») only holds for frontend-side edits: `WorkflowType` is a hand-written frontend copy, the contract generates `workflow_type` as bare `string` (narrowed by an unchecked assertion at the api boundary — `deliverablesApi.progress` does `.then(r => r.data)` with no runtime validation), and the backend's own `WorkflowType` enum (`pcs-backend/app/models/enums.py:582`) is a separate definition. A backend-side fourth workflow type is invisible to `tsc` and now takes the page down instead of showing a raw key.",
+   "requirements": [
+    "R14"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 15,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md:47 -- PG 能验 ⇒ 见 [[engine-level-migration-tests-skipif-pg]]。",
+    "docs/solutions/ 全量条目（8 个，find docs/solutions -name '*.md'）：database-issues/{alembic-create-table-silently-drops-schema-elements, dialect-options-invisible-on-sqlite, get-or-create-default-row-race-savepoint-reread}.md · framework-integration-issues/arq-028-worker-silent-failure-modes.md · security-issues/midflight-config-rebind-defeeds-one-shot-guards.md · testing-issues/{guard-test-fooled-by-lying-comment, narrow-declaration-is-not-a-constraint, sqlite-staticpool-hides-uncommitted}.md —— 无 engine-level-migration-tests-skipif-pg",
+    "CLAUDE.md（知识库）: \"新增解法后回写一份，别只留在提交信息里。\""
+   ],
+   "file": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md",
+   "first_evidence": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md:47 -- PG 能验 ⇒ 见 [[engine-level-migration-tests-skipif-pg]]。",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 47,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Fix the dangling knowledge-base link in the entry added by this batch: either repoint line 47 at an existing entry (e.g. 「PG 能验 ⇒ 见 [[sqlite-staticpool-hides-uncommitted]]」) and add in the same paragraph that this batch landed the skip-if-PG engine-level sample at `pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py`; or create `docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md` with the repository's frontmatter shape (module / date / problem_type: testing_issue / component / severity / tags / symptoms / root_cause) and body text describing why concurrency and dialect behaviour are inexpressible on SQLite, so engine-level assertions must skip without PostgreSQL, plus this batch's isolated-schema recipe (in-process DATABASE_URL derivation, schema-name prefix, `finally` cleanup). `docs/solutions/` currently holds 8 entries and none is named `engine-level-migration-tests-skipif-pg`.",
+   "title": "The new solutions entry links to a non-existent [[engine-level-migration-tests-skipif-pg]]",
+   "why_it_matters": "这条新条目把本批自己产出的第三条教训（「行锁语义只有 PG 能验」）外包给了一份 docs/solutions/ 里并不存在的文档，读者点过去是死链。这条教训其实已经有现成的落点——同批新增的 tests/alembic/test_p9_013_bind_default_record_matrix.py 就是「skipif 无 PG 才跑」的引擎级测试样板（真跑 upgrade / 降级环），而 testing-issues/ 下已有 sqlite-staticpool-hides-uncommitted.md 讲同一族。CLAUDE.md 的知识库条款要求「新增解法后回写一份，别只留在提交信息里」：现在这条教训只存在于一条指向空气的 wiki 链接里，等于没回写。",
+   "requirements": [
+    "R16"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 16,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:244 --     在隔离 schema 上走完整环：`head → p9_012 → head` ⇒",
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:274 -- command.downgrade(cfg, \"p9_011\")   # p9_013 + p9_012 都降掉"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:244 --     在隔离 schema 上走完整环：`head → p9_012 → head` ⇒",
+   "independent_reviewers": [
+    "testing"
+   ],
+   "line": 244,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "testing"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Correct the roundtrip docstring: it says 「在隔离 schema 上走完整环：`head → p9_012 → head`」 while the body calls `command.downgrade(cfg, \"p9_011\")` (the comment there notes it drops both p9_013 and p9_012). The document must name `head → p9_011 → head`.",
+   "title": "Roundtrip docstring names the wrong downgrade target",
+   "why_it_matters": "The roundtrip test's docstring says it walks `head → p9_012 → head`, but the script it actually runs downgrades to `p9_011`, which drops p9_013 and p9_012 (the inline comment at the downgrade call is correct; only the docstring header is stale). Anyone reading the docstring to decide which migration legs are exercised — e.g. when a future migration is inserted between p9_011 and head — will reason about the wrong range and may believe a downgrade leg is covered when it is not.",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": []
+  },
+  {
+   "#": 17,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**",
+   "independent_reviewers": [],
+   "line": 3,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Fix the module docstring: it still says 「**不跑真库升级**」, but this batch added two tests that do run a real PostgreSQL upgrade in an isolated schema (`test_p9_013_runs_on_fresh_postgres_schema` and the downgrade roundtrip). The header should say 「前 5 条只断言 SQL 形状；后 2 条在隔离 schema 上真跑 PG（无 PG 时 skip）」.",
+   "title": "p9_013 test module docstring contradicts what the file now does",
+   "why_it_matters": "头一句「不跑真库升级」会让下一个维护者以为该文件不碰引擎 ⇒ 可能删掉或改坏那两条真跑测试。",
+   "requirements": [
+    "R17"
+   ],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  },
+  {
+   "#": 18,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)"
+   ],
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)",
+   "independent_reviewers": [],
+   "line": 225,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Assert the cleanup subprocess result in the `finally` block: check `returncode == 0` on the `DROP SCHEMA IF EXISTS ... CASCADE` run (as the CREATE SCHEMA step already does) and fail loudly (or print stderr) when it does not, instead of letting an orphan schema stay in the development database.",
+   "title": "Isolated-schema cleanup failure is silently swallowed",
+   "why_it_matters": "CREATE SCHEMA 那步断言了返回码，DROP 那步没有 ⇒ 清理失败时开发库里会留下孤儿 iso_* schema（DDL 已落在开发实例上）。",
+   "requirements": [],
+   "attributed_evidence_only": [
+    "data-migration"
+   ]
+  }
+ ],
+ "pre_existing_findings": [],
+ "residual_risks": [
+  {
+   "title": "Records that were IN_APPROVAL when p9_014 deployed keep a NULL snapshot, so the per-step self-review assertion never fires for them",
+   "detail": "For a record whose approval_chain_snapshot is NULL (i.e. it was already IN_APPROVAL when p9_014 shipped), _next_approval_role falls back to the live matrix - so a mid-flight rebind can still rewrite the pending chain - and the per-step submitted_by self-review check at records_actions.py:549 is skipped entirely because it is guarded on the snapshot being present. The p9_014 docstring declares the NULL-chain fallback as intentional; the loss of the self-review guard for those rows is not stated anywhere. Direct database inspection during this review shows the current population of such rows is empty in both pcs and pcs_test, so the hole the committee asked to close is open only for rows that an older deployment would have to have created.",
+   "source_reviewers": [
+    "adversarial",
+    "correctness"
+   ],
+   "pre_existing": false,
+   "source_findings": [
+    7
+   ]
+  },
+  {
+   "title": "Any project insert IntegrityError is reported as a duplicate project_no",
+   "detail": "pcs-backend/app/api/v1/projects.py:117-127 catches every IntegrityError raised by db.flush() and maps it to 409 PROJECT_NO_CONFLICT with a message naming project_no. Verified: projects.project_no carries a real unique constraint (uq_projects_project_no), and every other NOT NULL column is supplied and validated by ProjectCreate, so the only other reachable integrity failure today is an fk_projects_workspace_id violation if the workspace is deleted between the existence check and the INSERT (FORMAL workspaces have retention_days=None, so the window is narrow). When it does fire, the API tells the user their project number is taken and changing the number does not help.",
+   "source_reviewers": [
+    "correctness",
+    "security",
+    "api-contract",
+    "adversarial"
+   ],
+   "pre_existing": false,
+   "source_findings": [
+    "suppressed-anchor-50 (correctness, projects.py:119)"
+   ]
+  },
+  {
+   "title": "The project matrix binding is read after the record row lock, without locking the binding itself",
+   "detail": "submit_approval takes the record row lock first and then reads the project's RECORD matrix binding, but that read is not itself locked. A rebind that commits between the read and the snapshot write leaves the snapshot holding the pre-rebind chain while the project already points at the new matrix. This is consistent with the intended freeze-at-submit semantics, but the frozen chain of a record submitted at time T depends on a read that is not atomic with the binding change.",
+   "source_reviewers": [
+    "correctness"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "submit_approval writes the snapshot before the transition that can reject it, leaving a mutated record in the session",
+   "detail": "record.approval_chain_snapshot is written before the _transition call that can reject the submit with 409, so a rejected request leaves a mutated record in the session. This is safe today only because the production dependency get_db rolls back on exception and the test override closes (and therefore rolls back) the session when the endpoint raises; a future change that commits or reuses the session after a caught PcsError would persist the rejected submitter's snapshot.",
+   "source_reviewers": [
+    "adversarial"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "The deliverable sign dialog's error prefix separator changed from ASCII ':' to the fullwidth '：', with no test pinning it",
+   "detail": "The errorText unification changed DeliverableSignDialog's error prefix separator from ASCII ':' to the fullwidth '：' used by DeliverableProgressPage. Display-only, but it changes user-visible text for the deliverable sign dialog and no test pins either delimiter on that dialog.",
+   "source_reviewers": [
+    "adversarial"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "StateBadge's deliverable vocabulary is the 9 record states, so PENDING/APPROVED deliverables render at 0.4 opacity",
+   "detail": "StateBadge's MODULE_ACTIVATED.DELIVERABLE set is the 9 record states (DRAFT/IN_APPROVAL/CHECKED/...), while the deliverable's legal states are DRAFT/PENDING/APPROVED/OBSOLETE; DeliverableProgressPage renders without a module (default 'CONFIG', whose set also lacks PENDING/APPROVED), so the PENDING/APPROVED badge hits the 0.4-opacity unknown style. The behaviour is unchanged by this batch (only the props type changed); the batch's new DeliverableSignStatus makes the vocabulary fork visible.",
+   "source_reviewers": [
+    "maintainability"
+   ],
+   "pre_existing": true
+  },
+  {
+   "title": "The sibling change-notice / deliverable approval path still honours the matrix's can_self_check, so a submitter may sign their own version",
+   "detail": "app/services/signature_matrix_service.py:187 and app/services/deliverable_service.py:879 still honour can_self_check, which the builtin templates never set and parse_steps defaults to True. That path is untouched by this diff (pre-existing); the committee's freeze-the-chain ruling was applied only to the record side. Flagged as the same class of hole one module over.",
+   "source_reviewers": [
+    "security"
+   ],
+   "pre_existing": true
+  },
+  {
+   "title": "OpenAPI business error codes are not declared repo-wide (TODO-096)",
+   "detail": "New business error codes are raised as PcsError(code=...) without a responses= declaration, so a generated client cannot discover them; the frontend parses the envelope generically (src/api/errors.ts), so there is no live misbehaviour. TODO-096 records the debt and rules that the family be done as a whole. POST /projects' 422 WORKSPACE_NOT_FORMAL and 409 PROJECT_NO_CONFLICT are part of that family.",
+   "source_reviewers": [
+    "api-contract"
+   ],
+   "pre_existing": true
+  },
+  {
+   "title": "The meta/error-codes registry is AST-derived, so a code assembled at runtime silently drops out",
+   "detail": "GET /api/v1/meta/error-codes scans `raise PcsError(code=...)` and requires the code to be a constant string. The batch's three new codes are constants and are collected automatically; a future code built by string concatenation would be silently unregistered.",
+   "source_reviewers": [
+    "api-contract"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "Sibling enums still leak their Python repr into responses",
+   "detail": "app/api/v1/change_impact.py:256 (`str(record.sign_status)`) and app/api/v1/streams.py:503 (`str(stream.sign_status)`) still emit the \"RecordSignStatus9.DRAFT\" / \"StreamSignStatus9...\" form. They are a different enum family from the deliverable 4-state enum this batch fixed, and this batch did not touch them; the same class of defect remains one module over.",
+   "source_reviewers": [
+    "api-contract"
+   ],
+   "pre_existing": true
+  },
+  {
+   "title": "The isolated-schema downgrade ring runs inside the development database, not in a second database",
+   "detail": "The p9_013 downgrade round-trip creates an iso_* schema inside the pcs development database by rewriting search_path. It is a different schema, not a different database: the second-database dimension (pcs_test) was covered only by a one-off manual verification this round, after pcs_test was found lagging p9_014.",
+   "source_reviewers": [
+    "data-migration",
+    "project-standards"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "p1_sprint3_bootstrap_alembic_version.py reads information_schema without a schema filter and takes the first row",
+   "detail": "alembic/versions/p1_sprint3_bootstrap_alembic_version.py:38-44 queries information_schema without constraining table_schema and then calls .scalar(), which silently takes the first row. In an isolated-schema run the alembic_version table holds two rows (public + iso). Harmless today (both rows read 64), but it is the same family as the bug this batch fixed in the downgrade-ring query.",
+   "source_reviewers": [
+    "data-migration"
+   ],
+   "pre_existing": true
+  },
+  {
+   "title": "The batch's gate evidence lives in a gitignored directory, so its conclusions are not distributed",
+   "detail": "The per-batch QA report is under .gstack/, which is gitignored, so the batch's gate evidence cannot travel with the repository. CLAUDE.md asks that key conclusions be synced into TODOS.md or a commit message: TODOS 095-099 were synced, but the pcs_test verification conclusion (the false three-database alembic claim and its correction) is in neither TODOS.md nor any commit message.",
+   "source_reviewers": [
+    "project-standards"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "The batch's third lesson has no docs/solutions/ entry",
+   "detail": "The third lesson of this batch (information_schema is not constrained by search_path, so a column count adds across schemas) is recorded only in .wolf/cerebrum.md's Do-Not-Repeat list. CLAUDE.md requires a knowledge-base write-back for a new solution; no docs/solutions/ entry exists for it.",
+   "source_reviewers": [
+    "project-standards"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "Callsite completeness rests on text search: the code-review-graph MCP server timed out during this review",
+   "detail": "The code-review-graph MCP server failed to connect (CONNECT_TIMEOUT), so no symbol-level reference search was available. Claims that a second implementation of an error code or a frontend branch does not exist rest on repo-wide text/grep search over tests/, scripts/ and .github/workflows/.",
+   "source_reviewers": [
+    "project-standards",
+    "testing",
+    "maintainability",
+    "adversarial"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "Neither the backend pytest suite nor the frontend vitest suite was executed in this review",
+   "detail": "The review read source and tests, plus one standalone reproduction script in /tmp, but did not run the backend pytest suite or the frontend vitest suite. The frontend verdicts (RecordActions remount test, AuditLogPage applied-filter pagination test, errors.test.ts, the project_admin FORMAL-only dropdown) rest on reading the assertions, which are behaviour-level (rendered disabled state, request query parameters, exact message text, absence of the PERSONAL workspace in the dropdown).",
+   "source_reviewers": [
+    "testing"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "The audit pagination tiebreaker test is probabilistic, not deterministic",
+   "detail": "tests/test_audit_query.py::test_pagination_tiebreaker_identical_timestamps relies on random audit_ids for its ordering assertion, so dropping the audit_id desc tiebreaker would fail it with probability 119/120 rather than deterministically. The disjointness half of the assertion alone would survive the tiebreaker removal on SQLite, as the test's own comment notes.",
+   "source_reviewers": [
+    "testing"
+   ],
+   "pre_existing": false
+  },
+  {
+   "title": "Part of the diff was not reviewed in depth",
+   "detail": "Not inspected in depth: tests/api/v1/test_deliverable_issue.py, the deliverables/record_edits API changes in this batch, and the remainder of the 14279-line diff beyond the main changed frontend files and the backend records_actions / signature_matrix_service / projects / deliverables hunks.",
+   "source_reviewers": [
+    "testing",
+    "maintainability"
+   ],
+   "pre_existing": false
+  }
+ ],
+ "testing_gaps": [
+  {
+   "title": "No frontend test clicks 查询 while the audit table is on a page other than 1",
+   "detail": "The two audit-filter-submit clicks in tests/pages/audit/AuditLogPage.export.test.tsx (lines 333, 383) both exercise the page===1 direct-query path, so the effect-driven path that pairs setAppliedFilter with setPage(1) is unverified. This is the path requirement R10 (the paging tiebreaker must use only the applied filter) depends on.",
+   "source_reviewers": [
+    "correctness"
+   ],
+   "requirements": [
+    "R10"
+   ]
+  },
+  {
+   "title": "No automated check detects a second database falling behind head",
+   "detail": "Nothing in the repo asserts that pcs_test is at the same revision as pcs. The batch's engine-level tests all run inside the pcs isolated schema, so pcs_test's lag was discovered only by hand this round. TODO-099 registers the PG-lane debt but states no assertion.",
+   "source_reviewers": [
+    "project-standards",
+    "data-migration"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No test asserts the p9_014 column's type (jsonb) or nullability on a real engine",
+   "detail": "The PostgreSQL roundtrip only asserts existence on flash_results (information_schema.columns filtered by table_schema = current_schema()); the other 19 tables' column type and nullability are unasserted.",
+   "source_reviewers": [
+    "testing"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No test for the 'snapshot is shorter than the current step' fallback",
+   "detail": "pcs-backend/app/api/v1/records_actions.py:376-377 (returns the previous role) has no test; the code describes it as theoretically unreachable because the snapshot is written together with approval_depth.",
+   "source_reviewers": [
+    "testing"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "SIGNATURE_MATRIX_NOT_ACTIVE raised from the no-snapshot fallback path is not covered",
+   "detail": "The only 409 test for a disabled bound matrix (tests/api/v1/test_record_approval_chain.py::test_matrix_disabled_mid_approval_keeps_chain) exercises the snapshot path, where the live matrix is never consulted, so resolve_project_matrix's 409 from the fallback branch is untested.",
+   "source_reviewers": [
+    "testing"
+   ],
+   "requirements": [
+    "R9"
+   ]
+  },
+  {
+   "title": "The snapshot's JSON shape is pinned only for three keys",
+   "detail": "No test pins the approval-chain snapshot against the migration/ORM contract beyond matrix_id, steps and submitted_by/submitted_by_role - matrix_name and step_order are written but never asserted.",
+   "source_reviewers": [
+    "testing"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No test asserts submitted_by / submitted_by_role stay out of every response body",
+   "detail": "The protection against leaking the submitter's identity is currently implicit (the column simply is in no schema). A single schema-level assertion (e.g. asserting the record read endpoints' JSON has no approval_chain_snapshot key) would catch a future 'return the ORM row wholesale' change. Direct inspection during this review confirmed the column is not exposed by any endpoint or export today.",
+   "source_reviewers": [
+    "security"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No test pins the SQL emitted by load_record(for_update=True) under the PostgreSQL dialect",
+   "detail": "SQLite silently omits the FOR UPDATE clause, so removing or mistyping .with_for_update() is invisible to the suite. This is the mechanical half of finding #1 and can be asserted without a PostgreSQL server by compiling the statement against the PostgreSQL dialect.",
+   "source_reviewers": [
+    "adversarial"
+   ],
+   "requirements": [
+    "R3"
+   ]
+  },
+  {
+   "title": "No test covers SIGNATURE_MATRIX_EMPTY_CHAIN when the matrix row is deleted between submit and the next approval step",
+   "detail": "The frozen snapshot should keep the chain alive; the deleted-matrix path is only exercised for the disabled matrix, not for the missing one.",
+   "source_reviewers": [
+    "adversarial"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No test asserts submit-approval leaves approval_chain_snapshot untouched when the request is rejected",
+   "detail": "The existing test_second_submit_after_commit_is_409 checks the persisted value only after a refresh, which would also pass if the rejection path mutated the session object.",
+   "source_reviewers": [
+    "adversarial"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "p9_014's downgrade (dropping the column from 20 tables) has no single-level assertion",
+   "detail": "The downgrade is covered only indirectly by the downgrade ring (head -> p9_011 -> head), which asserts one table's existence. There is no assertion that drops only p9_014 and checks that the ORM can still read the old rows.",
+   "source_reviewers": [
+    "project-standards",
+    "data-migration"
+   ],
+   "requirements": []
+  },
+  {
+   "title": "No runtime-validation test for the api layer's narrowing promise",
+   "detail": "deliverablesApi.progress returns section.workflow_type and row.sign_status without runtime validation, and the existing tests feed the mocks only legal values, so a backend value outside the contract leaves every test green. Related to findings #13 and #14, which cover the two narrowed fields.",
+   "source_reviewers": [
+    "maintainability"
+   ],
+   "requirements": [
+    "R14"
+   ]
+  }
+ ],
+ "triage_groups": [
+  {
+   "title": "Approval-chain snapshot: the row lock and the legacy-row fallback",
+   "findings": [
+    1,
+    9
+   ],
+   "type": "decision-gate",
+   "context": "The frozen snapshot mechanism claims two runtime guarantees: the submit path serializes concurrent submits with a FOR UPDATE row lock, and every approval step re-asserts the submitter (403 APPROVAL_SELF_REVIEW_FORBIDDEN). Neither guarantee is currently observed by an automated test, and the second one does not fire at all for rows that have no snapshot.",
+   "preferred_resolution": "Handle #1 first: pin the lock at the SQL level (compile the locking SELECT against the PostgreSQL dialect and assert FOR UPDATE) and correct the false delegation to a CI job that does not run the backend suite. Then decide the policy for rows without a snapshot - derive the submitter from the RECORD_TRANSITION/SUBMIT_FOR_CHECK audit row, or make a NULL snapshot a loud 409 instead of a silent downgrade to the live matrix - and apply the chosen fix for #9.",
+   "why": "Both live in the same approval path of records_actions.py and both decide whether the snapshot is trustworthy. A fixer stops at #9 because the legacy-row policy is a design choice; the mechanical half of #1 can be applied first without waiting."
+  },
+  {
+   "title": "Contract registration for the batch's new and changed surfaces",
+   "findings": [
+    4,
+    6,
+    8
+   ],
+   "type": "apply-queue",
+   "context": "Three contract surfaces introduced or changed by this batch are not registered where the repo requires them: project creation (FORMAL-only plus 422/409) is missing from the UI SPEC, the deliverable sign_status vocabulary is a bare string in the OpenAPI schema, and the approval-step description still says the chain comes from the live matrix.",
+   "preferred_resolution": "One registration pass, starting with #4 (SPEC §7.20 revision for project creation), then #8 (correct the approval-step description in the same OpenAPI regeneration), then #6 (declare the sign_status enum so the frontend's hand-written DeliverableSignStatus gains a compile-time link).",
+   "why": "CLAUDE.md makes the SPEC the single coding basis for the frontend and requires a SPEC revision whenever the OpenAPI wins; the generated client and the drift check only see what the OpenAPI declares."
+  },
+  {
+   "title": "p9_013 / p9_014 migration tests: guards and stale statements",
+   "findings": [
+    5,
+    11,
+    16,
+    17,
+    18
+   ],
+   "type": "apply-queue",
+   "context": "The batch added two real-PostgreSQL engine-level tests and a 20-table migration, but the file still claims the verification is carried by a CI job that runs no pytest, the 20-table list has no guard against ORM drift, two docstrings describe the file's behaviour inaccurately, and the schema-cleanup failure is swallowed.",
+   "preferred_resolution": "Fix #11 first (correct both docstrings to state that the api-drift job runs only alembic upgrade head and that the engine-level file must be run manually against a PostgreSQL instance; the PG-lane debt is already registered as TODO-099 and this repo has no CI/CD pipeline by standing decision). Then add the p9_014 test file for #5 (ORM leaf tables vs the migration's _TABLES, plus jsonb/nullability for all 20 tables), surface the cleanup return code for #18, and correct the two stale docstrings for #16 and #17.",
+   "why": "All five sit in the same migration-test subsystem and can be done in one pass over tests/alembic/test_p9_013_bind_default_record_matrix.py plus the new p9_014 test file; #11's correction also removes the false claim that lets the rest read as covered."
+  },
+  {
+   "title": "Reference documentation for the new snapshot column",
+   "findings": [
+    10,
+    15
+   ],
+   "type": "apply-queue",
+   "context": "The compact ORM reference table still describes the 20 record tables without approval_chain_snapshot, and the batch's new solutions entry points at a wiki link to a document that does not exist.",
+   "preferred_resolution": "Register the column in pcs-backend/docs/schema_compact_orm.md (#10) and repoint or create the linked note so the batch's third lesson has a real target (#15).",
+   "why": "Both are documentation-registration obligations the batch already accepted once (the same commit updated the compact table for a dropped column), and both mislead exactly the readers the batch wanted to redirect - people hand-writing SQL or looking up how PG-only semantics are verified."
+  },
+  {
+   "title": "Deliverable page: contract-derived types and a runtime-safe label lookup",
+   "findings": [
+    13,
+    14
+   ],
+   "type": "apply-queue",
+   "context": "DeliverableProgressPage hand-copies the list envelope that the OpenAPI contract already defines, and its WORKFLOW_LABELS lookup lost its runtime fallback after workflow_type was narrowed to a three-value union against a contract whose schema is a bare string.",
+   "preferred_resolution": "Handle #14 first (an unknown workflow_type currently throws a TypeError and takes the page down), then derive the list envelope from components['schemas'] the way src/api/deliverables.ts already does for #13.",
+   "why": "Both are in one file and one pass; #14 is first because it is the one that breaks a user-visible page."
+  }
+ ],
+ "coverage": {
+  "cross_model_peer_outcome": "not-run",
+  "cross_model_peer_coverage_verbatim": "Cross-model independent adversarial review: not run — no different-provider CLI installed on this machine (only the claude CLI, same serving family as the host); the adversarial lens ran in-process instead.",
+  "sentences": [
+   "Cross-model independent adversarial review: not run — no different-provider CLI installed on this machine (only the claude CLI, same serving family as the host); the adversarial lens ran in-process instead.",
+   "Standards criteria came from the instruction-file fallback: repo root CLAUDE.md (no CODING_STANDARDS.md or AGENTS.md exists in this repo).",
+   "Untracked files excluded from scope: five docs/superpowers/plans/2026-09-30-* plan drafts and spec/PCS-SPEC-P10*.md (untracked spec draft).",
+   "Base correction: the invocation named base:58341eb, but that commit IS the #1 snapshot fix; using it as base would have excluded the committee-mandated #1 scope from the diff. Scope was re-based to 2bc2398 (the commit before the fix batch) = the whole fix batch.",
+   "Dispatch degradation: three reviewers were cut off by the account's API quota (429). security and adversarial were re-dispatched and completed; the data-migration reviewer's findings were reconstructed from the testing reviewer's two delegated deep-dive sub-reports plus orchestrator direct database verification (see the data-migration entry in raw-returns.json). Its reasoning is attributed evidence, not an independent persona return.",
+   "The performance persona was deliberately NOT selected for this round: the fix batch has no measurable performance surface. Coverage should not claim a performance lens ran.",
+   "★ Evidence correction made during this review (orchestrator-verified, not a reviewer finding): the previous round's QA report claimed 'three targets at p9_014 (head) with alembic check exit 0' for pcs / pcs_test / isolated schema. Direct database inspection showed pcs_test was still at p9_013 with the new column absent — the original run changed os.environ['DATABASE_URL'] inside ONE process, and alembic's pydantic settings instance is cached, so the second 'database' was still pcs (upgrade is idempotent, so both runs printed p9_014 and the output could not distinguish them). pcs_test has since been upgraded in a separate process and verified by direct query (both now p9_014, column present); the QA report was corrected and the failure mode recorded in .wolf/cerebrum.md.",
+   "One reviewer artifact (adversarial.json) contained unescaped quotes and was invalid JSON; it was repaired in place (quote-escaping only, no content change) before merging.",
+   "testing's delegated sub-reports (mutation-resistance audit of 9 frontend test files; deep verification of the PG engine-level migration tests) are the strongest independent evidence in this round and are preserved verbatim in the reviewer's artifact residual_risks/testing_gaps.",
+   "The cross-model peer did not run: no different-provider CLI is installed on this machine, so the adversarial lens ran in-process and no finding in this round was corroborated by a second serving family.",
+   "32 raw reviewer candidates entered the merge; semantic reconciliation collapsed them into 18 canonical groups (26 helper returns), the final mechanics pass produced 18 primary / 0 pre-existing / 1 suppressed, and 0 malformed findings and 0 malformed returns.",
+   "No confidence promotion was awarded anywhere in this round: the promotion rule requires an `adversarial-<provider>` peer whose artifact records independence_verified: true, and no such peer exists; the in-process adversarial persona shares the host's serving family, so agreement between in-process reviewers is recorded in `reviewers` only.",
+   "The data-migration persona was not an independent return: its findings were reconstructed from the testing reviewer's two delegated deep-dive sub-reports plus orchestrator direct database verification, so `data-migration` was removed from `independent_reviewers` on findings #5, #11, #17 and #18 (it remains in `reviewers`) and no finding may be read as independently corroborated by it.",
+   "first_evidence_backfilled: 0 in the final mechanics pass (26 quotes were recovered in the first pass over the raw reviewer returns, and the reconciled rerun already carried them, so the count is preserved); findings demoted at the quote-the-line check for a missing first_evidence: 0.",
+   "Mode-aware demotion count: 1 (one single-reviewer P2 advisory from the adversarial persona - #7, 'No backfill: in-flight records keep the unbinding hole open' - routed to residual_risks); demoted to testing_gaps: 0; 1 suppressed candidate (the anchor-50 correctness finding on projects.py:119) was also routed to residual_risks and no other suppressed candidate remained to discard.",
+   "The soft-bucket rule was applied on the defect/concern distinction rather than on reviewer identity alone: #2, #16 and #17 allege verifiable false statements in the current source (an orphaned 403 docblock, a docstring naming the wrong downgrade target, a module docstring that contradicts the file), so they stay primary; #7 alleges a consequence whose precondition (a record that was IN_APPROVAL when p9_014 deployed) is currently unreachable - direct inspection shows zero such rows in pcs and pcs_test - so it moved to residual_risks.",
+   "The umbrella rule for testing-only absence-of-coverage findings was evaluated per changed subsystem and produced no demotion: in the alembic subsystem #11 is not a testing-only absence finding (it also asserts a verifiable false claim in the test file's docstring), so #5 is the single umbrella primary there; in the backend approval-chain subsystem #1 is the only absence-of-verification primary and it is P1.",
+   "suppressed_by_confidence: 1 finding at anchor 50; 0 at anchors 25, 75 and 100.",
+   "Plan was discovered with source `inferred` (docs/ce-code-review/20261028-074842-e15c26e8/report.md) and its requirements R1..R17 are the committee's mandated scope for this round; the settlement reconciliation discarded 0 findings (the committee's rulings - snapshot mechanism chosen, PE-1 mandatory, the two pre-existing security defects must land in TODOS.md - produced no preference-only conflict).",
+   "Intent summary confidence is explicit.",
+   "Validator shortcut-skips: 0 of 8 selected findings (basis: the cross-model peer outcome is 'not-run' and every in-process reviewer shares one serving model, so no finding carries an `adversarial-<provider>` artifact with independence_verified: true; the shortcut therefore never applied).",
+   "Validator batch: 8 findings (#1, #2, #3, #4, #5, #6, #8, #9), ordered by severity then stable #; the template's normal cap of 8 applied with no P0/P1 overflow (one P1 fit inside the cap). The 9 remaining actionable findings (#10, #11, #12, #13, #14, #15, #16, #17, #18) stay primary without a verdict - a cap tail, not a validation-degraded status.",
+   "Failed or timed-out reviewers: the performance persona was not selected for this round (the fix batch has no measurable performance surface, and the previous round's P9B-2 batch was already reviewed by that persona with zero findings); security and adversarial were cut off by the API quota (429) and re-dispatched successfully; the data-migration persona was cut off (429) and its content was reconstructed as attributed evidence. Fast pass: no preliminary findings were emitted.",
+   "The previous round's P1 QA-report claim (three targets at p9_014 with alembic check exit 0 for pcs / pcs_test / isolated schema) is not a live defect against the current source: the report's line 16 has been rewritten to disclose that the pcs_test assertion did not hold, and direct database inspection shows pcs and pcs_test are both at p9_014 with the 20 snapshot columns present. Its live residue is recorded as a residual risk (the report is gitignored, so the conclusion is in neither TODOS.md nor any commit message) and as a testing gap (no automated check detects a second database falling behind head).",
+   "Admitted soft-bucket assets: 18 residual risks and 12 testing gaps survived the importance-and-relevance test; persona claims that merely restate a retained finding were deduplicated rather than preserved (the row-lock testing gap is covered by #1, the snapshot-less-branch gap by #7/#9, the p9_014 table-list gap by #5, the WORKFLOW_LABELS fallback gap by #14, the p9_014-dedicated-test gap by #5, the engine-level-tests-never-run gap by #11, and the project_no mis-mapping gap by the residual risk recorded from the suppressed anchor-50 candidate).",
+   "Callsite completeness rests on repo-wide text search: the code-review-graph MCP server failed to connect (CONNECT_TIMEOUT) during this review, so no symbol-level reference search was available.",
+   "No local apply was authorized (mode.apply_local false): Stage 5c did not run and the tree is untouched."
+  ],
+  "mechanics": {
+   "raw_candidates": 32,
+   "canonical_groups": 18,
+   "helper_returns": 26,
+   "primary": 17,
+   "pre_existing": 0,
+   "suppressed": 1,
+   "suppressed_by_confidence": {
+    "50": 1
+   },
+   "malformed_findings": 0,
+   "malformed_returns": 0,
+   "first_evidence_backfilled": 0,
+   "quote_gate_demotions": 0,
+   "demoted_to_residual_risks": 1,
+   "demoted_to_testing_gaps": 0,
+   "suppressed_routed_to_residual_risks": 1,
+   "confidence_promotions": 0,
+   "residual_risks": 18,
+   "testing_gaps": 12
+  },
+  "requirements": [
+   "R1: #1 审批链在 submit 时冻结快照，中间步骤只读快照（不再回查实时矩阵）",
+   "R2: #1 每步重断言提交人（submitted_by ⇒ 403），非仅 submit 时一次",
+   "R3: #1 submit/approval-step 持行锁，并发一成一拒（审计不重不漏）",
+   "R4: #4 建项目只收 FORMAL 工作区（422 WORKSPACE_NOT_FORMAL），前端只列 FORMAL",
+   "R5: #5 project_no 重复 ⇒ 409 PROJECT_NO_CONFLICT（非 500）",
+   "R6: #6 默认矩阵 get-or-create 并发 ⇒ savepoint + 重读赢家（非 500）",
+   "R7: PE-1 快照端点 sign_status 必须是裸枚举值（与 baseline 词表一致）",
+   "R8: #8 审计分页决胜列有后端测试钉住（不重不漏 + 全序）",
+   "R9: #9 非 ACTIVE 绑定矩阵 ⇒ 409 SIGNATURE_MATRIX_NOT_ACTIVE 有测试",
+   "R10: #10 翻页只用已应用筛选（冻结只在点「查询」）",
+   "R11: #11 列表失败后页内可恢复（清错 + 重试）",
+   "R12: #12 UI-SPEC 修订表 V2.3 行独立成行",
+   "R13: #18 代录弹窗重开不复用上一次的 AD 凭据",
+   "R14: A-3 词表单一真相源（WORKFLOW_LABELS）+ 清理批 8 项",
+   "R15: #2/#3 两条 pre-existing 安全缺陷落 TODO（编号/归属/触发条件）",
+   "R16: 交付知识库回写（#1/#6 教训）+ Roll-forward runbook（追问 1）",
+   "R17: 追问 2：并发测试与 p9_013 迁移引擎测试落地"
+  ],
+  "requirements_by_finding": {
+   "1": [
+    "R3",
+    "R17"
+   ],
+   "2": [],
+   "3": [],
+   "4": [],
+   "5": [],
+   "6": [
+    "R7"
+   ],
+   "8": [
+    "R1"
+   ],
+   "9": [
+    "R1",
+    "R2"
+   ],
+   "10": [],
+   "11": [
+    "R17"
+   ],
+   "12": [],
+   "13": [
+    "R14"
+   ],
+   "14": [
+    "R14"
+   ],
+   "15": [
+    "R16"
+   ],
+   "16": [
+    "R17"
+   ],
+   "17": [
+    "R17"
+   ],
+   "18": []
+  }
+ },
+ "fold_in": {
+  "peer_outcome": "not-run",
+  "peer_artifact": null,
+  "peer_coverage": "Cross-model independent adversarial review: not run — no different-provider CLI installed on this machine (only the claude CLI, same serving family as the host); the adversarial lens ran in-process instead.",
+  "in_process_adversarial_ran": true,
+  "independent_peer_corroborated_findings": 0
+ },
+ "demoted_from_primary": [
+  {
+   "#": 7,
+   "title": "No backfill: in-flight records keep the unbinding hole open",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "line": 374,
+   "why_it_matters": "The batch's core fix is to freeze the approval chain at submit time. Records that were already `IN_APPROVAL` when this deploys have `approval_chain_snapshot IS NULL` — the migration only adds a nullable column and back-fills nothing — and for those rows the protection never switches on: `_next_approval_role` falls back to the live matrix (so a mid-flight rebind still rewrites the chain, which is exactly the self-approval path the batch set out to close), and the per-step self-review assertion at line 549 is skipped entirely because it is guarded on the snapshot being present. The window is therefore not \"the deployment moment\" but \"until those specific records finish their chain\", and nothing in the code, the migration, or the tests records that. This branch is also the one place with no test at all: every approval test in the tree goes through `submit-approval` first, so the snapshot-less path is never exercised. The practical exposure today is small only because the system is pre-production with few rows in flight; that is exactly the kind of assumption that quietly becomes a live hole the first time the app has real users.",
+   "evidence": [
+    "pcs-backend/app/api/v1/records_actions.py:374 --     if snapshot and snapshot.get(\"steps\"):",
+    "pcs-backend/app/api/v1/records_actions.py:363 --     - 无快照（修法上线前已 IN_APPROVAL 的存量行）⇒ 回退实时矩阵，",
+    "pcs-backend/app/api/v1/records_actions.py:549 --     if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:77 --         op.add_column(table, sa.Column(_COLUMN, JSONB(), nullable=True))   (upgrade adds the column and back-fills nothing)",
+    "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:46 -- - 存量 IN_APPROVAL 行没有快照 ⇒ 读路径对 `IS NULL` 回退到实时矩阵",
+    "pcs-backend/tests/api/v1/test_record_approval_chain.py:350 -- async def test_submit_persists_chain_snapshot(  (every approval-chain test in the file obtains its snapshot by calling submit-approval first; no test creates a NULL-snapshot IN_APPROVAL row)"
+   ],
+   "routed_to": "residual_risks",
+   "reason": "single-reviewer P2 advisory from the adversarial persona whose precondition (a record that was IN_APPROVAL when p9_014 deployed) is currently unreachable: direct inspection shows zero such rows in pcs and pcs_test"
+  }
+ ],
+ "suppressed_routed": [
+  {
+   "title": "Any project insert IntegrityError reported as duplicate project_no",
+   "severity": "P2",
+   "confidence": 50,
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "line": 119,
+   "reviewers": [
+    "correctness"
+   ],
+   "why_it_matters": "Any IntegrityError raised by the project insert is mapped to 409 PROJECT_NO_CONFLICT with a message naming project_no; today only uq_projects_project_no can fire, but an fk_projects_workspace_id violation (workspace deleted between the existence check and the INSERT) would tell the user their project number is taken.",
+   "routed_to": "residual_risks",
+   "reason": "suppressed at anchor 50 by the mechanics pass; routed to residual risks instead of discarded because security, api-contract and adversarial each independently raised the same over-broad mapping"
+  }
+ ]
+}

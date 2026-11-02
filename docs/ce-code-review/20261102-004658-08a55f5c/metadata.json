@@ -1,0 +1,71 @@
+{
+  "branch": "main",
+  "completed_at": "2026-11-02T01:05:00Z",
+  "cost": {
+    "dangling_stages": [
+      "select"
+    ],
+    "host": "claude",
+    "scope": {
+      "changed_lines": 12708,
+      "depth": "full",
+      "exec_nontest_lines": 571,
+      "size_band": "large",
+      "unclassified_lines": ".json:10758,.md:479"
+    },
+    "stages": [
+      {
+        "elapsed_seconds": 22.016,
+        "ended_at": "2026-11-01T16:47:20.608380+00:00",
+        "facts": {
+          "changed_lines": 12708,
+          "depth": "full",
+          "exec_nontest_lines": 571,
+          "size_band": "large",
+          "unclassified_lines": ".json:10758,.md:479"
+        },
+        "stage": "scope",
+        "started_at": "2026-11-01T16:46:58.591885+00:00"
+      },
+      {
+        "stage": "select",
+        "started_at": "2026-11-01T16:47:20.608380+00:00"
+      },
+      {
+        "candidates": 32,
+        "ended_at": "2026-11-01T23:06:09.057186+00:00",
+        "stage": "dispatch"
+      },
+      {
+        "candidates": 17,
+        "elapsed_seconds": 5715.835,
+        "ended_at": "2026-11-02T00:41:24.892466+00:00",
+        "stage": "merge",
+        "started_at": "2026-11-01T23:06:09.057186+00:00"
+      },
+      {
+        "elapsed_seconds": 262.293,
+        "ended_at": "2026-11-02T00:45:47.185800+00:00",
+        "stage": "validate",
+        "started_at": "2026-11-02T00:41:24.892466+00:00"
+      },
+      {
+        "elapsed_seconds": 1293.747,
+        "ended_at": "2026-11-02T01:07:20.932375+00:00",
+        "stage": "report",
+        "started_at": "2026-11-02T00:45:47.185800+00:00"
+      }
+    ],
+    "status": "partial",
+    "totals": {
+      "artifact_bytes": 1923406,
+      "candidates": 32,
+      "elapsed_seconds": 7293.891,
+      "reviewers": 0
+    },
+    "truncated_events": 0
+  },
+  "head_sha": "77e3293",
+  "run_id": "20261102-004658-08a55f5c",
+  "verdict": "Ready with fixes"
+}

@@ -1,0 +1,199 @@
+{
+ "run_id": "20261102-004658-08a55f5c",
+ "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c",
+ "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+ "docs_root": "docs",
+ "mode": {
+  "agent": false,
+  "apply_local": false,
+  "grouping": "auto",
+  "depth": "auto"
+ },
+ "invocation": {
+  "arguments": "base:58341eb（用户：先做委员会要求的 follow-up review）",
+  "constraints": [
+   "委员会追问 4：cap-tail 四条（#10/#11/#12/#18）与 #1 快照语义**必须列入 review scope**",
+   "委员会裁决：#1 选快照、不留「下游决定」；PE-1 必修；#2/#3 须落 TODO",
+   "只审修复批（2bc2398..HEAD），不重审 P9B-2 整批"
+  ]
+ },
+ "scope": {
+  "mode": "standalone",
+  "base": "2bc239880f4c2241b8e274e0bef9770c3b4c6206",
+  "diff_a": "2bc239880f4c2241b8e274e0bef9770c3b4c6206",
+  "diff_b": null,
+  "pr": {
+   "number": null,
+   "url": null,
+   "title": null,
+   "body": null,
+   "base_ref_name": null,
+   "head_ref_oid": null,
+   "head_ref": null,
+   "base_ref": null,
+   "has_prior_comments": false
+  },
+  "branch": "main",
+  "head_sha": "77e3293",
+  "files": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/files.txt",
+  "diff": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/full.diff",
+  "tree_is_reviewed_head": true,
+  "untracked_excluded": [
+   "docs/superpowers/plans/2026-09-30-*（5 个计划草案）",
+   "spec/PCS-SPEC-P10*.md（未跟踪规格草案）"
+  ]
+ },
+ "intent": {
+  "summary": "FOLLOW-UP 验证性审查：P9B-2 评审的**修复批**（2bc2398..77e3293，52 文件）。委员会指定必查 scope：①cap-tail 四条（#10 审计翻页偷换筛选 / #11 交付物列表一次失败表格永久消失 / #12 SPEC V2.3 行粘连 / #18 代录弹窗残留 AD 凭据）——这四条上轮无独立判定（「no verdict」= 没人独立验过）；②#1 审批链快照语义（submit 冻结 approval_chain_snapshot ⇒ 中间步骤只读快照 ⇒ 每步重断言 submitted_by ⇒ submit/approval-step 行锁）。本轮问题不是「有没有更多缺陷」而是**「说修好了的，是否真修好、且没引入新退化」**。",
+  "confidence": "explicit"
+ },
+ "plan": {
+  "path": "docs/ce-code-review/20261028-074842-e15c26e8/report.md",
+  "source": "inferred",
+  "requirements": [
+   "R1: #1 审批链在 submit 时冻结快照，中间步骤只读快照（不再回查实时矩阵）",
+   "R2: #1 每步重断言提交人（submitted_by ⇒ 403），非仅 submit 时一次",
+   "R3: #1 submit/approval-step 持行锁，并发一成一拒（审计不重不漏）",
+   "R4: #4 建项目只收 FORMAL 工作区（422 WORKSPACE_NOT_FORMAL），前端只列 FORMAL",
+   "R5: #5 project_no 重复 ⇒ 409 PROJECT_NO_CONFLICT（非 500）",
+   "R6: #6 默认矩阵 get-or-create 并发 ⇒ savepoint + 重读赢家（非 500）",
+   "R7: PE-1 快照端点 sign_status 必须是裸枚举值（与 baseline 词表一致）",
+   "R8: #8 审计分页决胜列有后端测试钉住（不重不漏 + 全序）",
+   "R9: #9 非 ACTIVE 绑定矩阵 ⇒ 409 SIGNATURE_MATRIX_NOT_ACTIVE 有测试",
+   "R10: #10 翻页只用已应用筛选（冻结只在点「查询」）",
+   "R11: #11 列表失败后页内可恢复（清错 + 重试）",
+   "R12: #12 UI-SPEC 修订表 V2.3 行独立成行",
+   "R13: #18 代录弹窗重开不复用上一次的 AD 凭据",
+   "R14: A-3 词表单一真相源（WORKFLOW_LABELS）+ 清理批 8 项",
+   "R15: #2/#3 两条 pre-existing 安全缺陷落 TODO（编号/归属/触发条件）",
+   "R16: 交付知识库回写（#1/#6 教训）+ Roll-forward runbook（追问 1）",
+   "R17: 追问 2：并发测试与 p9_013 迁移引擎测试落地"
+  ],
+  "implementation_units": [
+   "58341eb #1 快照+自审断言+行锁",
+   "607dee5 #4/#5/#6+PE-1",
+   "dcfbc75 #8+p9_013 真跑引擎+降级环+A-4",
+   "7cce7da #10/#11/#18+chainCache+A-3+B 档+清理批",
+   "369e855 TODOS+solutions+runbook+SPEC",
+   "5de4e7b 记账",
+   "9e4bfad 降级环 current_schema 限定"
+  ],
+  "settled_decisions": [
+   "委员会裁决：#1 明确选快照机制，不留「下游决定」（理由：与交付物侧 _steps_for_version 同构；消除矩阵禁用/删除/步骤重排等一整类窗口；同时消掉 chainCache 的 stale 问题）",
+   "委员会裁决：PE-1 从「Pre-existing 不计入裁决」升为本批收口前必修（它污染本批交付的新契约基线）",
+   "委员会裁决：#2/#3 rejected-as-pre-existing 必须落 TODO，不能只写 track separately"
+  ]
+ },
+ "roster": {
+  "selected": [
+   {
+    "reviewer": "correctness",
+    "tier": "session",
+    "reason": "always-on"
+   },
+   {
+    "reviewer": "project-standards",
+    "tier": "mid",
+    "reason": "CLAUDE.md 迁移纪律/SPEC 登记/QA 闸/知识库回写；本批触及全部四类"
+   },
+   {
+    "reviewer": "testing",
+    "tier": "mid",
+    "reason": "本批主体就是「先红测试」；需判定新测试是否真钉住行为（变异抵抗）"
+   },
+   {
+    "reviewer": "maintainability",
+    "tier": "mid",
+    "reason": "A-3 词表合一与清理批的结构质量；type narrowing 是否造洞"
+   },
+   {
+    "reviewer": "security",
+    "tier": "session",
+    "reason": "#1 是授权边界（自审绕过）；#4/#5 的门与消息映射"
+   },
+   {
+    "reviewer": "api-contract",
+    "tier": "mid",
+    "reason": "新错误码/快照列/类型收窄的契约面"
+   },
+   {
+    "reviewer": "data-migration",
+    "tier": "mid",
+    "reason": "p9_014（20 表加列）+ p9_013 降级环 + PG 引擎级测试"
+   },
+   {
+    "reviewer": "adversarial",
+    "tier": "session",
+    "reason": "本批是验证机制 ⇒ 静默通过守卫 + 并发声称是否被任何测试观察"
+   },
+   {
+    "reviewer": "learnings-researcher",
+    "tier": "mid",
+    "reason": "docs/solutions 有真实匹配（alembic 漂移盲区 / SQLite StaticPool）"
+   },
+   {
+    "reviewer": "deployment-verification-agent",
+    "tier": "mid",
+    "reason": "破坏性 DDL + 降级环 + 回滚剧本的可执行性"
+   }
+  ],
+  "standards": {
+   "criteria": [
+    "CLAUDE.md"
+   ],
+   "fallback_named": true,
+   "not_run_reason": null
+  },
+  "packs": {
+   "roots": [],
+   "errors": [],
+   "warnings": []
+  }
+ },
+ "collection": {
+  "returns": "/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/raw-returns.json",
+  "unstructured_returns": [],
+  "failed_reviewers": [
+   {
+    "reviewer": "performance",
+    "reason": "本轮**未选**：修复批无可测性能面（361 行非测试可执行码 = 门禁/类型收窄/词表/测试），无查询形状、扇出或热路径改动；上轮 P9B-2 整批已由 performance 评审过（0 findings）"
+   },
+   {
+    "reviewer": "data-migration",
+    "reason": "原派发的 data-migration 评审员被 API 配额 429 打断（产物未落盘）⇒ 其 findings 由 testing 评审员委托的两个子代理的深度报告 + 编排者直查库复核合并而成（见 raw-returns.json 的 data-migration 条目）"
+   },
+   {
+    "reviewer": "security",
+    "reason": "首派被 429 打断 ⇒ 重派（fu-security-r2）完成"
+   },
+   {
+    "reviewer": "adversarial",
+    "reason": "首派被 429 打断 ⇒ 重派（fu-adversarial-r2）完成"
+   }
+  ],
+  "bound_exceeded": [],
+  "fast_pass": {
+   "emitted_preliminary": false,
+   "candidates": []
+  }
+ },
+ "peer": {
+  "selected": true,
+  "target": null,
+  "route": null,
+  "preference_source": "default",
+  "outcome": "not-run",
+  "artifact": null,
+  "coverage": "Cross-model independent adversarial review: not run — no different-provider CLI installed on this machine (only the claude CLI, same serving family as the host); the adversarial lens ran in-process instead."
+ },
+ "coverage_notes": [
+  "Standards criteria came from the instruction-file fallback: repo root CLAUDE.md (no CODING_STANDARDS.md or AGENTS.md exists in this repo).",
+  "Untracked files excluded from scope: five docs/superpowers/plans/2026-09-30-* plan drafts and spec/PCS-SPEC-P10*.md (untracked spec draft).",
+  "Base correction: the invocation named base:58341eb, but that commit IS the #1 snapshot fix; using it as base would have excluded the committee-mandated #1 scope from the diff. Scope was re-based to 2bc2398 (the commit before the fix batch) = the whole fix batch.",
+  "Dispatch degradation: three reviewers were cut off by the account's API quota (429). security and adversarial were re-dispatched and completed; the data-migration reviewer's findings were reconstructed from the testing reviewer's two delegated deep-dive sub-reports plus orchestrator direct database verification (see the data-migration entry in raw-returns.json). Its reasoning is attributed evidence, not an independent persona return.",
+  "The performance persona was deliberately NOT selected for this round: the fix batch has no measurable performance surface. Coverage should not claim a performance lens ran.",
+  "★ Evidence correction made during this review (orchestrator-verified, not a reviewer finding): the previous round's QA report claimed 'three targets at p9_014 (head) with alembic check exit 0' for pcs / pcs_test / isolated schema. Direct database inspection showed pcs_test was still at p9_013 with the new column absent — the original run changed os.environ['DATABASE_URL'] inside ONE process, and alembic's pydantic settings instance is cached, so the second 'database' was still pcs (upgrade is idempotent, so both runs printed p9_014 and the output could not distinguish them). pcs_test has since been upgraded in a separate process and verified by direct query (both now p9_014, column present); the QA report was corrected and the failure mode recorded in .wolf/cerebrum.md.",
+  "One reviewer artifact (adversarial.json) contained unescaped quotes and was invalid JSON; it was repaired in place (quote-escaping only, no content change) before merging.",
+  "testing's delegated sub-reports (mutation-resistance audit of 9 frontend test files; deep verification of the PG engine-level migration tests) are the strongest independent evidence in this round and are preserved verbatim in the reviewer's artifact residual_risks/testing_gaps."
+ ]
+}

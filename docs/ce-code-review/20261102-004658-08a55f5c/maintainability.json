@@ -1,0 +1,131 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "403 docblock orphaned onto errorText, describePcsError left undocumented",
+      "severity": "P2",
+      "file": "pcs-frontend/src/api/errors.ts",
+      "line": 71,
+      "why_it_matters": "The 403 rule that errors.ts documents now belongs to a different function than the one it describes. The block that says «403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]`» used to sit directly above `describePcsError`; this batch inserted `errorText` between that docblock and `describePcsError`, so the block now attaches to `errorText` — which does NOT implement the rule (for a 403 envelope `errorText` returns exactly `HTTP_403：需要角色 […]`, the wording the text says must never reach a user). `describePcsError`, the function that actually performs the 无权查看 rewrite, is now the only exported helper in the file with no documentation at all. The next caller choosing between the two near-identical helpers reads `errorText`'s doc, concludes the 403 handling lives there, and ships a machine-code 403 message to users — the outcome the orphaned comment says to avoid.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Move the 403 docblock back onto `describePcsError` (either place the `errorText` block+function above it, or move the 403 block down to sit directly above `describePcsError`), and give each helper a one-line «何时用哪个» note: `errorText` = 后端原文 + 无信封时纯 fallback（不给日志用）; `describePcsError` = 403 ⇒ 「无权查看：…」+ 无信封时补 `HTTP_500：` 前缀。",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/api/errors.ts:71 --  * 错误提示文案（**统一**）。",
+        "pcs-frontend/src/api/errors.ts:73 --  * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——",
+        "pcs-frontend/src/api/errors.ts:83 -- export function errorText(err: unknown, fallback: string): string {",
+        "pcs-frontend/src/api/errors.ts:91 -- export function describePcsError(err: unknown, fallback: string): string {",
+        "provenance: 2bc2398:pcs-frontend/src/api/errors.ts:70-76 — the 403 docblock predates the batch and sat directly above describePcsError; the batch's only change to this region is the insertion of errorText (+14 lines) between the docblock and describePcsError"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "WORKFLOW_LABELS lookup lost its runtime fallback",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 630,
+      "why_it_matters": "The section-title lookup is no longer total at runtime. `WORKFLOW_LABELS[section.workflow_type].section` throws `TypeError: Cannot read properties of undefined (reading 'section')` when the server sends a workflow_type outside the frontend's hand-written three-value union — the expanded deliverable row crashes instead of degrading. Before this batch the same lookup was `SECTION_LABELS[section.workflow_type] ?? section.workflow_type`, so an unknown key rendered the raw enum key. The comment's safety claim («`Record<WorkflowType, …>` ⇒ 加类型不改这里 = 编译红») only holds for frontend-side edits: `WorkflowType` is a hand-written frontend copy, the contract generates `workflow_type` as bare `string` (narrowed by an unchecked assertion at the api boundary — `deliverablesApi.progress` does `.then(r => r.data)` with no runtime validation), and the backend's own `WorkflowType` enum (`pcs-backend/app/models/enums.py:582`) is a separate definition. A backend-side fourth workflow type is invisible to `tsc` and now takes the page down instead of showing a raw key.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Restore the graceful degradation while keeping the single vocabulary: `const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;` (the `??` also keeps the raw key visible, which is what StateBadge's «未知状态: X» philosophy in this repo prefers over a crash). Optionally add a runtime guard in `deliverablesApi.progress` that narrows each section's `workflow_type` against `Object.keys(WORKFLOW_LABELS)` so the api-boundary narrowing stops being an unchecked promise.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 --   const label = WORKFLOW_LABELS[section.workflow_type].section;",
+        "pcs-frontend/src/api/deliverables.ts:30 -- export type WorkflowProgressSection = Omit<",
+        "pcs-frontend/src/api/deliverables.ts:33 -- > & { workflow_type: WorkflowType };",
+        "diff (DeliverableProgressPage.tsx): -  const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;  →  +  const label = WORKFLOW_LABELS[section.workflow_type].section;"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "api layer imports domain type from components layer",
+      "severity": "P2",
+      "file": "pcs-frontend/src/api/deliverables.ts",
+      "line": 11,
+      "why_it_matters": "The data layer now depends on the presentation layer for a domain type: `src/api/deliverables.ts` imports `WorkflowType` from `src/components/common/workflowTabs.ts`, which is the reverse of the direction used everywhere else in this frontend (components import from `api/`, e.g. `StateBadge.tsx:47` imports `DeliverableSignStatus` from `../../api/deliverables`). `workflowTabs.ts` is a component-tree artifact — its own header says it exists only to dodge eslint's `react-refresh/only-export-components` rule — not a domain module. The consequence is that the one place the domain vocabulary lives is now coupled to a UI file: every future api module needing `WorkflowType` inherits the inversion, and moving the vocabulary later (e.g. to `src/types/`) means touching api files as well as components. The repo already has the right home for such vocabularies (`src/types/records.ts` holds `RecordSignStatus`).",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Move `export type WorkflowType = 'SIGN' | 'CHANGE_NOTICE' | 'CUSTOMER_APPROVAL_PROXY';` into a new `src/types/workflow.ts`; have `src/components/common/workflowTabs.ts` import (and, if the existing importers need it, re-export) it from there; change `src/api/deliverables.ts:11` to `import type { WorkflowType } from '../types/workflow';`.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/api/deliverables.ts:11 -- import type { WorkflowType } from '../components/common/workflowTabs';",
+        "pcs-frontend/src/components/common/workflowTabs.ts:4 --  * 刻意独立于 `WorkflowProgressPanel.tsx`：eslint 的",
+        "pcs-frontend/src/components/common/StateBadge.tsx:47 -- import type { DeliverableSignStatus } from '../../api/deliverables';"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Deliverable list envelope hand-copied, contract link dropped",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 56,
+      "why_it_matters": "The list response type was replaced by a hand-written copy of the OpenAPI shape: `type DeliverableList = { items: Deliverable[]; total: number }` where it used to be `components['schemas']['DeliverableListResponse']`. Nothing now ties the page's envelope to the contract, so the day the backend adds a field to `DeliverableListResponse` (a next-page cursor, a filter echo) `tsc` stays green and the frontend silently drops it — exactly the drift class this repo records as bug-2040 («响应体取契约类型…手写自由 dict 就是 bug-2040 的根源», src/api/projects.ts:14-16). The api module added in this same batch already demonstrates the pattern that keeps the link while narrowing the item type (`Omit<…> & { … }` at `src/api/deliverables.ts:22-25` and `:30-33`), so the page's copy is an inconsistency within the batch rather than a necessity. The same lines also reach the item type through an inline `import('../../api/deliverables').Deliverable` even though the file already has an import block for that module — the type is now sourced two different ways in one file.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Derive the envelope from the contract while keeping the narrowed item type: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add `import type { components } from '../../types/api';`), and import the item type through the module's existing import block — add `type Deliverable` to the existing `from '../../api/deliverables'` import and delete the inline `import('../../api/deliverables').Deliverable` alias.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:55 -- type Deliverable = import('../../api/deliverables').Deliverable;",
+        "pcs-frontend/src/api/deliverables.ts:22 -- export type Deliverable = Omit<",
+        "diff (DeliverableProgressPage.tsx): -type DeliverableList = components['schemas']['DeliverableListResponse'];"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "for_update flag makes load_record two read strategies",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 147,
+      "why_it_matters": "`load_record` now serves two different read strategies behind a boolean, and the two branches do not merely differ by a lock: `for_update=False` goes through `db.get(model, record_id)` (identity-map lookup, may hand back the cached instance) while `for_update=True` goes through a hand-rolled `SELECT … FOR UPDATE` with `populate_existing=True` (always re-reads committed state). A caller who sets `for_update=True` to serialise a concurrent write therefore also silently opts into a different freshness behaviour, and nothing in the function name or at the call site (`load_record(db, module=…, record_id=…, actor=…, for_update=True)`) says that a row lock is being taken — the lock is the whole point of those two call sites (`records_actions.py:424` submit, `:531` approval_step). The branch also re-implements what SQLAlchemy 2.0 already provides: `AsyncSession.get` in this repo's pinned 2.0.48 accepts `with_for_update` and `populate_existing`, which removes the manual `model.__mapper__.primary_key[0]` single-column-PK assumption.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Either collapse the two branches into the framework primitive — `record = await db.get(model, record_id, with_for_update=True if for_update else None, populate_existing=for_update)` — or split the lock into its own named function (`load_record_for_update`) so the two call sites that need serialisation read as locking operations and the non-locking call sites keep a plain, obviously-identity-cached read. Assumption: the models resolved by `resolve_record_model` all use single-column UUID primary keys, which the existing `db.get(model, record_id)` call already relies on.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/records_actions.py:147 --     for_update: bool = False,",
+        "pcs-backend/app/api/v1/records_actions.py:159 --         pk = model.__mapper__.primary_key[0]",
+        "pcs-backend/app/api/v1/records_actions.py:164 --             .with_for_update()",
+        "pcs-backend/app/api/v1/records_actions.py:165 --             .execution_options(populate_existing=True)",
+        "pcs-backend/app/api/v1/records_actions.py:424 --         db, module=module, record_id=record_id, actor=actor, for_update=True"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "listWorkspaces silently returns a FORMAL-only subset",
+      "severity": "P3",
+      "file": "pcs-frontend/src/api/projects.ts",
+      "line": 33,
+      "why_it_matters": "The method is named `listWorkspaces` but returns only FORMAL workspaces — a business rule (only FORMAL workspaces can host a project, enforced server-side as 422 `WORKSPACE_NOT_FORMAL`) buried inside a generically-named API method. The single current consumer, `ProjectAdminPage.tsx:52`, happens to want FORMAL only, so the trap is invisible today; the first consumer that needs PERSONAL/TEMPORARY workspaces (a workspace switcher, an audit view) silently receives a subset and renders an empty picker with no error and no way to tell the data was filtered. The method's own docstring is now also internally inconsistent: it states the backend returns 422 for a non-FORMAL choice while the same sentence says the dropdown does not offer the choice at all.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Make the filter visible in the name and keep the raw endpoint honest: rename to `listFormalWorkspaces()` (or keep `listWorkspaces()` returning everything and move the `.filter(w => w.workspace_type === 'FORMAL')` into `ProjectAdminPage`, where the project-creation form owns the rule). Assumption: the only intended consumer is the project-creation workspace dropdown, which is what the current single call site shows.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/api/projects.ts:33 --   listWorkspaces: (): Promise<WorkspaceOut[]> =>",
+        "pcs-frontend/src/api/projects.ts:35 --       .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+        "pcs-frontend/src/pages/admin/ProjectAdminPage.tsx:52 --       setWorkspaces(await projectsApi.listWorkspaces());"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "StateBadge 的 MODULE_ACTIVATED.DELIVERABLE 仍是 9 个**记录**态（DRAFT/IN_APPROVAL/CHECKED/…），而交付物的合法态是 DRAFT/PENDING/APPROVED/OBSOLETE；DeliverableProgressPage 渲染时未传 module（默认 'CONFIG'，其集合同样不含 PENDING/APPROVED）⇒ PENDING/APPROVED 徽章命中 opacity 0.4（半透明）。该行为本批前后一致（本批只改了 props 类型，未改渲染），属既有问题，但本批新增的 DeliverableSignStatus 让这处词表分叉显形。",
+    "DeliverableSignStatus 的 4 值是前端手写副本，与后端 DeliverableSignStatus enum（pcs-backend/app/models/enums.py:124）之间没有编译期链接（契约的 sign_status 仍是裸 string）⇒ 后端加第 5 态时前端不编译红；此时 StateBadge 的 unknownBadge 在 dev 模式直接 throw（import.meta.env.DEV）⇒ dev 下整页崩、生产下显示「未知状态: X」。StateBadge 内已有 PIPE_CLASS_STATUSES 的双向编译期断言范式可参照。",
+    "DeliverableProgressPage 的列表加载使用 errorText（无 403 ⇒ 「无权查看：」改写）⇒ 403 文案仍是「HTTP_403：…」。本批前该页用的是语义相同的本地副本 ⇒ 行为未变；但统一到 api 层后调用点更容易被误读为「403 已处理」。",
+    "callsite completeness: grep-only —— 未穷举后端是否还有别处产出 workflow_type（本次仅核对 pcs-backend/app/models/enums.py:582 的 3 值枚举与 deliverables 聚合端点）；F2 的可达性判断依赖该枚举是唯一来源。",
+    "本轮只读了前端主要改动文件与后端 records_actions / signature_matrix_service / projects / deliverables 的 diff；未逐文件通读 14279 行全量 diff，pcs-backend/app/api/v1/records_actions.py 的其余新增逻辑（快照读取、self-review 二次断言）未做结构评审。"
+  ],
+  "testing_gaps": [
+    "没有任何测试钉住 WORKFLOW_LABELS 查找的**运行期**兜底：tests/components/common/workflowTabs.test.ts 只断言 tab.label 与 WORKFLOW_LABELS 一致，DeliverableProgressPage 的段渲染没有「workflow_type 为未知值」的用例 ⇒ 未知键从「显示裸枚举键」退化成 TypeError 不会被任何测试发现。",
+    "没有测试/守卫把 DeliverableProgressPage 的列表信封钉回契约：页面类型是 DeliverableListResponse 的手写副本（契约快照里有该 schema），因此契约加字段时前端没有任何红灯。",
+    "没有针对 api 层「收窄即承诺」的运行期校验测试：deliverablesApi.progress 返回的 section.workflow_type / row.sign_status 均未经运行时校验，现有测试只用合法值喂 mock ⇒ 后端返回契约之外的值时无测试会红。"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "The lock itself is real — load_record applies .with_for_update() (records_actions.py:164) and both write paths pass for_update=True (submit_approval :424, approval_step :531) — but nothing observes it: the repo's only workflow (.github/workflows/check-api-drift.yml) runs alembic upgrade / OpenAPI export / check-api-drift.sh / check_migration_idempotency.py / one visual-renderer test file / npm typecheck and never the backend API suite, grep for asyncio.gather under pcs-backend/tests/api/v1 finds only the docstring at test_record_approval_chain.py:441, and the new test_second_submit_after_commit_is_409 is serial by construction while its docstring (:441-446) falsely delegates the PG chain to that 'CI fresh-PG api-drift job' (SQLAlchemy's SQLite dialect compiles for_update_clause to \"\", so the lock is inert in the unit suite); no test in the tree asserts FOR UPDATE is emitted, so removing .with_for_update() would leave the suite green (incidence of a concurrent request not measured — no such test exists to run)."
+    },
+    {
+      "#": 2,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "In pcs-frontend/src/api/errors.ts the 403 rule block ('错误提示文案（统一）' … '403 ⇒ 「无权查看：…」而不是 HTTP_403：需要角色 [...]') now sits above errorText's own docblock (:77-82) and therefore no longer documents describePcsError (:91), which is the only function implementing that rewrite (`if (isPermissionError(err)) return 无权查看：${message}`) — errorText returns exactly `${code}：${message}` = 'HTTP_403：需要角色 […]'; the batch diff (2bc2398..HEAD, +14 lines) inserted errorText between the 403 docblock and describePcsError, so describePcsError now carries no docblock at all."
+    },
+    {
+      "#": 3,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "The filed report .gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 declares its batch as `58341eb..369e855`（5 commits）while `git log --oneline 2bc2398..HEAD` lists 8 commits ending at 77e3293, and the report's alembic row certifies the 隔离 schema 降级环（head→p9_011→head）as 实测过 even though commit 9e4bfad (Nov 2 00:13) rewrote exactly that test's information_schema query (its own message: 原写法 'public 升到 p9_014 后…升级后必红'), a commit outside the range the report certifies; the file was edited later (mtime Nov 2 06:56, for the pcs_test correction) but its header range was never advanced to the batch head."
+    },
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "grep over docs/PCS-UI-SPEC.md finds zero occurrences of WORKSPACE_NOT_FORMAL or PROJECT_NO_CONFLICT, and the current revision row (line 2342, V2.4) still registers the project-creation rule as '工作区只能选已存在的（projects.workspace_id 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）', while this batch added 422 WORKSPACE_NOT_FORMAL (pcs-backend/app/api/v1/projects.py:97) and 409 PROJECT_NO_CONFLICT (projects.py:124) plus the FORMAL-only dropdown filter (pcs-frontend/src/api/projects.ts:36) — and OpenAPI's POST /projects declares responses {201, 422} with no 409 — so no SPEC revision row was registered for the new error paths as CLAUDE.md requires."
+    },
+    {
+      "#": 5,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "p9_014_record_approval_chain_snapshot.py:50-72 hardcodes the 20 _TABLES names and its docstring admits the blind spot ('漏表 ⇒ alembic check 立刻报漂移（红），单测（从 metadata 建表）不会红'), while grep for '_TABLES'/'p9_014' under pcs-backend/tests finds no test that imports the migration module or compares its tuple with the ORM RecordMixin leaves, tests/conftest.py:140 builds the unit schema via SA_Base.metadata.create_all, and the only PG-side column probe (tests/alembic/test_p9_013_bind_default_record_matrix.py:305-309) filters table_name='flash_results' only — the ORM and migration lists do agree at 20 today (20 RecordMixin leaf classes found in app/models/), so this is a confirmed unguarded drift point rather than a present mismatch."
+    },
+    {
+      "#": 6,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "pcs-backend/docs/openapi.json records DeliverableResponse.sign_status and DeliverableSnapshotResponse.sign_status as {'type': 'string'} with no enum, byte-identically at 2bc2398 and at HEAD, and pcs-backend/app/schemas/deliverable.py:47,113 declare `sign_status: str`, so the vocabulary exists only in the hand-written frontend union (pcs-frontend/src/api/deliverables.ts:19); the new comment at pcs-backend/app/api/v1/deliverables.py:242-244 misstates this ('本批滚的 openapi-baseline 记的是裸词表值' — the baseline records no vocabulary at all) and names RecordSignStatus9 although the deliverable column is DeliverableSignStatus (pcs-backend/app/models/deliverable.py:77). One supporting sub-claim of the finding is refuted: the PE-1 leak regression IS pinned by the new test test_snapshot_sign_status_is_bare_value (pcs-backend/tests/api/v1/test_deliverable_issue.py), so only the contract-level vocabulary gap remains unaddressed."
+    },
+    {
+      "#": 8,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "The approval_step docstring is the sole source of the published description and openapi.json paths['/api/v1/records/{module}/{record_id}/approval-step'].post.description (identical at 2bc2398 and HEAD) still reads '批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把 approval_role 推进到链上下一步的角色' and mentions only APPROVAL_ROLE_MISMATCH, with responses {200, 422} — while the implementation now freezes the chain at submit time (records_actions.py:470) and reads only the snapshot (:374, :548-549) and raises 403 APPROVAL_SELF_REVIEW_FORBIDDEN per step, so the externally consumed description does not describe the frozen-chain semantics or the new failure path."
+    },
+    {
+      "#": 9,
+      "status": "confirmed",
+      "protected_subject": "authorization-authentication",
+      "reason": "The per-step self-review assertion is guarded by `if snapshot and snapshot.get('submitted_by') == str(actor.user_id)` (records_actions.py:549) and p9_014 adds approval_chain_snapshot as nullable with no backfill, so any record already IN_APPROVAL when the migration lands has NULL snapshot ⇒ the check is skipped entirely and _next_approval_role (:374-380) re-reads the LIVE matrix, re-opening the rebind hole the migration docstring itself describes; the role gate at :555 is fail-open when approval_role is empty, and the submit-time check (actor.role ∈ chain) covers only the single JWT role claim, so a mid-flight matrix rebind can put the submitter's own role into a later step. Preconditions: a pre-migration IN_APPROVAL row still in flight plus such a rebind (or a role claim change); incidence was not measured because no database query was run."
+    }
+  ]
+}

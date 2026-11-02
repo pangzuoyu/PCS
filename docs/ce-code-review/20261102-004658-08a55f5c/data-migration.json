@@ -1,0 +1,70 @@
+{
+ "reviewer": "data-migration",
+ "findings": [
+  {
+   "title": "p9_014 无专属测试文件：20 表清单从未与 ORM 交叉核对",
+   "severity": "P2",
+   "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+   "line": 51,
+   "confidence": 75,
+   "autofix_class": "gated_auto",
+   "owner": "downstream-resolver",
+   "requires_verification": true,
+   "pre_existing": false,
+   "first_evidence": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = (",
+   "suggested_fix": "新增 tests/alembic/test_p9_014_record_approval_chain_snapshot.py：从 ORM 元数据收集全部 RecordMixin 叶子子类的 __tablename__，与迁移模块的 _TABLES 断言集合相等（点名缺失/多余）；并在 PG roundtrip 里断言全部 20 表的列类型是 jsonb 且 nullable（当前只断言 flash_results 一张的存在性）。",
+   "why_it_matters": "迁移的表清单是硬编码的（迁移须自包含 ⇒ 不能 import 应用模型）。漏表 ⇒ 该表永远没有这一列 ⇒ 单测（从 ORM metadata 建表）全绿、真实库缺列。CLAUDE.md 的「漂移盲区」：缺表会红，但漏一列不会。唯一的探测手段 alembic check 是手工闸门 ⇒ 未来新增第 21 张记录表时无人拦得住。"
+  },
+  {
+   "title": "两条 PG 引擎级测试从不自动跑（无 PG 时整条 skip ⇒ 绿灯不证明任何事）",
+   "severity": "P2",
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "line": 129,
+   "confidence": 75,
+   "autofix_class": "manual",
+   "owner": "human",
+   "requires_verification": true,
+   "pre_existing": false,
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担",
+   "suggested_fix": "workflow 已有 postgres:18 service 与 DATABASE_URL：在 .github/workflows/check-api-drift.yml 加一步（working-directory pcs-backend）跑 uv run pytest tests/alembic/ —— 让引擎断言与降级环每次 push 都跑。若暂不加 CI 步骤，则把 docstring 改成事实：「api-drift job 只跑 alembic upgrade head（升级路径），断言与降级环只在本机跑」。",
+   "why_it_matters": "这两条测试用 in-body pytest.skip（不是 skipif marker），无 PG 时静默跳过 ⇒ 全量套件绿 ≠ 迁移被验过。而 .env 被 gitignore ⇒ CI 里 DATABASE_URL 不存在 ⇒ 即使挂上也会 skip。当前「真跑引擎/降级环」的证据只存在于本机。"
+  },
+  {
+   "title": "隔离 schema 的清理失败被静默吞掉（可在开发库留下孤儿 schema）",
+   "severity": "P3",
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "line": 225,
+   "confidence": 75,
+   "autofix_class": "gated_auto",
+   "owner": "downstream-resolver",
+   "requires_verification": false,
+   "pre_existing": false,
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)",
+   "suggested_fix": "finally 里的 DROP SCHEMA subprocess 结果断言 returncode == 0（与 CREATE SCHEMA 那步同款），失败则打印 stderr 并告警；或改用 contextlib.suppress 之外显式检查。",
+   "why_it_matters": "CREATE SCHEMA 那步断言了返回码，DROP 那步没有 ⇒ 清理失败时开发库里会留下孤儿 iso_* schema（DDL 已落在开发实例上）。"
+  },
+  {
+   "title": "p9_013 测试文件的模块 docstring 与文件内容自相矛盾",
+   "severity": "P3",
+   "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+   "line": 3,
+   "confidence": 100,
+   "autofix_class": "gated_auto",
+   "owner": "downstream-resolver",
+   "requires_verification": false,
+   "pre_existing": false,
+   "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**",
+   "suggested_fix": "改文件头：前半段（5 条形状断言）确实只断言 SQL 文本，但本批新增的两条（p9_013 真跑 + 降级环）**在隔离 schema 上跑真库** ⇒ docstring 改成「前 5 条只断言 SQL 形状；后 2 条在隔离 schema 上真跑 PG（无 PG 时 skip）」。",
+   "why_it_matters": "头一句「不跑真库升级」会让下一个维护者以为该文件不碰引擎 ⇒ 可能删掉或改坏那两条真跑测试。"
+  }
+ ],
+ "residual_risks": [
+  "降级环的隔离 schema 跑在**开发库 pcs 内**（search_path 改写）⇒ 不是独立第三库；CLAUDE.md 说的「隔离 schema」本就同库不同 schema，但「pcs_test 是第二个库」这一维在本轮只靠一次性手工验证（该库此前落后 p9_014 一级，本轮已补升并复核）。",
+  "p1_sprint3_bootstrap_alembic_version.py:38-44 读 information_schema 未按 table_schema 限定 + .scalar() 静默取首行 ⇒ 隔离 schema 运行时 alembic_version 有 2 行（public + iso）⇒ 今天无害（两行都是 64），但与本批修掉的同类问题同族。",
+  "p9_014 的 downgrade（20 表 drop 列）只被降级环间接覆盖（断言 flash_results 一张的存在性），无「只降 p9_014 一级」的单表级断言。"
+ ],
+ "testing_gaps": [
+  "无「pcs_test 落后于 head」的自动断言（TODO-099 只登记了 PG 车道债，未落断言）—— 本轮它真的落后过，且是**手工**才发现的。",
+  "p9_014 无专属测试文件；其唯一的引擎级覆盖是 roundtrip 里单表存在性（1/20）。"
+ ]
+}

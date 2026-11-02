@@ -93,11 +93,28 @@ For `pcs_test`, drive it via the `DATABASE_URL` env var in-process (password nev
 the CLI); **never** `Config.set_main_option` — `alembic/env.py:18` overwrites it back
 to the dev DB. After connecting, confirm the revision actually moved (see §3).
 
+⚠️ **验多个库 ⇒ 一库一个进程**（2026-11-02 实测打脸，见 `.wolf/cerebrum.md`）：
+alembic 的 `settings` 是 **pydantic 缓存实例** ⇒ **同一进程内第二次改
+`os.environ['DATABASE_URL']` 不生效** ⇒ 第二遍连的仍是第一个库。而 `upgrade`
+是幂等的 ⇒ 两遍都打印同一个 `(head)`，**输出无法区分** ⇒ 上一轮 QA 报告据此
+写下「pcs / pcs_test 两库都已到 head 且 check exit 0」—— 那是**假证据**
+（`pcs_test` 实际还停在旧 revision，是评审员直查库才发现的）。
+⇒ 上面的「进程内派生 URL」配方只适用于**单个**库；要验多个库 ⇒ **每库起独立
+进程**，且**必须直查库的 `alembic_version` + 目标列存在性**，不能只信命令输出。
+
 ### D. CI green on the batch commit
 
 - Signal: CI run on commit `751826f` (batch tip) is green — it exercises the fresh
-  schema path (create + upgrade head) and the p9_013 tests
-  (`tests/alembic/test_p9_013_bind_default_record_matrix.py`, incl. downgrade test).
+  schema path (create + upgrade head).
+- ⚠️ **更正（2026-11-02，P9B-2F 复审 #11）**：本条原文还声称 CI 跑
+  `tests/alembic/test_p9_013_bind_default_record_matrix.py`（含降级环）——
+  **它不跑**。`.github/workflows/check-api-drift.yml` 的步骤是
+  `alembic upgrade head` / `export_openapi.py` / `check-api-drift.sh` /
+  `check_migration_idempotency.py` / 可视化渲染器测试 / 前端 typecheck ——
+  **一条后端 pytest 都不跑** ⇒ 那些引擎级测试在 CI 上永远 `pytest.skip`
+  ⇒ **绿灯证明不了它们跑过**。
+  ⇒ p9_013 / p9_014 的引擎级验证（含降级环）必须**在有本地 PostgreSQL 的
+  机器上手动跑**：`cd pcs-backend && uv run pytest tests/alembic/ -v`。
 
 ---
 

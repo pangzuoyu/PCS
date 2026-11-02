@@ -23,13 +23,36 @@ root_cause: 一次性守卫 + 实时配置回查的组合：自审禁令只在 s
 1. **submit 时冻结整条链**进记录行（`approval_chain_snapshot` JSONB：
    `{matrix_id, steps[], submitted_by, submitted_by_role}`）——记录表是
    mixin 共列（20 张表一个迁移 `p9_014`），列 nullable 兼容存量行；
-2. **中间步骤只读快照**；快照为 NULL（部署窗口前的存量 IN_APPROVAL 行）
-   才回退实时矩阵（行为不劣于修前）；
+2. **中间步骤只读快照**；
 3. **提交人身份写进快照，每步二次断言**（`actor.user_id == submitted_by`
    ⇒ 403）——即使角色恰好匹配被注入的下一步，提交人也批不了自己；
 4. **submit/approval-step 都持行锁**（`SELECT … FOR UPDATE` +
    `populate_existing`，同文件编号路径的既有模式）：并发双提交/双批注在
    PG 上串行化为一成一拒 ⇒ 审计不重不漏（ADR-0047）。
+
+## ⚠️ 存量行（`approval_chain_snapshot IS NULL`）—— 别让它成为**零保护**分支
+
+快照列是 `p9_014` 才有的 ⇒ 迁移落地**前**就在审批中的存量行 `IS NULL`
+⇒ 若「快照为 NULL ⇒ 回退实时矩阵」就**同时**关掉了两件事：
+
+- 每步的 `submitted_by` 二次断言**整段短路**（`if snapshot and ...`）；
+- 链条回到**实时矩阵** ⇒ 正是本条目要消灭的形状。
+
+⇒ 「只对新记录生效」**不是**可接受的收敛 —— 委员会裁决是「每个 step
+re-assert submitter」，**不因记录新旧而不同**。
+
+⇒ 修法（`records_actions._legacy_chain_snapshot`）：快照为 NULL 时**从审计
+流水反推当初的提交人**（`RECORD_TRANSITION` / `detail.transition ==
+'SUBMIT_FOR_CHECK'`；进入 `IN_APPROVAL` 的转移**只有**它一个 ⇒ 流水里有且
+只有一条这样的行）⇒ 并**首次触达就冻结**一条链（含 `submitted_by`）⇒ 此后
+每一步都有提交人可比对。
+
+⚠️ **查不到提交人 ⇒ 响亮 409 `APPROVAL_SUBMITTER_UNKNOWN`**，**不放行**
+「查不到就当没有提交人」（fail-open = 自审绕过）；宁可这条记录卡住等人工
+处理。
+
+⚠️ 「当前 0 行」**不是**「不会发生」—— 迁移部署到任何有 `IN_APPROVAL`
+记录的环境（staging / 另一个开发者的本地库）就有窗口。
 
 ## 检测（为什么单测全绿）
 

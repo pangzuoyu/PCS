@@ -1,0 +1,74 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "record-actions-error testid duplicated after closing reason modal",
+      "severity": "P2",
+      "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+      "line": 349,
+      "why_it_matters": "After an action fails while the reason modal is open, the fix moved the error copy inside the modal and suppressed the outside copy with `reasonFor === null`. But when the user then closes the modal (Cancel), `reasonFor` becomes null and the outside copy renders again — while the modal's own copy is still mounted in the DOM: antd Modal defaults `destroyOnClose` to false, so rc-dialog passes `removeOnLeave: false` to rc-motion, which keeps the exited panel rendered. Two nodes therefore share `data-testid=\"record-actions-error\"`, and any future test that exercises \"action fails -> modal closed -> error still shown\" fails with a confusing \"Found multiple elements with the data-testid attribute\" instead of a real assertion. The stated intent of this hunk (\"避免双份\") is only half-met: the duplication is suppressed while the modal is open but returns as soon as it closes.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Make the in-modal copy mutually exclusive with the outside copy instead of relying on the modal staying open: change the inner guard at RecordActions.tsx:349 to `{actionError && reasonFor !== null && (`. The outer copy at line 318 already covers the `reasonFor === null` state, so exactly one node exists in every state, and the inner node keeps the same `data-testid` (the existing assertion at tests/components/common/RecordActions.test.tsx:357 requires the modal to contain `record-actions-error`).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/components/common/RecordActions.tsx:349 -- {actionError && (",
+        "pcs-frontend/src/components/common/RecordActions.tsx:318 -- {actionError && reasonFor === null && (",
+        "node_modules/rc-dialog/lib/Dialog/Content/index.js:56 -- removeOnLeave: destroyOnLeave,",
+        "node_modules/rc-motion/es/CSSMotion.js:91 -- } else if (!removeOnLeave && renderedRef.current && leavedClassName) {",
+        "node_modules/rc-dialog/lib/Dialog/index.js:174 -- display: !animatedVisible ? 'none' : null"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Any project insert IntegrityError reported as duplicate project_no",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/projects.py",
+      "line": 119,
+      "why_it_matters": "The handler maps *every* IntegrityError raised by the Project INSERT to a 409 whose message states that the project number already exists. Today `uq_projects_project_no` is the only constraint the endpoint can trip, but the mapping is unconditional: any other constraint violation on `projects` (a future unique index, a check or FK violation) would be reported to the user as \"项目编号 … 已存在，请换一个\" — an actionable-looking but wrong instruction — and the real DB error never reaches the response or the logs. The `await db.rollback()` inside the handler additionally rolls back the whole request transaction, so anything done before the flush is discarded silently rather than being reported.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Narrow the mapping to the constraint that actually means \"duplicate\": inspect the wrapped driver error (`getattr(exc.orig, \"constraint_name\", None)`) and return `PROJECT_NO_CONFLICT` only when it equals `uq_projects_project_no`; re-raise any other IntegrityError so it surfaces as a 500 with the true cause instead of a misleading 409. Assumption: the constraint name is `uq_projects_project_no`, as created in pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:248.",
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/api/v1/projects.py:119 -- except IntegrityError:",
+        "pcs-backend/app/api/v1/projects.py:124 -- message=f\"项目编号 {payload.project_no} 已存在（全局唯一），请换一个\",",
+        "pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:248 -- sa.UniqueConstraint('project_no', name=op.f('uq_projects_project_no'))"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Deliverable list type hand-written instead of contract-derived",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 56,
+      "why_it_matters": "The list response type was replaced by a hand-written `{ items: Deliverable[]; total: number }`, dropping the link to the generated contract. The shape happens to match `components['schemas']['DeliverableListResponse']` today, so nothing breaks now — but the moment the backend renames or adds a field, `tsc` stays green and the page silently degrades: `setTotal(res.data.total ?? 0)` turns a renamed `total` into 0, so the pager shows \"no results\" while rows are rendered. The repo already documents this exact hazard as bug-2040 and states the convention that response bodies take the contract type, so this diff breaks a stated rule at the same time it narrows `sign_status`.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Keep the contract link and narrow only the element type, using the same Omit-and-re-narrow pattern already applied in pcs-frontend/src/api/deliverables.ts: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add the `import type { components } from '../../types/api';` that the same hunk removed).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:56 -- type DeliverableList = { items: Deliverable[]; total: number };",
+        "pcs-frontend/src/api/projects.ts:14 -- ⚠️ 响应体取**契约类型**（`components['schemas'][...]`）—— 手写自由 dict 就是 bug-2040 的根源（mock 与真端点不同源 ⇒ 漂移被藏住）。",
+        "pcs-frontend/src/types/api.d.ts:9141 -- DeliverableListResponse: {",
+        "pcs-frontend/src/api/deliverables.ts:14 -- export type Deliverable = Omit<"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "Records that were already IN_APPROVAL when p9_014 deployed keep `approval_chain_snapshot IS NULL`. For those rows the chain still derives from the live matrix (documented as intentional in the p9_014 docstring) AND the new per-step `submitted_by` self-review assertion never fires — the mid-flight-rebind / self-approval hole the committee asked to close therefore remains open for exactly those rows. The migration docstring declares the NULL chain fallback, but the loss of the self-review guard for legacy rows is not stated anywhere in the change.",
+    "The one-success-one-reject guarantee for concurrent submit / approval-step rests entirely on the PostgreSQL `SELECT ... FOR UPDATE` row lock (with `populate_existing`); the reviewed test file states that the in-memory SQLite fixture (StaticPool, shared connection) cannot express concurrency, so no test in this batch observes the serialized behaviour. The lock path itself reads correctly on inspection (the record row is the only exclusively locked relation, and the re-read picks up the committed approval_step / approval_role), but it is unverified by the reviewed tests.",
+    "`alembic check` was not executed against a live schema in this review. I did verify the p9_014 table list against ORM metadata programmatically: the migration's 20 tables are exactly the RecordMixin consumers (`streams` is correctly excluded because it declares approval_step/approval_depth without inheriting RecordMixin), and `REQUIRED_WORKFLOW_COLUMNS` is derived from `RecordMixin.__annotations__`, so it now automatically requires `approval_chain_snapshot` — no registry model can pass the workflow-column guard without the new column. The actual DB state of `pcs` / `pcs_test` remains unverified.",
+    "`submit_approval` reads the project's RECORD matrix binding *after* taking the record row lock, but the binding read itself is not locked. A rebind that commits between that read and the snapshot write leaves the snapshot holding the pre-rebind chain while the project already points at the new matrix. That is consistent with the intended \"freeze at submit\" semantics, but it means the frozen chain of a record submitted at time T depends on a read that is not atomic with the binding change."
+  ],
+  "testing_gaps": [
+    "No test asserts that exactly one `record-actions-error` node exists after the reason modal is closed following a failed action; the new test added in this batch (tests/components/common/RecordActions.test.tsx) only covers the modal-open state, which is the one state where the duplicate cannot occur.",
+    "No frontend test clicks 查询 while the audit table is on a page other than 1 (the `setPage(1)` -> pagination-effect path that must pick up the newly applied filter). The two `audit-filter-submit` clicks in tests/pages/audit/AuditLogPage.export.test.tsx (lines 333, 383) both exercise the page===1 direct-query path, so the effect-driven path that pairs `setAppliedFilter` with `setPage(1)` is unverified.",
+    "No backend test covers the `approval_chain_snapshot IS NULL` fallback (a record already IN_APPROVAL at deploy time derives its chain from the live matrix) nor the absence of the per-step `submitted_by` self-review assertion for such rows; the new tests in tests/api/v1/test_record_approval_chain.py all submit first, so the snapshot is always present.",
+    "No test asserts that a project insert failing on a constraint other than `uq_projects_project_no` is *not* reported as `PROJECT_NO_CONFLICT`; tests/api/v1/test_project_creation.py only covers the genuine duplicate."
+  ]
+}

@@ -1,0 +1,555 @@
+[
+ {
+  "reviewer": "correctness",
+  "findings": [
+   {
+    "title": "record-actions-error testid duplicated after closing reason modal",
+    "severity": "P2",
+    "file": "pcs-frontend/src/components/common/RecordActions.tsx",
+    "line": 349,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Make the in-modal copy mutually exclusive with the outside copy instead of relying on the modal staying open: change the inner guard at RecordActions.tsx:349 to `{actionError && reasonFor !== null && (`. The outer copy at line 318 already covers the `reasonFor === null` state, so exactly one node exists in every state, and the inner node keeps the same `data-testid` (the existing assertion at tests/components/common/RecordActions.test.tsx:357 requires the modal to contain `record-actions-error`).",
+    "first_evidence": null
+   },
+   {
+    "title": "Any project insert IntegrityError reported as duplicate project_no",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/projects.py",
+    "line": 119,
+    "confidence": 50,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Narrow the mapping to the constraint that actually means \"duplicate\": inspect the wrapped driver error (`getattr(exc.orig, \"constraint_name\", None)`) and return `PROJECT_NO_CONFLICT` only when it equals `uq_projects_project_no`; re-raise any other IntegrityError so it surfaces as a 500 with the true cause instead of a misleading 409. Assumption: the constraint name is `uq_projects_project_no`, as created in pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:248.",
+    "first_evidence": null
+   },
+   {
+    "title": "Deliverable list type hand-written instead of contract-derived",
+    "severity": "P3",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 56,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Keep the contract link and narrow only the element type, using the same Omit-and-re-narrow pattern already applied in pcs-frontend/src/api/deliverables.ts: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add the `import type { components } from '../../types/api';` that the same hunk removed).",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "Records that were already IN_APPROVAL when p9_014 deployed keep `approval_chain_snapshot IS NULL`. For those rows the chain still derives from the live matrix (documented as intentional in the p9_014 docstring) AND the new per-step `submitted_by` self-review assertion never fires — the mid-flight-rebind / self-approval hole the committee asked to close therefore remains open for exactly those rows. The migration docstring declares the NULL chain fallback, but the loss of the self-review guard for legacy rows is not stated anywhere in the change.",
+   "The one-success-one-reject guarantee for concurrent submit / approval-step rests entirely on the PostgreSQL `SELECT ... FOR UPDATE` row lock (with `populate_existing`); the reviewed test file states that the in-memory SQLite fixture (StaticPool, shared connection) cannot express concurrency, so no test in this batch observes the serialized behaviour. The lock path itself reads correctly on inspection (the record row is the only exclusively locked relation, and the re-read picks up the committed approval_step / approval_role), but it is unverified by the reviewed tests.",
+   "`alembic check` was not executed against a live schema in this review. I did verify the p9_014 table list against ORM metadata programmatically: the migration's 20 tables are exactly the RecordMixin consumers (`streams` is correctly excluded because it declares approval_step/approval_depth without inheriting RecordMixin), and `REQUIRED_WORKFLOW_COLUMNS` is derived from `RecordMixin.__annotations__`, so it now automatically requires `approval_chain_snapshot` — no registry model can pass the workflow-column guard without the new column. The actual DB state of `pcs` / `pcs_test` remains unverified.",
+   "`submit_approval` reads the project's RECORD matrix binding *after* taking the record row lock, but the binding read itself is not locked. A rebind that commits between that read and the snapshot write leaves the snapshot holding the pre-rebind chain while the project already points at the new matrix. That is consistent with the intended \"freeze at submit\" semantics, but it means the frozen chain of a record submitted at time T depends on a read that is not atomic with the binding change."
+  ],
+  "testing_gaps": [
+   "No test asserts that exactly one `record-actions-error` node exists after the reason modal is closed following a failed action; the new test added in this batch (tests/components/common/RecordActions.test.tsx) only covers the modal-open state, which is the one state where the duplicate cannot occur.",
+   "No frontend test clicks 查询 while the audit table is on a page other than 1 (the `setPage(1)` -> pagination-effect path that must pick up the newly applied filter). The two `audit-filter-submit` clicks in tests/pages/audit/AuditLogPage.export.test.tsx (lines 333, 383) both exercise the page===1 direct-query path, so the effect-driven path that pairs `setAppliedFilter` with `setPage(1)` is unverified.",
+   "No backend test covers the `approval_chain_snapshot IS NULL` fallback (a record already IN_APPROVAL at deploy time derives its chain from the live matrix) nor the absence of the per-step `submitted_by` self-review assertion for such rows; the new tests in tests/api/v1/test_record_approval_chain.py all submit first, so the snapshot is always present.",
+   "No test asserts that a project insert failing on a constraint other than `uq_projects_project_no` is *not* reported as `PROJECT_NO_CONFLICT`; tests/api/v1/test_project_creation.py only covers the genuine duplicate."
+  ]
+ },
+ {
+  "reviewer": "project-standards",
+  "findings": [
+   {
+    "title": "QA 报告的三库 alembic 验证在 pcs_test 上不成立",
+    "severity": "P1",
+    "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+    "line": 16,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "按 CLAUDE.md 的进程内配方把 pcs_test 升到 head 并复验（不要用 Config.set_main_option，alembic/env.py:18 会覆盖）：进程内 `os.environ['DATABASE_URL'] = re.sub(r'/pcs(\\?|$)', r'/pcs_test\\1', dotenv_values('.env')['DATABASE_URL'])` → `command.upgrade(cfg,'head')` → 先 `command.current(cfg)` 确认 revision 真的变成 p9_014 → 再 `command.check(cfg)` 看退出码（255 = 真漂移，0 = 一致）。然后改掉 QA 报告第 16 行的断言：要么在 pcs_test 上实跑后写实际结果，要么如实写成「pcs + 隔离 schema 已验；pcs_test 停在 p9_013，未验」。若 pcs_test 的升级因故不能执行，把「pcs_test 未应用 p9_014」登记进 TODOS.md（下一条 TODO 的格式），别让报告继续声称三库一致。",
+    "first_evidence": null
+   },
+   {
+    "title": "紧凑 ORM 对照表未登记 approval_chain_snapshot（20 张记录表）",
+    "severity": "P2",
+    "file": "pcs-backend/docs/schema_compact_orm.md",
+    "line": 51,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "在 schema_compact_orm.md 的 20 张记录表行里，紧跟 `approval_role|str` 之后插入 `approval_chain_snapshot|jsonb`（与 ORM 的 JSONB nullable 对齐），位置/分隔符照该文档既有写法（如 `locked_by_deliverable|bool!` 前后的 `|` 风格）。同时把抬头「生成时间：2026-09-02」更新为本批日期，避免下次读者以为该表是 2026-09-02 的冻结快照而不再校对。",
+    "first_evidence": null
+   },
+   {
+    "title": "SPEC 未登记本批建项目页的新行为（只列 FORMAL + 422/409）",
+    "severity": "P2",
+    "file": "docs/PCS-UI-SPEC.md",
+    "line": 2342,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "在 §12.4 修订表追加一行 V2.5（日期用本批落地日），正文写明三条：①§7.20 建项目页的工作区下拉**只列 FORMAL 工作区**（非 FORMAL 项目永远送不了审 ⇒ 前端直接不给选）；②非法（非 FORMAL）工作区 ⇒ 后端 **422 `WORKSPACE_NOT_FORMAL`**（不再是 404）；③`project_no` 全局唯一 ⇒ 重复 ⇒ **409 `PROJECT_NO_CONFLICT`**。同时把 V2.4 行里「⇒ 404」的措辞改为「不存在 ⇒ 404；非 FORMAL ⇒ 422」，避免旧口径继续与 OpenAPI 打架。",
+    "first_evidence": null
+   },
+   {
+    "title": "QA 闸门只覆盖 5/8 个 commit，未覆盖批末状态",
+    "severity": "P2",
+    "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+    "line": 3,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在批末（77e3293）重跑一次闸门并把报告的批次区间改成 `58341eb..77e3293`（8 commits）或新建一份 `qa-report-pcs-frontend-2026-11-02-p9b2-review-fixes.md`；重跑时至少覆盖 9e4bfad 改过的降级环测试（该测试只在有 PG 时跑，无 PG 则 skip —— 别把 skip 当通过记进报告）。若因故只补跑部分门，在报告的「自动化门禁」表里逐行写清本次实际执行的是哪几项、哪些是沿用上一轮的结论。",
+    "first_evidence": null
+   },
+   {
+    "title": "新 solutions 条目指向不存在的 [[engine-level-migration-tests-skipif-pg]]",
+    "severity": "P3",
+    "file": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md",
+    "line": 47,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "二选一：①把该行改成指向现存条目，例如「PG 能验 ⇒ 见 [[sqlite-staticpool-hides-uncommitted]]（SQLite StaticPool 单连接 ⇒ 并发不可表达）」，并在同段补一句「本批已落地 skipif-PG 的引擎级样板：pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py」；②新建 docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md（frontmatter 按仓库形状：module / date / problem_type: testing_issue / component / severity / tags / symptoms / root_cause），正文写清「SQLite 上并发与方言不可表达 ⇒ 引擎级断言必须 skipif PG」的形状与本批的隔离 schema 做法（DATABASE_URL 进程内派生、schema 名前缀、finally 清理）。",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "本批产出的第三条教训（information_schema 不受 search_path 约束 ⇒ 跨 schema 列计数相加）只落在 .wolf/cerebrum.md 的 Do-Not-Repeat 列表里，没有对应的 docs/solutions/ 条目。本次评审按任务说明跳过了 .wolf/*，未核实 OpenWolf 的 cerebrum 是否被本仓视为「知识库回写」的等价落点；若不是，这仍是一处 CLAUDE.md「新增解法后回写一份」的欠账。",
+   "CLAUDE.md 要求的跨库迁移验证里还有第三个目标「隔离 schema」：本批的降级环测试确实在隔离 schema 上真跑过（tests/alembic/test_p9_013_bind_default_record_matrix.py 的 iso_rt_* schema），但该测试在没有 PG 时 skip、且隔离 schema 跑在 pcs 库内（search_path 改写），因此它并不构成「第二个数据库」上的验证——第二个库（pcs_test）的缺口见 findings 第 1 条。",
+   "callsite completeness: grep-only。本轮 code-review-graph MCP 连接超时（CONNECT_TIMEOUT），未使用符号级检索；对「该错误码/该前端分支在别处是否还有第二处实现」的判断只基于文本搜索。",
+   "QA 报告文件位于 .gstack/（已被 .gitignore 忽略），因此本批的闸门证据无法随仓库分发；CLAUDE.md 要求「关键结论应同步进 TODOS.md 或提交信息」——本批的 TODOS 095-099 已同步，但三库 alembic 那条结论（含 findings 第 1 条）没有出现在 TODOS.md 或任何提交信息里。"
+  ],
+  "testing_gaps": [
+   "没有任何自动化检查能发现「pcs_test 落后于 head」：仓库缺一条对第二库跑 `alembic current` 的守门（TODO-099 只登记了 PG 测试车道这条债，未落任何断言）。本批新增的引擎级测试全部只在 pcs 的隔离 schema 上跑，pcs_test 的漂移因此一直无声。",
+   "新增的引擎级 alembic 测试（tests/alembic/test_p9_013_bind_default_record_matrix.py）在无 PG 环境下整条 skip；本批没有把它挂到任何 CI lane 上，于是「真跑引擎/降级环」这条证据只在本机存在——CI 上永远不会执行。",
+   "p9_014 的 downgrade（对 20 张表 drop 列）目前只被降级环测试（head→p9_011→head）间接覆盖，且该测试与上面两条一样在无 PG 时 skip；没有针对「只降 p9_014 一级」的单表级断言（例如断言 drop 之后 ORM 侧仍能读旧行）。"
+  ]
+ },
+ {
+  "reviewer": "testing",
+  "findings": [
+   {
+    "title": "Snapshot-less fallback branch of the approval chain is untested",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 380,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add a case to pcs-backend/tests/api/v1/test_record_approval_chain.py that simulates a pre-fix in-flight row: create a record already in `RecordSignStatus9.IN_APPROVAL` with `approval_role='CHECKER'` and `approval_chain_snapshot=None` (no submit-approval call), bind a 2-step RECORD matrix (CHECKER→REVIEWER), then POST `approval-step` as CHECKER and assert the response is 200 and `rec.approval_role == 'REVIEWER'` (proving the live-matrix fallback supplies the next role), plus a second case posting as APPROVER to assert 403 `APPROVAL_ROLE_MISMATCH` (proving the fallback does not clear the role and open the gate).",
+    "first_evidence": null
+   },
+   {
+    "title": "Concurrent-submit row lock asserted in a comment, verified nowhere",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 421,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add a PostgreSQL-backed concurrency test that reuses the isolated-schema harness already in pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py (CREATE SCHEMA → `alembic upgrade head` → drive two concurrent POST /records/PipingResult/{id}/submit-approval calls for the same record through two real connections) and assert exactly one 200 and one 409, and that the surviving snapshot's `submitted_by` belongs to the winner. If the PG harness is judged too heavy, the minimum that stops the silent regression is a test asserting `load_record` is invoked with `for_update=True` on the submit path (weaker — implementation-coupled — but it fails loudly if the lock is dropped).",
+    "first_evidence": null
+   },
+   {
+    "title": "p9_014 hardcoded 20-table list never cross-checked against ORM",
+    "severity": "P2",
+    "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+    "line": 51,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py that imports the application models (the self-containment constraint applies to the migration, not to the test), collects every `RecordMixin` subclass's `__tablename__`, imports the migration module the same way tests/alembic/test_p9_013_bind_default_record_matrix.py already does, and asserts `set(orm_tables) == set(migration._TABLES)` with a message naming the missing/extra tables. Extend the existing PG roundtrip to assert the column's type is `jsonb` and that it is nullable on every table in the list, not merely that it exists on `flash_results`.",
+    "first_evidence": null
+   },
+   {
+    "title": "PG migration verification never runs automatically",
+    "severity": "P3",
+    "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+    "line": 129,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "The existing workflow already provides everything needed: a `postgres:18` service and a `DATABASE_URL` env pointing at it. Add one step to .github/workflows/check-api-drift.yml (working-directory: pcs-backend, env DATABASE_URL set as the other steps do): `uv run pytest tests/alembic/test_p9_013_bind_default_record_matrix.py` so the engine-level assertions and the downgrade roundtrip run on every push. If adding a CI step is out of scope for this batch, correct the docstring instead to state what actually happens — the api-drift job only runs `alembic upgrade head` (no assertions, no downgrade leg) and this file must be run manually against a PostgreSQL instance.",
+    "first_evidence": null
+   },
+   {
+    "title": "Roundtrip docstring names the wrong downgrade target",
+    "severity": "P3",
+    "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+    "line": 244,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Change the docstring line to `在隔离 schema 上走完整环：`head → p9_011 → head` ⇒` and rename the test to `test_p9_014_p9_013_p9_012_downgrade_upgrade_roundtrip` so the function name matches the range it walks.",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "Scope note: I verified the mandated backend items by reading source + tests, plus one standalone reproduction script (in /tmp, no repo file touched) that confirmed on in-memory SQLite that removing the `begin_nested()` savepoint around the losing INSERT makes the re-read raise PendingRollbackError — i.e. the race test in tests/services/test_signature_matrix_service.py IS mutation-resistant to both removal of the savepoint and removal of the re-read, and the unique constraint it depends on (uq_signature_matrices_name_status) is declared in the ORM, so the IntegrityError path is genuinely exercised.",
+   "I did not execute the backend pytest suite or the frontend vitest suite; the frontend verdicts (RecordActions remount test, AuditLogPage applied-filter pagination test, errors.test.ts, project_admin FORMAL-only dropdown) rest on reading the assertions, which are behavior-level (rendered disabled state, request query parameters, exact message text, absence of the PERSONAL workspace in the dropdown) and therefore survive the corresponding production changes.",
+   "call site completeness: grep-only. The claim that no test fires concurrent submit-approval requests rests on `grep -rn 'submit-approval' tests/` and `grep -rln 'asyncio.gather' tests/`, not on a symbol-aware reference search.",
+   "The audit pagination tiebreaker test (tests/test_audit_query.py::test_pagination_tiebreaker_identical_timestamps) relies on random audit_ids for its ordering assertion, so dropping the `audit_id desc` tiebreaker would fail it with probability 119/120 rather than deterministically; the disjointness half of the assertion alone would indeed survive the tiebreaker removal on SQLite, as the test's own comment notes.",
+   "Not inspected in depth (outside the mandated scope, flagged only as unexamined): tests/api/v1/test_deliverable_issue.py and the deliverables/record_edits API changes in this batch."
+  ],
+  "testing_gaps": [
+   "No test asserts the p9_014 column's type (jsonb) or nullability on a real engine — the PostgreSQL roundtrip only asserts existence on flash_results (information_schema.columns filtered by table_schema = current_schema()).",
+   "The 'snapshot is shorter than the current step' fallback at pcs-backend/app/api/v1/records_actions.py:376-377 (returns the previous role) has no test; it is described in the code as theoretically unreachable because the snapshot is written together with approval_depth.",
+   "The `resolve_project_matrix` 409 (SIGNATURE_MATRIX_NOT_ACTIVE) raised from inside `_next_approval_role`'s no-snapshot fallback path is not covered — the only 409 test for a disabled bound matrix (tests/api/v1/test_record_approval_chain.py::test_matrix_disabled_mid_approval_keeps_chain) exercises the snapshot path, where the live matrix is never consulted.",
+   "No test pins the approval-chain snapshot's JSON shape against the migration/ORM contract beyond three keys (matrix_id, steps, submitted_by/submitted_by_role) — e.g. matrix_name and step_order are written but never asserted."
+  ]
+ },
+ {
+  "reviewer": "maintainability",
+  "findings": [
+   {
+    "title": "403 docblock orphaned onto errorText, describePcsError left undocumented",
+    "severity": "P2",
+    "file": "pcs-frontend/src/api/errors.ts",
+    "line": 71,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Move the 403 docblock back onto `describePcsError` (either place the `errorText` block+function above it, or move the 403 block down to sit directly above `describePcsError`), and give each helper a one-line «何时用哪个» note: `errorText` = 后端原文 + 无信封时纯 fallback（不给日志用）; `describePcsError` = 403 ⇒ 「无权查看：…」+ 无信封时补 `HTTP_500：` 前缀。",
+    "first_evidence": null
+   },
+   {
+    "title": "WORKFLOW_LABELS lookup lost its runtime fallback",
+    "severity": "P2",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 630,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Restore the graceful degradation while keeping the single vocabulary: `const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;` (the `??` also keeps the raw key visible, which is what StateBadge's «未知状态: X» philosophy in this repo prefers over a crash). Optionally add a runtime guard in `deliverablesApi.progress` that narrows each section's `workflow_type` against `Object.keys(WORKFLOW_LABELS)` so the api-boundary narrowing stops being an unchecked promise.",
+    "first_evidence": null
+   },
+   {
+    "title": "api layer imports domain type from components layer",
+    "severity": "P2",
+    "file": "pcs-frontend/src/api/deliverables.ts",
+    "line": 11,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Move `export type WorkflowType = 'SIGN' | 'CHANGE_NOTICE' | 'CUSTOMER_APPROVAL_PROXY';` into a new `src/types/workflow.ts`; have `src/components/common/workflowTabs.ts` import (and, if the existing importers need it, re-export) it from there; change `src/api/deliverables.ts:11` to `import type { WorkflowType } from '../types/workflow';`.",
+    "first_evidence": null
+   },
+   {
+    "title": "Deliverable list envelope hand-copied, contract link dropped",
+    "severity": "P2",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 56,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Derive the envelope from the contract while keeping the narrowed item type: `type DeliverableList = Omit<components['schemas']['DeliverableListResponse'], 'items'> & { items: Deliverable[] };` (re-add `import type { components } from '../../types/api';`), and import the item type through the module's existing import block — add `type Deliverable` to the existing `from '../../api/deliverables'` import and delete the inline `import('../../api/deliverables').Deliverable` alias.",
+    "first_evidence": null
+   },
+   {
+    "title": "for_update flag makes load_record two read strategies",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 147,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Either collapse the two branches into the framework primitive — `record = await db.get(model, record_id, with_for_update=True if for_update else None, populate_existing=for_update)` — or split the lock into its own named function (`load_record_for_update`) so the two call sites that need serialisation read as locking operations and the non-locking call sites keep a plain, obviously-identity-cached read. Assumption: the models resolved by `resolve_record_model` all use single-column UUID primary keys, which the existing `db.get(model, record_id)` call already relies on.",
+    "first_evidence": null
+   },
+   {
+    "title": "listWorkspaces silently returns a FORMAL-only subset",
+    "severity": "P3",
+    "file": "pcs-frontend/src/api/projects.ts",
+    "line": 33,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Make the filter visible in the name and keep the raw endpoint honest: rename to `listFormalWorkspaces()` (or keep `listWorkspaces()` returning everything and move the `.filter(w => w.workspace_type === 'FORMAL')` into `ProjectAdminPage`, where the project-creation form owns the rule). Assumption: the only intended consumer is the project-creation workspace dropdown, which is what the current single call site shows.",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "StateBadge 的 MODULE_ACTIVATED.DELIVERABLE 仍是 9 个**记录**态（DRAFT/IN_APPROVAL/CHECKED/…），而交付物的合法态是 DRAFT/PENDING/APPROVED/OBSOLETE；DeliverableProgressPage 渲染时未传 module（默认 'CONFIG'，其集合同样不含 PENDING/APPROVED）⇒ PENDING/APPROVED 徽章命中 opacity 0.4（半透明）。该行为本批前后一致（本批只改了 props 类型，未改渲染），属既有问题，但本批新增的 DeliverableSignStatus 让这处词表分叉显形。",
+   "DeliverableSignStatus 的 4 值是前端手写副本，与后端 DeliverableSignStatus enum（pcs-backend/app/models/enums.py:124）之间没有编译期链接（契约的 sign_status 仍是裸 string）⇒ 后端加第 5 态时前端不编译红；此时 StateBadge 的 unknownBadge 在 dev 模式直接 throw（import.meta.env.DEV）⇒ dev 下整页崩、生产下显示「未知状态: X」。StateBadge 内已有 PIPE_CLASS_STATUSES 的双向编译期断言范式可参照。",
+   "DeliverableProgressPage 的列表加载使用 errorText（无 403 ⇒ 「无权查看：」改写）⇒ 403 文案仍是「HTTP_403：…」。本批前该页用的是语义相同的本地副本 ⇒ 行为未变；但统一到 api 层后调用点更容易被误读为「403 已处理」。",
+   "callsite completeness: grep-only —— 未穷举后端是否还有别处产出 workflow_type（本次仅核对 pcs-backend/app/models/enums.py:582 的 3 值枚举与 deliverables 聚合端点）；F2 的可达性判断依赖该枚举是唯一来源。",
+   "本轮只读了前端主要改动文件与后端 records_actions / signature_matrix_service / projects / deliverables 的 diff；未逐文件通读 14279 行全量 diff，pcs-backend/app/api/v1/records_actions.py 的其余新增逻辑（快照读取、self-review 二次断言）未做结构评审。"
+  ],
+  "testing_gaps": [
+   "没有任何测试钉住 WORKFLOW_LABELS 查找的**运行期**兜底：tests/components/common/workflowTabs.test.ts 只断言 tab.label 与 WORKFLOW_LABELS 一致，DeliverableProgressPage 的段渲染没有「workflow_type 为未知值」的用例 ⇒ 未知键从「显示裸枚举键」退化成 TypeError 不会被任何测试发现。",
+   "没有测试/守卫把 DeliverableProgressPage 的列表信封钉回契约：页面类型是 DeliverableListResponse 的手写副本（契约快照里有该 schema），因此契约加字段时前端没有任何红灯。",
+   "没有针对 api 层「收窄即承诺」的运行期校验测试：deliverablesApi.progress 返回的 section.workflow_type / row.sign_status 均未经运行时校验，现有测试只用合法值喂 mock ⇒ 后端返回契约之外的值时无测试会红。"
+  ]
+ },
+ {
+  "reviewer": "security",
+  "findings": [
+   {
+    "title": "Snapshot-less records skip self-review check, read live matrix",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 549,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Close the legacy path in `approval_step` instead of silently degrading it: when `record.approval_chain_snapshot` is None, (a) derive the submitter from the audit trail — `audit_logs` row with action=RECORD_TRANSITION and detail.transition == 'SUBMIT_FOR_CHECK' for this resource, whose `user_id` is the submitting actor (state_machine.py:477 writes `user_id=actor_user_id`, state_machine.py:481 writes `\"transition\": transition.value`) — and raise 403 APPROVAL_SELF_REVIEW_FORBIDDEN if it equals `str(actor.user_id)`; (b) freeze the chain into `record.approval_chain_snapshot` on that first touch (matrix_id + steps + submitted_by + submitted_by_role) so every later step is snapshot-driven and a mid-flight rebind can no longer change the pending role. Assumption: legacy submissions went through the state machine (it is the only transition into IN_APPROVAL — `grep SUBMIT_FOR_CHECK app/` shows records_actions.submit_approval as the sole record-side caller), so a RECORD_TRANSITION/SUBMIT_FOR_CHECK audit row exists for the record.",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "create_project (pcs-backend/app/api/v1/projects.py:117-127) catches EVERY IntegrityError raised by db.flush() and maps it to 409 PROJECT_NO_CONFLICT with a message that names project_no. Verified: projects.project_no carries a real DB unique constraint (alembic dd47298c9c38, uq_projects_project_no), and every other NOT NULL column on the projects row is supplied by ProjectCreate (project_name / owner_company / location / project_type / design_phase / unit_system / workspace_id all min_length=1; product_category is a ProductCategory enum whose 3 members match the ck_projects_product_category CHECK exactly), so the only other reachable integrity failure is an fk_projects_workspace_id violation if the workspace is deleted between the existence check and the INSERT. FORMAL workspaces have retention_days=None (no TTL sweep), so that race is narrow — but when it does fire, the API tells the user their project number is taken, and changing the number does not help. Narrowing the catch to the constraint name would remove the misleading message.",
+   "create_project's `await db.rollback()` in the IntegrityError branch is safe here: it is reached with exactly one pending object (the Project row just added), so there is no caller work to destroy, and get_db rolls the (already-rolled-back) session back again on the raised PcsError (app/db/session.py:123-126).",
+   "The new approval_chain_snapshot column is NOT exposed anywhere: it appears only in app/models/mixins.py:77 and app/api/v1/records_actions.py; it is absent from app/schemas/*, pcs-backend/docs/openapi.json, pcs-frontend/openapi.snapshot.json, and pcs-frontend/src/types/api.d.ts. The project binding read face (app/api/v1/signature_matrices.py:223, ProjectMatrixBindingOut) returns the LIVE matrix steps, never the snapshot, so submitted_by / submitted_by_role cannot leak through it. No endpoint echoes a record row wholesale (app/api/v1/records.py builds explicit 5-field dicts). The only CSV export in the batch is the audit-log export (pcs-frontend/src/pages/audit/AuditLogPage.tsx), which exports audit columns only.",
+   "The sibling approval path (change notices / deliverables) still honours the matrix's can_self_check, which the builtin templates never set and parse_steps defaults to True (app/services/signature_matrix_service.py:187, app/services/deliverable_service.py:879) — so a change-notice submitter may sign their own version. That path is untouched by this diff (pre-existing) and the committee's freeze-the-chain ruling was applied only to the record side; flagging it here only as the same class of hole one module over.",
+   "The submit-time self-review check compares the single JWT role (actor.role), while the per-step check compares user_id. The per-step check is the stronger of the two and dominates every case I could construct (a user holding several roles, or re-authenticating under a different role, is still caught by user_id), so the role-based submit-time check is only an early-out. actor.user_id is derived deterministically from the JWT sub/user_id claim (app/api/v1/config.py:533-540) and is stable across login and refresh, so the identity used for submitted_by cannot drift between the submit and the approval request."
+  ],
+  "testing_gaps": [
+   "The row locks this batch added to both write paths are only effective on PostgreSQL — SQLite silently drops FOR UPDATE, and the repo's only test database is in-memory SQLite (CLAUDE.md: 'tests/conftest.py 用 sqlite+aiosqlite:///:memory: + SA_Base.metadata.create_all'). The test file states the gap itself: '本仓单测的 in-memory SQLite 走 StaticPool —— 两个请求共享同一条连接/同一个事务域，根本没有隔离 ⇒ 真并发在本 fixture 上不可表达 ... FOR UPDATE 行锁（SQLite 方言静默省略）在 PG 上把并发提交串行化 ... CI 的 fresh-PG api-drift job 负责那条链路'. I found no PostgreSQL-backed test in the repo (no pg marker in pyproject.toml / conftest.py), so the concurrent-double-submit and concurrent-double-approval-step serialisation — the property the FOR UPDATE + populate_existing pair exists to provide, and the reason ADR-0047's '不重不漏' audit claim depends on it — is currently unverified by any automated test.",
+   "No test exercises the approval_chain_snapshot IS NULL branch of approval_step (the legacy-row fallback). The added tests in tests/api/v1/test_record_approval_chain.py only cover the snapshot-present path (test_submit_persists_chain_snapshot, test_midflight_rebind_cannot_change_pending_role, test_matrix_disabled_mid_approval_keeps_chain). A regression test that seeds an IN_APPROVAL record with approval_chain_snapshot = None would pin the behaviour of the fallback and of whatever fix is applied to it.",
+   "No test asserts that the snapshot's submitted_by / submitted_by_role stay out of every response body — the protection is currently implicit (the column simply is not in any schema). A single schema-level assertion (e.g. asserting the record read endpoints' JSON has no 'approval_chain_snapshot' key) would catch a future 'return the ORM row wholesale' change."
+  ]
+ },
+ {
+  "reviewer": "api-contract",
+  "findings": [
+   {
+    "title": "sign_status 词表未进 OpenAPI，PE-1 变更在契约中不可见",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/deliverables.py",
+    "line": 244,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "把 schema 字段声明成枚举，让 FastAPI 自己把词表写进 baseline 并校验响应：`app/schemas/deliverable.py` 的 `DeliverableResponse.sign_status`（:47）与 `DeliverableSnapshotResponse.sign_status`（:113）改为 `sign_status: DeliverableSignStatus`（`app/models/enums.py:124`，4 态 DRAFT/PENDING/APPROVED/OBSOLETE）；随后重滚契约（`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`），前端 src/api/deliverables.ts 的手写并集可随之改成对该枚举的 alias。同时把 deliverables.py:241-243 的注释改成事实（枚举名 = `DeliverableSignStatus`；baseline 记的是裸 `string`、不是词表）。假设：交付物侧确实只有这 4 态（`app/models/enums.py:124` 已确认）。",
+    "first_evidence": null
+   },
+   {
+    "title": "进度页删掉兜底后未知 workflow_type 会崩整页",
+    "severity": "P2",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 630,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "把该行改回带兜底的形式：`const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;`（`Record<WorkflowType, …>` 仍保证编译期穷尽，运行期多一层保险）。可再在 src/api/deliverables.ts 的收窄处加一道运行期断言（未知值记 warn 并回退），让服务端扩词表时前端报得出而不是静默崩。",
+    "first_evidence": null
+   },
+   {
+    "title": "建项目新契约未登记 SPEC 修订",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/projects.py",
+    "line": 97,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "在 docs/PCS-UI-SPEC.md 的修订表加一行 V2.5，写清三件事：①§7.20 建项目页的工作区下拉**只列 FORMAL**（非 FORMAL 不给选）；②后端对非 FORMAL 工作区返回 **422 WORKSPACE_NOT_FORMAL**（不是 404）；③`project_no` 全局唯一，重复返回 **409 PROJECT_NO_CONFLICT**（提示重填，不是服务器故障）。同时在 pcs-backend/app/api/v1/projects.py 的 @router.post 装饰器补 `responses={409: {\"model\": ErrorResponse}}`（409 在本端点是新出现的状态码，值得先登记；422 暂不动，因为 FastAPI 已用 422 声明 HTTPValidationError，直接覆盖会丢校验错误声明 ⇒ 若要一并声明 422，需先确认本仓的校验错误信封 `VALIDATION_ERROR` 与 ErrorResponse 一致）。",
+    "first_evidence": null
+   },
+   {
+    "title": "approval-step 的 OpenAPI 描述仍写「链来自实时矩阵」",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 520,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "改写 `approval_step` 的 docstring（它是 OpenAPI description 的唯一来源）：说明「链在 submit 时冻结进 record.approval_chain_snapshot；中间步骤只读快照（存量无快照的行回退实时矩阵）；每一步都会比对提交人身份 ⇒ 提交人本人会得 403 APPROVAL_SELF_REVIEW_FORBIDDEN」；`submit_approval` 的 docstring 补一句「submit 时冻结批准链」，并把新码 422 SIGNATURE_MATRIX_EMPTY_CHAIN 补进错误码清单。随后重滚契约：`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`（frontend 的 src/types/api.d.ts 描述是生成物，必须同步）。",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "调用点完备性：grep-only —— 未穷举仓外/其他仓对 meta/error-codes、OpenAPI 描述的消费方；本仓内已确认前端不消费 ui_behavior（只有 src/mocks/seed/meta.ts 的手写种子），故 409 → ui_behavior='modal_confirm'（meta_service.py:282 按状态码机械派生）目前无实际误用面。",
+   "同族枚举泄漏未清干净：交付物侧只有本批修的快照端点补了 `.value`；app/api/v1/change_impact.py:256 的 `str(record.sign_status)` 与 app/api/v1/streams.py:503 的 `str(stream.sign_status)` 仍会输出 \"RecordSignStatus9.DRAFT\" / \"StreamSignStatus9.…\" 形态 —— 那两处是另一套枚举（RecordSignStatus9 / StreamSignStatus），与交付物 4 态不同族，本批未触及 ⇒ 未按 pre-existing finding 报出，但同类风险仍在。",
+   "PROJECT_NO_CONFLICT 的判定面偏宽：pcs-backend/app/api/v1/projects.py:117-127 用 `except IntegrityError` 兜住整个 flush，任何 IntegrityError（不止 project_no 唯一约束）都会被报成「项目编号已存在，请换一个」。当前 flush 的可失败约束面很小（workspace 存在性已前置校验、其余列均非空且由模型默认），故今日无误报面；将来给 projects 加约束/加列时会出现误导性错误文案。",
+   "OpenAPI 业务错误码未声明是全仓既有缺口（TODO-096：「要做就整族做」）。本批新增的 WORKSPACE_NOT_FORMAL / PROJECT_NO_CONFLICT / SIGNATURE_MATRIX_EMPTY_CHAIN 沿用先例 ⇒ 契约消费者（生成客户端）仍查不到；前端按信封泛解析（src/api/errors.ts）⇒ 暂无实际影响。",
+   "backend 的 `GET /api/v1/meta/error-codes` 是 AST 派生的，扫描 `raise PcsError(code=...)` 且要求 code 是常量字符串 —— 本批三个新码都是常量 ⇒ 会被自动收录（含 ui_behavior）；但若将来改成变量拼装，将静默漏登记。"
+  ],
+  "testing_gaps": [
+   "契约层没有把 sign_status 的 4 值词表写进 OpenAPI ⇒ 没有任何自动化能挡住「DeliverableSignStatus.APPROVED」这类枚举名泄漏的回归（契约快照 / 漂移检查都看不到该字段有词表）。",
+   "POST /projects 的 422 WORKSPACE_NOT_FORMAL 与 409 PROJECT_NO_CONFLICT 不在 OpenAPI `responses` 里 ⇒ 生成客户端拿不到声明；仓库现有 `npm run api:check`（scripts/check-api-drift.sh）也不覆盖「业务码是否声明」这一维。",
+   "交付物进度页缺少「未知 workflow_type」的运行期兜底测试：现有用例只喂 SIGN / CUSTOMER_APPROVAL_PROXY 两个合法值（src/mocks/seed/signFlow.ts:31,72），删掉 `?? section.workflow_type` 之后没有任何用例会在服务端多返一个工作流类型时变红。"
+  ]
+ },
+ {
+  "reviewer": "data-migration",
+  "findings": [
+   {
+    "title": "p9_014 无专属测试文件：20 表清单从未与 ORM 交叉核对",
+    "severity": "P2",
+    "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+    "line": 51,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "新增 tests/alembic/test_p9_014_record_approval_chain_snapshot.py：从 ORM 元数据收集全部 RecordMixin 叶子子类的 __tablename__，与迁移模块的 _TABLES 断言集合相等（点名缺失/多余）；并在 PG roundtrip 里断言全部 20 表的列类型是 jsonb 且 nullable（当前只断言 flash_results 一张的存在性）。",
+    "first_evidence": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py:51 -- _TABLES = ("
+   },
+   {
+    "title": "两条 PG 引擎级测试从不自动跑（无 PG 时整条 skip ⇒ 绿灯不证明任何事）",
+    "severity": "P2",
+    "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+    "line": 129,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "workflow 已有 postgres:18 service 与 DATABASE_URL：在 .github/workflows/check-api-drift.yml 加一步（working-directory pcs-backend）跑 uv run pytest tests/alembic/ —— 让引擎断言与降级环每次 push 都跑。若暂不加 CI 步骤，则把 docstring 改成事实：「api-drift job 只跑 alembic upgrade head（升级路径），断言与降级环只在本机跑」。",
+    "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:129 -- 该验证由 CI fresh-PG api-drift job 承担"
+   },
+   {
+    "title": "隔离 schema 的清理失败被静默吞掉（可在开发库留下孤儿 schema）",
+    "severity": "P3",
+    "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+    "line": 225,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "finally 里的 DROP SCHEMA subprocess 结果断言 returncode == 0（与 CREATE SCHEMA 那步同款），失败则打印 stderr 并告警；或改用 contextlib.suppress 之外显式检查。",
+    "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225 -- finally: subprocess.run(... DROP SCHEMA ...)"
+   },
+   {
+    "title": "p9_013 测试文件的模块 docstring 与文件内容自相矛盾",
+    "severity": "P3",
+    "file": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py",
+    "line": 3,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "改文件头：前半段（5 条形状断言）确实只断言 SQL 文本，但本批新增的两条（p9_013 真跑 + 降级环）**在隔离 schema 上跑真库** ⇒ docstring 改成「前 5 条只断言 SQL 形状；后 2 条在隔离 schema 上真跑 PG（无 PG 时 skip）」。",
+    "first_evidence": "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:3 -- **不跑真库升级**"
+   }
+  ],
+  "residual_risks": [
+   "降级环的隔离 schema 跑在**开发库 pcs 内**（search_path 改写）⇒ 不是独立第三库；CLAUDE.md 说的「隔离 schema」本就同库不同 schema，但「pcs_test 是第二个库」这一维在本轮只靠一次性手工验证（该库此前落后 p9_014 一级，本轮已补升并复核）。",
+   "p1_sprint3_bootstrap_alembic_version.py:38-44 读 information_schema 未按 table_schema 限定 + .scalar() 静默取首行 ⇒ 隔离 schema 运行时 alembic_version 有 2 行（public + iso）⇒ 今天无害（两行都是 64），但与本批修掉的同类问题同族。",
+   "p9_014 的 downgrade（20 表 drop 列）只被降级环间接覆盖（断言 flash_results 一张的存在性），无「只降 p9_014 一级」的单表级断言。"
+  ],
+  "testing_gaps": [
+   "无「pcs_test 落后于 head」的自动断言（TODO-099 只登记了 PG 车道债，未落断言）—— 本轮它真的落后过，且是**手工**才发现的。",
+   "p9_014 无专属测试文件；其唯一的引擎级覆盖是 roundtrip 里单表存在性（1/20）。"
+  ]
+ },
+ {
+  "reviewer": "adversarial",
+  "findings": [
+   {
+    "title": "Row-lock concurrency guarantee asserted but verified nowhere",
+    "severity": "P1",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 164,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Two complementary pieces, both reachable from the diff. (1) Pin the *mechanism* with a dialect-level unit test that needs no PG server: compile the lock statement against the PostgreSQL dialect and assert the emitted SQL contains `FOR UPDATE`, e.g. `assert 'FOR UPDATE' in str(select(PipingResult).where(PipingResult.pipe_id == pk).with_for_update().compile(dialect=postgresql.dialect()))` — this fails loudly if the `.with_for_update()` call is dropped or mistyped, and is exactly the shape the repo already uses to guard migrations. (2) Fix the false delegation in `tests/api/v1/test_record_approval_chain.py:444-446`: it claims \"CI 的 fresh-PG api-drift job 负责那条链路\", but that job runs no backend test at all, so the sentence must either be replaced with a pointer to a real PG-only concurrency test, or the test must actually be added. For (2), model the new test on the repo's existing isolated-schema subprocess pattern in `tests/alembic/test_p9_013_bind_default_record_matrix.py` (create a throwaway PG schema, then drive two independent connections/sessions at the same record row and assert exactly one 200 and one 409 `SIGNATURE_MATRIX_NOT_ACTIVE`/state-machine 409). Assumption stated: adding a PG-gated test is acceptable for this repo — the isolation helpers already exist there, and the alternative (a real PG service in CI) is a larger decision. Note the repo already has the in-repo precedent for exactly this shape of concern: `app/services/advisory_lock.py` (bug-119) implements a dialect-aware fail-fast — SQLite → silent no-op, PostgreSQL → re-raise — so a lock that is inert on SQLite is a known, already-categorised hazard here; `load_record(for_update=True)` is the one lock site that has no dialect-aware guard and no test at all.",
+    "first_evidence": null
+   },
+   {
+    "title": "p9_014 table list never cross-checked against ORM",
+    "severity": "P2",
+    "file": "pcs-backend/alembic/versions/p9_014_record_approval_chain_snapshot.py",
+    "line": 51,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Add a test that derives the expected table set from the ORM instead of trusting the literal, and asserts the migration's list equals it. The ORM metadata already carries the column on exactly the right tables (`deliverables` and `streams` do not inherit `RecordMixin`, so they do not have it), so the comparison is exact: import `app.models` for side effects, then `from app.db.base import Base`; assert `set(module._TABLES) == {t.name for t in Base.metadata.tables.values() if 'approval_chain_snapshot' in t.columns}`. Put it next to the existing `tests/alembic/test_p9_013_bind_default_record_matrix.py` shape assertions, and extend the roundtrip test's `information_schema` probe from the single `flash_results` table to the whole `_TABLES` tuple so a missing column on any of the 20 tables is caught on a real engine. The same guard makes the migration's docstring claim (\"与 ORM 元数据一致\") an enforced invariant instead of an assertion in prose.",
+    "first_evidence": null
+   },
+   {
+    "title": "No backfill: in-flight records keep the unbinding hole open",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/records_actions.py",
+    "line": 374,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Bound the exposure explicitly, in two parts. (a) Back-fill the *chain* half of the snapshot in `p9_014.upgrade()` for rows already `IN_APPROVAL`, deriving `matrix_id`/`steps` from the project's currently bound RECORD matrix — the chain is recoverable; the submitter identity is not (there is no submitter column on the record), so `submitted_by` should be left absent rather than faked, and `approval_step`'s existing `if snapshot and snapshot.get(\"submitted_by\") == ...` guard already degrades correctly when the key is missing. (b) Add a test that drives a record whose `approval_chain_snapshot` is explicitly NULL through `approval-step` and asserts the live-matrix fallback still advances the chain (and that the chain is *not* frozen for that row), so the compatibility branch is pinned rather than accidental. Assumption stated: (a) assumes pre-deploy `IN_APPROVAL` rows are worth a data migration; if the project is genuinely empty in that state, the cheaper alternative is to drop the fallback branch's tolerance and make a NULL snapshot a loud 409 instead of a silent downgrade to the live matrix.",
+    "first_evidence": null
+   },
+   {
+    "title": "A-3 label lookup drops runtime fallback, crashes on unknown type",
+    "severity": "P2",
+    "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+    "line": 630,
+    "confidence": 50,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Keep the compile-time exhaustiveness of `Record<WorkflowType, {tab, section}>` but restore runtime tolerance at the lookup site: `const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;`. If the project's ESLint config enables `@typescript-eslint/no-unnecessary-condition` (which would flag the optional chain on a non-optional index type), expose a helper in `workflowTabs.ts` instead — e.g. `export function workflowLabel(type: string): string { return (WORKFLOW_LABELS as Partial<Record<WorkflowType, {tab: string; section: string}>>)[type as WorkflowType]?.section ?? type; }` — so the map stays exhaustive for the compiler while the lookup tolerates an unknown runtime key. Add one unit test that renders `SectionBlock` with an out-of-vocabulary `workflow_type` and asserts the raw key is displayed rather than the component throwing.",
+    "first_evidence": null
+   }
+  ],
+  "residual_risks": [
+   "The `FOR UPDATE` guarantee is argued from PostgreSQL READ-COMMITTED semantics (a blocked `SELECT ... FOR UPDATE` re-reads the newly committed row version) and from `populate_existing` defeating the identity map. Neither was executed or observed on a real PostgreSQL in this review; if `populate_existing` were dropped from the `execution_options` call the identity map could serve a stale `approval_step` after the lock wait, and nothing in the suite would notice. See the P1 finding.",
+   "Absence claims in this review rest on text/grep search over `tests/`, `scripts/`, and `.github/workflows/` (the code-review-graph MCP server was unreachable this session, so no symbol-aware references were available). A concurrency or table-drift check living in an unsearched location would weaken the two P1/P2 findings.",
+   "`create_project`'s `except IntegrityError` handler maps *every* integrity violation to `PROJECT_NO_CONFLICT` (\"项目编号 … 已存在\"). Today `project_no` is the only unique constraint on `Project` (`app/models/project.py:54`), so the mapping is currently correct, but any future NOT NULL / FK / check violation on `Project` would surface to the user as a false \"duplicate project number\" 409.",
+   "`submit_approval` writes `record.approval_chain_snapshot` *before* the `_transition` call that can reject the submit with 409, so the rejected request leaves a mutated record in the session. This is safe today only because the production dependency `get_db` rolls back on exception and the test override's `async with factory() as session` closes (and therefore rolls back) the session when the endpoint raises. A future change that commits or reuses the session after a caught `PcsError` would persist the rejected submitter's snapshot.",
+   "The frontend `errorText` unification changed `DeliverableSignDialog`'s error prefix separator from ASCII `:` to the fullwidth `：` used by `DeliverableProgressPage`. Display-only, but it changes user-visible text for the deliverable sign dialog and no test pins either delimiter on that dialog.",
+   "The deliverable-progress page's `workflow_type` narrowing to the three-value `WorkflowType` union is an unchecked runtime assertion on an API response whose OpenAPI contract is a bare `string`; it is currently safe only because the backing PostgreSQL column is a native enum constrained to those three members."
+  ],
+  "testing_gaps": [
+   "No test exercises the snapshot-less (legacy `approval_chain_snapshot IS NULL`) compatibility branch of `_next_approval_role` — every approval test in `tests/api/v1/test_record_approval_chain.py` and `tests/api/v1/test_records_actions_statemachine.py` obtains its snapshot by calling `submit-approval` first.",
+   "No test drives two concurrent requests against one record row on a real PostgreSQL, so the `FOR UPDATE` serialisation of `submit-approval` and `approval-step` — and the \"exactly one `APPROVAL_STEP_PASSED` audit row\" claim in the code comment — are asserted only in prose. The repo already has the pattern for this (`tests/alembic/test_p9_013_bind_default_record_matrix.py` reaches a real PG through an isolated schema) but never applied it to a concurrency case.",
+   "No test compares `p9_014._TABLES` with the ORM's `RecordMixin` leaf tables, so a table added to the ORM without a matching migration entry fails nothing; the PG roundtrip test's `information_schema` probe covers `flash_results` only.",
+   "No test pins the SQL emitted by `load_record(for_update=True)` under the PostgreSQL dialect, so removing or mistyping `.with_for_update()` is invisible to the suite (SQLite silently omits the clause).",
+   "No test covers the `SIGNATURE_MATRIX_EMPTY_CHAIN` branch when the matrix row is deleted between submit and the next approval step — the frozen snapshot should keep the chain alive, but the deleted-matrix path is only exercised for the *disabled* matrix, not the *missing* one.",
+   "No test asserts that `submit-approval` leaves the record's `approval_chain_snapshot` untouched when the request is rejected (self-review 403 / already-in-approval 409); the existing `test_second_submit_after_commit_is_409` checks the persisted value only after a `refresh`, which would also pass if the rejection path mutated the session object."
+  ]
+ }
+]

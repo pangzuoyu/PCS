@@ -1,0 +1,115 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "QA 报告的三库 alembic 验证在 pcs_test 上不成立",
+      "severity": "P1",
+      "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+      "line": 16,
+      "why_it_matters": "本批唯一的新迁移 p9_014（给 20 张记录表加 approval_chain_snapshot）在开发库 pcs 上是绿的：实测 `alembic current` = p9_014 (head)、`alembic check` = 'No new upgrade operations detected.'、exit 0。但 QA 报告断言「pcs / pcs_test / 隔离 schema 三处 p9_014 (head) + alembic check exit 0」，而按 CLAUDE.md 配方（进程内派生 DATABASE_URL、口令不落命令行）实测 pcs_test 停在 **p9_013**，`alembic check` 在它上面直接拒绝（\"Target database is not up to date\" —— 按 CLAUDE.md 的读法这就是 exit 255 = 真漂移），且 flash_results 里没有 approval_chain_snapshot 列。也就是说，新列只在 pcs 上落过，pcs_test 上 ORM 已经领先于 schema：一旦按本批 TODO-099 起 PG-backed 测试车道对着 pcs_test 跑，记录级用例会直接炸 `column \"approval_chain_snapshot\" does not exist`；而报告里那条\"三库都 exit 0\"的证据正是 CLAUDE.md 点名的假绿形状（对着 pcs 看到 exit 0 就以为两个库都干净）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:16 -- | alembic：pcs / pcs_test / 隔离 schema | 三处 `p9_014 (head)` + `alembic check` exit 0；降级环（head→p9_011→head）实测过 |",
+        "pcs_test 实测（进程内按 CLAUDE.md 配方改写 URL，口令未落命令行）：`alembic current` → p9_013；`command.check(cfg)` → CommandError: Target database is not up to date；`select version_num from alembic_version` → [('p9_013',)]",
+        "pcs_test 实测：`select column_name from information_schema.columns where table_schema='public' and table_name='flash_results' and column_name='approval_chain_snapshot'` → [] （20 张目标表在 pcs_test 里都存在，排除\"表缺失导致升级失败\"的解释）",
+        "对照 pcs 实测：`alembic current` → p9_014 (head)；`alembic check` → 'No new upgrade operations detected.'，EXIT=0",
+        "CLAUDE.md（测试前检查 · 读法 3）: \"它**只在「当前连接的那个库」上成立。** …… **要声称「迁移在别处也成立」，必须在每个库上各跑一次。** 否则对着 `pcs` 看到 exit 0 就以为两个库都干净，是本仓最容易复现的假绿。\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "按 CLAUDE.md 的进程内配方把 pcs_test 升到 head 并复验（不要用 Config.set_main_option，alembic/env.py:18 会覆盖）：进程内 `os.environ['DATABASE_URL'] = re.sub(r'/pcs(\\?|$)', r'/pcs_test\\1', dotenv_values('.env')['DATABASE_URL'])` → `command.upgrade(cfg,'head')` → 先 `command.current(cfg)` 确认 revision 真的变成 p9_014 → 再 `command.check(cfg)` 看退出码（255 = 真漂移，0 = 一致）。然后改掉 QA 报告第 16 行的断言：要么在 pcs_test 上实跑后写实际结果，要么如实写成「pcs + 隔离 schema 已验；pcs_test 停在 p9_013，未验」。若 pcs_test 的升级因故不能执行，把「pcs_test 未应用 p9_014」登记进 TODOS.md（下一条 TODO 的格式），别让报告继续声称三库一致。"
+    },
+    {
+      "title": "紧凑 ORM 对照表未登记 approval_chain_snapshot（20 张记录表）",
+      "severity": "P2",
+      "file": "pcs-backend/docs/schema_compact_orm.md",
+      "line": 51,
+      "why_it_matters": "schema_compact_orm.md 是本仓自称的 ORM 事实对照表（抬头写明「来源：app/models/*.py」），本批自己也维护它——同一个 docs commit（369e855）把已 drop 的 parent_deliverable_id 从 deliverables 行里删掉了。但同一批给 20 张记录表加了 approval_chain_snapshot 之后，这份对照表里 grep 不到该列，于是它对 20 张表描述的列集比 ORM 少一列。后果具体：审批中间步骤只读这一列（不再回查实时矩阵），任何照这份对照表手写 SQL、写数据订正脚本、或做 schema 审查的人，都会以为记录表根本没有快照列，从而在查链时绕回实时矩阵——恰好是本批要消灭的绕过路径。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/docs/schema_compact_orm.md:51 -- `  flash_id|CHARPK!, stream_id|CHARFK!, calc_type|str!, method|str!, input_json|jsonb!, output_json|jsonb!, tag_number|str!, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, locked_by_deliverable|bool!, change_pending_since|dt, …` —— 无 approval_chain_snapshot",
+        "pcs-backend/app/models/mixins.py:77 -- approval_chain_snapshot: Mapped[dict | None] = mapped_column(",
+        "pcs-backend/docs/schema_compact_orm.md:2 -- > 生成时间：2026-09-02 | 来源：app/models/*.py",
+        "实测：`grep -c approval_chain_snapshot pcs-backend/docs/schema_compact_orm.md` → 0；ORM 侧 Base.metadata 反射出 20 张表带该列，与 p9_014 的 _TABLES 清单完全一致",
+        "同批维护记录：commit 369e855 -- \"schema_compact_orm.md 删已 drop 的 parent_deliverable_id（B-2）\"（同一份文档的同步义务本批已认领过一次）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 schema_compact_orm.md 的 20 张记录表行里，紧跟 `approval_role|str` 之后插入 `approval_chain_snapshot|jsonb`（与 ORM 的 JSONB nullable 对齐），位置/分隔符照该文档既有写法（如 `locked_by_deliverable|bool!` 前后的 `|` 风格）。同时把抬头「生成时间：2026-09-02」更新为本批日期，避免下次读者以为该表是 2026-09-02 的冻结快照而不再校对。"
+    },
+    {
+      "title": "SPEC 未登记本批建项目页的新行为（只列 FORMAL + 422/409）",
+      "severity": "P2",
+      "file": "docs/PCS-UI-SPEC.md",
+      "line": 2342,
+      "why_it_matters": "本批把建项目页的工作区下拉改成只列 FORMAL 工作区（前端过滤），后端同时新增 422 WORKSPACE_NOT_FORMAL 与 409 PROJECT_NO_CONFLICT。OpenAPI 已经跟着更新（ProjectCreate 的 description 写明了新规则），但 SPEC 的 §7.20 登记（V2.4 行）仍停留在旧口径「工作区只能选已存在的（projects.workspace_id 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）」，本批也没有新增 V2.5 修订行。CLAUDE.md 把 PCS-UI-SPEC.md 定为前端 UI 的唯一编码依据、并要求与 SPEC 冲突时「以 OpenAPI 为准**并登记 SPEC 修订**」——现在 OpenAPI 与 SPEC 已经分叉而修订没有登记，后果是：下一次照 SPEC §7.20 实现或复核建项目页的人会把所有类型的工作区都放进下拉、并以为非法 workspace_id 得到 404，而线上实际是 422 WORKSPACE_NOT_FORMAL / 409 PROJECT_NO_CONFLICT，UI 上会直接吃一个没有 SPEC 条目的错误码。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "docs/PCS-UI-SPEC.md:2342 -- \"**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；\"（V2.4 行，§7.20「建项目」页的现行登记，无 FORMAL / 422 / 409 的任何字样）",
+        "pcs-frontend/src/api/projects.ts:36 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+        "pcs-backend/app/api/v1/projects.py:97 -- code=\"WORKSPACE_NOT_FORMAL\",",
+        "pcs-backend/app/api/v1/projects.py:124 -- code=\"PROJECT_NO_CONFLICT\",",
+        "docs/PCS-UI-SPEC.md:4 -- 当前版本: V2.4（本批未新增 V2.5 行；`git diff 2bc2398..HEAD -- docs/PCS-UI-SPEC.md` 只有 1 行的 V2.3 拆分，+2/-1）",
+        "CLAUDE.md（前端 UI 规范）: \"前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 §12.4 修订表追加一行 V2.5（日期用本批落地日），正文写明三条：①§7.20 建项目页的工作区下拉**只列 FORMAL 工作区**（非 FORMAL 项目永远送不了审 ⇒ 前端直接不给选）；②非法（非 FORMAL）工作区 ⇒ 后端 **422 `WORKSPACE_NOT_FORMAL`**（不再是 404）；③`project_no` 全局唯一 ⇒ 重复 ⇒ **409 `PROJECT_NO_CONFLICT`**。同时把 V2.4 行里「⇒ 404」的措辞改为「不存在 ⇒ 404；非 FORMAL ⇒ 422」，避免旧口径继续与 OpenAPI 打架。"
+    },
+    {
+      "title": "QA 闸门只覆盖 5/8 个 commit，未覆盖批末状态",
+      "severity": "P2",
+      "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md",
+      "line": 3,
+      "why_it_matters": "CLAUDE.md 的 Per-Batch QA Gate 规定闸门跑在「每批 sprint 的**最后一个 commit 落地后**」。这份报告自述批次是 `58341eb..369e855`（5 commits，日期 2026-11-01），而本批实际到 77e3293（2026-11-02 00:44）共 8 个 commit——报告之后还落了 5de4e7b（chore 记账）、9e4bfad（**改的正是报告声称实测过的那条降级环测试文件** tests/alembic/test_p9_013_bind_default_record_matrix.py 的 information_schema 查询）、77e3293（chore cerebrum）。后果：报告里「降级环（head→p9_011→head）实测过」这条证据所对应的测试代码在报告之后被改过（9e4bfad 承认原写法「public 升到 p9_014 后计数跨 schema 相加 ⇒ 升级后必红」），闸门证据因此不覆盖批末状态；下一批开工时读到的是一份并非针对最终状态签发的报告。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:3 -- - 日期：2026-11-01 · 批次：`58341eb..369e855`（5 commits，评审 A/B/C 档 + 清理）",
+        ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md:16 -- …降级环（head→p9_011→head）实测过",
+        "git log 2bc2398..HEAD --date=iso → 369e855 2026-10-31 09:56:38 / 5de4e7b 2026-11-01 16:01:15 / 9e4bfad 2026-11-02 00:13:33 / 77e3293 2026-11-02 00:44:59（报告之后还有 3 个 commit）",
+        "commit 9e4bfad -- \"test(P9B-2R): 降级环的 information_schema 查询按 current_schema() 限定\"（body: 「测试先于两库升级写就，当时 public 在 p9_013 ⇒ 恰好绿；升级后必红」）",
+        "CLAUDE.md（Per-Batch QA Gate · 何时跑）: \"每批 sprint 的**最后一个 commit 落地后**，开下一批之前。\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在批末（77e3293）重跑一次闸门并把报告的批次区间改成 `58341eb..77e3293`（8 commits）或新建一份 `qa-report-pcs-frontend-2026-11-02-p9b2-review-fixes.md`；重跑时至少覆盖 9e4bfad 改过的降级环测试（该测试只在有 PG 时跑，无 PG 则 skip —— 别把 skip 当通过记进报告）。若因故只补跑部分门，在报告的「自动化门禁」表里逐行写清本次实际执行的是哪几项、哪些是沿用上一轮的结论。"
+    },
+    {
+      "title": "新 solutions 条目指向不存在的 [[engine-level-migration-tests-skipif-pg]]",
+      "severity": "P3",
+      "file": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md",
+      "line": 47,
+      "why_it_matters": "这条新条目把本批自己产出的第三条教训（「行锁语义只有 PG 能验」）外包给了一份 docs/solutions/ 里并不存在的文档，读者点过去是死链。这条教训其实已经有现成的落点——同批新增的 tests/alembic/test_p9_013_bind_default_record_matrix.py 就是「skipif 无 PG 才跑」的引擎级测试样板（真跑 upgrade / 降级环），而 testing-issues/ 下已有 sqlite-staticpool-hides-uncommitted.md 讲同一族。CLAUDE.md 的知识库条款要求「新增解法后回写一份，别只留在提交信息里」：现在这条教训只存在于一条指向空气的 wiki 链接里，等于没回写。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md:47 -- PG 能验 ⇒ 见 [[engine-level-migration-tests-skipif-pg]]。",
+        "docs/solutions/ 全量条目（8 个，find docs/solutions -name '*.md'）：database-issues/{alembic-create-table-silently-drops-schema-elements, dialect-options-invisible-on-sqlite, get-or-create-default-row-race-savepoint-reread}.md · framework-integration-issues/arq-028-worker-silent-failure-modes.md · security-issues/midflight-config-rebind-defeeds-one-shot-guards.md · testing-issues/{guard-test-fooled-by-lying-comment, narrow-declaration-is-not-a-constraint, sqlite-staticpool-hides-uncommitted}.md —— 无 engine-level-migration-tests-skipif-pg",
+        "CLAUDE.md（知识库）: \"新增解法后回写一份，别只留在提交信息里。\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "二选一：①把该行改成指向现存条目，例如「PG 能验 ⇒ 见 [[sqlite-staticpool-hides-uncommitted]]（SQLite StaticPool 单连接 ⇒ 并发不可表达）」，并在同段补一句「本批已落地 skipif-PG 的引擎级样板：pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py」；②新建 docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md（frontmatter 按仓库形状：module / date / problem_type: testing_issue / component / severity / tags / symptoms / root_cause），正文写清「SQLite 上并发与方言不可表达 ⇒ 引擎级断言必须 skipif PG」的形状与本批的隔离 schema 做法（DATABASE_URL 进程内派生、schema 名前缀、finally 清理）。"
+    }
+  ],
+  "residual_risks": [
+    "本批产出的第三条教训（information_schema 不受 search_path 约束 ⇒ 跨 schema 列计数相加）只落在 .wolf/cerebrum.md 的 Do-Not-Repeat 列表里，没有对应的 docs/solutions/ 条目。本次评审按任务说明跳过了 .wolf/*，未核实 OpenWolf 的 cerebrum 是否被本仓视为「知识库回写」的等价落点；若不是，这仍是一处 CLAUDE.md「新增解法后回写一份」的欠账。",
+    "CLAUDE.md 要求的跨库迁移验证里还有第三个目标「隔离 schema」：本批的降级环测试确实在隔离 schema 上真跑过（tests/alembic/test_p9_013_bind_default_record_matrix.py 的 iso_rt_* schema），但该测试在没有 PG 时 skip、且隔离 schema 跑在 pcs 库内（search_path 改写），因此它并不构成「第二个数据库」上的验证——第二个库（pcs_test）的缺口见 findings 第 1 条。",
+    "callsite completeness: grep-only。本轮 code-review-graph MCP 连接超时（CONNECT_TIMEOUT），未使用符号级检索；对「该错误码/该前端分支在别处是否还有第二处实现」的判断只基于文本搜索。",
+    "QA 报告文件位于 .gstack/（已被 .gitignore 忽略），因此本批的闸门证据无法随仓库分发；CLAUDE.md 要求「关键结论应同步进 TODOS.md 或提交信息」——本批的 TODOS 095-099 已同步，但三库 alembic 那条结论（含 findings 第 1 条）没有出现在 TODOS.md 或任何提交信息里。"
+  ],
+  "testing_gaps": [
+    "没有任何自动化检查能发现「pcs_test 落后于 head」：仓库缺一条对第二库跑 `alembic current` 的守门（TODO-099 只登记了 PG 测试车道这条债，未落任何断言）。本批新增的引擎级测试全部只在 pcs 的隔离 schema 上跑，pcs_test 的漂移因此一直无声。",
+    "新增的引擎级 alembic 测试（tests/alembic/test_p9_013_bind_default_record_matrix.py）在无 PG 环境下整条 skip；本批没有把它挂到任何 CI lane 上，于是「真跑引擎/降级环」这条证据只在本机存在——CI 上永远不会执行。",
+    "p9_014 的 downgrade（对 20 张表 drop 列）目前只被降级环测试（head→p9_011→head）间接覆盖，且该测试与上面两条一样在无 PG 时 skip；没有针对「只降 p9_014 一级」的单表级断言（例如断言 drop 之后 ORM 侧仍能读旧行）。"
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "sign_status 词表未进 OpenAPI，PE-1 变更在契约中不可见",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/deliverables.py",
+      "line": 244,
+      "why_it_matters": "任何按 OpenAPI 生成或校验客户端的消费方都看不到交付物签审状态的词表：baseline 里 `DeliverableSnapshotResponse.sign_status` 至今是裸 `{\"type\": \"string\"}`，改前（2bc2398）改后（HEAD）逐字相同 ⇒ PE-1 把运行时的 \"DeliverableSignStatus.APPROVED\" 改成 \"APPROVED\" 这件事在契约层完全不可见，同类漏 `.value` 的回归也没有任何自动检查能挡住（契约测试 / 漂移检查都看不到这个字段有词表）。前端因此只能在 api 边界手写一份 4 值并集（src/api/deliverables.ts:19），与契约彻底脱钩。新加的注释还把这个事实说反了：它称「本批滚的 openapi-baseline 记的是裸词表值」，并把枚举名写成 `RecordSignStatus9`（实际是 4 态的 `DeliverableSignStatus`）—— 下一个维护者会据此以为契约已经钉住词表，从而不再去补 schema。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "把 schema 字段声明成枚举，让 FastAPI 自己把词表写进 baseline 并校验响应：`app/schemas/deliverable.py` 的 `DeliverableResponse.sign_status`（:47）与 `DeliverableSnapshotResponse.sign_status`（:113）改为 `sign_status: DeliverableSignStatus`（`app/models/enums.py:124`，4 态 DRAFT/PENDING/APPROVED/OBSOLETE）；随后重滚契约（`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`），前端 src/api/deliverables.ts 的手写并集可随之改成对该枚举的 alias。同时把 deliverables.py:241-243 的注释改成事实（枚举名 = `DeliverableSignStatus`；baseline 记的是裸 `string`、不是词表）。假设：交付物侧确实只有这 4 态（`app/models/enums.py:124` 已确认）。",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/deliverables.py:244 -- sign_status=str(deliverable.sign_status.value),",
+        "pcs-backend/app/api/v1/deliverables.py:242 -- #    记的是裸词表值 ⇒ 运行时违反自己冻结的契约。同文件 :289 已是 .value。",
+        "pcs-backend/app/schemas/deliverable.py:113 -- sign_status: str",
+        "pcs-backend/app/schemas/deliverable.py:47 -- sign_status: str",
+        "pcs-backend/docs/openapi.json -- components.schemas.DeliverableSnapshotResponse.properties.sign_status == {\"type\": \"string\"}；2bc2398 与 HEAD 逐字相同（baseline 从未表达任何词表）",
+        "pcs-frontend/src/api/deliverables.ts:19 -- export type DeliverableSignStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'OBSOLETE';"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "进度页删掉兜底后未知 workflow_type 会崩整页",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx",
+      "line": 630,
+      "why_it_matters": "交付物进度页原来对未知工作流类型是优雅降级（显示原始枚举键），本批把它换成 `WORKFLOW_LABELS[section.workflow_type].section` ⇒ 服务端一旦返回并集之外的值，lookup 得到 undefined、`.section` 抛 TypeError ⇒ React 整页崩（不是那一段空白）。而后端契约把 workflow_type 声明为裸 string（`app/schemas/deliverable_progress.py:40`），前端这份三值并集是手写断言，没有任何编译期或运行期检查把它钉在服务端词表上 ⇒ 后端按 ADR-0047 明写的方式加第 4 类工作流时，前端不会编译变红，只会白屏。兜底只需一个 `?.` + `??`，编译期的 `Record<WorkflowType,…>` 穷尽检查照旧保留。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "把该行改回带兜底的形式：`const label = WORKFLOW_LABELS[section.workflow_type]?.section ?? section.workflow_type;`（`Record<WorkflowType, …>` 仍保证编译期穷尽，运行期多一层保险）。可再在 src/api/deliverables.ts 的收窄处加一道运行期断言（未知值记 warn 并回退），让服务端扩词表时前端报得出而不是静默崩。",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx:630 -- const label = WORKFLOW_LABELS[section.workflow_type].section;",
+        "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx (基线 2bc2398，本批删除) -- const label = SECTION_LABELS[section.workflow_type] ?? section.workflow_type;",
+        "pcs-frontend/src/api/deliverables.ts:33 -- export type WorkflowProgressSection = Omit<components['schemas']['WorkflowProgressSection'], 'workflow_type'> & { workflow_type: WorkflowType };",
+        "pcs-backend/app/schemas/deliverable_progress.py:40 -- workflow_type: str = Field(",
+        "pcs-backend/app/models/enums.py:585 -- ADR 明写「3 个写入点若将来超出这个数，说明有第四类工作流被漏登记 —— 届时回 ADR 修订，不要就地加写入点」。"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "建项目新契约未登记 SPEC 修订",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/projects.py",
+      "line": 97,
+      "why_it_matters": "本批给建项目加了两条新的失败路径（422 WORKSPACE_NOT_FORMAL、409 PROJECT_NO_CONFLICT），并让前端工作区下拉只列 FORMAL；但仓库的规范文件 docs/PCS-UI-SPEC.md（前端 UI 的唯一编码依据）仍停在 V2.4 那句「工作区只能选已存在的 ⇒ 404」，既没写 FORMAL-only 规则，也没登记这两个码 ⇒ 下一个照 SPEC 实现建项目页的人会重新把 PERSONAL/TEMPORARY 工作区摆进下拉（正是本批修掉的那个洞），也会把「编号重复」当普通失败处理而不是可提示重填的 409。仓库规则要求这类行为变更登记 SPEC 修订（CLAUDE.md：「前端所有 UI 以 docs/PCS-UI-SPEC.md 为唯一编码依据…与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」）。注：两个码未进 OpenAPI `responses=` 这件事本身是**已登记的族群缺口**（TODO-096「要做就整族做」），按先例可接受，本条只主张 SPEC 修订与本端点登记。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "在 docs/PCS-UI-SPEC.md 的修订表加一行 V2.5，写清三件事：①§7.20 建项目页的工作区下拉**只列 FORMAL**（非 FORMAL 不给选）；②后端对非 FORMAL 工作区返回 **422 WORKSPACE_NOT_FORMAL**（不是 404）；③`project_no` 全局唯一，重复返回 **409 PROJECT_NO_CONFLICT**（提示重填，不是服务器故障）。同时在 pcs-backend/app/api/v1/projects.py 的 @router.post 装饰器补 `responses={409: {\"model\": ErrorResponse}}`（409 在本端点是新出现的状态码，值得先登记；422 暂不动，因为 FastAPI 已用 422 声明 HTTPValidationError，直接覆盖会丢校验错误声明 ⇒ 若要一并声明 422，需先确认本仓的校验错误信封 `VALIDATION_ERROR` 与 ErrorResponse 一致）。",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/projects.py:97 -- code=\"WORKSPACE_NOT_FORMAL\",",
+        "pcs-backend/app/api/v1/projects.py:124 -- code=\"PROJECT_NO_CONFLICT\",",
+        "pcs-frontend/src/api/projects.ts:33 -- .then((r) => r.data.filter((w) => w.workspace_type === 'FORMAL')),",
+        "docs/PCS-UI-SPEC.md:2342 -- V2.4 …①**§7.20 新增「建项目」页**…**工作区只能选已存在的**（`projects.workspace_id` 是 FK ⇒ 后端不建孤儿项目 ⇒ 404）；建完**明说**…",
+        "CLAUDE.md -- 前端所有 UI 以 docs/PCS-UI-SPEC.md（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。",
+        "pcs-backend/docs/openapi.json -- paths['/api/v1/projects'].post.responses == {201, 422}（无 409；422 是 FastAPI 自动生成的 HTTPValidationError）"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "approval-step 的 OpenAPI 描述仍写「链来自实时矩阵」",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 520,
+      "why_it_matters": "批准链现在是 submit 时冻结进 `approval_chain_snapshot` 的快照、中间步骤只读快照；但 approval-step 的 OpenAPI 描述（= 该端点 docstring，契约消费者唯一能看到的说明）仍写着「批准链来自项目绑定的 RECORD 矩阵」⇒ 读契约的人会以为中途重绑矩阵会改变待批角色，而实现恰恰相反（这正是本批修复的目的）。同一段描述还完全没提新增的失败路径：approval-step 现在每一步都比对提交人身份 ⇒ 提交人本人会吃到 403 APPROVAL_SELF_REVIEW_FORBIDDEN，而描述里只列了 APPROVAL_ROLE_MISMATCH ⇒ 消费方按描述建的错误映射会漏掉这一支。本批的前端注释已经改成「已提交记录的链由后端 approval_chain_snapshot 冻结」，前后端两侧对同一机制的表述已经分叉。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "改写 `approval_step` 的 docstring（它是 OpenAPI description 的唯一来源）：说明「链在 submit 时冻结进 record.approval_chain_snapshot；中间步骤只读快照（存量无快照的行回退实时矩阵）；每一步都会比对提交人身份 ⇒ 提交人本人会得 403 APPROVAL_SELF_REVIEW_FORBIDDEN」；`submit_approval` 的 docstring 补一句「submit 时冻结批准链」，并把新码 422 SIGNATURE_MATRIX_EMPTY_CHAIN 补进错误码清单。随后重滚契约：`pcs-backend/docs/openapi.json` + `pcs-frontend/openapi.snapshot.json` + `npm run api:gen`（frontend 的 src/types/api.d.ts 描述是生成物，必须同步）。",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/records_actions.py:520 -- 批准链来自项目绑定的 RECORD 矩阵 ⇒ 中间步骤批完后必须把",
+        "pcs-backend/app/api/v1/records_actions.py:549 -- if snapshot and snapshot.get(\"submitted_by\") == str(actor.user_id):",
+        "pcs-backend/app/api/v1/records_actions.py:470 -- record.approval_chain_snapshot = {",
+        "pcs-backend/docs/openapi.json -- paths['/api/v1/records/{module}/{record_id}/approval-step'].post.description 含「批准链来自项目绑定的 RECORD 矩阵」（docstring 原文，baseline 与 HEAD 相同，responses 仅 {200, 422}）",
+        "pcs-frontend/src/components/common/RecordActions.tsx:131 -- * 不是每行一次 ⇒ 不是 N+1）。已提交记录的链由后端 `approval_chain_snapshot`"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "调用点完备性：grep-only —— 未穷举仓外/其他仓对 meta/error-codes、OpenAPI 描述的消费方；本仓内已确认前端不消费 ui_behavior（只有 src/mocks/seed/meta.ts 的手写种子），故 409 → ui_behavior='modal_confirm'（meta_service.py:282 按状态码机械派生）目前无实际误用面。",
+    "同族枚举泄漏未清干净：交付物侧只有本批修的快照端点补了 `.value`；app/api/v1/change_impact.py:256 的 `str(record.sign_status)` 与 app/api/v1/streams.py:503 的 `str(stream.sign_status)` 仍会输出 \"RecordSignStatus9.DRAFT\" / \"StreamSignStatus9.…\" 形态 —— 那两处是另一套枚举（RecordSignStatus9 / StreamSignStatus），与交付物 4 态不同族，本批未触及 ⇒ 未按 pre-existing finding 报出，但同类风险仍在。",
+    "PROJECT_NO_CONFLICT 的判定面偏宽：pcs-backend/app/api/v1/projects.py:117-127 用 `except IntegrityError` 兜住整个 flush，任何 IntegrityError（不止 project_no 唯一约束）都会被报成「项目编号已存在，请换一个」。当前 flush 的可失败约束面很小（workspace 存在性已前置校验、其余列均非空且由模型默认），故今日无误报面；将来给 projects 加约束/加列时会出现误导性错误文案。",
+    "OpenAPI 业务错误码未声明是全仓既有缺口（TODO-096：「要做就整族做」）。本批新增的 WORKSPACE_NOT_FORMAL / PROJECT_NO_CONFLICT / SIGNATURE_MATRIX_EMPTY_CHAIN 沿用先例 ⇒ 契约消费者（生成客户端）仍查不到；前端按信封泛解析（src/api/errors.ts）⇒ 暂无实际影响。",
+    "backend 的 `GET /api/v1/meta/error-codes` 是 AST 派生的，扫描 `raise PcsError(code=...)` 且要求 code 是常量字符串 —— 本批三个新码都是常量 ⇒ 会被自动收录（含 ui_behavior）；但若将来改成变量拼装，将静默漏登记。"
+  ],
+  "testing_gaps": [
+    "契约层没有把 sign_status 的 4 值词表写进 OpenAPI ⇒ 没有任何自动化能挡住「DeliverableSignStatus.APPROVED」这类枚举名泄漏的回归（契约快照 / 漂移检查都看不到该字段有词表）。",
+    "POST /projects 的 422 WORKSPACE_NOT_FORMAL 与 409 PROJECT_NO_CONFLICT 不在 OpenAPI `responses` 里 ⇒ 生成客户端拿不到声明；仓库现有 `npm run api:check`（scripts/check-api-drift.sh）也不覆盖「业务码是否声明」这一维。",
+    "交付物进度页缺少「未知 workflow_type」的运行期兜底测试：现有用例只喂 SIGN / CUSTOMER_APPROVAL_PROXY 两个合法值（src/mocks/seed/signFlow.ts:31,72），删掉 `?? section.workflow_type` 之后没有任何用例会在服务端多返一个工作流类型时变红。"
+  ]
+}
