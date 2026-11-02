@@ -5287,6 +5287,28 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2120",
+   "timestamp": "2026-11-02",
+   "severity": "high",
+   "error_message": "存量行从审计流水反推提交人时取了**第一条** SUBMIT_FOR_CHECK ⇒ 「送审→驳回→再送审」的记录会用**上一轮**的人当提交人 ⇒ 本轮提交人可以批自己的记录",
+   "file": "pcs-backend/app/api/v1/records_actions.py",
+   "root_cause": "`_submitter_from_audit` 扫到第一条匹配就返回；审计流水里同一记录可有多条 SUBMIT_FOR_CHECK（`SUBMIT_FOR_CHECK` → `REJECT_CHECK` → `SUBMIT_FOR_CHECK`）⇒ 当前轮次的提交人是**最后**那条。该缺陷只在存量行（无快照）路径上发生 —— 有快照的行走 submit 时写入的 submitted_by，天然是当前轮的",
+   "fix": "按 occurred_at 升序扫描、取最后一条匹配（不 break）；新增用例（1 步链 + 三个角色区分 + 显式时间戳）钉住，并做变异实测（改回取第一条 ⇒ 用例红）",
+   "fix_commit": "9f08a0d",
+   "tags": [
+    "CWE-863",
+    "self-review",
+    "audit-trail",
+    "P9B-2F"
+   ],
+   "related_bugs": [
+    "bug-2112",
+    "bug-2101"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-02"
   }
  ]
 }

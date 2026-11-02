@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-02T03:20:10.829Z",
+    "lastScanned": "2026-11-02T03:28:50.487Z",
     "fileCount": 1118,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "466df68eb75d6dac94a968010df2136f35c7f0a1fc6643a6f45886173fa18473",
-    "storeUpdatedAt": "2026-11-02T03:20:10.840Z",
-    "rootHash": "e9877e827c433076"
+    "renderedHash": "cc935f1942b34886ce709a6059dd7701331f6030c7e708bc69cb53c4031f50ed",
+    "storeUpdatedAt": "2026-11-02T03:28:50.500Z",
+    "rootHash": "28f2309ad2612b44"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -29896,11 +29896,11 @@
     },
     "pcs-backend/app/api/v1/records_actions.py": {
       "description": "records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。",
-      "tokens": 10933,
-      "hash": "9997fc8f2ca59de3",
-      "size": 48664,
-      "mtimeMs": 1793582621798.9832,
-      "updatedAt": "2026-11-02T01:23:41.847Z",
+      "tokens": 11088,
+      "hash": "0fd41b010309a02c",
+      "size": 49529,
+      "mtimeMs": 1793589962673.5188,
+      "updatedAt": "2026-11-02T03:26:02.723Z",
       "source": "hook",
       "symbols": [
         {
@@ -29977,84 +29977,84 @@
           "name": "_submitter_from_audit",
           "kind": "fn",
           "startLine": 415,
-          "endLine": 451,
-          "tokens": 378
+          "endLine": 464,
+          "tokens": 533
         },
         {
           "name": "_legacy_chain_snapshot",
           "kind": "fn",
-          "startLine": 452,
-          "endLine": 510,
+          "startLine": 465,
+          "endLine": 523,
           "tokens": 597
         },
         {
           "name": "submit_approval",
           "kind": "fn",
-          "startLine": 511,
-          "endLine": 634,
+          "startLine": 524,
+          "endLine": 647,
           "tokens": 1224
         },
         {
           "name": "approval_step",
           "kind": "fn",
-          "startLine": 635,
-          "endLine": 797,
+          "startLine": 648,
+          "endLine": 810,
           "tokens": 1662
         },
         {
           "name": "abandon_change",
           "kind": "fn",
-          "startLine": 798,
-          "endLine": 838,
+          "startLine": 811,
+          "endLine": 851,
           "tokens": 414
         },
         {
           "name": "create_comment",
           "kind": "fn",
-          "startLine": 839,
-          "endLine": 876,
+          "startLine": 852,
+          "endLine": 889,
           "tokens": 326
         },
         {
           "name": "list_comments",
           "kind": "fn",
-          "startLine": 877,
-          "endLine": 940,
+          "startLine": 890,
+          "endLine": 953,
           "tokens": 616
         },
         {
           "name": "initiate_change",
           "kind": "fn",
-          "startLine": 941,
-          "endLine": 976,
+          "startLine": 954,
+          "endLine": 989,
           "tokens": 316
         },
         {
           "name": "apply_change",
           "kind": "fn",
-          "startLine": 977,
-          "endLine": 1021,
+          "startLine": 990,
+          "endLine": 1034,
           "tokens": 409
         },
         {
           "name": "read_open_change_notice",
           "kind": "fn",
-          "startLine": 1022,
-          "endLine": 1053,
+          "startLine": 1035,
+          "endLine": 1066,
           "tokens": 288
         },
         {
           "name": "cancel_change_notice",
           "kind": "fn",
-          "startLine": 1054,
-          "endLine": 1093,
+          "startLine": 1067,
+          "endLine": 1106,
           "tokens": 373
         },
         {
           "name": "create_change_notice",
           "kind": "fn",
-          "startLine": 1094,
-          "endLine": 1154,
+          "startLine": 1107,
+          "endLine": 1167,
           "tokens": 618
         }
       ]
@@ -39091,11 +39091,11 @@
     },
     "pcs-backend/tests/api/v1/test_record_approval_chain.py": {
       "description": "记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。",
-      "tokens": 6911,
-      "hash": "1259f90273694590",
-      "size": 28737,
-      "mtimeMs": 1793586790904.048,
-      "updatedAt": "2026-11-02T02:33:10.954Z",
+      "tokens": 7732,
+      "hash": "25a3944d6b1db3b8",
+      "size": 32367,
+      "mtimeMs": 1793590130435.589,
+      "updatedAt": "2026-11-02T03:28:50.487Z",
       "source": "hook",
       "symbols": [
         {
@@ -39277,8 +39277,15 @@
           "name": "test_legacy_row_without_audit_row_is_loud_not_silent",
           "kind": "fn",
           "startLine": 676,
-          "endLine": 701,
+          "endLine": 702,
           "tokens": 236
+        },
+        {
+          "name": "test_legacy_row_uses_the_LATEST_submitter_not_the_first",
+          "kind": "fn",
+          "startLine": 703,
+          "endLine": 782,
+          "tokens": 822
         }
       ]
     },
