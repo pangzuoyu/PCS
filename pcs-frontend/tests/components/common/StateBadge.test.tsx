@@ -20,6 +20,7 @@ import {
   PIPE_CLASS_STATUSES,
 } from '../../../src/components/common/StateBadge';
 import type { RecordSignStatus } from '../../../src/types/records';
+import type { DeliverableSignStatus } from '../../../src/api/deliverables';
 
 const ALL_NINE: RecordSignStatus[] = [
   'DRAFT', 'IN_APPROVAL', 'CHECKED', 'CHECK_REJECTED', 'STALE',
@@ -76,13 +77,28 @@ describe('StateBadge — 模块激活子集', () => {
     }
   });
 
-  it('CONFIG/DELIVERABLE 模块 9 态全集 active', () => {
-    for (const mod of ['CONFIG', 'DELIVERABLE'] as const) {
-      for (const s of ['STALE', 'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE'] as const) {
-        const { unmount } = render(<StateBadge status={s} module={mod} />);
-        expect(screen.getByTestId('state-badge').getAttribute('data-active')).toBe('true');
-        unmount();
-      }
+  it('CONFIG 模块 9 态全集 active', () => {
+    for (const s of ['STALE', 'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE'] as const) {
+      const { unmount } = render(<StateBadge status={s} module="CONFIG" />);
+      expect(screen.getByTestId('state-badge').getAttribute('data-active')).toBe('true');
+      unmount();
+    }
+  });
+
+  it('DELIVERABLE 模块用**交付物自己的 4 态**（TODO-101）', () => {
+    // ⚠️ 交付物的生命周期是 DRAFT/PENDING/APPROVED/OBSOLETE（契约
+    // `DeliverableSignStatus`）⇒ 强调集必须用它自己那 4 态。
+    // 此前装的是**记录侧 9 态** ⇒ PENDING / APPROVED 不在集合里 ⇒
+    // 渲染成 opacity 0.4（用户读成「过期/不可用」，真相是「待审/已批准」）。
+    const DELIVERABLE_4: DeliverableSignStatus[] = [
+      'DRAFT', 'PENDING', 'APPROVED', 'OBSOLETE',
+    ];
+    for (const s of DELIVERABLE_4) {
+      const { unmount } = render(<StateBadge status={s} module="DELIVERABLE" />);
+      const el = screen.getByTestId('state-badge');
+      expect(el.getAttribute('data-active'), `${s} 应为满透明度`).toBe('true');
+      expect(el.getAttribute('style') || '').toMatch(/opacity:\s*1\b/);
+      unmount();
     }
   });
 

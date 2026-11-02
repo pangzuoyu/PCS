@@ -325,7 +325,12 @@ export function DeliverableProgressPage(): JSX.Element {
       title: '状态',
       dataIndex: 'sign_status',
       key: 'sign_status',
-      render: (v: Deliverable['sign_status']) => <StateBadge status={v} />,
+      // ⚠️ **必须显式传 module="DELIVERABLE"**（TODO-101）：不传 ⇒ 走默认的
+      //    `CONFIG`（记录侧 9 态）⇒ 交付物自己的 PENDING / APPROVED 落在
+      //    强调集外 ⇒ 半透明（用户读成「过期/不可用」，真相是「待审/已批准」）。
+      render: (v: Deliverable['sign_status']) => (
+        <StateBadge status={v} module="DELIVERABLE" />
+      ),
     },
     {
       title: '操作',

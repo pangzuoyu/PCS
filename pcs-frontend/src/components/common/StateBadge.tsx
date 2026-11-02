@@ -123,7 +123,17 @@ interface StatusMeta {
   label: string;
 }
 
-type AnyKnownStatus = RecordSignStatus | PipeClassStatus;
+/**
+ * 「系统认识的全部状态」的并集。
+ *
+ * ⚠️ 交付物的 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）**必须**在这里 ——
+ * 否则 `DELIVERABLE` 强调集装不下自己的 PENDING/APPROVED（TODO-101）。
+ *
+ * ⚠️ 这**不是**「合法状态」的封闭集，而是「徽章**认识**的状态」——
+ * 词表本身在 `RecordSignStatus` / `PipeClassStatus` /
+ * `DeliverableSignStatus` 三处各自定义（**契约派生**）。
+ */
+type AnyKnownStatus = RecordSignStatus | PipeClassStatus | DeliverableSignStatus;
 
 const STATUS_META: Record<AnyKnownStatus, StatusMeta> = {
   DRAFT:            { token: 'state-draft',           iconPlaceholder: '✎', label: '草稿' },
@@ -153,6 +163,31 @@ const FOUR_STATE_SUBSET: ReadonlySet<RecordSignStatus> = new Set([
 ]);
 
 /**
+ * 交付物自己的 4 态（TODO-101）—— **契约派生**（`DeliverableSignStatus`）。
+ *
+ * ⚠️ 此前 `DELIVERABLE` 的强调集装的是**记录侧 9 态** ⇒ 交付物自己的
+ * `PENDING` / `APPROVED` 不在集合里 ⇒ 渲染成 opacity 0.4（半透明），
+ * 用户把「待审 / 已批准」读成「过期 / 不可用」。
+ *
+ * ⚠️ 这里用**显式数组 + 编译期断言**而不是 `new Set<DeliverableSignStatus>(...)`：
+ * 后者赋给 `ReadonlySet<AnyKnownStatus>` 时 `forEach` 的回调参数会因
+ * 逆变而**编译不过** ⇒ 绕开它（`ReadonlySet<string>`）又会丢掉词表检查。
+ */
+const DELIVERABLE_FOUR_STATE: readonly DeliverableSignStatus[] = [
+  'DRAFT', 'PENDING', 'APPROVED', 'OBSOLETE',
+];
+
+/** 编译期守卫：上面的 4 态必须**恰好**等于契约的 `DeliverableSignStatus`。 */
+type _AssertDeliverableStatusAligned = DeliverableSignStatus extends
+  (typeof DELIVERABLE_FOUR_STATE)[number]
+  ? (typeof DELIVERABLE_FOUR_STATE)[number] extends DeliverableSignStatus
+    ? true
+    : never
+  : never;
+const _deliverableStatusAligned: _AssertDeliverableStatusAligned = true;
+void _deliverableStatusAligned;
+
+/**
  * **强调**表：只决定 opacity（1 vs 0.4），**不做有效性检查**。
  * 「窄」在这里是视觉选择，不是合法性约束 —— 见文件头。
  */
@@ -170,10 +205,9 @@ const MODULE_ACTIVATED: Record<StateBadgeModule, ReadonlySet<AnyKnownStatus>> = 
     'DRAFT', 'IN_APPROVAL', 'CHECKED', 'CHECK_REJECTED', 'STALE',
     'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE',
   ]),
-  DELIVERABLE: new Set<RecordSignStatus>([
-    'DRAFT', 'IN_APPROVAL', 'CHECKED', 'CHECK_REJECTED', 'STALE',
-    'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE',
-  ]),
+  // ⚠️ 交付物用**它自己的 4 态**（TODO-101）—— 不是记录侧 9 态。
+  //    装 9 态 ⇒ PENDING/APPROVED 不在集合里 ⇒ 半透明（读成「过期」）。
+  DELIVERABLE: new Set<AnyKnownStatus>(DELIVERABLE_FOUR_STATE),
   // 管子等级三态都算「当前有效」，没有半透明态。
   PIPE_CLASS: new Set<PipeClassStatus>([...PIPE_CLASS_STATUSES]),
 };

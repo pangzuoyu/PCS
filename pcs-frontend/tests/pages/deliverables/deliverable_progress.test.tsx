@@ -247,6 +247,21 @@ describe('DeliverableProgressPage —— 交付物进度（SPEC §6.24）', () =
     expect(screen.getByText('CB-002')).toBeTruthy();
   });
 
+  it('⚠️ 交付物状态用 **DELIVERABLE 模块**渲染（TODO-101）', async () => {
+    // ⚠️ 不传 module ⇒ StateBadge 走**默认的 CONFIG**（记录侧 9 态）
+    //    ⇒ 交付物自己的 PENDING / APPROVED 不在强调集里 ⇒ 渲染成 opacity 0.4
+    //    （用户读成「过期/不可用」，真相是「待审/已批准」）。
+    // ⇒ 这条钉住「页面必须显式传 module="DELIVERABLE"」—— 只改强调集是**无效修复**。
+    render(<DeliverableProgressPage />);
+    await waitFor(() => expect(screen.getByText('CB-001')).toBeTruthy());
+
+    const badges = document.querySelectorAll('[data-testid=state-badge]');
+    expect(badges.length).toBeGreaterThan(0);
+    for (const badge of badges) {
+      expect(badge.getAttribute('data-module')).toBe('DELIVERABLE');
+    }
+  });
+
   it('⚠️ **不展开** ⇒ 0 个请求（列表加载时**不**预取 ⇒ 无 N+1）', async () => {
     render(<DeliverableProgressPage />);
     await waitFor(() => expect(screen.getByText('CB-001')).toBeTruthy());
