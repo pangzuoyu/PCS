@@ -2792,3 +2792,121 @@
 | 11:26 | Edited pcs-backend/app/api/v1/records_actions.py | expanded (+13 lines) | ~417 |
 | 11:26 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | modified test_legacy_row_without_audit_row_is_loud_not_silent() | ~967 |
 | 11:28 | Edited pcs-backend/tests/api/v1/test_record_approval_chain.py | expanded (+8 lines) | ~680 |
+| 12:10 | Created docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md | — | ~11286 |
+| 12:41 | Session end: 79 writes across 37 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 186 reads | ~437024 tok |
+| 22:53 | Session end: 79 writes across 37 files (README.md, TODOS.md, mixins.py, p9_014_record_approval_chain_snapshot.py, records_actions.py) | 193 reads | ~437877 tok |
+
+## Session: 2026-11-02 22:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-11-02 22:53
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 22:56 | Created .superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/progress.md | — | ~360 |
+| 22:57 | Created .superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/brief.sh | — | ~242 |
+| 22:58 | Edited .superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/brief.sh | 6→6 lines | ~60 |
+| 23:03 | Created pcs-backend/tests/scripts/test_pytest_pg_gate.py | — | ~655 |
+| 23:03 | Created pcs-backend/scripts/pytest_pg.sh | — | ~544 |
+| 23:04 | Edited pcs-backend/scripts/pytest_pg.sh | 2→4 lines | ~41 |
+| 23:04 | Edited pcs-backend/pyproject.toml | 4→5 lines | ~62 |
+| 23:04 | Edited docker-compose.yml | expanded (+18 lines) | ~190 |
+| 23:04 | Edited docker-compose.yml | 4→5 lines | ~17 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | added 1 import(s) | ~53 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | added 1 import(s) | ~28 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | modified test_p9_013_runs_on_fresh_postgres_schema() | ~19 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | modified test_p9_013_p9_012_downgrade_upgrade_roundtrip() | ~20 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | modified test_p9_014_column_is_jsonb_and_nullable_on_every_record_table() | ~25 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | modified test_p9_014_downgrade_drops_the_column() | ~18 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | 9→7 lines | ~105 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | 19→17 lines | ~140 |
+| 23:06 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | 3→6 lines | ~69 |
+| 23:06 | Edited pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py | 5→4 lines | ~39 |
+| 23:06 | Edited pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py | 1→3 lines | ~29 |
+| 23:14 | Edited CLAUDE.md | expanded (+16 lines) | ~194 |
+| 23:14 | Edited TODOS.md | expanded (+13 lines) | ~219 |
+| 23:21 | Edited docker-compose.yml | 2→7 lines | ~108 |
+| 23:24 | Edited pcs-backend/scripts/pytest_pg.sh | expanded (+9 lines) | ~249 |
+| 23:40 | Edited pcs-frontend/tests/components/common/StateBadge.test.tsx | added 1 import(s) | ~114 |
+| 23:40 | Edited pcs-frontend/tests/components/common/StateBadge.test.tsx | modified for() | ~97 |
+| 23:40 | Edited pcs-frontend/tests/components/common/StateBadge.test.tsx | CSS: DELIVERABLE_4, opacity | ~237 |
+| 23:43 | Edited pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx | modified for() | ~262 |
+| 23:44 | Edited pcs-frontend/src/components/common/StateBadge.tsx | expanded (+10 lines) | ~106 |
+| 23:44 | Edited pcs-frontend/src/components/common/StateBadge.tsx | expanded (+25 lines) | ~291 |
+| 23:44 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 4→3 lines | ~48 |
+| 23:44 | Edited pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx | 1→6 lines | ~82 |
+| 23:49 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified test_create_project_duplicate_no_is_409_not_500() | ~759 |
+| 23:49 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified _guard_client() | ~335 |
+| 23:50 | Edited pcs-backend/app/api/v1/projects.py | modified _is_project_no_unique_violation() | ~199 |
+| 23:50 | Edited pcs-backend/app/api/v1/projects.py | modified _is_project_no_unique_violation() | ~355 |
+| 23:52 | Created pcs-backend/scripts/gen_compact_orm.py | — | ~1576 |
+| 23:52 | Created pcs-backend/tests/scripts/test_gen_compact_orm.py | — | ~897 |
+| 23:52 | Edited pcs-backend/tests/scripts/test_gen_compact_orm.py | 5→6 lines | ~83 |
+| 23:53 | Edited pcs-backend/scripts/gen_compact_orm.py | modified _unique_suffix() | ~178 |
+| 23:55 | Edited pcs-backend/scripts/gen_compact_orm.py | 7→5 lines | ~50 |
+| 23:55 | Edited pcs-backend/scripts/gen_compact_orm.py | "> 生成时间：{datetime.now(time" → "> 生成时间：{datetime.now(UTC)" | ~17 |
+| 23:55 | Edited pcs-backend/scripts/gen_compact_orm.py | inline fix | ~10 |
+| 00:08 | Edited docs/PCS-UI-SPEC.md | added optional chaining | ~474 |
+| 00:08 | Edited docs/PCS-UI-SPEC.md | expanded (+19 lines) | ~200 |
+| 00:08 | Edited docs/PCS-UI-SPEC.md | expanded (+9 lines) | ~56 |
+| 00:08 | Edited docs/PCS-UI-SPEC.md | expanded (+8 lines) | ~43 |
+| 00:10 | Edited TODOS.md | expanded (+8 lines) | ~89 |
+| 00:10 | Edited TODOS.md | expanded (+7 lines) | ~96 |
+| 00:12 | Edited docs/PCS-UI-SPEC.md | 3→3 lines | ~7 |
+| 00:14 | Created pcs-backend/tests/api/v1/test_stream_source.py | — | ~2312 |
+| 00:14 | Edited pcs-backend/app/models/enums.py | modified StreamSource() | ~174 |
+| 00:15 | Edited pcs-backend/app/models/project.py | expanded (+11 lines) | ~228 |
+| 00:15 | Edited pcs-backend/app/models/project.py | expanded (+11 lines) | ~163 |
+| 00:15 | Created pcs-backend/alembic/versions/p9_015_stream_source.py | — | ~435 |
+| 00:15 | Edited pcs-backend/app/schemas/stream.py | expanded (+13 lines) | ~212 |
+| 00:15 | Edited pcs-backend/app/schemas/stream.py | 6→7 lines | ~38 |
+| 00:15 | Edited pcs-backend/app/services/import_service.py | 4→7 lines | ~90 |
+| 00:15 | Edited pcs-backend/app/services/import_service.py | 4→8 lines | ~107 |
+| 00:15 | Edited pcs-backend/app/services/outlet_stream.py | expanded (+6 lines) | ~106 |
+| 00:16 | Edited pcs-backend/app/services/stream_service.py | modified list_by_project() | ~360 |
+| 00:16 | Edited pcs-backend/app/api/v1/streams.py | expanded (+8 lines) | ~283 |
+| 00:16 | Edited pcs-backend/app/api/v1/streams.py | 9→12 lines | ~90 |
+| 00:35 | Edited pcs-backend/alembic/versions/p9_015_stream_source.py | modified downgrade() | ~107 |
+| 00:36 | Edited pcs-backend/app/api/v1/streams.py | 1→3 lines | ~32 |
+| 00:36 | Edited pcs-backend/alembic/versions/p9_015_stream_source.py | inline fix | ~21 |
+| 00:37 | Edited pcs-backend/alembic/versions/p9_015_stream_source.py | 1→3 lines | ~22 |
+| 00:50 | Created pcs-backend/tests/api/v1/test_stream_composition_sum.py | — | ~1623 |
+| 00:50 | Edited pcs-backend/app/api/v1/streams.py | modified _composition_mole_fraction_total() | ~564 |
+| 00:51 | Created pcs-backend/tests/api/v1/test_stream_composition_sum.py | — | ~1901 |
+| 01:04 | Created pcs-backend/tests/api/v1/test_system_settings.py | — | ~1728 |
+| 01:05 | Created pcs-backend/app/schemas/system_settings.py | — | ~291 |
+| 01:05 | Created pcs-backend/app/services/system_setting_service.py | — | ~1090 |
+| 01:05 | Created pcs-backend/app/api/v1/system_settings.py | — | ~586 |
+| 01:05 | Edited pcs-backend/app/models/enums.py | 3→8 lines | ~82 |
+| 01:06 | Edited pcs-backend/app/main.py | 4→8 lines | ~117 |
+| 01:06 | Edited pcs-backend/app/main.py | added 1 import(s) | ~45 |
+| 01:08 | Edited pcs-backend/app/schemas/system_settings.py | modified SystemSettingOut() | ~312 |
+| 01:08 | Edited pcs-backend/app/schemas/system_settings.py | modified SystemSettingValueMap() | ~132 |
+| 01:19 | Created pcs-frontend/tests/pages/admin/systemSettings.test.tsx | — | ~1441 |
+| 01:19 | Created pcs-frontend/src/api/systemSettings.ts | — | ~263 |
+| 01:20 | Created pcs-frontend/src/pages/admin/SystemSettingsPage.tsx | — | ~1906 |
+| 01:20 | Created pcs-frontend/src/mocks/systemSettings.ts | — | ~1312 |
+| 01:20 | Edited pcs-frontend/src/mocks/browser.ts | added 1 import(s) | ~30 |
+| 01:27 | Created pcs-frontend/src/api/stream.ts | — | ~796 |
+| 01:27 | Created pcs-frontend/src/pages/sim/StreamListPage.tsx | — | ~3242 |
+| 01:28 | Created pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | — | ~1910 |
+| 01:33 | Created pcs-frontend/tests/pages/sim/streamManualWizard.test.tsx | — | ~2214 |
+| 01:34 | Created pcs-frontend/src/pages/sim/StreamManualWizardPage.tsx | — | ~5750 |
+| 01:41 | Created pcs-frontend/src/pages/sim/tabs/StreamBasicTab.tsx | — | ~1518 |
+| 01:41 | Created pcs-frontend/src/pages/sim/tabs/StreamCompositionTab.tsx | — | ~716 |
+| 01:41 | Created pcs-frontend/src/pages/sim/tabs/StreamPropertiesTab.tsx | — | ~904 |
+| 01:42 | Created pcs-frontend/src/pages/sim/tabs/StreamStatePointsTab.tsx | — | ~836 |
+| 01:42 | Created pcs-frontend/src/pages/sim/tabs/StreamConnectionsTab.tsx | — | ~334 |
+| 01:42 | Created pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx | — | ~1049 |
+| 01:42 | Created pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx | — | ~1013 |
+| 01:42 | Created pcs-frontend/src/pages/sim/StreamDetailPage.tsx | — | ~1514 |
+| 01:42 | Created pcs-frontend/tests/pages/sim/streamDetailTabs.test.tsx | — | ~1641 |
+| 06:09 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3.md | — | ~1500 |
+| 06:26 | Created pcs-backend/tests/api/v1/test_probe_stale_read.py | — | ~604 |
+| 06:28 | Created pcs-backend/tests/api/v1/test_stream_list_filters.py | — | ~1346 |
+| 06:31 | Created pcs-frontend/src/components/common/StateBadgeBoundary.tsx | — | ~530 |
+| 06:32 | Created pcs-frontend/tests/mocks/systemSettings.test.tsx | — | ~754 |
+| 06:40 | P9B-3 整批评审修复批：加锁读 `populate_existing`（并发提交校对一胜一拒）+ 共享 `StateBadgeBoundary`（详情页未知状态降级）+ 写路径 ACL/PG 车道第三闸/后端 phase+sign_status 筛选/mock 原子性 四组补测（每条做了变异实测） | pcs-backend/app/services/stream_service.py, pcs-backend/tests/{services/test_stream_transition.py,api/v1/test_stream_list_filters.py,api/v1/test_system_settings.py,scripts/test_pytest_pg_gate.py}, pcs-frontend/src/components/common/{StateBadgeBoundary.tsx,PageHeader.tsx}, pcs-frontend/src/{pages/sim/StreamListPage.tsx,mocks/systemSettings.ts}, pcs-frontend/tests/{mocks/systemSettings.test.tsx,pages/sim/streamDetailTabs.test.tsx} | 2 Critical + 4 Important 全修；后端 5439 passed / 前端 1008 passed / PG 车道 4 passed | ~6000 |
+| 06:42 | 评审结论入账：既有越权缺口（物流详情无项目守卫 / 血缘守卫放行 streams）登记 TODO-113~115 + STATUS 更新 | TODOS.md, .wolf/STATUS.md, .wolf/buglog.json | 债项 104~115 在册；ledger 保留（.superpowers/ 已 gitignore 且 STATUS 指向它） | ~1200 |

@@ -5329,6 +5329,166 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-11-02"
+  },
+  {
+   "id": "bug-2122",
+   "timestamp": "2026-11-03",
+   "severity": "high",
+   "error_message": "并发两次 POST /streams/{id}/submit ⇒ **两次都 200**（`sign_status` 都是 IN_APPROVAL）——行锁形同虚设（计划 Review Focus #5 要求「一胜一拒」）",
+   "file": "pcs-backend/app/api/v1/streams.py:563（前置 db.get）+ pcs-backend/app/services/stream_service.py（transition 的加锁 select）",
+   "root_cause": "T3 为「组成合计门禁」在转移**之前**加了一行 `stream = await db.get(Stream, stream_id)` ⇒ 实体提前进了 session 的 identity map；随后 `SELECT ... FOR UPDATE` **默认 `populate_existing=False`** ⇒ **不覆盖**已加载属性 ⇒ 并发时第二个提交读到**过期的 DRAFT** ⇒ 转移被放行。⚠️ **本批引入的回归**：T3 之前加锁 select 是首次加载 ⇒ 拿到的就是锁后新行。实测（探针）：DB 已是 CHECKED，ORM 仍读到 DRAFT。",
+   "fix": "`StreamService.transition` 的加锁 select 加 `.execution_options(populate_existing=True)` ⇒ **锁住的那行永远赢**（加锁读的目的就是读「锁住的那一行」）⇒ 对所有转移端点生效。回归测试 `tests/services/test_stream_transition.py::test_locked_read_is_not_shadowed_by_stale_identity_map`（用「同 session 预读 + 另一事务改库」复现同一形态的陈旧读；成因是 identity map ⇒ 与方言无关 ⇒ SQLite 可测）。",
+   "fix_commit": "100ab91",
+   "tags": [
+    "sim",
+    "state-machine",
+    "sqlalchemy",
+    "concurrency",
+    "identity-map",
+    "regression"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2123",
+   "timestamp": "2026-11-03",
+   "severity": "high",
+   "error_message": "物流详情页（/sim/streams/:id）遇到 9 态之外的 `sign_status` ⇒ **整页崩**（React 抛 `StateBadge: 未知状态 \"SOMETHING_NEW\"`，整棵树被卸载 ⇒ 用户只看到根 ErrorBoundary 的「页面渲染异常」）",
+   "file": "pcs-frontend/src/components/common/PageHeader.tsx（status 徽章）+ pcs-frontend/src/components/common/StateBadge.tsx（unknownBadge 在 DEV 下 throw）",
+   "root_cause": "`StateBadge` 对未知状态在 `import.meta.env.DEV` 下**故意抛错**（bug-180 的 fail-fast 设计）⇒ 详情页的 `PageHeader status={...}` 路径**没有**任何错误边界 ⇒ 一行坏数据把整页打挂（生产构建会降级，但 dev server / QA / vitest 全白屏）。⚠️ 计划 Review Focus #2 明写「钉在 T6（列表）**与 T8（详情）**」⇒ T8 这一半**没做**。",
+   "fix": "抽出共享组件 `pcs-frontend/src/components/common/StateBadgeBoundary.tsx`（局部错误边界 + 兜底**显形**「未知状态: X」，不回落成「草稿」）⇒ `PageHeader` 与 `StreamListPage` 共用（列表页原地的 BadgeCell 删除）。测试 `tests/pages/sim/streamDetailTabs.test.tsx::未知 sign_status ⇒ 详情页照常渲染`（先红后绿）。",
+   "fix_commit": "100ab91",
+   "tags": [
+    "frontend",
+    "sim",
+    "state-badge",
+    "error-boundary",
+    "dev-only"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2124",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "dev mock 的系统参数批量 PUT「缺键 ⇒ 404」时**前面的键已经改了**（半改状态）——与真后端的原子语义相反，而浏览器 QA 跑的就是这个 mock",
+   "file": "pcs-frontend/src/mocks/systemSettings.ts（http.put('/api/v1/system-settings')）",
+   "root_cause": "handler 是「边遍历边写」：先 `row.setting_value_json = value`，再遇到下一个不存在的键才 return 404 ⇒ 已写的键留在内存态里。⚠️ handler 的注释还写着「照抄后端语义：键不存在 ⇒ 404 且**一个键都不改**（原子）」⇒ **注释在撒谎**。真后端（`system_setting_service.update_batch`）是先全量校验再写 ⇒ 绝不产生半改。",
+   "fix": "改成「先收集 missing 并 404，再统一写」；新增 `pcs-frontend/tests/mocks/systemSettings.test.tsx`（3 例，变异实测：还原成边遍历边写 ⇒ 原子性那条红）。",
+   "fix_commit": "100ab91",
+   "tags": [
+    "frontend",
+    "mock",
+    "system-settings",
+    "atomicity",
+    "drift"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2125",
+   "timestamp": "2026-11-03",
+   "severity": "low",
+   "error_message": "控制台**错误级**消息：`[antd: Table] 'index' parameter of 'rowKey' function is deprecated`（antd 5.29）⇒ 撞「控制台无 antd/React/TS error」的批末闸门",
+   "file": "pcs-frontend/src/pages/sim/tabs/StreamStatePointsTab.tsx",
+   "root_cause": "`rowKey={(r, idx) => r.state_label ?? `sp-${idx}`}` 用了回调的第二个参数（antd 5.29 起弃用）⇒ 每次打开「状态点」Tab 都刷一条错误。",
+   "fix": "key 在**取数时**算好（`map` 时补 `key`），`rowKey=\"key\"` 用字符串形式 ⇒ 不再依赖回调的 index 参数。浏览器复跑：控制台 0 error。",
+   "fix_commit": "614f696",
+   "tags": [
+    "frontend",
+    "antd",
+    "deprecation",
+    "console"
+   ],
+   "related_bugs": [
+    "bug-2094"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2126",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "交付物状态徽章「PENDING / 已批准」渲染成**半透明**（opacity 0.4）⇒ 用户读成「过期 / 不可用」",
+   "file": "pcs-frontend/src/components/common/StateBadge.tsx（MODULE_ACTIVATED.DELIVERABLE）",
+   "root_cause": "DELIVERABLE 的强调集装的是**记录侧 9 态**（DRAFT/IN_APPROVAL/CHECKED/…）⇒ 交付物自己的 4 态里 `PENDING` 与 `APPROVED` 不在集合里 ⇒ 落进半透明分支。⚠️ 且**只改词表是无效修复**：`DeliverableProgressPage` 渲染时**没传 module** ⇒ 走默认的 `CONFIG`（记录侧 9 态）⇒ 页面上的徽章根本不受 DELIVERABLE 词表影响。",
+   "fix": "强调集改成交付物自己的 4 态（契约派生 `DeliverableSignStatus`）+ **补页面接线**（`module=\"DELIVERABLE\"`）+ 页面级断言钉住 + 拆掉那条断言「9 态全集 active」的既有用例（它断言的正是被修的 bug）。",
+   "fix_commit": "51657ac",
+   "tags": [
+    "frontend",
+    "state-badge",
+    "deliverable",
+    "vocabulary"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2127",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "`POST /projects` 把**任何** IntegrityError 都报成 409「项目编号已存在」⇒ 用户照着提示换编号，换了还是错",
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "root_cause": "捕获 `IntegrityError` 时无条件映射 409 ⇒ NOT NULL / FK / CHECK 违约（消息里**不含** project_no）也被说成「编号重复」。⚠️ 更隐蔽的一层：`projects.project_name` 的 NOT NULL 消息**含子串** `project_no` ⇒ 只查「消息里有没有 project_no」也会误判。",
+   "fix": "新增 `_is_project_no_unique_violation(exc)`：PG 读 `orig.diag.constraint_name` 命中 `uq_projects_project_no` 才算；SQLite 判「UNIQUE」+「project_no」同时出现；其余 IntegrityError **重新抛出**（⇒ 500 + 服务端日志留详情）。测试用**真 SQLite 触发器**造一个不含 project_no 的 IntegrityError ⇒ 断言 500（客户端加 `raise_server_exceptions=False` 才看得到信封）。",
+   "fix_commit": "909bc3a",
+   "tags": [
+    "backend",
+    "projects",
+    "integrity-error",
+    "error-mapping"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2128",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "PG-18 官方镜像的容器直接 `Exited(1)`：`in 18+, these Docker images are configured to store database data in a format which is compatible with pg_ctlcluster … there appears to be PostgreSQL data in: /var/lib/postgresql/data`",
+   "file": "docker-compose.yml（postgres-pgtest 服务的 volumes）",
+   "root_cause": "卷挂载点写成了 `/var/lib/postgresql/data` ⇒ PG-18 镜像把它当**集群模式**的数据目录并拒绝启动（它要的是 `/var/lib/postgresql` 整个目录，PGDATA 落在其下的 `18/docker`）。",
+   "fix": "卷改挂 `/var/lib/postgresql`（数据落在镜像自定的 PGDATA 下）⇒ 容器 healthy，车道 4 passed。",
+   "fix_commit": "b127495",
+   "tags": [
+    "docker",
+    "postgres",
+    "pg18",
+    "compose",
+    "environment"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2129",
+   "timestamp": "2026-11-03",
+   "severity": "low",
+   "error_message": "`docs/schema_compact_orm.md` 头部写「表数量：53」，而 ORM 实际 107 张表 ⇒ 缺 54 张（含 4 张记录表）⇒ 当「照这张表手写 SQL」的依据会查不到表",
+   "file": "pcs-backend/docs/schema_compact_orm.md + pcs-backend/scripts/gen_compact_orm.py（新）",
+   "root_cause": "该文件是 2026-09-02 的**手工快照**，此后 ORM 加表没人重生成 ⇒ 文档与 ORM 漂移（TODO-103）。",
+   "fix": "写生成脚本（从 `SA_Base.metadata` 导出，格式沿用 `col|type!`）⇒ 文件变成**派生**产物；自带测试（覆盖每张表 / 与仓库同步 / 格式标记 / 每表恰好一个章节）。⚠️ 踩坑：`table.constraints` 是 **set** ⇒ 迭代顺序随进程 ⇒ `[UNIQUE: …]` 必须**按约束名排序**输出，否则每次生成物都不同。",
+   "fix_commit": "b948044",
+   "tags": [
+    "backend",
+    "docs",
+    "generator",
+    "drift",
+    "orm"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
   }
  ]
 }

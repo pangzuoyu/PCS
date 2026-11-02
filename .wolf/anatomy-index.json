@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-02T03:28:50.487Z",
-    "fileCount": 1118,
+    "lastScanned": "2026-11-02T22:32:16.021Z",
+    "fileCount": 1158,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cc935f1942b34886ce709a6059dd7701331f6030c7e708bc69cb53c4031f50ed",
-    "storeUpdatedAt": "2026-11-02T03:28:50.500Z",
-    "rootHash": "28f2309ad2612b44"
+    "renderedHash": "9f023a899cf964380701b5bdbfb8dc16f84ef155aa40bb3bd03d58f141580e81",
+    "storeUpdatedAt": "2026-11-02T22:32:16.032Z",
+    "rootHash": "0fbfbd8c39d3fdd5"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -770,11 +770,11 @@
     },
     "CLAUDE.md": {
       "description": "OpenWolf",
-      "tokens": 1463,
-      "hash": "3cc3442011672c7e",
-      "size": 9256,
-      "mtimeMs": 1793586846402.6313,
-      "updatedAt": "2026-11-02T02:34:06.445Z",
+      "tokens": 1609,
+      "hash": "dd91d864bccf3bde",
+      "size": 10198,
+      "mtimeMs": 1793632483582.4775,
+      "updatedAt": "2026-11-02T15:14:43.633Z",
       "source": "hook"
     },
     "CONTEXT.md": {
@@ -789,11 +789,11 @@
     },
     "docker-compose.yml": {
       "description": "Docker Compose services",
-      "tokens": 915,
-      "hash": "2f931f1e0c6fb1f1",
-      "size": 4134,
-      "mtimeMs": 1791899226078.1433,
-      "updatedAt": "2026-10-13T13:47:06.127Z",
+      "tokens": 1290,
+      "hash": "4fccbbaafedcee90",
+      "size": 6005,
+      "mtimeMs": 1793632860208.4717,
+      "updatedAt": "2026-11-02T15:21:00.263Z",
       "source": "hook"
     },
     "docs/adr/0001-two-layer-signing-model.md": {
@@ -1757,11 +1757,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 14622,
-      "hash": "99ff1db2607103ca",
-      "size": 94106,
-      "mtimeMs": 1793075282092.2551,
-      "updatedAt": "2026-10-27T04:28:02.149Z",
+      "tokens": 16404,
+      "hash": "e016b8cf3deb611f",
+      "size": 107245,
+      "mtimeMs": 1793635922433.866,
+      "updatedAt": "2026-11-02T16:12:02.489Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 19584,
-      "hash": "3b88fe097a63640b",
-      "size": 130292,
-      "mtimeMs": 1793245447873.844,
-      "updatedAt": "2026-10-29T03:44:07.924Z",
+      "tokens": 21358,
+      "hash": "fdb85fda655d11fe",
+      "size": 142032,
+      "mtimeMs": 1793635845641.7334,
+      "updatedAt": "2026-11-02T16:10:45.693Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -12766,11 +12766,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5203,
-      "hash": "7160702803ca15c5",
-      "size": 23346,
-      "mtimeMs": 1792487908754.389,
-      "updatedAt": "2026-10-20T09:18:28.801Z",
+      "tokens": 5566,
+      "hash": "dfaa7c04a4a2607d",
+      "size": 25205,
+      "mtimeMs": 1793639131131.968,
+      "updatedAt": "2026-11-02T17:05:31.178Z",
       "source": "hook",
       "symbols": [
         {
@@ -12809,182 +12809,189 @@
           "tokens": 340
         },
         {
-          "name": "DeliverableSignStatus",
+          "name": "StreamSource",
           "kind": "class",
           "startLine": 124,
-          "endLine": 136,
+          "endLine": 141,
+          "tokens": 162
+        },
+        {
+          "name": "DeliverableSignStatus",
+          "kind": "class",
+          "startLine": 142,
+          "endLine": 154,
           "tokens": 91
         },
         {
           "name": "WorkspaceType",
           "kind": "class",
-          "startLine": 137,
-          "endLine": 148,
+          "startLine": 155,
+          "endLine": 166,
           "tokens": 84
         },
         {
           "name": "WorkspaceStatus",
           "kind": "class",
-          "startLine": 149,
-          "endLine": 162,
+          "startLine": 167,
+          "endLine": 180,
           "tokens": 119
         },
         {
           "name": "ProductCategory",
           "kind": "class",
-          "startLine": 163,
-          "endLine": 181,
+          "startLine": 181,
+          "endLine": 199,
           "tokens": 161
         },
         {
           "name": "GasMedium",
           "kind": "class",
-          "startLine": 182,
-          "endLine": 211,
+          "startLine": 200,
+          "endLine": 229,
           "tokens": 365
         },
         {
           "name": "SnapshotStatus",
           "kind": "class",
-          "startLine": 212,
-          "endLine": 219,
+          "startLine": 230,
+          "endLine": 237,
           "tokens": 53
         },
         {
           "name": "EquipmentStatus",
           "kind": "class",
-          "startLine": 220,
-          "endLine": 242,
+          "startLine": 238,
+          "endLine": 260,
           "tokens": 138
         },
         {
           "name": "CalcStatus",
           "kind": "class",
-          "startLine": 243,
-          "endLine": 254,
+          "startLine": 261,
+          "endLine": 272,
           "tokens": 76
         },
         {
           "name": "ActualDataStatus",
           "kind": "class",
-          "startLine": 255,
-          "endLine": 266,
+          "startLine": 273,
+          "endLine": 284,
           "tokens": 83
         },
         {
           "name": "StateTransition",
           "kind": "class",
-          "startLine": 267,
-          "endLine": 287,
+          "startLine": 285,
+          "endLine": 305,
           "tokens": 210
         },
         {
           "name": "UserStatus",
           "kind": "class",
-          "startLine": 288,
-          "endLine": 298,
+          "startLine": 306,
+          "endLine": 316,
           "tokens": 64
         },
         {
           "name": "AuditAction",
           "kind": "class",
-          "startLine": 299,
-          "endLine": 433,
-          "tokens": 1458
+          "startLine": 317,
+          "endLine": 466,
+          "tokens": 1660
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 434,
-          "endLine": 447,
+          "startLine": 467,
+          "endLine": 480,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 448,
-          "endLine": 461,
+          "startLine": 481,
+          "endLine": 494,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 462,
-          "endLine": 475,
+          "startLine": 495,
+          "endLine": 508,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 476,
-          "endLine": 486,
+          "startLine": 509,
+          "endLine": 519,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 487,
-          "endLine": 497,
+          "startLine": 520,
+          "endLine": 530,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 498,
-          "endLine": 507,
+          "startLine": 531,
+          "endLine": 540,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 508,
-          "endLine": 522,
+          "startLine": 541,
+          "endLine": 555,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 523,
-          "endLine": 533,
+          "startLine": 556,
+          "endLine": 566,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 534,
-          "endLine": 556,
+          "startLine": 567,
+          "endLine": 589,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 557,
-          "endLine": 571,
+          "startLine": 590,
+          "endLine": 604,
           "tokens": 114
         },
         {
           "name": "WorkflowType",
           "kind": "class",
-          "startLine": 572,
-          "endLine": 590,
+          "startLine": 605,
+          "endLine": 623,
           "tokens": 149
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 591,
-          "endLine": 611,
+          "startLine": 624,
+          "endLine": 644,
           "tokens": 184
         }
       ]
     },
     "pcs-backend/app/models/project.py": {
       "description": "项目/工作区/成员 ORM 模型（核心租户隔离维度）。",
-      "tokens": 7858,
-      "hash": "80c854e083688ec3",
-      "size": 30683,
-      "mtimeMs": 1792419831088.8982,
-      "updatedAt": "2026-10-19T14:23:51.142Z",
+      "tokens": 8141,
+      "hash": "dae73b86170a4901",
+      "size": 32068,
+      "mtimeMs": 1793636118649.2812,
+      "updatedAt": "2026-11-02T16:15:18.696Z",
       "source": "hook",
       "symbols": [
         {
@@ -13013,20 +13020,20 @@
           "kind": "class",
           "startLine": 171,
           "endLine": 228,
-          "tokens": 626
+          "tokens": 634
         },
         {
           "name": "Stream",
           "kind": "class",
           "startLine": 229,
-          "endLine": 605,
-          "tokens": 4774
+          "endLine": 627,
+          "tokens": 5049
         },
         {
           "name": "StreamStatePoint",
           "kind": "class",
-          "startLine": 606,
-          "endLine": 666,
+          "startLine": 628,
+          "endLine": 688,
           "tokens": 712
         }
       ]
@@ -15191,222 +15198,222 @@
     },
     "pcs-backend/app/api/v1/streams.py": {
       "description": "P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。",
-      "tokens": 6705,
-      "hash": "08dfb9b8229063b9",
-      "size": 25200,
-      "mtimeMs": 1790990155453.7126,
-      "updatedAt": "2026-10-03T01:15:55.504Z",
+      "tokens": 7182,
+      "hash": "326d5d51a89744fa",
+      "size": 27452,
+      "mtimeMs": 1793638246780.3606,
+      "updatedAt": "2026-11-02T16:50:46.831Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ValidateStreamResponse",
           "kind": "class",
-          "startLine": 60,
-          "endLine": 84,
+          "startLine": 63,
+          "endLine": 87,
           "tokens": 206
         },
         {
           "name": "_conflict_to_dict",
           "kind": "fn",
-          "startLine": 85,
-          "endLine": 101,
+          "startLine": 88,
+          "endLine": 104,
           "tokens": 144
         },
         {
           "name": "CreateStreamRequest",
           "kind": "class",
-          "startLine": 102,
-          "endLine": 112,
+          "startLine": 105,
+          "endLine": 115,
           "tokens": 94
         },
         {
           "name": "UpdateStreamRequest",
           "kind": "class",
-          "startLine": 113,
-          "endLine": 118,
+          "startLine": 116,
+          "endLine": 121,
           "tokens": 44
         },
         {
           "name": "TransitionRequest",
           "kind": "class",
-          "startLine": 119,
-          "endLine": 131,
+          "startLine": 122,
+          "endLine": 134,
           "tokens": 100
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 144,
+          "startLine": 135,
+          "endLine": 147,
           "tokens": 131
         },
         {
           "name": "_load_project",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 156,
+          "startLine": 148,
+          "endLine": 159,
           "tokens": 100
         },
         {
           "name": "_to_response_dict",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 206,
+          "startLine": 160,
+          "endLine": 209,
           "tokens": 470
         },
         {
           "name": "create_stream",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 246,
-          "tokens": 402
+          "startLine": 210,
+          "endLine": 247,
+          "tokens": 383
         },
         {
           "name": "validate_stream",
           "kind": "fn",
-          "startLine": 247,
-          "endLine": 293,
-          "tokens": 509
+          "startLine": 248,
+          "endLine": 292,
+          "tokens": 490
         },
         {
           "name": "list_project_streams",
           "kind": "fn",
-          "startLine": 294,
-          "endLine": 316,
-          "tokens": 258
+          "startLine": 293,
+          "endLine": 323,
+          "tokens": 353
         },
         {
           "name": "get_stream",
           "kind": "fn",
-          "startLine": 317,
-          "endLine": 331,
+          "startLine": 324,
+          "endLine": 338,
           "tokens": 142
         },
         {
           "name": "update_stream",
           "kind": "fn",
-          "startLine": 332,
-          "endLine": 353,
+          "startLine": 339,
+          "endLine": 360,
           "tokens": 220
         },
         {
           "name": "delete_stream",
           "kind": "fn",
-          "startLine": 354,
-          "endLine": 372,
+          "startLine": 361,
+          "endLine": 379,
           "tokens": 176
         },
         {
           "name": "_state_point_to_response",
           "kind": "fn",
-          "startLine": 373,
-          "endLine": 386,
+          "startLine": 380,
+          "endLine": 393,
           "tokens": 131
         },
         {
           "name": "create_state_point",
           "kind": "fn",
-          "startLine": 387,
-          "endLine": 408,
+          "startLine": 394,
+          "endLine": 415,
           "tokens": 227
         },
         {
           "name": "list_state_points",
           "kind": "fn",
-          "startLine": 409,
-          "endLine": 423,
+          "startLine": 416,
+          "endLine": 430,
           "tokens": 153
         },
         {
           "name": "get_state_point",
           "kind": "fn",
-          "startLine": 424,
-          "endLine": 438,
+          "startLine": 431,
+          "endLine": 445,
           "tokens": 144
         },
         {
           "name": "update_state_point",
           "kind": "fn",
-          "startLine": 439,
-          "endLine": 460,
+          "startLine": 446,
+          "endLine": 467,
           "tokens": 238
         },
         {
           "name": "delete_state_point",
           "kind": "fn",
-          "startLine": 461,
-          "endLine": 481,
+          "startLine": 468,
+          "endLine": 488,
           "tokens": 191
         },
         {
           "name": "_transition_endpoint",
           "kind": "fn",
-          "startLine": 482,
-          "endLine": 524,
-          "tokens": 344
+          "startLine": 489,
+          "endLine": 530,
+          "tokens": 331
+        },
+        {
+          "name": "_composition_mole_fraction_total",
+          "kind": "fn",
+          "startLine": 531,
+          "endLine": 545,
+          "tokens": 154
         },
         {
           "name": "submit_stream",
           "kind": "fn",
-          "startLine": 525,
-          "endLine": 541,
-          "tokens": 162
+          "startLine": 546,
+          "endLine": 585,
+          "tokens": 424
         },
         {
           "name": "approve_stream",
           "kind": "fn",
-          "startLine": 542,
-          "endLine": 557,
-          "tokens": 150
+          "startLine": 586,
+          "endLine": 601,
+          "tokens": 152
         },
         {
           "name": "reject_stream",
           "kind": "fn",
-          "startLine": 558,
-          "endLine": 575,
+          "startLine": 602,
+          "endLine": 619,
           "tokens": 163
         },
         {
           "name": "initiate_change_stream",
           "kind": "fn",
-          "startLine": 576,
-          "endLine": 593,
+          "startLine": 620,
+          "endLine": 637,
           "tokens": 161
         },
         {
           "name": "pass_change_stream",
           "kind": "fn",
-          "startLine": 594,
-          "endLine": 610,
+          "startLine": 638,
+          "endLine": 654,
           "tokens": 163
         },
         {
           "name": "mark_stale_stream",
           "kind": "fn",
-          "startLine": 611,
-          "endLine": 631,
+          "startLine": 655,
+          "endLine": 675,
           "tokens": 204
         },
         {
           "name": "EstimatePropertiesRequest",
           "kind": "class",
-          "startLine": 632,
-          "endLine": 641,
+          "startLine": 676,
+          "endLine": 685,
           "tokens": 85
         },
         {
           "name": "get_stream_properties",
           "kind": "fn",
-          "startLine": 642,
-          "endLine": 669,
-          "tokens": 290
-        },
-        {
-          "name": "estimate_properties",
-          "kind": "fn",
-          "startLine": 670,
-          "endLine": 694,
-          "tokens": 238
+          "startLine": 686,
+          "endLine": 738,
+          "tokens": 528
         }
       ]
     },
@@ -16092,11 +16099,11 @@
     },
     "pcs-backend/app/services/stream_service.py": {
       "description": "P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。",
-      "tokens": 6322,
-      "hash": "ddc12038c563d2f0",
-      "size": 24366,
-      "mtimeMs": 1791081151394.6257,
-      "updatedAt": "2026-10-04T02:32:31.441Z",
+      "tokens": 6476,
+      "hash": "c42d664b38a3b00f",
+      "size": 25025,
+      "mtimeMs": 1793636163985.7993,
+      "updatedAt": "2026-11-02T16:16:04.034Z",
       "source": "hook",
       "symbols": [
         {
@@ -16124,8 +16131,8 @@
           "name": "StreamService",
           "kind": "class",
           "startLine": 149,
-          "endLine": 639,
-          "tokens": 4833
+          "endLine": 652,
+          "tokens": 4990
         }
       ]
     },
@@ -17652,39 +17659,46 @@
     },
     "pcs-backend/app/api/v1/projects.py": {
       "description": "项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
-      "tokens": 2008,
-      "hash": "276c3a6ea1ff4413",
-      "size": 8583,
-      "mtimeMs": 1793281598440.6472,
-      "updatedAt": "2026-10-29T13:46:38.487Z",
+      "tokens": 2439,
+      "hash": "871d021e2a572cfb",
+      "size": 10718,
+      "mtimeMs": 1793634610775.9084,
+      "updatedAt": "2026-11-02T15:50:10.829Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "_to_out",
+          "name": "_is_project_no_unique_violation",
           "kind": "fn",
           "startLine": 47,
-          "endLine": 65,
+          "endLine": 78,
+          "tokens": 339
+        },
+        {
+          "name": "_to_out",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 97,
           "tokens": 155
         },
         {
           "name": "create_project",
           "kind": "fn",
-          "startLine": 66,
-          "endLine": 136,
-          "tokens": 695
+          "startLine": 98,
+          "endLine": 175,
+          "tokens": 788
         },
         {
           "name": "get_project",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 163,
+          "startLine": 176,
+          "endLine": 202,
           "tokens": 248
         },
         {
           "name": "set_product_category",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 212,
+          "startLine": 203,
+          "endLine": 251,
           "tokens": 457
         }
       ]
@@ -27742,63 +27756,86 @@
       ]
     },
     "pcs-frontend/src/pages/sim/StreamListPage.tsx": {
-      "description": "StreamListPage — SIM 物流列表（P45-3-1 / Task 28）。",
-      "tokens": 1090,
-      "hash": "1ffe82a6ee42e9b8",
-      "size": 4160,
-      "mtimeMs": 1792374341070.598,
-      "updatedAt": "2026-10-19T01:45:41.116Z",
+      "description": "SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。",
+      "tokens": 3242,
+      "hash": "6b2c785634c20631",
+      "size": 13184,
+      "mtimeMs": 1793640446250.3674,
+      "updatedAt": "2026-11-02T17:27:26.303Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 21,
-          "endLine": 41,
-          "tokens": 140
+          "startLine": 48,
+          "endLine": 62,
+          "tokens": 103
+        },
+        {
+          "name": "BadgeCell",
+          "kind": "class",
+          "startLine": 63,
+          "endLine": 86,
+          "tokens": 191
         },
         {
           "name": "StreamListPage",
           "kind": "fn",
-          "startLine": 42,
-          "endLine": 131,
-          "tokens": 771
+          "startLine": 87,
+          "endLine": 373,
+          "tokens": 2499
         }
       ]
     },
     "pcs-frontend/src/pages/sim/StreamDetailPage.tsx": {
-      "description": "StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。",
-      "tokens": 2378,
-      "hash": "77fa23c2c3a46703",
-      "size": 8767,
-      "mtimeMs": 1792374355100.636,
-      "updatedAt": "2026-10-19T01:45:55.151Z",
+      "description": "StreamDetailPage — SIM 物流详情（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 1514,
+      "hash": "6821a83fc16a3f9a",
+      "size": 5683,
+      "mtimeMs": 1793641346147.7605,
+      "updatedAt": "2026-11-02T17:42:26.196Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 40,
-          "endLine": 66,
-          "tokens": 241
+          "startLine": 36,
+          "endLine": 49,
+          "tokens": 108
         },
         {
           "name": "StreamDetailPage",
           "kind": "fn",
-          "startLine": 67,
-          "endLine": 249,
-          "tokens": 1737
+          "startLine": 50,
+          "endLine": 168,
+          "tokens": 956
         }
       ]
     },
     "pcs-frontend/tests/pages/sim/StreamListPage.test.tsx": {
-      "description": "StreamListPage 测试（P45-3-1 / Task 28）。",
-      "tokens": 1108,
-      "hash": "f010702bd443c0b6",
-      "size": 4337,
-      "mtimeMs": 1792374464568.8135,
-      "updatedAt": "2026-10-19T01:47:44.617Z",
-      "source": "hook"
+      "description": "SIM 物流列表页测试（SPEC §7.7.1 · P9B-3 · T6）。",
+      "tokens": 1910,
+      "hash": "f0aa6fe160324e0c",
+      "size": 7805,
+      "mtimeMs": 1793640512100.998,
+      "updatedAt": "2026-11-02T17:28:32.148Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "makeStream",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 85,
+          "tokens": 452
+        },
+        {
+          "name": "renderPage",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 192,
+          "tokens": 1187
+        }
+      ]
     },
     "pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx": {
       "description": "StreamDetailPage 测试（P45-3-1 / Task 28 下半）。",
@@ -27962,39 +27999,39 @@
     },
     "pcs-frontend/src/components/common/StateBadge.tsx": {
       "description": "StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。",
-      "tokens": 2752,
-      "hash": "6387cb8da0904fd2",
-      "size": 12245,
-      "mtimeMs": 1792376402387.6863,
-      "updatedAt": "2026-10-19T02:20:02.444Z",
+      "tokens": 3141,
+      "hash": "32fd6f5b267066b1",
+      "size": 14203,
+      "mtimeMs": 1793634270195.942,
+      "updatedAt": "2026-11-02T15:44:30.242Z",
       "source": "hook",
       "symbols": [
         {
           "name": "StatusMeta",
           "kind": "section",
-          "startLine": 115,
-          "endLine": 178,
-          "tokens": 816
+          "startLine": 120,
+          "endLine": 217,
+          "tokens": 1156
         },
         {
           "name": "toKebab",
           "kind": "fn",
-          "startLine": 179,
-          "endLine": 197,
+          "startLine": 218,
+          "endLine": 236,
           "tokens": 123
         },
         {
           "name": "unknownBadge",
           "kind": "fn",
-          "startLine": 198,
-          "endLine": 229,
+          "startLine": 237,
+          "endLine": 268,
           "tokens": 255
         },
         {
           "name": "StateBadge",
           "kind": "fn",
-          "startLine": 230,
-          "endLine": 300,
+          "startLine": 269,
+          "endLine": 339,
           "tokens": 516
         }
       ]
@@ -31850,32 +31887,32 @@
     },
     "pcs-backend/app/main.py": {
       "description": "FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。",
-      "tokens": 1469,
-      "hash": "65b88b0140796f82",
-      "size": 6388,
-      "mtimeMs": 1792487922369.3826,
-      "updatedAt": "2026-10-20T09:18:42.416Z",
+      "tokens": 1551,
+      "hash": "660c4422a79c1d8a",
+      "size": 6810,
+      "mtimeMs": 1793639170644.0981,
+      "updatedAt": "2026-11-02T17:06:10.693Z",
       "source": "hook",
       "symbols": [
         {
           "name": "lifespan",
           "kind": "fn",
-          "startLine": 33,
-          "endLine": 75,
-          "tokens": 455
+          "startLine": 34,
+          "endLine": 80,
+          "tokens": 511
         },
         {
           "name": "_close_redis_connections",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 99,
+          "startLine": 81,
+          "endLine": 104,
           "tokens": 215
         },
         {
           "name": "create_app",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 155,
+          "startLine": 105,
+          "endLine": 160,
           "tokens": 541
         }
       ]
@@ -35835,20 +35872,20 @@
     },
     "pcs-frontend/tests/pages/deliverables/deliverable_progress.test.tsx": {
       "description": "交付物进度页的守卫（P9B-1 Task T6 · SPEC §6.24 · **P9B-2 改为聚合端点**）。",
-      "tokens": 4668,
-      "hash": "5bbaece65f6daea1",
-      "size": 19014,
-      "mtimeMs": 1793588043649.1443,
-      "updatedAt": "2026-11-02T02:54:03.702Z",
+      "tokens": 4850,
+      "hash": "003d74bae0ea3c11",
+      "size": 19847,
+      "mtimeMs": 1793634225505.635,
+      "updatedAt": "2026-11-02T15:43:45.552Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/deliverables/DeliverableProgressPage.tsx": {
       "description": "DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。",
-      "tokens": 6697,
-      "hash": "e2af9b115cdaaac2",
-      "size": 28751,
-      "mtimeMs": 1793588080175.0002,
-      "updatedAt": "2026-11-02T02:54:40.225Z",
+      "tokens": 6758,
+      "hash": "b888c720f170e185",
+      "size": 29093,
+      "mtimeMs": 1793634273155.9617,
+      "updatedAt": "2026-11-02T15:44:33.210Z",
       "source": "hook",
       "symbols": [
         {
@@ -35862,28 +35899,28 @@
           "name": "DeliverableProgressPage",
           "kind": "fn",
           "startLine": 104,
-          "endLine": 611,
-          "tokens": 5102
+          "endLine": 616,
+          "tokens": 5162
         },
         {
           "name": "computeNextStep",
           "kind": "fn",
-          "startLine": 612,
-          "endLine": 634,
+          "startLine": 617,
+          "endLine": 639,
           "tokens": 209
         },
         {
           "name": "parseDetail",
           "kind": "fn",
-          "startLine": 635,
-          "endLine": 649,
+          "startLine": 640,
+          "endLine": 654,
           "tokens": 111
         },
         {
           "name": "SectionBlock",
           "kind": "fn",
-          "startLine": 650,
-          "endLine": 686,
+          "startLine": 655,
+          "endLine": 691,
           "tokens": 382
         }
       ]
@@ -38638,11 +38675,11 @@
     },
     "pcs-backend/tests/api/v1/test_project_creation.py": {
       "description": "项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。",
-      "tokens": 4169,
-      "hash": "c9920e6a28a24825",
-      "size": 15932,
-      "mtimeMs": 1793069640061.4668,
-      "updatedAt": "2026-10-27T02:54:00.113Z",
+      "tokens": 5113,
+      "hash": "4fef4a7a5c04b786",
+      "size": 20064,
+      "mtimeMs": 1793634587533.7908,
+      "updatedAt": "2026-11-02T15:49:47.578Z",
       "source": "hook",
       "symbols": [
         {
@@ -38663,106 +38700,127 @@
           "name": "_guard_client",
           "kind": "fn",
           "startLine": 65,
-          "endLine": 93,
-          "tokens": 258
+          "endLine": 98,
+          "tokens": 326
         },
         {
           "name": "_make_workspace",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 107,
-          "tokens": 90
+          "startLine": 99,
+          "endLine": 112,
+          "tokens": 100
         },
         {
           "name": "_payload",
           "kind": "fn",
-          "startLine": 108,
-          "endLine": 122,
+          "startLine": 113,
+          "endLine": 127,
           "tokens": 122
         },
         {
           "name": "_bound_matrix_id",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 152,
+          "startLine": 128,
+          "endLine": 157,
           "tokens": 233
         },
         {
           "name": "test_create_project_missing_required_field_is_422",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 163,
+          "startLine": 158,
+          "endLine": 168,
           "tokens": 112
         },
         {
           "name": "test_create_project_requires_system_admin",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 172,
+          "startLine": 169,
+          "endLine": 177,
           "tokens": 98
         },
         {
           "name": "test_create_project_unknown_workspace_is_404",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 193,
+          "startLine": 178,
+          "endLine": 198,
           "tokens": 228
         },
         {
           "name": "test_create_project_persists_row",
           "kind": "fn",
-          "startLine": 194,
-          "endLine": 218,
+          "startLine": 199,
+          "endLine": 223,
           "tokens": 282
         },
         {
           "name": "test_create_project_defaults_status_and_product_category",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 243,
+          "startLine": 224,
+          "endLine": 248,
           "tokens": 239
         },
         {
           "name": "test_create_project_binds_default_record_matrix",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 274,
+          "startLine": 249,
+          "endLine": 279,
           "tokens": 341
         },
         {
           "name": "test_ensure_default_record_matrix_is_idempotent",
           "kind": "fn",
-          "startLine": 275,
-          "endLine": 323,
+          "startLine": 280,
+          "endLine": 328,
           "tokens": 465
         },
         {
           "name": "test_ensure_default_record_matrix_does_not_override_existing_binding",
           "kind": "fn",
-          "startLine": 324,
-          "endLine": 370,
+          "startLine": 329,
+          "endLine": 375,
           "tokens": 442
         },
         {
           "name": "test_list_project_bindings_returns_normalized_steps",
           "kind": "fn",
-          "startLine": 371,
-          "endLine": 405,
+          "startLine": 376,
+          "endLine": 410,
           "tokens": 290
         },
         {
           "name": "test_list_project_bindings_empty_when_no_binding",
           "kind": "fn",
-          "startLine": 406,
-          "endLine": 431,
+          "startLine": 411,
+          "endLine": 436,
           "tokens": 239
         },
         {
           "name": "test_list_project_bindings_404_for_other_project",
           "kind": "fn",
-          "startLine": 432,
-          "endLine": 459,
-          "tokens": 246
+          "startLine": 437,
+          "endLine": 470,
+          "tokens": 302
+        },
+        {
+          "name": "test_create_project_in_personal_workspace_is_rejected",
+          "kind": "fn",
+          "startLine": 471,
+          "endLine": 489,
+          "tokens": 170
+        },
+        {
+          "name": "test_create_project_duplicate_no_is_409_not_500",
+          "kind": "fn",
+          "startLine": 490,
+          "endLine": 503,
+          "tokens": 150
+        },
+        {
+          "name": "test_create_project_other_integrity_error_is_not_409",
+          "kind": "fn",
+          "startLine": 504,
+          "endLine": 553,
+          "tokens": 489
         }
       ]
     },
@@ -39885,11 +39943,11 @@
     },
     "pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py": {
       "description": "`p9_013`（存量项目回填默认 RECORD 矩阵）的迁移形状断言 —— P9B-2 · Batch F。",
-      "tokens": 3600,
-      "hash": "35ba8447b72028a0",
-      "size": 15084,
-      "mtimeMs": 1793587856957.9456,
-      "updatedAt": "2026-11-02T02:50:57.008Z",
+      "tokens": 3809,
+      "hash": "0bcc23b415db6b8d",
+      "size": 16186,
+      "mtimeMs": 1793631995509.563,
+      "updatedAt": "2026-11-02T15:06:35.558Z",
       "source": "hook",
       "symbols": [
         {
@@ -39938,64 +39996,64 @@
           "name": "_pg_url",
           "kind": "fn",
           "startLine": 120,
-          "endLine": 133,
-          "tokens": 124
+          "endLine": 134,
+          "tokens": 129
         },
         {
           "name": "test_p9_013_runs_on_fresh_postgres_schema",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 177,
-          "tokens": 398
+          "startLine": 135,
+          "endLine": 176,
+          "tokens": 386
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 178,
+          "startLine": 177,
           "endLine": 207,
-          "tokens": 289
+          "tokens": 295
         },
         {
           "name": "main",
           "kind": "fn",
           "startLine": 208,
           "endLine": 242,
-          "tokens": 314
+          "tokens": 317
         },
         {
           "name": "main",
           "kind": "fn",
           "startLine": 243,
-          "endLine": 258,
-          "tokens": 122
+          "endLine": 267,
+          "tokens": 232
         },
         {
           "name": "test_p9_013_p9_012_downgrade_upgrade_roundtrip",
           "kind": "fn",
-          "startLine": 259,
-          "endLine": 298,
-          "tokens": 341
+          "startLine": 268,
+          "endLine": 309,
+          "tokens": 351
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 299,
-          "endLine": 346,
-          "tokens": 492
+          "startLine": 310,
+          "endLine": 358,
+          "tokens": 497
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 347,
-          "endLine": 371,
-          "tokens": 278
+          "startLine": 359,
+          "endLine": 383,
+          "tokens": 280
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 372,
-          "endLine": 382,
-          "tokens": 107
+          "startLine": 384,
+          "endLine": 402,
+          "tokens": 213
         }
       ]
     },
@@ -40130,131 +40188,131 @@
     },
     "pcs-backend/tests/alembic/test_p9_014_record_approval_chain_snapshot.py": {
       "description": "`p9_014`（记录表加 `approval_chain_snapshot`）的迁移形状断言 —— P9B-2F（评审 #5）。",
-      "tokens": 3463,
-      "hash": "50aedc8e201e8104",
-      "size": 14280,
-      "mtimeMs": 1793587646605.882,
-      "updatedAt": "2026-11-02T02:47:26.655Z",
+      "tokens": 3580,
+      "hash": "7fd395bbe842e8f7",
+      "size": 14907,
+      "mtimeMs": 1793631990294.387,
+      "updatedAt": "2026-11-02T15:06:30.340Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_load",
           "kind": "fn",
-          "startLine": 39,
-          "endLine": 47,
+          "startLine": 41,
+          "endLine": 49,
           "tokens": 84
         },
         {
           "name": "_orm_record_mappers",
           "kind": "fn",
-          "startLine": 48,
-          "endLine": 72,
+          "startLine": 50,
+          "endLine": 74,
           "tokens": 193
         },
         {
           "name": "_orm_record_tables",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 82,
+          "startLine": 75,
+          "endLine": 84,
           "tokens": 93
         },
         {
           "name": "test_migration_is_chained_to_p9_013",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 90,
+          "startLine": 85,
+          "endLine": 92,
           "tokens": 73
         },
         {
           "name": "test_migration_table_list_matches_the_orm",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 115,
+          "startLine": 93,
+          "endLine": 117,
           "tokens": 232
         },
         {
           "name": "test_migration_table_list_has_no_duplicates",
           "kind": "fn",
-          "startLine": 116,
-          "endLine": 121,
+          "startLine": 118,
+          "endLine": 123,
           "tokens": 53
         },
         {
           "name": "test_orm_column_name_matches_the_migration",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 138,
+          "startLine": 124,
+          "endLine": 140,
           "tokens": 175
         },
         {
           "name": "_pg_url",
           "kind": "fn",
-          "startLine": 139,
-          "endLine": 152,
-          "tokens": 124
+          "startLine": 141,
+          "endLine": 155,
+          "tokens": 129
         },
         {
           "name": "test_p9_014_column_is_jsonb_and_nullable_on_every_record_table",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 198,
-          "tokens": 388
+          "startLine": 156,
+          "endLine": 203,
+          "tokens": 411
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 199,
-          "endLine": 230,
-          "tokens": 344
+          "startLine": 204,
+          "endLine": 236,
+          "tokens": 349
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 231,
-          "endLine": 256,
+          "startLine": 237,
+          "endLine": 262,
           "tokens": 282
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 257,
-          "endLine": 274,
-          "tokens": 183
+          "startLine": 263,
+          "endLine": 283,
+          "tokens": 222
         },
         {
           "name": "test_p9_014_downgrade_drops_the_column",
           "kind": "fn",
-          "startLine": 275,
-          "endLine": 306,
+          "startLine": 284,
+          "endLine": 315,
           "tokens": 254
         },
         {
           "name": "count_cols",
           "kind": "fn",
-          "startLine": 307,
-          "endLine": 320,
+          "startLine": 316,
+          "endLine": 329,
           "tokens": 138
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 321,
-          "endLine": 334,
-          "tokens": 116
+          "startLine": 330,
+          "endLine": 344,
+          "tokens": 122
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 335,
-          "endLine": 360,
-          "tokens": 282
+          "startLine": 345,
+          "endLine": 370,
+          "tokens": 283
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 361,
-          "endLine": 375,
-          "tokens": 154
+          "startLine": 371,
+          "endLine": 387,
+          "tokens": 188
         }
       ]
     },
@@ -40283,6 +40341,1321 @@
       "size": 6429,
       "mtimeMs": 1793589610775.9993,
       "updatedAt": "2026-11-02T03:20:10.829Z",
+      "source": "hook"
+    },
+    "docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md": {
+      "description": "P9B-3 实施计划：本地 PG 车道 + 系统参数 + SIM 物流前端（SPEC §7.7 / §7.20）",
+      "tokens": 10581,
+      "hash": "6ec96b409374f3d2",
+      "size": 59330,
+      "mtimeMs": 1793592632792.1663,
+      "updatedAt": "2026-11-02T04:10:32.843Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md",
+      "tokens": 338,
+      "hash": "8c45f73d31cec157",
+      "size": 2114,
+      "mtimeMs": 1793631404510.937,
+      "updatedAt": "2026-11-02T14:56:44.556Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9B-3-系统参数与SIM物流前端/brief.sh": {
+      "description": "本计划的 task-brief 变体：计划的标题是 `## Task T0` / `## Task T2.5`，",
+      "tokens": 240,
+      "hash": "db9bf27713b06368",
+      "size": 1071,
+      "mtimeMs": 1793631489928.787,
+      "updatedAt": "2026-11-02T14:58:09.975Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_pytest_pg_gate.py": {
+      "description": "scripts/pytest_pg.sh 的 fail-closed 行为（T0 · TODO-099 · 裁决 4 约束 1）。",
+      "tokens": 655,
+      "hash": "65bba678780aaa7e",
+      "size": 3062,
+      "mtimeMs": 1793631787933.1484,
+      "updatedAt": "2026-11-02T15:03:07.987Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_run",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 30,
+          "tokens": 80
+        },
+        {
+          "name": "test_script_exists_and_is_executable",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 35,
+          "tokens": 39
+        },
+        {
+          "name": "test_fails_when_pg_instance_is_not_running",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 42,
+          "tokens": 79
+        },
+        {
+          "name": "test_fails_when_zero_pg_tests_are_collected",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 66,
+          "tokens": 214
+        },
+        {
+          "name": "test_script_does_not_teach_a_second_entry_point",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 76,
+          "tokens": 103
+        }
+      ]
+    },
+    "pcs-backend/scripts/pytest_pg.sh": {
+      "description": "唯一的 PG 车道入口（TODO-099 · 委员会 2026-11-02 裁决 4）。",
+      "tokens": 628,
+      "hash": "068dd14fe2124c3b",
+      "size": 3250,
+      "mtimeMs": 1793633056672.8132,
+      "updatedAt": "2026-11-02T15:24:16.729Z",
+      "source": "hook"
+    },
+    "pcs-backend/pyproject.toml": {
+      "description": "\", \"**/migrations/**\"]",
+      "tokens": 928,
+      "hash": "d55e4948384f8175",
+      "size": 4354,
+      "mtimeMs": 1793631845489.0095,
+      "updatedAt": "2026-11-02T15:04:05.537Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/StateBadge.test.tsx": {
+      "description": "StateBadge 测试（P45-1-1 / Task 6）。",
+      "tokens": 2854,
+      "hash": "68ba393afd44609b",
+      "size": 11537,
+      "mtimeMs": 1793634039574.1824,
+      "updatedAt": "2026-11-02T15:40:39.622Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/gen_compact_orm.py": {
+      "description": "从 ORM metadata 生成 `docs/schema_compact_orm.md`（TODO-103 · P9B-3 · T1）。",
+      "tokens": 1644,
+      "hash": "6d1ae890ba58f0af",
+      "size": 6904,
+      "mtimeMs": 1793634943694.422,
+      "updatedAt": "2026-11-02T15:55:43.743Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_column_token",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 108,
+          "tokens": 100
+        },
+        {
+          "name": "_unique_suffix",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 128,
+          "tokens": 170
+        },
+        {
+          "name": "render",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 168,
+          "tokens": 409
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 182,
+          "tokens": 114
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_gen_compact_orm.py": {
+      "description": "`scripts/gen_compact_orm.py` 的行为（TODO-103 · P9B-3 · T1）。",
+      "tokens": 901,
+      "hash": "30fdafa691c82435",
+      "size": 3988,
+      "mtimeMs": 1793634755566.6018,
+      "updatedAt": "2026-11-02T15:52:35.613Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "generator",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 38,
+          "tokens": 93
+        },
+        {
+          "name": "metadata",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 45,
+          "tokens": 37
+        },
+        {
+          "name": "test_script_exists",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 49,
+          "tokens": 22
+        },
+        {
+          "name": "test_generated_doc_covers_every_orm_table",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 60,
+          "tokens": 91
+        },
+        {
+          "name": "test_generated_doc_is_in_sync_with_committed_file",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 77,
+          "tokens": 186
+        },
+        {
+          "name": "test_column_format_keeps_not_null_and_pk_markers",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 97,
+          "tokens": 202
+        },
+        {
+          "name": "test_every_table_gets_exactly_one_section",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 103,
+          "tokens": 69
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_stream_source.py": {
+      "description": "`streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。",
+      "tokens": 2312,
+      "hash": "311d9a6ea82520e1",
+      "size": 9034,
+      "mtimeMs": 1793636039995.8735,
+      "updatedAt": "2026-11-02T16:14:00.040Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 68,
+          "tokens": 180
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 73,
+          "tokens": 48
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 88,
+          "tokens": 94
+        },
+        {
+          "name": "_create",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 101,
+          "tokens": 118
+        },
+        {
+          "name": "test_create_without_source_defaults_to_manual",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 111,
+          "tokens": 97
+        },
+        {
+          "name": "test_create_with_source_sim_import",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 121,
+          "tokens": 98
+        },
+        {
+          "name": "test_create_with_invalid_source_is_422",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 130,
+          "tokens": 87
+        },
+        {
+          "name": "test_db_check_constraint_rejects_invalid_source",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 156,
+          "tokens": 226
+        },
+        {
+          "name": "test_list_response_carries_source",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 171,
+          "tokens": 135
+        },
+        {
+          "name": "test_list_filter_by_source",
+          "kind": "fn",
+          "startLine": 172,
+          "endLine": 193,
+          "tokens": 222
+        },
+        {
+          "name": "test_proii_import_writes_sim_import_for_both_columns",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 209,
+          "tokens": 157
+        },
+        {
+          "name": "test_excel_import_writes_excel_source_but_keeps_legacy_source_type",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 228,
+          "tokens": 202
+        },
+        {
+          "name": "test_outlet_stream_inherits_upstream_source",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 267,
+          "tokens": 324
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p9_015_stream_source.py": {
+      "description": "给 `streams` 加 `source` 列（SPEC §7.7.1「来源」· P9B-3 · T2.5 · 用户裁决 1a）.",
+      "tokens": 476,
+      "hash": "c2c2fdc9f1507c0f",
+      "size": 2248,
+      "mtimeMs": 1793637436676.4087,
+      "updatedAt": "2026-11-02T16:37:16.725Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/schemas/stream.py": {
+      "description": "P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。",
+      "tokens": 4932,
+      "hash": "690f830925c9a1c3",
+      "size": 20836,
+      "mtimeMs": 1793636145563.9756,
+      "updatedAt": "2026-11-02T16:15:45.611Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StreamCaseType",
+          "kind": "class",
+          "startLine": 36,
+          "endLine": 44,
+          "tokens": 58
+        },
+        {
+          "name": "StatePointCaseType",
+          "kind": "class",
+          "startLine": 45,
+          "endLine": 53,
+          "tokens": 50
+        },
+        {
+          "name": "StreamBase",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 281,
+          "tokens": 2784
+        },
+        {
+          "name": "StreamCreate",
+          "kind": "class",
+          "startLine": 282,
+          "endLine": 288,
+          "tokens": 59
+        },
+        {
+          "name": "StreamUpdate",
+          "kind": "class",
+          "startLine": 289,
+          "endLine": 306,
+          "tokens": 295
+        },
+        {
+          "name": "StreamResponse",
+          "kind": "class",
+          "startLine": 307,
+          "endLine": 330,
+          "tokens": 278
+        },
+        {
+          "name": "StreamStatePointBase",
+          "kind": "class",
+          "startLine": 331,
+          "endLine": 362,
+          "tokens": 449
+        },
+        {
+          "name": "StreamStatePointCreate",
+          "kind": "class",
+          "startLine": 363,
+          "endLine": 368,
+          "tokens": 42
+        },
+        {
+          "name": "StreamStatePointUpdate",
+          "kind": "class",
+          "startLine": 369,
+          "endLine": 379,
+          "tokens": 165
+        },
+        {
+          "name": "StreamStatePointResponse",
+          "kind": "class",
+          "startLine": 380,
+          "endLine": 395,
+          "tokens": 156
+        },
+        {
+          "name": "StreamImportPreview",
+          "kind": "class",
+          "startLine": 396,
+          "endLine": 413,
+          "tokens": 186
+        },
+        {
+          "name": "StreamImportResult",
+          "kind": "class",
+          "startLine": 414,
+          "endLine": 424,
+          "tokens": 175
+        }
+      ]
+    },
+    "pcs-backend/app/services/import_service.py": {
+      "description": "P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。",
+      "tokens": 7743,
+      "hash": "e5bf7b53803af868",
+      "size": 30263,
+      "mtimeMs": 1793636150724.359,
+      "updatedAt": "2026-11-02T16:15:50.772Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_phase_norm",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 85,
+          "tokens": 289
+        },
+        {
+          "name": "_phase_and_raw",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 109,
+          "tokens": 213
+        },
+        {
+          "name": "_is_mixed_phase_raw",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 121,
+          "tokens": 95
+        },
+        {
+          "name": "_k_to_c",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 126,
+          "tokens": 36
+        },
+        {
+          "name": "_pa_to_kpa",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 131,
+          "tokens": 37
+        },
+        {
+          "name": "_proii_lite_to_parsed",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 149,
+          "tokens": 157
+        },
+        {
+          "name": "_proii_preview_entry",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 180,
+          "tokens": 304
+        },
+        {
+          "name": "_excel_preview_entry",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 210,
+          "tokens": 320
+        },
+        {
+          "name": "_serialize_report",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 232,
+          "tokens": 222
+        },
+        {
+          "name": "ImportService",
+          "kind": "class",
+          "startLine": 233,
+          "endLine": 686,
+          "tokens": 4723
+        },
+        {
+          "name": "_SimImportModel",
+          "kind": "fn",
+          "startLine": 687,
+          "endLine": 693,
+          "tokens": 35
+        },
+        {
+          "name": "_entry_to_stream_create",
+          "kind": "fn",
+          "startLine": 694,
+          "endLine": 715,
+          "tokens": 185
+        },
+        {
+          "name": "write_temp_upload",
+          "kind": "fn",
+          "startLine": 716,
+          "endLine": 750,
+          "tokens": 274
+        },
+        {
+          "name": "_component_alias_rows",
+          "kind": "fn",
+          "startLine": 751,
+          "endLine": 767,
+          "tokens": 177
+        },
+        {
+          "name": "generate_excel_template",
+          "kind": "fn",
+          "startLine": 768,
+          "endLine": 804,
+          "tokens": 278
+        }
+      ]
+    },
+    "pcs-backend/app/services/outlet_stream.py": {
+      "description": "P4-1-3 出口物流创建 helper（ADR-0022 集成点）。",
+      "tokens": 1812,
+      "hash": "e86db65ff134ad61",
+      "size": 7575,
+      "mtimeMs": 1793636157219.5908,
+      "updatedAt": "2026-11-02T16:15:57.269Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "OutletStreamProjectMismatchError",
+          "kind": "class",
+          "startLine": 66,
+          "endLine": 92,
+          "tokens": 249
+        },
+        {
+          "name": "_upstream_equipment_type",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 102,
+          "tokens": 82
+        },
+        {
+          "name": "create_outlet_stream",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 189,
+          "tokens": 831
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_stream_composition_sum.py": {
+      "description": "物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。",
+      "tokens": 1901,
+      "hash": "5f256ce750ce254b",
+      "size": 7886,
+      "mtimeMs": 1793638300634.201,
+      "updatedAt": "2026-11-02T16:51:40.690Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 78,
+          "tokens": 180
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 83,
+          "tokens": 48
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 99,
+          "tokens": 107
+        },
+        {
+          "name": "_create_stream",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 109,
+          "tokens": 86
+        },
+        {
+          "name": "_force_composition",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 126,
+          "tokens": 152
+        },
+        {
+          "name": "test_submit_rejected_when_composition_sum_out_of_range",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 156,
+          "tokens": 293
+        },
+        {
+          "name": "test_submit_allowed_when_composition_sum_is_one",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 180,
+          "tokens": 227
+        },
+        {
+          "name": "test_submit_rejected_when_composition_is_empty_object",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 201,
+          "tokens": 194
+        },
+        {
+          "name": "test_submit_allowed_when_composition_is_absent",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 217,
+          "tokens": 167
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_system_settings.py": {
+      "description": "系统参数 CRUD（§7.20.1 · P9B-3 · T4）。",
+      "tokens": 1728,
+      "hash": "9c266765ba1da5c4",
+      "size": 7090,
+      "mtimeMs": 1793639065097.7021,
+      "updatedAt": "2026-11-02T17:04:25.144Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "admin_headers",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 51,
+          "tokens": 52
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 57,
+          "tokens": 54
+        },
+        {
+          "name": "seeded",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 66,
+          "tokens": 74
+        },
+        {
+          "name": "_read_value",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 76,
+          "tokens": 98
+        },
+        {
+          "name": "test_get_settings_requires_system_admin",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 83,
+          "tokens": 74
+        },
+        {
+          "name": "test_get_settings_returns_all_seeded_keys",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 101,
+          "tokens": 192
+        },
+        {
+          "name": "test_put_updates_all_keys_and_writes_one_audit",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 141,
+          "tokens": 365
+        },
+        {
+          "name": "test_put_with_unknown_key_changes_nothing",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 172,
+          "tokens": 274
+        },
+        {
+          "name": "test_seed_is_idempotent",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 192,
+          "tokens": 235
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/system_settings.py": {
+      "description": "系统参数（§7.20.1）。",
+      "tokens": 428,
+      "hash": "299f21c928e87869",
+      "size": 2109,
+      "mtimeMs": 1793639332967.4382,
+      "updatedAt": "2026-11-02T17:08:53.009Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/system_setting_service.py": {
+      "description": "系统参数读写（§7.20.1 · T4）。",
+      "tokens": 1090,
+      "hash": "0788ead29a0b62b5",
+      "size": 4882,
+      "mtimeMs": 1793639119538.926,
+      "updatedAt": "2026-11-02T17:05:19.590Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "seed_defaults",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 69,
+          "tokens": 208
+        },
+        {
+          "name": "list_all",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 77,
+          "tokens": 66
+        },
+        {
+          "name": "update_batch",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 126,
+          "tokens": 382
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/system_settings.py": {
+      "description": "系统参数端点（§7.20.1）。",
+      "tokens": 586,
+      "hash": "764d0cd4a1134661",
+      "size": 2437,
+      "mtimeMs": 1793639125475.9478,
+      "updatedAt": "2026-11-02T17:05:25.527Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "get_system_settings",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 41,
+          "tokens": 114
+        },
+        {
+          "name": "put_system_settings",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 62,
+          "tokens": 225
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/admin/systemSettings.test.tsx": {
+      "description": "系统参数页（§7.20.1 · P9B-3 · T5）。",
+      "tokens": 1441,
+      "hash": "4794786801c49dfc",
+      "size": 5727,
+      "mtimeMs": 1793639958524.9685,
+      "updatedAt": "2026-11-02T17:19:18.571Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/systemSettings.ts": {
+      "description": "系统参数客户端（§7.20.1 · P9B-3）。",
+      "tokens": 263,
+      "hash": "bae4ffea6c8062ba",
+      "size": 1140,
+      "mtimeMs": 1793639993032.8948,
+      "updatedAt": "2026-11-02T17:19:53.083Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/admin/SystemSettingsPage.tsx": {
+      "description": "系统参数页（§7.20.1 · P9B-3 · T5）。",
+      "tokens": 1906,
+      "hash": "9f407bcdd83ddbd5",
+      "size": 7885,
+      "mtimeMs": 1793640001429.8762,
+      "updatedAt": "2026-11-02T17:20:01.474Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SettingRow",
+          "kind": "section",
+          "startLine": 24,
+          "endLine": 40,
+          "tokens": 93
+        },
+        {
+          "name": "formatUtc",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 48,
+          "tokens": 73
+        },
+        {
+          "name": "toText",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 53,
+          "tokens": 38
+        },
+        {
+          "name": "sameValue",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 57,
+          "tokens": 35
+        },
+        {
+          "name": "toRow",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 67,
+          "tokens": 70
+        },
+        {
+          "name": "SystemSettingsPage",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 239,
+          "tokens": 1377
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/systemSettings.ts": {
+      "description": "系统参数的 seed + MSW handlers（P9B-3 · T5）。",
+      "tokens": 1312,
+      "hash": "ab90390985133d67",
+      "size": 5197,
+      "mtimeMs": 1793640030919.81,
+      "updatedAt": "2026-11-02T17:20:30.969Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isAuthed",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 70,
+          "tokens": 39
+        },
+        {
+          "name": "resetMockSystemSettings",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 159,
+          "tokens": 761
+        }
+      ]
+    },
+    "pcs-frontend/src/mocks/browser.ts": {
+      "description": "MSW browser worker — dev 环境挂载（P45-0-5）",
+      "tokens": 322,
+      "hash": "8986556516c74f09",
+      "size": 1469,
+      "mtimeMs": 1793640058401.7466,
+      "updatedAt": "2026-11-02T17:20:58.454Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/stream.ts": {
+      "description": "SIM 物流 API 客户端（P9B-3 · T6/T7/T8 扩展）。",
+      "tokens": 796,
+      "hash": "86d383b901415ea3",
+      "size": 3780,
+      "mtimeMs": 1793640420348.939,
+      "updatedAt": "2026-11-02T17:27:00.400Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StreamListFilters",
+          "kind": "section",
+          "startLine": 39,
+          "endLine": 51,
+          "tokens": 85
+        },
+        {
+          "name": "StreamListItem",
+          "kind": "section",
+          "startLine": 52,
+          "endLine": 89,
+          "tokens": 346
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/sim/streamManualWizard.test.tsx": {
+      "description": "物流手动创建向导测试（SPEC §7.7.3「手工」分支 · P9B-3 · T7）。",
+      "tokens": 2214,
+      "hash": "909f8fbe77153053",
+      "size": 8758,
+      "mtimeMs": 1793640797685.1553,
+      "updatedAt": "2026-11-02T17:33:17.734Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "LocationSpy",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 103,
+          "tokens": 38
+        },
+        {
+          "name": "renderWizard",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 113,
+          "tokens": 67
+        },
+        {
+          "name": "gotoStep",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 227,
+          "tokens": 1214
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/StreamManualWizardPage.tsx": {
+      "description": "物流手动创建向导（SPEC §7.7.3「手工」分支 · P9B-3 · T7）。",
+      "tokens": 5750,
+      "hash": "82f796608f41739d",
+      "size": 21771,
+      "mtimeMs": 1793640887184.9133,
+      "updatedAt": "2026-11-02T17:34:47.231Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 38,
+          "endLine": 61,
+          "tokens": 121
+        },
+        {
+          "name": "CompositionRow",
+          "kind": "section",
+          "startLine": 62,
+          "endLine": 69,
+          "tokens": 34
+        },
+        {
+          "name": "StatePointRow",
+          "kind": "section",
+          "startLine": 70,
+          "endLine": 81,
+          "tokens": 66
+        },
+        {
+          "name": "nextKey",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 92,
+          "tokens": 63
+        },
+        {
+          "name": "compositionTotal",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 96,
+          "tokens": 46
+        },
+        {
+          "name": "StreamManualWizardPage",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 653,
+          "tokens": 5102
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamBasicTab.tsx": {
+      "description": "物流详情 —— 「基本信息」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 1518,
+      "hash": "de311196d3ae323f",
+      "size": 5804,
+      "mtimeMs": 1793641304369.1692,
+      "updatedAt": "2026-11-02T17:41:44.423Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StreamBasicTabProps",
+          "kind": "section",
+          "startLine": 32,
+          "endLine": 41,
+          "tokens": 70
+        },
+        {
+          "name": "StreamBasicTab",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 153,
+          "tokens": 1177
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamCompositionTab.tsx": {
+      "description": "物流详情 —— 「组成」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 716,
+      "hash": "f0a8cf2dea92395c",
+      "size": 3002,
+      "mtimeMs": 1793641310105.1125,
+      "updatedAt": "2026-11-02T17:41:50.154Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CompositionRow",
+          "kind": "section",
+          "startLine": 16,
+          "endLine": 20,
+          "tokens": 22
+        },
+        {
+          "name": "StreamCompositionTab",
+          "kind": "fn",
+          "startLine": 21,
+          "endLine": 74,
+          "tokens": 568
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamPropertiesTab.tsx": {
+      "description": "物流详情 —— 「物性」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 904,
+      "hash": "e8c964cef3b128c0",
+      "size": 3436,
+      "mtimeMs": 1793641319616.019,
+      "updatedAt": "2026-11-02T17:41:59.659Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "isRecord",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 27,
+          "tokens": 44
+        },
+        {
+          "name": "renderValue",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 33,
+          "tokens": 56
+        },
+        {
+          "name": "StreamPropertiesTab",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 104,
+          "tokens": 586
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamStatePointsTab.tsx": {
+      "description": "物流详情 —— 「状态点」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 836,
+      "hash": "813c1d6310aff736",
+      "size": 3111,
+      "mtimeMs": 1793641324345.9727,
+      "updatedAt": "2026-11-02T17:42:04.390Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "num",
+          "kind": "fn",
+          "startLine": 15,
+          "endLine": 18,
+          "tokens": 33
+        },
+        {
+          "name": "StreamStatePointsTab",
+          "kind": "fn",
+          "startLine": 19,
+          "endLine": 102,
+          "tokens": 691
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamConnectionsTab.tsx": {
+      "description": "物流详情 —— 「设备连接」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 334,
+      "hash": "60951c3fdf7b03c1",
+      "size": 1410,
+      "mtimeMs": 1793641327715.9397,
+      "updatedAt": "2026-11-02T17:42:07.768Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx": {
+      "description": "物流详情 —— 「血缘」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 1049,
+      "hash": "f12b9a9b1d4dc37b",
+      "size": 3951,
+      "mtimeMs": 1793641333529.8828,
+      "updatedAt": "2026-11-02T17:42:13.574Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Row",
+          "kind": "section",
+          "startLine": 18,
+          "endLine": 23,
+          "tokens": 22
+        },
+        {
+          "name": "toRows",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 36,
+          "tokens": 122
+        },
+        {
+          "name": "text",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 40,
+          "tokens": 34
+        },
+        {
+          "name": "StreamLineageTab",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 120,
+          "tokens": 691
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx": {
+      "description": "物流详情 —— 「校核记录」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 1013,
+      "hash": "169360a24e149bdd",
+      "size": 4196,
+      "mtimeMs": 1793641339898.821,
+      "updatedAt": "2026-11-02T17:42:19.949Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "transitionOf",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 40,
+          "tokens": 65
+        },
+        {
+          "name": "StreamReviewLogTab",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 109,
+          "tokens": 595
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/sim/streamDetailTabs.test.tsx": {
+      "description": "物流详情页 7 Tab 测试（SPEC §7.7.2 · P9B-3 · T8）。",
+      "tokens": 1641,
+      "hash": "ef16ad70c92aa00f",
+      "size": 6367,
+      "mtimeMs": 1793641366416.5652,
+      "updatedAt": "2026-11-02T17:42:46.459Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "clickTab",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 192,
+          "tokens": 685
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3.md": {
+      "description": "QA Report: pcs-frontend / pcs-backend P9B-3（系统参数 + SIM 物流前端）批末",
+      "tokens": 1406,
+      "hash": "e5911f73234e5c96",
+      "size": 8516,
+      "mtimeMs": 1793657363689.4692,
+      "updatedAt": "2026-11-02T22:09:23.741Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_probe_stale_read.py": {
+      "description": "临时探针：验证 T3 引入的 identity map 陈旧读（C-1）。**不提交**。",
+      "tokens": 604,
+      "hash": "92a317b50e0cd75a",
+      "size": 2245,
+      "mtimeMs": 1793658395475.6482,
+      "updatedAt": "2026-11-02T22:26:35.520Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 16,
+          "endLine": 34,
+          "tokens": 143
+        },
+        {
+          "name": "test_stale_identity_map",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 76,
+          "tokens": 373
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_stream_list_filters.py": {
+      "description": "物流列表的四项筛选（SPEC §7.7.1 · P9B-3 · 评审 I-4）。",
+      "tokens": 1346,
+      "hash": "0271229daede3361",
+      "size": 5362,
+      "mtimeMs": 1793658509163.947,
+      "updatedAt": "2026-11-02T22:28:29.209Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 54,
+          "tokens": 192
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 59,
+          "tokens": 48
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 75,
+          "tokens": 107
+        },
+        {
+          "name": "_create",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 85,
+          "tokens": 84
+        },
+        {
+          "name": "test_list_filter_by_phase",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 99,
+          "tokens": 166
+        },
+        {
+          "name": "test_list_filter_by_sign_status",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 126,
+          "tokens": 302
+        },
+        {
+          "name": "test_list_filters_are_combined_with_and",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 149,
+          "tokens": 253
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/StateBadgeBoundary.tsx": {
+      "description": "状态徽章的**局部**错误边界 —— 一个未知状态**不能打挂整页**。",
+      "tokens": 530,
+      "hash": "77811bc150a1dd5f",
+      "size": 2739,
+      "mtimeMs": 1793658663790.4565,
+      "updatedAt": "2026-11-02T22:31:03.856Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 31,
+          "endLine": 36,
+          "tokens": 31
+        },
+        {
+          "name": "State",
+          "kind": "section",
+          "startLine": 37,
+          "endLine": 40,
+          "tokens": 12
+        },
+        {
+          "name": "StateBadgeBoundary",
+          "kind": "class",
+          "startLine": 41,
+          "endLine": 74,
+          "tokens": 258
+        }
+      ]
+    },
+    "pcs-frontend/tests/mocks/systemSettings.test.tsx": {
+      "description": "系统参数 MSW handlers 真跑测试（P9B-3 · T5 · 评审 I-2）。",
+      "tokens": 754,
+      "hash": "b96f2fb1fb8c84bd",
+      "size": 3081,
+      "mtimeMs": 1793658735974.9788,
+      "updatedAt": "2026-11-02T22:32:16.021Z",
       "source": "hook"
     }
   }
