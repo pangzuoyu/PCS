@@ -41,6 +41,12 @@
   SQLite 把 `with_for_update()` 编译成空串；`test_record_approval_chain.py` 的 docstring 把 PG 验证
   推给「CI fresh-PG api-drift job」，而那个 job **一条后端测试都不跑**。删掉 `.with_for_update()`，
   整个套件照样全绿。
+- **委员会裁决（2026-11-02，出具后追加）**：Verdict 维持「Ready with fixes」；#1 的 P1 维持但
+  **理由修正**为「机制无观察 + docstring 主动误导」（并发危害降为背景）；**#9 取消决策门直接修**
+  （不是 design choice，是修复漏了一条路径）；「同进程改 DATABASE_URL 验多库 = 没跑」必须落进
+  cerebrum / CLAUDE.md / 部署文档；#1 的「全绿」结论须标注为**推断**；未深审部分须登记为下一轮
+  review 的 scope；fix order 把 #3 移到末尾。裁决与落实的逐条对照见 `report.md` 末尾的
+  「追加：委员会裁决」一节。
 - **P2 #9：无快照的历史行把 CWE-863 的两条保护全关掉。** 迁移落地时已在 `IN_APPROVAL` 的记录
   `approval_chain_snapshot IS NULL` ⇒ 每步的 `submitted_by` 重断言整段跳过 + 链条回落到**实时**矩阵
   —— 正是委员会裁决要堵的自审绕过。当前 pcs / pcs_test 无此数据，属窗口未打开而非已发生。

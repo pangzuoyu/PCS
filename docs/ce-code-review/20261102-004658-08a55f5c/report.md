@@ -232,3 +232,78 @@ Actionable findings: 17 (all `downstream-resolver`).
 | 18 | P3 | `pcs-backend/tests/alembic/test_p9_013_bind_default_record_matrix.py:225` | Isolated-schema cleanup failure silently swallowed | `gated_auto -> downstream-resolver` | present | 100 |
 
 Run artifact: `/tmp/compound-engineering-1000/ce-code-review/20261102-004658-08a55f5c/report.md`
+
+
+---
+
+## 追加：委员会裁决（2026-11-02，报告出具后追加）
+
+> 本节由**委员会**在报告出具后追加，**不改动上面的正文**（评审产物是**时点快照**，
+> 改写它会让「当时说了什么」不可追溯）。裁决的**落实**见 P9B-2F 修复批
+> （`77e3293..a679b6a`）。
+
+### 裁决 1：#1 的 P1 维持，**理由修正**
+
+报告原文把 P1 的落点写在「并发 submit 的危害」上。委员会认为危害被高估
+（两次 submit 都成功时状态都是 IN_APPROVAL，不是状态错误；快照被覆盖但两次
+用的是同一时刻的项目矩阵；审计重复是真实但有限的危害）。
+
+**P1 成立的真正理由**（报告的核心论证，提炼后）：
+
+- 批次声称「submit/approval-step hold a row lock」是一个**硬保证**，但
+  **无任何观察**，且 docstring **主动声称**有 CI 验证（false delegation）；
+- 严重性在于：**保证被误删时全绿** ⇒ 未来的 #1 修复会被**静默回退**；
+- **false delegation 比没有测试更糟** —— 下一个维护者**不会**去补测试，
+  因为他以为 CI 在验。
+
+⇒ 「并发危害」降为**背景**，主论点改为「**机制无观察 + 文档主动误导**」。
+⇒ dialect-level test 必须做（报告已提出）⇒ **已做**，并额外做了
+**变异实测**（删掉 `.with_for_update()` ⇒ 套件红）⇒ 推断变实测。
+
+### 裁决 2：#9 **不是** design choice，是**修复不完整** —— 直接修，无决策门
+
+报告把 #9 标为「legacy-row policy is a design choice」并挂了 decision gate。
+委员会**驳回**这个定性：
+
+- 上一轮裁决是「**每个 step re-assert submitter**」，**没有**「只对新记录生效」
+  的限定 ⇒ #9 是修复**漏了一条路径**，不是「设计上两种都可以」；
+- 「legacy 走 live matrix」正是 CWE-863 的原始形状 —— #1 的目标就是消除它。
+
+⇒ 报告自己给的方案（从审计推导 submitter + 403）成本极低 ⇒ **直接做**。
+⇒ **已做**：`records_actions._submitter_from_audit` +
+`_legacy_chain_snapshot`（首次触达冻结）；另加一条委员会未要求但同源的
+fail-closed 兜底：查不到提交人 ⇒ **响亮 409 `APPROVAL_SUBMITTER_UNKNOWN`**，
+不放行「查不到就当没有提交人」。
+
+### 裁决 3：「同进程改 DATABASE_URL 验多库 = 没跑」必须**落地**
+
+报告的 ★ Evidence correction 揭示的是**可复用的方法论教训**，不是单点修正：
+
+- ✅ 已进 `.wolf/cerebrum.md`（Do-Not-Repeat）；
+- ✅ 已进 `CLAUDE.md`「漂移盲区」附近（**验多库必须每库独立进程** + 直查库）；
+- ✅ 已检查并更正 `ROLLBACK-RUNBOOK.md` 与 `deployment-verification.md`；
+- ⚠️ **新发现的同类假委托**：`deployment-verification.md` §2 D 声称「CI 跑
+  `test_p9_013_bind_default_record_matrix.py`（含降级环）」—— **它不跑**
+  （那个 job 一条后端 pytest 都不跑）⇒ **已更正**。
+
+### 追问 1：#1 的「全绿」结论是推断还是实测？
+
+报告在 Coverage 里说「neither the backend pytest suite nor the frontend vitest
+suite was executed in this review」，而 #1 的论证说「delete `.with_for_update()`
+and the suite stays green」⇒ 那是**基于代码阅读的推断**（SQLite 编译行为 +
+CI workflow 步骤核对），**不是实测**。委员会确认推断成立，但要求标注。
+
+⇒ **已解决得比标注更进一步**：P9B-2F 里**实测**了（删掉锁 ⇒ 套件红），
+并把该手法写进 cerebrum（「评审的『全绿』结论：先做变异实测再转述」）。
+
+### 追问 2：未深审部分必须**登记**并纳入下一轮 scope
+
+`test_deliverable_issue.py` + `deliverables`/`record_edits` API 改动 + 该批 diff
+的其余部分未深审 ⇒ 已登记为 **TODO-100**（含归属与触发条件），下一轮 review
+的 scope **必须**包含（不是「如果时间允许」）。
+
+### fix order 调整
+
+#3（QA 闸门）从第 3 位移到**末尾** —— 修完所有代码再一次性重跑闸门并记录
+**真实范围** ⇒ 已照此执行：QA 报告 certified `77e3293..c7fb6c9`（顺带覆盖
+上一份报告漏掉的 3 个 commit）。
