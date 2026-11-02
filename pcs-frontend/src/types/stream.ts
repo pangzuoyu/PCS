@@ -69,6 +69,71 @@ void _phaseAligned;
 
 
 
+/** 契约的 `StreamSource`（4 值 · **录入通道**，T2.5 交付）。 */
+export type StreamSource = components['schemas']['StreamSource'];
+
+/** 契约的 `StreamCaseType`（4 值 · 设计工况）。 */
+export type StreamCaseType = components['schemas']['StreamCaseType'];
+
+/** 契约的 `StreamSignStatus`（9 态）。 */
+export type StreamSignStatus = components['schemas']['StreamSignStatus'];
+
+/**
+ * 「来源」中文标签 —— **契约派生**（键的类型取契约枚举）。
+ *
+ * ⚠️ **只消费 `source`（4 值 · 录入通道）**，**不是** `source_type`
+ * （13 值 · 产出方式）—— 后者塞进一列会爆（见 TODO-105）。
+ *
+ * ⚠️ 键类型取契约 ⇒ 后端加第 5 个来源时**这里会编译红**（而不是静默少一个选项）。
+ */
+export const STREAM_SOURCE_LABEL: Record<StreamSource, string> = {
+  MANUAL: '手动',
+  SIM_IMPORT: '模拟软件',
+  EXCEL: 'Excel 导入',
+  LAB: '化验报告',
+};
+
+/**
+ * 「工况」中文标签 —— **契约派生**（`StreamCaseType` 4 值）。
+ *
+ * ⚠️ 契约里 `case_type` **曾经**是裸 `string`（词表只写在 description 里），
+ * T2.5 之后 `StreamResponse.case_type` 已收紧成 `$ref: StreamCaseType`
+ * ⇒ 这里可以契约派生。
+ */
+export const STREAM_CASE_TYPE_LABEL: Record<StreamCaseType, string> = {
+  NORMAL: '正常',
+  END_OF_RUN: '末期',
+  START_OF_RUN: '开车',
+  TURN_DOWN: '调节',
+};
+
+/**
+ * 状态筛选的选项（9 态）—— **契约派生** + 编译期双向断言。
+ *
+ * ⚠️ 这里用**状态名原文**（DRAFT / IN_APPROVAL / …）而不用中文标签：
+ * 中文标签由状态徽章（`StateBadge`）承担 ⇒ **标签只有一处**，
+ * 筛选下拉与 API 字段名逐字一致（排障时能直接贴进请求）。
+ */
+export const STREAM_SIGN_STATUS_VALUES = [
+  'DRAFT',
+  'IN_APPROVAL',
+  'CHECKED',
+  'CHECK_REJECTED',
+  'STALE',
+  'CHANGE_PENDING',
+  'CHANGED',
+  'REVERSAL_PENDING',
+  'OBSOLETE',
+] as const;
+
+/** 编译期守卫：上面的 9 值必须**恰好**等于契约的 `StreamSignStatus`。 */
+type _AssertSignStatusAligned = StreamSignStatus extends
+  (typeof STREAM_SIGN_STATUS_VALUES)[number]
+  ? (typeof STREAM_SIGN_STATUS_VALUES)[number] extends StreamSignStatus ? true : never
+  : never;
+const _signStatusAligned: _AssertSignStatusAligned = true;
+void _signStatusAligned;
+
 /**
  * 相态词表 —— 4 值。
  *

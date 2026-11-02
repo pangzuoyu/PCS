@@ -199,7 +199,17 @@ const devOnlyMockHandlers = [
   // === 物流 SIM ===
   http.get("/api/v1/projects/:project_id/streams", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedStreams);
+    // ⚠️ 四项筛选（工况/相态/状态/来源）**按 AND 组合**过滤 —— 照抄后端
+    //    `list_by_project` 的口径（SPEC §7.7.1）⇒ dev 里改筛选能看出效果。
+    const q = new URL(request.url).searchParams;
+    const filtered = seedStreams.filter((st) => {
+      if (q.get("case_type") && st.case_type !== q.get("case_type")) return false;
+      if (q.get("phase") && st.phase !== q.get("phase")) return false;
+      if (q.get("sign_status") && st.sign_status !== q.get("sign_status")) return false;
+      if (q.get("source") && st.source !== q.get("source")) return false;
+      return true;
+    });
+    return HttpResponse.json(filtered);
   }),
   http.get("/api/v1/streams/:stream_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });

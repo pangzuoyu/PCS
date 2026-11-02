@@ -2284,3 +2284,24 @@ CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据�
 `reference_count`（**一次聚合，无 N+1**）。
 
 **归属：** 下一批（与 §7.7.1 其余筛选/列口径一并收口）。
+
+## TODO-109: `streamApi.listByProject` 的**手写轻量子集**何时统一到契约派生 🟡
+
+**现状**（2026-11-03 实测）：`src/api/stream.ts` 有**两个**列表方法：
+
+| 方法 | 返回 | 谁在用 |
+|---|---|---|
+| `listByProject` | **手写** `StreamListItem`（5 字段，含**契约里没有**的 `tag_number`） | Vessel / SepEquip / Heat / Cv 四个计算页 |
+| `list` | **契约派生** `StreamResponse` + 四项筛选 | 物流列表页（T6） |
+
+⚠️ 计划要求把 `listByProject` 的返回类型也换成契约派生 —— **实测会打破 4 个
+消费者**：它们把结果映射成 `{stream_id, tag_number}`，而 `tag_number`
+**不在契约里**（物流没有位号）⇒ 4 处 `s.tag_number` 全部编译不过。
+
+⇒ 本批**另开** `list` 走契约派生，`listByProject` 一行不动。
+
+**建议**：四个计算页的 Select 标签改用 `stream_name`（顺带修掉「标签恒为
+undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProject`，
+统一走 `list`。
+
+**归属**：下一批（与 §7.7.1 其余筛选/列口径一并收口）。

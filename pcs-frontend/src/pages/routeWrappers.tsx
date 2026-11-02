@@ -124,8 +124,9 @@ export function TemplateFileRoute(): JSX.Element {
 
 // === 物流 ===
 export function StreamListRoute(): JSX.Element {
-  const streams = useFetch<Stream[]>(`/api/v1/projects/${PROJECT_ID}/streams`, []);
-  return <StreamListPage streams={streams} />;
+  // ⚠️ 页面**自己取数**（T6 / SPEC §7.7.1）：筛选要带 query 参数**重新请求后端**
+  // ⇒ 筛选状态与请求都在页面里（`useFetch` 拿不到「带参数重新取」的口径）。
+  return <StreamListPage projectId={PROJECT_ID} />;
 }
 export function StreamDetailRoute(): JSX.Element {
   // ⚠️ 直接取契约 `StreamResponse`（2026-10-19，bug-189）。
