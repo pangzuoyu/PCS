@@ -1720,3 +1720,50 @@ SELECT，断言 SQL 含 FOR UPDATE」。但若 select 语句**写在** `load_rec
 （构造多轮 + 把时间戳**显式**设成不同值 ⇒ 测试确定性不依赖时钟分辨率）。
 ⚠️ SQLite 的 `CURRENT_TIMESTAMP` 只到**秒** ⇒ 并列时按返回顺序取最后
 （等价于插入顺序）；PG 的 `func.now()` 是事务时间戳（微秒）⇒ 不会并列。
+
+## Do-Not-Repeat: 直接构造 `Stream` 的 fixture 必须显式给 `approval_depth`（2026-11-03，P9B-3b）
+
+`streams.approval_depth` 是该表上**唯一没有默认值**的 NOT NULL 列
+（`source` / `sign_status` / `record_hash` 都有 default）
+⇒ 任何**直接构造 ORM `Stream(...)`** 的测试 fixture（绕过 API 创建）忘了给
+`approval_depth` ⇒ INSERT 直接 `NotNullViolation` / `NOT NULL constraint failed`
+⇒ **同一处缺陷在 P9B-3b 里连续出现三次**（service 级 fixture、HTTP 级 fixture、
+PG 车道脚本）⇒ 就是 cerebrum 那条「写 DB fixture 前必查 NOT NULL 列」的具体化。
+
+⇒ 正确做法：`approval_depth=1`（与 `StreamService.create` 同值 —— spec V1.6 §3.2.1
+默认 1 步校对）。
+⇒ 更快的一招：**走 API 创建**（`POST /projects/{id}/streams` ⇒ service 层补齐
+必填）⇒ 再 `UPDATE` 状态字段（ cerebrum 的「DB 测试 fixture 最简 pattern」）。
+
+## Do-Not-Repeat: e2e / 浏览器 QA 里**不能**用 `page.goto` 导航（本仓 auth store 是内存态）（2026-11-03，P9B-3b）
+
+本仓的 zustand auth store **是内存态**（防 XSS ⇒ 不落 localStorage）
+⇒ **`page.goto(...)` 整页刷新会清 session** ⇒ `RequireAuth` 弹回 `/login`
+⇒ 被测页面**永远渲染不出来** ⇒ 症状是「找不到表格行 / 元素 not found」，
+而不是任何显式的登录错误。
+
+⇒ 正确做法：登录后走 **SPA 菜单点击**（`getByRole('menuitem', {name})`）
+—— 既有 6 个 e2e spec 的注释里**早就写着**这条约定，写新 spec 时**要抄**。
+⇒ 同一条也适用于 gstack browse 的 QA 脚本（`browse goto` 会清 session）。
+
+## Do-Not-Repeat: gstack browse 的 `@eN` ref 对 antd 复选框会解析错位（2026-11-03，P9B-3b）
+
+antd 的 `Table` 里**所有行复选框**都带**同一个** `aria-label="Select all"`
+（表头那个也有）⇒ gstack browse 的「ref → aria 匹配」会把
+「点第 1 行的复选框」解析成**表头的 Select all** ⇒ 一次点击**全选**。
+
+⇒ 症状看着像**应用的 bug**（勾 1 行却选中了 6 行）⇒ 但用
+**Playwright 的真实鼠标事件**复测是**正确**的 ⇒ 是**工具**的 ref 解析问题。
+⇒ QA 脚本里勾选复选框**改用 `js` 直接点 DOM 节点**（确定性），
+并用 Playwright 交叉验证 ⇒ 不要只凭 browse 的 ref 点击下结论。
+
+## Do-Not-Repeat: `alembic` / 契约类门禁的「基线」是**批末**才滚的（2026-11-03，P9B-3b）
+
+`gate_08_openapi_contract.sh --check-baseline` 比的是
+`pcs-backend/docs/openapi-baseline.json` ↔ 当前 `openapi.json`
+⇒ **批中**新加端点 ⇒ 这一条**必然 FAIL**（它正是「契约面变了」的告警）
+⇒ **不是**缺陷。
+
+⇒ 正确顺序：批中跑 G-08 的**前三段**（regen + drift check）⇒
+**批末**（SPEC 修订 + 债项登记之后）再 `cp openapi.json openapi-baseline.json`
+⇒ 然后跑 `--check-baseline` 变绿。

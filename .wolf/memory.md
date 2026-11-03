@@ -2910,3 +2910,94 @@
 | 06:32 | Created pcs-frontend/tests/mocks/systemSettings.test.tsx | — | ~754 |
 | 06:40 | P9B-3 整批评审修复批：加锁读 `populate_existing`（并发提交校对一胜一拒）+ 共享 `StateBadgeBoundary`（详情页未知状态降级）+ 写路径 ACL/PG 车道第三闸/后端 phase+sign_status 筛选/mock 原子性 四组补测（每条做了变异实测） | pcs-backend/app/services/stream_service.py, pcs-backend/tests/{services/test_stream_transition.py,api/v1/test_stream_list_filters.py,api/v1/test_system_settings.py,scripts/test_pytest_pg_gate.py}, pcs-frontend/src/components/common/{StateBadgeBoundary.tsx,PageHeader.tsx}, pcs-frontend/src/{pages/sim/StreamListPage.tsx,mocks/systemSettings.ts}, pcs-frontend/tests/{mocks/systemSettings.test.tsx,pages/sim/streamDetailTabs.test.tsx} | 2 Critical + 4 Important 全修；后端 5439 passed / 前端 1008 passed / PG 车道 4 passed | ~6000 |
 | 06:42 | 评审结论入账：既有越权缺口（物流详情无项目守卫 / 血缘守卫放行 streams）登记 TODO-113~115 + STATUS 更新 | TODOS.md, .wolf/STATUS.md, .wolf/buglog.json | 债项 104~115 在册；ledger 保留（.superpowers/ 已 gitignore 且 STATUS 指向它） | ~1200 |
+| 07:51 | Created docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | — | ~20812 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 13→14 lines | ~124 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→2 lines | ~27 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 6→8 lines | ~102 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 11→11 lines | ~98 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 7→11 lines | ~146 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified transition_audit_count() | ~397 |
+| 07:52 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→3 lines | ~7 |
+| 07:53 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 32→32 lines | ~267 |
+| 07:53 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 1→4 lines | ~83 |
+| 07:53 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 6→10 lines | ~67 |
+| 10:05 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+12 lines) | ~338 |
+| 10:05 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+6 lines) | ~156 |
+| 10:05 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+10 lines) | ~234 |
+| 10:05 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+12 lines) | ~244 |
+| 10:06 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+36 lines) | ~490 |
+| 10:06 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 2→4 lines | ~57 |
+| 10:06 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 2→3 lines | ~112 |
+| 10:07 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→3 lines | ~37 |
+| 10:07 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→3 lines | ~36 |
+| 10:07 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→3 lines | ~35 |
+| 10:07 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 2→2 lines | ~26 |
+| 10:07 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | added 1 import(s) | ~52 |
+| 10:08 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+7 lines) | ~139 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+26 lines) | ~232 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+6 lines) | ~127 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified build_stream_for_update_stmt() | ~736 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+6 lines) | ~114 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified feat() | ~208 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | removed 15 lines | ~13 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | _locked_select() → select_stream_for_update() | ~124 |
+| 10:10 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 4→5 lines | ~35 |
+| 10:11 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_locked_select_emits_for_update_on_postgres() | ~652 |
+| 10:11 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_batch_submit_uses_the_locked_select() | ~257 |
+| 10:11 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | inline fix | ~19 |
+| 10:11 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | "_locked_select" → "select_stream_for_update" | ~27 |
+| 10:11 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 5→9 lines | ~132 |
+| 10:12 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→6 lines | ~82 |
+| 10:12 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | "test_locked_select_emits_" → "populate_existing" | ~59 |
+| 10:12 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | added 1 import(s) | ~36 |
+| 10:12 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+17 lines) | ~215 |
+| 10:15 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified StreamBatchSubmitRequest() | ~392 |
+| 10:15 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified _batch_limit() | ~1178 |
+| 10:15 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | reduced (-10 lines) | ~160 |
+| 10:17 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 18→18 lines | ~135 |
+| 10:17 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 7→6 lines | ~70 |
+| 10:17 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 4→6 lines | ~54 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_succeeded_item_requires_from_status() | ~718 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 6→7 lines | ~50 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 15→17 lines | ~146 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 6→7 lines | ~50 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 7→10 lines | ~150 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→4 lines | ~52 |
+| 10:18 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 3→5 lines | ~97 |
+| 10:22 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_submit_one_returns_contract_types() | ~1057 |
+| 10:22 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+7 lines) | ~110 |
+| 10:23 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+45 lines) | ~495 |
+| 10:23 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test() | ~1006 |
+| 10:23 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified fix() | ~255 |
+| 10:24 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 2→3 lines | ~41 |
+| 10:28 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified begin() | ~396 |
+| 10:28 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified StreamBatchSubmitResponse() | ~149 |
+| 10:28 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+16 lines) | ~562 |
+| 10:29 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 7→8 lines | ~55 |
+| 10:30 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_batch_limit_falls_back_when_value_is_garbage() | ~24 |
+| 10:30 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | modified test_batch_audit_write_failure_still_returns_results() | ~344 |
+| 10:30 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+9 lines) | ~126 |
+| 10:30 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+44 lines) | ~582 |
+| 10:33 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+12 lines) | ~237 |
+| 10:33 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | 4→8 lines | ~95 |
+| 10:34 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+29 lines) | ~307 |
+| 11:30 | Edited docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md | expanded (+8 lines) | ~175 |
+| 11:39 | Created .superpowers/sdd/2026-11-03-p9b-3b-batch-submit/progress.md | — | ~908 |
+| 11:41 | Created pcs-backend/tests/services/test_stream_batch_service.py | — | ~735 |
+| 11:42 | Edited pcs-backend/app/services/stream_service.py | modified composition_mole_fraction_total() | ~686 |
+| 11:43 | Edited pcs-backend/app/services/stream_service.py | 16→12 lines | ~182 |
+| 11:43 | Edited pcs-backend/app/api/v1/streams.py | 4→5 lines | ~46 |
+| 11:43 | Edited pcs-backend/app/services/system_setting_service.py | modified get_setting_value() | ~151 |
+| 11:44 | Edited pcs-backend/tests/services/test_stream_batch_service.py | 4→3 lines | ~8 |
+| 18:55 | Edited pcs-frontend/src/mocks/handlers.ts | map() → buildBatchSubmitResponse() | ~143 |
+| 18:55 | Edited pcs-frontend/src/mocks/handlers.ts | modified buildTodoList() | ~215 |
+| 18:55 | Edited pcs-frontend/src/mocks/handlers.ts | 1→3 lines | ~66 |
+| 18:56 | Edited pcs-frontend/src/mocks/handlers.ts | 1→3 lines | ~42 |
+| 18:56 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 2→4 lines | ~41 |
+| 18:56 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added optional chaining | ~270 |
+| 18:56 | Edited pcs-frontend/tests/mocks/handlers.test.ts | inline fix | ~40 |
+| 19:03 | Created pcs-frontend/e2e/stream_batch_submit.spec.ts | — | ~714 |
+| 19:03 | Edited pcs-frontend/e2e/stream_batch_submit.spec.ts | expanded (+9 lines) | ~320 |
+| 19:05 | Edited docs/PCS-UI-SPEC.md | inline fix | ~11 |
+| 19:05 | Edited docs/PCS-UI-SPEC.md | expanded (+19 lines) | ~269 |
+| 19:20 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md | — | ~1168 |

@@ -5489,6 +5489,82 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2130",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "P9B-3b 批次 service 的 `_submit_one` 若在 `db.rollback()` 之后继续用 session ⇒ 整批失败（`Can't operate on closed transaction`）",
+   "file": "pcs-backend/app/services/stream_batch_service.py",
+   "root_cause": "**session 级 `rollback()` 会关掉整个外层事务**（实测：savepoint 内调 session 的 rollback ⇒ 外层那行也没落库）⇒ 不能用 `begin_nested()` 包裹逐条处理来隔离失败。",
+   "fix": "改成**逐条独立 commit**（每条自己一个事务）⇒ 一条失败只回滚那一条，已提交的条目不受影响；批次审计**最后单独写**，写失败**不回滚**已提交（只回滚那一次写 + 记 ERROR + 响应带 `warning`）。",
+   "fix_commit": "5778117",
+   "tags": [
+    "backend",
+    "transaction",
+    "isolation",
+    "batch"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2131",
+   "timestamp": "2026-11-03",
+   "severity": "medium",
+   "error_message": "P9B-3b 的「接线断言」spy `build_stream_for_update_stmt` ⇒ 批次预检即使绕开加锁读，测试**仍然全绿**（假闸门）",
+   "file": "pcs-backend/tests/services/test_stream_batch_service.py",
+   "root_cause": "spy 的目标是 `stream_service.build_stream_for_update_stmt` ⇒ 它会被 `StreamService.transition` 的**内部**调用满足 ⇒ 断言恒绿。**变异实测抓到的**。",
+   "fix": "改 spy `stream_batch_service.select_stream_for_update`（**批次模块自己的引用**）⇒ 预检一旦不调它 ⇒ 计数 0 ⇒ 必红。",
+   "fix_commit": "7e53be0",
+   "tags": [
+    "backend",
+    "test",
+    "false-gate",
+    "mutation"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2132",
+   "timestamp": "2026-11-03",
+   "severity": "low",
+   "error_message": "P9B-3b 计划里的 e2e spec 用 `page.goto('/sim/streams')` ⇒ 页面停在 /login ⇒ 表格行永不出现（element not found）",
+   "file": "pcs-frontend/e2e/stream_batch_submit.spec.ts",
+   "root_cause": "本仓 zustand auth store 是**内存态**（防 XSS，不落 localStorage）⇒ 整页刷新清 session ⇒ `RequireAuth` 弹回 /login。既有 6 个 spec 的注释里早写着这条约定，计划原文没抄。",
+   "fix": "e2e 改走 **SPA 菜单点击**（`getByRole('menuitem', {name:'物流一览'})`）；QA 脚本同理（gstack `browse goto` 也会清 session）。",
+   "fix_commit": "450a177",
+   "tags": [
+    "frontend",
+    "e2e",
+    "auth",
+    "navigation"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2133",
+   "timestamp": "2026-11-03",
+   "severity": "low",
+   "error_message": "gstack browse 的 `click @eN` 点 antd 表格的行复选框 ⇒ **全选**（勾 1 行却选中 6 行）",
+   "file": "（工具问题，非应用代码）pcs-frontend/src/pages/sim/StreamListPage.tsx 的 rowSelection",
+   "root_cause": "antd `Table` 的**所有**行复选框都带**同一个** `aria-label=\"Select all\"`（表头那个也有）⇒ browse 的 ref→aria 匹配落到表头 ⇒ 点「第 1 行」实际点了「全选」。",
+   "fix": "**应用无需改**（用 Playwright 真实鼠标事件复测：勾 1 行 = 只勾 1 行）。QA 脚本改用 `js` 直接点 DOM 节点（确定性）+ Playwright 交叉验证。",
+   "fix_commit": "9558d72",
+   "tags": [
+    "qa",
+    "tooling",
+    "antd",
+    "false-alarm"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
   }
  ]
 }

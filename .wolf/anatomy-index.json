@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-02T22:32:16.021Z",
-    "fileCount": 1158,
+    "lastScanned": "2026-11-03T11:20:11.048Z",
+    "fileCount": 1163,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "9f023a899cf964380701b5bdbfb8dc16f84ef155aa40bb3bd03d58f141580e81",
-    "storeUpdatedAt": "2026-11-02T22:32:16.032Z",
-    "rootHash": "0fbfbd8c39d3fdd5"
+    "renderedHash": "6e72650ee3c55a14b06463485061f7d455ccf8f4763ba4fe302b61d28dc20ce0",
+    "storeUpdatedAt": "2026-11-03T11:20:11.059Z",
+    "rootHash": "1ecf92bda753ae21"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1757,11 +1757,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 16404,
-      "hash": "e016b8cf3deb611f",
-      "size": 107245,
-      "mtimeMs": 1793635922433.866,
-      "updatedAt": "2026-11-02T16:12:02.489Z",
+      "tokens": 17046,
+      "hash": "f0b98e38b28e98d9",
+      "size": 111999,
+      "mtimeMs": 1793703935293.026,
+      "updatedAt": "2026-11-03T11:05:35.342Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -13862,33 +13862,47 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 9899,
-      "hash": "e92eb6df86b2e655",
-      "size": 37678,
-      "mtimeMs": 1792514905343.4336,
-      "updatedAt": "2026-10-20T16:48:25.393Z",
+      "tokens": 15168,
+      "hash": "7c16a92b9ddd0e31",
+      "size": 57772,
+      "mtimeMs": 1793703366552.7188,
+      "updatedAt": "2026-11-03T10:56:06.600Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "conflictByScenario",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 119,
+          "tokens": 251
+        },
+        {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 492,
-          "tokens": 5406
+          "startLine": 120,
+          "endLine": 725,
+          "tokens": 7485
         },
         {
           "name": "buildNotificationList",
           "kind": "fn",
-          "startLine": 493,
-          "endLine": 500,
+          "startLine": 726,
+          "endLine": 733,
           "tokens": 64
         },
         {
           "name": "buildTodoList",
           "kind": "fn",
-          "startLine": 501,
-          "endLine": 776,
-          "tokens": 3567
+          "startLine": 734,
+          "endLine": 743,
+          "tokens": 77
+        },
+        {
+          "name": "buildBatchSubmitResponse",
+          "kind": "fn",
+          "startLine": 744,
+          "endLine": 1210,
+          "tokens": 6215
         }
       ]
     },
@@ -15198,222 +15212,222 @@
     },
     "pcs-backend/app/api/v1/streams.py": {
       "description": "P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。",
-      "tokens": 7182,
-      "hash": "326d5d51a89744fa",
-      "size": 27452,
-      "mtimeMs": 1793638246780.3606,
-      "updatedAt": "2026-11-02T16:50:46.831Z",
+      "tokens": 7059,
+      "hash": "9f937097ece82e03",
+      "size": 26875,
+      "mtimeMs": 1793677402009.4182,
+      "updatedAt": "2026-11-03T03:43:22.056Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ValidateStreamResponse",
           "kind": "class",
-          "startLine": 63,
-          "endLine": 87,
+          "startLine": 64,
+          "endLine": 88,
           "tokens": 206
         },
         {
           "name": "_conflict_to_dict",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 104,
+          "startLine": 89,
+          "endLine": 105,
           "tokens": 144
         },
         {
           "name": "CreateStreamRequest",
           "kind": "class",
-          "startLine": 105,
-          "endLine": 115,
+          "startLine": 106,
+          "endLine": 116,
           "tokens": 94
         },
         {
           "name": "UpdateStreamRequest",
           "kind": "class",
-          "startLine": 116,
-          "endLine": 121,
+          "startLine": 117,
+          "endLine": 122,
           "tokens": 44
         },
         {
           "name": "TransitionRequest",
           "kind": "class",
-          "startLine": 122,
-          "endLine": 134,
+          "startLine": 123,
+          "endLine": 135,
           "tokens": 100
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 147,
+          "startLine": 136,
+          "endLine": 148,
           "tokens": 131
         },
         {
           "name": "_load_project",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 159,
+          "startLine": 149,
+          "endLine": 160,
           "tokens": 100
         },
         {
           "name": "_to_response_dict",
           "kind": "fn",
-          "startLine": 160,
-          "endLine": 209,
+          "startLine": 161,
+          "endLine": 210,
           "tokens": 470
         },
         {
           "name": "create_stream",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 247,
+          "startLine": 211,
+          "endLine": 248,
           "tokens": 383
         },
         {
           "name": "validate_stream",
           "kind": "fn",
-          "startLine": 248,
-          "endLine": 292,
+          "startLine": 249,
+          "endLine": 293,
           "tokens": 490
         },
         {
           "name": "list_project_streams",
           "kind": "fn",
-          "startLine": 293,
-          "endLine": 323,
+          "startLine": 294,
+          "endLine": 324,
           "tokens": 353
         },
         {
           "name": "get_stream",
           "kind": "fn",
-          "startLine": 324,
-          "endLine": 338,
+          "startLine": 325,
+          "endLine": 339,
           "tokens": 142
         },
         {
           "name": "update_stream",
           "kind": "fn",
-          "startLine": 339,
-          "endLine": 360,
+          "startLine": 340,
+          "endLine": 361,
           "tokens": 220
         },
         {
           "name": "delete_stream",
           "kind": "fn",
-          "startLine": 361,
-          "endLine": 379,
+          "startLine": 362,
+          "endLine": 380,
           "tokens": 176
         },
         {
           "name": "_state_point_to_response",
           "kind": "fn",
-          "startLine": 380,
-          "endLine": 393,
+          "startLine": 381,
+          "endLine": 394,
           "tokens": 131
         },
         {
           "name": "create_state_point",
           "kind": "fn",
-          "startLine": 394,
-          "endLine": 415,
+          "startLine": 395,
+          "endLine": 416,
           "tokens": 227
         },
         {
           "name": "list_state_points",
           "kind": "fn",
-          "startLine": 416,
-          "endLine": 430,
+          "startLine": 417,
+          "endLine": 431,
           "tokens": 153
         },
         {
           "name": "get_state_point",
           "kind": "fn",
-          "startLine": 431,
-          "endLine": 445,
+          "startLine": 432,
+          "endLine": 446,
           "tokens": 144
         },
         {
           "name": "update_state_point",
           "kind": "fn",
-          "startLine": 446,
-          "endLine": 467,
+          "startLine": 447,
+          "endLine": 468,
           "tokens": 238
         },
         {
           "name": "delete_state_point",
           "kind": "fn",
-          "startLine": 468,
-          "endLine": 488,
+          "startLine": 469,
+          "endLine": 489,
           "tokens": 191
         },
         {
           "name": "_transition_endpoint",
           "kind": "fn",
-          "startLine": 489,
-          "endLine": 530,
-          "tokens": 331
-        },
-        {
-          "name": "_composition_mole_fraction_total",
-          "kind": "fn",
-          "startLine": 531,
-          "endLine": 545,
-          "tokens": 154
+          "startLine": 490,
+          "endLine": 532,
+          "tokens": 344
         },
         {
           "name": "submit_stream",
           "kind": "fn",
-          "startLine": 546,
-          "endLine": 585,
+          "startLine": 533,
+          "endLine": 572,
           "tokens": 424
         },
         {
           "name": "approve_stream",
           "kind": "fn",
-          "startLine": 586,
-          "endLine": 601,
+          "startLine": 573,
+          "endLine": 588,
           "tokens": 152
         },
         {
           "name": "reject_stream",
           "kind": "fn",
-          "startLine": 602,
-          "endLine": 619,
+          "startLine": 589,
+          "endLine": 606,
           "tokens": 163
         },
         {
           "name": "initiate_change_stream",
           "kind": "fn",
-          "startLine": 620,
-          "endLine": 637,
+          "startLine": 607,
+          "endLine": 624,
           "tokens": 161
         },
         {
           "name": "pass_change_stream",
           "kind": "fn",
-          "startLine": 638,
-          "endLine": 654,
+          "startLine": 625,
+          "endLine": 641,
           "tokens": 163
         },
         {
           "name": "mark_stale_stream",
           "kind": "fn",
-          "startLine": 655,
-          "endLine": 675,
+          "startLine": 642,
+          "endLine": 662,
           "tokens": 204
         },
         {
           "name": "EstimatePropertiesRequest",
           "kind": "class",
-          "startLine": 676,
-          "endLine": 685,
+          "startLine": 663,
+          "endLine": 672,
           "tokens": 85
         },
         {
           "name": "get_stream_properties",
           "kind": "fn",
-          "startLine": 686,
-          "endLine": 738,
-          "tokens": 528
+          "startLine": 673,
+          "endLine": 700,
+          "tokens": 290
+        },
+        {
+          "name": "estimate_properties",
+          "kind": "fn",
+          "startLine": 701,
+          "endLine": 725,
+          "tokens": 238
         }
       ]
     },
@@ -16099,40 +16113,61 @@
     },
     "pcs-backend/app/services/stream_service.py": {
       "description": "P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。",
-      "tokens": 6476,
-      "hash": "c42d664b38a3b00f",
-      "size": 25025,
-      "mtimeMs": 1793636163985.7993,
-      "updatedAt": "2026-11-02T16:16:04.034Z",
+      "tokens": 7269,
+      "hash": "319e17495389eef7",
+      "size": 29389,
+      "mtimeMs": 1793677385660.5156,
+      "updatedAt": "2026-11-03T03:43:05.711Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "composition_mole_fraction_total",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 88,
+          "tokens": 166
+        },
+        {
+          "name": "build_stream_for_update_stmt",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 112,
+          "tokens": 206
+        },
+        {
+          "name": "select_stream_for_update",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 153,
+          "tokens": 365
+        },
+        {
           "name": "_resolve_role",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 85,
+          "startLine": 154,
+          "endLine": 161,
           "tokens": 58
         },
         {
           "name": "_to_parsed_stream",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 114,
+          "startLine": 162,
+          "endLine": 190,
           "tokens": 327
         },
         {
           "name": "_to_parsed_state_point",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 148,
+          "startLine": 191,
+          "endLine": 224,
           "tokens": 354
         },
         {
           "name": "StreamService",
           "kind": "class",
-          "startLine": 149,
-          "endLine": 652,
-          "tokens": 4990
+          "startLine": 225,
+          "endLine": 734,
+          "tokens": 5109
         }
       ]
     },
@@ -16455,47 +16490,47 @@
     },
     "pcs-frontend/tests/mocks/handlers.test.ts": {
       "description": "MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5)",
-      "tokens": 2936,
-      "hash": "d7a1b834ad5330bf",
-      "size": 12043,
-      "mtimeMs": 1792514921593.2407,
-      "updatedAt": "2026-10-20T16:48:41.642Z",
+      "tokens": 7022,
+      "hash": "efce5b78318a0f78",
+      "size": 28378,
+      "mtimeMs": 1793703377485.9434,
+      "updatedAt": "2026-11-03T10:56:17.533Z",
       "source": "hook",
       "symbols": [
         {
           "name": "stripComments",
           "kind": "fn",
-          "startLine": 27,
-          "endLine": 30,
+          "startLine": 47,
+          "endLine": 50,
           "tokens": 38
         },
         {
           "name": "resolveRef",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 46,
+          "startLine": 51,
+          "endLine": 66,
           "tokens": 143
         },
         {
           "name": "inlineRefs",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 62,
+          "startLine": 67,
+          "endLine": 82,
           "tokens": 170
         },
         {
           "name": "validateAgainst",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 186,
-          "tokens": 1358
+          "startLine": 83,
+          "endLine": 230,
+          "tokens": 1664
         },
         {
           "name": "schemaFor",
           "kind": "fn",
-          "startLine": 187,
-          "endLine": 274,
-          "tokens": 955
+          "startLine": 231,
+          "endLine": 655,
+          "tokens": 4524
         }
       ]
     },
@@ -41055,32 +41090,39 @@
     },
     "pcs-backend/app/services/system_setting_service.py": {
       "description": "系统参数读写（§7.20.1 · T4）。",
-      "tokens": 1090,
-      "hash": "0788ead29a0b62b5",
-      "size": 4882,
-      "mtimeMs": 1793639119538.926,
-      "updatedAt": "2026-11-02T17:05:19.590Z",
+      "tokens": 1243,
+      "hash": "a8f29115aa671d96",
+      "size": 5552,
+      "mtimeMs": 1793677405815.3958,
+      "updatedAt": "2026-11-03T03:43:25.864Z",
       "source": "hook",
       "symbols": [
         {
           "name": "seed_defaults",
           "kind": "fn",
-          "startLine": 42,
-          "endLine": 69,
+          "startLine": 46,
+          "endLine": 73,
           "tokens": 208
         },
         {
           "name": "list_all",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 77,
+          "startLine": 74,
+          "endLine": 81,
           "tokens": 66
+        },
+        {
+          "name": "get_setting_value",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 99,
+          "tokens": 144
         },
         {
           "name": "update_batch",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 126,
+          "startLine": 100,
+          "endLine": 148,
           "tokens": 382
         }
       ]
@@ -41656,6 +41698,111 @@
       "size": 3081,
       "mtimeMs": 1793658735974.9788,
       "updatedAt": "2026-11-02T22:32:16.021Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md": {
+      "description": "P9B-3b 批量「提交校对」实施计划",
+      "tokens": 28888,
+      "hash": "37ab140c01735152",
+      "size": 151692,
+      "mtimeMs": 1793676648408.1663,
+      "updatedAt": "2026-11-03T03:30:48.462Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-03-p9b-3b-batch-submit/progress.md": {
+      "description": "SDD ledger — plan: docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md",
+      "tokens": 852,
+      "hash": "4eafc11b4a59a442",
+      "size": 5255,
+      "mtimeMs": 1793677183314.911,
+      "updatedAt": "2026-11-03T03:39:43.373Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_stream_batch_service.py": {
+      "description": "批次「提交校对」的地基能力（P9B-3b · T1）。",
+      "tokens": 728,
+      "hash": "e87a2b07bdfebc7e",
+      "size": 3202,
+      "mtimeMs": 1793677467489.0466,
+      "updatedAt": "2026-11-03T03:44:27.541Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_stream",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 41,
+          "tokens": 82
+        },
+        {
+          "name": "test_composition_total_none_means_no_composition",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 46,
+          "tokens": 58
+        },
+        {
+          "name": "test_composition_total_empty_object_is_zero",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 51,
+          "tokens": 60
+        },
+        {
+          "name": "test_composition_total_sums_fractions",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 59,
+          "tokens": 77
+        },
+        {
+          "name": "test_get_setting_value_returns_stored_value",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 69,
+          "tokens": 96
+        },
+        {
+          "name": "test_get_setting_value_falls_back_to_default",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 74,
+          "tokens": 63
+        },
+        {
+          "name": "test_batch_audit_action_exists",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 78,
+          "tokens": 52
+        }
+      ]
+    },
+    "pcs-frontend/e2e/stream_batch_submit.spec.ts": {
+      "description": "批量提交校对的 e2e（P9B-3b · D6-A）。",
+      "tokens": 806,
+      "hash": "0b7ec8f212d200cd",
+      "size": 3729,
+      "mtimeMs": 1793703823224.7952,
+      "updatedAt": "2026-11-03T11:03:43.272Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "gotoStreamsViaMenu",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 84,
+          "tokens": 568
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md": {
+      "description": "QA 报告 —— P9B-3b 批量「提交校对」",
+      "tokens": 1095,
+      "hash": "3974972f7b64a6cc",
+      "size": 6806,
+      "mtimeMs": 1793704811004.7004,
+      "updatedAt": "2026-11-03T11:20:11.048Z",
       "source": "hook"
     }
   }

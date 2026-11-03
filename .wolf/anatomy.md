@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-02T22:32:16.021Z
-> Files: 1158 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T11:20:11.048Z
+> Files: 1163 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -188,6 +188,7 @@
 - `qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md` — QA 报告 — P9B-2 评审修复批（P9B-2R） (~358 tok)
 - `qa-report-pcs-frontend-2026-11-02-p9b2f.md` — QA 报告 — P9B-2F（follow-up 评审修复批） (~1034 tok)
 - `qa-report-pcs-frontend-2026-11-03-p9b3.md` — QA Report: pcs-frontend / pcs-backend P9B-3（系统参数 + SIM 物流前端）批末 (~1406 tok)
+- `qa-report-pcs-frontend-2026-11-03-p9b3b.md` — QA 报告 —— P9B-3b 批量「提交校对」 (~1095 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -217,6 +218,10 @@
 
 - `_phase1_close.md` — Phase 1 收口 (~537 tok)
 - `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md (~410 tok)
+
+## .superpowers/sdd/2026-11-03-p9b-3b-batch-submit/
+
+- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md (~852 tok)
 
 ## .superpowers/sdd/2026-11-15-p6-8-glycol-dehydration-extensions/
 
@@ -357,7 +362,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~16404 tok)
+- `PCS-UI-SPEC.md` (~17046 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -523,6 +528,7 @@
 - `2026-10-08-p8-report-and-report-builder.md` — P8 报表与输出 Implementation Plan (~12333 tok)
 - `2026-10-15-p6-7-service-integration.md` — P6-7 服务集成批 — 工艺室 4 批交付物集成 (~3166 tok)
 - `2026-10-31-p6-9-pickup-2-critical-fixes.md` — P6-9-PICKUP-2 — 4 CRITICAL + 2 HIGH 修复批 (~1794 tok)
+- `2026-11-03-p9b-3b-batch-submit.md` — P9B-3b 批量「提交校对」实施计划 (~28888 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
 
@@ -1259,7 +1265,7 @@
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
-- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~7182 tok)
+- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~7059 tok)
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
@@ -1339,8 +1345,8 @@
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~8562 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
-- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6476 tok)
-- `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1090 tok)
+- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~7269 tok)
+- `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1243 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
@@ -1575,6 +1581,7 @@
 - `test_record_snapshot_codec.py` — 记录快照**数据编解码**（TODO-087）。 (~1629 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5024 tok)
+- `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~728 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
@@ -1659,6 +1666,7 @@
 - `fixtures.ts` — Playwright e2e fixtures (F-P2-009 Sprint 3 / Issue 7). (~306 tok)
 - `record_actions.spec.ts` — 记录操作栏（Playwright e2e · P9B-2 · T10）。 (~658 tok)
 - `result_edit_conflict.spec.ts` — 编辑冲突 409 分流（Playwright e2e · P9B-1 T7）。 (~518 tok)
+- `stream_batch_submit.spec.ts` — 批量提交校对的 e2e（P9B-3b · D6-A）。 (~806 tok)
 
 ## pcs-frontend/scripts/
 
@@ -1727,7 +1735,7 @@
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~322 tok)
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~9899 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~15168 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
@@ -1854,7 +1862,7 @@
 
 ## pcs-frontend/tests/mocks/
 
-- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~2936 tok)
+- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~7022 tok)
 - `reportBuilderStatusFilter.test.ts` — MSW 的 `/report-builder/definitions` 必须**遵守 `status` 查询参数**。 (~782 tok)
 - `signFlow.test.ts` — mock 保真度（P9B-2 · 延后的 minor · Batch D）。 (~1878 tok)
 - `systemSettings.test.tsx` — 系统参数 MSW handlers 真跑测试（P9B-3 · T5 · 评审 I-2）。 (~754 tok)
