@@ -430,6 +430,11 @@ class AuditAction(str, enum.Enum):
     # 一批（一次 PUT）只写**一条**审计（detail 带 keys + before）。
     SYSTEM_SETTINGS_UPDATED = "SYSTEM_SETTINGS_UPDATED"
 
+    # === 物流批量提交校对（P9B-3b · D3）===
+    # 批次级汇总动作：每条**真正转移**的物流另有一条 RECORD_TRANSITION
+    # （由状态机写）⇒ 本动作只记「这一批做了什么」。
+    STREAM_BATCH_SUBMITTED = "STREAM_BATCH_SUBMITTED"
+
     # === P9A 交付物（签发面）===
     # issue 是「谁把哪一版送审了」的唯一留痕点：doc_no 在这一步才最终确定，
     # 而 doc_no 是交付物对外身份（报告封面、二维码溯源都用它）。

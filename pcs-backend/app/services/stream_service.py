@@ -68,6 +68,82 @@ _EDITABLE_STATUSES: frozenset[StreamSignStatus] = frozenset(
 _C_TO_K_OFFSET = 273.15
 _KPA_TO_PA = 1000.0
 
+
+def composition_mole_fraction_total(stream: Stream) -> float | None:
+    """物流的组成摩尔分率合计；**无组成**（`composition_json is None`）返回 None。
+
+    ⚠️ `composition_json` 是 `{CAS 号: 摩尔分率}` 字典，值域 **0~1 的小数**
+    （**不是**百分数）—— 实测真库的组成合计恒为 `1.0000`。
+    ⇒ 判定用 `|合计 − 1| ≤ 0.005`（≡ SPEC §7.7.2 的「100±0.5%」）。
+
+    ⚠️ **唯一口径来源**（P9B-3b · T1）：单条端点与批量端点**必须同一口径**
+    ⇒ 口径住在 service 层，不住在 router 里（router 里的版本 service 反向 import
+    路由模块 = 分层倒挂）。
+    """
+    composition = stream.composition_json
+    if composition is None:
+        return None
+    return sum(float(v) for v in composition.values())
+
+
+def build_stream_for_update_stmt(stream_id: uuid.UUID):
+    """构造「加锁读一条物流」的 SELECT（**只构造，不执行**）。
+
+    ## 为什么单独抽一个「只构造」的函数
+
+    两条断言都要钉**生产路径实际用的那条语句**：
+    - **方言级**：`with_for_update()` 在 SQLite 上被**方言省略**（单测里等于
+      压根没有锁）⇒ 只能靠「用 PG 方言编译这条语句、断言 SQL 里含
+      `FOR UPDATE`」来钉住机制；
+    - **`populate_existing`**：它是 **C-1 的修复点** ⇒ 删掉它测试仍然绿
+      （SQLite 编译掉 FOR UPDATE，行为看着正常）⇒ 必须单独断言。
+
+    ⚠️ 若把 select 写在执行函数里，测试只能**照抄**一遍 ⇒ 照抄的那份与生产
+    代码可以各改各的 ⇒ 删掉锁 / 删掉 populate_existing，测试照样绿
+    （与 `app/api/v1/records_actions.py::_locked_select` 同一个道理）。
+    """
+    return (
+        select(Stream)
+        .where(Stream.stream_id == stream_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
+async def select_stream_for_update(
+    db: AsyncSession, stream_id: uuid.UUID
+) -> Stream | None:
+    """读一条物流并加行锁（**状态转移专用**）。
+
+    ⚠️ **必须**配合 `populate_existing=True` —— 锁读要返回数据库的**最新行**，
+    而不是 identity map 里的缓存。
+
+    **为什么这是关键**：如果同 session 里之前已经 load 过这条记录（比如组成
+    门禁先读了一次），不加 `populate_existing` 的锁读会返回 identity map 里的
+    **旧对象**，而不是数据库里**已经被锁住的新行**。结果：锁虽然加了，但读到
+    的数据是旧的 —— 两个并发请求都读到旧状态 `DRAFT`、都判断可以转移到
+    `IN_APPROVAL`、都成功。**这就是 P9B-3 评审 C-1 的根因**（行锁形同虚设）。
+
+    ⚠️ 本函数是**单条提交**（`StreamService.transition`）与**批量提交**
+    （`stream_batch_service`）的**唯一**加锁入口 —— 不要在别处再写一份
+    `SELECT ... FOR UPDATE`，改这里就够了。
+
+    ⚠️ **不得**用 `.with_for_update()` 而不带 `populate_existing` ——
+    那在 SQLite 上测不出来（方言省略 `FOR UPDATE`）⇒ 只有方言级断言 +
+    `populate_existing` 断言能抓（见 T4）。
+
+    Args:
+        db: 会话。
+        stream_id: 物流 id。
+
+    Returns:
+        锁定后的 Stream 对象；**不存在时返回 `None`**（由调用方抛
+        `SIM_STREAM_NOT_FOUND` —— 单条端点的错误文案一字不变）。
+    """
+    result = await db.execute(build_stream_for_update_stmt(stream_id))
+    return result.scalar_one_or_none()
+
+
 # SIM-13 角色别名：streams API 层使用的项目级角色名 → state_machine TRANSITION_ROLES
 # 中使用的代码级角色名。StateMachineService 直接做权限校验，本层做名称翻译。
 _ROLE_ALIAS: dict[str, str] = {
@@ -432,14 +508,10 @@ class StreamService:
         #    ⇒ 行锁形同虚设。
         #    （真实触发路径：`POST /streams/{id}/submit` 在转移**前**先
         #     `db.get(Stream, id)` 读组成做合计门禁 ⇒ 实体提前进了 identity map。）
-        stream = (
-            await db.execute(
-                select(Stream)
-                .where(Stream.stream_id == stream_id)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one_or_none()
+        # ⚠️ P9B-3b · T1：加锁读抽成**唯一入口** `select_stream_for_update`
+        #    （单条提交与批量提交共用 ⇒ 行锁语义只有一份 ⇒ C-1 的修复位
+        #    `populate_existing=True` 也只有一份）。
+        stream = await select_stream_for_update(db, stream_id)
         if stream is None:
             raise PcsError(
                 f"Stream {stream_id} 不存在",

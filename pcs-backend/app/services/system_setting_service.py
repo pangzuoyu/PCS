@@ -79,6 +79,24 @@ async def list_all(db: AsyncSession) -> list[SystemSetting]:
     return list(rows)
 
 
+async def get_setting_value(
+    db: AsyncSession, key: str, *, default: Any = None
+) -> Any:
+    """读一个系统参数的值；**键不存在** ⇒ 返回 `default`。
+
+    ⚠️ 只读**值列**（不加载整行）⇒ 不会把实体塞进 session 的 identity map。
+    ⚠️ 值是 JSONB ⇒ 可能是任意 JSON（数字 / 布尔 / 对象）⇒ 调用方负责收窄。
+    """
+    value = (
+        await db.execute(
+            select(SystemSetting.setting_value_json).where(
+                SystemSetting.setting_key == key
+            )
+        )
+    ).scalar_one_or_none()
+    return default if value is None else value
+
+
 async def update_batch(
     db: AsyncSession,
     values: dict[str, Any],

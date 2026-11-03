@@ -55,6 +55,7 @@ from app.services.property_auto_complete import PropertyAutoCompleter
 from app.services.stream_service import (
     StreamService,
     _to_parsed_stream,  # SIM-24
+    composition_mole_fraction_total,  # P9B-3b T1：组成合计口径的**唯一来源**
 )
 
 router = APIRouter(tags=["streams"])
@@ -528,20 +529,6 @@ async def _transition_endpoint(
     }
 
 
-def _composition_mole_fraction_total(stream: Stream) -> float | None:
-    """物流的组成摩尔分率合计；**无组成**（`None`）返回 None。
-
-    ⚠️ `composition_json` 是 `{CAS 号: 摩尔分率}` 字典，值域 **0~1 的小数**
-    （**不是**百分数）—— 实测真库的组成合计恒为 `1.0000`，且
-    `flash_persist._extract_composition` 直接把 `comp[c]` 当摩尔分率喂闪蒸。
-    ⇒ 判定用 `|合计 − 1| ≤ 0.005`（≡ SPEC §7.7.2 的「100±0.5%」）。
-    """
-    composition = stream.composition_json
-    if composition is None:
-        return None
-    return sum(float(v) for v in composition.values())
-
-
 @router.post("/streams/{stream_id}/submit")
 async def submit_stream(
     stream_id: uuid.UUID,
@@ -565,7 +552,7 @@ async def submit_stream(
         composition = stream.composition_json
         # `None` = 无组成（纯物质）⇒ **跳过**；`{}` = 未填写 ⇒ **拒绝**。
         if composition is not None:
-            total = _composition_mole_fraction_total(stream)
+            total = composition_mole_fraction_total(stream)
             # 空对象 ⇒ total = 0.0 ⇒ 落在范围外 ⇒ 拒绝（与「未填写」语义一致）。
             if total is None or abs(total - 1.0) > 0.005:
                 raise CorePcsError(
