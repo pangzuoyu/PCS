@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -596,3 +597,98 @@ async def test_batch_limit_falls_back_when_value_is_garbage(db_session, batch_pr
             actor_role="DESIGNER",
         )
     assert exc.value.code == "SIM_STREAM_BATCH_LIMIT_EXCEEDED"
+
+
+# ---------------------------------------------------------------------------
+# T4：行锁（方言级 + 接线）
+# ---------------------------------------------------------------------------
+
+
+async def test_locked_select_emits_for_update_on_postgres():
+    """方言级断言：加锁那条 SELECT 在 **PG 方言**下真的带 `FOR UPDATE`。
+
+    ## 为什么是方言级而不是「真跑 PG 并发」
+
+    - in-memory SQLite 把 `with_for_update()` **编译成空串**（压根没有锁），
+      且 StaticPool 共享连接 ⇒ 真并发在本仓单测 fixture 上**不可表达**；
+    - 真 PG 双连接并发 ⇒ `scripts/pytest_pg.sh` 车道（见同目录的
+      `test_stream_batch_concurrency_pg.py`）。
+
+    ⇒ 这里钉**机制**（SQL 形状），下面两条钉「接线」与「C-1 的修复点」。
+    """
+    from sqlalchemy.dialects import postgresql
+
+    from app.services.stream_service import build_stream_for_update_stmt
+
+    stmt = build_stream_for_update_stmt(uuid.uuid4())
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "FOR UPDATE" in sql, sql
+
+
+async def test_locked_select_sets_populate_existing(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ **C-1 的修复点必须有断言钉住**（委员会 2026-11-03 · D4 裁决）。
+
+    **为什么这条比「抽 helper」本身更重要**：SQLite 把 `FOR UPDATE` 编译掉
+    ⇒ 删掉 `populate_existing=True` 后测试**仍然绿**（行为看着正常）⇒
+    回归会以另一种形式回来（并发时两个提交都基于旧状态通过 ⇒ 行锁形同虚设）。
+
+    ⇒ 这里断言**生产路径实际执行的那条语句**带 `populate_existing=True`
+    （spy 抓的是 `build_stream_for_update_stmt` 的返回值 ⇒ 抓的是真语句，
+    不是测试自己重抄的一份）。
+    """
+    from app.services import stream_service
+
+    seen: list[Any] = []
+    original = stream_service.build_stream_for_update_stmt
+
+    def spy(stream_id):
+        stmt = original(stream_id)
+        seen.append(stmt)
+        return stmt
+
+    monkeypatch.setattr(stream_service, "build_stream_for_update_stmt", spy)
+
+    s = await _make_draft(db_session, batch_project, "S-1")
+    await stream_service.select_stream_for_update(db_session, s.stream_id)
+
+    assert seen, "根本没走加锁读"
+    for stmt in seen:
+        assert stmt.get_execution_options().get("populate_existing") is True, (
+            "加锁读**没有** populate_existing ⇒ C-1 的修复被删了 ⇒ "
+            "并发时两个提交都会基于旧状态通过（行锁形同虚设）"
+        )
+
+
+async def test_batch_submit_uses_the_locked_select(
+    db_session, batch_project, monkeypatch
+):
+    """接线断言：**批次自己的预检**走的是**加锁读**（不是随便一条 SELECT）。
+
+    ⚠️ **必须 spy 批次模块的引用**（`stream_batch_service.select_stream_for_update`），
+    **不能** spy `stream_service.build_stream_for_update_stmt` ——
+    后者会被 `StreamService.transition` 的**内部**调用满足 ⇒
+    批次的预检即使绕开加锁读，这条断言**照样绿**（变异实测抓到的假闸门）。
+    ⇒ spy 批次模块 ⇒ 预检一旦不调它 ⇒ 计数为 0 ⇒ **必红**。
+    """
+    from app.services import stream_batch_service
+
+    seen: list[uuid.UUID] = []
+    original = stream_batch_service.select_stream_for_update
+
+    async def spy(db, stream_id):
+        seen.append(stream_id)
+        return await original(db, stream_id)
+
+    monkeypatch.setattr(stream_batch_service, "select_stream_for_update", spy)
+
+    s = await _make_draft(db_session, batch_project, "S-1")
+    await stream_batch_service.submit_batch(
+        db_session,
+        [s.stream_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+
+    assert seen == [s.stream_id], f"批次的预检没走加锁读：{seen}"
