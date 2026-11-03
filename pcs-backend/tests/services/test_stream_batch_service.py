@@ -640,6 +640,57 @@ async def test_failed_item_does_not_leak_its_partial_write_into_the_next_item(
     assert str(getattr(good_status, "value", good_status)) == "IN_APPROVAL"
 
 
+async def test_precheck_lock_is_released_on_the_early_return_paths(
+    db_session, batch_project
+):
+    """⚠️⚠️ **预检的行锁在「提前返回」路径上必须释放**（否则锁会**累积**）。
+
+    ## 缺陷形状（整支分支评审的 Important #1）
+
+    预检用 `select_stream_for_update` 取了 **`SELECT ... FOR UPDATE`**
+    ⇒ 拿到的**行锁只在 COMMIT/ROLLBACK 时释放**（PG 语义）。
+    而两条「提前返回」路径**直接 return，既不 commit 也不 rollback**：
+
+    - **幂等命中**（已 `IN_APPROVAL`）；
+    - **组成门禁拒**（`SIM_STREAM_COMPOSITION_OUT_OF_RANGE`）。
+
+    ⇒ 那条的行锁**一直持有**，直到**后面某一条**的 `db.commit()` 顺带释放它
+    ⇒ 期间**同时持有多把行锁** ⇒ 与模块 docstring 里那句
+    「逐条 commit **天然只持一把锁 ⇒ 没有死锁面**」**矛盾**（假不变量）。
+
+    ⇒ 真实后果：两个并发批次、**重叠的物流、顺序相反**、且都撞上提前返回
+    ⇒ 经典的 A 持 1 等 2 / B 持 2 等 1 ⇒ 死锁环（PG 靠 `deadlock_timeout`
+    中止一方 ⇒ 那一项对用户显示成 `INTERNAL_ERROR`）。
+
+    ## 断言怎么写才有意义
+
+    ⚠️ SQLite 把 `FOR UPDATE` 编译成空串 ⇒ **单测里测不到锁本身**。
+    ⇒ 这里测**可观测的等价物**：**提前返回后事务必须已经结束**
+    （`db.in_transaction()` 为 False）⇒ 事务结束 ⇒ 锁必已释放。
+    （真锁在 PG 车道验证；这条守住「别让提前返回把事务开着」这个机制。）
+    """
+    from app.services import stream_batch_service
+
+    # 幂等命中那条（已 IN_APPROVAL ⇒ 提前返回）
+    hit = await _make_draft(db_session, batch_project, "HIT")
+    hit.sign_status = StreamSignStatus.IN_APPROVAL
+    await db_session.commit()
+    hit_id = hit.stream_id
+
+    await stream_batch_service._submit_one_inner(
+        db_session,
+        hit_id,
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+        dry_run=False,
+    )
+
+    assert not db_session.in_transaction(), (
+        "幂等命中提前返回后事务仍然开着 ⇒ 那条的行锁仍然被持有 ⇒ "
+        "锁会跨条目累积（与 docstring 断言的「只持一把锁」矛盾）"
+    )
+
+
 async def test_db_level_failure_does_not_poison_the_rest_of_the_batch(
     db_session, batch_project, monkeypatch
 ):
@@ -705,6 +756,84 @@ async def test_db_level_failure_does_not_poison_the_rest_of_the_batch(
         )
     ).scalar_one()
     assert str(getattr(good_status, "value", good_status)) == "IN_APPROVAL"
+
+
+async def test_commit_failure_itself_becomes_a_failed_item(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ **`db.commit()` 本身失败** ⇒ 该条失败 + **状态没变** + 后续条目照常。
+
+    ## 为什么这条与前两条并列
+
+    转移的三个失败时点各有一种后果，**都要**有断言钉住：
+
+    | 失败时点 | 数据状态 | 应报 |
+    |---|---|---|
+    | flush 之后、commit 之前（审计写失败） | 未提交 | **失败** |
+    | commit 失败 | 未提交 | **失败** |
+    | commit 成功、refresh 挂掉 | **已提交** | **成功** |
+
+    ⚠️ 前两条已有；**commit 失败**这条原先**没有** ⇒ 裸奔。
+    """
+    from app.services import stream_service
+    from app.services.stream_batch_service import submit_batch
+
+    bad = await _make_draft(db_session, batch_project, "BAD")
+    good = await _make_draft(db_session, batch_project, "GOOD")
+    bad_id = bad.stream_id
+    good_id = good.stream_id
+
+    # 让 `transition` 的 **commit** 失败（DB 抖动 / 磁盘满 / 约束冲突）
+    orig = stream_service.StreamService.transition
+
+    async def boom_on_commit(db, stream_id, **kwargs):
+        # 先让原 transition 跑完（它自己 commit）—— 不行，那已经成功了。
+        # ⇒ 改成：跑原 transition 的**逻辑**但拦掉 commit。
+        #   最简单的做法：在原 transition 之前注入一个「commit 必炸」的 session。
+        class _BoomCommit:
+            def __init__(self, real):
+                self._real = real
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+            async def commit(self):
+                raise RuntimeError("commit failed")
+
+            async def rollback(self):
+                return await self._real.rollback()
+
+        boom_db = _BoomCommit(db)
+        # ⚠️ 原 transition 内部会 `db.refresh(result)` ⇒ 我们的替身要透传
+        return await orig(boom_db, stream_id, **kwargs)
+
+    monkeypatch.setattr(
+        stream_service.StreamService, "transition", staticmethod(boom_on_commit)
+    )
+
+    result = await submit_batch(
+        db_session,
+        [bad_id, good_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+
+    # 两条都失败（commit 对**每一条**都失败）
+    assert len(result.succeeded) == 0
+    assert len(result.failed) == 2
+    assert all(item.reason == "INTERNAL_ERROR" for item in result.failed)
+
+    from sqlalchemy import select as sa_select
+
+    for sid in (bad_id, good_id):
+        status = (
+            await db_session.execute(
+                sa_select(Stream.sign_status).where(Stream.stream_id == sid)
+            )
+        ).scalar_one()
+        assert str(getattr(status, "value", status)) == "DRAFT", (
+            f"commit 失败的那条状态变成了 {status} ⇒ 状态变了"
+        )
 
 
 async def test_item_whose_commit_succeeded_is_reported_as_success(

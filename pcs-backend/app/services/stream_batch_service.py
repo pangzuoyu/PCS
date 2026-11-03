@@ -28,8 +28,12 @@ session 级 `db.rollback()` ⇒ 救不了 ⇒ **逐条 commit 是唯一可行解
 
 ⚠️ **「整批一个事务」被排除的根本理由不是死锁，而是与 D2 冲突**：
 D2 已裁决「部分成功」（50 条里 8 条失败不该回滚 42 条）⇒
-「全成或全不成」是 D2 的反面。（死锁是可排序修复的次要问题，且逐条 commit
-天然只持一把锁 ⇒ 没有死锁面。）
+「全成或全不成」是 D2 的反面。（死锁是可排序修复的次要问题。）
+⚠️⚠️ **「逐条 commit ⇒ 只持一把锁 ⇒ 没有死锁面」这条不变量需要前提**：
+**提前返回的路径（幂等命中 / 组成门禁拒 / 预演）必须先结束事务**
+（`_release_precheck_transaction`）⇒ 否则预检的 `SELECT ... FOR UPDATE`
+拿到的行锁会**跨条目累积** ⇒ 两个顺序相反的并发批次 ⇒ 死锁环。
+（整支分支的评审抓到的假不变量 —— 见该函数的 docstring。）
 
 ⚠️ **性能代价（实测本机 PG：18.6 · `synchronous_commit=on` · `fsync=on` ·
 `wal_sync_method=fdatasync`）**：100 条 = 100 次 COMMIT ⇒ 每次一次 WAL fsync
@@ -153,6 +157,46 @@ async def _submit_one(
         )
 
 
+async def _release_precheck_transaction(db: AsyncSession) -> None:
+    """结束**预检**开的事务 ⇒ 释放预检拿到的行锁。
+
+    ## 为什么必须有这个函数
+
+    预检用 `select_stream_for_update` 取 **`SELECT ... FOR UPDATE`**
+    ⇒ 拿到的**行锁只在 COMMIT/ROLLBACK 时释放**（PG 语义）。
+    而「提前返回」路径（幂等命中 / 组成门禁拒 / 预演）**不写任何东西**，
+    若直接 return（既不 commit 也不 rollback）⇒
+    那条的行锁**一直持有**，直到**后面某一条**的 `db.commit()` 顺带释放它。
+
+    ⇒ 后果：**同时持有多把行锁** ⇒ 与模块 docstring 里那句
+    「逐条 commit **天然只持一把锁 ⇒ 没有死锁面**」**矛盾**（假不变量），
+    且留下真实的死锁窗口：两个并发批次、**重叠的物流、顺序相反**、
+    且都撞上提前返回 ⇒ A 持 1 等 2 / B 持 2 等 1 ⇒ 死锁环
+    （PG 靠 `deadlock_timeout` 中止一方 ⇒ 那一项对用户显示成 `INTERNAL_ERROR`）。
+
+    ## 为什么是 **commit** 而不是 rollback
+
+    预检事务**只含读**（`SELECT ... FOR UPDATE` ⇒ 一行都没写）⇒
+    两种结束方式在**数据**上等价（都没有可提交的东西）⇒ 选副作用更小的那个：
+
+    - `rollback()` ⇒ SQLAlchemy **无条件 expire 掉 session 里的所有实体**
+      ⇒ 调用方手里的 ORM 对象**属性全部过期** ⇒ 之后读它会触发
+      **同步 lazy-load** ⇒ async 上下文里炸 `MissingGreenlet`；
+    - `commit()` ⇒ 结束事务 ⇒ **释放行锁** ✅，且本仓的 session 工厂
+      （`app/db/session.py` 与 `tests/conftest.py`）都是
+      **`expire_on_commit=False`** ⇒ **不 expire 任何实体** ⇒ 调用方无感。
+
+    ⇒ 故用 `commit()`。
+
+    ⚠️ **前提**：到达这里时**当前事务里没有任何未提交的写**
+    （每条自成事务 ⇒ 前一条早已 commit；本条的预检只读）⇒
+    commit 不会「顺手提交掉别的东西」。若将来有人在预检里加了写，
+    这条 commit 就会把它提交掉 ⇒ **那时必须改回 rollback**。
+    """
+    if db.in_transaction():
+        await db.commit()
+
+
 async def _read_sign_status(db: AsyncSession, stream_id: uuid.UUID) -> str | None:
     """读回一条物流**当前**的 `sign_status`（**只读这一列**）。
 
@@ -197,6 +241,9 @@ async def _submit_one_inner(
         stream = await select_stream_for_update(db, stream_id)
 
     if stream is None:
+        # ⚠️ 结束预检的事务（下面所有「提前返回」路径都这么做）——
+        #    理由见 `_release_precheck_transaction` 的 docstring。
+        await _release_precheck_transaction(db)
         return BatchFailedItem(
             status="failed",
             stream_id=stream_id,
@@ -212,6 +259,8 @@ async def _submit_one_inner(
 
     # D5 幂等：已 IN_APPROVAL ⇒ 记成功，**不重复转移、不重复写审计**。
     if from_status == StreamSignStatus.IN_APPROVAL.value:
+        # ⚠️ **必须结束事务**（否则这条的行锁一直被持有 ⇒ 锁跨条目累积）
+        await _release_precheck_transaction(db)
         return BatchSucceededItem(
             status="succeeded",
             stream_id=stream_id,
@@ -223,6 +272,8 @@ async def _submit_one_inner(
     # 组成合计门禁（与单条端点**同一口径**）。
     total = composition_mole_fraction_total(stream)
     if total is not None and abs(total - 1.0) > COMPOSITION_TOLERANCE:
+        # ⚠️ **必须结束事务**（同上）
+        await _release_precheck_transaction(db)
         return BatchFailedItem(
             status="failed",
             stream_id=stream_id,
@@ -235,6 +286,9 @@ async def _submit_one_inner(
 
     if dry_run:
         # D6：预演 ⇒ 只给结论，不改状态、不写审计。
+        # ⚠️ 预演的预检**不加锁**（不改任何东西 ⇒ 不该占着别人的行锁）
+        #    ⇒ 这里结束事务只是为了让 session 回到干净状态。
+        await _release_precheck_transaction(db)
         return BatchSucceededItem(
             status="succeeded",
             stream_id=stream_id,

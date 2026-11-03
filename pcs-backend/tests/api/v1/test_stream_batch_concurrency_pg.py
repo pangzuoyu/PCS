@@ -125,8 +125,26 @@ async def main():
             approval_depth=1,
         )
         db.add(stream)
+        stream2 = Stream(
+            project_id=proj.project_id,
+            workspace_id=ws.workspace_id,
+            stream_name="S-CONC-2",
+            case_type="NORMAL",
+            data_mode="CHEMICAL",
+            source_type="MANUAL_ENTRY",
+            source="MANUAL",
+            phase="LIQUID",
+            temp=80.0,
+            press=200.0,
+            mass_flow=1000.0,
+            composition_json={"7732-18-5": 1.0},
+            sign_status="DRAFT",
+            approval_depth=1,
+        )
+        db.add(stream2)
         await db.commit()
         sid = stream.stream_id
+        sid2 = stream2.stream_id
 
     # ---- ① 单条：并发两次 ⇒ 一胜一拒 -------------------------------
     async def submit_once():
@@ -190,6 +208,54 @@ async def main():
     assert after - before == 1, (
         f"并发批次写了 {after - before} 条单条转移审计（应恰好 1 条）⇒ 行锁被绕过"
     )
+
+    # ---- ③ 提前返回路径**必须释放行锁**（否则锁跨条目累积 ⇒ 死锁环）----
+    # 场景：两个并发批次，**重叠的物流、顺序相反**，且都撞上「幂等命中」
+    #       （已 IN_APPROVAL ⇒ 提前返回 ⇒ 若不释放锁 ⇒ 交叉等待 ⇒ 死锁）。
+    # ⚠️ 用**两个连接**（两个 session）⇒ 同库不同事务 ⇒ 行锁真的互斥。
+    async with maker() as s:
+        for target in (sid, sid2):
+            await s.execute(
+                Stream.__table__.update()
+                .where(Stream.stream_id == target)
+                .values(sign_status="IN_APPROVAL")
+            )
+        await s.commit()
+
+    import asyncio as _asyncio
+
+    async def batch_ids(ids):
+        async with maker() as s:
+            res = await submit_batch(
+                s, ids,
+                actor_user_id=uuid.uuid4(),
+                actor_role="DESIGNER",
+            )
+            return res
+
+    # ⚠️ **超时保护**：真有死锁 ⇒ PG 在 deadlock_timeout 后中止一方 ⇒
+    #    抛 DeadlockDetected ⇒ 我们**希望**它红（⇒ 修法失效）。
+    try:
+        r_a, r_b = await _asyncio.wait_for(
+            _asyncio.gather(
+                batch_ids([sid, sid2]),
+                batch_ids([sid2, sid]),
+            ),
+            timeout=30,
+        )
+    except _asyncio.TimeoutError as e:
+        raise AssertionError(
+            "两个顺序相反的并发批次卡住 ⇒ 死锁（提前返回路径没释放行锁）"
+        ) from e
+    except Exception as e:
+        # ⚠️ PG 的死锁中止会以 OperationalError/DeadlockDetected 冒出来
+        raise AssertionError(
+            f"并发批次报错（死锁？）: {type(e).__name__}: {e}"
+        ) from e
+
+    # 两个批次都应成功（幂等命中 ⇒ 记成功）
+    assert len(r_a.succeeded) == 2, r_a
+    assert len(r_b.succeeded) == 2, r_b
 
     await engine.dispose()
     print("P9B3B_CONCURRENCY_OK")
