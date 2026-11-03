@@ -5586,6 +5586,26 @@
    ],
    "occurrences": 1,
    "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2135",
+   "timestamp": "2026-11-03",
+   "severity": "high",
+   "error_message": "P9B-3b 批次：提前返回路径（幂等命中 / 组成门禁拒 / 预演）**不释放行锁** ⇒ 锁跨条目累积 ⇒ 两个顺序相反的并发批次 ⇒ **真死锁**（`psycopg.errors.DeadlockDetected`）",
+   "file": "pcs-backend/app/services/stream_batch_service.py",
+   "root_cause": "预检用 `select_stream_for_update` 取 `SELECT ... FOR UPDATE` ⇒ PG 的行锁**只在 COMMIT/ROLLBACK 时释放**；而三条「提前返回」路径**既不 commit 也不 rollback** ⇒ 那条的行锁一直持有到**后面某一条**的 `db.commit()` 顺带释放 ⇒ **同时持有多把行锁** ⇒ 与模块 docstring / 计划第 6 条断言的「只持一把锁 ⇒ 无死锁面」**矛盾**（假不变量）。",
+   "fix": "新增 `_release_precheck_transaction(db)` ⇒ 三条提前返回路径**先结束事务**再返回。⚠️ 用 `commit()` 不用 `rollback()`：预检事务只含读 ⇒ 两者数据上等价；但 `rollback()` 会 SQLAlchemy **无条件 expire 掉 session 里所有实体** ⇒ 调用方的 ORM 对象属性全过期 ⇒ 之后读它触发**同步 lazy-load** ⇒ async 上下文里炸 `MissingGreenlet`（实测：改 rollback ⇒ 两条既有测试红）⇒ 而本仓 session 工厂（生产 + 测试）都是 `expire_on_commit=False` ⇒ `commit()` 释放锁且不 expire 任何实体。**变异实测**：去掉它 ⇒ 单测红 **且** PG 车道红（真死锁）⇒ 两条独立闸门。",
+   "fix_commit": "ccf6cb3",
+   "tags": [
+    "backend",
+    "locking",
+    "deadlock",
+    "batch",
+    "pg"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
   }
  ]
 }

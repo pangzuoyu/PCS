@@ -1787,3 +1787,31 @@ antd 的 `Table` 里**所有行复选框**都带**同一个** `aria-label="Selec
 ⚠️ **写这类测试时**：被测实体在回滚后**已过期** ⇒ 读它的属性会触发
 **同步 lazy-load** ⇒ `MissingGreenlet` ⇒ ①先把 id 存下来，
 ②断言用**直接 SELECT 那一列**（不查实体）。
+
+## Do-Not-Repeat: 拿到 `SELECT ... FOR UPDATE` 的路径，**每一条提前返回都要结束事务**（2026-11-03，P9B-3b）
+
+**形状**：一个函数用 `SELECT ... FOR UPDATE` 读数据（拿**行锁**），
+然后有若干条「**提前返回**」路径（幂等命中 / 校验拒 / 预演）
+——**它们不写任何东西，于是「既不 commit 也不 rollback」**。
+
+⚠️ **PG 的行锁只在 COMMIT/ROLLBACK 时释放** ⇒ 那条的行锁**一直持有**，
+直到**后面某一条**的 commit 顺带释放它 ⇒ **锁跨条目累积**
+⇒ 同一时刻持多把行锁 ⇒ 两个**顺序相反**的并发批次 ⇒ 死锁环。
+
+⇒ **判据**：任何函数只要**可能**提前返回，**且**它读过 `FOR UPDATE`，
+就必须在**每一条**提前返回前**结束事务**。
+（**测不出来的那一半**：SQLite 把 `FOR UPDATE` 编译掉 ⇒ 单测里测不到锁本身
+⇒ 要断言**可观测的等价物**（`db.in_transaction()` 为 False），
+并另写一条 **PG 车道**的真并发用例。）
+
+## Do-Not-Repeat: `db.rollback()` 会 SQLAlchemy **无条件 expire 掉 session 里所有实体**（2026-11-03，P9B-3b）
+
+`Session.rollback()` ⇒ **所有**已加载实体的属性**全部过期**
+⇒ 之后读它会触发**同步 lazy-load** ⇒ async 上下文里炸 **`MissingGreenlet`**。
+
+⇒ **只读事务**要结束时，用 **`commit()`** 而不是 `rollback()`：
+两者数据上等价（都没东西可提交），但本仓 session 工厂
+（生产 `app/db/session.py` + `tests/conftest.py`）都是 **`expire_on_commit=False`**
+⇒ `commit()` **不 expire 任何实体** ⇒ 调用方无感。
+⚠️ 前提：该事务**确实只含读** ⇒ 若将来有人在那个事务里加了写，
+`commit()` 会把它提交掉 ⇒ **那时必须改回 `rollback()`**。

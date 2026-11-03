@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T13:55:07.555Z
-> Files: 1167 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T14:10:18.328Z
+> Files: 1168 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1345,7 +1345,7 @@
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~8562 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
-- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~4253 tok)
+- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~4816 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~7269 tok)
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1243 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
@@ -1582,13 +1582,14 @@
 - `test_record_snapshot_codec.py` — 记录快照**数据编解码**（TODO-087）。 (~1629 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5024 tok)
-- `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~8323 tok)
+- `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~8757 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
 - `test_zz_dryrun_probe.py` — 探针：dry_run 对「状态不允许提交」的物流是否给出**假绿**。 (~629 tok)
 - `test_zz_probe.py` — 探针：条目 1 在 flush 之后、commit 之前抛非预期异常 ⇒ session 处于脏状态 (~941 tok)
 - `test_zz_probe2.py` — 探针 2：DB 级错误（flush 失败）⇒ session 被污染 ⇒ 后续条目还能不能处理？ (~765 tok)
+- `test_zz_probe3.py` — 探针 3：预检的行锁在「提前返回」路径上有没有释放？ (~603 tok)
 
 ## pcs-backend/tests/services/cool_tower/
 

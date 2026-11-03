@@ -3020,3 +3020,9 @@
 | 21:54 | Created pcs-backend/tests/services/test_zz_probe2.py | — | ~765 |
 | 21:54 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_db_level_failure_does_not_poison_the_rest_of_the_batch() | ~645 |
 | 21:55 | Edited pcs-backend/tests/services/test_stream_batch_service.py | added 1 import(s) | ~85 |
+| 22:04 | Created pcs-backend/tests/services/test_zz_probe3.py | — | ~603 |
+| 22:05 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_precheck_lock_is_released_on_the_early_return_paths() | ~454 |
+| 22:06 | Edited pcs-backend/app/services/stream_batch_service.py | expanded (+10 lines) | ~532 |
+| 22:06 | Edited pcs-backend/app/services/stream_batch_service.py | modified _release_precheck_transaction() | ~252 |
+| 22:09 | Edited pcs-backend/app/services/stream_batch_service.py | modified _release_precheck_transaction() | ~375 |
+| 22:10 | Edited pcs-backend/app/services/stream_batch_service.py | 4→8 lines | ~95 |
