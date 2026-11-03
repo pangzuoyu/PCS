@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T23:20:00.362Z",
-    "fileCount": 1172,
+    "lastScanned": "2026-11-03T23:35:19.544Z",
+    "fileCount": 1173,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4abe716c8f79fb5d249940e39f990ce6c37939f800e6f645c9c473e06b8ce081",
-    "storeUpdatedAt": "2026-11-03T23:20:00.373Z",
-    "rootHash": "d98d5b343655ff95"
+    "renderedHash": "d873f947d024a02952c9e3b17f835f335958a318183995c58ab46eee4dd5a56e",
+    "storeUpdatedAt": "2026-11-03T23:35:19.555Z",
+    "rootHash": "b2c3599433689748"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42251,6 +42251,15 @@
           "tokens": 205
         }
       ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b3b-minors.md": {
+      "description": "QA 报告 —— PCS 前端 · P9B-3b 评审 Minor 清理",
+      "tokens": 566,
+      "hash": "c33ebfb82b3cb801",
+      "size": 3308,
+      "mtimeMs": 1793748919492.815,
+      "updatedAt": "2026-11-03T23:35:19.544Z",
+      "source": "hook"
     }
   }
 }

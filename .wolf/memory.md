@@ -3047,3 +3047,4 @@
 | 07:19 | Edited pcs-frontend/src/api/errors.ts | modified describePcsError() | ~199 |
 | 07:19 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | modified catch() | ~79 |
 | 07:20 | Edited pcs-backend/app/services/system_setting_service.py | 4→5 lines | ~65 |
+| 07:35 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b3b-minors.md | — | ~603 |
