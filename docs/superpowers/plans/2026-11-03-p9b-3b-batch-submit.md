@@ -2142,35 +2142,34 @@ async def test_locked_select_sets_populate_existing(
 async def test_batch_submit_uses_the_locked_select(
     db_session, batch_project, monkeypatch
 ):
-    """接线断言：**批次**真的请求了**加锁读**（而不是随便一条 SELECT）。
+    """接线断言：**批次自己的预检**走的是**加锁读**（不是随便一条 SELECT）。
 
-    ⚠️ 批次路径会加锁读**两次**（批次的预检 + `StreamService.transition`
-    内部的转移）⇒ 断言「至少一次、且每一条都带 populate_existing」。
+    ⚠️ **必须 spy 批次模块的引用**（`stream_batch_service.select_stream_for_update`），
+    **不能** spy `stream_service.build_stream_for_update_stmt` ——
+    后者会被 `StreamService.transition` 的**内部**调用满足 ⇒
+    批次的预检即使绕开加锁读，这条断言**照样绿**（变异实测抓到的假闸门）。
+    ⇒ spy 批次模块 ⇒ 预检一旦不调它 ⇒ 计数为 0 ⇒ **必红**。
     """
-    from app.services import stream_service
-    from app.services.stream_batch_service import submit_batch
+    from app.services import stream_batch_service
 
-    seen: list[Any] = []
-    original = stream_service.build_stream_for_update_stmt
+    seen: list[uuid.UUID] = []
+    original = stream_batch_service.select_stream_for_update
 
-    def spy(stream_id):
-        stmt = original(stream_id)
-        seen.append(stmt)
-        return stmt
+    async def spy(db, stream_id):
+        seen.append(stream_id)
+        return await original(db, stream_id)
 
-    monkeypatch.setattr(stream_service, "build_stream_for_update_stmt", spy)
+    monkeypatch.setattr(stream_batch_service, "select_stream_for_update", spy)
 
     s = await _make_draft(db_session, batch_project, "S-1")
-    await submit_batch(
+    await stream_batch_service.submit_batch(
         db_session,
         [s.stream_id],
         actor_user_id=uuid.uuid4(),
         actor_role="DESIGNER",
     )
 
-    assert seen, "批次没走加锁读"
-    for stmt in seen:
-        assert stmt.get_execution_options().get("populate_existing") is True
+    assert seen == [s.stream_id], f"批次的预检没走加锁读：{seen}"
 ```
 
 - [ ] **Step 2: 跑测试，确认它们能失败（变异实测）**
@@ -2227,7 +2226,11 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+# ⚠️ 本文件在 `tests/api/v1/`（比 `tests/alembic/` 的先例**深一层**）⇒
+#   `parents[2]` 是 `tests`（不是仓库根）⇒ alembic 子进程的 cwd 里就**没有**
+#   `alembic.ini` ⇒ `Config("alembic.ini")` 拿到空配置 ⇒
+#   "No 'script_location' key found in configuration" ⇒ 这里必须 `parents[3]`。
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def _pg_url() -> str | None:
@@ -2314,6 +2317,9 @@ async def main():
             mass_flow=1000.0,
             composition_json={"7732-18-5": 1.0},
             sign_status="DRAFT",
+            # ⚠️ `approval_depth` 是 streams 上**唯一没有默认值**的 NOT NULL 列
+            #   （cerebrum Do-Not-Repeat：写 DB fixture 前必查 NOT NULL 列）
+            approval_depth=1,
         )
         db.add(stream)
         await db.commit()
