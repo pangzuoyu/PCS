@@ -2575,3 +2575,84 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **依据**：`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md` §3 MEDIUM-1
 （该报告在 `.gitignore` 里 ⇒ 只落本地 ⇒ 本条 TODOS 是它的对外留痕）。
+
+## TODO-122: 批次上限的 `int(raw)` 会把 JSON `true` 当成 **1** 🟡
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #2）：
+`app/services/stream_batch_service.py::_batch_limit` 用 `int(raw)` 解析系统参数
+`stream.batch_submit_limit` ⇒ `int(True) == 1`（bool 是 int 的子类）
+⇒ 管理员若把这个参数存成布尔 `true`，批次上限会**静默变成 1**
+（而不是回落默认 100）⇒ 用户批量提交 2 条就被 **422** 拒。
+
+**为什么没在本批修**：本批的修法是**加一个 `isinstance(raw, bool)` 的特判**
+—— 看起来很小，但它改的是「系统参数的取值口径」（布尔值到底算不算数字），
+而这个口径**全仓共用**（别的参数也走 `get_setting_value`）⇒
+应该一次想清楚，不是顺手在批次里单点特判。
+
+**建议**：`get_setting_value` 的调用方各自声明「我这个参数接受什么类型」
+（数字参数统一走一个 `coerce_int(raw, default)` 助手，
+里面显式排除 bool）⇒ 而不是每个调用点各写各的。
+
+**触发条件**：下一次动系统参数的取值口径时。
+
+## TODO-123: 换筛选条件时**不清行选择** ⇒ 可能提交「看不见的行」 🟡
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #1）：
+`pcs-frontend/src/pages/sim/StreamListPage.tsx` 的 `setSelectedIds` 只在
+「行选择变化」与「提交成功后」被调用 ⇒ **换筛选条件**（`setFilters` → 重新
+`load()`）**不清选择** ⇒ 用户勾了 5 行 → 换筛选（只剩 3 行可见）→
+点「批量提交校对」⇒ 提交的是 **5 条**（含 2 条已不在视野里的）。
+
+⚠️ 影响有界（已 `IN_APPROVAL` 的会走幂等命中、结果逐条可见），
+但按钮上**不显示「已选 N 条」** ⇒ 用户无从判断自己提交了多少。
+
+**建议**：① `load()` 成功后（或 `setFilters` 里）清 `selectedIds`；
+② 工具栏按钮上显示「批量提交校对（N）」。
+
+**归属**：前端交互收口批（与 TODO-121 同批更省事）。
+
+## TODO-124: 批次摘要**不区分**「真提交」与「幂等命中」 🟢
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #4）：
+契约的 `BatchSucceededItem.note` 有 `already_in_approval` 标记
+（已 `IN_APPROVAL` 的那条**本来就在审批中**、这次**并没有真的提交**），
+但 `StreamListPage.tsx` 的摘要只显示「成功 N · 失败 M」，
+而 N **包含**幂等命中 ⇒ 用户以为提交了 N 条。
+
+**为什么没在本批修**：需要先有「摘要要显示多少条幂等命中」的口径决定
+（前端数 `note === 'already_in_approval'`？还是后端在响应里给个计数字段？）。
+
+**建议**：摘要加一行「其中 M 条本来就在审批中」（前端数 `note` 即可，
+不需要改契约）。
+
+**触发条件**：下一次动批次结果弹窗时。
+
+## TODO-125: `POST /streams/batch-submit` 的 `stream_ids` **没有硬上限** 🟢
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #5）：
+`app/schemas/stream_batch.py` 的 `stream_ids` 只有 `min_length=1`
+⇒ 客户端可以 POST 100 万个 id；service 先做 `dict.fromkeys` 去重（O(n) 内存）
+**再**比动态上限 ⇒ 一次请求能吃掉不少内存。
+
+**为什么没在本批修**：上限是**动态的**（读系统参数）⇒ 不能简单写死
+`max_length` ⇒ 需要决定「硬上限取多少」（如 1000）。
+
+**建议**：schema 上给一个宽松的**硬上限**（如 `max_length=1000`）做兜底，
+动态上限仍由系统参数控制（两者取小）。
+
+**触发条件**：安全审计或容量评估时。
+
+## TODO-126: `system_setting_service.py` 的注释说批次上限「**本批无消费者**」 🟢
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #6）：
+`app/services/system_setting_service.py` 的 `DEFAULT_SETTINGS` 注释写着
+「`stream.batch_submit_limit` 在本批**无消费者**（批量提交在 P9B-3b）」——
+但 P9B-3b **就是**本批，它现在**有**消费者了
+（`stream_batch_service.py::_batch_limit`）。
+
+**为什么没在本批修**：一行注释，但它在**别的文件**（`system_setting_service.py`）⇒
+属「本批范围外的小清理」。
+
+**建议**：把那半句改成「消费者：`stream_batch_service._batch_limit`（P9B-3b）」。
+
+**触发条件**：下一次动 `system_setting_service.py` 时。
