@@ -5606,6 +5606,126 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2136",
+   "timestamp": "2026-11-04",
+   "severity": "high",
+   "error_message": "PipeClassListPage 表格每行的 React key 都是 `undefined` ⇒ React 报 key 警告 + **行的身份坏了**（选择/展开/局部更新都错配）",
+   "file": "pcs-frontend/src/pages/pipe_class/PipeClassListPage.tsx",
+   "root_cause": "`rowKey=\"pipe_class_id\"` —— 2026-10-19 的 bug-180 把这组字段整组改名（`pipe_class_id` → `class_id`）⇒ **列定义改了、这一行漏改** ⇒ 契约里**没有** `pipe_class_id` ⇒ antd `rc-table` 取不到 key ⇒ 全部行共用 `undefined`。⚠️ **症状指向 antd 内部**（堆栈落在 `rc-table` 的 `Body`）⇒ 容易误查成「antd 渲染数组没 key」；真因在页面**自己的一行配置**上 ⇒ 只看堆栈会找错方向。⚠️ **页面级测试看不见**：fixture 与页面共用同一份错类型 ⇒ 断言「渲染出 N 行」照样绿。",
+   "fix": "`rowKey` 改成契约字段 `class_id`（并留注释指向 bug-180 与棘轮）。新增**整类缺陷**的棘轮 `pcs-frontend/tests/pages/rowKey_contract.test.ts`：扫 `src/pages` 下所有 `.tsx` 的 `rowKey=\"字段\"` ⇒ 断言该字段**既在契约（openapi.snapshot.json）里、也在手写类型（src/types/*.ts + 页面本地 interface）里**。⚠️ 允许集**必须**包含手写类型字段（`seq` / `CompositionRow.component` 等）⇒ 否则会误报**合法** rowKey ⇒ 误报的棘轮没人敢用 ⇒ 很快被绕过。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "frontend",
+    "react",
+    "antd",
+    "rowKey",
+    "contract",
+    "ratchet"
+   ],
+   "related_bugs": [
+    "bug-180",
+    "bug-2125"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
+  },
+  {
+   "id": "bug-2137",
+   "timestamp": "2026-11-04",
+   "severity": "medium",
+   "error_message": "批次上限被存成布尔 `true` ⇒ 上限**静默变成 1** ⇒ 批量提交 2 条物流被 422 拒（参数页上显示的是「true」）",
+   "file": "pcs-backend/app/services/stream_batch_service.py",
+   "root_cause": "`_batch_limit` 里 `int(raw)` —— Python 的 **bool 是 int 的子类** ⇒ `int(True) == 1` ⇒ 系统参数（JSONB，管理员可写任意 JSON）存成 `true` 时，上限变成 1 而不是 100/报错。⚠️ **不能靠 `int()` 抛异常兜** —— `int(True)` **不抛** ⇒ 原来的 `except (TypeError, ValueError)` 完全接不住。",
+   "fix": "`int()` **之前**先 `isinstance(raw, bool)` 显式排除（排除后按「取不到值」处理 ⇒ 回落默认 100）。同时把**硬上限**（`MAX_STREAM_IDS_PER_BATCH`）与动态上限**取小**，避免「参数说 5000、实际只能 1000」难以解释。新增 `test_batch_limit_treats_boolean_as_garbage`（RED ⇒ 整批 422 ⇒ GREEN）。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "backend",
+    "batch",
+    "jsonb",
+    "type-coercion",
+    "bool"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
+  },
+  {
+   "id": "bug-2138",
+   "timestamp": "2026-11-04",
+   "severity": "medium",
+   "error_message": "换筛选后行选择**没清空** ⇒ 表格里只剩 3 行可见，但「批量提交校对」提交的是 **5 条**（含 2 条用户看不见的）",
+   "file": "pcs-frontend/src/pages/sim/StreamListPage.tsx",
+   "root_cause": "`setFilter` 只改 `filters`、不动 `selectedIds` ⇒ 筛选换了、列表内容变了 ⇒ 之前勾的行**可能已不在视野里** ⇒ 勾选集与可见集**不一致**。⚠️ 症状不是「提交多了」而是「**表格里没有的东西被提交了**」⇒ 用户**不会报 bug**（他看到「成功 3」却不知道自己点了 5 个）。",
+   "fix": "`setFilter` 里先 `setSelectedIds([])` ⇒ 换筛选 ⇒ 选中集失效。新增测试「换筛选会清掉行选择」（RED ⇒ 按钮仍 enabled ⇒ GREEN）。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "frontend",
+    "selection",
+    "filter",
+    "batch"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
+  },
+  {
+   "id": "bug-2139",
+   "timestamp": "2026-11-04",
+   "severity": "low",
+   "error_message": "批量提交摘要显示「成功 2」，但其中 1 条**本来就在审批中、本次并未真的提交**（幂等命中）",
+   "file": "pcs-frontend/src/pages/sim/StreamListPage.tsx",
+   "root_cause": "摘要直接用 `batchResult.succeeded.length` —— 契约里 `succeeded` 是**两个**来源的合集：真转移成功 + **幂等命中**（`note == 'already_in_approval'`）⇒ 用户读到「成功 2」⇒ 以为提交了 2 条，实际只提交了 1 条。",
+   "fix": "摘要下补一行（`data-testid=\"stream-batch-idempotent-hint\"`）：「其中 M 条本来就在审批中（幂等命中 · 本次**未**提交）」。新增测试断言该行出现且计数正确。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "frontend",
+    "batch",
+    "idempotency",
+    "ux"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
+  },
+  {
+   "id": "bug-2140",
+   "timestamp": "2026-11-04",
+   "severity": "medium",
+   "error_message": "批量提交请求体**无硬上限** ⇒ 客户端可 POST 100 万个 id ⇒ 服务端先把这一百万个 UUID **全部反序列化**再比上限 ⇒ 一次请求即可吃掉大量内存/CPU",
+   "file": "pcs-backend/app/schemas/stream_batch.py",
+   "root_cause": "批次上限是**动态**的（系统参数 `stream.batch_submit_limit`，管理员可改）⇒ 请求体本身**没有**上界 ⇒ Pydantic 只能先把整个列表反序列化完（`list[uuid.UUID]`）⇒ 再由 service 比上限 ⇒ 校验发生在**成本之后**。",
+   "fix": "请求体加 `MAX_STREAM_IDS_PER_BATCH = 1000` 与 `Field(max_length=...)` ⇒ Pydantic 在**逐个追加元素时**就停下 ⇒ 连反序列化都省了；服务端 `_batch_limit` 与该硬上限**取小**。新增 `test_batch_submit_rejects_more_ids_than_the_hard_cap`（RED ⇒ 导入失败 ⇒ GREEN）。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "backend",
+    "batch",
+    "dos",
+    "validation",
+    "schema"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
+  },
+  {
+   "id": "bug-2141",
+   "timestamp": "2026-11-04",
+   "severity": "low",
+   "error_message": "批量提交被 403 拒时，文案说「无权**查看**」—— 而用户刚才做的是**写**操作",
+   "file": "pcs-frontend/src/api/errors.ts",
+   "root_cause": "`describePcsError` 把 403 一律改写成「无权查看：…」⇒ 对**读**操作正确，对**写**操作（批量提交校对）误导 ⇒ 用户刚点提交却看到「无权查看」。",
+   "fix": "`describePcsError` 加**可选**第三参 `permissionVerb`（默认「无权查看」⇒ **其余几十个调用点无感**），批量提交这处传「无权提交」。新增测试断言文案。",
+   "fix_commit": "00aae19",
+   "tags": [
+    "frontend",
+    "error-message",
+    "ux"
+   ],
+   "related_bugs": [],
+   "occurrences": 1,
+   "last_seen": "2026-11-04"
   }
  ]
 }

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T14:32:17.622Z
-> Files: 1168 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T23:20:00.362Z
+> Files: 1172 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1313,6 +1313,7 @@
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
 - `signature_matrix.py` — 签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。 (~1122 tok)
+- `stream_batch.py` — 批量「提交校对」的请求/响应契约（P9B-3b · D1~D6）。 (~814 tok)
 - `stream.py` — P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。 (~4932 tok)
 - `system_settings.py` — 系统参数（§7.20.1）。 (~428 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
@@ -1345,9 +1346,9 @@
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~8562 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
-- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~4816 tok)
+- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~4957 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~7269 tok)
-- `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1243 tok)
+- `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1252 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
@@ -1688,7 +1689,7 @@
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
 - `deliverables.ts` — 交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。 (~1437 tok)
-- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~1257 tok)
+- `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~1318 tok)
 - `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `meta.ts` — Meta API 客户端（状态机 + 权限矩阵）—— P9B-2 · T4 的数据源。 (~324 tok)
@@ -1779,6 +1780,10 @@
 - `DeliverableProgressPage.tsx` — DeliverableProgressPage —— 交付物的签署进度（P9B-1 · SPEC §6.24 · P9B-2 扩展）。 (~6758 tok)
 - `SignatureMatrixPage.tsx` — SignatureMatrixPage —— 签署矩阵管理面（TODO-079 · P9A-DLV-011 T3 的前端）。 (~3742 tok)
 
+## pcs-frontend/src/pages/pipe_class/
+
+- `PipeClassListPage.tsx` — PipeClassListPage — PIPE_CLASS 等级列表（P45-3-2 / Task 29）。 (~1592 tok)
+
 ## pcs-frontend/src/pages/report/
 
 - `definitionBody.ts` — 定义体 ⇄ 编辑态的纯函数转换。 (~1072 tok)
@@ -1800,7 +1805,7 @@
 ## pcs-frontend/src/pages/sim/
 
 - `StreamDetailPage.tsx` — StreamDetailPage — SIM 物流详情（SPEC §7.7.2 · P9B-3 · T8）。 (~1514 tok)
-- `StreamListPage.tsx` — SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。 (~3242 tok)
+- `StreamListPage.tsx` — SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。 (~4315 tok)
 - `StreamManualWizardPage.tsx` — 物流手动创建向导（SPEC §7.7.3「手工」分支 · P9B-3 · T7）。 (~5750 tok)
 
 ## pcs-frontend/src/pages/sim/tabs/
@@ -1872,6 +1877,10 @@
 - `signFlow.test.ts` — mock 保真度（P9B-2 · 延后的 minor · Batch D）。 (~1878 tok)
 - `systemSettings.test.tsx` — 系统参数 MSW handlers 真跑测试（P9B-3 · T5 · 评审 I-2）。 (~754 tok)
 
+## pcs-frontend/tests/pages/
+
+- `rowKey_contract.test.ts` — **棘轮**：antd `Table` 的 `rowKey` 必须是**契约里真实存在的字段**。 (~1406 tok)
+
 ## pcs-frontend/tests/pages/admin/
 
 - `project_admin.test.tsx` — ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F）。 (~1530 tok)
@@ -1892,6 +1901,7 @@
 ## pcs-frontend/tests/pages/pipe_class/
 
 - `PipeClassListPage.test.tsx` — PipeClassListPage 测试（P45-3-2 / Task 29；2026-10-19 按契约重写）。 (~1893 tok)
+- `zz_probe_key.test.tsx` — 探针：PipeClassListPage 的 React key 警告到底来自哪儿？ (~202 tok)
 
 ## pcs-frontend/tests/pages/report/
 

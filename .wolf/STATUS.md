@@ -4,8 +4,27 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-03（第 26 轮：**P9B-3b 整批评审 + 两轮修复**收口，11 commit `252f25a..3ad2dca`）。
+> Read this FIRST when starting a session. Last updated: 2026-11-04（第 27 轮：**P9B-3b 评审的 7 条 Minor 全部闭环**，commit `00aae19`）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
+
+---
+
+## ✅ Done（第 27 轮：P9B-3b 评审 Minor 全闭环 `00aae19`）
+
+用户「清理minor」⇒ 整支分支评审的 **7 条 Minor（TODO-121~127）全部落地**
+（每条 RED→GREEN）：① `rowKey="pipe_class_id"`（bug-180 改名**漏改** ⇒ 每行 key
+都是 `undefined`）⇒ 改 `class_id` + **新增整类缺陷棘轮**
+`tests/pages/rowKey_contract.test.ts`（扫全部页面 `rowKey="字段"` ⇒ 必须既在契约
+里也在手写类型里）② `int(True)==1` ⇒ 布尔上限先排除（`int()` 不抛异常，接不住）
+③ 换筛选 ⇒ 清行选择（否则提交**看不见的行**）④ 摘要区分**幂等命中**（那条并未真提交）
+⑤ 请求体加**硬上限** `MAX_STREAM_IDS_PER_BATCH=1000`（Pydantic 逐个追加即停）
+⑥ 过时注释修正 ⑦ 403 文案对写操作说「无权提交」（`describePcsError` 加可选
+`permissionVerb`，默认「无权查看」⇒ 其余调用点无感）。
+⇒ **bug-2136~2141 已记进 buglog**，四条教训已进 cerebrum DNR。
+
+**本轮实测**：后端 **5481 passed / 77 skipped RC=0**（基线 5474 + 7）· 前端
+**1025 passed**（111 files）· typecheck + lint clean · 裸载荷 **71**（未涨）·
+浏览器实测行 key 由「无属性」变成 `pc-001`~`pc-004`、key 警告 0。
 
 ---
 
@@ -55,7 +74,7 @@ e2e 2 passed · 浏览器 QA 全过（0 error / 0×404）⇒ **CRITICAL 0 · HIG
    起点线索：`docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md` 的「P9B-3b 移交」节已全部落地 ⇒ 该节可标「已完成」。
 2. **下一轮 ce-code-review**：scope **必须**含 TODO-100 点名的三处未深审部分
    （`test_deliverable_issue.py` + deliverables/record_edits API 改动 + 其余 diff）。
-3. 开放 TODO：**091-115 + 116/118/119/120/121/122~126**（099/101/102/103 已关闭）；
+3. 开放 TODO：**091-115 + 116/118/119/120**（**121~127 已闭环**；099/101/102/103 已关闭）；
    57 手写类型长期债；ADR-0050「先不做」。
    ⚠️ **TODO-118（🔴）是本批刻意接受的越权缺口**（批次端点与六个写端点同口径，只做角色校验）
    ⇒ 批次把越权成本从「100 次请求」降到「1 次扫荡」；TODO-113/114 是**读面**的同类缺口。
@@ -81,6 +100,11 @@ e2e 2 passed · 浏览器 QA 全过（0 error / 0×404）⇒ **CRITICAL 0 · HIG
   **提前返回**路径**必须先结束事务** ⇒ 否则锁跨条目累积 ⇒ 真死锁（bug-2135）。
   ⚠️ 只读事务要结束用 **`commit()`** 不用 `rollback()`（后者 expire 掉所有实体
   ⇒ async 下炸 `MissingGreenlet`；本仓 session 工厂都是 `expire_on_commit=False`）。
+- ⚠️ **改字段名/删字段的批次 ⇒ `rowKey` 必进改名单**（bug-180 漏改 ⇒ 每行 key
+  都是 `undefined`；棘轮 `tests/pages/rowKey_contract.test.ts` 会红）。
+  ⚠️ 允许集**必须**含手写类型字段 ⇒ 否则误报合法 rowKey ⇒ 棘轮被绕过。
+- ⚠️ **布尔不是数字**：`int(True) == 1` ⇒ JSONB 里的 `true` 会静默变成上限 1
+  ⇒ `int()` 之前先 `isinstance(x, bool)` 排除（**异常兜不住**）。
 - ⚠️ 契约缺口（裸 dict）：`CreateStreamRequest.payload`、state-points body、properties/state-points/
   lineage graph 响应 ⇒ 前端手写本地类型 ⇒ **字段名无编译期约束**（TODO-110/111）。
 

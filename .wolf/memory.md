@@ -3029,3 +3029,21 @@
 | 22:23 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md | expanded (+31 lines) | ~325 |
 | 22:23 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md | 2→3 lines | ~41 |
 | 22:32 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md | inline fix | ~39 |
+| 22:42 | Created pcs-frontend/tests/pages/pipe_class/zz_probe_key.test.tsx | — | ~202 |
+| 22:48 | Created pcs-frontend/tests/pages/rowKey_contract.test.ts | — | ~996 |
+| 22:49 | Edited pcs-frontend/tests/pages/rowKey_contract.test.ts | "src/pages/**/*.tsx" → "src/pages" | ~16 |
+| 22:49 | Edited pcs-frontend/tests/pages/rowKey_contract.test.ts | added optional chaining | ~262 |
+| 22:50 | Edited pcs-frontend/tests/pages/rowKey_contract.test.ts | added 1 condition(s) | ~433 |
+| 22:51 | Edited pcs-frontend/tests/pages/rowKey_contract.test.ts | modified for() | ~267 |
+| 23:11 | Session end: 228 writes across 68 files (progress.md, brief.sh, test_pytest_pg_gate.py, pytest_pg.sh, pyproject.toml) | 82 reads | ~191721 tok |
+| 07:14 | Edited pcs-frontend/tests/pages/rowKey_contract.test.ts | modified handWrittenTypeFieldNames() | ~312 |
+| 07:14 | Edited pcs-frontend/src/pages/pipe_class/PipeClassListPage.tsx | 2→6 lines | ~83 |
+| 07:15 | Edited pcs-backend/app/services/stream_batch_service.py | modified _batch_limit() | ~184 |
+| 07:16 | Edited pcs-backend/app/schemas/stream_batch.py | modified StreamBatchSubmitRequest() | ~238 |
+| 07:16 | Edited pcs-backend/app/services/stream_batch_service.py | modified isinstance() | ~201 |
+| 07:16 | Edited pcs-backend/app/services/stream_batch_service.py | 5→6 lines | ~42 |
+| 07:18 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | modified setFilter() | ~133 |
+| 07:18 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | CSS: display | ~263 |
+| 07:19 | Edited pcs-frontend/src/api/errors.ts | modified describePcsError() | ~199 |
+| 07:19 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | modified catch() | ~79 |
+| 07:20 | Edited pcs-backend/app/services/system_setting_service.py | 4→5 lines | ~65 |

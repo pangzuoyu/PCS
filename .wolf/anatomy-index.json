@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T14:32:17.622Z",
-    "fileCount": 1168,
+    "lastScanned": "2026-11-03T23:20:00.362Z",
+    "fileCount": 1172,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "fa971a9b622d859d19676cb859d0502c6fb639d9bfd6e5ee9bd3c5771e4d746c",
-    "storeUpdatedAt": "2026-11-03T14:32:17.635Z",
-    "rootHash": "cec328e38af57f45"
+    "renderedHash": "4abe716c8f79fb5d249940e39f990ce6c37939f800e6f645c9c473e06b8ce081",
+    "storeUpdatedAt": "2026-11-03T23:20:00.373Z",
+    "rootHash": "d98d5b343655ff95"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27792,33 +27792,26 @@
     },
     "pcs-frontend/src/pages/sim/StreamListPage.tsx": {
       "description": "SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。",
-      "tokens": 3242,
-      "hash": "6b2c785634c20631",
-      "size": 13184,
-      "mtimeMs": 1793640446250.3674,
-      "updatedAt": "2026-11-02T17:27:26.303Z",
+      "tokens": 4315,
+      "hash": "b65a7c5ec41f4fa1",
+      "size": 17754,
+      "mtimeMs": 1793747974009.7476,
+      "updatedAt": "2026-11-03T23:19:34.064Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Props",
           "kind": "section",
           "startLine": 48,
-          "endLine": 62,
-          "tokens": 103
-        },
-        {
-          "name": "BadgeCell",
-          "kind": "class",
-          "startLine": 63,
-          "endLine": 86,
-          "tokens": 191
+          "endLine": 52,
+          "tokens": 22
         },
         {
           "name": "StreamListPage",
           "kind": "fn",
-          "startLine": 87,
-          "endLine": 373,
-          "tokens": 2499
+          "startLine": 53,
+          "endLine": 469,
+          "tokens": 3838
         }
       ]
     },
@@ -35047,11 +35040,11 @@
     },
     "pcs-frontend/src/api/errors.ts": {
       "description": "统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。",
-      "tokens": 1257,
-      "hash": "d7d0f7d0e410b46c",
-      "size": 6016,
-      "mtimeMs": 1793588112445.7195,
-      "updatedAt": "2026-11-02T02:55:12.492Z",
+      "tokens": 1318,
+      "hash": "cb66eb348f54d8ed",
+      "size": 6409,
+      "mtimeMs": 1793747949440.5217,
+      "updatedAt": "2026-11-03T23:19:09.490Z",
       "source": "hook",
       "symbols": [
         {
@@ -35086,28 +35079,28 @@
           "name": "errorText",
           "kind": "fn",
           "startLine": 88,
-          "endLine": 102,
-          "tokens": 123
+          "endLine": 107,
+          "tokens": 171
         },
         {
           "name": "describePcsError",
           "kind": "fn",
-          "startLine": 103,
-          "endLine": 118,
-          "tokens": 148
+          "startLine": 108,
+          "endLine": 127,
+          "tokens": 162
         },
         {
           "name": "extractConflict",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 138,
+          "startLine": 128,
+          "endLine": 147,
           "tokens": 189
         },
         {
           "name": "conflictKind",
           "kind": "fn",
-          "startLine": 139,
-          "endLine": 149,
+          "startLine": 148,
+          "endLine": 158,
           "tokens": 67
         }
       ]
@@ -41090,39 +41083,39 @@
     },
     "pcs-backend/app/services/system_setting_service.py": {
       "description": "系统参数读写（§7.20.1 · T4）。",
-      "tokens": 1243,
-      "hash": "a8f29115aa671d96",
-      "size": 5552,
-      "mtimeMs": 1793677405815.3958,
-      "updatedAt": "2026-11-03T03:43:25.864Z",
+      "tokens": 1252,
+      "hash": "8cdb180c87e7c4ac",
+      "size": 5586,
+      "mtimeMs": 1793748000316.0332,
+      "updatedAt": "2026-11-03T23:20:00.362Z",
       "source": "hook",
       "symbols": [
         {
           "name": "seed_defaults",
           "kind": "fn",
-          "startLine": 46,
-          "endLine": 73,
+          "startLine": 47,
+          "endLine": 74,
           "tokens": 208
         },
         {
           "name": "list_all",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 81,
+          "startLine": 75,
+          "endLine": 82,
           "tokens": 66
         },
         {
           "name": "get_setting_value",
           "kind": "fn",
-          "startLine": 82,
-          "endLine": 99,
+          "startLine": 83,
+          "endLine": 100,
           "tokens": 144
         },
         {
           "name": "update_batch",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 148,
+          "startLine": 101,
+          "endLine": 149,
           "tokens": 382
         }
       ]
@@ -42032,60 +42025,60 @@
     },
     "pcs-backend/app/services/stream_batch_service.py": {
       "description": "批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。",
-      "tokens": 4816,
-      "hash": "36ebbc788f8ae02f",
-      "size": 23591,
-      "mtimeMs": 1793715018280.3418,
-      "updatedAt": "2026-11-03T14:10:18.328Z",
+      "tokens": 4957,
+      "hash": "25ba8873ea01a43d",
+      "size": 24418,
+      "mtimeMs": 1793747807993.9258,
+      "updatedAt": "2026-11-03T23:16:48.042Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_batch_limit",
           "kind": "fn",
-          "startLine": 97,
-          "endLine": 108,
-          "tokens": 102
+          "startLine": 98,
+          "endLine": 123,
+          "tokens": 235
         },
         {
           "name": "_submit_one",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 159,
+          "startLine": 124,
+          "endLine": 174,
           "tokens": 435
         },
         {
           "name": "_release_precheck_transaction",
           "kind": "fn",
-          "startLine": 160,
-          "endLine": 199,
+          "startLine": 175,
+          "endLine": 214,
           "tokens": 376
         },
         {
           "name": "_read_sign_status",
           "kind": "fn",
-          "startLine": 200,
-          "endLine": 220,
+          "startLine": 215,
+          "endLine": 235,
           "tokens": 185
         },
         {
           "name": "_submit_one_inner",
           "kind": "fn",
-          "startLine": 221,
-          "endLine": 344,
+          "startLine": 236,
+          "endLine": 359,
           "tokens": 1206
         },
         {
           "name": "_write_batch_audit",
           "kind": "fn",
-          "startLine": 345,
-          "endLine": 412,
+          "startLine": 360,
+          "endLine": 427,
           "tokens": 696
         },
         {
           "name": "submit_batch",
           "kind": "fn",
-          "startLine": 413,
-          "endLine": 513,
+          "startLine": 428,
+          "endLine": 528,
           "tokens": 912
         }
       ]
@@ -42151,6 +42144,111 @@
           "startLine": 56,
           "endLine": 74,
           "tokens": 206
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/pipe_class/zz_probe_key.test.tsx": {
+      "description": "探针：PipeClassListPage 的 React key 警告到底来自哪儿？",
+      "tokens": 202,
+      "hash": "1458ae1b436f78d6",
+      "size": 745,
+      "mtimeMs": 1793716974681.0105,
+      "updatedAt": "2026-11-03T14:42:54.731Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/rowKey_contract.test.ts": {
+      "description": "**棘轮**：antd `Table` 的 `rowKey` 必须是**契约里真实存在的字段**。",
+      "tokens": 1406,
+      "hash": "0e7fb3d73fa52cab",
+      "size": 6489,
+      "mtimeMs": 1793747668015.302,
+      "updatedAt": "2026-11-03T23:14:28.063Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "allContractFieldNames",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 68,
+          "tokens": 234
+        },
+        {
+          "name": "handWrittenTypeFieldNames",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 89,
+          "tokens": 205
+        },
+        {
+          "name": "pageFiles",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 144,
+          "tokens": 518
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/pipe_class/PipeClassListPage.tsx": {
+      "description": "PipeClassListPage — PIPE_CLASS 等级列表（P45-3-2 / Task 29）。",
+      "tokens": 1592,
+      "hash": "f68b82c93f91c737",
+      "size": 6748,
+      "mtimeMs": 1793747684396.3787,
+      "updatedAt": "2026-11-03T23:14:44.446Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 46,
+          "endLine": 50,
+          "tokens": 24
+        },
+        {
+          "name": "PipeClassListPage",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 174,
+          "tokens": 1167
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/stream_batch.py": {
+      "description": "批量「提交校对」的请求/响应契约（P9B-3b · D1~D6）。",
+      "tokens": 814,
+      "hash": "5ea8f9ee480f0874",
+      "size": 3943,
+      "mtimeMs": 1793747794401.1416,
+      "updatedAt": "2026-11-03T23:16:34.454Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StreamBatchSubmitRequest",
+          "kind": "class",
+          "startLine": 30,
+          "endLine": 47,
+          "tokens": 138
+        },
+        {
+          "name": "BatchSucceededItem",
+          "kind": "class",
+          "startLine": 48,
+          "endLine": 65,
+          "tokens": 151
+        },
+        {
+          "name": "BatchFailedItem",
+          "kind": "class",
+          "startLine": 66,
+          "endLine": 80,
+          "tokens": 129
+        },
+        {
+          "name": "StreamBatchSubmitResponse",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 99,
+          "tokens": 205
         }
       ]
     }
