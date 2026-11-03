@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T14:10:18.328Z",
+    "lastScanned": "2026-11-03T14:23:44.171Z",
     "fileCount": 1168,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d3bee9783c945e9f99e6bff417330524b1a5d0cd544624ec752302ebdf929984",
-    "storeUpdatedAt": "2026-11-03T14:10:18.339Z",
-    "rootHash": "e06231b199aa7dd9"
+    "renderedHash": "649218b75390ab481685a6e2bcf7cdd40e7a444dd2531317c037a1e291fb1d27",
+    "storeUpdatedAt": "2026-11-03T14:23:44.183Z",
+    "rootHash": "aade8814ccf71eaf"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -41959,11 +41959,11 @@
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md": {
       "description": "QA 报告 —— P9B-3b 批量「提交校对」",
-      "tokens": 1095,
-      "hash": "3974972f7b64a6cc",
-      "size": 6806,
-      "mtimeMs": 1793704811004.7004,
-      "updatedAt": "2026-11-03T11:20:11.048Z",
+      "tokens": 1395,
+      "hash": "d03007b96e758bf1",
+      "size": 8781,
+      "mtimeMs": 1793715824127.3833,
+      "updatedAt": "2026-11-03T14:23:44.171Z",
       "source": "hook"
     },
     "pcs-backend/tests/services/test_zz_probe.py": {

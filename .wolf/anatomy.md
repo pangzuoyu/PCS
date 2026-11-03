@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T14:10:18.328Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-03T14:23:44.171Z
 > Files: 1168 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -188,7 +188,7 @@
 - `qa-report-pcs-frontend-2026-11-01-p9b2-review-fixes.md` — QA 报告 — P9B-2 评审修复批（P9B-2R） (~358 tok)
 - `qa-report-pcs-frontend-2026-11-02-p9b2f.md` — QA 报告 — P9B-2F（follow-up 评审修复批） (~1034 tok)
 - `qa-report-pcs-frontend-2026-11-03-p9b3.md` — QA Report: pcs-frontend / pcs-backend P9B-3（系统参数 + SIM 物流前端）批末 (~1406 tok)
-- `qa-report-pcs-frontend-2026-11-03-p9b3b.md` — QA 报告 —— P9B-3b 批量「提交校对」 (~1095 tok)
+- `qa-report-pcs-frontend-2026-11-03-p9b3b.md` — QA 报告 —— P9B-3b 批量「提交校对」 (~1395 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
