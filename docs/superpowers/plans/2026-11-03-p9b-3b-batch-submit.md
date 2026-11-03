@@ -3654,3 +3654,45 @@ worktree 被删导致隔离守卫援引不存在路径、会话永久无法 Edit
 - **VERDICT:** ENG 已过（7 条裁决全部写进计划 + 18 条缺口已补测）—— 但 **1 个 critical gap 是「刻意接受」的**（批次端点无项目授权，委员会 D3 裁决 C）⇒ 该 gap **已登记为 TODO-118**，不是未审的遗留问题
 - **本轮改动摘要**：端点/契约（`status` 判别字段 + `warning`）、service（去中间类型、union 返回、绝不抛异常、批次审计独立函数 + docstring）、加锁读抽成 `select_stream_for_update()`（含 `populate_existing` 断言）、事务设计（逐条 commit 的实测依据）、前端（多选 + 摘要 + 关闭提示 + e2e）、债项（116/118/119/120，**117 不登记**）
 - **三条被实测推翻/修正的原假设**：① 「savepoint 内 `session.rollback()` 只回滚到 savepoint」——**实测反了**（整个外层事务被关掉）；② 「审计页 `resource_type` 是下拉」——**实测是自由文本输入** ⇒ TODO-117 的前提为假；③ 「service 返回 schema 是既有惯例」——**不成立**（`transition` 返回 ORM 实体）⇒ A 的理由改写为「批次结果的语义就是 schema 的语义」
+
+---
+
+## 执行台账（`Ruling:` 全表 · 2026-11-03）
+
+⚠️ **原台账在 `.superpowers/sdd/…/progress.md`（gitignored）** ⇒ 批末按
+executing-plans 的流程删掉了工作区 ⇒ **把全部裁决写回本文件**（它**进 git**）
+⇒ 下一批能读到「为什么这么判」+「代价若错是什么」。
+
+### 任务期的裁决（执行时发现计划与仓库/实测不符）
+
+| # | 裁决 | 为什么 | 代价若错 |
+|---|---|---|---|
+| T2-1 | 测试 fixture `_make_draft` 补 `approval_depth=1` | `streams.approval_depth` 是该表**唯一没有默认值**的 NOT NULL 列 ⇒ 忘给 ⇒ INSERT 直接失败 | 只是一个字段值 |
+| T2-2 | 「limit < 1 ⇒ 兜底成 1」那条用例改用**两条不同的物流** | 计划原文传**同一个 id 两次** ⇒ 被 D5 去重成 1 条 ⇒ `1 > 1` 为假 ⇒ **断言永远不可能成立**（测试是空的） | 那条用例从「空断言」变成「真断言」 |
+| T3-1 | 前端契约类型在 T3 就重滚 | 仓库的 pre-commit **G-08 门禁**会重滚前后端两侧并做 drift 校验 ⇒ 只改后端契约就提交会被拦下 | 无（T5 的 Step 1 变成空跑） |
+| T3-2 | T3 测试里 `make_project` 去掉 `await` 与括号 | 该 fixture 是**直接返回 Project 的 async fixture**（不是返回工厂的）⇒ pytest-asyncio auto 模式下**已经 await 过** ⇒ 计划原文的 `await make_project()` 调用了 Project + await 非协程 | 调用点写法 |
+| T3-3 | T3 的 `_make_draft` 同样补 `approval_depth=1` | 同 T2-1 | 一个字段值 |
+| T4-1 | 接线断言改成 spy `stream_batch_service.select_stream_for_update` | 计划原文 spy 的是 `build_stream_for_update_stmt` ⇒ **被 `StreamService.transition` 的内部调用满足** ⇒ 批次的预检即使绕开加锁读，这条断言**照样绿** ⇒ 是个**假闸门**（**变异实测 3 抓到的**）⇒ 改 spy 批次模块 ⇒ 预检一旦不调它 ⇒ 计数 0 ⇒ 必红 | 无（断言更强，不是更弱） |
+| T4-2 | PG 用例的 `ROOT` 改成 `Path(__file__).resolve().parents[3]` | 本文件在 `tests/api/v1/`（比 `tests/alembic/` 的先例**深一层**）⇒ 计划抄来的 `parents[2]` 指向 `tests` ⇒ alembic 子进程的 cwd 里**没有** `alembic.ini` ⇒ `Config("alembic.ini")` 拿到空配置 ⇒ "No 'script_location' key found" | 无 |
+| T4-3 | PG 脚本里的 `Stream(...)` 补 `approval_depth=1` | 同 T2-1（**同一处缺陷的第三次出现** ⇒ 已写进 cerebrum 的 Do-Not-Repeat） | 一个字段值 |
+
+### 收口期的裁决（浏览器 QA / e2e 撞上工具与文档的实际行为）
+
+| # | 裁决 | 为什么 | 代价若错 |
+|---|---|---|---|
+| T5-1 | dev mock 的批量响应体抽成 `buildBatchSubmitResponse()` 导出 | 棘轮清单（`devOnly ∩ 契约`）新增 `/api/v1/streams/batch-submit` ⇒ 按该测试**自己的规矩**「作者必须给它的响应体加契约类型标注 / ajv 校验，然后才更新本清单」⇒ 抽导出函数（与 `buildNotificationList` **同款理由**）。**顺带**：`batch_id` 从 `"b-mock-1"` 改成**真 uuid 形状** ⇒ 契约里 `format: uuid` ⇒ 免得哪天 ajv-formats 接上就红 | mock 多一个导出（无消费者除测试） |
+| T5b-1 | e2e spec 的导航改成**菜单点击**（不是 `page.goto`） | 计划原文写的是 `page.goto('/sim/streams')` ⇒ **实测失败**（白屏 ⇒ 表格不出现）：zustand auth store 是**内存态**（防 XSS，不落 localStorage）⇒ 整页刷新清 session ⇒ `RequireAuth` 弹回 `/login`。既有 6 个 spec 的注释里**已经写着**这条约定，计划原文没抄进来 | spec 多一个导航 helper |
+| T5b-2 | e2e 报文断言改成「等于页面上真正被勾中的那两行的 id」 | 计划原文只断言 `toHaveLength(2)` ⇒ 「碰巧长度对」也能过 ⇒ 改成从行内 `stream-view-<id>` 的 testid 读出**那两行的 id** 再 `toEqual`。**变异实测**：只发第一个 id ⇒ spec 变红 ✓ ⇒ 断言是真的 | 断言更强，不是更弱 |
+| T6-1 | 浏览器 QA 里「点一个复选框 ⇒ 全选」是 **browse 工具的 ref 解析问题**，不是应用缺陷 | 现象：gstack `browse click @e54`（快照里像第 1 行的复选框）⇒ **6 个全选**。核实 ①：antd 的**所有**行复选框都带**同一个** `aria-label="Select all"` ⇒ browse 的 ref→aria 匹配落到表头那个。核实 ②（决定性）：用 **Playwright 的真实鼠标事件**复测 ⇒ 勾 1 行 = 只勾 1 行 ⇒ **应用行为正确** | QA 脚本不用 browse 的 ref（仍用它做导航与截图） |
+| T6-2 | `PipeClassListPage` 的 React key 警告归**既有缺陷** ⇒ 本批**不修** ⇒ 登记 TODO-121 | `git diff --name-only 252f25a~1 HEAD \| grep pipe_class` 为空 ⇒ 本批没碰过它 ⇒ 越界修改违反「外科手术式改动」⇒ 登记债项而不是顺手改 | 该警告还在（warning 不是 error ⇒ 不影响功能） |
+
+### 整批评审后的修复（两处真缺陷）
+
+| # | 缺陷 | 根因 | 修法 | 验证 |
+|---|---|---|---|---|
+| F-1 | **失败条目的部分写入泄漏** ⇒ 下一条的 `db.commit()` 把它一起提交 ⇒ **响应说失败、DB 里却是 IN_APPROVAL**（且无审计） | `StreamService.transition` 的成功路径是 **flush（状态写进当前事务）→ commit** ⇒ 若在 flush 之后、commit 之前抛**非预期**异常（最现实：**审计写失败**）⇒ 那条的状态已 flush 进事务 ⇒ `_submit_one` 的 `except Exception` 变成失败项但**没人回滚** ⇒ 下一条的 commit 把脏写一起提交了 | 转移失败时先 `db.rollback()`（每条自成事务 ⇒ 只回滚这条，不影响已提交的其它条 ⇒ D2「部分成功」仍成立），再**读回真实状态**（`_read_sign_status`）：若是 `IN_APPROVAL` ⇒ 说明 commit 其实已成功（`transition` 里 commit 之后还有一次 `db.refresh`，它失败时数据已落库）⇒ 老实报**成功** | 3 条 RED→GREEN + **变异实测**（去掉 rollback ⇒ 红；去掉读回 ⇒ 红） |
+| F-2 | **提前返回路径不释放行锁** ⇒ 锁跨条目累积 ⇒ 两个顺序相反的并发批次 ⇒ **真死锁** | 预检用 `select_stream_for_update` 取 `SELECT ... FOR UPDATE` ⇒ PG 的行锁**只在 COMMIT/ROLLBACK 时释放**；而「幂等命中 / 组成门禁拒 / 预演」三条**提前返回**路径**既不 commit 也不 rollback** ⇒ 与模块 docstring + 计划第 6 条断言的「只持一把锁 ⇒ 无死锁面」**矛盾**（**假不变量**） | 新增 `_release_precheck_transaction(db)` ⇒ 三条提前返回路径**先结束事务**。⚠️ **用 `commit()` 不用 `rollback()`**：预检事务**只含读** ⇒ 两者数据上等价；但 `rollback()` 会 SQLAlchemy **无条件 expire 掉 session 里所有实体** ⇒ 调用方的 ORM 对象属性全过期 ⇒ 之后读它触发**同步 lazy-load** ⇒ async 上下文里炸 `MissingGreenlet`（**实测**：改 rollback ⇒ 两条既有测试红）⇒ 而本仓 session 工厂（生产 + 测试）都是 `expire_on_commit=False` ⇒ `commit()` 释放锁且**不 expire 任何实体** | 1 条单测（`db.in_transaction()` 必须为 False）+ **1 条 PG 车道真死锁用例** ⇒ **变异实测**：去掉修法 ⇒ **两条都红**（PG 侧实测 `psycopg.errors.DeadlockDetected`） |
+
+⚠️ **两处修复的共同教训**：**「文档/注释里反复断言的不变量」要当成待验证的断言**，
+不是当成事实 —— 本批的假不变量有两条（「逐条 commit ⇒ 只持一把锁」「失败即安全」）
+⇒ 下一个维护者按错误模型推理锁行为 ⇒ 这正是本仓「假闸门 / 假不变量」类事故的形状。
