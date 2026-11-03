@@ -4,12 +4,12 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-03（第 25 轮：**P9B-3b 整批落地** T1→T6，8 commit `252f25a..9558d72`）。
+> Read this FIRST when starting a session. Last updated: 2026-11-03（第 26 轮：**P9B-3b 整批评审 + 两轮修复**收口，11 commit `252f25a..3ad2dca`）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done（第 25 轮：P9B-3b 批量「提交校对」）
+## ✅ Done（第 25~26 轮：P9B-3b 批量「提交校对」）
 
 计划 `docs/superpowers/plans/2026-11-03-p9b-3b-batch-submit.md`（3600+ 行，含 GSTACK REVIEW REPORT），
 **superpowers:executing-plans**（inline）+ gstack `plan-eng-review` 审查 ⇒ 委员会 D1~D12 全部写进计划。
@@ -34,6 +34,13 @@ ledger：`.superpowers/sdd/2026-11-03-p9b-3b-batch-submit/progress.md`（含全�
 - **T5b e2e**（`450a177`）：Playwright 断言**报文**（不是只断言 UI）⇒ 变异实测：只发第一个 id ⇒ 变红 ✓。
 - **T6 收口**（`9558d72`）：SPEC §7.7.1 → **V2.10** + §12.4 修订行；债项 **TODO-116/118/119/120/121**；
   OpenAPI baseline 滚动（G-08 `--check-baseline` ✅）。
+- **整支分支评审**（opus · fresh context · `3ad2dca` 前）：**Critical 0 · Important 1 · Minor 7**
+  ⇒ **Important 已修**（`ccf6cb3`）：提前返回路径**不释放行锁** ⇒ 锁跨条目累积
+  ⇒ 两个顺序相反的并发批次 ⇒ **真死锁**（实测 `DeadlockDetected`）
+  ⇒ 新增 `_release_precheck_transaction`；模块 docstring 与计划第 6 条的**假不变量**已改对。
+- **两轮修复**（`be51bac` + `ccf6cb3`）：① 失败条目的**部分写入泄漏**（下一条的 commit 带走它
+  ⇒ 响应说失败、DB 里却是 IN_APPROVAL）② 提前返回不释放行锁（真死锁）
+  ⇒ 各带 **RED→GREEN + 变异实测**的测试（单测 **且** PG 车道真并发）。
 
 **批末实测**：后端 **5474 passed / 77 skipped RC=0**（基线 5439 + 35）· PG 车道 5 passed RC=0 ·
 前端 **1017 passed**（111 files）· typecheck + lint clean · 裸载荷 **71**（未涨）· G-08 4/4 ✅ ·
@@ -44,15 +51,15 @@ e2e 2 passed · 浏览器 QA 全过（0 error / 0×404）⇒ **CRITICAL 0 · HIG
 
 ## 🚀 Next quest
 
-1. **整支分支的 fresh-context 评审**（本轮末尾已派 opus，**尚未收结论**）⇒ Critical/Important 进修复批。
-2. **下一 quest 待用户定**：P9B-4（批量操作交互收口 · 含 TODO-116 的「只重试失败项」）或 P9B-3c。
+1. **下一 quest 待用户定**：P9B-4（批量操作交互收口 · 含 TODO-116 的「只重试失败项」）或 P9B-3c。
    起点线索：`docs/PCS-PLAN-P9B-3-系统参数与SIM物流前端.md` 的「P9B-3b 移交」节已全部落地 ⇒ 该节可标「已完成」。
-3. **下一轮 ce-code-review**：scope **必须**含 TODO-100 点名的三处未深审部分
+2. **下一轮 ce-code-review**：scope **必须**含 TODO-100 点名的三处未深审部分
    （`test_deliverable_issue.py` + deliverables/record_edits API 改动 + 其余 diff）。
-4. 开放 TODO：**091-115 + 116/118/119/120/121**（099/101/102/103 已关闭）；57 手写类型长期债；ADR-0050「先不做」。
+3. 开放 TODO：**091-115 + 116/118/119/120/121/122~126**（099/101/102/103 已关闭）；
+   57 手写类型长期债；ADR-0050「先不做」。
    ⚠️ **TODO-118（🔴）是本批刻意接受的越权缺口**（批次端点与六个写端点同口径，只做角色校验）
    ⇒ 批次把越权成本从「100 次请求」降到「1 次扫荡」；TODO-113/114 是**读面**的同类缺口。
-5. **未跟踪的 6 个遗留文件**（`docs/superpowers/plans/2026-09-30-*.md` ×5 +
+4. **未跟踪的 6 个遗留文件**（`docs/superpowers/plans/2026-09-30-*.md` ×5 +
    `spec/PCS-SPEC-P10 V1.3.1….md`）—— 非本会话产出，处置由用户定。
 
 ---
@@ -70,6 +77,10 @@ e2e 2 passed · 浏览器 QA 全过（0 error / 0×404）⇒ **CRITICAL 0 · HIG
   ⇒ 路由可达性走 **SPA 菜单点击**。
 - ⚠️ gstack `browse click @eN` 对 antd 表格复选框会解析成表头「Select all」（所有行复选框
   `aria-label` 相同）⇒ 勾选改用 `js` 点 DOM + Playwright 交叉验证 ⇒ **别把它当应用 bug**。
+- ⚠️ **PG 行锁只在 COMMIT/ROLLBACK 时释放** ⇒ 任何 `SELECT ... FOR UPDATE` 之后的
+  **提前返回**路径**必须先结束事务** ⇒ 否则锁跨条目累积 ⇒ 真死锁（bug-2135）。
+  ⚠️ 只读事务要结束用 **`commit()`** 不用 `rollback()`（后者 expire 掉所有实体
+  ⇒ async 下炸 `MissingGreenlet`；本仓 session 工厂都是 `expire_on_commit=False`）。
 - ⚠️ 契约缺口（裸 dict）：`CreateStreamRequest.payload`、state-points body、properties/state-points/
   lineage graph 响应 ⇒ 前端手写本地类型 ⇒ **字段名无编译期约束**（TODO-110/111）。
 
