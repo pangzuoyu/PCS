@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv, { type AnySchema } from "ajv";
 
-import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList } from "../../src/mocks/handlers";
+import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList, buildBatchSubmitResponse } from "../../src/mocks/handlers";
 import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { signFlowHandlers } from "../../src/mocks/signFlow";
@@ -423,6 +423,8 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/psychro/results",
       "/api/v1/psychro/saturation-water-content/calculate",
       "/api/v1/sep-equip/calculate",
+      // P9B-3b：批量提交校对（2026-11-03 加入 ⇒ 棘轮同步）
+      "/api/v1/streams/batch-submit",
       "/api/v1/todos",
       "/api/v1/util/energy-summary/aggregate",
       "/api/v1/util/heat-exchange-items",
@@ -445,6 +447,26 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     for (const [path, data] of cases) {
       validatePath(path, data);
     }
+  });
+
+  it("POST /api/v1/streams/batch-submit 的 207 响应体符合契约（P9B-3b）", () => {
+    // ⚠️ 棘轮同步：端点进了契约 ⇒ 必须**一并**加 ajv 校验
+    // （否则「有契约可漂移」却没校验 = 漂移被藏住 = bug-2040 重演）。
+    // ⚠️ 这个端点返 **207**（不是 200）⇒ `validatePath` 取不到 schema
+    // ⇒ 单独取 207 的 schema。
+    const op = openapi.paths["/api/v1/streams/batch-submit"]?.post;
+    expect(op, "契约里没有 POST /api/v1/streams/batch-submit").toBeDefined();
+    const schemaJson = op!.responses["207"].content["application/json"].schema;
+    const schema = (schemaJson.$ref
+      ? inlineRefs(resolveRef(openapi, schemaJson.$ref), openapi)
+      : inlineRefs(schemaJson, openapi)) as AnySchema;
+    const validate = ajv.compile(schema);
+    const data = buildBatchSubmitResponse(
+      ["00000000-0000-4000-8000-0000000000a1"],
+      false,
+    );
+    const ok = validate(data);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
   });
 
   it("GET /api/v1/deliverables 的响应体符合契约（P9B-1）", () => {

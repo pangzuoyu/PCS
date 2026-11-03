@@ -66,8 +66,12 @@ class StreamBatchSubmitResponse(BaseModel):
 
     batch_id: uuid.UUID = Field(description="批次 id（同时是批次审计的 resource_id）")
     total: int = Field(description="**去重后**实际处理的条数")
-    succeeded: list[BatchSucceededItem] = Field(default_factory=list)
-    failed: list[BatchFailedItem] = Field(default_factory=list)
+    # ⚠️ **必填**（不是 `default_factory=list`）—— 有 default ⇒ OpenAPI 标成
+    #   **非必填** ⇒ 前端契约派生的类型变成可选 ⇒ 页面里 `result.succeeded.length`
+    #   报 TS18048 ⇒ 逼每个调用方判空。而 service **总是**给这两个数组
+    #   （空批次也是 `[]`）⇒ 必填才是如实的契约。
+    succeeded: list[BatchSucceededItem]
+    failed: list[BatchFailedItem]
     dry_run: bool = Field(default=False, description="true ⇒ 本次是预演")
     warning: str | None = Field(
         default=None,

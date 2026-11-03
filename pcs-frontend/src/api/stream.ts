@@ -23,6 +23,13 @@ import type { Stream } from '../types/stream';
 
 export type { Stream };
 
+/** 批量提交校对的响应（**契约派生** · P9B-3b）。 */
+export type StreamBatchSubmitResponse = components['schemas']['StreamBatchSubmitResponse'];
+/** 批量里成功的一条（契约派生）。 */
+export type StreamBatchSucceeded = components['schemas']['BatchSucceededItem'];
+/** 批量里失败的一条（契约派生）。 */
+export type StreamBatchFailed = components['schemas']['BatchFailedItem'];
+
 /** 契约的 `StreamSource`（4 值 · 录入通道）。 */
 export type StreamSource = components['schemas']['StreamSource'];
 /** 契约的 `StreamCaseType`（4 值 · 设计工况）。 */
@@ -170,6 +177,23 @@ export const streamApi = {
   submitForReview: (streamId: string): Promise<unknown> =>
     api.post(`/streams/${streamId}/submit`).then((r) => r.data),
 
+  /**
+   * 批量**提交校对**（`POST /streams/batch-submit` · 207 Multi-Status）。
+   *
+   * ⚠️ **207 是 2xx ⇒ axios 不抛异常** ⇒ 部分失败**不会**进 catch ⇒
+   * 调用方**必须自己看** `failed` 数组（`failed.length > 0` ⇒ 有条没成）。
+   * ⚠️ 与行操作那条「校对」（`submitForReview`，单条）**不是同一件事**。
+   */
+  batchSubmitForReview: (
+    streamIds: string[],
+    dryRun = false,
+  ): Promise<StreamBatchSubmitResponse> =>
+    api
+      .post<StreamBatchSubmitResponse>('/streams/batch-submit', {
+        stream_ids: streamIds,
+        dry_run: dryRun,
+      })
+      .then((r) => r.data),
   /** 发起变更（CHECKED → CHANGE_PENDING，ADR-0002）。 */
   initiateChange: (streamId: string, reason?: string): Promise<unknown> =>
     api

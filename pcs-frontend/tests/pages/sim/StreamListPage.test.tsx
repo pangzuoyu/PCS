@@ -56,6 +56,11 @@ let submitStatus = 200;
 /** 提交校对是否改内存态（模拟后端把 DRAFT 推进 IN_APPROVAL）。 */
 let submitMutates = true;
 
+/** 批量提交的请求记录（断言 body）。 */
+let batchRequests: { ids: string[]; dryRun: boolean }[] = [];
+/** 批量端点的 HTTP 状态（207 = 正常；422 = 超限）。 */
+let batchStatus = 207;
+
 const server = setupServer(
   http.get('/api/v1/projects/:project_id/streams', ({ request }) => {
     listUrls.push(request.url);
@@ -80,6 +85,49 @@ const server = setupServer(
       );
     }
     return HttpResponse.json({ stream_id: id, sign_status: 'IN_APPROVAL' });
+  }),
+  http.post('/api/v1/streams/batch-submit', async ({ request }) => {
+    const body = (await request.json()) as {
+      stream_ids: string[];
+      dry_run?: boolean;
+    };
+    batchRequests.push({ ids: body.stream_ids, dryRun: body.dry_run === true });
+    if (batchStatus !== 207) {
+      return HttpResponse.json(
+        {
+          code: 'SIM_STREAM_BATCH_LIMIT_EXCEEDED',
+          message: '批量提交 150 条，超过上限 100 条',
+          detail: null,
+          trace_id: 't-batch',
+        },
+        { status: batchStatus },
+      );
+    }
+    const succeeded = body.stream_ids.map((id) => ({
+      status: 'succeeded',
+      stream_id: id,
+      from_status: 'DRAFT',
+      to_status: 'IN_APPROVAL',
+      note: null,
+    }));
+    // ⚠️ mock 要**改内存态**（模拟后端把 DRAFT 推进 IN_APPROVAL）⇒
+    //    否则「成功后列表刷新」那条测试验不到真东西。
+    rows = rows.map((r) =>
+      body.stream_ids.includes(r.stream_id)
+        ? { ...r, sign_status: 'IN_APPROVAL' }
+        : r,
+    );
+    return HttpResponse.json(
+      {
+        batch_id: 'b-1',
+        total: succeeded.length,
+        succeeded,
+        failed: [],
+        dry_run: body.dry_run === true,
+        warning: null,
+      },
+      { status: 207 },
+    );
   }),
 );
 
@@ -107,17 +155,23 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     listUrls = [];
     submitStatus = 200;
     submitMutates = true;
+    batchRequests = [];
+    batchStatus = 207;
+    // ⚠️ 必须 resetHandlers() —— 下面「部分失败」那条用 server.use() 临时
+    //    覆盖了批量端点 ⇒ 不重置的话它会**泄漏**到后面的用例
+    //    （下一条要测 422，不重置就会拿到 207 ⇒ 假红）。
+    server.resetHandlers();
   });
 
-  it('工具栏有 导入 / 新建物流 / 导出，**没有**「批量提交校对」', async () => {
+  it('工具栏有 导入 / 新建物流 / 导出 / **批量提交校对**', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId('stream-import')).toBeTruthy());
 
     expect(btnText('stream-import')).toBe('导入');
     expect(btnText('stream-create')).toBe('新建物流');
     expect(btnText('stream-export')).toBe('导出');
-    // ⚠️ 批量提交校对在 P9B-3b ⇒ **不得**出现（SPEC §7.7.1 标 ⏳）
-    expect(screen.queryByText('批量提交校对')).toBeNull();
+    // ✅ P9B-3b：批量提交校对**已实现**（SPEC §7.7.1 ⏳ → ✅）
+    expect(btnText('stream-batch-submit')).toBe('批量提交校对');
   });
 
   it('筛选有 工况 / 相态 / 状态 / 来源 四项', async () => {
@@ -195,5 +249,218 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
     expect(screen.getByText('新鲜进料')).toBeTruthy();
     expect(screen.getByTestId('state-badge-label').textContent).toContain('SOMETHING_NEW');
+  });
+
+  it('⚠️ 没选中行 ⇒ 「批量提交校对」**禁用**', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    expect(screen.getByTestId('stream-batch-submit')).toBeDisabled();
+  });
+
+  it('⚠️ 选中行 ⇒ 点「批量提交校对」⇒ POST 选中的 id 列表', async () => {
+    rows = [makeStream(), makeStream({ stream_id: 's-2', stream_name: '塔顶气' })];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    // ⚠️ antd 的行选择框在表格的选择列里（`.ant-table-selection-column`）
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(batchRequests.length).toBe(1));
+    expect(batchRequests[0].ids.sort()).toEqual(['s-1', 's-2']);
+    expect(batchRequests[0].dryRun).toBe(false);
+  });
+
+  it('⚠️ 批量结果 ⇒ 弹窗显示「成功 N · 失败 M」', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-summary')).toBeTruthy());
+    expect(screen.getByTestId('stream-batch-summary').textContent).toContain('成功 1');
+    expect(screen.getByTestId('stream-batch-summary').textContent).toContain('失败 0');
+  });
+
+  it('⚠️ 批量部分失败 ⇒ 摘要显示失败数 + 每条原因', async () => {
+    // ⚠️ 207 是 2xx ⇒ axios **不抛异常** ⇒ 前端必须自己看 `failed`
+    server.use(
+      http.post('/api/v1/streams/batch-submit', async ({ request }) => {
+        const body = (await request.json()) as { stream_ids: string[] };
+        return HttpResponse.json(
+          {
+            batch_id: 'b-2',
+            total: body.stream_ids.length,
+            succeeded: [
+              {
+                status: 'succeeded',
+                stream_id: body.stream_ids[0],
+                from_status: 'DRAFT',
+                to_status: 'IN_APPROVAL',
+                note: null,
+              },
+            ],
+            failed: [
+              {
+                status: 'failed',
+                stream_id: body.stream_ids[1] ?? 's-2',
+                reason: 'SIM_STREAM_COMPOSITION_OUT_OF_RANGE',
+                detail: '组成摩尔分率合计 98.70%，不在 100±0.5% 内',
+              },
+            ],
+            dry_run: false,
+            warning: null,
+          },
+          { status: 207 },
+        );
+      }),
+    );
+    rows = [makeStream(), makeStream({ stream_id: 's-2', stream_name: '塔顶气' })];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-summary')).toBeTruthy());
+    const summary = screen.getByTestId('stream-batch-summary').textContent ?? '';
+    expect(summary).toContain('成功 1');
+    expect(summary).toContain('失败 1');
+    // ⚠️ 每条失败**带原因**（用户要知道为什么失败）
+    const failures = screen.getByTestId('stream-batch-failures').textContent ?? '';
+    expect(failures).toContain('SIM_STREAM_COMPOSITION_OUT_OF_RANGE');
+    // ⚠️ **关闭提示**（D8 裁决的「本批必做」）：失败清单关闭即丢 ⇒ 必须告知用户
+    expect(screen.getByTestId('stream-batch-close-hint').textContent).toContain(
+      '关闭后失败清单将不再显示',
+    );
+  });
+
+  it('⚠️ 批量请求本身失败（422 超限）⇒ 显示错误，**不**显示结果摘要', async () => {
+    batchStatus = 422;
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-error')).toBeTruthy());
+    expect(screen.getByTestId('stream-batch-error').textContent).toContain('上限');
+    expect(screen.queryByTestId('stream-batch-summary')).toBeNull();
+    // ⚠️ 请求失败 ⇒ **状态不变**（后端没执行）
+    expect(screen.getByTestId('stream-row').getAttribute('data-status')).toBe('DRAFT');
+  });
+
+  it('⚠️ 批量成功后 ⇒ **列表刷新**（那一行的徽章变 IN_APPROVAL）', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    // ⚠️ 后端返回的**最新态**才是真相 ⇒ 前端必须重新拉列表
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-row').getAttribute('data-status')).toBe(
+        'IN_APPROVAL',
+      ),
+    );
+    expect(screen.getByTestId('state-badge-label').textContent).toBe('审批中');
+  });
+
+  it('⚠️ 连点两次「批量提交校对」⇒ **只发一次请求**', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+
+    const btn = screen.getByTestId('stream-batch-submit');
+    fireEvent.click(btn);
+    fireEvent.click(btn); // ⚠️ 连点
+
+    await waitFor(() => expect(batchRequests.length).toBeGreaterThan(0));
+    // ⚠️ 提交进行中按钮**禁用** ⇒ 第二次点击不该再发一次
+    expect(batchRequests.length).toBe(1);
+  });
+
+  it('⚠️ 批次级 `warning`（如批次记录写失败）⇒ 摘要里**如实显示**', async () => {
+    server.use(
+      http.post('/api/v1/streams/batch-submit', async ({ request }) => {
+        const body = (await request.json()) as { stream_ids: string[] };
+        return HttpResponse.json(
+          {
+            batch_id: 'b-3',
+            total: body.stream_ids.length,
+            succeeded: [
+              {
+                status: 'succeeded',
+                stream_id: body.stream_ids[0],
+                from_status: 'DRAFT',
+                to_status: 'IN_APPROVAL',
+                note: null,
+              },
+            ],
+            failed: [],
+            dry_run: false,
+            // ⚠️ 批次审计写失败 ⇒ 条目**已提交**，但批次记录没写成
+            warning: '已提交 1 条，但批次记录写入失败，请联系管理员',
+          },
+          { status: 207 },
+        );
+      }),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-warning')).toBeTruthy());
+    expect(screen.getByTestId('stream-batch-warning').textContent).toContain(
+      '批次记录写入失败',
+    );
   });
 });

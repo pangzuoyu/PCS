@@ -27,11 +27,11 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Button, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import { StateBadgeBoundary } from '../../components/common/StateBadgeBoundary';
-import { streamApi, type StreamListFilters } from '../../api/stream';
+import { streamApi, type StreamBatchSubmitResponse, type StreamListFilters } from '../../api/stream';
 import { describePcsError } from '../../api/errors';
 import { downloadCsv, toCsv } from '../../lib/csv';
 import { PROJECT_ID } from '../../constants/env';
@@ -61,6 +61,14 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
   const [rowError, setRowError] = useState<{ id: string; text: string } | null>(null);
   /** 正在提交校对的行（禁用该行的按钮）。 */
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  /** 行多选（批量提交校对的输入）。 */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  /** 批量提交的结果摘要（成功 N / 失败 M）。 */
+  const [batchResult, setBatchResult] = useState<StreamBatchSubmitResponse | null>(null);
+  /** 批量提交**本身**失败（网络/超限/403）⇒ 顶部错误条。 */
+  const [batchError, setBatchError] = useState<string | null>(null);
+  /** 批量提交进行中（禁用按钮，防重复提交）。 */
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -108,6 +116,24 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
     }
   }
 
+  /** 工具栏：批量提交校对（一次请求 N 条 ⇒ 后端逐条处理、部分成功）。 */
+  async function submitBatch(): Promise<void> {
+    setBatchError(null);
+    setBatchSubmitting(true);
+    try {
+      const result = await streamApi.batchSubmitForReview(selectedIds);
+      setBatchResult(result);
+      setSelectedIds([]);
+      // ⚠️ 重新拉列表（后端返回的最新态才是真相；成功项的状态已变）
+      await load();
+    } catch (err) {
+      // ⚠️ 207 不会进这里 ⇒ 走到这里的是**整批**失败（超限 / 403 / 网络）
+      setBatchResult(null);
+      setBatchError(describePcsError(err, '批量提交校对失败'));
+    } finally {
+      setBatchSubmitting(false);
+    }
+  }
   /** 行操作：发起变更（CHECKED → CHANGE_PENDING）。 */
   async function initiateChange(id: string): Promise<void> {
     setRowError(null);
@@ -247,8 +273,8 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
     <div data-testid="stream-list-page">
       <Typography.Title level={3}>SIM 物流列表</Typography.Title>
 
-      {/* 工具栏：导入 / 新建物流 / 导出（⚠️ **没有**「批量提交校对」——
-          批量在 P9B-3b，SPEC §7.7.1 该项标 ⏳）*/}
+      {/* 工具栏：导入 / 新建物流 / 导出 / **批量提交校对**（P9B-3b 已落地，
+          SPEC §7.7.1 该项 ⏳ → ✅）*/}
       <Space style={{ marginBottom: 12 }} wrap>
         <Button data-testid="stream-import" onClick={() => navigate('/sim/import')}>
           导入
@@ -258,6 +284,13 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
         </Button>
         <Button data-testid="stream-export" onClick={exportCsv}>
           导出
+        </Button>
+        <Button
+          data-testid="stream-batch-submit"
+          onClick={submitBatch}
+          disabled={selectedIds.length === 0 || batchSubmitting}
+        >
+          批量提交校对
         </Button>
       </Space>
 
@@ -331,6 +364,10 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
 
       <Table<Stream>
         rowKey="stream_id"
+        rowSelection={{
+          selectedRowKeys: selectedIds,
+          onChange: (keys) => setSelectedIds(keys.map(String)),
+        }}
         columns={columns}
         dataSource={listFailed ? [] : streams}
         loading={loading}
@@ -344,6 +381,63 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
           onClick: () => navigate(`/sim/streams/${record.stream_id}`),
         })}
       />
+
+      {batchResult && (
+        <Modal
+          open
+          title="批量提交校对结果"
+          onCancel={() => setBatchResult(null)}
+          footer={<Button onClick={() => setBatchResult(null)}>关闭</Button>}
+        >
+          <div data-testid="stream-batch-summary">
+            成功 {batchResult.succeeded.length} · 失败 {batchResult.failed.length}
+            {batchResult.dry_run ? '（预演：未改状态）' : ''}
+          </div>
+          {batchResult.warning && (
+            <Alert
+              type="warning"
+              showIcon
+              message={batchResult.warning}
+              data-testid="stream-batch-warning"
+              style={{ marginBottom: 8 }}
+            />
+          )}
+          {batchResult.failed.length > 0 && (
+            <>
+              <ul data-testid="stream-batch-failures">
+                {batchResult.failed.map((f) => (
+                  <li key={f.stream_id} data-testid={`stream-batch-failure-${f.stream_id}`}>
+                    {f.stream_id}：{f.reason}
+                    {f.detail ? `（${f.detail}）` : ''}
+                  </li>
+                ))}
+              </ul>
+              {/* ⚠️ **关闭提示**（委员会 2026-11-03 · D8 裁决的「本批必做」）：
+                  TODO-116（一键重试失败项）本批**不做** ⇒ 失败清单关闭即丢
+                  （`batchResult` 是组件局部 state）⇒ 至少要让用户**知道**
+                  这个缺口，而不是默默丢数据。成本 = 一行文案。 */}
+              <Typography.Text
+                type="secondary"
+                data-testid="stream-batch-close-hint"
+              >
+                ⚠️ 关闭后失败清单将不再显示；如需重试失败项，请先记录它们。
+              </Typography.Text>
+            </>
+          )}
+        </Modal>
+      )}
+
+      {batchError && (
+        <Alert
+          type="error"
+          showIcon
+          message={batchError}
+          data-testid="stream-batch-error"
+          style={{ marginBottom: 16 }}
+          closable
+          onClose={() => setBatchError(null)}
+        />
+      )}
     </div>
   );
 }

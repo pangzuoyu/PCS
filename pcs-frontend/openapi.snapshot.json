@@ -39797,7 +39797,9 @@
         "type": "object",
         "required": [
           "batch_id",
-          "total"
+          "total",
+          "succeeded",
+          "failed"
         ],
         "title": "StreamBatchSubmitResponse",
         "description": "207 Multi-Status 的批次结果。"

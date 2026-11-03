@@ -17914,9 +17914,9 @@ export interface components {
              */
             total: number;
             /** Succeeded */
-            succeeded?: components["schemas"]["BatchSucceededItem"][];
+            succeeded: components["schemas"]["BatchSucceededItem"][];
             /** Failed */
-            failed?: components["schemas"]["BatchFailedItem"][];
+            failed: components["schemas"]["BatchFailedItem"][];
             /**
              * Dry Run
              * @description true ⇒ 本次是预演

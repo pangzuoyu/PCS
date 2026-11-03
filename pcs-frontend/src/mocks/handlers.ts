@@ -43,6 +43,8 @@ type SepEquipCalculateResponse = components["schemas"]["app__api__v1__sep_equip_
 type HeatingValueCalcResponse = components["schemas"]["HeatingValueCalcResponse"];
 type SaturationWaterContentResponse = components["schemas"]["SaturationWaterContentResponse"];
 type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
+type StreamBatchSubmitResponse = components["schemas"]["StreamBatchSubmitResponse"];
+type BatchSucceededItem = components["schemas"]["BatchSucceededItem"];
 
 import { heatHandlers } from "./heat";
 import { signatureMatrixHandlers } from "./signatureMatrices";
@@ -339,6 +341,16 @@ const devOnlyMockHandlers = [
   http.post("/api/v1/streams/:stream_id/submit", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json({ stream_id: "s-new-mock", sign_status: "IN_APPROVAL" });
+  }),
+  // === 批量提交校对（P9B-3b · 207 Multi-Status）===
+  // ⚠️ 路径是**两段** ⇒ 不会与 `/streams/:stream_id/submit`（三段）抢路由。
+  http.post("/api/v1/streams/batch-submit", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { stream_ids: string[]; dry_run?: boolean };
+    return HttpResponse.json(
+      buildBatchSubmitResponse(body.stream_ids, body.dry_run === true),
+      { status: 207 },
+    );
   }),
   http.get("/api/v1/streams/:stream_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
@@ -721,6 +733,35 @@ export function buildNotificationList(): NotificationList {
 /** 待办列表响应体（**契约形状**）；导出同上，理由相同。 */
 export function buildTodoList(): TodoList {
   return { items: seedTodos, total: seedTodos.length };
+}
+
+/**
+ * 批量提交校对的响应体（**契约形状**：`StreamBatchSubmitResponse`）。
+ *
+ * ⚠️ 导出同上，理由相同 —— 这个端点进了契约（P9B-3b）⇒ mock 与真端点
+ * **必须同形**，否则 207 的形状漂移会被 dev mock 藏住（TODO-065 的形状）。
+ */
+export function buildBatchSubmitResponse(
+  streamIds: string[],
+  dryRun = false,
+): StreamBatchSubmitResponse {
+  const succeeded: BatchSucceededItem[] = streamIds.map((id) => ({
+    status: "succeeded",
+    stream_id: id,
+    from_status: "DRAFT",
+    to_status: "IN_APPROVAL",
+    note: null,
+  }));
+  return {
+    // ⚠️ 契约里 `batch_id` 是 **uuid 格式** ⇒ mock 用真 uuid 形状，
+    //    免得哪天 ajv-formats 接上就红。
+    batch_id: "00000000-0000-4000-8000-00000000b001",
+    total: succeeded.length,
+    succeeded,
+    failed: [],
+    dry_run: dryRun,
+    warning: null,
+  };
 }
 
 /** Rev seed — 4 个 Rev 字母覆盖 ISSUED_FOR_DESIGN/REVIEW/CONSTRUCTION/USE */
