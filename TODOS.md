@@ -2656,3 +2656,23 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 **建议**：把那半句改成「消费者：`stream_batch_service._batch_limit`（P9B-3b）」。
 
 **触发条件**：下一次动 `system_setting_service.py` 时。
+
+## TODO-127: 403 的文案对**写操作**说「无权查看」 🟢
+
+**现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #3）：
+`pcs-frontend/src/api/errors.ts::describePcsError` 对 403 一律返回
+`无权查看：${message}` ⇒ 页面把它用在**批量提交校对**上 ⇒
+用户看到「无权查看：需要角色 [...]」—— 但他刚才在**写**，不是在**看**。
+
+**为什么没在本批修**：`describePcsError` 是**全仓共用**的 helper
+（几十处调用）⇒ 改它影响面大；评审员也明确建议「本批最小改法是在批量这一处
+不用 `describePcsError` 的权限分支，或换个 fallback 文案」。
+
+**建议**（二选一）：
+① 给 `describePcsError` 加一个**可选**参数（如 `permissionVerb = '无权查看'`）
+⇒ 批量提交这处传「无权提交」⇒ **默认行为不变**（其余调用点无感）；
+② 或批量这处不用该 helper，自己拼文案。
+
+**触发条件**：下一次动 `errors.ts` 或批次结果弹窗时。
+
+**相关**：P9B-3b 批次提交校对页（`src/pages/sim/StreamListPage.tsx`）。
