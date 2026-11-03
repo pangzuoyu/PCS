@@ -153,6 +153,27 @@ async def _submit_one(
         )
 
 
+async def _read_sign_status(db: AsyncSession, stream_id: uuid.UUID) -> str | None:
+    """读回一条物流**当前**的 `sign_status`（**只读这一列**）。
+
+    ⚠️ 为什么需要它：转移失败后必须判断「**这条到底提交了没有**」——
+    `StreamService.transition` 的顺序是 flush → commit → refresh ⇒
+    flush 之后失败 ⇒ 数据还**没**提交（回滚即可）；
+    commit 之后失败（refresh 挂掉）⇒ 数据**已经**提交 ⇒ 报「失败」是错的。
+
+    ⚠️ 只 SELECT 一列 ⇒ 不加载整行 ⇒ 不会把实体塞进 identity map
+    （也不会覆盖调用方已经持有的实体）。
+    """
+    value = (
+        await db.execute(
+            select(Stream.sign_status).where(Stream.stream_id == stream_id)
+        )
+    ).scalar_one_or_none()
+    if value is None:
+        return None
+    return str(getattr(value, "value", value))
+
+
 async def _submit_one_inner(
     db: AsyncSession,
     stream_id: uuid.UUID,
@@ -222,13 +243,42 @@ async def _submit_one_inner(
         )
 
     # 真正的转移：行锁 + 角色校验 + 单条审计 + **提交**（逐条独立事务）。
-    await StreamService.transition(
-        db,
-        stream_id,
-        transition=StateTransition.SUBMIT_FOR_CHECK,
-        actor_user_id=actor_user_id,
-        actor_role=actor_role,
-    )
+    # ⚠️⚠️ **失败必须回滚这条的部分写入**（否则会被下一条的 commit 带走）。
+    try:
+        await StreamService.transition(
+            db,
+            stream_id,
+            transition=StateTransition.SUBMIT_FOR_CHECK,
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+        )
+    except Exception:
+        # `transition` 的内部顺序是 **flush（状态已写进当前事务）→ commit** ⇒
+        # 若在 flush 之后、commit 之前失败（最现实的：**审计写失败**），
+        # 那条的状态**已经 flush 进事务但还没 commit** ⇒
+        # ⚠️ **不回滚 ⇒ 下一条处理成功时它的 `db.commit()` 会把这条的脏写
+        # 一起提交掉** ⇒ 响应说这条失败、DB 里它却是 IN_APPROVAL ⇒
+        # **状态与响应互相矛盾**（且审计正是失败的原因 ⇒ 没有审计）。
+        #
+        # ⇒ 这里回滚**这条**的事务（每条自成事务 ⇒ 回滚只影响这条，
+        #    已提交的前面那些**不受影响** ⇒ D2「部分成功」仍成立）。
+        await db.rollback()
+        # ⚠️ 回滚之后**必须读回真实状态**：commit 可能**已经成功**了
+        #    （`transition` 里 commit 之后还有一次 `db.refresh` ⇒ 它失败时
+        #    数据**已落库**）⇒ 那时报「失败」同样是错的 ⇒ 读回 IN_APPROVAL
+        #    ⇒ 老实报**成功**。
+        #    判据是可靠的：走到这里说明 `from_status != IN_APPROVAL`
+        #    （幂等命中在上面就返回了）⇒ 「现在是 IN_APPROVAL」只可能是
+        #    **这次转移真的提交了**。
+        actual = await _read_sign_status(db, stream_id)
+        if actual == StreamSignStatus.IN_APPROVAL.value:
+            return BatchSucceededItem(
+                status="succeeded",
+                stream_id=stream_id,
+                from_status=from_status,
+                to_status=StreamSignStatus.IN_APPROVAL.value,
+            )
+        raise
 
     return BatchSucceededItem(
         status="succeeded",

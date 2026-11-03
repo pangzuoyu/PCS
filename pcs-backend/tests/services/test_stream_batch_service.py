@@ -555,6 +555,212 @@ async def test_batch_audit_write_failure_still_returns_results(
     assert len(result.succeeded) == 1
 
 
+async def test_failed_item_does_not_leak_its_partial_write_into_the_next_item(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️⚠️ **一条失败 ⇒ 它的部分写入绝不能被下一条的 commit 带走**。
+
+    ## 缺陷形状
+
+    `StreamService.transition` 的**成功路径**在 `state_machine.transition` 里
+    **先 flush**（状态已写进 DB 的当前事务）**再 commit**。
+    ⇒ 若 flush 之后、commit 之前抛**非预期**异常（最现实的：**审计写失败**）：
+
+    1. 那一条的 `sign_status = IN_APPROVAL` **已经 flush 进事务**（未 commit）；
+    2. 异常冒泡到 `_submit_one` 的 `except Exception` ⇒ 变成 `INTERNAL_ERROR`
+       失败项 ⇒ **但没人回滚那个事务** ⇒ session 仍带着那条的脏写；
+    3. **下一条**处理成功 ⇒ 它的 `transition` 调 `db.commit()`
+       ⇒ ⚠️⚠️ **把上一条失败项的脏写一起提交了**。
+
+    ⇒ 后果：**响应说这条失败，DB 里它却是 IN_APPROVAL** ⇒
+    用户的界面上「失败」的那条，下次刷新就变成「审批中」⇒
+    状态与响应**互相矛盾**，且没有任何审计（审计正是失败的原因）。
+
+    ## 为什么这条断言是真的
+
+    「下一条 commit 会带走上一条的脏写」⇒ 只有在**下一条也成功**时才会发生
+    ⇒ 所以断言要**两条**、且第二条必须成功（用一条 GOOD 兜底）。
+    """
+    from app.services import state_machine
+    from app.services.stream_batch_service import submit_batch
+
+    bad = await _make_draft(db_session, batch_project, "BAD")
+    good = await _make_draft(db_session, batch_project, "GOOD")
+
+    # ⚠️ 让**状态机的审计写**在 flush 之后抛非预期异常 —— 这是 SUBMIT_FOR_CHECK
+    #    **唯一现实存在**的 flush 后失败点（快照/恢复快照只对 INITIATE_CHANGE /
+    #    REQUEST_REVERSAL 等转移触发）。
+    # ⚠️ **先把 id 存下来**（失败项的实体在回滚后已过期 ⇒ 读属性会 lazy-load）。
+    bad_id = bad.stream_id
+    good_id = good.stream_id
+
+    orig = state_machine.StateMachineService._write_audit
+
+    async def boom_for_bad_only(self, *, resource_id, **kwargs):
+        if resource_id == bad_id:
+            raise RuntimeError("audit write failed after flush")
+        return await orig(self, resource_id=resource_id, **kwargs)
+
+    monkeypatch.setattr(
+        state_machine.StateMachineService, "_write_audit", boom_for_bad_only
+    )
+
+    result = await submit_batch(
+        db_session,
+        [bad_id, good_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+
+    # 失败的那条：响应里是失败项
+    assert [i.stream_id for i in result.failed] == [bad_id]
+    assert result.failed[0].reason == "INTERNAL_ERROR"
+
+    # ⚠️⚠️ **关键**：失败的那条在 DB 里**必须仍是 DRAFT**
+    #    （若被下一条的 commit 带走 ⇒ 它会是 IN_APPROVAL ⇒ 状态与响应矛盾）
+    # ⚠️ 直接查**列**（不查实体）—— 同上，实体已过期。
+    from sqlalchemy import select as sa_select
+
+    bad_status = (
+        await db_session.execute(
+            sa_select(Stream.sign_status).where(Stream.stream_id == bad_id)
+        )
+    ).scalar_one()
+    assert str(getattr(bad_status, "value", bad_status)) == "DRAFT", (
+        f"失败项的状态变成了 {bad_status} ⇒ "
+        "它的部分写入被下一条的 commit 一起提交了"
+    )
+
+    # 成功的那条不受影响（批次语义：一条失败不回滚其它条）
+    good_status = (
+        await db_session.execute(
+            sa_select(Stream.sign_status).where(Stream.stream_id == good_id)
+        )
+    ).scalar_one()
+    assert str(getattr(good_status, "value", good_status)) == "IN_APPROVAL"
+
+
+async def test_db_level_failure_does_not_poison_the_rest_of_the_batch(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ **DB 级失败**（flush 失败）⇒ session 被污染 ⇒ **后续条目仍要能处理**。
+
+    ## 为什么这条独立于上一条
+
+    上一条是「**Python 级**异常」（审计写的 `RuntimeError`）⇒ session 没被污染。
+    这条是「**DB 级**失败」（flush 真的失败）⇒ SQLAlchemy 把 session 标记成
+    「需要 rollback」⇒ **之后任何 DB 操作都抛 `PendingRollbackError`**
+    ⇒ 若不先 `rollback()`，**后面每一条都会失败** ⇒ 一条坏数据毁掉整批。
+
+    ⇒ 断言：坏的那条失败 + **好的那条成功**（= 批次没有整体垮掉）。
+    """
+    from app.services import stream_batch_service
+    from app.services.stream_batch_service import submit_batch
+
+    bad = await _make_draft(db_session, batch_project, "BAD")
+    good = await _make_draft(db_session, batch_project, "GOOD")
+    bad_id = bad.stream_id
+    good_id = good.stream_id
+
+    # 让**批次自己的**审计写真的 flush 一行会失败的（`action` 是 NOT NULL）
+    # ⇒ 真的把 session 弄成「需要 rollback」的状态。
+    from app.models.system import AuditLog
+
+    orig_write = stream_batch_service.AuditService.write
+
+    async def boom_for_bad_only(self, **kwargs):
+        if kwargs.get("resource_id") == bad_id:
+            self.session.add(AuditLog(user_id=None, action=None, resource_type="Y"))
+            await self.session.flush()  # ← 这里真的失败
+        return await orig_write(self, **kwargs)
+
+    monkeypatch.setattr(stream_batch_service.AuditService, "write", boom_for_bad_only)
+
+    result = await submit_batch(
+        db_session,
+        [bad_id, good_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+
+    # 坏的那条失败
+    assert [i.stream_id for i in result.failed] == [bad_id]
+    assert result.failed[0].reason == "INTERNAL_ERROR"
+
+    # ⚠️⚠️ **关键**：好的那条**必须成功**（⇒ session 被回滚救回来了）
+    assert [i.stream_id for i in result.succeeded] == [good_id]
+
+    from sqlalchemy import select as sa_select
+
+    bad_status = (
+        await db_session.execute(
+            sa_select(Stream.sign_status).where(Stream.stream_id == bad_id)
+        )
+    ).scalar_one()
+    assert str(getattr(bad_status, "value", bad_status)) == "DRAFT"
+
+    good_status = (
+        await db_session.execute(
+            sa_select(Stream.sign_status).where(Stream.stream_id == good_id)
+        )
+    ).scalar_one()
+    assert str(getattr(good_status, "value", good_status)) == "IN_APPROVAL"
+
+
+async def test_item_whose_commit_succeeded_is_reported_as_success(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ **提交已经成功**、只是后续步骤失败 ⇒ 必须报**成功**（不是失败）。
+
+    ## 为什么这条与上一条是一对
+
+    `StreamService.transition` 的顺序是 **flush → commit → refresh** ⇒
+    若失败发生在 **commit 之后**（`db.refresh` 挂掉：连接被掐 / 行被并发删），
+    数据**已经落库** ⇒ 报「失败」是**假的** ⇒
+    用户看到「失败 1」但那条其实已经在审批中 ⇒ 与响应矛盾。
+
+    ⇒ 失败后必须**读回真实状态**：是 `IN_APPROVAL` ⇒ 老实报**成功**。
+    """
+    from app.services import stream_service
+    from app.services.stream_batch_service import submit_batch
+
+    s = await _make_draft(db_session, batch_project, "S-1")
+    s_id = s.stream_id
+
+    # 让 `transition` 在 **commit 之后**失败：`db.refresh` 抛错。
+    # ⚠️ `transition` 是 **staticmethod** ⇒ 签名里没有 self。
+    orig = stream_service.StreamService.transition
+
+    async def boom_after_commit(db, stream_id, **kwargs):
+        result = await orig(db, stream_id, **kwargs)
+        # ⚠️ 原 transition 已经 commit（数据已落库）⇒ 现在抛错
+        raise RuntimeError("refresh failed after commit")
+
+    monkeypatch.setattr(
+        stream_service.StreamService, "transition", staticmethod(boom_after_commit)
+    )
+
+    result = await submit_batch(
+        db_session,
+        [s_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+
+    # ⚠️ 数据已提交 ⇒ 必须报**成功**（报失败 = 状态与响应矛盾）
+    assert [i.stream_id for i in result.succeeded] == [s_id]
+    assert not result.failed
+
+    from sqlalchemy import select as sa_select
+
+    status = (
+        await db_session.execute(
+            sa_select(Stream.sign_status).where(Stream.stream_id == s_id)
+        )
+    ).scalar_one()
+    assert str(getattr(status, "value", status)) == "IN_APPROVAL"
+
+
 async def test_batch_limit_falls_back_when_value_is_garbage(db_session, batch_project):
     """⚠️ 上限的**值不是整数** / **小于 1** ⇒ 回落默认值（不崩、不放行无上限）。"""
     from app.services.system_setting_service import seed_defaults, update_batch
