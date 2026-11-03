@@ -5565,6 +5565,27 @@
    "related_bugs": [],
    "occurrences": 1,
    "last_seen": "2026-11-03"
+  },
+  {
+   "id": "bug-2134",
+   "timestamp": "2026-11-03",
+   "severity": "high",
+   "error_message": "P9B-3b 批次：一条失败后，它的**部分写入**被下一条的 `db.commit()` 一起提交 ⇒ **响应说失败、DB 里却是 IN_APPROVAL**（且无审计）",
+   "file": "pcs-backend/app/services/stream_batch_service.py",
+   "root_cause": "`StreamService.transition` 的成功路径是 **flush（状态写进当前事务）→ commit** ⇒ 若在 flush 之后、commit 之前抛**非预期**异常（最现实：**审计写失败**）⇒ 那条的 `sign_status=IN_APPROVAL` 已 flush 进事务（未 commit）⇒ `_submit_one` 的 `except Exception` 把它变成 `INTERNAL_ERROR` 失败项 ⇒ **但没人回滚那个事务** ⇒ session 仍带着那条的脏写 ⇒ **下一条处理成功时它的 `db.commit()` 把脏写一起提交了**。",
+   "fix": "转移失败时先 `await db.rollback()`（每条自成事务 ⇒ 只回滚这条，不影响已提交的其它条 ⇒ D2「部分成功」仍成立），再**读回真实状态**（`_read_sign_status`，只 SELECT 一列）：若是 `IN_APPROVAL` ⇒ commit 其实已成功（`transition` 里 commit 之后还有一次 `db.refresh`，它失败时数据已落库）⇒ 老实报**成功**；否则照旧报失败。两条 RED→GREEN 测试 + **变异实测**（去掉 rollback / 去掉读回 ⇒ 各自变红）。",
+   "fix_commit": "be51bac",
+   "tags": [
+    "backend",
+    "transaction",
+    "batch",
+    "data-integrity"
+   ],
+   "related_bugs": [
+    "bug-2130"
+   ],
+   "occurrences": 1,
+   "last_seen": "2026-11-03"
   }
  ]
 }

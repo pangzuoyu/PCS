@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-03T11:20:11.048Z",
-    "fileCount": 1163,
+    "lastScanned": "2026-11-03T13:55:07.555Z",
+    "fileCount": 1167,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "6e72650ee3c55a14b06463485061f7d455ccf8f4763ba4fe302b61d28dc20ce0",
-    "storeUpdatedAt": "2026-11-03T11:20:11.059Z",
-    "rootHash": "1ecf92bda753ae21"
+    "renderedHash": "3b3883c858bc172d3ffa4799e98b4a3d072ca6e3c604ff857466c0f5694967be",
+    "storeUpdatedAt": "2026-11-03T13:55:07.566Z",
+    "rootHash": "4755817fa45f7369"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -41720,61 +41720,222 @@
     },
     "pcs-backend/tests/services/test_stream_batch_service.py": {
       "description": "批次「提交校对」的地基能力（P9B-3b · T1）。",
-      "tokens": 728,
-      "hash": "e87a2b07bdfebc7e",
-      "size": 3202,
-      "mtimeMs": 1793677467489.0466,
-      "updatedAt": "2026-11-03T03:44:27.541Z",
+      "tokens": 8323,
+      "hash": "685136c03cd53a24",
+      "size": 34650,
+      "mtimeMs": 1793714107501.5164,
+      "updatedAt": "2026-11-03T13:55:07.555Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_stream",
           "kind": "fn",
-          "startLine": 30,
-          "endLine": 41,
+          "startLine": 32,
+          "endLine": 43,
           "tokens": 82
         },
         {
           "name": "test_composition_total_none_means_no_composition",
           "kind": "fn",
-          "startLine": 42,
-          "endLine": 46,
+          "startLine": 44,
+          "endLine": 48,
           "tokens": 58
         },
         {
           "name": "test_composition_total_empty_object_is_zero",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 51,
+          "startLine": 49,
+          "endLine": 53,
           "tokens": 60
         },
         {
           "name": "test_composition_total_sums_fractions",
           "kind": "fn",
-          "startLine": 52,
-          "endLine": 59,
+          "startLine": 54,
+          "endLine": 61,
           "tokens": 77
         },
         {
           "name": "test_get_setting_value_returns_stored_value",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 69,
+          "startLine": 62,
+          "endLine": 71,
           "tokens": 96
         },
         {
           "name": "test_get_setting_value_falls_back_to_default",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 74,
+          "startLine": 72,
+          "endLine": 76,
           "tokens": 63
         },
         {
           "name": "test_batch_audit_action_exists",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 78,
-          "tokens": 52
+          "startLine": 77,
+          "endLine": 87,
+          "tokens": 111
+        },
+        {
+          "name": "batch_project",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 109,
+          "tokens": 181
+        },
+        {
+          "name": "_make_draft",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 136,
+          "tokens": 258
+        },
+        {
+          "name": "test_batch_deduplicates_stream_ids",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 153,
+          "tokens": 156
+        },
+        {
+          "name": "test_batch_success_moves_status_and_reports_transition",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 179,
+          "tokens": 216
+        },
+        {
+          "name": "test_batch_partial_success_does_not_roll_back_the_good_ones",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 216,
+          "tokens": 350
+        },
+        {
+          "name": "test_batch_already_in_approval_is_idempotent_success",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 238,
+          "tokens": 208
+        },
+        {
+          "name": "test_batch_reports_missing_stream_as_failed_item",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 254,
+          "tokens": 142
+        },
+        {
+          "name": "test_batch_rejects_stream_in_non_submittable_status",
+          "kind": "fn",
+          "startLine": 255,
+          "endLine": 273,
+          "tokens": 177
+        },
+        {
+          "name": "test_batch_limit_exceeded_raises",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 291,
+          "tokens": 174
+        },
+        {
+          "name": "test_batch_limit_is_configurable",
+          "kind": "fn",
+          "startLine": 292,
+          "endLine": 321,
+          "tokens": 302
+        },
+        {
+          "name": "test_dry_run_changes_nothing_and_writes_no_audit",
+          "kind": "fn",
+          "startLine": 322,
+          "endLine": 354,
+          "tokens": 288
+        },
+        {
+          "name": "test_dry_run_still_reports_failures",
+          "kind": "fn",
+          "startLine": 355,
+          "endLine": 385,
+          "tokens": 283
+        },
+        {
+          "name": "test_succeeded_item_requires_from_status",
+          "kind": "fn",
+          "startLine": 386,
+          "endLine": 406,
+          "tokens": 175
+        },
+        {
+          "name": "test_batch_response_splits_by_status",
+          "kind": "fn",
+          "startLine": 407,
+          "endLine": 437,
+          "tokens": 318
+        },
+        {
+          "name": "test_submit_one_returns_contract_types",
+          "kind": "fn",
+          "startLine": 438,
+          "endLine": 459,
+          "tokens": 210
+        },
+        {
+          "name": "test_unexpected_error_becomes_failed_item_and_batch_continues",
+          "kind": "fn",
+          "startLine": 460,
+          "endLine": 498,
+          "tokens": 353
+        },
+        {
+          "name": "test_single_item_role_forbidden_becomes_failed_item",
+          "kind": "fn",
+          "startLine": 499,
+          "endLine": 518,
+          "tokens": 190
+        },
+        {
+          "name": "test_batch_audit_write_failure_still_returns_results",
+          "kind": "fn",
+          "startLine": 519,
+          "endLine": 557,
+          "tokens": 327
+        },
+        {
+          "name": "test_failed_item_does_not_leak_its_partial_write_into_the_next_item",
+          "kind": "fn",
+          "startLine": 558,
+          "endLine": 642,
+          "tokens": 805
+        },
+        {
+          "name": "test_db_level_failure_does_not_poison_the_rest_of_the_batch",
+          "kind": "fn",
+          "startLine": 643,
+          "endLine": 709,
+          "tokens": 644
+        },
+        {
+          "name": "test_item_whose_commit_succeeded_is_reported_as_success",
+          "kind": "fn",
+          "startLine": 710,
+          "endLine": 763,
+          "tokens": 477
+        },
+        {
+          "name": "test_batch_limit_falls_back_when_value_is_garbage",
+          "kind": "fn",
+          "startLine": 764,
+          "endLine": 812,
+          "tokens": 473
+        },
+        {
+          "name": "test_locked_select_emits_for_update_on_postgres",
+          "kind": "fn",
+          "startLine": 813,
+          "endLine": 901,
+          "tokens": 820
         }
       ]
     },
@@ -41804,6 +41965,155 @@
       "mtimeMs": 1793704811004.7004,
       "updatedAt": "2026-11-03T11:20:11.048Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/services/test_zz_probe.py": {
+      "description": "探针：条目 1 在 flush 之后、commit 之前抛非预期异常 ⇒ session 处于脏状态",
+      "tokens": 941,
+      "hash": "ce6315b5f9bf457c",
+      "size": 3621,
+      "mtimeMs": 1793705220742.8943,
+      "updatedAt": "2026-11-03T11:27:00.793Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "batch_project",
+          "kind": "fn",
+          "startLine": 15,
+          "endLine": 33,
+          "tokens": 154
+        },
+        {
+          "name": "_mk",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 57,
+          "tokens": 164
+        },
+        {
+          "name": "test_probe_dirty_session",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 108,
+          "tokens": 528
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_zz_dryrun_probe.py": {
+      "description": "探针：dry_run 对「状态不允许提交」的物流是否给出**假绿**。",
+      "tokens": 629,
+      "hash": "8b97a0f8d375eba7",
+      "size": 2267,
+      "mtimeMs": 1793705286295.1655,
+      "updatedAt": "2026-11-03T11:28:06.342Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "batch_project",
+          "kind": "fn",
+          "startLine": 13,
+          "endLine": 31,
+          "tokens": 154
+        },
+        {
+          "name": "_mk",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 55,
+          "tokens": 162
+        },
+        {
+          "name": "test_dryrun_vs_real",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 80,
+          "tokens": 237
+        }
+      ]
+    },
+    "pcs-backend/app/services/stream_batch_service.py": {
+      "description": "批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。",
+      "tokens": 4253,
+      "hash": "f1b992b881a2fe36",
+      "size": 20273,
+      "mtimeMs": 1793705480613.866,
+      "updatedAt": "2026-11-03T11:31:20.658Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_batch_limit",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 104,
+          "tokens": 102
+        },
+        {
+          "name": "_submit_one",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 155,
+          "tokens": 435
+        },
+        {
+          "name": "_read_sign_status",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 176,
+          "tokens": 185
+        },
+        {
+          "name": "_submit_one_inner",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 290,
+          "tokens": 1075
+        },
+        {
+          "name": "_write_batch_audit",
+          "kind": "fn",
+          "startLine": 291,
+          "endLine": 358,
+          "tokens": 696
+        },
+        {
+          "name": "submit_batch",
+          "kind": "fn",
+          "startLine": 359,
+          "endLine": 459,
+          "tokens": 912
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_zz_probe2.py": {
+      "description": "探针 2：DB 级错误（flush 失败）⇒ session 被污染 ⇒ 后续条目还能不能处理？",
+      "tokens": 765,
+      "hash": "aa35d064d6324d4a",
+      "size": 2783,
+      "mtimeMs": 1793714057192.6094,
+      "updatedAt": "2026-11-03T13:54:17.237Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "batch_project",
+          "kind": "fn",
+          "startLine": 15,
+          "endLine": 33,
+          "tokens": 154
+        },
+        {
+          "name": "_mk",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 57,
+          "tokens": 164
+        },
+        {
+          "name": "test_probe2_db_error_poisons_session",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 91,
+          "tokens": 347
+        }
+      ]
     }
   }
 }

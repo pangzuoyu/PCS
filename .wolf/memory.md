@@ -3001,3 +3001,22 @@
 | 19:05 | Edited docs/PCS-UI-SPEC.md | inline fix | ~11 |
 | 19:05 | Edited docs/PCS-UI-SPEC.md | expanded (+19 lines) | ~269 |
 | 19:20 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md | — | ~1168 |
+| 19:25 | Created pcs-backend/tests/services/test_zz_probe.py | — | ~735 |
+| 19:25 | Edited pcs-backend/tests/services/test_zz_probe.py | modified maybe_boom() | ~149 |
+| 19:25 | Edited pcs-backend/tests/services/test_zz_probe.py | modified maybe_boom() | ~103 |
+| 19:26 | Edited pcs-backend/tests/services/test_zz_probe.py | expanded (+11 lines) | ~235 |
+| 19:27 | Edited pcs-backend/tests/services/test_zz_probe.py | modified maybe_boom() | ~157 |
+| 19:28 | Created pcs-backend/tests/services/test_zz_dryrun_probe.py | — | ~629 |
+| 19:29 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_failed_item_does_not_leak_its_partial_write_into_the_next_item() | ~716 |
+| 19:30 | Edited pcs-backend/tests/services/test_stream_batch_service.py | added 1 import(s) | ~48 |
+| 19:31 | Edited pcs-backend/app/services/stream_batch_service.py | added error handling | ~471 |
+| 19:31 | Edited pcs-backend/app/services/stream_batch_service.py | modified _read_sign_status() | ~194 |
+| 21:42 | Edited pcs-backend/tests/services/test_stream_batch_service.py | expanded (+12 lines) | ~238 |
+| 21:43 | Edited pcs-backend/tests/services/test_stream_batch_service.py | 34→38 lines | ~346 |
+| 21:44 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified boom_for_bad_only() | ~160 |
+| 21:47 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_item_whose_commit_succeeded_is_reported_as_success() | ~499 |
+| 21:47 | Edited pcs-backend/tests/services/test_stream_batch_service.py | added 1 import(s) | ~55 |
+| 21:48 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified boom_after_commit() | ~109 |
+| 21:54 | Created pcs-backend/tests/services/test_zz_probe2.py | — | ~765 |
+| 21:54 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_db_level_failure_does_not_poison_the_rest_of_the_batch() | ~645 |
+| 21:55 | Edited pcs-backend/tests/services/test_stream_batch_service.py | added 1 import(s) | ~85 |
