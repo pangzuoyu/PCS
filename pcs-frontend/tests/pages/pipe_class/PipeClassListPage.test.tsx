@@ -19,6 +19,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { PipeClassListPage } from '../../../src/pages/pipe_class/PipeClassListPage';
 import type { PipeClass } from '../../../src/types/pipeClass';
@@ -184,5 +186,45 @@ describe('PipeClassListPage — 操作', () => {
     render(<PipeClassListPage classes={classes} onSelect={onSelect} />);
     fireEvent.click(document.querySelector('[data-testid="pipe-class-row"]')!);
     expect(onSelect).toHaveBeenCalledWith(classes[0]);
+  });
+});
+
+/**
+ * ⚠️ **行的 key 必须是契约字段**（TODO-121）。
+ *
+ * ## 缺陷形状
+ *
+ * `rowKey="pipe_class_id"` —— 但契约 `PipeClassResponse` 的字段是
+ * **`class_id`**（2026-10-19 bug-180 把整组字段名改了，`rowKey` **漏改**）
+ * ⇒ **每一行的 key 都是 `undefined`** ⇒ antd 的 `rc-table` `Body`
+ * 渲染行时拿不到唯一 key ⇒ React 控制台报
+ * `Each child in a list should have a unique "key" prop`。
+ *
+ * ⚠️ 这不只是「控制台有警告」：**行的身份是坏的** ⇒
+ * 选择 / 展开 / 局部更新都按 `undefined` 配对 ⇒ 多行时行为不可预期。
+ */
+describe('PipeClassListPage — 行的 key（TODO-121）', () => {
+  it('⚠️ 渲染**不得**产生 React 的 key 警告（key 必须唯一）', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      render(<PipeClassListPage classes={classes} />);
+      const keyWarnings = spy.mock.calls.filter((c) =>
+        String(c[0]).includes('unique "key" prop'),
+      );
+      expect(keyWarnings).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('⚠️ 行的 key 用**契约字段** `class_id`（不是已改名的 `pipe_class_id`）', () => {
+    // ⚠️ 结构性断言：直接查源码里的 `rowKey` —— 防止「字段又改名了但 rowKey 没跟上」
+    //    这类缺陷复发（bug-180 的整组改名就漏了 rowKey）。
+    const src = readFileSync(
+      resolve(__dirname, '../../../src/pages/pipe_class/PipeClassListPage.tsx'),
+      'utf8',
+    );
+    expect(src).toContain('rowKey="class_id"');
+    expect(src).not.toContain('rowKey="pipe_class_id"');
   });
 });

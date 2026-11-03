@@ -91,6 +91,10 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
 
   /** 改一项筛选 ⇒ **重新请求后端**（AND 组合）。 */
   function setFilter<K extends keyof StreamListFilters>(key: K, value: StreamListFilters[K]): void {
+    // ⚠️ **换筛选 ⇒ 清掉行选择**（TODO-123）：列表的内容变了 ⇒ 之前勾的行
+    //   可能**已经不在视野里** ⇒ 留着它们 ⇒ 点「批量提交校对」会提交
+    //   **看不见的行** ⇒ 用户无从判断自己提交了什么。
+    setSelectedIds([]);
     setFilters((prev) => {
       const next = { ...prev };
       if (value === undefined) delete next[key];
@@ -129,7 +133,9 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
     } catch (err) {
       // ⚠️ 207 不会进这里 ⇒ 走到这里的是**整批**失败（超限 / 403 / 网络）
       setBatchResult(null);
-      setBatchError(describePcsError(err, '批量提交校对失败'));
+      // ⚠️ 403 ⇒ 「无权**提交**」（不是「无权查看」—— 批量提交是**写**操作，
+      //    用户刚才在提交，不是��看 ⇒ TODO-127）。
+      setBatchError(describePcsError(err, '批量提交校对失败', '无权提交'));
     } finally {
       setBatchSubmitting(false);
     }
@@ -393,6 +399,23 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
             成功 {batchResult.succeeded.length} · 失败 {batchResult.failed.length}
             {batchResult.dry_run ? '（预演：未改状态）' : ''}
           </div>
+          {/*
+           * ⚠️ **区分「真提交」与「幂等命中」**（TODO-124）：契约的 `note`
+           *   有 `already_in_approval` —— 那条**本来就在审批中**、这次
+           *   **并没有真的提交** ⇒ 但上面的「成功 N」**把它算进去了**
+           *   ⇒ 用户以为提交了 N 条。
+           * ⇒ 补一行如实说明「其中 M 条本来就在审批中」。
+           */}
+          {batchResult.succeeded.some((item) => item.note === 'already_in_approval') && (
+            <Typography.Text
+              type="secondary"
+              data-testid="stream-batch-idempotent-hint"
+              style={{ display: 'block' }}
+            >
+              其中 {batchResult.succeeded.filter((item) => item.note === 'already_in_approval').length}{' '}
+              条本来就在审批中（幂等命中 · 本次**未**提交）。
+            </Typography.Text>
+          )}
           {batchResult.warning && (
             <Alert
               type="warning"

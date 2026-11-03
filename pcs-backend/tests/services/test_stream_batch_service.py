@@ -890,6 +890,46 @@ async def test_item_whose_commit_succeeded_is_reported_as_success(
     assert str(getattr(status, "value", status)) == "IN_APPROVAL"
 
 
+async def test_batch_limit_treats_boolean_as_garbage(db_session, batch_project):
+    """⚠️ **布尔值不是数字** ⇒ 上限回落默认值（不是 1）。
+
+    ## 缺陷形状
+
+    `_batch_limit` 用 `int(raw)` 解析系统参数 ⇒ `int(True) == 1`
+    （bool 是 int 的子类）⇒ 管理员若把这个参数存成布尔 `true`，
+    批次上限会**静默变成 1** ⇒ 用户批量提交 2 条就被 422 拒
+    ⇒ 而参数页上显示的是「true」⇒ 用户完全看不懂为什么被拒。
+
+    ⇒ 修法：`int(raw)` 之前先排除 bool（`isinstance(raw, bool)`）。
+    ⚠️ **不能靠 `int()` 抛异常来兜** —— `int(True)` **不抛** ⇒ 兜不住。
+    """
+    from app.services.system_setting_service import seed_defaults, update_batch
+    from app.services.stream_batch_service import submit_batch
+
+    await seed_defaults(db_session)
+    await db_session.commit()
+
+    s = await _make_draft(db_session, batch_project, "S-1")
+    s2 = await _make_draft(db_session, batch_project, "S-2")
+
+    # ⚠️ 存成布尔 `true`（JSONB 允许）⇒ 上限**不该**变成 1
+    await update_batch(
+        db_session, {"stream.batch_submit_limit": True}, actor_user_id=uuid.uuid4()
+    )
+    await db_session.commit()
+
+    # ⇒ 两条应当**都成功**（上限回落成 100 ⇒ 2 条远不到上限）
+    result = await submit_batch(
+        db_session,
+        [s.stream_id, s2.stream_id],
+        actor_user_id=uuid.uuid4(),
+        actor_role="DESIGNER",
+    )
+    assert len(result.succeeded) == 2, (
+        f"上限被布尔值静默变成 1 ⇒ 两条里只成功 {len(result.succeeded)} 条"
+    )
+
+
 async def test_batch_limit_falls_back_when_value_is_garbage(db_session, batch_project):
     """⚠️ 上限的**值不是整数** / **小于 1** ⇒ 回落默认值（不崩、不放行无上限）。"""
     from app.services.system_setting_service import seed_defaults, update_batch

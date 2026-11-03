@@ -2554,7 +2554,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 **归属**：触发时再做（本批不做 —— 它需要基础设施：fail-closed 脚本 + 发布前
 检查清单更新，与 T0 的 PG 车道同量级）。
 
-## TODO-121: `PipeClassListPage` 的 antd Table 报 React key 警告 🟡
+## TODO-121: `PipeClassListPage` 的 antd Table 报 React key 警告 ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 实测 · **P9B-3b 批末浏览器 QA 顺带发现** · **非本批引入**）：
 快速连续切页时控制台出现
@@ -2576,7 +2576,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 **依据**：`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-03-p9b3b.md` §3 MEDIUM-1
 （该报告在 `.gitignore` 里 ⇒ 只落本地 ⇒ 本条 TODOS 是它的对外留痕）。
 
-## TODO-122: 批次上限的 `int(raw)` 会把 JSON `true` 当成 **1** 🟡
+## TODO-122: 批次上限的 `int(raw)` 会把 JSON `true` 当成 **1** ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #2）：
 `app/services/stream_batch_service.py::_batch_limit` 用 `int(raw)` 解析系统参数
@@ -2595,7 +2595,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **触发条件**：下一次动系统参数的取值口径时。
 
-## TODO-123: 换筛选条件时**不清行选择** ⇒ 可能提交「看不见的行」 🟡
+## TODO-123: 换筛选条件时**不清行选择** ⇒ 可能提交「看不见的行」 ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #1）：
 `pcs-frontend/src/pages/sim/StreamListPage.tsx` 的 `setSelectedIds` 只在
@@ -2611,7 +2611,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **归属**：前端交互收口批（与 TODO-121 同批更省事）。
 
-## TODO-124: 批次摘要**不区分**「真提交」与「幂等命中」 🟢
+## TODO-124: 批次摘要**不区分**「真提交」与「幂等命中」 ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #4）：
 契约的 `BatchSucceededItem.note` 有 `already_in_approval` 标记
@@ -2627,7 +2627,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **触发条件**：下一次动批次结果弹窗时。
 
-## TODO-125: `POST /streams/batch-submit` 的 `stream_ids` **没有硬上限** 🟢
+## TODO-125: `POST /streams/batch-submit` 的 `stream_ids` **没有硬上限** ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #5）：
 `app/schemas/stream_batch.py` 的 `stream_ids` 只有 `min_length=1`
@@ -2642,7 +2642,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **触发条件**：安全审计或容量评估时。
 
-## TODO-126: `system_setting_service.py` 的注释说批次上限「**本批无消费者**」 🟢
+## TODO-126: `system_setting_service.py` 的注释说批次上限「**本批无消费者**」 ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #6）：
 `app/services/system_setting_service.py` 的 `DEFAULT_SETTINGS` 注释写着
@@ -2657,7 +2657,7 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 
 **触发条件**：下一次动 `system_setting_service.py` 时。
 
-## TODO-127: 403 的文案对**写操作**说「无权查看」 🟢
+## TODO-127: 403 的文案对**写操作**说「无权查看」 ✅ 已闭环（2026-11-04）
 
 **现状**（2026-11-03 · P9B-3b 整支分支评审 Minor #3）：
 `pcs-frontend/src/api/errors.ts::describePcsError` 对 403 一律返回
@@ -2676,3 +2676,28 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 **触发条件**：下一次动 `errors.ts` 或批次结果弹窗时。
 
 **相关**：P9B-3b 批次提交校对页（`src/pages/sim/StreamListPage.tsx`）。
+
+---
+
+## ✅ 2026-11-04：TODO-121~127 全部闭环（整批评审的 7 条 Minor）
+
+**触发**：用户「清理minor」⇒ 把整支分支评审的 7 条 Minor 全部落地（不再只登记）。
+
+| # | 修了什么 | 怎么验的 |
+|---|---|---|
+| 121 | **根因不是「数组没 key」** —— 是 `rowKey="pipe_class_id"`（**契约里没这个字段**！2026-10-19 bug-180 整组改名时**漏改**）⇒ **每行的 key 都是 `undefined`** ⇒ React key 警告 + **行的身份坏了**（选择/展开/局部更新都错配）。改 `rowKey="class_id"` ⇒ 浏览器实测 `data-row-key` 从**无属性**变成 `pc-001`~`pc-004` | 新增**棘轮** `tests/pages/rowKey_contract.test.ts`：扫全部页面的 `rowKey="字段"` ⇒ 断言该字段**既在契约里、也在手写类型里** ⇒ **整类缺陷**（改名漏改 rowKey）以后都会红 |
+| 122 | `int(True) == 1`（bool 是 int 的子类）⇒ 上限**静默变成 1** ⇒ 批量提交 2 条就被 422 拒，而参数页显示「true」⇒ 用户看不懂。⇒ `int()` 之前先 `isinstance(raw, bool)` 排除（**不能靠 `int()` 抛异常兜** —— `int(True)` 不抛） | RED（整批 422）→ GREEN；新增 `test_batch_limit_treats_boolean_as_garbage` |
+| 123 | 换筛选**不清行选择** ⇒ 勾了 5 行、换筛选只剩 3 行可见 ⇒ 提交的是 **5 条**（含 2 条看不见的）。⇒ `setFilter` 里先 `setSelectedIds([])` | RED（按钮仍 enabled）→ GREEN |
+| 124 | 摘要「成功 N」**包含幂等命中**（那条本来就在审批中、**并没有真提交**）⇒ 用户以为提交了 N 条。⇒ 摘要下补一行「其中 M 条本来就在审批中」 | RED（摘要只有「成功 2 · 失败 0」）→ GREEN |
+| 125 | `stream_ids` **无硬上限** ⇒ 客户端可 POST 100 万个 id ⇒ 服务端先**反序列化**一百万个 UUID 再比上限。⇒ 请求体加 `MAX_STREAM_IDS_PER_BATCH = 1000`（Pydantic **逐个追加时**就停 ⇒ 连反序列化都省了）；服务端上限**与之取小** | RED（导入失败）→ GREEN |
+| 126 | `system_setting_service.py` 的注释说批次上限「本批无消费者」⇒ 已改成实际消费者 `stream_batch_service._batch_limit` | 注释修正 |
+| 127 | 403 文案对**写操作**说「无权查看」。⇒ `describePcsError` 加**可选**参数 `permissionVerb`（默认「无权查看」⇒ **其余几十个调用点无感**），批量提交这处传「无权提交」 | RED（文案是「无权查看」）→ GREEN |
+
+⚠️ **TODO-121 的教训**：原本以为「antd 表格某列渲染数组没 key」⇒ 实际是
+**`rowKey` 指向了一个契约里不存在的字段** ⇒ 症状（key 警告）指向 antd 内部，
+真因在**页面自己的一行配置**上 ⇒ **只看堆栈会找错方向** ⇒
+必须顺着「这个字段在契约里吗」查下去。
+
+⚠️ **TODO-121 的棘轮也提醒了一件事**：允许集必须包含**手写类型**的字段
+（`types/pipe.ts` 的 `seq` / 页面本地的 `CompositionRow.component` 等）
+⇒ 否则会把**合法**的 rowKey 误报 ⇒ 误报的棘轮 ⇒ 没人敢用 ⇒ 很快被绕过。

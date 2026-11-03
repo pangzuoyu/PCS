@@ -67,6 +67,7 @@ from app.core.errors import PcsError
 from app.models.enums import AuditAction, StateTransition, StreamSignStatus
 from app.models.project import Stream
 from app.schemas.stream_batch import (
+    MAX_STREAM_IDS_PER_BATCH,
     BatchFailedItem,
     BatchSucceededItem,
     StreamBatchSubmitResponse,
@@ -95,15 +96,29 @@ NOTE_ALREADY_IN_APPROVAL = "already_in_approval"
 
 
 async def _batch_limit(db: AsyncSession) -> int:
-    """批次上限（`system_settings.stream.batch_submit_limit`，默认 100）。"""
+    """批次上限（`system_settings.stream.batch_submit_limit`，默认 100）。
+
+    ⚠️ **布尔不是数字**：`int(True) == 1`（bool 是 int 的子类）⇒
+    管理员把参数存成布尔 `true` ⇒ 上限会**静默变成 1** ⇒
+    用户批量提交 2 条就被 422 拒 ⇒ 而参数页上显示的是「true」
+    ⇒ 用户完全看不懂为什么被拒。
+    ⇒ 故 `int()` 之前先排除 bool（**不能靠 `int()` 抛异常兜** ——
+    `int(True)` **不抛** ⇒ 兜不住）。
+
+    ⚠️ **与硬上限取小**：请求体另有 `MAX_STREAM_IDS_PER_BATCH`（1000）做兜底
+    ⇒ 管理员把系统参数调到 5000 也只会被硬上限兜住
+    ⇒ 两个上限**必须一致地取小**，否则「参数说 5000、实际只能 1000」会很难解释。
+    """
     raw = await get_setting_value(
         db, BATCH_LIMIT_SETTING_KEY, default=DEFAULT_BATCH_LIMIT
     )
+    if isinstance(raw, bool):
+        raw = None
     try:
         limit = int(raw)
     except (TypeError, ValueError):
         limit = DEFAULT_BATCH_LIMIT
-    return max(limit, 1)
+    return max(min(limit, MAX_STREAM_IDS_PER_BATCH), 1)
 
 
 async def _submit_one(

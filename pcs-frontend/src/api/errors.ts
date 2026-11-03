@@ -99,12 +99,21 @@ export function errorText(err: unknown, fallback: string): string {
  * ⚠️ 403 ⇒ 「无权查看：…」而不是 `HTTP_403：需要角色 [...]` ——
  *    前者说清了**发生了什么**，后者只给了一个机器码；而且 403 与「查出来是空」
  *    **必须区分开**（空表会被读成「没有数据」⇒ RF-12）。
+ *
+ * ⚠️ **`permissionVerb`（TODO-127）**：默认「无权查看」对**读**操作是对的，
+ *    对**写**操作是错的（用户看到「无权查看」但他刚才在提交 ⇒ 困惑）。
+ *    ⇒ 写操作（如批量提交校对）传自己的动词，**默认行为不变**
+ *    （其余几十个调用点**无感**）。
  */
-export function describePcsError(err: unknown, fallback: string): string {
+export function describePcsError(
+  err: unknown,
+  fallback: string,
+  permissionVerb = '无权查看',
+): string {
   const envelope = extractPcsError(err);
   const code = envelope?.code ?? 'HTTP_500';
   const message = envelope?.message ?? fallback;
-  if (isPermissionError(err)) return `无权查看：${message}`;
+  if (isPermissionError(err)) return `${permissionVerb}：${message}`;
   return `${code}：${message}`;
 }
 

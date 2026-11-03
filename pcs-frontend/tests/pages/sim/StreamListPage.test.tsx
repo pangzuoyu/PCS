@@ -201,6 +201,40 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     expect(listUrls[1]).toContain('source=SIM_IMPORT');
   });
 
+  it('⚠️ 改筛选条件 ⇒ **清掉行选择**（不许提交「看不见的行」）', async () => {
+    // ⚠️ TODO-123 的形状：勾了 2 行 → 换筛选（列表变了）→ 旧选择**还在**
+    //   ⇒ 点「批量提交校对」会提交**已经不在视野里**的那些行。
+    //   ⇒ 用户无从判断自己提交了多少（按钮上也没显示「已选 N 条」）。
+    rows = [makeStream(), makeStream({ stream_id: 's-2', stream_name: '塔顶气' })];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    // 勾选 2 行
+    const cbs = document.querySelectorAll(
+      '.ant-table-selection-column input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+    fireEvent.click(cbs[1]!);
+    fireEvent.click(cbs[2]!);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+
+    // 换筛选 ⇒ 列表重新加载 ⇒ **选择必须被清掉**
+    const box = screen.getByTestId('stream-filter-source');
+    const selector = box.querySelector('.ant-select-selector') as HTMLElement;
+    fireEvent.mouseDown(selector);
+    await waitFor(() => expect(document.querySelector('.ant-select-dropdown')).toBeTruthy());
+    const dropdown = document.querySelector('.ant-select-dropdown') as HTMLElement;
+    const option = within(dropdown).getByText('模拟软件').closest('.ant-select-item') as HTMLElement;
+    fireEvent.click(option);
+    await waitFor(() => expect(listUrls.length).toBe(2));
+
+    // ⚠️ 换了筛选 ⇒ 旧的选择**必须**清掉（否则会提交看不见的行）
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).toBeDisabled(),
+    );
+  });
+
   it('行操作有 查看 / 校对 / 变更 三个入口', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
@@ -356,6 +390,37 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     );
   });
 
+  it('⚠️ 403 ⇒ 文案说「无权**提交**」（不是「无权查看」）', async () => {
+    // ⚠️ TODO-127 的形状：`describePcsError` 的 403 分支一律说「无权查看」
+    //   ⇒ 但批量提交是**写**操作 ⇒ 用户看到「无权查看：需要角色 [...]」
+    //   ⇒ 他刚才在提交，不是��看 ⇒ 困惑。
+    server.use(
+      http.post('/api/v1/streams/batch-submit', () =>
+        HttpResponse.json(
+          { code: 'HTTP_403', message: '需要角色 [DESIGNER]', detail: null, trace_id: 't-403' },
+          { status: 403 },
+        ),
+      ),
+    );
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const cbs = document.querySelectorAll(
+      '.ant-table-selection-column input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+    fireEvent.click(cbs[1]!);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-error')).toBeTruthy());
+    const err = screen.getByTestId('stream-batch-error').textContent ?? '';
+    // ⚠️ 写操作 ⇒ 「无权提交」，**不是**「无权查看」
+    expect(err).toContain('无权提交');
+    expect(err).not.toContain('无权查看');
+  });
+
   it('⚠️ 批量请求本身失败（422 超限）⇒ 显示错误，**不**显示结果摘要', async () => {
     batchStatus = 422;
     renderPage();
@@ -397,6 +462,65 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
       ),
     );
     expect(screen.getByTestId('state-badge-label').textContent).toBe('审批中');
+  });
+
+  it('⚠️ 摘要要**区分**「真提交」与「幂等命中」（本来就在审批中的）', async () => {
+    // ⚠️ TODO-124 的形状：契约的 `note` 有 `already_in_approval`
+    //   （那条**本来就在审批中**、这次**并没有真的提交**）⇒
+    //   但摘要只显示「成功 N · 失败 M」⇒ N **包含**幂等命中
+    //   ⇒ 用户以为提交了 N 条。
+    server.use(
+      http.post('/api/v1/streams/batch-submit', async () =>
+        HttpResponse.json(
+          {
+            batch_id: 'b-idem',
+            total: 2,
+            succeeded: [
+              {
+                status: 'succeeded',
+                stream_id: 's-1',
+                from_status: 'DRAFT',
+                to_status: 'IN_APPROVAL',
+                note: null,
+              },
+              {
+                status: 'succeeded',
+                stream_id: 's-2',
+                from_status: 'IN_APPROVAL',
+                to_status: 'IN_APPROVAL',
+                note: 'already_in_approval',
+              },
+            ],
+            failed: [],
+            dry_run: false,
+            warning: null,
+          },
+          { status: 207 },
+        ),
+      ),
+    );
+    rows = [makeStream(), makeStream({ stream_id: 's-2', stream_name: '塔顶气' })];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    const cbs = document.querySelectorAll(
+      '.ant-table-selection-column input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+    fireEvent.click(cbs[1]!);
+    fireEvent.click(cbs[2]!);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-summary')).toBeTruthy());
+    // ⚠️ 「成功 2」里**含**了那条幂等命中 ⇒ 必须**另外**说明它没被真提交
+    const summary = screen.getByTestId('stream-batch-summary').textContent ?? '';
+    expect(summary).toContain('成功 2');
+    // ⚠️ 幂等提示单独一行（契约的 `note === 'already_in_approval'`）
+    const hint = await screen.findByTestId('stream-batch-idempotent-hint');
+    expect(hint.textContent).toContain('1');
+    expect(hint.textContent).toMatch(/本来就在审批中|已在审批中|幂等/);
   });
 
   it('⚠️ 连点两次「批量提交校对」⇒ **只发一次请求**', async () => {

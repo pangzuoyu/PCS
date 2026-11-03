@@ -17887,7 +17887,7 @@ export interface components {
         StreamBatchSubmitRequest: {
             /**
              * Stream Ids
-             * @description 待提交校对的物流 id 列表（批次内**去重**；上限取系统参数 `stream.batch_submit_limit`，默认 100）
+             * @description 待提交校对的物流 id 列表（批次内**去重**；上限取系统参数 `stream.batch_submit_limit`，默认 100；请求体另有硬上限 1000 条做兜底）
              */
             stream_ids: string[];
             /**

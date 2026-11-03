@@ -149,7 +149,11 @@ export function PipeClassListPage({ classes, onSelect }: Props): JSX.Element {
       />
 
       <Table<PipeClass>
-        rowKey="pipe_class_id"
+        // ⚠️ **rowKey 必须是契约字段 `class_id`**（2026-10-19 bug-180 把整组
+        //    字段名改了，这行**漏改** ⇒ 每行的 key 都是 `undefined` ⇒
+        //    React 报 key 警告 + **行的身份坏了**（选择/展开/局部更新都错配）。
+        //    棘轮守卫：`tests/pages/rowKey_contract.test.ts`。
+        rowKey="class_id"
         columns={columns}
         dataSource={filtered}
         pagination={false}

@@ -11,15 +11,32 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+#: 批次 id 列表的**硬上限**（请求体层面）。
+#:
+#: ⚠️ **为什么需要**：系统参数里的上限是**动态**的（管理员可改）⇒
+#: 请求体本身**没有**上界 ⇒ 客户端可以 POST 100 万个 id ⇒
+#: 服务端先把这一百万个 UUID **反序列化**（内存 + CPU）**再**去比上限
+#: ⇒ 一次请求就能吃掉大量资源。
+#:
+#: ⇒ 这里给一个**宽松的硬上限**做兜底 ⇒ Pydantic 在**逐个追加元素时**
+#: 就会停下 ⇒ 连反序列化都省了。
+#:
+#: ⚠️ **不取代**动态上限：真正的批次上限仍取
+#: `system_settings.stream.batch_submit_limit`（默认 100），
+#: 且**两者取小**（见 `stream_batch_service._batch_limit`）。
+MAX_STREAM_IDS_PER_BATCH = 1000
+
 
 class StreamBatchSubmitRequest(BaseModel):
     """批量提交校对的请求体。"""
 
     stream_ids: list[uuid.UUID] = Field(
         min_length=1,
+        max_length=MAX_STREAM_IDS_PER_BATCH,
         description=(
             "待提交校对的物流 id 列表（批次内**去重**；上限取系统参数 "
-            "`stream.batch_submit_limit`，默认 100）"
+            "`stream.batch_submit_limit`，默认 100；"
+            f"请求体另有硬上限 {MAX_STREAM_IDS_PER_BATCH} 条做兜底）"
         ),
     )
     dry_run: bool = Field(

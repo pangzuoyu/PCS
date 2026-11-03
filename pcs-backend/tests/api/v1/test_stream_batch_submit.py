@@ -140,6 +140,35 @@ async def test_batch_submit_rejects_empty_list(client, designer_headers):
     assert resp.status_code == 422, resp.text
 
 
+async def test_batch_submit_rejects_more_ids_than_the_hard_cap(
+    client, designer_headers
+):
+    """⚠️ **硬上限**：`stream_ids` 超过 `MAX_STREAM_IDS_PER_BATCH` ⇒ 422。
+
+    ## 为什么需要
+
+    系统参数里的上限是**动态**的（管理员可改）⇒ 请求体本身**没有**上界
+    ⇒ 客户端可以 POST **100 万个 id** ⇒ 服务端先把这一百万个 UUID
+    **反序列化**（内存 + CPU）**再**去比上限 ⇒ 一次请求就能吃掉大量资源。
+
+    ⇒ 请求体加一个**宽松的硬上限**做兜底（`MAX_STREAM_IDS_PER_BATCH`）
+    ⇒ Pydantic 在**逐个追加元素时**就会停下 ⇒ 连反序列化都省了。
+    ⚠️ 硬上限**不取代**动态上限：动态上限仍由 `stream.batch_submit_limit`
+    控制（且取两者之小 ⇒ 管理员把上限调到 5000 也只会被硬上限兜住）。
+    """
+    from app.schemas.stream_batch import MAX_STREAM_IDS_PER_BATCH
+
+    too_many = [str(uuid.uuid4()) for _ in range(MAX_STREAM_IDS_PER_BATCH + 1)]
+
+    resp = await client.post(
+        BATCH_URL, json={"stream_ids": too_many}, headers=designer_headers
+    )
+
+    assert resp.status_code == 422, resp.text
+    # ⚠️ 必须是**请求体校验**拒的（不是服务端的批次上限 422）
+    assert resp.json()["code"] != "SIM_STREAM_BATCH_LIMIT_EXCEEDED", resp.text
+
+
 async def test_batch_submit_enforces_configured_limit(
     client, db_session, make_project, designer_headers
 ):

@@ -25,9 +25,10 @@ from app.models.enums import AuditAction
 from app.models.system import SystemSetting
 
 #: 默认参数清单 —— **键的集合由开发者控制**（见模块 docstring 的 P2-3）。
-#: `stream.batch_submit_limit` 在本批**无消费者**（批量提交在 P9B-3b），
-#: 提前 seed 比 P9B-3b 再补省事（seed 幂等 ⇒ 多一个键零成本），
-#: 但前端页面**必须能编辑它**（否则管理员看到「有配置但改不了」会困惑）。
+#: `stream.batch_submit_limit` 的消费者是
+#: `stream_batch_service._batch_limit`（P9B-3b 批量提交校对）——
+#: 它在本批**之前**就提前 seed 了（seed 幂等 ⇒ 多一个键零成本），
+#: 且前端页面**能编辑它**（否则管理员看到「有配置但改不了」会困惑）。
 DEFAULT_SETTINGS: list[dict[str, Any]] = [
     {"key": "session.timeout_minutes", "value": 30, "description": "会话超时（分钟）"},
     {"key": "notification.retention_days", "value": 30, "description": "已读通知保留天数"},
