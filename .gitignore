@@ -35,3 +35,7 @@ pcs-backend/var/
 
 # superpowers 计划执行工作区（ledger / briefs / review package）
 .superpowers/
+
+# claude-mem MCP 工具在本仓自动 clone 的**独立 git 仓库**（57MB）——
+# 不是本仓的源码，也不随仓库分发 ⇒ 不入库（防 `git add -A` 误提交）。
+claude-mem/
