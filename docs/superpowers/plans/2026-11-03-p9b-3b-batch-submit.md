@@ -1679,7 +1679,10 @@ async def _make_draft(db: AsyncSession, proj, name: str) -> Stream:
         press=200.0,
         mass_flow=1000.0,
         composition_json={"7732-18-5": 1.0},
-        sign_status="DRAFT",
+        sign_status=StreamSignStatus.DRAFT,
+        # ⚠️ `approval_depth` 是 Stream 上**唯一没有默认值**的 NOT NULL 列
+        #   ⇒ 取值与 `StreamService.create` 一致（1 步校对）。
+        approval_depth=1,
     )
     db.add(stream)
     await db.commit()
@@ -1691,7 +1694,7 @@ async def test_batch_submit_returns_207_with_both_lists(
     client, db_session, make_project, designer_headers
 ):
     """⚠️ 一条成功 + 一条失败 ⇒ **207**，两张清单各自完整。"""
-    proj = await make_project()
+    proj = make_project
     good = await _make_draft(db_session, proj, "GOOD")
     missing = uuid.uuid4()
 
@@ -1719,7 +1722,7 @@ async def test_batch_submit_requires_allowed_role(
     client, db_session, make_project, viewer_headers
 ):
     """越权 ⇒ **整批 403**（与单条端点同口径）。"""
-    proj = await make_project()
+    proj = make_project
     stream = await _make_draft(db_session, proj, "S-1")
 
     resp = await client.post(
@@ -1747,7 +1750,7 @@ async def test_batch_submit_enforces_configured_limit(
     """D4：把上限改成 1 ⇒ 提交 2 条 ⇒ 422 `SIM_STREAM_BATCH_LIMIT_EXCEEDED`。"""
     from app.services.system_setting_service import seed_defaults, update_batch
 
-    proj = await make_project()
+    proj = make_project
     s1 = await _make_draft(db_session, proj, "S-1")
     s2 = await _make_draft(db_session, proj, "S-2")
 
@@ -1776,7 +1779,7 @@ async def test_batch_submit_writes_n_plus_one_audits(
     client, db_session, make_project, designer_headers
 ):
     """D3：审计 **N+1** 条（N 条 `RECORD_TRANSITION` + 1 条批次）。"""
-    proj = await make_project()
+    proj = make_project
     s1 = await _make_draft(db_session, proj, "S-1")
     s2 = await _make_draft(db_session, proj, "S-2")
 
@@ -1835,7 +1838,7 @@ async def test_batch_audit_resource_id_equals_response_batch_id(
     ⇒ 两者若不等（一个用 `uuid4()` 一个用别的），**用户拿着响应里的 batch_id
     也查不到** ⇒ 「怎么查」写在 docstring 里也是空话。
     """
-    proj = await make_project()
+    proj = make_project
     s1 = await _make_draft(db_session, proj, "S-1")
 
     resp = await client.post(
@@ -1867,7 +1870,7 @@ async def test_idempotent_hit_writes_no_second_transition_audit(
     client, db_session, make_project, designer_headers
 ):
     """⚠️ Review Focus #2：已 `IN_APPROVAL` ⇒ 记成功但**不写** `RECORD_TRANSITION`。"""
-    proj = await make_project()
+    proj = make_project
     s1 = await _make_draft(db_session, proj, "S-1")
     s1.sign_status = StreamSignStatus.IN_APPROVAL
     await db_session.commit()
@@ -1898,7 +1901,7 @@ async def test_dry_run_writes_no_audit_at_all(
     client, db_session, make_project, designer_headers
 ):
     """⚠️ Review Focus #3：预演 ⇒ **审计表零新增**（连批次那条也没有）。"""
-    proj = await make_project()
+    proj = make_project
     s1 = await _make_draft(db_session, proj, "S-1")
 
     resp = await client.post(

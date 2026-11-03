@@ -43,6 +43,7 @@ from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
 from app.api.v1.signature_matrices import router as signature_matrices_router  # TODO-070 矩阵管理面
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
 from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
+from app.api.v1.stream_batch import router as stream_batch_router  # P9B-3b 批量提交校对
 from app.api.v1.stream_symbols import router as stream_symbols_router
 from app.api.v1.streams import router as streams_router
 from app.api.v1.supplier import router as supplier_router  # P7-Sprint 4 S4-1
@@ -78,6 +79,7 @@ api_router.include_router(pipe_net_router)
 api_router.include_router(pump_router)
 api_router.include_router(stream_symbols_router)
 api_router.include_router(streams_router)
+api_router.include_router(stream_batch_router)  # P9B-3b 批量提交校对
 api_router.include_router(equip_lib_router)
 api_router.include_router(equip_list_router)  # P7-Sprint 1 S1-4b
 api_router.include_router(flash_router)
