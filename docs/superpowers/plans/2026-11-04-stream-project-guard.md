@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把物流模块 17 个端点缺失的**项目级访问守卫**补齐（读面 + 写面），并新增一个**按项目守卫**的 `GET /streams/{id}/review-log` 端点，让设计师能读到**自己物流**的校核记录。
+**Goal:** 把物流模块 **20 个端点/路径**缺失的**项目级访问守卫**补齐（读面 + 写面），并新增一个**按项目守卫**的 `GET /streams/{id}/review-log` 端点，让设计师能读到**自己物流**的校核记录。
 
 **Architecture:** 守卫统一落在端点层，复用仓里既有的 `check_record_access_or_404`（**404**，不泄露存在性）。批量端点因是「部分成功」语义，跨项目的条目**按「不存在」处理**（理由文案与真不存在**逐字相同**）⇒ 攻击者无法区分。测试侧新增 `strict_client`（**不** mock 掉守卫）——现有 `client` fixture 把 `check_user_project_access` mock 成永远 True，**用它测不到任何守卫缺陷**。
 
@@ -19,7 +19,7 @@
 - ⚠️ **口令不要写在命令行**（会被权限分类器拦）——只在环境变量 / 进程内派生。
 - ⚠️ **不要用 `git checkout <commit> --detach`** —— 会话里切 HEAD 有卡死风险。
 - **守卫口径固定为 404**（`check_project_access_or_404` / `check_record_access_or_404`）——**不泄露「存在但无权」**。
-- **每个 Task 一个 commit**；T5（review-log）**必须是独立 commit**（回滚粒度：112 的端点出问题**不能**连带回滚 17 个守卫）。
+- **每个 Task 一个 commit**；T6（review-log）**必须是独立 commit**（回滚粒度：112 的端点出问题**不能**连带回滚 17 个守卫）。
 - 单测跑**内存 SQLite**（`tests/conftest.py` 用 `SA_Base.metadata.create_all`）⇒ **不改迁移** ⇒ 本批无 `alembic/versions/*` 变更 ⇒ 无迁移漂移风险。
 - 契约：本批**新增一个端点 + 一个响应 schema** ⇒ 批末滚 OpenAPI baseline（`cp docs/openapi.json docs/openapi-baseline.json`）后再跑 `scripts/gate_08_openapi_contract.sh --check-baseline`。
 - ⚠️ **裸载荷数不得上涨**（`check_openapi_payload_coverage.py` 基线 ≤ 71）⇒ 新端点用**具名 schema**，不用裸 dict。
@@ -94,7 +94,7 @@
 | 15 | `GET /streams/{stream_id}/properties` | 672 | T1 |
 | 16 | `POST /streams/{stream_id}/properties/estimate` | 700 | T1 |
 
-**第 17 个**：`POST /streams/batch-submit`（`app/api/v1/stream_batch.py`）⇒ T3（TODO-118）。
+**第 17 个**：`POST /streams/batch-submit`（`app/api/v1/stream_batch.py`）⇒ T4（TODO-118）。
 **第 18 条路径**：`GET /lineage/{record_type}/{record_id}/{upstream,downstream,graph}` ⇒ T4（TODO-114）。
 
 ### 已排除的误报
@@ -105,6 +105,16 @@
 ### 为什么这个洞活到今天（写进 cerebrum）
 
 `tests/conftest.py` 的 `client` fixture 把 `UserProjectService.check_user_project_access` **mock 成永远 True** ⇒ **任何「端点缺项目守卫」的缺陷，单测都抓不到**；而前端 dev 跑 MSW mock、**根本不连真后端**。两个盲区叠加 ⇒ 洞一直没被看见。
+
+### 三条核实（2026-11-04 复核 · 评审提的核实 1/2/3）
+
+| # | 核实项 | 结论 | 对计划的影响 |
+|---|---|---|---|
+| 1 | `check_record_access_or_404` 抛什么 | **HTTPException(404)** ⇒ 经全局 handler 渲染成信封 **`code="HTTP_404"`, `message="Project not found: <project_id>"`** | ⚠️ **计划原假设有缺陷** ⇒ 跨项目若用它 ⇒ 信封与「不存在」（`SIM_STREAM_NOT_FOUND`）**不同形** ⇒ **可枚举** ⇒ 已改为：新增 service 层 `has_project_access()`（只回 bool），由调用方抛**与「不存在」逐字相同**的 `PcsError` |
+| 2 | `_Actor.roles` 可能为 None 吗 | **不可能** —— `_Actor` 全仓**只有一个定义**（`app/api/v1/config.py:470`），唯一构造点 `config.py:541` 不传 `roles` ⇒ `roles` 是 `@property` ⇒ 恒为 `[self.role]` | ✅ `list(user.roles)` 安全，**不需要** `or [user.role]` 兜底 |
+| 3 | `AuditLog` 的 JSON 列名 | **`detail_json`**（`app/models/system.py`：`detail_json: Mapped[dict \| None] = mapped_column(JSONB)`）⇒ 另有一个 GIN 索引 `ix_audit_logs_detail_json_gin`（`jsonb_path_ops`） | ✅ 计划写法正确；⚠️ 该 GIN 索引**只支持 `@>`** ⇒ 本批的 `->>` 用不上它 ⇒ TODO-104「另加表达式索引」的理由成立 |
+
+⚠️ **核实 1 引出的改动已落到 T2**：跨项目 404 现在是 `SIM_STREAM_NOT_FOUND`（物流）/ `SIM_STATEPOINT_NOT_FOUND`（状态点）⇒ 与各自的「不存在」**逐字同形**。
 
 ---
 
@@ -120,7 +130,7 @@
 | `pcs-backend/app/services/stream_review_log_service.py` | **新建** | 读 audit_logs + 后端过滤 + 排序 |
 | `pcs-backend/app/api/v1/streams.py`（T5 追加） | 端点 | `GET /streams/{id}/review-log` |
 | `pcs-backend/tests/conftest.py` | 测试基建 | 新增 `strict_client` + `grant_project` fixture |
-| `pcs-backend/tests/api/v1/test_stream_project_guard.py` | **新建** | 17 个端点的越权回归测试（T1~T3 共用） |
+| `pcs-backend/tests/api/v1/test_stream_project_guard.py` | **新建** | 17 个端点的越权回归测试（T2~T4 共用） |
 | `pcs-backend/tests/api/v1/test_stream_review_log.py` | **新建** | 112 的正向测试（条件 2：证明**能读到**，不只是 404） |
 | `pcs-backend/tests/api/v1/test_lineage_guard.py` | **新建** | 血缘守卫（114） |
 | `pcs-frontend/src/api/stream.ts` | 前端 API | 新增 `fetchReviewLog` |
@@ -128,7 +138,154 @@
 
 ---
 
-## Task T0：`strict_client` 测试基建
+## Task T0：授权行前置（🔴 硬阻塞 · **T2 开工前必须完成**）
+
+> ⚠️ **这不是「运维面注意事项」，是执行前置。** 补上项目守卫后，**任何没有 `UserProject` 授权行的用户访问任何物流端点都 404** ⇒ 若环境里没有授权行 ⇒ 一落地就是**全站物流 404**。
+
+### 事实（2026-11-04 实测，不是推断）
+
+| 事实 | 证据 |
+|---|---|
+| `UserProject` 行**只**由 `POST /user-projects/grant` 创建 | 全仓 `grep` ⇒ 只有 `app/api/v1/user_projects.py:88` 与 service 内部 |
+| 那个端点是 **SYSTEM_ADMIN only** | `require_roles(actor, "SYSTEM_ADMIN")` |
+| **前端没有**「用户-项目授权」的管理页面 | 菜单清单里无此项；只有 API |
+| **mock 登录不落 `users` 表** | `mock_auth.py` 的 `persist_user=False`（ADR-0046 §③b）⇒ mock 用户**没有** `users` 行 |
+| `UserProject.user_id` 有 **FK → `users.user_id`** | `app/models/project.py`：`ForeignKey("users.user_id", ondelete="CASCADE")` |
+| ⇒ **mock 用户拿不到授权行**（FK 约束） | 即使给它插 `UserProject` 也会被 FK 拒 |
+| `POST /projects` **不**给创建者授权 | `app/api/v1/projects.py::create_project` 无 `grant_project_access` |
+| `pcs` 开发库当前 **0 项目 / 0 用户 / 0 授权行** | 直查库（只查行数，不落个人数据） |
+
+⇒ **结论**：仓里**没有一条能持续产生 `UserProject` 行的路径**（除了那个没有 UI 的管理员 API）。⇒ 补守卫前**必须**先补上这条路径，否则本批一落地就是全站 404。
+
+### 本 Task 交付三件事
+
+1. **`POST /projects` 创建项目 ⇒ 自动授权创建者**（同事务）—— 「我建的项目我当然能进」；且这是**将来放开「非管理员建项目」的必要前置**（今天创建者只能 SYSTEM_ADMIN，他本来就有 bypass ⇒ 这条是为将来铺路，并保证**每个项目至少有一条授权行**）。
+2. **幂等 seed 脚本** `pcs-backend/scripts/seed_user_project_access.py` —— 给「指定用户名 × 指定项目」授权（按 username 查 `users.user_id`；用户不在 `users` 表 ⇒ 明确报错而不是静默跳过）。
+3. **部署前置清单**（写进 T7 的收口 + `CLAUDE.md`）：每个环境在上线前跑一次 seed，给**实际使用者**授权。
+
+### 步骤
+
+- [ ] **Step 1: 核实三个环境的授权行数（只数行数，不落个人数据）**
+
+```bash
+cd pcs-backend && uv run python - <<'PY'
+from dotenv import dotenv_values
+from sqlalchemy import create_engine, text
+url = dotenv_values('.env')['DATABASE_URL']
+with create_engine(url).connect() as c:
+    print("projects=", c.execute(text("select count(*) from projects")).scalar(),
+          "users=", c.execute(text("select count(*) from users")).scalar(),
+          "user_projects=", c.execute(text("select count(*) from user_projects")).scalar())
+PY
+```
+
+Expected: 记下三个环境各自的 `user_projects` 行数。**为 0 的环境 ⇒ 必须执行 Step 8 的 seed 脚本**（T2 开工前）。
+
+⚠️ 口令**不要**写在命令行（会被权限分类器拦）—— 脚本从 `.env` 读。
+
+- [ ] **Step 2: 写失败的测试（项目创建者自动获权）**
+
+新建 `pcs-backend/tests/api/v1/test_project_owner_access.py`：
+
+```python
+async def test_creating_a_project_grants_the_creator_access(client, db_session, admin_headers):
+    """建项目 ⇒ 创建者对该项目有一行 UserProject（role_in_project=PROJECT_LEAD）"""
+    r = await client.post("/api/v1/projects", json={...}, headers=admin_headers)
+    assert r.status_code == 201
+    rows = (await db_session.execute(
+        select(UserProject).where(UserProject.project_id == pid)
+    )).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].role_in_project == "PROJECT_LEAD"
+
+
+async def test_granting_the_creator_is_idempotent(client, db_session, admin_headers):
+    """重复授权不报错、也不产生第二行（`grant_project_access` 是 upsert）。"""
+```
+
+- [ ] **Step 3: 跑测试确认**失败**
+
+Run: `cd pcs-backend && uv run pytest tests/api/v1/test_project_owner_access.py -q`
+Expected: FAIL —— `user_projects` 里 0 行
+
+- [ ] **Step 4: 实现「创建项目 ⇒ 自动授权创建者」**
+
+`pcs-backend/app/api/v1/projects.py::create_project`，在**同一事务**里（与建行 + 绑矩阵一起）加：
+
+```python
+    # ⚠️ **建项目 ⇒ 自动给创建者授权**（P9B-4 紧急批次 T0）。
+    #    理由：「我建的项目我当然能进」—— 没有这条，项目就**没有授权行**，
+    #    补上项目守卫后**谁都进不去**（含创建者）。
+    #    `grant_project_access` 是 upsert ⇒ 重复调用无害。
+    await UserProjectService.grant_project_access(
+        db,
+        user_id=user.user_id,
+        project_id=record.project_id,
+        role_in_project="PROJECT_LEAD",
+        granted_by=user.user_id,
+    )
+```
+
+⚠️ 放在**同一个事务**里（该端点已经在同一事务内建行 + 绑矩阵）⇒ 任一步失败**全回滚** ⇒ 不留「项目建好了但进不去」的半成品。
+
+- [ ] **Step 5: 写 seed 脚本**
+
+新建 `pcs-backend/scripts/seed_user_project_access.py`：
+
+```
+用法（幂等）：
+    uv run python scripts/seed_user_project_access.py --username alice --project <uuid> [--role DESIGNER]
+
+行为：
+  - 按 username 查 `users.username` ⇒ 找不到 ⇒ **报错退出**（不是静默跳过）
+  - `grant_project_access`（upsert）⇒ 重复跑无害
+  - 打印一行结果：`<username> → <project_id> : <role>`
+
+⚠️ 口令从 `.env` 的 `DATABASE_URL` 读，**不要**出现在命令行。
+```
+
+（`users` 表有 `username` 列吗？实施时先 `grep -n "username" app/models/system.py` 确认；若无 ⇒ 脚本按 `user_id` 参数走，并在报错里说明。）
+
+- [ ] **Step 6: 跑测试确认**通过**
+
+Run: `cd pcs-backend && uv run pytest tests/api/v1/test_project_owner_access.py -q`
+Expected: PASS（2 passed）
+
+- [ ] **Step 7: 跑回归**
+
+Run: `cd pcs-backend && uv run pytest tests/api/v1/test_projects_api.py tests/api/v1/ -q`
+Expected: PASS —— ⚠️ 若有既有测试断言「建项目后 `user_projects` 0 行」⇒ **改测试**（那是本 Task 的预期变更）。
+
+- [ ] **Step 8: 在 dev / 测试 / 生产各执行一次 seed（人工步骤 · 涉各环境凭证）**
+
+对每个环境：把该环境的**实际使用者**授权到默认项目（前端 `PROJECT_ID` 常量那个）⇒
+
+```bash
+cd pcs-backend && uv run python scripts/seed_user_project_access.py --username <该环境的用户名> --project 00000000-0000-0000-0000-000000000001
+```
+
+⚠️ mock 用户（alice/bob/carol/dan）**不在 `users` 表** ⇒ seed 脚本会报错 ⇒ 它们要用后端跑，**必须先让它们进 `users` 表**（`persist_user=True` 的一次性登录，或手工插入）⇒ 记进 T7 的收口说明。
+
+- [ ] **Step 9: 验证（有授权 ⇒ 200）**
+
+```bash
+# 用有授权的身份访问物流列表 ⇒ 200
+curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/api/v1/projects/00000000-0000-0000-0000-000000000001/streams
+```
+
+Expected: `200`（不是 404）
+
+- [ ] **Step 10: 提交**
+
+```bash
+git add pcs-backend/app/api/v1/projects.py pcs-backend/scripts/seed_user_project_access.py pcs-backend/tests/api/v1/test_project_owner_access.py
+git commit -F <msgfile>   # 首行: feat(T0): 项目创建者自动获权 + 授权 seed 脚本（守卫的前置）
+```
+
+---
+
+## Task T1：`strict_client` 测试基建
 
 **Files:**
 - Modify: `pcs-backend/tests/conftest.py`（在现有 `client` fixture **之后**追加）
@@ -235,22 +392,43 @@ Expected: PASS（2 passed）
 
 ```bash
 git add pcs-backend/tests/conftest.py pcs-backend/tests/api/v1/test_strict_client_fixture.py
-git commit -F <msgfile>   # 首行: test(T0): strict_client 测试基建 —— 不 mock 项目守卫的客户端
+git commit -F <msgfile>   # 首行: test(T1): strict_client 测试基建 —— 不 mock 项目守卫的客户端
 ```
 
 ---
 
-## Task T1：物流读/写端点的项目守卫（10 个）
+## Task T2：物流读/写端点的项目守卫（10 个）
 
 **Files:**
 - Modify: `pcs-backend/app/api/v1/streams.py`（加 2 个 helper；接入 10 个端点）
 - Test: `pcs-backend/tests/api/v1/test_stream_project_guard.py`（**新建**）
 
 **Interfaces:**
-- Consumes: `app.api.v1._guard.check_record_access_or_404(db, *, user_id, record, actor_roles)`（已存在）
+- Consumes: `app.services.user_project_service.has_project_access(session, *, user_id, project_id, actor_roles)` —— **本 Task 新增**（见下）
 - Produces:
-  - `async def _load_stream_guarded(db: AsyncSession, stream_id: uuid.UUID, user: _Actor) -> Stream` —— 加载物流 + 项目守卫；不存在或无权**都**抛 404
+  - `async def has_project_access(session: AsyncSession, *, user_id: uuid.UUID, project_id: uuid.UUID, actor_roles: list[str] | None = None) -> bool` —— 项目访问权判定（**含 SYSTEM_ADMIN bypass**），放在 **service 层**（`app/services/user_project_service.py`）⇒ API 层与批次 service **共用同一份口径**（⚠️ 不要让 `app/services/` 反向 import `app/api/v1/_guard.py`）
+  - `async def _load_stream_guarded(db: AsyncSession, stream_id: uuid.UUID, user: _Actor) -> Stream` —— 加载物流 + 项目守卫；不存在或无权**都**抛 **同一个** 404（`SIM_STREAM_NOT_FOUND`）
   - `async def _load_state_point_guarded(db: AsyncSession, state_point_id: uuid.UUID, user: _Actor) -> tuple[StreamStatePoint, Stream]` —— 加载状态点 + **经其 `stream_id` 解析**物流 + 项目守卫
+
+> ⚠️⚠️ **为什么不用 `check_record_access_or_404`（核实 1 的结论）**
+>
+> `check_record_access_or_404` → `check_project_access_or_404` → 抛
+> `HTTPException(404, "Project not found: <project_id>")` ⇒ 全局 handler 把它渲染成
+> 信封 **`{"code": "HTTP_404", "message": "Project not found: …"}`**；
+> 而「物流不存在」走 `PcsError(SIM_STREAM_NOT_FOUND)` ⇒ 信封
+> **`{"code": "SIM_STREAM_NOT_FOUND", "message": "物流 … 不存在"}`**。
+>
+> ⇒ **两个 404 的信封完全不同** ⇒ 攻击者能靠 `code`/message 区分
+> 「这个 UUID 不存在」与「这个 UUID 存在但不属于我」⇒ **可枚举**。
+>
+> ⇒ 所以跨项目**必须**用**与「不存在」逐字相同**的 `PcsError` 抛出
+> ⇒ 本 Task 新增 `has_project_access()` 做**判定**，由调用方决定**抛什么**。
+> （状态点端点同理：用 `SIM_STATEPOINT_NOT_FOUND`，与 `StreamService.get_state_point`
+> 的 not-found 同码。）
+>
+> ⚠️ **血缘端点例外**（T5）：那边「无血缘」与「无权」**本来就是两种 404**
+> （既有行为：`"no lineage for record"` vs `"Project not found"`）⇒ 本批**不统一**它
+> （避免扩大范围）⇒ 只保证「跨项目 ⇒ 404」。
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -317,18 +495,42 @@ async def test_own_project_stream_is_fully_readable(strict_client, ...):
 Run: `cd pcs-backend && uv run pytest tests/api/v1/test_stream_project_guard.py -q`
 Expected: FAIL —— 跨项目请求返回 **200**（不是 404）
 
-- [ ] **Step 3: 实现两个 helper**
+- [ ] **Step 3: 实现 `has_project_access` + 两个 helper**
 
-在 `pcs-backend/app/api/v1/streams.py` 的「Endpoints」分节**之前**加：
+**3a. service 层** —— `pcs-backend/app/services/user_project_service.py` 追加：
+
+```python
+async def has_project_access(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    actor_roles: list[str] | None = None,
+) -> bool:
+    """项目访问权判定（**含 SYSTEM_ADMIN bypass**）。
+
+    ⚠️ 与 `app/api/v1/_guard.py::check_project_access_or_404` **同口径**
+    （SYSTEM_ADMIN 全局访问）⇒ 但**不抛异常**、只回 bool ⇒
+    调用方可以决定「抛什么」⇒ 本仓用它实现「无权 ≡ 不存在」的**同形 404**。
+    ⚠️ 放 **service 层** ⇒ `app/services/` 不反向 import `app/api/v1/`。
+    """
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return True
+    return await UserProjectService.check_user_project_access(
+        session, user_id=user_id, project_id=project_id
+    )
+```
+
+**3b. API 层** —— `pcs-backend/app/api/v1/streams.py` 的「Endpoints」分节**之前**加：
 
 ```python
 async def _load_stream_guarded(
     db: AsyncSession, stream_id: uuid.UUID, user: _Actor
 ) -> Stream:
-    """加载物流 + **项目守卫**（无权 404）。
+    """加载物流 + **项目守卫**。
 
-    ⚠️ **404 = 不存在 + 无权**（两者同形）⇒ 攻击者无法靠响应差异
-    枚举出某个 UUID 是否存在（`check_record_access_or_404` 的既定口径）。
+    ⚠️ **不存在**与**无权**抛**逐字相同**的 404（`SIM_STREAM_NOT_FOUND`）
+    ⇒ 攻击者无法靠响应差异枚举出某个 UUID 是否存在。
     ⚠️ 用 `db.get`（**不加锁**）—— 守卫只读项目归属；
     真正要加锁的写路径由 `StreamService.transition` 内部的
     `SELECT ... FOR UPDATE`（`populate_existing=True`）负责。
@@ -340,9 +542,18 @@ async def _load_stream_guarded(
             code="SIM_STREAM_NOT_FOUND",
             status=404,
         )
-    await check_record_access_or_404(
-        db, user_id=user.user_id, record=stream, actor_roles=user.roles
-    )
+    if not await has_project_access(
+        db,
+        user_id=user.user_id,
+        project_id=stream.project_id,
+        actor_roles=user.roles,
+    ):
+        # ⚠️ **与「不存在」逐字同形** —— 不是 403、也不是别的 code。
+        raise PcsError(
+            f"物流 {stream_id} 不存在",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
+        )
     return stream
 
 
@@ -353,13 +564,26 @@ async def _load_state_point_guarded(
 
     ⚠️ 状态点表**没有** `project_id`（只有 `stream_id` FK）⇒ 守卫只能
     绕道物流拿项目归属。
+    ⚠️ 跨项目 ⇒ 抛 `SIM_STATEPOINT_NOT_FOUND`（与「状态点不存在」同码同形）。
     """
     sp = await StreamService.get_state_point(db, state_point_id)
-    stream = await _load_stream_guarded(db, sp.stream_id, user)
+    stream = await db.get(Stream, sp.stream_id)
+    if stream is None or not await has_project_access(
+        db,
+        user_id=user.user_id,
+        project_id=stream.project_id,
+        actor_roles=user.roles,
+    ):
+        raise PcsError(
+            f"状态点 {state_point_id} 不存在",
+            code="SIM_STATEPOINT_NOT_FOUND",
+            status=404,
+        )
     return sp, stream
 ```
 
-同时在文件顶部补 import：`from app.api.v1._guard import check_record_access_or_404`（已有 `check_project_access_or_404` 的 import 行，合并即可）。
+⚠️ `PcsError` 的构造签名：**先 message、再 keyword**（`PcsError("…", code=…, status=…)`）—— 与仓里既有写法一致（见 `StreamService.get`）。
+⚠️ 补 import：`from app.services.user_project_service import has_project_access`。
 
 - [ ] **Step 4: 接入 10 个端点**
 
@@ -394,19 +618,19 @@ Expected: PASS —— ⚠️ 既有测试若**依赖**跨项目访问（用旧 `
 
 ```bash
 git add pcs-backend/app/api/v1/streams.py pcs-backend/tests/api/v1/test_stream_project_guard.py
-git commit -F <msgfile>   # 首行: fix(T1): 物流读/写端点补项目守卫（10 个端点，越权一律 404）
+git commit -F <msgfile>   # 首行: fix(T2): 物流读/写端点补项目守卫（10 个端点，越权一律 404）
 ```
 
 ---
 
-## Task T2：状态转移端点的项目守卫（6 个）
+## Task T3：状态转移端点的项目守卫（6 个）
 
 **Files:**
 - Modify: `pcs-backend/app/api/v1/streams.py`（`_transition_endpoint` 加守卫 + `precheck` 参数；`submit_stream` 把组成门禁改成 precheck 回调）
 - Test: `pcs-backend/tests/api/v1/test_stream_project_guard.py`（**追加**用例）
 
 **Interfaces:**
-- Consumes: T1 产出的 `_load_stream_guarded`
+- Consumes: T2 产出的 `_load_stream_guarded`
 - Produces:
   - `_transition_endpoint(stream_id, event, user, db, reason, *, precheck: Callable[[Stream], Awaitable[None]] | None = None) -> dict[str, Any]` —— **先守卫（404）→ 再 precheck（422）→ 最后转移**
 
@@ -534,12 +758,12 @@ Expected: PASS —— ⚠️ `test_stream_composition_sum.py` 的门禁断言（
 
 ```bash
 git add pcs-backend/app/api/v1/streams.py pcs-backend/tests/api/v1/test_stream_project_guard.py
-git commit -F <msgfile>   # 首行: fix(T2): 状态转移端点补项目守卫（6 个）—— 守卫先于组成门禁
+git commit -F <msgfile>   # 首行: fix(T3): 状态转移端点补项目守卫（6 个）—— 守卫先于组成门禁
 ```
 
 ---
 
-## Task T3：批量端点的项目守卫（TODO-118）
+## Task T4：批量端点的项目守卫（TODO-118）
 
 **Files:**
 - Modify: `pcs-backend/app/api/v1/stream_batch.py`（传 `actor_roles`）
@@ -584,29 +808,14 @@ Expected: FAIL —— 跨项目那条进了 `succeeded`
 
 `pcs-backend/app/services/stream_batch_service.py`：在 `_submit_one_inner` 里，**加载物流之后、任何写之前**，加一道项目归属判定。
 
-- 新增模块级 helper：
+- **复用 T2 产出的 `has_project_access`**（⚠️ **不要**在 service 里再写一份
+  `_accessible` —— 两份口径迟早漂移；且 service 层**不得**反向 import
+  `app/api/v1/_guard.py` ⇒ 所以那个 helper 放在 `app/services/user_project_service.py`）：
 
 ```python
-async def _accessible(
-    db: AsyncSession, stream: Stream, *, user_id: uuid.UUID, actor_roles: list[str] | None
-) -> bool:
-    """该 actor 能否访问这条物流所属项目。
-
-    ⚠️ SYSTEM_ADMIN 全局 bypass（与 `check_project_access_or_404` 同口径）。
-    ⚠️ **不做「无权」与「不存在」的区分** —— 调用方把「无权」当「不存在」
-    处理（理由码逐字相同）⇒ 攻击者无法枚举 UUID 是否存在。
-    """
-    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
-        return True
-    return await UserProjectService.check_user_project_access(
-        db, user_id=user_id, project_id=stream.project_id
-    )
-```
-
-- `_submit_one_inner` 里，拿到 stream 之后：
-
-```python
-    if not await _accessible(db, stream, user_id=actor_user_id, actor_roles=actor_roles):
+    if not await has_project_access(
+        db, user_id=actor_user_id, project_id=stream.project_id, actor_roles=actor_roles
+    ):
         # ⚠️ **当成「不存在」**（与真不存在同形）⇒ 不泄露存在性
         return BatchFailedItem(
             status="failed",
@@ -633,12 +842,12 @@ Expected: PASS（32 + 9）
 
 ```bash
 git add pcs-backend/app/api/v1/stream_batch.py pcs-backend/app/services/stream_batch_service.py pcs-backend/tests/api/v1/test_stream_project_guard.py
-git commit -F <msgfile>   # 首行: fix(T3): 批量端点补项目守卫（TODO-118）—— 跨项目条目按「不存在」处理
+git commit -F <msgfile>   # 首行: fix(T4): 批量端点补项目守卫（TODO-118）—— 跨项目条目按「不存在」处理
 ```
 
 ---
 
-## Task T4：血缘端点的守卫注册表（TODO-114）
+## Task T5：血缘端点的守卫注册表（TODO-114）
 
 **Files:**
 - Modify: `pcs-backend/app/api/v1/lineage.py`（`_guard_record_access` 扩成注册表）
@@ -720,14 +929,14 @@ Expected: PASS
 
 ```bash
 git add pcs-backend/app/api/v1/lineage.py pcs-backend/tests/api/v1/test_lineage_guard.py
-git commit -F <msgfile>   # 首行: fix(T4): 血缘守卫扩成记录类型注册表（TODO-114）—— streams 不再跳过
+git commit -F <msgfile>   # 首行: fix(T5): 血缘守卫扩成记录类型注册表（TODO-114）—— streams 不再跳过
 ```
 
 ---
 
-## Task T5：`GET /streams/{id}/review-log` 端点（TODO-112 · 独立 commit）
+## Task T6：`GET /streams/{id}/review-log` 端点（TODO-112 · 独立 commit）
 
-> ⚠️ **裁决条件 1**：本 Task 必须是**独立 commit** —— 它的端点出问题（过滤口径错 / 性能差）时，回滚**不能**连带把 T1~T4 的 18 个守卫一起回滚。
+> ⚠️ **裁决条件 1**：本 Task 必须是**独立 commit** —— 它的端点出问题（过滤口径错 / 性能差）时，回滚**不能**连带把 T2~T5 的 18 个守卫一起回滚。
 > ⚠️ **裁决条件 2**：本 Task 的测试文件**独立**（`test_stream_review_log.py`），且必须包含**正向**测试（200 + 正确内容），不能只有 404。
 > ⚠️ **裁决条件 3**：端点**只做读 review-log** —— 不加导出、不加管理员视角、不加时间筛选、不加分页。
 
@@ -928,14 +1137,14 @@ Expected: 全部绿；测试数 **≥ 上批 baseline**
 
 ```bash
 git add pcs-backend/app/schemas/stream_review_log.py pcs-backend/app/services/stream_review_log_service.py pcs-backend/app/api/v1/streams.py pcs-backend/tests/api/v1/test_stream_review_log.py pcs-frontend/src/api/stream.ts pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx pcs-frontend/tests/pages/sim/tabs/StreamReviewLogTab.test.tsx
-git commit -F <msgfile>   # 首行: feat(T5): 新增 GET /streams/{id}/review-log（TODO-112）—— 开口子，非修补
+git commit -F <msgfile>   # 首行: feat(T6): 新增 GET /streams/{id}/review-log（TODO-112）—— 开口子，非修补
 ```
 
 ⚠️ commit message 正文**必须**写明「**新增端点：开口子，非修补**」—— 让 reviewer 知道这个 commit 与前面的守卫 commit **方向相反**（一个堵、一个开），回滚粒度独立。
 
 ---
 
-## Task T6：契约 / 文档 / QA 收口
+## Task T7：契约 / 文档 / QA 收口
 
 **Files:**
 - Modify: `pcs-backend/docs/openapi.json`（重新生成）
@@ -993,7 +1202,7 @@ Expected: 全绿
 
 ```bash
 git add -A
-git commit -F <msgfile>   # 首行: docs(T6): 契约滚动 + SPEC/TODOS/账簿同步 —— 物流面守卫补齐收口
+git commit -F <msgfile>   # 首行: docs(T7): 契约滚动 + SPEC/TODOS/账簿同步 —— 物流面守卫补齐收口
 ```
 
 ---
@@ -1002,7 +1211,7 @@ git commit -F <msgfile>   # 首行: docs(T6): 契约滚动 + SPEC/TODOS/账簿�
 
 | 门 | 判据 |
 |---|---|
-| 守卫 | 18 个端点跨项目一律 **404**；与「不存在」**同形**（Review Focus #1） |
+| 守卫 | **20 个端点/路径**跨项目一律 **404**；与「不存在」**同形**（信封逐字相同 · Review Focus #1） |
 | 顺序 | 跨项目 `submit` ⇒ **404**（不是 422 组成百分比）；状态**未变** |
 | 批量 | 跨项目条目按 `SIM_STREAM_NOT_FOUND` 处理；合法条目照常成功 |
 | 状态点 | 经 `stream_id` 解析 ⇒ 跨项目状态点 404 |
@@ -1021,7 +1230,7 @@ git commit -F <msgfile>   # 首行: docs(T6): 契约滚动 + SPEC/TODOS/账簿�
 
 | # | 问题 | 现状 | 本批处置 |
 |---|---|---|---|
-| 1 | **生产库没有 `UserProject` 授权行怎么办** | `pcs` 开发库当前 **0 项目 / 0 用户 / 0 授权**；`UserProject` 行只由 `POST /user-projects`（管理员 API）创建 ⇒ 补守卫后，**没有任何授权行的用户会处处 404** | ⚠️ **本批不解决**（属运维/部署面）⇒ 但**必须在计划执行前**确认生产环境有授权行；否则补守卫 = 全站 404。**建议**：单独一条运维任务（启动时给默认项目 seed 一条授权，或在 README 写明「先建授权」）。**登记为 TODO** |
+| 1 | **授权行** | ⚠️ **已升为执行前置 ⇒ 见 Task T0**（🔴 硬阻塞）：`UserProject` 行只由 `POST /user-projects/grant`（SYSTEM_ADMIN only、无 UI）创建；**mock 登录不落 `users` 表** ⇒ mock 用户连 FK 都过不了；`POST /projects` **不**给创建者授权 ⇒ 补守卫后**没有任何授权行的用户处处 404** | ✅ **T0 交付**「创建项目自动授权创建者」+「幂等 seed 脚本」+「部署前置清单」⇒ **T2 开工前必须完成 T0** |
 | 2 | `UserProject` 表**没有** `revoked_at` 之外的多项目语义问题 | `check_user_project_access` 支持多项目（按行查）⇒ 多项目用户天然可用 | 无需处置 |
 | 3 | **其余模块**是否有同样的守卫缺口 | 本批**只**扫了物流面（`streams.py` / `stream_batch.py` / `lineage.py`）。其它模块（`config.py` 12 端点 0 守卫、`report_builder.py` 9 端点 0 守卫、`psychro.py` 13 端点 6 守卫……）**未审** | ⚠️ **本批不做** ⇒ 登记为独立技术债（「物流面之外的模块守卫覆盖审计」） |
 | 4 | 设备引用（JSONB 数组 `feed_streams_json`）**不计入**引用数 | 见 P9B-4 计划的口径裁决 | 不在本批 |
