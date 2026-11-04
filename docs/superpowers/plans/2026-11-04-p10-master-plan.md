@@ -54,7 +54,9 @@
 | **10.6** 知识转移 | 架构 · 依赖图 · ADR · Runbook · interrogate gate | ADR 有 40+；**Runbook 无** | ⚠️ 部分已有 |
 | **10.7** 生产就绪评审 | 安全 · 漏洞 · 镜像 · 回滚 · 数据迁移 · 告警 · 备份 · Go/No-Go | — | ⚠️ 收口批 |
 
-**SPEC 估算 7.5~12.5 人周**（4.5 节）；按仓里实际状态 ⇒ **约 6~9 人周**（10.1 因「改既有表 + 迁移」比 SPEC 估的 0.5~1 人周**多约 0.5**）。
+**SPEC 估算 7.5~12.5 人周**（4.5 节）；按仓里实际状态**重估为 9~13.5 人周**（分项加总：2.5~3.5 + 2~3 + 1.5~2 + 1~1.5 + 1.5~2.5 + 0.5~1）。
+
+⚠️ **与 SPEC 估的差在哪**：SPEC 的 7.5~12.5 假设「从零搭 CI / compose / E2E 框架」⇒ 那三项仓里已有 ⇒ 本该**更少**；但 10.1 因「给既有表加列 + 迁移 + 中间件 + 审计链路」比 SPEC 估的 0.5~1 人周**多约 1.5 人周**，10.3 因「PgBouncer 那一层仓里根本不存在」也**不在 SPEC 的估算里** ⇒ 两头一抵，落在 9~13.5。
 
 ---
 
@@ -94,6 +96,13 @@ P10-A ──→ P10-B ──→ P10-F
 | **D6** | 10.1(2)：`document_chunks` 表（`document_id` / `content` / `source`） | 仓里 `document_chunks` **已存在**（`source_type` / `source_id` / `project_id` / `chunk_text` / `embedding_vector JSONB` / `token_count`） | **本批不动这张表** ⇒ 它不参与 P10 的 AI 预留路径 ⇒ 记 TODO（P10-OPEN-002 一并处理） | SPEC §3.2.1(2) |
 | **D7** | 10.1(1)：`Depends(current_user)` | 仓里是 `current_actor`（返回 `_Actor`：`user_id` / `username` / `role`） | 用 `current_actor` | SPEC §3.2.1(1) |
 | **D8** | 10.1(4)：中间件生成 `request_id` | 仓里 `add_trace_id` 中间件已生成 `request.state.trace_id`（`uuid4().hex`，**32 位无连字符**） | AI 审计的 `request_id` **另生成** `uuid4()` 标准 UUID 串 ⇒ 与 `trace_id` **并存但不同**（trace_id 走日志、request_id 走 AI 审计）⇒ 须在代码里写明「两者不是一回事」 | SPEC §3.2.1(4) |
+| **D10** | 10.1(3)：「CI 使用 **import-linter** + 自定义架构测试」 | 仓里已有 `tests/architecture/` 的**自定义扫描**做法 ⇒ 本批**只加自定义守卫**，**不引入 import-linter**（多一个依赖、多一套配置） | SPEC §3.2.1(3) |
+| **D11** | 10.1(5)：「`INTERNAL_CIDRS` … Settings 解析为 `list[str]`」 | 本批 env 侧保留**原始串** ⇒ 解析在 `ai_cidr.parse_cidrs`（**单一解析点**，且能报清晰错误） | SPEC §3.2.1(5) |
+| **D12** | 4.1.2：请求体用 **`topK`** | 后端 schema 用 `top_k` + **alias `topK`**（`populate_by_name=True`）⇒ **契约里的字段名仍是 `topK`** ⇒ 与 SPEC 逐字一致 | SPEC §4.1.2 |
+| **D13** | 10.1(9)：env 有 `AI_ENABLED` / `AI_TIMEOUT` | 本批把开关/参数**全部放 `system_settings`**（前端参数页可改）⇒ env 侧**不设** AI 开关 ⇒ **单一真相源 = system_settings** ⇒ 避免「两个开关 + AND 语义 + admin 改了却没生效」 | SPEC §3.2.1(9) |
+| **D14** | 10.1(3)：`OutboundAIClient.__init__(endpoint, timeout)` | 本批加 **`cidrs`** 构造参数（调用时二次校验需要它）⇒ 构造签名多一个 | SPEC §3.2.1(3) |
+| **D15** | 10.1(8)：`[project.optional-dependencies] ai = [langchain, ollama, vllm]` | 本批**照做**（加进 `pyproject.toml`）⇒ 默认 `uv sync` **不装** optional ⇒ 架构守卫的「全仓零命中」仍成立 | SPEC §3.2.1(8) |
+| **D16** | 4.1.4：审计字段含 **`timestamp`** | 仓里 `ai_audit_log` **已有** `occurred_at`（16 列之一）⇒ 本批**复用它**当请求时间，**不新增第二个时间列**（两个时间列语义重叠 ⇒ 以后没人知道该读哪个） | SPEC §4.1.4 |
 | **D9** | 10.1(2)：`system_settings` 保存 6 个 AI 键 | 仓里 `system_settings` 已有 7 个键（`DEFAULT_SETTINGS`），且**前端参数页显示全部键** | 追加 6 个 AI 键（`ai_enabled=false` / `ai_model_version=null` / `ai_endpoint=null` / `ai_timeout=30` / `ai_max_tokens=4096` / `ai_temperature=0.1`）⇒ 前端**自动可见**（无需改前端） | SPEC §3.2.1(9) |
 
 ---
@@ -106,7 +115,7 @@ P10-A ──→ P10-B ──→ P10-F
 | **Q2** | **内网 CIDR 清单**（P10-OPEN-010） | 待 IT 提供 | 本批的 CIDR 校验**只做机制**（可配置、非法即启动报错）⇒ 用回环地址做测试 ⇒ **清单本身不影响本批开工** | 待 IT，不阻塞 |
 | **Q3** | **SMTP 服务器**（P10-OPEN-003） | 待 IT | 与本批无关（通知模块）⇒ 不阻塞 | 待 IT |
 | **Q4** | **GPU 资源**（P10-OPEN-001） | 待确认 | P10 是「预留」⇒ **不需要 GPU** ⇒ 不阻塞 | 待确认 |
-| **Q5** | **开发计划升 V1.4**（P10-OPEN-008） | 待发布 | 本总纲 = V1.4 的 P10 部分 ⇒ 开工时一并更新 `docs/PCS-PLAN-*.md` | P10-A 收口 |
+| **Q5** | **开发计划升 V1.4**（P10-OPEN-008） | 待发布 | 本总纲 = V1.4 的 P10 部分 ⇒ **P10-A 收口（T15 Step 7）** 更新 `docs/PCS-PLAN-*.md` | P10-A 收口 |
 
 ---
 
@@ -126,7 +135,7 @@ P10-A ──→ P10-B ──→ P10-F
 | 门 | 判据 |
 |---|---|
 | 批次顺序 | P10-A 全批 commit 落地后，才开 P10-B；P10-C/D/E 可在 P10-B 期间并行 |
-| 偏离登记 | D1~D9 **全部**回写进 SPEC（`spec/PCS-SPEC-P10 V1.3.1 ….md`）⇒ 每个偏离都有裁决与理由 |
+| 偏离登记 | **D1~D16** 全部回写进 SPEC（`spec/PCS-SPEC-P10 V1.3.1 ….md`）⇒ 每个偏离都有裁决与理由 |
 | 契约 | 每批批末：G-08 `--check-baseline` 4/4 · 裸载荷不涨 · 前后端类型同步 |
 | 迁移 | 每批改了 `alembic/versions/*` ⇒ **两库各跑一次独立进程**的 `alembic check` + 直查 `alembic_version`（⚠️ 同进程第二次改 `DATABASE_URL` 不生效 —— pydantic 缓存） |
 | 浏览器 | 每批批末 gstack-qa 回归：0 error / 0×404 / 核心路由可达 |

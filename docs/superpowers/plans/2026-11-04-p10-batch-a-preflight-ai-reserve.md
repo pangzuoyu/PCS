@@ -71,7 +71,7 @@
 | `pcs-backend/app/core/errors.py` | 改 · 注册 `AINotImplementedError` handler（501） |
 | `pcs-backend/app/api/v1/ai/__init__.py` + `routes.py` | **新建** · AI 路由骨架（501） |
 | `pcs-backend/app/api/v1/health.py` | 改 · `/health/ai` |
-| `pcs-backend/app/models/system.py` | 改 · `AiAuditLog` 加 9 列 |
+| `pcs-backend/app/models/system.py` | 改 · `AiAuditLog` 加 **8** 列（时间列复用 `occurred_at`） |
 | `pcs-backend/app/schemas/ai.py` | **新建** · AI 请求/响应 schema（具名） |
 | `pcs-backend/app/services/ai/arq_queue.py` | **新建** · 审计入队（**失败降级，不抛**） |
 | `pcs-backend/app/workers/ai_audit_tasks.py` | **新建** · 审计写库任务（幂等） |
@@ -90,60 +90,128 @@
 ## Task T1：compose 测试组（profile，不新建文件）
 
 **Files:**
-- Modify: `docker-compose.yml`（加 `profiles: ["test"]` 到需要的服务 + 一个 `seed` 一次性服务）
-- Modify: `pcs-backend/README.md` 或 `CLAUDE.md`（写清「怎么起测试栈」）—— ⚠️ 只写一处，别在两处各写一份
+- Modify: `docker-compose.yml`（**只加 `seed` 一个服务** + 给 `postgres-pgtest` 的 profile 加 `"test"`）
+- Modify: `pcs-backend/README.md`（写清「怎么起测试栈」—— ⚠️ **只写一处**）
+- Create: `pcs-backend/tests/scripts/test_compose_test_profile.py`
+
+> ⚠️⚠️ **设计修订（审查 B1/B2/B3）**：
+> - **不给 `worker` / `openldap` 加 profile** —— 它们是**日常开发必用**的服务，加了 profile 之后 `docker compose up` 就不再启动它们 ⇒ 破坏现有开发流程。
+> - **只给 `seed` 加 `profiles: ["test"]`** —— 它是一次性任务，本来就不该默认启动。
+> - `postgres-pgtest` 已有 `profiles: ["pg"]` ⇒ **加一个 `"test"`**（`profiles: ["pg", "test"]`）⇒ 否则 `--profile test` 不会启动它 ⇒ `seed` 的 `depends_on` 报「service is not enabled」。
+> - ⚠️ **compose 里没有 `backend` 服务**（只有 postgres / postgres-pgtest / redis / worker / openldap / openldap-seed）⇒ `seed` **不能**复用「backend 的镜像」⇒ 照 **`worker` 服务的写法**（uv 官方镜像 + 源码只读挂载 + `uv run --frozen`）。
+> - ⚠️ `postgres-pgtest` 的库名是 **`pcs_pgtest`**（硬编码，不是 `pcs_test`）⇒ seed 的 `DATABASE_URL` 必须连它。
 
 **Interfaces:**
-- Produces: `docker compose --profile test up -d` ⇒ 起出测试栈；`docker compose --profile test run --rm seed` ⇒ 灌种子数据
+- Produces:
+  - `docker compose --profile test up -d` ⇒ 起出测试栈（含 `postgres-pgtest`）
+  - `docker compose --profile test run --rm seed` ⇒ 灌种子数据（连 `pcs_pgtest`）
+  - `seed` 服务的 `command` = `uv run --frozen python scripts/seed_e2e_data.py`
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 新建 `pcs-backend/tests/scripts/test_compose_test_profile.py`（**新建**）：
 
 ```python
-def test_compose_declares_a_test_profile():
-    """compose 里有 profile=test 的服务，且含 backend / worker / openldap。"""
+def test_seed_service_is_in_the_test_profile():
+    """`seed` 服务在 `profiles: ["test"]` 下 ⇒ 默认 `docker compose up` **不**起它。"""
 
-def test_test_profile_does_not_add_a_second_postgres_service():
-    """⚠️ **不新建 compose 文件**（偏离 D2）⇒ 测试栈复用既有 postgres-pgtest。"""
+def test_seed_service_mounts_the_backend_source():
+    """⚠️ **seed 必须挂源码卷**（`./pcs-backend:/app`）——
+    否则容器里没有 `scripts/seed_e2e_data.py` ⇒ 立刻 FileNotFoundError。"""
+
+def test_seed_uses_the_frozen_uv_entrypoint():
+    """⚠️ 与 `worker` 同款：`uv run --frozen`（不是裸 `python`）
+    ⇒ 依赖由 uv 装好，且版本与本地一致。"""
+
+def test_seed_depends_only_on_services_reachable_with_the_test_profile():
+    """⚠️ **depends_on 的每个服务都要在 `--profile test` 下可达**
+    ⇒ `postgres-pgtest` 的 profiles 必须含 "test"（否则 seed 起不来）。"""
+
+def test_seed_points_at_the_pgtest_database():
+    """⚠️ seed 连的是 `postgres-pgtest` 的库 **`pcs_pgtest`**（不是 `pcs_test`）。"""
+
+def test_daily_dev_services_are_not_moved_into_a_profile():
+    """⚠️ **worker / openldap / postgres / redis 必须留在默认启动集合**
+    ⇒ 加了 profile 会让 `docker compose up` 不再起它们 ⇒ 破坏日常开发。"""
 ```
 
-（测试用 `yaml.safe_load` 解析 `docker-compose.yml` ⇒ 断言 `services[*].profiles` 含 `"test"`。）
+（测试用 `yaml.safe_load` 解析 `docker-compose.yml`。）
 
-- [ ] **Step 2: 跑测试确认它**失败**
+- [ ] **Step 2: 跑测试确认**失败**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_compose_test_profile.py -q`
-Expected: FAIL —— 没有 `profiles: ["test"]`
+Expected: FAIL —— 没有 `seed` 服务
 
 - [ ] **Step 3: 改 compose**
 
-给 `backend`（若 compose 里叫别的名字按实际）· `worker` · `openldap` 三个服务加 `profiles: ["test"]`；新增一个一次性服务：
+① `postgres-pgtest` 的 profile：
+
+```yaml
+    # ⚠️ **"test" 也在列表里** —— `seed` 依赖它，而 compose 的
+    #    `depends_on` **不会**隐式启动不在启用 profile 内的服务
+    #    ⇒ 只有 postgres-pgtest 时，`--profile test` 起不出 seed。
+    profiles: ["pg", "test"]
+```
+
+② 新增 `seed` 服务（**照 `worker` 的形状**）：
 
 ```yaml
   seed:
+    # 一次性任务：灌 E2E 种子数据。与 worker 同款（uv 官方镜像 + 源码挂载 +
+    # uv run --frozen）—— ⚠️ **不要**用裸 python（镜像里没有依赖）。
     image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     profiles: ["test"]
     working_dir: /app
-    command: ["python", "scripts/seed_e2e_data.py"]
+    command: ["uv", "run", "--frozen", "python", "scripts/seed_e2e_data.py"]
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/${POSTGRES_TEST_DB:-pcs_test}
-      REDIS_URL: redis://redis:6379/0
+      UV_PROJECT_ENVIRONMENT: /opt/venv
+      UV_CACHE_DIR: /opt/uvcache
+      PYTHONDONTWRITEBYTECODE: "1"
+      # ⚠️ 连 **pcs_pgtest**（postgres-pgtest 的库名，硬编码）——
+      #    连 `pcs_test` 会报 database does not exist。
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest
+    volumes:
+      - ./pcs-backend:/app:ro
     depends_on:
       postgres-pgtest: {condition: service_healthy}
 ```
 
-⚠️ **不新建文件**（D2）⇒ 现有 `docker-compose.yml` 里**加**服务/加 profile，不复制一份。
+⚠️ **不写 `REDIS_URL`** —— 种子只写 DB，不需要 Redis（少一个配置面）。
 
 - [ ] **Step 4: 跑测试确认**通过**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_compose_test_profile.py -q`
-Expected: PASS
+Expected: PASS（6 passed）
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 实测 compose 配置可解析 + 服务可达**
 
 ```bash
-git add docker-compose.yml pcs-backend/tests/scripts/test_compose_test_profile.py
-git commit -F <msgfile>   # 首行: chore(P10-A): compose 加 test profile（不新建 compose 文件）
+docker compose --profile test config >/dev/null && echo "compose 配置 OK"
+docker compose --profile test up -d postgres-pgtest && docker compose --profile test ps
+```
+
+Expected: `postgres-pgtest` 在跑（`--profile test` 就能起它，不需再带 `--profile pg`）
+
+- [ ] **Step 6: 写「怎么起测试栈」到 README（**只写一处**）**
+
+`pcs-backend/README.md` 里加一小节：
+
+```
+### 起 E2E 测试栈（真后端）
+
+    docker compose --profile test up -d
+    docker compose --profile test run --rm seed
+    # 后端：cd pcs-backend && uv run uvicorn app.main:app --port 8000
+    # 真后端 E2E：cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend
+```
+
+⚠️ **不要**把同一段命令再抄进 `CLAUDE.md`（两处各写一份 ⇒ 改一处漏一处）。
+
+- [ ] **Step 8: 提交**
+
+```bash
+git add docker-compose.yml pcs-backend/README.md pcs-backend/tests/scripts/test_compose_test_profile.py
+git commit -F <msgfile>   # 首行: chore(P10-A): compose 加 seed 一次性服务（test profile，不新建文件）
 ```
 
 ---
@@ -156,23 +224,16 @@ git commit -F <msgfile>   # 首行: chore(P10-A): compose 加 test profile（不
 
 **Interfaces:**
 - Consumes: `app.models.*`（`Workspace` / `Project` / `Stream` / `User` / `UserProject`）
-- Produces: `seed_e2e_data.py --reset` ⇒ 可重复执行；退出码 0 = 成功
-
-- [ ] **Step 1: 写失败的测试**
-
-`pcs-backend/tests/scripts/test_seed_e2e_data.py`：
-
-```python
-async def test_seed_is_idempotent(db_session, ...):
-    """⚠️ **跑两次不炸、不产生重复行**（Review Focus #4）——
-    第二次跑后 project / stream / user_project 的行数与第一次相同。"""
-
-async def test_seed_creates_the_expected_fixture_set(db_session, ...):
-    """种子产出：1 个项目 + N 条物流 + 1 个用户 + 1 行 UserProject 授权。"""
-
-async def test_seed_reset_removes_previous_rows(db_session, ...):
-    """--reset ⇒ 先清掉上一轮的种子行（按固定标记筛，不碰业务数据）。"""
-```
+- Produces:
+  - `scripts/seed_e2e_data.py` 暴露 **`async def seed(db: AsyncSession, *, reset: bool = False) -> dict[str, int]`**
+    ⇒ ⚠️ **必须有这个可调用入口** —— 只有 `if __name__ == "__main__"` 的话，
+    单测**没法把 `db_session` 传进去**（审查 S1）⇒ 测试用
+    `from scripts.seed_e2e_data import seed`。
+  - 返回值 = `{"projects": n, "streams": n, "users": n, "user_projects": n}`（各造了多少行）
+  - `UserProject(user_id=..., project_id=..., role_in_project="DESIGNER")`
+    ⇒ ⚠️ `role_in_project` 的合法值是 6 个项目内角色
+    （`DESIGNER` / `CHECKER` / `APPROVER` / `REVIEWER` / `VIEWER` / `PROJECT_LEAD`）
+    ⇒ 种子用 **`DESIGNER`**（审查 S3）
 
 - [ ] **Step 2: 跑测试确认**失败**
 
@@ -182,6 +243,10 @@ Expected: FAIL —— 脚本不存在
 - [ ] **Step 3: 实现脚本**
 
 `pcs-backend/scripts/seed_e2e_data.py`：
+
+- ⚠️ **`--reset` 的删除顺序必须遵守外键约束**（审查 S2）：
+  `UserProject` → `Stream` → `Project` → `User` / `Workspace`
+  ⇒ 反了就撞 FK。**只删自己造的**（按固定 UUID 列表筛），不碰业务数据。
 
 - 用**固定 UUID**（不是随机）⇒ 幂等的基础
 - 幂等手段：`session.merge()` 或「先查后插」；**不要**用 `add()` 无条件插
@@ -216,7 +281,7 @@ git commit -F <msgfile>   # 首行: feat(P10-A): E2E 种子数据脚本（幂等
   - `VITE_ENABLE_MOCK`（env，默认 `true`）⇒ `false` 时**不挂** MSW worker
   - `e2e/fixtures.ts` 导出 `realPage` fixture（真后端登录态）+ `gotoViaMenu(page, menuName)` helper
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 `pcs-frontend/e2e/real_backend_smoke.spec.ts`（**新建**）：
 
@@ -225,7 +290,10 @@ import { test, expect } from './fixtures';
 
 // ⚠️ 这条 spec 只验证**通道本身**（真后端可达 + 登录成功 + 页面渲染），
 // 业务场景在 P10-B（18 个场景）。
-test('真后端通道：登录 ⇒ 仪表盘渲染 ⇒ 无控制台错误', async ({ realPage }) => {
+// ⚠️ **标题必须带 `@real-backend`** —— Playwright 的 `grep` 匹配的是
+//    **测试标题**（不是文件路径）⇒ 不带 tag ⇒ `--project=real-backend`
+//    收集到 **0 个测试** ⇒ 看起来「全绿」实则什么都没跑（审查 B4）。
+test('@real-backend 真后端通道：登录 ⇒ 仪表盘渲染 ⇒ 无控制台错误', async ({ realPage }) => {
   const errors: string[] = [];
   realPage.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await realPage.goto('/login');
@@ -259,6 +327,8 @@ Expected: FAIL —— MSW 仍被挂上（请求被 mock 拦截）或 `realPage` 
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     // ⚠️ **真后端**项目：不挂 MSW ⇒ 打真后端 ⇒ 需要后端 + 库 + 种子数据在跑。
+    // ⚠️ `grep` 匹配**测试标题** ⇒ 标题里必须有 `@real-backend`
+    //    （或用 `test('…', { tag: '@real-backend' })`）⇒ 否则收集到 0 个测试。
     {
       name: 'real-backend',
       use: { ...devices['Desktop Chrome'] },
@@ -283,12 +353,19 @@ export async function gotoViaMenu(page: Page, menuName: string): Promise<void> {
 }
 ```
 
-⚠️ `realPage` fixture 的登录：走**后端自己的** `POST /auth/mock-login`（非生产可用）⇒ 真后端 E2E 有真 token。
+⚠️ **`realPage` 的登录机制 = 走 UI**（不是调 API 塞 token）：
+`goto('/login')` → 点「登 录」⇒ 前端 LoginPage 调 `POST /auth/mock-login`
+⇒ MSW 关掉后这个请求**打到真后端**（后端的 mock 登录在非生产环境可用）⇒
+拿到**真 token** ⇒ 写进 zustand 内存态 store。
+
+⚠️ **不要**试图用 `page.evaluate` 把 token 塞进 store —— zustand store **没有**
+暴露到 `window`（审查 S5）⇒ 塞不进去 ⇒ 只能走 UI 登录。
 
 - [ ] **Step 5: 跑测试确认**通过**
 
-Run: `cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test e2e/real_backend_smoke.spec.ts`
-Expected: PASS（需后端在 :8000 跑着 + 种子数据已灌）
+Run: `cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend`
+Expected: PASS（**且报告里显示跑了 1 个测试** —— ⚠️ 若显示「0 passed」说明 grep 没匹配上 ⇒ 标题漏了 tag）
+⚠️ 需后端在 :8000 跑着 + 种子数据已灌（见 T1 的起栈命令）
 
 - [ ] **Step 6: 提交**
 
@@ -313,14 +390,21 @@ git commit -F <msgfile>   # 首行: feat(P10-A): 真后端 E2E 通道（MSW 可�
   - `Settings.ai_endpoint: str | None = None`（env `AI_ENDPOINT`）
   - `Settings.internal_cidrs: str = ""`（env `INTERNAL_CIDRS`，逗号分隔，**原始串** ⇒ 解析在 `ai_cidr.parse_cidrs`）
   - `Settings.ai_mask_person_name: bool = False`（env `AI_MASK_PERSON_NAME`）
+  - ⚠️ **env 侧不设 `AI_ENABLED`** —— 见下面的裁决
   - `system_settings` 新增 6 键：`ai_enabled`(false) · `ai_model_version`(null) · `ai_endpoint`(null) · `ai_timeout`(30) · `ai_max_tokens`(4096) · `ai_temperature`(0.1)
 
 > ⚠️ **配置来源的分工**（本 Task 拍板，写进代码注释）：
-> - **env**（部署级）：`ai_endpoint` · `internal_cidrs` ⇒ CIDR 校验的输入（改它要重启）
+> - **env**（部署级）：`ai_endpoint` · `internal_cidrs` · `ai_mask_person_name` ⇒ CIDR 校验的输入（改它要重启）
 > - **system_settings**（管理员可编辑、运行时）：6 个 AI 键 ⇒ 前端参数页**自动可见**（页面显示全部键）
 > - **有效 endpoint** = `system_settings.ai_endpoint` 非空则用它，否则用 env 的
+>
+> ⚠️⚠️ **`ai_enabled` 的单一真相源 = `system_settings`**（审查 I7）。
+> SPEC 的 env 清单里有 `AI_ENABLED`，但若 env 与 system_settings 各有一个开关 ⇒
+> 就会出现「两个开关、AND 语义、admin 在页面上翻了却没生效」⇒ **本批 env 侧不设
+> AI 开关**（偏离登记 **D13**）⇒ 有效值 = `system_settings.ai_enabled`。
+> ⇒ **启动时校验**（T5 Step 4）读的就是这个值。
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 async def test_ai_settings_defaults(db_session):
@@ -366,7 +450,7 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 开关与配置（env + syst
   - `def resolve_ai_endpoint_ips(endpoint: str) -> list[str]`
   - `def validate_ai_endpoint(endpoint: str, cidrs: list[str]) -> None` —— 不在内网 ⇒ 抛 `RuntimeError`
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 def test_parse_cidrs_handles_empty_and_spaces():
@@ -385,8 +469,10 @@ def test_ip_in_cidrs_supports_ipv6():
 def test_validate_ai_endpoint_rejects_public_ip():
     """8.8.8.8 + ['10.0.0.0/8'] ⇒ RuntimeError。"""
 
-def test_validate_ai_endpoint_rejects_dns_resolving_outside():
-    """域名解析到公网 ⇒ RuntimeError。"""
+def test_validate_ai_endpoint_rejects_dns_resolving_outside(monkeypatch):
+    """域名解析到公网 ⇒ RuntimeError。
+    ⚠️ **必须 mock DNS**（`monkeypatch.setattr(socket, "getaddrinfo", fake)`）
+    —— 真解析依赖网络 ⇒ 测试环境可能无网/不稳定 ⇒ **flaky 测试**（审查 S7）。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -422,11 +508,41 @@ def ip_in_cidrs(ip: str, cidrs: list[str]) -> bool:
 Run: `cd pcs-backend && uv run pytest tests/core/test_ai_cidr.py -q`
 Expected: PASS（6 passed）
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 接到启动时校验（SPEC §3.2.1(5) · 审查 I6）**
+
+⚠️ 光有 `validate_ai_endpoint` **不算**落实「启动时校验」⇒ 必须真的在启动路径上调用。
+
+`pcs-backend/app/main.py` 的 `lifespan` 里（`seed_system_setting_defaults` 之后）加：
+
+```python
+    # ⚠️ **启动时校验 AI endpoint**（SPEC §3.2.1(5)）：`ai_enabled` 为真时
+    #    endpoint 必须存在、且必须解析到内网 CIDR ⇒ 否则**启动即失败**
+    #    （而不是等到第一次调用才发现打到了公网）。
+    #    ⚠️ 有效开关 = `system_settings.ai_enabled`（单一真相源 · 偏离 D13）。
+    #    ⚠️ 读不到 DB 时**降级为跳过 + 记 warning** ⇒ 不因 AI 配置挡住整个服务启动。
+    from app.core.ai_cidr import parse_cidrs, validate_ai_endpoint
+    from app.services.system_setting_service import get_setting_value
+
+    try:
+        enabled = bool(await get_setting_value(session, "ai_enabled", default=False))
+    except Exception as exc:  # noqa: BLE001 — 读不到库不该挡住启动
+        logger.warning("读取 ai_enabled 失败，跳过 AI 启动校验：%s", exc)
+        enabled = False
+    if enabled:
+        endpoint = (await get_setting_value(session, "ai_endpoint", default=None)) \
+            or settings.ai_endpoint
+        if not endpoint:
+            raise RuntimeError("ai_enabled=true 但 AI endpoint 为空")
+        validate_ai_endpoint(endpoint, parse_cidrs(settings.internal_cidrs))
+```
+
+⚠️ 这段**依赖 T4 的 `ai_enabled` 键** ⇒ T4 必须先落地（T4 在 T5 之前 ✅）。
+
+- [ ] **Step 6: 提交**
 
 ```bash
-git add pcs-backend/app/core/ai_cidr.py pcs-backend/tests/core/test_ai_cidr.py
-git commit -F <msgfile>   # 首行: feat(P10-A): AI 内网 CIDR 校验（IPv4/IPv6 + 地址族陷阱）
+git add pcs-backend/app/core/ai_cidr.py pcs-backend/app/main.py pcs-backend/tests/core/test_ai_cidr.py
+git commit -F <msgfile>   # 首行: feat(P10-A): AI 内网 CIDR 校验 + 启动时校验接线
 ```
 
 ---
@@ -443,7 +559,7 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 内网 CIDR 校验（IPv4/IP
   - `def hash_sanitized(body: bytes) -> str` —— `"sha256:<hex>"`
   - `def enable_person_name_mask(enabled: bool) -> None` —— 运行时开关（默认**关**）
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 def test_sanitize_masks_email_and_phone_in_nested_payload():
@@ -480,10 +596,24 @@ Expected: FAIL —— 模块不存在
 Run: `cd pcs-backend && uv run pytest tests/core/test_ai_sanitizer.py -q`
 Expected: PASS（7 passed）
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 接到 env 开关（审查 I5）**
+
+⚠️ **不接线 ⇒ `AI_MASK_PERSON_NAME=true` 不生效**（T4 加了 env 字段、T6 加了运行时开关，
+但中间没人把它们连起来 ⇒ 这正是「看起来做了、其实没做」的典型）。
+
+`pcs-backend/app/main.py` 的 `lifespan` 里（与 T5 的启动校验同一处）加一行：
+
+```python
+    from app.core.ai_sanitizer import enable_person_name_mask
+    enable_person_name_mask(settings.ai_mask_person_name)
+```
+
+⚠️ **默认仍是关的**（开了会把几乎每个中文词都遮成 `[PERSON_NAME]`）。
+
+- [ ] **Step 6: 提交**
 
 ```bash
-git add pcs-backend/app/core/ai_sanitizer.py pcs-backend/tests/core/test_ai_sanitizer.py
+git add pcs-backend/app/core/ai_sanitizer.py pcs-backend/app/main.py pcs-backend/tests/core/test_ai_sanitizer.py
 git commit -F <msgfile>   # 首行: feat(P10-A): AI 请求递归脱敏 + 规范化哈希（人名遮蔽默认关）
 ```
 
@@ -492,7 +622,7 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 请求递归脱敏 + 规范�
 ## Task T7：`ai_audit_log` 加列 + 迁移 `p10_001`
 
 **Files:**
-- Modify: `pcs-backend/app/models/system.py`（`AiAuditLog` 加 9 列）
+- Modify: `pcs-backend/app/models/system.py`（`AiAuditLog` 加 **8** 列；⚠️ 时间列**复用既有 `occurred_at`**，不新增 `timestamp` ⇒ D16）
 - Create: `pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py`
 - Create: `pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py`（**新建**）
 
@@ -509,13 +639,35 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 请求递归脱敏 + 规范�
 | `sanitized_request_hash` | `String(80)` | `"sha256:..."` |
 | `response_summary` | `Text` | 如 `AI_NOT_IMPLEMENTED` |
 | `model_version` | `String(50)` | |
-| `timestamp` | `DateTime(timezone=True)` | 与 `endpoint` 组成组合索引 |
+| ~~`timestamp`~~ | — | ⚠️ **不新增** —— 复用既有 `occurred_at`（D16） |
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 1: 核实既有列名（**先做这一步，否则迁移可能直接失败** · 审查 B5）**
+
+```bash
+cd pcs-backend && uv run python -c "
+from app.models.system import AiAuditLog
+cols = [c.name for c in AiAuditLog.__table__.columns]
+print('既有列:', cols)
+new = ['request_id','client_request_id','endpoint','status_code','duration_ms','sanitized_request_hash','response_summary','model_version']
+print('冲突:', [c for c in new if c in cols])
+"
+```
+
+**2026-11-04 实测结果**：既有 16 列 = `ai_log_id` · `agent_id` · `session_id` · `user_id` ·
+`operation` · `prompt_text` · `response_text` · `prompt_tokens` · `response_tokens` ·
+`model` · `cost_usd` · `decision_ref_type` · `decision_ref_id` · `human_approved` ·
+`human_approver_id` · **`occurred_at`** ⇒ **与要加的 8 列无冲突** ✅
+
+⚠️⚠️ **但发现一件事**：既有表**已经有 `occurred_at`**（时间列）⇒ SPEC 的
+`timestamp` 会变成**第二个时间列** ⇒ 两个时间列语义重叠 ⇒ 以后没人知道该读哪个
+⇒ **本批复用 `occurred_at`，不新增 `timestamp` 列**（偏离登记 **D16**）⇒
+新增列数 **8**（不是 9）。
+
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 def test_migration_adds_the_nine_columns():
-    """迁移 upgrade 后 ai_audit_log 有这 9 列。"""
+    """迁移 upgrade 后 ai_audit_log 有这 8 个新列（时间列复用既有 occurred_at ⇒ 不含 timestamp）。"""
 
 def test_request_id_unique_index_is_partial():
     """唯一索引是 partial（WHERE request_id IS NOT NULL）——
@@ -525,12 +677,12 @@ def test_orm_matches_migration():
     """ORM 声明的列与迁移一致（漂移守卫）。"""
 ```
 
-- [ ] **Step 2: 跑测试确认**失败**
+- [ ] **Step 3: 跑测试确认**失败**
 
 Run: `cd pcs-backend && uv run pytest tests/alembic/test_p10_001_ai_audit_fields.py -q`
 Expected: FAIL —— 迁移不存在
 
-- [ ] **Step 3: 写迁移**
+- [ ] **Step 4: 写迁移**
 
 `alembic/versions/p10_001_ai_audit_request_fields.py`：
 
@@ -539,18 +691,19 @@ revision = "p10_001"
 down_revision = "p9_015"
 ```
 
-`upgrade()`：9 个 `op.add_column`（全部 `nullable=True`）⇒ `op.create_index("ux_ai_audit_log_request_id", "ai_audit_log", ["request_id"], unique=True, if_not_exists=True, postgresql_where=sa.text("request_id IS NOT NULL"))` ⇒ `op.create_index("ix_ai_audit_log_endpoint_timestamp", "ai_audit_log", ["endpoint", "timestamp"], if_not_exists=True)`。
+`upgrade()`：**8 个** `op.add_column`（全部 `nullable=True`）⇒ `op.create_index("ux_ai_audit_log_request_id", "ai_audit_log", ["request_id"], unique=True, if_not_exists=True, postgresql_where=sa.text("request_id IS NOT NULL"))` ⇒ `op.create_index("ix_ai_audit_log_endpoint_occurred_at", "ai_audit_log", ["endpoint", "occurred_at"], if_not_exists=True)`（⚠️ 复用既有 `occurred_at`，**不新增** `timestamp` ⇒ D16）。
 
 `downgrade()`：索引（`if_exists=True`）⇒ 列（`drop_column`）。
 
-⚠️ **`timestamp` 列名**：PG 里 `timestamp` 是类型名但可作列名（non-reserved）⇒ SQLAlchemy 会自动加引号 ⇒ 迁移里写 `sa.Column("timestamp", sa.DateTime(timezone=True), nullable=True)` 即可；**ORM 侧属性名也叫 `timestamp`** ⇒ 注意别与 `datetime.timestamp()` 混淆。
+⚠️ **时间列复用既有 `occurred_at`**（D16）⇒ 迁移里**不**出现 `timestamp` ⇒
+既有的 16 列一行不动 ⇒ SUP-006 的审计语义完全不变。
 
-- [ ] **Step 4: 跑测试确认**通过**
+- [ ] **Step 5: 跑测试确认**通过**
 
 Run: `cd pcs-backend && uv run pytest tests/alembic/test_p10_001_ai_audit_fields.py -q`
 Expected: PASS
 
-- [ ] **Step 5: 跑迁移闸门（两库各一次 · 独立进程）**
+- [ ] **Step 6: 跑迁移闸门（两库各一次 · 独立进程）**
 
 ```bash
 # pcs
@@ -572,16 +725,16 @@ PY
 
 Expected: 两个库都 `p10_001 (head)`；`alembic check` exit 0（**退出码是 255 表示有漂移**，不是 1）
 
-- [ ] **Step 6: 跑幂等闸门**
+- [ ] **Step 7: 跑幂等闸门**
 
 Run: `cd pcs-backend && uv run python scripts/check_migration_idempotency.py`
 Expected: RC=0
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 8: 提交**
 
 ```bash
 git add pcs-backend/app/models/system.py pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py
-git commit -F <msgfile>   # 首行: feat(P10-A): ai_audit_log 加 P10 请求审计 9 列（partial 唯一索引）
+git commit -F <msgfile>   # 首行: feat(P10-A): ai_audit_log 加 P10 请求审计 8 列（partial 唯一索引；时间列复用 occurred_at）
 ```
 
 ---
@@ -598,9 +751,11 @@ git commit -F <msgfile>   # 首行: feat(P10-A): ai_audit_log 加 P10 请求审�
 - Produces:
   - `class AINotImplementedError(Exception)`（`app/core/ai_errors.py`）
   - `install_exception_handlers` 里注册它 ⇒ **501** + `{"code":"AI_NOT_IMPLEMENTED","message":"AI功能即将上线","request_id":...}`
-  - `class OutboundAIClient`：`__init__(self, *, endpoint: str, timeout: int, cidrs: list[str])` · `async def call(self, payload: dict) -> dict` · `async def _audit(self, payload: dict) -> None`
+  - `class OutboundAIClient`：`__init__(self, *, endpoint: str, timeout: int, cidrs: list[str], audit_fn: Callable[[dict], Awaitable[None]] | None = None)` · `async def call(self, payload: dict) -> dict` · `async def _audit(self, payload: dict) -> None`
+    ⇒ ⚠️ **`audit_fn` 必须可注入**（审查 I4）：P10 阶段 `_audit` 是 no-op
+    ⇒ **测试没法观察「进 `_audit` 的 payload 已脱敏」** ⇒ 注入一个 fake 才有断言对象
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 async def test_ai_not_implemented_error_becomes_501_with_request_id(client):
@@ -610,7 +765,8 @@ async def test_outbound_client_validates_endpoint_before_calling():
     """endpoint 不在内网 CIDR ⇒ RuntimeError（**且没发出任何请求**）。"""
 
 async def test_outbound_client_sanitizes_payload_before_audit():
-    """进 _audit 的 payload 已脱敏（邮箱被替换）。"""
+    """进 `_audit` 的 payload 已脱敏（邮箱被替换）。
+    ⚠️ **靠注入的 `audit_fn` 观察** —— `_audit` 默认是 no-op ⇒ 没有别的观察点（审查 I4）。"""
 
 async def test_outbound_client_raises_ai_not_implemented():
     """P10 阶段：脱敏 + 审计后抛 AINotImplementedError（不真调）。"""
@@ -628,6 +784,7 @@ Expected: FAIL —— 模块不存在
 
 实现要点：
 - `OutboundAIClient.call`：① `validate_ai_endpoint(self.endpoint, self.cidrs)`（**调用时二次校验**）② `sanitized = sanitize_for_ai(payload)` ③ `await self._audit(sanitized)`（**try/except 吞掉异常**）④ `raise AINotImplementedError()`
+- `_audit`：`if self._audit_fn is not None: await self._audit_fn(payload)` ⇒ 默认 no-op
 - 全局 handler：从 `request.state.request_id` 取（缺失则 `uuid4()`）
 
 - [ ] **Step 4: 跑测试确认**通过**
@@ -656,10 +813,20 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AINotImplementedError + 全局 
 **Interfaces:**
 - Produces:
   - `POST /api/v1/ai/intent` —— 请求 `AiIntentRequest{text: str, context: dict | None}` ⇒ **501**
-  - `POST /api/v1/ai/knowledge/search` —— 请求 `AiKnowledgeSearchRequest{query: str, top_k: int = 5}` ⇒ **501**
+  - `POST /api/v1/ai/knowledge/search` —— 请求 `AiKnowledgeSearchRequest{query: str, top_k: int = Field(5, alias="topK")}` ⇒ **501**
+    ⇒ ⚠️ **必须带 alias `topK`**（审查 B7）：SPEC §4.1.2 的请求体字段名是 **`topK`**；
+    若 schema 只写 `top_k` ⇒ Pydantic 默认**忽略** `topK` ⇒ 前端传的值**静默失效**、
+    而且**不报错** ⇒ 契约字段名必须仍是 `topK`（`populate_by_name=True` 允许两种写法都能进）
   - 两个路由都带 `openapi_extra={"x-status": "reserved"}`（**不用** `deprecated`）
+  - `AiContext`（**具名** schema）：`project_id: str | None` · `module: str | None` · `record_id: str | None`
+    ⇒ ⚠️ SPEC §4.1.1 的 `context` 有 3 个字段 ⇒ 声明成**具名 schema**而不是裸 dict
+    （仓的纪律：新增端点必须显式声明结构）
+    ⇒ ⚠️ **注**：裸 `dict | None` 其实**不会**让裸载荷数上涨 —— 闸门的 `_TYPED_KEYS`
+      含 `anyOf`，而 `dict | None` 在 OpenAPI 里是 `anyOf` ⇒ 不计裸
+      （审查 B8 的「裸载荷会涨 72」是**误报**，已实测验证）⇒ 但**仍然**用具名 schema，
+      理由是 **SPEC 要求 + 字段名有编译期约束**，不是「怕涨裸载荷」
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 async def test_ai_intent_returns_501(client, designer_headers):
@@ -673,6 +840,13 @@ async def test_ai_routes_require_auth(client):
 
 async def test_ai_routes_have_x_status_reserved_in_openapi():
     """契约里两个端点带 x-status=reserved 且**不是** deprecated。"""
+
+async def test_ai_knowledge_search_accepts_topK_alias(client, designer_headers):
+    """⚠️ **契约里的字段名是 `topK`**（SPEC §4.1.2）⇒ 传 topK 能被收到
+    （审查 B7）—— 否则前端传的值静默失效。"""
+
+async def test_ai_intent_context_is_a_named_schema():
+    """`context` 是具名 schema（`AiContext`）⇒ 字段名有编译期约束。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -701,7 +875,80 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 路由骨架（intent / know
 
 ---
 
-## Task T10：纯 ASGI 审计中间件（Review Focus #1 #2）
+## Task T10：ARQ 审计任务与入队（幂等 · 失败降级 · Review Focus #3）
+
+> ⚠️ **顺序已调整**（审查 B6）：本 Task **先于**中间件落地 —— 中间件要调
+> `enqueue_ai_audit_log`，它不存在的话中间件的测试直接 ImportError ⇒ TDD 走不下去。
+
+**Files:**
+- Create: `pcs-backend/app/services/ai/__init__.py` + `pcs-backend/app/services/ai/arq_queue.py`
+- Create: `pcs-backend/app/workers/ai_audit_tasks.py`
+- Modify: `pcs-backend/app/workers/worker.py`（注册函数）
+- Create: `pcs-backend/tests/services/ai/test_ai_audit_task.py`
+
+**Interfaces:**
+- Produces:
+  - `app/services/ai/arq_queue.py::async def enqueue_ai_audit_log(**fields) -> bool`
+    ⇒ ⚠️ **必须是 `async`**（`pool.enqueue_job` 是 async；审查 I3 —— 原计划写成同步签名，与中间件里的 `await` 不一致）
+    ⇒ ⚠️ **绝不抛**：失败 ⇒ `logger.warning` + 返回 `False`（降级）
+  - `app/workers/ai_audit_tasks.py::async def write_ai_audit_log(ctx, **fields) -> None`
+    ⇒ 幂等写库（`request_id` 唯一）
+    ⇒ ⚠️ **ARQ 默认 `max_tries=5`**（本批不显式改它）⇒ 幂等测试**直接调它两次**来模拟重试，
+      而不是依赖 ARQ 的重试机制（审查 I13）
+
+- [ ] **Step 2: 写失败的测试**
+
+```python
+async def test_audit_write_is_idempotent(db_session, ...):
+    """⚠️ **Review Focus #3** —— 同一 request_id 写两次 ⇒ 只有一行。
+    （ARQ 默认 max_tries=5 ⇒ 重试必然发生 ⇒ 幂等不是「锦上添花」。）"""
+
+async def test_enqueue_failure_is_swallowed(monkeypatch):
+    """Redis 挂 ⇒ enqueue 返回 False，**不抛**（降级）。"""
+
+async def test_task_is_registered_in_worker_functions():
+    """⚠️ ARQ 对**未注册**的函数名不报错 ⇒ job 静静躺着 ⇒ 棘轮会抓。"""
+
+async def test_audit_write_uses_the_pg_conflict_clause_on_postgres():
+    """PG 分支走 `ON CONFLICT DO NOTHING`（方言级断言）。"""
+
+async def test_audit_write_swallows_integrity_error_on_sqlite(db_session, ...):
+    """⚠️ SQLite 分支是「先查后插」⇒ 并发下第二个插入抛 IntegrityError
+    ⇒ 必须 catch 掉，不算失败（审查 S8）。"""
+```
+
+- [ ] **Step 2: 跑测试确认**失败**
+
+Run: `cd pcs-backend && uv run pytest tests/services/ai/ -q`
+Expected: FAIL —— 模块不存在
+
+- [ ] **Step 3: 实现**
+
+实现要点：
+- 入队 helper **照 `app/services/report/arq_queue.py` 的形状但语义相反**：
+  那里失败抛 503；这里失败**返回 False** + `logger.warning`
+  ⇒ ⚠️ **不要**复用那个 `_enqueue`（它会抛 ⇒ 端点 503 ⇒ 审计拖死业务）
+- 写库**分方言**：
+  - PG：`sqlalchemy.dialects.postgresql.insert(...).on_conflict_do_nothing(index_elements=["request_id"])`
+  - SQLite（**单测库**）：先 `SELECT` 查 ⇒ 有就跳过；没有就插 ⇒ **并 `except IntegrityError: pass`**
+    ⇒ ⚠️ `ON CONFLICT` 在 SQLite 上不可用（审查 S8 / 原计划的坑）
+- 注册进 `WorkerSettings.functions`
+
+- [ ] **Step 4: 跑测试确认**通过**
+
+Run: `cd pcs-backend && uv run pytest tests/services/ai/ tests/workers/ -q`
+Expected: PASS
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add pcs-backend/app/services/ai pcs-backend/app/workers/ai_audit_tasks.py pcs-backend/app/workers/worker.py pcs-backend/tests/services/ai
+git commit -F <msgfile>   # 首行: feat(P10-A): AI 审计 ARQ 任务（幂等写库 + 失败降级）
+```
+
+---
+
+## Task T11：纯 ASGI 审计中间件（Review Focus #1 #2）
 
 **Files:**
 - Create: `pcs-backend/app/core/ai_audit_middleware.py`
@@ -716,9 +963,9 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 路由骨架（intent / know
   - `user_id`：**用 `decode_token` 验签**（与认证依赖同一套逻辑），失败 ⇒ `None`，**不抛**
   - body：缓存并**重放** ⇒ 下游 Pydantic 仍能收到
   - 响应头追加 `X-Request-ID`
-  - 审计入队（ARQ）⇒ 失败降级（见 T11）
+  - 审计入队（`await enqueue_ai_audit_log(...)`，T10 已落地）⇒ 失败降级
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 async def test_ai_request_body_still_reaches_pydantic(client, designer_headers):
@@ -738,7 +985,15 @@ async def test_non_ai_paths_are_not_audited(client, designer_headers):
     """`/api/v1/projects/...` 不进 AI 审计（中间件按前缀过滤）。"""
 
 async def test_audit_is_enqueued_not_written_inline(client, designer_headers):
-    """审计**异步**（入队）⇒ 端点不因审计写库慢而变慢。"""
+    """审计**异步**（入队）⇒ 端点不因审计写库慢而变慢。
+    ⚠️ 单测里 monkeypatch `enqueue_ai_audit_log`（别真连 Redis）。"""
+
+async def test_audit_records_500_when_no_response_is_sent(client, designer_headers):
+    """⚠️ **SPEC E10** —— 下游异常**未产生响应**时 ⇒ status_code 记 **500**
+    （不是 None、不是 0）。"""
+
+async def test_large_body_is_not_hashed(client, designer_headers):
+    """⚠️ body > **1MB** ⇒ `sanitized_request_hash` 为 **None**（不哈希大 body）。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -748,77 +1003,23 @@ Expected: FAIL —— 中间件不存在（请求不走审计）
 
 - [ ] **Step 3: 实现**
 
-实现要点（照 SPEC §3.2.1(4) 的纯 ASGI 示意，**修三处**）：
+实现要点（照 SPEC §3.2.1(4) 的纯 ASGI 示意，**修五处**）：
 - ⚠️ **body 重放**：`receive_cached` 第一次调用时把 body 存下来；后续调用要**重放**已缓存的 chunk，否则下游收不到 body ⇒ 标准做法是缓存后**重放**再继续读原 receive
 - ⚠️ **`user_id` 提取**：`scope["headers"]` 里找 `authorization` ⇒ `decode_token` ⇒ `sub` → `user_id = uuid5(NAMESPACE_DNS, sub)`（**与 `current_actor` 同一套派生逻辑** ⇒ 抽成共用函数，别写两套）
 - ⚠️ **异常路径**：中间件**不捕获** `AINotImplementedError`（H4）⇒ 只在 `finally` 里记录响应状态
+- ⚠️ **E10**：`effective_status = status_code if status_code is not None else 500`
+- ⚠️ **1MB 上限**：`sanitized_hash = hash_sanitized(body) if len(body) <= 1024 * 1024 else None`
 
 - [ ] **Step 4: 跑测试确认**通过**
 
 Run: `cd pcs-backend && uv run pytest tests/api/v1/test_ai_audit_middleware.py -q`
-Expected: PASS（6 passed）
+Expected: PASS（8 passed）
 
 - [ ] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/app/core/ai_audit_middleware.py pcs-backend/app/main.py pcs-backend/tests/api/v1/test_ai_audit_middleware.py
 git commit -F <msgfile>   # 首行: feat(P10-A): AI 审计中间件（纯 ASGI · body 重放 · 认证失败也留痕）
-```
-
----
-
-## Task T11：ARQ 审计任务（幂等 · Review Focus #3）
-
-**Files:**
-- Create: `pcs-backend/app/services/ai/__init__.py` + `arq_queue.py`
-- Create: `pcs-backend/app/workers/ai_audit_tasks.py`
-- Modify: `pcs-backend/app/workers/worker.py`（注册函数）
-- Create: `pcs-backend/tests/services/ai/test_ai_audit_task.py`
-- Modify: `pcs-backend/tests/workers/test_worker_registers_all_enqueued_tasks.py`（若它是自动发现式则无需改）
-
-**Interfaces:**
-- Produces:
-  - `app/services/ai/arq_queue.py::enqueue_ai_audit_log(**fields) -> bool` —— **返回 True/False，绝不抛**（降级写本地日志）
-  - `app/workers/ai_audit_tasks.py::write_ai_audit_log(ctx, **fields) -> None` —— `INSERT ... ON CONFLICT (request_id) DO NOTHING`
-
-- [ ] **Step 1: 写失败的测试**
-
-```python
-async def test_audit_write_is_idempotent(db_session, ...):
-    """⚠️ **Review Focus #3** —— 同一 request_id 写两次 ⇒ 只有一行。"""
-
-async def test_enqueue_failure_is_swallowed(monkeypatch):
-    """Redis 挂 ⇒ enqueue 返回 False，**不抛**（降级）。"""
-
-async def test_task_is_registered_in_worker_functions():
-    """⚠️ ARQ 对**未注册**的函数名不报错 ⇒ job 静静躺着 ⇒ 棘轮会抓。"""
-
-async def test_failed_audit_write_does_not_break_the_request(client, designer_headers):
-    """审计写库炸 ⇒ 端点仍返回 501（业务不被审计拖死）。"""
-```
-
-- [ ] **Step 2: 跑测试确认**失败**
-
-Run: `cd pcs-backend && uv run pytest tests/services/ai/ -q`
-Expected: FAIL —— 模块不存在
-
-- [ ] **Step 3: 实现**
-
-实现要点：
-- 入队 helper **照 `app/services/report/arq_queue.py` 的形状但语义相反**：那里失败抛 503；这里失败**返回 False** + `logger.warning`
-- 写库：`sqlalchemy.dialects.postgresql.insert(...).on_conflict_do_nothing(index_elements=["request_id"])` ⇒ ⚠️ SQLite 上 `on_conflict_do_nothing` **不支持** ⇒ 单测跑 SQLite ⇒ ⇒ **改用「先查后插 + 唯一约束兜底」**（`INSERT ... ON CONFLICT` 在 PG 用、SQLite 走查询分支）⚠️ 实施时按方言分支写
-- 注册进 `WorkerSettings.functions`
-
-- [ ] **Step 4: 跑测试确认**通过**
-
-Run: `cd pcs-backend && uv run pytest tests/services/ai/ tests/workers/ -q`
-Expected: PASS
-
-- [ ] **Step 5: 提交**
-
-```bash
-git add pcs-backend/app/services/ai pcs-backend/app/workers/ai_audit_tasks.py pcs-backend/app/workers/worker.py pcs-backend/tests/services/ai
-git commit -F <msgfile>   # 首行: feat(P10-A): AI 审计 ARQ 任务（幂等写库 + 失败降级）
 ```
 
 ---
@@ -832,14 +1033,18 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 审计 ARQ 任务（幂等�
 **Interfaces:**
 - Produces: `GET /health/ai` ⇒ `{"status": "not_configured" | "ok" | "degraded", "ai_enabled": bool, "endpoint_configured": bool, "cidrs_configured": bool}`
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```python
 async def test_health_ai_reports_not_configured_by_default(client):
     """默认 ⇒ status='not_configured'，且 **始终 200**（不因 AI 未配置而报错）。"""
 
 async def test_health_ai_reports_endpoint_not_in_cidrs(client, monkeypatch):
-    """endpoint 配了但不在 CIDR 内 ⇒ 'degraded'（**不是** 500）。"""
+    """endpoint 是 **IP 字面量**且不在 CIDR 内 ⇒ 'degraded'（**不是** 500）。"""
+
+async def test_health_ai_does_not_resolve_dns_for_a_domain_endpoint(client, monkeypatch):
+    """⚠️ **域名 endpoint 不做 DNS 解析**（审查 I8）⇒ 恒 degraded +
+    reason='endpoint_is_domain_not_verified'。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -847,7 +1052,19 @@ async def test_health_ai_reports_endpoint_not_in_cidrs(client, monkeypatch):
 Run: `cd pcs-backend && uv run pytest tests/api/v1/test_health_ai.py -q`
 Expected: FAIL —— 端点不存在（404）
 
-- [ ] **Step 3: 实现**（**不探测外部 DNS** ⇒ 只做本地判定，避免健康检查拖慢 / 被墙）
+- [ ] **Step 3: 实现**
+
+⚠️ **判定范围要写清楚**（审查 I8）：「不探测 DNS」与「判断域名是否在内网」**互相矛盾**
+—— 域名不在内网这件事**必须解析 DNS 才知道**。⇒ 本批的裁决：
+
+| endpoint 形态 | 判定 | `status` |
+|---|---|---|
+| 未配置 | 不判 | `not_configured` |
+| **IP 字面量** | 本地比对 CIDR（不联网） | 在内网 ⇒ `ok`；不在 ⇒ `degraded` |
+| **域名** | **不解析**（避免健康检查被墙/变慢） | 恒 `degraded` + `reason="endpoint_is_domain_not_verified"` |
+
+⇒ **域名 endpoint 永远不会是 `ok`** —— 这是**如实**的（没验证过就不能说它在内网）
+⇒ 测试用 IP 字面量（`8.8.8.8`）而不是真域名 ⇒ 不依赖 DNS。
 
 - [ ] **Step 4: 跑测试确认**通过**
 
@@ -872,7 +1089,7 @@ git commit -F <msgfile>   # 首行: feat(P10-A): /health/ai 端点（未配置 �
 **Interfaces:**
 - Produces: 顶栏一个**禁用**的 `[AI]` 按钮 + tooltip「AI 助手（P10 预留，暂未开放）」
 
-- [ ] **Step 1: 写失败的测试**
+- [ ] **Step 2: 写失败的测试**
 
 ```tsx
 it('顶栏有 AI 按钮，但**禁用**并说明「预留」', async () => {
@@ -924,16 +1141,38 @@ def test_only_outbound_client_calls_httpx_with_an_ai_endpoint():
 
 - [ ] **Step 2: 实现扫描逻辑**（测试即守卫 ⇒ 扫描与断言同一步写）
 
-- [ ] **Step 4: 跑测试确认**通过**
+⚠️ **静态扫描的局限要写进注释**（审查 S9）：本守卫扫的是 **URL 字面量** ⇒
+`httpx.post(url_var, ...)`（url 是变量）**扫不到** ⇒ 将来若有人用变量调 AI 端点，
+守卫**抓不到**。⇒ 约定：**AI 端点的 URL 必须直接写 `settings.ai_endpoint` 或字面量**，
+否则绕过守卫。
 
-Run: `cd pcs-backend && uv run pytest tests/architecture/test_no_direct_ai_sdk.py -q`
-Expected: PASS
+- [ ] **Step 4: 加 AI 可选依赖（SPEC §3.2.1(8) · 审查 I11）**
 
-- [ ] **Step 5: 提交**
+`pcs-backend/pyproject.toml`：
+
+```toml
+[project.optional-dependencies]
+# ⚠️ **默认不安装** —— `uv sync` 不装 optional 组 ⇒ 默认安装不 import 失败
+# （SPEC §3.2.1(8) 的原话）。⇒ 架构守卫的「全仓零命中」仍然成立。
+ai = [
+    "langchain>=0.2",
+    "ollama>=0.3",
+    "vllm>=0.5",
+]
+```
+
+⚠️ 加完要跑一次 `uv sync`（**不加** `--extra ai`）确认默认环境仍能装得上、且不拉这三个包。
+
+- [ ] **Step 5: 跑测试确认**通过**
+
+Run: `cd pcs-backend && uv run pytest tests/architecture/test_no_direct_ai_sdk.py -q && uv sync && uv run pytest tests/architecture/test_no_direct_ai_sdk.py -q`
+Expected: 两次都 PASS（第二次证明默认环境没被 optional 依赖污染）
+
+- [ ] **Step 6: 提交**
 
 ```bash
-git add pcs-backend/tests/architecture/test_no_direct_ai_sdk.py
-git commit -F <msgfile>   # 首行: test(P10-A): 架构守卫 —— AI SDK 只能从 OutboundAIClient 出
+git add pcs-backend/tests/architecture/test_no_direct_ai_sdk.py pcs-backend/pyproject.toml pcs-backend/uv.lock
+git commit -F <msgfile>   # 首行: test(P10-A): 架构守卫 + AI 可选依赖隔离（默认不装）
 ```
 
 ---
@@ -943,7 +1182,7 @@ git commit -F <msgfile>   # 首行: test(P10-A): 架构守卫 —— AI SDK 只�
 **Files:**
 - Modify: `pcs-backend/docs/openapi.json` + `docs/openapi-baseline.json`
 - Modify: `pcs-frontend/openapi.snapshot.json` + `src/types/api.d.ts`
-- Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（**偏离登记 D1~D9 回写**）
+- Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（**偏离登记 D1~D16 回写**）
 - Modify: `TODOS.md` · `.wolf/buglog.json` · `.wolf/cerebrum.md` · `.wolf/STATUS.md`
 
 - [ ] **Step 1: 重新生成契约 + 滚 baseline**
@@ -966,24 +1205,57 @@ Expected: 后端 0 failed（基线 5481 ⇒ 净增）；PG 车道 exit 0 且 `N 
 Run: `cd pcs-frontend && npm run typecheck && npm run lint && npm run test && npx playwright test --project=chromium`
 Expected: 全绿
 
+⚠️ **MSW mock 本批无需改**（审查 S10）：前端只加了一个**禁用**的 AI 按钮 ⇒
+**不调**任何 AI API ⇒ 没有新的 mock handler 要加 ⇒ seed 的 ajv 校验不受影响。
+
 - [ ] **Step 5: 浏览器回归（gstack）**
 
 - 顶栏 AI 按钮**存在且禁用**
-- AI 端点可直连：`curl -i -X POST http://localhost:8000/api/v1/ai/intent -H 'Authorization: Bearer <token>' -d '{"text":"x"}'` ⇒ **501** + `AI_NOT_IMPLEMENTED`
+- AI 端点可直连：
+
+```bash
+curl -i -X POST http://localhost:8000/api/v1/ai/intent \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"x"}'
+```
+
+  ⚠️ **`Content-Type` 必须带**（审查 S4）—— 不带 ⇒ FastAPI 解析 body 失败 ⇒
+  返回 **422** 而不是 501 ⇒ 会误判成「端点没实现对」。
 - 控制台 0 error；网络 0×404
 - 报告落 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p10a.md`
 
-- [ ] **Step 6: 回写 SPEC 偏离登记 D1~D9**
+- [ ] **Step 5b: 验真后端 E2E 通道（审查 I9）**
+
+⚠️ T3 建了 `real-backend` 通道，**批末不验 ⇒ 下一个改坏它的人不会被发现**
+⇒ 本步必须跑（需后端在 :8000 + 种子数据已灌，见 T1 的起栈命令）：
+
+```bash
+# 起栈
+docker compose --profile test up -d
+docker compose --profile test run --rm seed
+cd pcs-backend && uv run uvicorn app.main:app --port 8000 &
+# 跑真后端 E2E
+cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend
+```
+
+Expected: **至少 1 passed**（⚠️ 若显示「0 passed」⇒ grep 没匹配上 ⇒ 回看 T3 的 tag）
+
+- [ ] **Step 6: 回写 SPEC 偏离登记 D1~D16**
 
 在 `spec/PCS-SPEC-P10 V1.3.1 ….md` 里新增一节「**与仓库现状的偏离登记（2026-11-04）**」⇒ 逐条写：SPEC 原文 / 仓里实际 / 裁决 / 影响面。**D1~D9 一条都不能少**（总纲里有完整表格）。
 
 - [ ] **Step 7: 更新账簿**
 
+- **开发计划升 V1.4**（P10-OPEN-008 · 总纲 Q5 · 审查 S12）：更新 `docs/PCS-PLAN-*.md` 的 P10 部分（批次划分 + 偏离登记）
 - `TODOS.md`：登记 P10-OPEN-002（pgvector 扩展延后）· P10-OPEN-010（CIDR 清单待 IT）· 「P10-B 启动前需量种子数据规模」
 - `.wolf/buglog.json`：本批若无缺陷则不记
 - `.wolf/cerebrum.md` Do-Not-Repeat 新增：
   - 「**审计/日志类需求先查既有表** ⇒ 本仓 `ai_audit_log` 已存在（SUP-006）⇒ spec 说『建表』时先核字段」
   - 「**纯 ASGI 中间件读 body ⇒ 必须重放** ⇒ 否则下游 Pydantic 收不到 ⇒ 症状是 422 不是 501」
+- 「**compose profile：日常开发服务绝不加 profile**」⇒ 加了之后 `docker compose up` 不再起它们 ⇒ 破坏开发流程；profile 只给**一次性任务**（如 seed）
+- 「**一次性容器服务必须挂源码卷 + 用 `uv run --frozen`**」⇒ uv 官方镜像里**没有**项目依赖 ⇒ 裸 `python scripts/x.py` 立刻 ModuleNotFoundError
+- 「**改既有表前先列一遍既有列名**」⇒ 与要加的列**撞名** ⇒ `op.add_column` 直接失败（PG: column already exists）
   - 「**ARQ 未注册的函数名不报错** ⇒ job 静静躺着 ⇒ 入队 ⊆ 已注册 要有棘轮」
 - `.wolf/STATUS.md`：第 28 轮
 
@@ -991,7 +1263,7 @@ Expected: 全绿
 
 ```bash
 git add -A
-git commit -F <msgfile>   # 首行: docs(P10-A): 契约滚动 + SPEC 偏离登记 D1~D9 + 账簿同步
+git commit -F <msgfile>   # 首行: docs(P10-A): 契约滚动 + SPEC 偏离登记 D1~D16 + 账簿同步
 ```
 
 ---
@@ -1009,7 +1281,7 @@ git commit -F <msgfile>   # 首行: docs(P10-A): 契约滚动 + SPEC 偏离登�
 | 审计降级 | Redis 挂 ⇒ 端点仍 501（不抛） |
 | 脱敏 | 嵌套结构里的邮箱/手机号被替换；人名遮蔽**默认关** |
 | CIDR | IPv4/IPv6 都支持；地址族不匹配**不崩**；非法 CIDR 启动即报清晰错误 |
-| 迁移 | `p10_001` 在 **pcs / pcs_test** 两库都到 head；`alembic check` exit 0；幂等闸门 RC=0 |
+| 迁移 | `p10_001` 在 **pcs / pcs_test** 两库都到 head；`alembic check` exit 0；幂等闸门 RC=0；**8 个新列无撞名** |
 | 健康端点 | `/health/ai` 恒 **200**；未配置 ⇒ `not_configured` |
 | 架构守卫 | AI SDK 只能从 `OutboundAIClient` 出；httpx 调 AI 端点只允许它 |
 | 种子 | 跑两次不炸、不重复；`--reset` 只删自己的行 |
