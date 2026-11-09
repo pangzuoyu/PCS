@@ -1,0 +1,185 @@
+{
+  "run_id": "20261109-181644-6f6ddca3",
+  "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3",
+  "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+  "docs_root": "docs",
+  "mode": {
+    "agent": false,
+    "apply_local": false,
+    "grouping": "auto",
+    "depth": "auto"
+  },
+  "invocation": {
+    "arguments": "Review the 8 commits a848bed..cbc701b (P9B-4 emergency batch: project-level access guards for 20 logistics endpoints + the new GET /streams/{id}/review-log endpoint). Base commit is 3a929b6.",
+    "constraints": [
+      "使用ce-code-review 审查本批",
+      "Report-only: no fixes are applied. The user asked only to review this batch; no apply/fix authorization was given.",
+      "Do not mutate the working tree, do not create a worktree, do not switch branches (the repo's own CLAUDE.md forbids `git checkout <commit> --detach` and worktree creation).",
+      "No commit, no push, no PR, no ticket filing.",
+      "Passwords / DATABASE_URL must never appear on a command line."
+    ]
+  },
+  "scope": {
+    "mode": "local-aligned",
+    "base": "BASE: 3a929b6",
+    "diff_a": "3a929b6",
+    "diff_b": "cbc701b",
+    "pr": {
+      "number": null,
+      "url": null,
+      "title": null,
+      "body": null,
+      "base_ref_name": null,
+      "head_ref_oid": null,
+      "head_ref": null,
+      "base_ref": null,
+      "has_prior_comments": false
+    },
+    "branch": "main",
+    "head_sha": "cbc701bf8d6273f64442a70eb761aa94c9778d06",
+    "files": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3/files.txt",
+    "diff": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3/full.diff",
+    "tree_is_reviewed_head": false,
+    "untracked_excluded": []
+  },
+  "intent": {
+    "summary": "P9B-4 emergency batch (8 commits, 3a929b6..cbc701b): add a project-level access guard (UserProject grant) to ~20 logistics endpoints/paths in pcs-backend (streams read/write, state points, the 6 state-transition endpoints, stream batch submit, lineage), plus the new guarded endpoint GET /streams/{id}/review-log (TODO-112), plus the prerequisites that make the guard usable (POST /projects auto-grants the creator; scripts/seed_user_project_access.py) and a strict_client pytest fixture that does not mock the guard (the legacy client fixture mocks it to always-True, so guard defects were invisible to it). Guard semantics: no grant => a 404 byte-identical to 'does not exist' (never 403, so UUIDs cannot be enumerated); the guard must run before any business gate. No alembic/versions changes; the bare OpenAPI payload count must not rise above 71.",
+    "confidence": "explicit"
+  },
+  "plan": {
+    "path": "docs/superpowers/plans/2026-11-04-stream-project-guard.md",
+    "source": "explicit",
+    "requirements": [
+      "T0: project creators are auto-granted access on POST /projects; a seed script grants existing users (mock login creates no users row).",
+      "T1: a strict_client test fixture that exercises the real project guard (legacy client mocks it to always-True).",
+      "T2: project guards on the logistics read/write endpoints (10 endpoints).",
+      "T3: project guards on the 6 state-transition endpoints; the guard runs before the composition gate.",
+      "T4: project guard on the batch endpoint; cross-project items are reported as 'does not exist'.",
+      "T5: lineage guard extended from a PipingResult-only special case to a record-type registry (streams included).",
+      "T6: new guarded endpoint GET /streams/{id}/review-log (TODO-112); read-only, backend-side filtering, named schema ReviewLogItem.",
+      "T7: contract roll-forward (openapi baseline), PCS-UI-SPEC 7.7.2 revision (V2.11), TODOS.md, .wolf buglog + cerebrum.",
+      "Global constraints: no worktree, no detached HEAD, no alembic/versions changes, bare payload count <= 71, no passwords on the command line, one commit per task, T6 must be independently revertible."
+    ],
+    "implementation_units": [
+      "pcs-backend/app/services/user_project_service.py (has_project_access, ensure_user_row)",
+      "pcs-backend/app/api/v1/streams.py (guard helpers + 16 endpoint wirings + review-log endpoint)",
+      "pcs-backend/app/services/stream_batch_service.py (per-item guard, actor_roles threading)",
+      "pcs-backend/app/api/v1/lineage.py (LINEAGE_GUARDED_RECORD_TYPES registry + same-shape 404)",
+      "pcs-backend/app/api/v1/projects.py (creator auto-grant)",
+      "pcs-backend/app/services/stream_review_log_service.py + app/schemas/stream_review_log.py (new)",
+      "pcs-backend/scripts/seed_user_project_access.py (new)",
+      "pcs-backend/tests/conftest.py (strict_client, grant_project fixtures)",
+      "pcs-backend/tests/api/v1/* (guard, review-log, lineage, owner-access, strict-client tests)",
+      "pcs-frontend/src/api/stream.ts, src/pages/sim/tabs/StreamReviewLogTab.tsx, src/mocks/handlers.ts"
+    ],
+    "settled_decisions": [
+      "404 (not 403) for unauthorized, byte-identical to 'does not exist' so UUIDs cannot be enumerated.",
+      "The guard must be the outermost check on write endpoints (a 422 business detail would leak cross-project data).",
+      "Same-shape 404 for lineage is 'no lineage for record' - the repo's existing check_record_access_or_404 ('Project not found') was rejected because its envelope differs.",
+      "review-log filtering is backend-only (one source of truth); the frontend's own filtering was deleted.",
+      "No new index for the review-log query (the existing GIN jsonb_path_ops index cannot serve the ->> predicate); TODO-104 records this.",
+      "The legacy 'client' fixture keeps mocking the guard; migrating the whole suite to strict_client is TODO-128.",
+      "Pre-existing ruff debt in user_project_service.py is deliberately untouched (TODO-130) per the 'do not fix unrelated code' rule."
+    ]
+  },
+  "roster": {
+    "selected": [
+      {
+        "reviewer": "correctness",
+        "tier": "mid-tier",
+        "reason": "always-on; re-dispatched at mid-tier because the session model's provider quota (HTTP 429) killed the first dispatch"
+      },
+      {
+        "reviewer": "security",
+        "tier": "session",
+        "reason": "always-on (auth boundary)"
+      },
+      {
+        "reviewer": "adversarial",
+        "tier": "session",
+        "reason": "always-on; in-process fallback covers the cross-model lens (no attested-different route installed)"
+      },
+      {
+        "reviewer": "project-standards",
+        "tier": "mid-tier",
+        "reason": "always-on"
+      },
+      {
+        "reviewer": "testing",
+        "tier": "mid-tier",
+        "reason": "always-on"
+      },
+      {
+        "reviewer": "maintainability",
+        "tier": "mid-tier",
+        "reason": "always-on"
+      },
+      {
+        "reviewer": "performance",
+        "tier": "mid-tier",
+        "reason": "always-on"
+      },
+      {
+        "reviewer": "api-contract",
+        "tier": "mid-tier",
+        "reason": "always-on (public contract change: new endpoint + OpenAPI baseline roll-forward)"
+      },
+      {
+        "reviewer": "reliability",
+        "tier": "mid-tier",
+        "reason": "always-on (concurrency: SELECT FOR UPDATE + batch partial-success semantics)"
+      },
+      {
+        "reviewer": "learnings-researcher",
+        "tier": "mid-tier",
+        "reason": "always-on (repo knowledge base under docs/solutions/)"
+      }
+    ],
+    "standards": {
+      "criteria": [
+        "/home/pangzy/code_project/PCS/CLAUDE.md (repository-root agent-instructions file; governs all 34 changed files)"
+      ],
+      "fallback_named": true,
+      "not_run_reason": null
+    },
+    "packs": {
+      "roots": [],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "collection": {
+    "returns": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3/raw-returns.json",
+    "unstructured_returns": [
+      {
+        "reviewer": "learnings-researcher",
+        "path": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3/learnings-researcher.md"
+      }
+    ],
+    "failed_reviewers": [],
+    "bound_exceeded": [],
+    "fast_pass": {
+      "emitted_preliminary": false,
+      "candidates": []
+    }
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "default",
+    "outcome": "not-run",
+    "artifact": null,
+    "coverage": "Cross-model adversarial pass: not run - no attested-different route installed (no codex/grok/cursor/composer CLI on this host), so the adversarial lens was covered in-process by the local adversarial reviewer."
+  },
+  "coverage_notes": [
+    "Standards: the only applicable criteria file is the repository-root CLAUDE.md; no subdirectory-scoped agent-instructions file governs any changed path.",
+    "Untracked files: none were present in the working tree at dispatch, so nothing was excluded on that ground. Two tracked files had uncommitted edits (.wolf/memory.md and docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md); neither is code under review, and tree_is_reviewed_head is false for that reason (it does not matter here: mode.apply_local is false, so no apply stage runs).",
+    "Scope mode: local-aligned, base 3a929b6, head cbc701b (8 commits), 34 changed files.",
+    "Model tiering deviation: correctness-reviewer and learnings-researcher were re-dispatched at mid-tier (sonnet) after the first dispatch of the whole batch was killed by the session model's provider quota (HTTP 429, 'Token Plan usage limit reached'). Four reviewers (security, adversarial, reliability, performance) completed on the first dispatch.",
+    "Verification performed by the dispatch context outside the reviewer personas: read app/services/state_machine.py (TRANSITION_AUDIT_ACTION maps PASS_CHECK -> APPROVAL_STEP_PASSED and REJECT_CHECK -> APPROVAL_STEP_REJECTED, while SUBMIT_FOR_CHECK and MARK_STALE map to RECORD_TRANSITION), app/services/stream_review_log_service.py (the query filters AuditLog.action == 'RECORD_TRANSITION' AND detail_json->>'transition' IN (SUBMIT_FOR_CHECK, PASS_CHECK, REJECT_CHECK)), app/api/v1/lineage.py (guard + registry + endpoint bodies), app/api/v1/projects.py (create_project grant), app/services/audit_service.py (resource_id is stringified), app/services/stream_batch_service.py (the guard call site sits between select_stream_for_update and the transition), tests/conftest.py (strict_client restores only UserProjectService.check_user_project_access), and pcs-frontend/src/mocks/handlers.ts (the MSW mock fabricates a PASS_CHECK row). Targeted verification actually executed by the dispatch context: `pytest tests/api/v1/test_stream_review_log.py tests/api/v1/test_lineage_guard.py` = 12 passed (the batch's own suite is green, which is itself the evidence that it does not cover the two P1s); frontend `npm run typecheck` and `npm run lint` clean; `check_openapi_payload_coverage.py` RC 0 with 「当前: 71 个裸 object/array」 (baseline <= 71 holds). The full backend suite was started but hit the 1800 s timeout before it finished, so no independent full-suite number is claimed here; the batch's own recorded figure is 5528 passed / 0 failed.",
+    "Important caveat about the batch's own QA evidence: the browser regression in .gstack/qa-reports/qa-report-pcs-frontend-2026-11-09-stream-guard.md exercised the frontend dev server with MSW mocks, so the 200 for GET /api/v1/streams/s-101/review-log and the two rendered rows came from the mock, not from the real backend. That mock data does not match what the real backend produces (see the review-log action-filter finding).",
+    "Dispatch-context empirical reproduction (not a persona finding): a standalone probe (dispatch-context-probe-reviewlog.txt, run outside the repo tree, nothing in the project mutated) inserted audit rows using the REAL action values from state_machine.TRANSITION_AUDIT_ACTION and the REAL detail shape from state_machine._write_audit, then called app.services.stream_review_log_service.list_review_log. Result: the four rows written were RECORD_TRANSITION/SUBMIT_FOR_CHECK, APPROVAL_STEP_PASSED/PASS_CHECK, APPROVAL_STEP_REJECTED/REJECT_CHECK and RECORD_TRANSITION/MARK_STALE; the service returned 1 item (SUBMIT_FOR_CHECK) and dropped PASS_CHECK and REJECT_CHECK. VERDICT: BUG REPRODUCED.",
+    "Dispatch-context empirical reproduction #2 (not a persona finding): a second standalone probe (dispatch-context-probe-lineage.txt) called the lineage endpoints as a user holding a grant only for project A. Result: for a stream that exists in project B, /upstream, /graph and /downstream all answered 404 {'code':'HTTP_404','message':'no lineage for record'}; for a UUID that does not exist at all, /upstream answered 200 [] while /graph and /downstream answered the same 404. The 404-vs-200 divergence on /upstream is an existence oracle."
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "reviewer": "performance",
+  "findings": [
+    {
+      "title": "review-log action filter drops PASS_CHECK/REJECT_CHECK rows",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "The new GET /streams/{id}/review-log endpoint is documented (and its OpenAPI contract states) that it returns the three review transitions SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK, but its SQL pins action='RECORD_TRANSITION' while the state machine writes action=APPROVAL_STEP_PASSED for PASS_CHECK and action=APPROVAL_STEP_REJECTED for REJECT_CHECK. The only writer of RECORD_TRANSITION is the state machine's SUBMIT_FOR_CHECK / MARK_STALE path, so a 校对通过 or 校对驳回 event can never appear in the 校核记录 tab - the endpoint structurally returns submission rows only. Observably: a user who submitted a stream, got it 校对通过, and reopens the tab sees only the submission line; the pass/reject rows exist in audit_logs but are unreachable by this query. The green unit test does not catch it because the fixture fabricates action='RECORD_TRANSITION' for all three transitions, a shape the production writer never produces.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64:                AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122:    StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123:    StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:474:            action=TRANSITION_AUDIT_ACTION[transition],",
+        "pcs-backend/app/services/state_machine.py:481:                \"transition\": transition.value,",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:95:        action=\"RECORD_TRANSITION\",",
+        "grep of app/ for AuditAction.RECORD_TRANSITION writers: the only producer is state_machine.py:474 via TRANSITION_AUDIT_ACTION (SUBMIT_FOR_CHECK, MARK_STALE); no other module writes a RECORD_TRANSITION row for a stream"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Broaden the action pre-filter in pcs-backend/app/services/stream_review_log_service.py so it covers the actions the state machine actually emits for the three review transitions, keeping detail_json->>'transition' as the authoritative selector:\n\n    AuditLog.action.in_((\n        \"RECORD_TRANSITION\",          # SUBMIT_FOR_CHECK / MARK_STALE\n        \"APPROVAL_STEP_PASSED\",       # PASS_CHECK\n        \"APPROVAL_STEP_REJECTED\",     # REJECT_CHECK\n    )),\n\nAssumption: the audit action vocabulary (not detail_json.transition) is the per-transition mapping source of truth, i.e. we do NOT change state_machine.TRANSITION_AUDIT_ACTION to make PASS_CHECK write RECORD_TRANSITION - that mapping is consumed elsewhere (app/api/v1/records_actions.py:449 resolves the submitter via action=RECORD_TRANSITION + transition=SUBMIT_FOR_CHECK) and rewriting it would change unrelated audit consumers. Alternative (equally defensible): drop the action predicate entirely and let detail_json->>'transition' IN REVIEW_TRANSITIONS be the only filter - but then the action column stops narrowing the scan at all, which interacts with the index recommendation in the other finding, so the broadened IN(...) variant is preferable. While there: fix pcs-backend/tests/api/v1/test_stream_review_log.py so the fixture writes the real per-transition action (APPROVAL_STEP_PASSED for PASS_CHECK, APPROVAL_STEP_REJECTED for REJECT_CHECK) - otherwise the suite keeps asserting a production-impossible shape."
+    },
+    {
+      "title": "review-log query has no index on its selective predicates",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 62,
+      "why_it_matters": "The endpoint filters audit_logs by resource_type='streams' AND resource_id=<uuid> AND action='RECORD_TRANSITION' AND detail_json->>'transition' IN (...), then orders by (occurred_at, audit_id). Verified against the live database (read-only pg_indexes query), audit_logs carries only four indexes: pk_audit_logs (audit_id), ix_audit_logs_action (action), ix_audit_logs_occurred_at (occurred_at) and ix_audit_logs_detail_json_gin (detail_json, jsonb_path_ops). Nothing indexes resource_type/resource_id - the two equality predicates that actually narrow the result to a handful of rows - and the existing GIN opclass jsonb_path_ops supports only @> / @? / @@, so the ->> extraction cannot use it either. The consequence is that every open of the 校核记录 tab degrades to a scan proportional to the table (or to the number of RECORD_TRANSITION rows if the planner picks the action index), and if the planner instead uses ix_audit_logs_occurred_at to satisfy the ORDER BY it walks the whole index in order and filters - i.e. O(rows) work to return O(5) rows. audit_logs is an append-only audit stream with no implemented retention or partitioning (the monthly-partition idea appears only in a migration docstring), so this cost grows monotonically with usage while the endpoint is on a normal user path (a tab in the stream detail page, one request per stream opened). The diff's own rationale for skipping the index ('RECORD_TRANSITION 当前 0 行') is an artefact of the dev database being empty (verified: 0 RECORD_TRANSITION rows and 0 streams in dev), not a property of the table: every SUBMIT_FOR_CHECK writes one such row.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:62:                AuditLog.resource_type == \"streams\",",
+        "pcs-backend/app/services/stream_review_log_service.py:63:                AuditLog.resource_id == str(stream_id),",
+        "pcs-backend/app/services/stream_review_log_service.py:69:            .order_by(AuditLog.occurred_at.asc(), AuditLog.audit_id.asc())",
+        "pcs-backend/app/services/stream_review_log_service.py:18: ⇒ 加 `detail_json->>'transition'` 表达式索引是**投机性优化**（`RECORD_TRANSITION`",
+        "pcs-backend/app/models/system.py:129:    resource_id: Mapped[str | None] = mapped_column(String(100))",
+        "pcs-backend/app/models/system.py:130:    resource_type: Mapped[str | None] = mapped_column(String(50))",
+        "read-only probe against the dev database (pg_indexes on audit_logs): ix_audit_logs_action | CREATE INDEX ... USING btree (action) ; ix_audit_logs_detail_json_gin | CREATE INDEX ... USING gin (detail_json jsonb_path_ops) ; ix_audit_logs_occurred_at | CREATE INDEX ... USING btree (occurred_at) ; pk_audit_logs | CREATE UNIQUE INDEX ... USING btree (audit_id) -- no index on resource_type or resource_id",
+        "read-only probe counts: SELECT count(*) FROM audit_logs -> 12 ; SELECT count(*) FROM audit_logs WHERE action='RECORD_TRANSITION' -> 0 ; SELECT count(*) FROM streams -> 0 (dev DB is empty, so the '0 rows' argument in the docstring is a dev-DB artefact, not a table property)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Add a composite index that covers the resource lookup, since resource_id is the selective predicate:\n\n    # pcs-backend/app/models/system.py, AuditLog.__table_args__\n    Index(\"ix_audit_logs_resource\", \"resource_type\", \"resource_id\"),\n\nplus a matching Alembic revision (create_index on audit_logs(resource_type, resource_id)) so the ORM and the migration stay in sync - the repo's release gate requires `uv run alembic check` to exit 0 on BOTH pcs and pcs_test, each in a separate process (alembic's settings are a cached pydantic instance, so a second DATABASE_URL swap inside one process is a no-op), and the PG lane scripts/pytest_pg.sh must stay green. Assumption: no third-party writer depends on the current absence of this index, and index build cost on a large audit_logs table is acceptable (use CREATE INDEX CONCURRENTLY in the migration if the table is already large in production).\n\nWith that index the query becomes an index seek on (resource_type='streams', resource_id=<uuid>) returning a handful of rows, after which the ->> extraction and the sort are trivial; the separate expression index on detail_json->>'transition' is NOT needed and the diff's reasoning there is correct. Note the same unindexed resource_id lookup shape also exists in pre-existing code (app/api/v1/audit.py:63 and app/api/v1/records_actions.py:449) - the new index speeds those up too, but they are out of this diff's scope."
+    },
+    {
+      "title": "batch guard adds one SELECT per item inside row lock",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/stream_batch_service.py",
+      "line": 284,
+      "why_it_matters": "_submit_one_inner now issues one extra SELECT on user_projects per stream, inside the per-item loop of submit_batch, and it does so after SELECT ... FOR UPDATE has already taken the row lock - so the ACL round trip is added to the lock critical section. Query count per batch request: before the diff one item ran roughly SELECT FOR UPDATE (precheck) + SELECT FOR UPDATE (StreamService.transition) + UPDATE streams + INSERT audit_logs + COMMIT + refresh SELECT (~6 statements + 1 commit); after the diff it runs the same plus one SELECT user_projects (~7 statements + 1 commit), i.e. roughly +15% statements per item, and up to +1000 statements for a batch at the hard cap MAX_STREAM_IDS_PER_BATCH=1000 (default system parameter stream.batch_submit_limit = 100). Because the lookup is served by uq_user_projects_user_project / ix_user_projects_active and the actor is typically one user with a handful of projects, the same (user_id, project_id) decision is recomputed for every item - a batch of 100 streams from 2 projects issues 100 identical queries where 2 would do. The impact is bounded and real but modest (the batch's 100 sequential commits dominate the wall clock), so this is a cleanup rather than a production risk. Note SYSTEM_ADMIN actors skip the query entirely (has_project_access short-circuits on the role claim), so only non-admin batches pay it.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_batch_service.py:284:    if not await has_project_access(",
+        "pcs-backend/app/services/stream_batch_service.py:508:    for stream_id in unique_ids:",
+        "pcs-backend/app/services/stream_batch_service.py:290:        await _release_precheck_transaction(db)",
+        "pcs-backend/app/services/user_project_service.py:160:        stmt = select(UserProject).where(",
+        "pcs-backend/app/schemas/stream_batch.py:27:MAX_STREAM_IDS_PER_BATCH = 1000",
+        "pcs-backend/app/services/stream_batch_service.py:97:DEFAULT_BATCH_LIMIT = 100"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Memoize the per-project ACL decision for the duration of one batch instead of re-querying per item. Concretely: build a dict in submit_batch (keyed by (actor_user_id, project_id), value bool) and pass it down to _submit_one / _submit_one_inner, replacing the has_project_access(...) call with a dict lookup that falls back to the service call on a miss. Assumption: a single batch request must see a consistent ACL snapshot - true in practice because the whole batch runs inside one request/transaction-per-item window and project membership is not mutated by the batch itself; if that assumption is rejected, the alternative is a single batched prefetch of the actor's project ids (UserProjectService.list_user_projects) resolved once before the loop and then tested in memory, which keeps the semantics identical and removes all per-item ACL queries."
+    }
+  ],
+  "residual_risks": [
+    "query-plan-at-scale not measured: the sandbox blocked running a synthetic EXPLAIN against a 100k-row temp table, so the 'no usable index => scan' conclusion rests on the live database's pg_indexes inventory plus PostgreSQL operator-class semantics (jsonb_path_ops supports only @>/@?/@@, so ->> is not indexable), not on a captured EXPLAIN plan.",
+    "audit_logs has no implemented retention or partitioning - the monthly-partition plan appears only in a migration docstring (pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py:13) - so the scan cost of the review-log query grows monotonically with usage; actual production row counts are unknown (dev DB: 12 audit_logs rows, 0 RECORD_TRANSITION, 0 streams).",
+    "The same unindexed resource_id lookup shape exists in pre-existing code (pcs-backend/app/api/v1/audit.py:63, pcs-backend/app/api/v1/records_actions.py:449); if the composite index from the P2 finding is added those paths get faster too, but their behaviour and impact were not measured in this review.",
+    "audit_logs.occurred_at is server_default=now() (transaction timestamp), so rows written in one transaction share a timestamp; the review-log ORDER BY (occurred_at, audit_id) breaks ties by a random UUIDv4, so intra-transaction ordering is arbitrary rather than insertion order. The frontend rowKey (transition-occurred_at) can therefore collide for two rows in the same transaction.",
+    "Per-item batch query counts are analytic (derived by reading the call path: select_stream_for_update, has_project_access, StreamService.transition -> select_stream_for_update + state machine UPDATE/INSERT, commit, refresh); no instrumented statement counter was run against PostgreSQL for this diff.",
+    "Guarded single-object endpoints (PATCH/DELETE /streams/{id}, POST /streams/{id}/properties/estimate, the six transition endpoints) now perform one extra db.get plus one user_projects SELECT per request. The re-read of the stream by StreamService.get/update is free (identity map hit via db.get), so no duplicated row load was found; the two added round trips are on paths that already commit, so their latency share is small and was not measured.",
+    "Blocking-I/O audit: no synchronous file/network/CPU-bound call was introduced on an async path by this diff; estimate_properties remains CPU-heavy (CoolProp batch_complete) but its blocking character is pre-existing and unchanged."
+  ],
+  "testing_gaps": [
+    "No test asserts the audit-row shape the state machine actually writes for PASS_CHECK/REJECT_CHECK: pcs-backend/tests/api/v1/test_stream_review_log.py:95 fabricates action='RECORD_TRANSITION' for all three transitions, so the endpoint's structural under-return (APPROVAL_STEP_PASSED / APPROVAL_STEP_REJECTED rows are unreachable) is invisible to the suite.",
+    "No PG-lane coverage of the review-log query: the unit tests run on in-memory SQLite where @> is unavailable and JSONB operator/index behaviour differs, so scripts/pytest_pg.sh does not exercise the real ->> extraction or the index usability of this query against PostgreSQL.",
+    "No test pins the per-item SQL statement count of submit_batch (or asserts that the project guard is resolved once per distinct project), so a future change that moves the ACL check back into an inner loop - or duplicates it - would not be caught.",
+    "No test covers a batch whose items span several projects with the actor holding access to only some of them, which is the shape that would expose a per-item memoization bug if the P3 suggestion is applied."
+  ]
+}

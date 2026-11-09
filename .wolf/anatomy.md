@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T07:22:21.667Z
-> Files: 1194 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:21:01.323Z
+> Files: 1195 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -470,6 +470,10 @@
 ## docs/ce-code-review/20261102-004658-08a55f5c/
 
 - `README.md` — Project documentation (~736 tok)
+
+## docs/ce-code-review/20261109-181644-6f6ddca3/
+
+- `README.md` — Project documentation (~603 tok)
 
 ## docs/contracts/
 

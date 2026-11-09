@@ -1,0 +1,82 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": "authorization-authentication",
+      "reason": "In pcs-backend/app/api/v1/lineage.py:200-201 the guard returns silently for a missing record, so GET /lineage/streams/{uuid}/upstream falls through to LineageTracker.upstream and returns 200 [] for a nonexistent UUID, whereas a UUID that exists in another project raises HTTPException(404,'no lineage for record') at lineage.py:210 — a status-code oracle distinguishing 'exists elsewhere' from 'does not exist', which contradicts the batch's own byte-identical-404 invariant (only /graph and /downstream answer 404 for both, via the latest() None check at lineage.py:103/134); the stale comment at lineage.py:201 also claims the endpoint naturally 404s. Reproduction was not executed (read-only inspection)."
+    },
+    {
+      "#": 2,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "stream_review_log_service.py:64 filters AuditLog.action == 'RECORD_TRANSITION', but TRANSITION_AUDIT_ACTION in app/services/state_machine.py:121-123 writes PASS_CHECK as APPROVAL_STEP_PASSED and REJECT_CHECK as APPROVAL_STEP_REJECTED (resource_type 'streams', resource_id stream pk, detail_json['transition'] set at state_machine.py:481), so the new endpoint can only ever return the SUBMIT_FOR_CHECK row and never the 校对通过/校对驳回 rows it documents; the test masks it by fabricating action='RECORD_TRANSITION' for all three transitions (tests/api/v1/test_stream_review_log.py:95-96). Reproduction was not executed (read-only inspection)."
+    },
+    {
+      "#": 3,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "The new guard call at stream_batch_service.py:284 runs a DB query while the SELECT ... FOR UPDATE lock from stream_batch_service.py:260 is held, and _submit_one's blanket 'except Exception' at stream_batch_service.py:167-175 converts a DB-level failure into an INTERNAL_ERROR item without any rollback, so (unlike the transition path's explicit db.rollback() at stream_batch_service.py:363, covered by tests/services/test_stream_batch_service.py:708) the aborted transaction and the held row lock carry into subsequent items; the precondition is a DB-level error during the guard's SELECT, and incidence was not measured (reproduction not executed)."
+    },
+    {
+      "#": 4,
+      "status": "rejected",
+      "protected_subject": null,
+      "reason": "The factual parts hold (schemas/stream_review_log.py:16 declares a bare 'transition: str', and the service keeps its own REVIEW_TRANSITIONS tuple at stream_review_log_service.py:38-42 while StateTransition in app/models/enums.py:291-293 is the real source), but no present incompatibility is evidenced — the produced values are currently correct — and the alleged harm needs a hypothetical future rename; the quoted docstring claim is also misread (stream_review_log_service.py:36-37 says the backend is the single place that filters, i.e. the frontend must not filter again, not that the vocabulary appears once), so this is a hardening/refactor preference rather than a defect."
+    },
+    {
+      "#": 5,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "The handler added in this diff (pcs-frontend/src/mocks/handlers.ts:279-295) returns the same two inline rows for every stream_id, including a PASS_CHECK row the backend cannot produce (its action filter admits only RECORD_TRANSITION rows, see state_machine.py:122), never returns the empty list or the 404 shape the real endpoint defines, and is not typed against components['schemas']['ReviewLogItem'] although sibling handlers in the same file do use such types — which is why the batch's browser regression saw a 200 with two rows and the backend filter bug survived QA. Reproduction was not executed (read-only inspection)."
+    },
+    {
+      "#": 6,
+      "status": "rejected",
+      "protected_subject": "authorization-authentication",
+      "reason": "The fail-open default for unregistered record_type predates and is unaffected by this diff: the pre-change code was 'if record_type != \"PipingResult\": return' (git diff 3a929b6..cbc701b of pcs-backend/app/api/v1/lineage.py), so every non-PipingResult type — e.g. the calc result types written by calc_lineage.py:263 — was already unguarded, and the diff only narrows exposure by additionally registering 'streams' (lineage.py:38-41); the 'Stream'-spelling bypass cited has no live rows to expose because no writer produces data_lineage rows with that record_type (only services/lineage.py:109 and calc_lineage.py:263 write them, using the record's class name)."
+    },
+    {
+      "#": 7,
+      "status": "rejected",
+      "protected_subject": null,
+      "reason": "The cited internal commit (user_project_service.py:105) does not break the endpoint's atomicity: ensure_default_record_matrix explicitly does not commit (signature_matrix_service.py:761) and ensure_user_row only flushes (user_project_service.py:284), so the project row, matrix binding, users row and user_projects row are all pending in the same transaction and are committed together by that one commit — which the endpoint's own comment at projects.py:178-181 relies on — and the alleged 'reports it as not created' error path does not exist in create_project (the only try/except wraps db.flush for project_no conflicts at projects.py:151-168); the residual post-commit db.refresh failure at projects.py:196 is a generic post-commit window, not the documented all-or-nothing promise being broken."
+    },
+    {
+      "#": 8,
+      "status": "rejected",
+      "protected_subject": "authorization-authentication",
+      "reason": "The duplication is real (streams.py:242 and :254 write the same literal; stream_service.py:331/:517 hold copies), but the claimed failure mode is refuted for the paths that matter: both branches of _load_stream_guarded are pinned by tests/api/v1/test_stream_project_guard.py:302-330, which compares the missing-id and cross-project responses' status_code, code and message, so a one-sided edit fails the suite, and the separate StreamService.get copy cannot produce a divergent response on the guarded endpoints because the guard raises before the service is reached — leaving only a refactor suggestion (central factory) rather than a defect."
+    },
+    {
+      "#": 9,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "In the non-dry-run batch path select_stream_for_update at stream_batch_service.py:260 takes the row lock before the project guard at stream_batch_service.py:284, and the lock is only released afterwards at stream_batch_service.py:290 via _release_precheck_transaction, so a caller holding access only to another project can make the batch briefly take a FOR UPDATE lock on a foreign project's existing stream row (dry_run skips the lock) and transiently block that project's writers — a lock-ordering side channel, not a data leak, introduced by this diff's guard placement."
+    },
+    {
+      "#": 10,
+      "status": "confirmed",
+      "protected_subject": "authorization-authentication",
+      "reason": "ensure_user_row (user_project_service.py:265-273) falls back from a user_id lookup to a username lookup and returns the username-matched row without checking that its user_id equals the requested one, while projects.py:186-191 then grants PROJECT_LEAD to creator.user_id, so when a legacy users row exists whose username matches but whose user_id differs from the derived id (the case the helper's own docstring at user_project_service.py:259-263 says it exists for) the grant is keyed to that other identity and the token holder gets 404 on the project it just created; the precondition is such a mismatched legacy row for a mock-login user (whose users row is absent per ADR-0046), and incidence was not measured."
+    },
+    {
+      "#": 11,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "ensure_user_row performs a lock-free SELECT-then-INSERT get-or-create on users (user_project_service.py:265-284) with no begin_nested() savepoint and no IntegrityError recovery, on the unique column users.username (models/project.py:147) and the users PK — the exact shape the repo's own knowledge base records as a bug class (docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md) with the correctly fixed sibling _get_or_create_default_record_matrix (signature_matrix_service.py:790+), so two concurrent POST /projects by the same user whose users row is absent (mock login never persists one) make the loser hit the unique constraint with an uncaught IntegrityError that rolls back the whole project creation; the analogous shape in grant_project_access (user_project_service.py:84-107) is pre-existing but newly reachable from create_project. Incidence was not measured (reproduction not executed)."
+    },
+    {
+      "#": 12,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "The file's own stated principle (tests/api/v1/test_stream_project_guard.py:28-29: 404-only tests would also pass with an always-404 guard, so every endpoint needs an in-project control) is violated for most of the endpoints it guards — positive controls exist only for GET /streams/{id}, GET /state-points/{id} and GET /streams/{id}/state-points (test_stream_project_guard.py:360-401), while PATCH/DELETE /streams/{id}, POST /streams/{id}/state-points, GET properties, POST properties/estimate and the six transition endpoints (parametrized negative-only at :413-433) have none; the claim is overstated in that the shared helpers _load_stream_guarded/_load_state_point_guarded are positively covered via the three controls, so the residual gap is per-endpoint wiring rather than a wholly unguarded helper, but the coverage gap itself is real and the file is new in this diff."
+    },
+    {
+      "#": 13,
+      "status": "rejected",
+      "protected_subject": "public-contract",
+      "reason": "The claim that section 5.4 leaves the frontend designing for 'a 403 that the API never returns' is refuted: §5.4's 兜底 sentence (docs/PCS-UI-SPEC.md:432) belongs to the stream-state gate, and the backend still answers 403 STREAM_NOT_CHECKED for referencing a non-CHECKED stream (app/services/calc_entry.py:102-106), while the V2.11 revision's 404 rule concerns the separate project-access dimension; the two are not contradictory and no incompatible contract change is evidenced by the registration-only SPEC diff."
+    }
+  ]
+}

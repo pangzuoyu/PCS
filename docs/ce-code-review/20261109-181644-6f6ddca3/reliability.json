@@ -1,0 +1,94 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "Batch guard DB call skips lock release on failure",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_batch_service.py",
+      "line": 284,
+      "why_it_matters": "The new project guard (`has_project_access`) is a database SELECT that runs INSIDE the window where the item's `SELECT ... FOR UPDATE` row lock is held, but it has no try/except: if that SELECT fails at the DB level (deadlock victim, statement timeout, serialization failure, aborted transaction), the exception escapes to `_submit_one`'s catch-all, which returns an INTERNAL_ERROR item WITHOUT rolling back or calling `_release_precheck_transaction`. Two consequences: (1) the `SELECT ... FOR UPDATE` row lock on that stream is still held — the exact lock-accumulation invariant the module docstring says was found in review and which the neighboring transition path protects; (2) the session/transaction is left in a failed state, so every later item in the same batch raises on its next DB call and is also reported as INTERNAL_ERROR. One transient DB error therefore collapses a batch of up to 100 items (violating the D2 partial-success contract) instead of failing one item, and it retains a row lock past the point the code says it is released.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_batch_service.py:284 — `    if not await has_project_access(` (executed after `stream = await select_stream_for_update(db, stream_id)` at line 260, i.e. with the row lock already held; the release call `_release_precheck_transaction(db)` at line 290 is only reached when the call RETURNS False, not when it RAISES)",
+        "pcs-backend/app/services/stream_batch_service.py:167 — `    except Exception:  # noqa: BLE001 —— 兜底：非预期异常也**不中断批次**` (the catch-all that swallows the guard's DB error and returns an INTERNAL_ERROR item without any rollback)",
+        "pcs-backend/app/services/stream_batch_service.py:363 — `        await db.rollback()` (the transition path DOES roll back on DB-level failure, so the session survives for the next item; the new guard path has no equivalent)",
+        "pcs-backend/app/services/stream_batch_service.py:178 — `async def _release_precheck_transaction(db: AsyncSession) -> None:` (\"⚠️ **提前返回的路径（幂等命中 / 组成门禁拒 / 预演）必须先结束事务**\" — the new guard path is a third early-return path that must also end the transaction)"
+      ],
+      "suggested_fix": "Wrap the guard call in the same protection the transition path already has, e.g.:\n\n```python\ntry:\n    allowed = await has_project_access(\n        db, user_id=actor_user_id, project_id=stream.project_id, actor_roles=actor_roles,\n    )\nexcept Exception:\n    # DB 级失败 ⇒ 会话被污染 ⇒ 必须先回滚，否则后续条目全部失败\n    await db.rollback()\n    raise\nif not allowed:\n    await _release_precheck_transaction(db)\n    return BatchFailedItem(...)\n```\n\nAlternative (preferred, removes the DB call from the locked window entirely): do a non-locking read of the stream (`select(Stream).where(...)`, no `FOR UPDATE`) for the guard, release the transaction, and only then take the locking read for the transition. Assumption: `stream.project_id` is immutable, so the guard result cannot go stale between the two reads; if that is not guaranteed, keep the try/except + rollback form."
+    },
+    {
+      "title": "Review-log query unbounded and unindexed on audit_logs",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 58,
+      "why_it_matters": "The new read path over `audit_logs` has neither a row cap nor a usable index for its filter columns. `audit_logs` only carries indexes on `action` and `occurred_at` (plus the GIN index on `detail_json`, which the module's own docstring notes cannot serve a `->>` extraction). Filtering on `resource_type`/`resource_id` therefore falls back to scanning every `RECORD_TRANSITION` row in the table, and the result set is uncapped. `audit_logs` is append-only and grows with every stream transition in the system, so each open of the 校核记录 tab costs work proportional to the whole audit history — latency and connection occupancy grow without bound, and the endpoint is reachable by every DESIGNER/PROCESS_CONTROLLER with project access. The module docstring defers only the `->>` expression index and does not address the unindexed equality filters or the missing LIMIT.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:60 — `            select(AuditLog)` followed by `.where(AuditLog.resource_type == \"streams\", AuditLog.resource_id == str(stream_id), AuditLog.action == \"RECORD_TRANSITION\", AuditLog.detail_json[\"transition\"].as_string().in_(REVIEW_TRANSITIONS))` and `.order_by(...)` with **no `.limit(...)`**",
+        "pcs-backend/app/models/system.py:130 — `    resource_id: Mapped[str | None] = mapped_column(String(100))` (no `index=True`; same for `resource_type` on line 129 — the only indexes on this table are on `action` (line 128) and `occurred_at` (line 136))",
+        "pcs-backend/app/services/stream_review_log_service.py:25 — \"⚠️ `audit_logs` 表上**已有** `ix_audit_logs_detail_json_gin`（`jsonb_path_ops`）⇒ 但它只支持 `@>` / `@?` / `@@` ⇒ **`->>` 用不上它**\" (the module itself establishes that the only JSON index cannot serve this query)"
+      ],
+      "suggested_fix": "Two independent measures, in order of value/effort:\n1. Add a composite index for the equality filters: `op.create_index(\"ix_audit_logs_resource\", \"audit_logs\", [\"resource_type\", \"resource_id\"])` in a new alembic revision, plus the matching ORM `Index(...)` declaration on `AuditLog.__table_args__` (both sides, or `alembic check` will report drift — see the repo's documented ORM/migration drift blind spot).\n2. Cap the result set: append `.limit(200)` to the query and document the cap (the existing `GET /audit-logs` endpoint already caps at 200 via `limit: int = Query(50, ge=1, le=200)`), so a pathological stream cannot produce an unbounded response either.\nAssumption: `resource_type`/`resource_id` selectivity is low (many rows per project), so a composite index on both columns is preferable to indexing `resource_id` alone."
+    },
+    {
+      "title": "Grant may target a user_id no token carries",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/user_project_service.py",
+      "line": 269,
+      "why_it_matters": "`ensure_user_row` may return an existing `users` row found by `username` whose `user_id` differs from the requested `user_id` (the docstring states this legacy case exists: \"那种行不能新建，否则撞 `users.username` 唯一约束\"). Both new call sites then grant against `creator.user_id` — the row's id — not the id the caller's identity actually carries. Issued tokens always carry `uuid5(NAMESPACE_DNS, username)` (`derive_user_id`), so a grant written against a legacy row id can never be matched by any request: the user keeps getting 404 on every stream endpoint of that project. For `POST /projects` this is exactly the half-product the change set out to prevent (\"项目建好了但创建者进不去\"); for `scripts/seed_user_project_access.py` the script prints a success line (`alice → <uuid> : DESIGNER`) for a grant that grants nothing. The operation is silently ineffective.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/user_project_service.py:269 — `    existing = (` … `select(User).where(User.username == username)` … `    if existing is not None:` / `        return existing` (the returned row's `user_id` may differ from the requested one; the function does not reconcile or report the mismatch)",
+        "pcs-backend/app/api/v1/projects.py:186 — `    creator = await ensure_user_row(db, user_id=user.user_id, username=user.username)` followed by `user_id=creator.user_id` in the `grant_project_access(...)` call (line 189) — the grant is written for the row's id, not `user.user_id` from the token",
+        "pcs-backend/scripts/seed_user_project_access.py:88 — `        user_id=creator.user_id,` (same pattern) with `derive_user_id(username)` as the requested id (line 83) and a success print at the end",
+        "pcs-backend/app/services/token_issuer.py:60 — `    return uuid.uuid5(uuid.NAMESPACE_DNS, username)` (every issued token's `user_id` is the derived id, so a mismatched legacy row id is unreachable by any request)"
+      ],
+      "suggested_fix": "Make `ensure_user_row` guarantee that the row it returns has the requested `user_id`, and make the callers grant against the requested id. Concretely: when the username-matched row has a different `user_id`, either (a) reconcile it — UPDATE that row's `user_id` to the requested id if nothing else references it, or (b) raise a clear operational error naming both ids so the operator can fix the row, instead of silently returning a row that cannot be granted to. Then have `create_project` pass `user_id=user.user_id` (the token id) into `grant_project_access` and use `creator` only to satisfy the FK. Add a check in the seed script: if `creator.user_id != derive_user_id(args.username)`, print an ERROR and exit non-zero rather than reporting success. Assumption: `users.user_id` is not referenced by rows that must be preserved (e.g. `user_projects.user_id`), so option (a) needs a reference check first."
+    },
+    {
+      "title": "Helper's internal commit makes endpoint commit a no-op",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/projects.py",
+      "line": 187,
+      "why_it_matters": "`UserProjectService.grant_project_access` performs its own `session.commit()`, so the endpoint's trailing `await db.commit()` no longer commits anything — the real commit point is buried inside a helper. The trace shows: if the grant RAISES before its internal commit, nothing is persisted (the project row, the signature-matrix binding and the new `users` row all roll back) — that part of the \"全成或全败\" claim holds. But if the grant's internal commit SUCCEEDS and any later step fails (the `await session.refresh(record)` inside the grant, or the endpoint's own `await db.refresh(record)` at line 196 — a dropped connection or a timeout is enough), the client receives a 500 while the project, its matrix binding and the creator's authorization are already persisted. The operator sees \"创建失败\" for a project that exists, and a retry comes back as 409 PROJECT_NO_CONFLICT. The same shape applies to the seed script: `grant_project_access` commits, so a failure in the script's post-grant output can exit 1 with the grant already applied.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/api/v1/projects.py:187 — `    await UserProjectService.grant_project_access(` (a helper that commits internally, inserted between the project-row creation and the endpoint's explicit `await db.commit()` at line 195)",
+        "pcs-backend/app/services/user_project_service.py:105 — `        await session.commit()` (inside `grant_project_access`; this is the commit that actually persists the project row, the matrix binding, the `users` row and the `user_projects` row)",
+        "pcs-backend/app/api/v1/projects.py:196 — `    await db.refresh(record)` (a failure here returns 500 with everything already committed by line 105's commit)"
+      ],
+      "suggested_fix": "Give `grant_project_access` a commit-free variant (e.g. `grant_project_access(session, ..., commit: bool = True)`) and call it with `commit=False` from `create_project`, so the endpoint keeps exactly one commit point at the end and the \"全成或全败\" property is enforced by the endpoint rather than by a helper. With that, a failure after the matrix binding rolls the whole thing back, and the only post-commit failure left is the response serialization itself. If the commit-free variant is not acceptable, at minimum replace the trailing `await db.commit()` + `await db.refresh(record)` with a comment acknowledging that the commit already happened inside the helper, and have the endpoint's error path report a distinct error code (e.g. `PROJECT_CREATED_BUT_RESPONSE_FAILED`) so the operator can distinguish \"not created\" from \"created, response lost\". Assumption: no other caller of `grant_project_access` depends on it committing."
+    }
+  ],
+  "residual_risks": [
+    "Static review only: I read the head commit's source (pcs-backend/app/{api/v1,services,models,scripts}) and the staged diff; I did not run the test suite, the PG lane, or the app, so every failure path above is reasoned from code rather than reproduced.",
+    "Finding 2's impact depends on production `audit_logs` volume; the repo has no measurement of how many `RECORD_TRANSITION` rows accumulate, so the severity of the scan could be materially better or worse than estimated.",
+    "Finding 3 is conditional on `users` rows existing whose `user_id` != uuid5(username); the repo's own docstrings assert such legacy rows exist but I could not query the dev/prod DB to confirm how many.",
+    "The new `LINEAGE_GUARDED_RECORD_TYPES` registry in pcs-backend/app/api/v1/lineage.py fails OPEN for unregistered record types (the guard returns early), so any future record type added to that path without a registry row is silently unguarded. That is an authorization concern outside the reliability lane, flagged only for completeness.",
+    "The seed script pcs-backend/scripts/seed_user_project_access.py has no statement timeout and no confirmation prompt before writing to a real database; a hung database makes the CLI hang indefinitely rather than fail fast.",
+    "The batch guard adds one extra SELECT per item (N+1 over up to 100 items per batch); I did not measure whether that is material next to the per-item commit cost the module docstring already accepts (~50-200ms per 100 items)."
+  ],
+  "testing_gaps": [
+    "No test covers a DB-level failure inside the NEW guard path (`has_project_access` inside `_submit_one_inner`): the existing test `test_db_level_failure_does_not_poison_the_rest_of_the_batch` (tests/services/test_stream_batch_service.py:708) only exercises the transition/audit-write failure path, which has the `await db.rollback()` that the guard path lacks. A test that makes the guard's SELECT fail and asserts that the following item still succeeds would pin the invariant.",
+    "No assertion that the new guard early-return path ends the transaction (the SQLite equivalent of releasing the row lock). `test_precheck_lock_is_released_on_the_early_return_paths` (tests/services/test_stream_batch_service.py:657) asserts `not db_session.in_transaction()` only for the idempotent-hit path; the new cross-project guard path has no equivalent assertion, and the PG lane has no deadlock test whose victims are cross-project items.",
+    "No test covers `ensure_user_row` returning a username-matched row with a different `user_id`, and therefore no test covers the resulting mismatch between the granted `user_id` and the id the caller's token carries.",
+    "No test covers the `create_project` failure window between `grant_project_access`'s internal commit and the endpoint's response (e.g. the post-commit `db.refresh` failing) — i.e. no test pins that the client is not told \"创建失败\" for a project that was persisted.",
+    "No test or query-plan check for `GET /streams/{id}/review-log` against a realistically sized `audit_logs` table, and no assertion that the result set is bounded."
+  ]
+}

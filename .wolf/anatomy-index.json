@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-09T07:22:21.667Z",
-    "fileCount": 1194,
+    "lastScanned": "2026-11-09T23:21:01.323Z",
+    "fileCount": 1195,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "0645d89fce3058092ff9964d6c7d79ac057834d1977ab74c4244c47db5aa0d9f",
-    "storeUpdatedAt": "2026-11-09T07:22:21.678Z",
-    "rootHash": "b187ea4aff05ea4b"
+    "renderedHash": "f2471d146f042f9f5f6e9140a7d444d5d3b90670e867a33ca9a8727901e0e7c5",
+    "storeUpdatedAt": "2026-11-09T23:21:01.334Z",
+    "rootHash": "d67733c2ca7117eb"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -43137,6 +43137,15 @@
       "size": 3152,
       "mtimeMs": 1794208941621.673,
       "updatedAt": "2026-11-09T07:22:21.667Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261109-181644-6f6ddca3/README.md": {
+      "description": "Project documentation",
+      "tokens": 603,
+      "hash": "35dbf8664df6c464",
+      "size": 3827,
+      "mtimeMs": 1794266461281.094,
+      "updatedAt": "2026-11-09T23:21:01.323Z",
       "source": "hook"
     }
   }

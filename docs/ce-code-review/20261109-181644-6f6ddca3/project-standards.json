@@ -1,0 +1,56 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "review-log 端点按 action=RECORD_TRANSITION 过滤 ⇒ 校对通过/驳回永不返回",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "设计师/工艺员打开物流详情的「校核记录」Tab，只能看到「提交校对」这一类行；校对人做的「校对通过」和「驳回」永远不显示 —— Tab 达不到本批自己宣称的目的（SPEC §7.7.2 与 TODO-112 的闭环说明都写着「设计师能读到**自己物流**的校核经过」）。原因在写入端与读取端的动作名对不上：状态机给 PASS_CHECK / REJECT_CHECK 写的审计动作是 APPROVAL_STEP_PASSED / APPROVAL_STEP_REJECTED（state_machine.py:122-123），而本端点的 WHERE 条件写死了 action == \"RECORD_TRANSITION\"（该动作只覆盖 SUBMIT_FOR_CHECK 与 MARK_STALE）⇒ 这两类行被动作条件先滤掉，后面的 transition IN (...) 根本轮不到它们。这个洞在测试与浏览器回归里都看不见：测试自己伪造了 action=\"RECORD_TRANSITION\" 且 transition=\"PASS_CHECK\" 的行（行 93 的注释声称「形状照抄状态机写的」，实际不一致），前端 MSW mock（handlers.ts:289）也直接返回 PASS_CHECK ⇒ QA 截图里那行「校对通过」是 mock 给的，不是后端给的。修法：把 WHERE 里的 action 条件去掉（transition IN (...) 已足够，MARK_STALE 被它排除），或把动作集合放宽为 {RECORD_TRANSITION, APPROVAL_STEP_PASSED, APPROVAL_STEP_REJECTED}；同时让测试改用真实状态机转移（或真实动作名）造审计行，否则同类漂移还会再发生。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64 -- AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122 --     StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123 --     StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:121 --     StateTransition.SUBMIT_FOR_CHECK: AuditAction.RECORD_TRANSITION,",
+        "pcs-backend/app/services/audit_service.py:66 --         action=action_value,  # AuditService.write 每次只写一行（session.add + flush）",
+        "docs/PCS-UI-SPEC.md:1360 -- 校核记录：数据来源 = `GET /streams/{id}/review-log`（**项目守卫**端点）⇒ **后端已过滤**：只返回校对相关的三条（`SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK`）",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:93 -- \"\"\"造一条 `RECORD_TRANSITION` 审计行（形状照抄状态机写的）。\"\"\"  # 与 state_machine.py:122-123 的实际动作名不一致",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:95 --         action=\"RECORD_TRANSITION\",",
+        "pcs-frontend/src/mocks/handlers.ts:289 --         \"PASS_CHECK\",  # mock 无条件返回 ⇒ 浏览器 QA 看不出后端缺口"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "SPEC V2.11 登记修订 §5.4，但 §5.4 正文仍是「后端 403 为兜底」",
+      "severity": "P3",
+      "file": "docs/PCS-UI-SPEC.md",
+      "line": 2446,
+      "why_it_matters": "本批在 V2.11 修订行里声明「②§5.4 物流引用门禁 —— 补上项目级访问守卫后，「无权」与「不存在」必须逐字同形（否则可枚举 UUID）⇒ 物流的 20 个端点/路径统一按 404 处理」，也就是把这条规则登记在 §5.4 名下；但 §5.4 的正文（424-432 行）一个字都没改，末行仍是「后端 403 为兜底。」。⇒ SPEC 现在自相矛盾：规范章节说 403，修订日志说 404。而 CLAUDE.md 的「前端 UI 规范」把这份 SPEC 定为前端 UI 的唯一编码依据 ⇒ 后续按 §5.4 写前端错误处理的人会拿到 403 的旧口径，而实现已经全部改成 404（`SIM_STREAM_NOT_FOUND` / `no lineage for record`）。修法：在 §5.4 正文补一行规则（无权 ⇒ 与「不存在」同形的 404；并说明它只覆盖物流面 20 个端点/路径，不改变状态门禁那条 403），让正文与 V2.11 修订行对齐；或把 V2.11 的②改写成不指向 §5.4 的措辞。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "docs/PCS-UI-SPEC.md:2446 -- V2.11\t2026-11-09\tP9B-4 紧急批次（物流面项目守卫 + review-log）落地修订：… ②**§5.4 物流引用门禁** —— 补上**项目级访问守卫**后，「无权」与「不存在」必须**逐字同形**（否则可枚举 UUID）⇒ 物流的 20 个端点/路径统一按 404 处理。",
+        "docs/PCS-UI-SPEC.md:432 -- 后端 403 为兜底。",
+        "docs/PCS-UI-SPEC.md:424 -- 5.4 物流引用门禁",
+        "CLAUDE.md:（前端 UI 规范）-- 前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "CLAUDE.md 新增段落与 SPEC V2.11 都写「任何没有 UserProject 授权行的用户访问任何物流端点都 404」，但 `POST /streams/batch-submit` 实际返回 207（Multi-Status），跨项目条目以 `reason=SIM_STREAM_NOT_FOUND` 的 failed 项表达（pcs-backend/app/services/stream_batch_service.py:284-297）。枚举向量本身仍被守住（failed 项与真不存在逐字同形），但「都 404」这句在批次端点上不成立 —— 属文档口径过宽，未单列为发现（影响低）。",
+    "「20 个端点/路径」这个数字未能与 `docs/superpowers/plans/2026-11-04-stream-project-guard.md` 的端点清单逐条核对（预算内未通读该计划）。streams.py 内可数到 20 条路由（含 create/validate/list 三条早已由 check_project_access_or_404 守卫的），另有 batch-submit 与 lineage 3 条；若「20」只指 streams.py，则 lineage/batch 属额外覆盖，数字不算错但读者会低估范围。",
+    "本批未改 `alembic/versions` 与 ORM 模型 ⇒ 发布前检查里的 `alembic check`（两库各 exit 0）与 `check_migration_idempotency.py` 对本批属 N/A；.gstack/qa-reports/qa-report-pcs-frontend-2026-11-09-stream-guard.md 只记了 pytest / pytest_pg / typecheck / lint / 前端 vitest / 契约 G-08 / 裸载荷 71 这几项，未逐条对照「发布前检查（必做）」清单。",
+    "CLAUDE.md 声称的 dev 前置（alice/bob/carol/dan 靠 seed 脚本拿授权）在本地未实测：seed 脚本用 derive_user_id(username) 派生 user_id，而 current_actor 优先取 JWT 的 user_id 声明（app/api/v1/auth.py:38-42）—— 两处当前都落在 uuid5(NAMESPACE_DNS, username) 上，故一致；但若将来 JWT 的 user_id 声明与 uuid5 派生分叉，seed 的授权行会挂到 actor 不认的 user_id 上 ⇒ 用户仍全站 404。"
+  ],
+  "testing_gaps": [
+    "没有一条测试把 review-log 端点与**真实状态机**串起来（submit → approve → reject 各走一次 StreamService.transition，再 GET /streams/{id}/review-log 断言三条都在）。现有测试全部自己伪造审计行，且伪造出的 action 与状态机实际写的动作名不一致 ⇒ 动作名漂移这类缺陷在单测里不可见（测试文件 tests/api/v1/test_stream_review_log.py:93-95）。",
+    "前端 MSW mock（pcs-frontend/src/mocks/handlers.ts:283-292）无条件返回 SUBMIT_FOR_CHECK + PASS_CHECK 两行，与后端真实可达的行集不一致 ⇒ 任何前端测试都无法发现后端少返回某类 transition 的问题；mock 若按后端口径只回 action=RECORD_TRANSITION 的行，这个缺口会在浏览器回归里立刻暴露。"
+  ]
+}

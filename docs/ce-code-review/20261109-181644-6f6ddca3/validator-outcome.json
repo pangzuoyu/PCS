@@ -1,0 +1,5 @@
+{
+  "outcome": "verdicts",
+  "reason": "The validator returned 13 verdicts inside the bound, one per input number, each with exactly the four required fields; 8 confirmed and 5 rejected.",
+  "verdicts": "/tmp/compound-engineering-1000/ce-code-review/20261109-181644-6f6ddca3/validator-verdicts.json"
+}

@@ -1,0 +1,8 @@
+/home/pangzy/code_project/PCS/pcs-backend/app/core/security.py:58: RuntimeWarning: REPORT_VERIFY_SECRET 未配置；自动生成开发用随机密钥（每次启动变化）。production 前必须显式设置，否则二维码 verify 端点全部 403。
+  settings = get_settings()
+upstream    exists in project B (not mine)   -> 404  {"code":"HTTP_404","message":"no lineage for record","detail":null,"trace_id":""}
+graph       exists in project B (not mine)   -> 404  {"code":"HTTP_404","message":"no lineage for record","detail":null,"trace_id":""}
+downstream  exists in project B (not mine)   -> 404  {"code":"HTTP_404","message":"no lineage for record","detail":null,"trace_id":""}
+upstream    does not exist at all            -> 200  []
+graph       does not exist at all            -> 404  {"code":"HTTP_404","message":"no lineage for record","detail":null,"trace_id":""}
+downstream  does not exist at all            -> 404  {"code":"HTTP_404","message":"no lineage for record","detail":null,"trace_id":""}

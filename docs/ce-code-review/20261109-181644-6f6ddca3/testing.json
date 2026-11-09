@@ -1,0 +1,105 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "review-log tests fabricate audit rows the state machine never writes",
+      "severity": "P1",
+      "file": "pcs-backend/tests/api/v1/test_stream_review_log.py",
+      "line": 95,
+      "why_it_matters": "The new `GET /streams/{id}/review-log` endpoint can never show a check verdict in production, and the new test suite proves the opposite. The state machine writes `PASS_CHECK` with `action=APPROVAL_STEP_PASSED` and `REJECT_CHECK` with `action=APPROVAL_STEP_REJECTED` (only `SUBMIT_FOR_CHECK`/`MARK_STALE` use `RECORD_TRANSITION`), but the endpoint's query filters on `AuditLog.action == \"RECORD_TRANSITION\"` — so the two verdict rows are filtered out and the tab only ever shows \"提交校对\". The test file's `_audit()` helper hardcodes `action=\"RECORD_TRANSITION\"` for every transition, i.e. the fixture supplies the exact shape the production writer never produces, so all five review-log tests pass on rows that cannot exist in the database. The batch's own verification (12 passed for the two new guard test files) therefore proves nothing about the endpoint's production behavior, and the defect ships green.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Make the fixture production-shaped and relax the service filter to match it. (1) In `tests/api/v1/test_stream_review_log.py::_audit`, derive the action from the state machine's own mapping instead of hardcoding it: `action=TRANSITION_AUDIT_ACTION[StateTransition[transition]].value` (import `TRANSITION_AUDIT_ACTION` from `app.services.state_machine` and `StateTransition` from `app.models.enums`), so `PASS_CHECK`/`REJECT_CHECK` rows carry `APPROVAL_STEP_PASSED`/`APPROVAL_STEP_REJECTED`. (2) In `app/services/stream_review_log_service.py:64`, replace `AuditLog.action == \"RECORD_TRANSITION\"` with an action whitelist covering the three review transitions: `AuditLog.action.in_((\"RECORD_TRANSITION\", \"APPROVAL_STEP_PASSED\", \"APPROVAL_STEP_REJECTED\"))` (equivalently, drop the action predicate entirely — the `detail_json.transition IN REVIEW_TRANSITIONS` predicate already excludes `MARK_STALE`/`INITIATE_CHANGE`). (3) Add an assertion in `test_review_log_returns_only_review_transitions` that a row written with the state machine's real action mapping is returned, so the two mappings can no longer drift.",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:95 -- action=\"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122 -- StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123 -- StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:474 -- action=TRANSITION_AUDIT_ACTION[transition],",
+        "pcs-backend/app/services/stream_review_log_service.py:64 -- AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/stream_review_log_service.py:38-42 -- REVIEW_TRANSITIONS: tuple[str, ...] = (\"SUBMIT_FOR_CHECK\", \"PASS_CHECK\", \"REJECT_CHECK\",)  # service docstring claims all three are returned",
+        "pcs-backend/app/services/audit_service.py:60 -- action_value = action.value if isinstance(action, AuditAction) else str(action)  # the enum VALUE is what lands in audit_logs.action"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "lineage /upstream: missing-record shape differs from cross-project shape",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 200,
+      "why_it_matters": "The batch's central invariant is \"无权 ≡ 不存在 ⇒ 逐字同形 ⇒ 枚举不出某个 UUID 是否存在\", and it holds for `/graph` and `/downstream` but not for `/upstream`, the third endpoint the batch guarded. For `/upstream` a stream id that does not exist returns **200 + `[]`** (the guard returns early when the record is missing, and `LineageTracker.upstream` returns an empty chain instead of raising), while an id that exists in another project returns **404** (the new guard raises). Any authenticated user can therefore probe arbitrary stream UUIDs against `/api/v1/lineage/streams/{id}/upstream` and read off which ones exist — the exact enumeration oracle the guard was added to close. The code comment at this line asserts the opposite invariant (\"不存在 → 让 lineage endpoint 自然 404（与「无权」同形）\"), which is false for the upstream endpoint, and the test suite never catches it: the parametrized guard test only asserts the cross-project side is 404, and the same-shape test (`test_lineage_cross_project_looks_identical_to_missing`) exercises `/graph` only.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Make the missing-record response identical to the unauthorized response for all three lineage suffixes. In `app/api/v1/lineage.py::upstream`, mirror what `downstream`/`graph` already do: after the guard, call `latest = await tracker.latest(record_type=record_type, record_id=record_id)` and `raise HTTPException(404, \"no lineage for record\")` when it is `None` (then build the chain from `latest`), so \"no such record\" and \"not yours\" both yield the same 404 body. Then extend `tests/api/v1/test_lineage_guard.py::test_lineage_cross_project_looks_identical_to_missing` to be parametrized over `[\"/graph\", \"/upstream\", \"/downstream\"]` and assert identical `status_code`, `json()[\"code\"]` and `json()[\"message\"]` between the missing-id and cross-project-id responses (same UUID both times, as the existing test already does), and correct the stale comment at lineage.py:200.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:200 -- return  # 不存在 → 让 lineage endpoint 自然 404（与「无权」同形）",
+        "pcs-backend/app/api/v1/lineage.py:71 -- return [_serialize(c) for c in chain]  # upstream endpoint returns a list — no 404 for a missing record",
+        "pcs-backend/app/api/v1/lineage.py:72 --     tracker = LineageTracker(session)",
+        "pcs-backend/app/services/lineage.py:170 --     return chain  # empty list when the record has no lineage rows",
+        "pcs-backend/app/api/v1/lineage.py:210 -- raise HTTPException(404, \"no lineage for record\")  # cross-project case",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:133 -- @pytest.mark.parametrize(\"suffix\", [\"/graph\", \"/upstream\", \"/downstream\"])  # guard test covers all three suffixes",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:162 -- f\"/api/v1/lineage/streams/{uuid.uuid4()}/graph\", headers=designer_headers  # same-shape test covers /graph only"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "lineage guard registry key not pinned to the writer's record_type vocabulary",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 40,
+      "why_it_matters": "The registry that replaced the old `if record_type != \"PipingResult\": return` hole is keyed by a string that no lineage writer produces. Every `data_lineage` row is stamped by `LineageTracker.track` with `record.__class__.__name__` (so a stream row would be `\"Stream\"`, not `\"streams\"`); the only writer of that column in the whole app is `track`. The registry's pre-existing key `\"PipingResult\"` matches that convention, but the new key `\"streams\"` does not. Two consequences: (1) the test's positive control `test_own_project_lineage_graph_is_readable` passes only because its fixture fabricates `DataLineage(record_type=\"streams\", ...)` — a row no writer creates — so it proves the guard admits authorized users over rows that cannot exist; in production the endpoint finds no lineage rows for streams and 404s for everyone, authorized or not; (2) if the app ever starts tracking stream lineage under the class-name spelling `\"Stream\"`, `LINEAGE_GUARDED_RECORD_TYPES.get(\"Stream\")` returns `None` and the guard silently skips (fail-open) — reopening the cross-project lineage leak this batch exists to close, with the whole suite still green. The registry's own docstring says \"新增记录类型必须登记，否则又是同一个洞\", but nothing enforces it.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Pin the registry against the executable source of truth and make the key convention explicit. (1) Add a test that asserts the registry covers every record_type the app can actually write: collect the model classes passed to `LineageTracker.track` (e.g. `PipingResult`, and `Stream` once streams are tracked) and assert `cls.__name__ in LINEAGE_GUARDED_RECORD_TYPES` for each — a mirror test that fails as soon as a new tracked type is added without registration. (2) Register the streams entry under the spelling the writer produces (`\"Stream\"`) and, if the URL-facing convention stays `\"streams\"`, normalize the incoming `record_type` before the lookup (e.g. map table names to the registered class-name key) instead of relying on the raw path string. (3) Add a test pinning the fail-open default for an unregistered record_type (assert the endpoint does not 404 on a permission basis for that type), so the default is a recorded decision rather than an accident.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:40 -- \"streams\": (Stream, \"stream_id\"),",
+        "pcs-backend/app/services/lineage.py:109 -- record_type=record.__class__.__name__,",
+        "pcs-backend/app/api/v1/lineage.py:191 -- if entry is None:  # 未登记的类型 ⇒ 跳过（旧行为）",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:104 -- record_type=\"streams\",",
+        "pcs-backend/app/api/v1/lineage.py:39 -- \"PipingResult\": (PipingResult, \"pipe_id\"),  # pre-existing key matches the writer's class-name convention"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "16 guarded endpoints, only 3 have an authorized-user positive control",
+      "severity": "P2",
+      "file": "pcs-backend/tests/api/v1/test_stream_project_guard.py",
+      "line": 29,
+      "why_it_matters": "The guard test file states its own principle — \"一个「永远 404」的守卫也能让它们全绿 ⇒ 每个端点都有「自己项目内照常工作」的对照\" — but implements it for only three endpoints (`GET /streams/{id}`, `GET /state-points/{id}`, `GET /streams/{id}/state-points`). The remaining 13 guarded endpoints have negative coverage only: `PATCH`/`DELETE /streams/{id}`, `POST /streams/{id}/state-points`, `PATCH`/`DELETE /state-points/{id}`, `GET /streams/{id}/properties`, `POST /streams/{id}/properties/estimate`, and all six transition endpoints (`/submit`, `/approve`, `/reject`, `/initiate-change`, `/pass-change`, `/mark-stale`, parametrized at lines 413-433). A guard that denies everyone — a wrong `user_id` derivation, a wrong project comparison, a guard applied to the wrong id — leaves all 16 negative assertions green while every legitimate user gets 404, and the batch's verification (5528 backend tests passed) would not notice. The batch endpoint's own-positive control does not close this: it exercises `has_project_access` inside `stream_batch_service`, not the shared `_load_stream_guarded` helper used by the 16 single-stream endpoints, and it covers only the batch path.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Add a parametrized positive-control test over the same endpoint table as the negative one, asserting an authorized user in project A gets a success status (200/204, not merely \"not 404\") for every guarded endpoint: `PATCH`/`DELETE /streams/{id}` (and assert the row actually changed / was deleted), `POST /streams/{id}/state-points`, `PATCH`/`DELETE /state-points/{id}`, `GET /streams/{id}/properties`, `POST /streams/{id}/properties/estimate` (with a CAS list), and the six transition endpoints using the existing role fixtures already present in the file (DESIGNER for `/submit`, `/initiate-change`, `/pass-change`, `/mark-stale`; PROCESS_CONTROLLER for `/approve`, `/reject`) with a stream whose `composition_json` sums to 1.0 so the new `precheck` composition gate passes. Reuse the `two_projects`/`make_stream` fixtures so the control and the negative case differ only in the grant.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/api/v1/test_stream_project_guard.py:28-29 -- 只有 404 测试的话，一个「永远 404」的守卫也能让它们全绿 ⇒ 每个端点都有\n+「自己项目内照常工作」的对照。",
+        "pcs-backend/tests/api/v1/test_stream_project_guard.py:360-401 -- the only authorized-user controls: test_own_project_stream_is_fully_readable / test_own_project_state_point_is_fully_readable / test_own_project_state_points_list_is_readable",
+        "pcs-backend/tests/api/v1/test_stream_project_guard.py:413-433 -- _TRANSITION_ENDPOINTS = [\n+    (\"/submit\", \"designer\"),\n+    (\"/approve\", \"controller\"),\n+    (\"/reject\", \"controller\"),\n+    (\"/initiate-change\", \"designer\"),\n+    (\"/pass-change\", \"designer\"),\n+    (\"/mark-stale\", \"designer\"),\n+] — negative (404) direction only",
+        "pcs-backend/app/api/v1/streams.py:246 -- if not await has_project_access(  # shared guard helper used by all 16 single-stream endpoints"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "The `strict_client` fixture's strictness is a single-point patch: it restores exactly one accessor, `UserProjectService.check_user_project_access` (tests/conftest.py:280-285). Every guard added by this batch was verified to route through it (`app/api/v1/streams.py:246,274`, `app/api/v1/lineage.py:203`, `app/services/stream_batch_service.py:284` all call `has_project_access`, which calls that accessor), so today the fixture is sound — but no test asserts that property, so a future guard implemented with a direct `UserProject` query or with a client-supplied project id would be invisible to both `client` and `strict_client`.",
+    "`_ORIGINAL_CHECK_ACCESS` is captured at conftest import time (tests/conftest.py:280). Any test module that patches `UserProjectService.check_user_project_access` at import time would be captured as \"the original\" and permanently restored by `strict_client`. `tests/services/report/test_style_service.py:209-230` patches the same attribute (at runtime, restoring by assigning back a bound method rather than the classmethod descriptor) — harmless today, but it leaves the class attribute in a different shape for subsequent tests.",
+    "The batch's verification numbers (backend 5528 passed / PG lane 5 passed / frontend 1028 passed) do not cover either P1 finding: no test exercises `GET /streams/{id}/review-log` against audit rows produced by the real state machine, and no test compares the missing-record shape of `GET /lineage/streams/{id}/upstream` against its cross-project shape.",
+    "`list_review_log` selects `detail_json->>'transition'`-style JSON path access, which SQLAlchemy compiles differently for PostgreSQL JSONB and SQLite. The unit lane therefore does not prove the query behaves identically on PostgreSQL 18, and the `pg` lane (5 tests) does not cover the review-log endpoint — a PG-only query error would only surface at runtime.",
+    "Unit tests run on in-memory SQLite where foreign keys are not enforced. The new `grant_project` fixture works around this by calling `ensure_user_row` first, and `tests/api/v1/test_project_owner_access.py` asserts the `users` row exists, but any future test that writes a `UserProject` row without that helper will be locally green and PG-fatal.",
+    "The `POST /projects` auto-grant calls `UserProjectService.grant_project_access`, which commits internally before the endpoint's own `await db.commit()`; the endpoint's docstring relies on that to keep \"create project + bind matrix + grant\" atomic. No test exercises a failure inside the grant path to prove the rollback story, so the all-or-nothing claim in the docstring is untested."
+  ],
+  "testing_gaps": [
+    "No test drives `GET /streams/{id}/review-log` end-to-end through the real state machine (`StreamService.transition` → `StateMachineService.transition` → `_write_audit`), so the coupling between `TRANSITION_AUDIT_ACTION` and the endpoint's `action` filter is unverified; every review-log test hand-builds `AuditLog` rows instead.",
+    "The lineage guard's fail-open default for an unregistered `record_type` is not pinned by any test, and no test asserts that the registry covers the record_type values the app's only lineage writer (`LineageTracker.track` → `record.__class__.__name__`) can produce.",
+    "`tests/api/v1/test_stream_project_guard.py` has no authorized-user control for `PATCH`/`DELETE /streams/{id}`, `POST /streams/{id}/state-points`, `PATCH`/`DELETE /state-points/{id}`, `GET /streams/{id}/properties`, `POST /streams/{id}/properties/estimate`, or the six transition endpoints.",
+    "`POST /streams/batch-submit` with `dry_run=true` against a cross-project stream is not covered: the guard does run before the dry-run early return in `_submit_one_inner`, but nothing asserts that a dry run reports a foreign stream as `SIM_STREAM_NOT_FOUND` rather than `succeeded`.",
+    "The seed script's CLI surface is untested: invalid `--role` (exit 2), malformed `--project` UUID (exit 2), nonexistent project (exit 2), and `--dry-run` writing nothing. Only the inner `seed_user_project_access()` function is covered, yet the script is the documented per-environment deployment prerequisite.",
+    "The new `GET /streams/{id}/review-log` endpoint has no OpenAPI contract assertion (that the response is a bare array of `{transition, operator, occurred_at, detail}`); the shape is pinned only by the Python test and the frontend MSW mock, so a backend/frontend contract drift would not be caught by `check_openapi_payload_coverage.py`.",
+    "No test covers the `streams` entry of the lineage registry against the frontend's actual request string (`pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx:51` calls `lineageGraph('streams', streamId)`), so the backend's key convention and the frontend's are not pinned to each other."
+  ]
+}

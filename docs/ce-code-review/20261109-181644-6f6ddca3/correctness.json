@@ -1,0 +1,77 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "Review-log endpoint filters out check pass/reject rows",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "The new `GET /streams/{id}/review-log` promises the three review transitions (SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK) and the UI renders them as 提交校对 / 校对通过 / 校对驳回, but the query pins `action == \"RECORD_TRANSITION\"`. The state machine does not write that action for the two check transitions: it writes `APPROVAL_STEP_PASSED` for PASS_CHECK and `APPROVAL_STEP_REJECTED` for REJECT_CHECK. So in production the endpoint can only ever return the submit row - a checker opening the 校核记录 tab sees the submission but never the check outcome (pass/reject), and the `ReviewLogItem.transition` contract (\"SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK\") is not met. The suite stays green because the new test fixture writes `action=\"RECORD_TRANSITION\"` for all three transitions, i.e. it encodes the wrong assumption instead of the shape the state machine actually produces.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Stop filtering on a single action value: the rows are already scoped by `resource_type='streams'` + `resource_id`, and the transition filter is the intended single source of truth. Either drop the `AuditLog.action == \"RECORD_TRANSITION\"` predicate, or widen it to `AuditLog.action.in_((\"RECORD_TRANSITION\", \"APPROVAL_STEP_PASSED\", \"APPROVAL_STEP_REJECTED\"))` (the values in `TRANSITION_AUDIT_ACTION`, app/services/state_machine.py:121-123). Then fix tests/api/v1/test_stream_review_log.py:95 so the fixture writes the real action per transition (PASS_CHECK -> APPROVAL_STEP_PASSED, REJECT_CHECK -> APPROVAL_STEP_REJECTED), otherwise the suite cannot catch the regression again.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64 -- AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122 -- StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123 -- StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:474 -- await self._write_audit(action=TRANSITION_AUDIT_ACTION[transition], resource_type=_record_table_name(record), ...) (every stream transition is audited with that mapping; resource_type is the table name \"streams\")",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:95 -- action=\"RECORD_TRANSITION\", (fixture hard-codes the wrong action for all three transitions => the gap is invisible to the suite)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Lineage guard silently skips unregistered record types",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 191,
+      "why_it_matters": "`record_type` is a free-form URL segment, and the new guard only acts on two hard-coded spellings; anything else falls through the `if entry is None: return` and the request is served with no access check at all. The data layer stores `data_lineage.record_type` as the ORM class name, and every calculation result type writes such a row (PipingResult, FlashResult, PumpResult, VesselResult, ...). So a user who has no grant on the project can ask for `GET /lineage/FlashResult/{uuid}/graph` and get back that project's lineage - root record id, actor, change summary and the `source_ref_id` of the source streams - with no authorization performed. That is the same cross-project leak TODO-114 set out to close, and the docstring's claim that registering one line per record type means the hole cannot recur does not hold while unregistered types are answered instead of refused. The two registered keys also mix vocabularies (\"PipingResult\" is a class name, \"streams\" is a table name), so the key that matters for streams is not the spelling the data layer uses.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Stop hand-maintaining a two-entry dict. Resolve the model from the canonical vocabulary the data layer already uses - `app/services/calc_lineage.py::RECORD_TYPE_REGISTRY` (its keys are exactly the class names stored in `data_lineage.record_type`) - and pick the primary-key column from the mapper (`inspect(model).primary_key[0].name`) instead of hard-coding \"pipe_id\"/\"stream_id\". Register `Stream` there (or keep a small alias map so both \"Stream\" and \"streams\" resolve) and make an unknown `record_type` fail closed with the same 404 (\"no lineage for record\") rather than skipping the check, so a new record type cannot silently bypass the guard again.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:191 -- if entry is None:",
+        "pcs-backend/app/api/v1/lineage.py:192 -- return  # 未登记的类型 ⇒ 跳过（旧行为）",
+        "pcs-backend/app/api/v1/lineage.py:38-41 -- LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {\"PipingResult\": (PipingResult, \"pipe_id\"), \"streams\": (Stream, \"stream_id\")} (只有两项，且一个是类名、一个是表名)",
+        "pcs-backend/app/services/lineage.py:109 -- record_type=record.__class__.__name__ (落库的 record_type 是**类名** ⇒ \"FlashResult\" / \"PumpResult\" 等 20+ 个类型都不在注册表里)",
+        "pcs-backend/app/services/calc_lineage.py:263 -- entry = await tracker.track(record=record, source=\"CALC\", ...) (每个计算结果都落一行血缘；这些结果表都有 project_id ⇒ 跨项目读得到)"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Lineage /upstream 404 vs 200 [] leaks record existence",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 210,
+      "why_it_matters": "The batch's rule is \"no access must be byte-identical to does-not-exist\". That holds for /downstream and /graph (both answer 404 \"no lineage for record\" when there is nothing to show), but /upstream answers 200 with an empty list when the record has no lineage. With the new guard in place, a cross-project request to /upstream now returns 404 while a request for a UUID that does not exist returns 200 [] - the response difference is precisely the existence oracle the change sets out to remove, so anyone holding a stream UUID can confirm it exists in another project. The guard's own docstring asserts the opposite (\"不存在 → 让 lineage endpoint 自然 404（与「无权」同形）\"), which only holds for two of the three endpoints.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Make all three lineage endpoints share one \"no lineage\" shape: in `upstream`, raise `HTTPException(404, \"no lineage for record\")` when the chain is empty, matching `downstream`/`graph`, so the guard's 404 is indistinguishable from \"does not exist\" on every endpoint. Assumption: the frontend consumes only /graph (pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx), so the empty-list case of /upstream is not relied upon by the UI; if some other client depends on 200 + [], the alternative is to make the guard answer with the endpoint's own empty-result body instead of a 404.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:210 -- raise HTTPException(404, \"no lineage for record\")",
+        "pcs-backend/app/api/v1/lineage.py:72 -- return [_serialize(c) for c in chain] (upstream 端点：无血缘时返回 200 + []，**不是** 404)",
+        "pcs-backend/app/api/v1/lineage.py:103 -- raise HTTPException(404, \"no lineage for record\") (downstream 才是 404 ⇒ 只有它与守卫同形)",
+        "pcs-backend/app/services/lineage.py:151-170 -- async def upstream(...): ... return chain (无记录时返回空 list，不抛异常)"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "ensure_user_row's username fallback can grant the wrong principal: when a `users` row exists with the same username but a different user_id (exactly the legacy case the helper documents), `create_project` grants PROJECT_LEAD to `creator.user_id` (the legacy id), not to the requesting actor's user_id => the creator still gets 404 on the project it just created, and an unrelated account is granted. Same path in scripts/seed_user_project_access.py (uses derive_user_id(username), then grants creator.user_id).",
+    "The frontend calls `GET /lineage/streams/{id}/graph` (pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx) while `data_lineage.record_type` is written as the class name (app/services/lineage.py:109) => the streams lineage tab queries a spelling that never matches and is always empty. Pre-existing, but the new guard registry bakes the same wrong spelling into the security-relevant key set.",
+    "callsite completeness: grep-only sweep of `has_project_access` / `check_project_access_or_404` across pcs-backend. Endpoints outside the reviewed files that expose project-scoped records (flash / pipe / vessel / pump result routers) are out of this diff's scope and were not audited; they may still rely on the `check_record_access_or_404` shape (\"Project not found: <id>\"), which is not byte-identical to a record-level 404.",
+    "scripts/seed_user_project_access.py --dry-run prints \"users 行：将新建\" from a username lookup, while ensure_user_row resolves by user_id first => the printed \"已建行\" note can be wrong for users whose row exists under a different id (cosmetic only).",
+    "Every environment now needs a seeding step before the logistics endpoints are usable; CLAUDE.md documents this, but nothing in the code fails loudly when a project has zero UserProject rows (the guard simply 404s for everyone), so a missed seed shows up as an empty frontend rather than an error."
+  ],
+  "testing_gaps": [
+    "No test exercises the review-log endpoint with a real check pass/reject transition: tests/api/v1/test_stream_review_log.py:95 writes action=\"RECORD_TRANSITION\" for all three transitions, so the APPROVAL_STEP_PASSED / APPROVAL_STEP_REJECTED rows the state machine really writes are never covered.",
+    "No test covers an unregistered record_type on the lineage endpoints (e.g. /lineage/Stream/{id}/graph or /lineage/FlashResult/{id}/graph) => the fail-open `if entry is None: return` skip in _guard_record_access is untested.",
+    "No test asserts that the lineage guard's 404 is byte-identical to the endpoint's own \"no lineage\" answer on /upstream (which currently returns 200 + []), i.e. the existence-oracle case is not pinned for any of the three endpoints.",
+    "No test covers the guard/authorization path for the auto-granted creator after `POST /projects` (tests/api/v1/test_project_owner_access.py asserts the DB rows but never exercises a guarded endpoint with that principal), so a mismatch between the granted user_id and the JWT-derived actor id would not be caught."
+  ]
+}

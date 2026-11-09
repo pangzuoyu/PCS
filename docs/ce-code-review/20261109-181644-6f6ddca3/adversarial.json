@@ -1,0 +1,100 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Review-log filters wrong audit action: check verdicts never returned",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "The new GET /streams/{id}/review-log endpoint promises to return the three review-related transitions (SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK), but it also requires AuditLog.action == \"RECORD_TRANSITION\". The state machine audits PASS_CHECK as APPROVAL_STEP_PASSED and REJECT_CHECK as APPROVAL_STEP_REJECTED, so in production only the submission row is ever returned: a designer's 校核记录 tab shows that the stream was submitted but never shows that it was passed, and never shows the rejection reason (the only thing worth reading). The endpoint returns HTTP 200 with a shorter list, so nothing raises and the truncation is invisible to the user.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64 -- AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122 -- StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123 -- StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:473 -- await self._write_audit(action=TRANSITION_AUDIT_ACTION[transition], resource_type=_record_table_name(record), ...) => the only audit write for a stream transition; app/services/stream_service.py:527-551 (StreamService.transition) adds no second audit row.",
+        "GREEN-WHILE-RED (test harness fidelity): pcs-backend/tests/api/v1/test_stream_review_log.py:94-106 fabricates audit rows with action=\"RECORD_TRANSITION\" for ALL transitions -- the helper docstring claims '形状照抄状态机写的' (shape copied from what the state machine writes) but the state machine writes APPROVAL_STEP_PASSED / APPROVAL_STEP_REJECTED for PASS/REJECT. The fixture hard-codes the wrong action, so test_review_log_returns_only_review_transitions (asserting 3 rows) and test_review_log_carries_operator_and_reason (asserting detail == '组成超差' on a REJECT_CHECK row) pass against data the production writer never produces.",
+        "Same fabrication on the frontend side: pcs-frontend/src/mocks/handlers.ts:279-292 returns a PASS_CHECK row for /api/v1/streams/:stream_id/review-log => dev/demo mode shows a complete trail that the real backend never returns, so the frontend test (pcs-frontend/tests/pages/sim/tabs/StreamReviewLogTab.test.tsx) cannot detect the defect either.",
+        "Note on provenance: the OLD frontend tab filtered GET /audit-logs with action=RECORD_TRANSITION too, so the old tab had the same blind spot -- but the new backend endpoint, the new service, the new test fixture and the new mock are all added by this diff, and this diff is the deliverable that claims to fix the tab."
+      ],
+      "suggested_fix": "Drop the action predicate and let the transition whitelist be the single scope definition -- i.e. delete the line `AuditLog.action == \"RECORD_TRANSITION\",` from list_review_log. The `detail_json->>'transition' IN ('SUBMIT_FOR_CHECK','PASS_CHECK','REJECT_CHECK')` predicate already restricts the result to exactly the three review transitions (MARK_STALE audits as RECORD_TRANSITION but its transition value is not in the whitelist, so it stays excluded). Assumption: no other module writes detail.transition = one of the three names for resource_type='streams' -- verified by grepping every audit write for resource_type='streams' (only state_machine writes them). If instead you prefer to keep an action filter, it must enumerate all three actions and be derived from one mapping, e.g. `AuditLog.action.in_(('RECORD_TRANSITION','APPROVAL_STEP_PASSED','APPROVAL_STEP_REJECTED'))` -- but that couples the query to a second list that can drift from REVIEW_TRANSITIONS. Independently, fix the test helper in tests/api/v1/test_stream_review_log.py so the audit rows are produced by the real writer (drive `StateMachineService.transition` for submit/approve/reject, or set action=TRANSITION_AUDIT_ACTION[StateTransition.PASS_CHECK].value) instead of a hand-written literal, and align pcs-frontend/src/mocks/handlers.ts with the same shape."
+    },
+    {
+      "title": "Lineage guard registry fails open for 23 of 24 project-scoped types",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 190,
+      "why_it_matters": "The new registry-based lineage guard only registers two record types, and every unregistered type is skipped (fail-open). The repo already has an authoritative list of 24 project-scoped result models (calc_lineage.RECORD_TYPE_REGISTRY: PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult, ...), and every one of them that inherits RecordMixin/TaggedRecordMixin carries a project_id. A cross-project caller who knows one of those type strings can still read another project's lineage graph (upstream / downstream / graph), because the guard returns early for the type and the endpoint then serves the record. The diff's own comment claims '加一种记录类型只要登记一行，不会再漏', but the 22 already-registered types were not added, so the same exfiltration channel the change set out to close is still open for them.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:190-192 -- entry = LINEAGE_GUARDED_RECORD_TYPES.get(record_type) / if entry is None: / return  # 未登记的类型 ⇒ 跳过（旧行为）",
+        "pcs-backend/app/services/calc_lineage.py:83-118 -- RECORD_TYPE_REGISTRY lists 24 result models (PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult, ...); only PipingResult appears in the new lineage registry. Most of them inherit RecordMixin/TaggedRecordMixin and therefore carry a project_id (a few -- CostEstResult / TwoPhaseResult / ProjectCalculationStandardProfile -- are documented as lacking the RecordMixin columns and are therefore not project-scoped; the vulnerability applies to the ones that are).",
+        "pcs-backend/app/services/calc_lineage.py:83-118 -- RECORD_TYPE_REGISTRY holds 24 project-scoped result models; only PipingResult appears in the new lineage registry.",
+        "pcs-backend/app/services/lineage.py:123-142 -- LineageTracker.latest(record_type=..., record_id=...) matches DataLineage.record_type as free text, so any of the 24 type strings resolves to a real lineage record.",
+        "App reachability: the frontend only calls the lineage graph with record_type='streams' (pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx), so exposure today requires a direct API call with a known type string -- but those strings are published in the repo and in the OpenAPI surface, and the record UUIDs are the only remaining secret."
+      ],
+      "suggested_fix": "Do not hand-maintain a second registry. Derive the guarded types from the canonical one, keyed by whether the model actually has a project_id, e.g. build LINEAGE_GUARDED_RECORD_TYPES from calc_lineage.RECORD_TYPE_REGISTRY plus {'streams': (Stream, 'stream_id')}, skipping any model whose mapper has no project_id column (CostEstResult / TwoPhaseResult / ProjectCalculationStandardProfile are documented as lacking the RecordMixin columns). Note that the key naming is already inconsistent in the current code -- 'PipingResult' is the ORM class name while 'streams' is the table name -- so normalise on one convention before deriving; note that the frontend and DataLineage.record_type both use the class-name style for calc results and 'streams' for logistics. If the decision is that only the logistics surface is in scope for this batch, flip the default to fail-closed for project-scoped types and record the remaining types in TODOS.md as explicitly unclosed rather than leaving them silently skipped."
+    },
+    {
+      "title": "Review-log row key collides on repeat transitions in same second",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx",
+      "line": 66,
+      "why_it_matters": "The table key is composed from the transition name and the timestamp, but the endpoint returns only (transition, operator, occurred_at, detail) -- no per-row identifier. A stream that is submitted, rejected and submitted again within the same second produces two rows with the same key; React then treats the second row as a duplicate of the first and can drop or mis-render it, so the review trail silently loses an entry. The old tab keyed on the audit row's audit_id, which was unique by construction.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx:66 -- rowKey={(row: ReviewLogItem) => `${row.transition}-${row.occurred_at}`}",
+        "pcs-backend/app/schemas/stream_review_log.py:11-23 -- ReviewLogItem carries only transition / operator / occurred_at / detail; no audit_id, so the composite key is the only option available.",
+        "The endpoint orders by (occurred_at, audit_id) (pcs-backend/app/services/stream_review_log_service.py:70) -- audit_id is unique but is not projected into the response, so the tie-breaker that distinguishes two same-second rows is discarded at the boundary."
+      ],
+      "suggested_fix": "Either expose the audit row id in the response and key on it, or make the key unique by including the index: `rowKey={(row, index) => `${row.transition}-${row.occurred_at}-${index}`}`. The cheaper variant (index) keeps the contract unchanged and is safe because the list is a static, already-sorted snapshot; prefer exposing audit_id if the review trail is ever expected to be paged or re-fetched incrementally."
+    },
+    {
+      "title": "Auto-grant can land on a different principal than the creator",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/user_project_service.py",
+      "line": 269,
+      "why_it_matters": "ensure_user_row falls back to a username lookup and returns that row even when its user_id differs from the requested one -- the docstring explicitly says such legacy rows exist. create_project then grants PROJECT_LEAD using creator.user_id (the returned row's id), not the acting user's id. If the actor's id and the legacy row's id differ, the project is granted to the legacy principal and the creator gets no UserProject row at all -- the exact 'project created but creator cannot get in' failure this change set out to prevent -- and it fails silently: the endpoint returns 201 and the creator only discovers the problem when every logistics endpoint 404s.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/user_project_service.py:269-273 -- existing = (await session.execute(select(User).where(User.username == username))).scalar_one_or_none() / if existing is not None: / return existing  <- the returned row's user_id is not checked against the requested user_id.",
+        "pcs-backend/app/api/v1/projects.py:186-189 -- creator = await ensure_user_row(db, user_id=user.user_id, username=user.username) followed by grant_project_access(..., user_id=creator.user_id, ...) <- the grant follows the returned row, not the actor.",
+        "Reachability caveat (why confidence is 50, not 75): every user-creating path in the repo derives the id with the single helper derive_user_id(username) = uuid5(NAMESPACE_DNS, username) (app/services/token_issuer.py:54-60, app/services/ad_sync.py:118-119, app/services/token_issuer.py:80, and the JWT user_id claim is the same value), so a mismatch requires a hand-edited or legacy-imported users row -- which the ensure_user_row docstring says exists in this estate.",
+        "The same helper is used by the seed script (pcs-backend/scripts/seed_user_project_access.py:82-96), where it derives user_id=derive_user_id(username) and then grants creator.user_id -- so a legacy row would also make the script report success while the named user still gets 404 on every guarded endpoint."
+      ],
+      "suggested_fix": "Make the mismatch loud instead of silent: in ensure_user_row, when the username fallback hits a row whose user_id differs from the requested one, either (a) update that row's user_id to the requested one -- it is derived deterministically from the username, so the legacy value is the wrong one -- or (b) raise a PcsError naming the conflict. If (a) is chosen, note that it mutates a row that the current 'never modify an existing row' rule forbids, so the rule needs an explicit exception for the derived-id mismatch case. At minimum, have create_project log a warning when creator.user_id != user.user_id so the 'creator locked out of their own project' case is diagnosable."
+    }
+  ],
+  "residual_risks": [
+    "Verification-mechanism fidelity (not a finding, a structural risk): strict_client's guard restoration works by rebinding one classmethod (UserProjectService.check_user_project_access) on every request. Any future project-guard implementation that does not route through that accessor (a direct UserProject query, a different service helper, or an inlined existence check) would NOT be restored by strict_client and would silently pass every guard test. The new has_project_access() happens to route through it, so the current guard set is covered, but the harness only pins one accessor.",
+    "The legacy `client` fixture still mocks the project guard to always-True for the whole existing suite. Every pre-existing test that exercises a newly guarded endpoint is vacuous with respect to authorization; only the new strict_client-based files carry real guard assertions. A future endpoint added to streams.py without a strict_client test would ship unguarded-and-untested.",
+    "check_user_project_access ignores the users.status column, so a DISABLED user keeps project access on all newly guarded logistics endpoints. This replicates the pre-existing semantics of check_project_access_or_404, but the logistics surface now depends on that semantics for 20+ endpoints, so the gap is now much wider than before.",
+    "In the batch path, SELECT ... FOR UPDATE on the target stream happens BEFORE the project guard decides to reject the item, so a cross-project caller can briefly take a row lock on another project's stream. The subsequent _release_precheck_transaction() commit releases it immediately, so this is a lock-ordering side channel rather than a durable deadlock, but it means guard-failure items are not lock-free.",
+    "create_stream still takes workspace_id from the request body and never verifies that the workspace belongs to the URL's project (pcs-backend/app/api/v1/streams.py:313). A user with access to project A can attach a stream to project B's workspace. Pre-existing, but the logistics surface now enforces project membership everywhere else, so this is now the one remaining cross-project write path in this module.",
+    "The review-log query uses detail_json->>'transition', which the existing GIN index (jsonb_path_ops) cannot serve, so every call is a full scan of audit_logs. Deliberately deferred by the service docstring (TODO-104); flagged only because the endpoint is now on a user-facing read path rather than an admin-only one.",
+    "The guard path was verified by reading source only; I did not execute the backend test suite or a PostgreSQL lane in this review, so any claim that depends on runtime behaviour (e.g. SQLite vs PG FK enforcement for ensure_user_row) rests on the repository's own documented behaviour rather than on an observed run."
+  ],
+  "testing_gaps": [
+    "No test drives GET /streams/{id}/review-log from a real state transition (submit -> approve/reject through StateMachineService) and asserts the returned rows. The audit fixture hand-writes action='RECORD_TRANSITION', which is exactly the assumption that hides finding 1.",
+    "pcs-frontend/src/mocks/handlers.ts fabricates a PASS_CHECK review-log row that the real backend can never produce, so no frontend test can detect finding 1; a mock built from the OpenAPI schema would still not catch it (the schema does not constrain which action values pair with which transition), so the coverage must live in the backend test.",
+    "The lock-release invariant test (tests/services/test_stream_batch_service.py::test_precheck_lock_is_released_on_the_early_return_paths) only exercises the idempotent-hit early return. The new guard-failure early return added by this diff calls _release_precheck_transaction too, but no test asserts db.in_transaction() is False after it, so dropping that one call would silently reintroduce cross-item row-lock accumulation.",
+    "No test asserts that a cross-project lineage request for a record_type outside {PipingResult, streams} is denied, so the fail-open default behind finding 2 is unpinned in either direction.",
+    "No test covers a create_project flow where the creator's users row is missing (the ensure_user_row path) or where the username fallback resolves to a row with a different user_id, so the 'creator cannot enter the project they just created' outcome in finding 4 would not be detected."
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "title": "CWE-200: /lineage/{type}/{id}/upstream leaks UUID existence (404 vs 200 [])",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 201,
+      "why_it_matters": "The batch's stated security property is that \"no access\" and \"does not exist\" produce byte-identical responses so stream UUIDs cannot be enumerated. On GET /api/v1/lineage/streams/{id}/upstream that property does not hold. The new guard raises HTTPException(404, \"no lineage for record\") when the stream exists but belongs to another project, but returns early (no error) when the stream does not exist at all -- and the upstream endpoint then answers 200 with an empty list because LineageTracker.upstream() yields [] when there is no lineage. An authenticated DESIGNER who holds a grant only for project A can therefore distinguish \"this UUID is a real stream in a project I cannot see\" (404) from \"this UUID does not exist\" (200 []), which is exactly the enumeration oracle the batch set out to close. Before this batch the streams record_type was skipped entirely (200 for both cases), so this diff introduces the divergence on this endpoint; the /graph and /downstream endpoints are unaffected because their \"no lineage\" path already raises the same 404.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:201:        return  # 不存在 → 让 lineage endpoint 自然 404（与「无权」同形）",
+        "pcs-backend/app/api/v1/lineage.py:210:        raise HTTPException(404, \"no lineage for record\")",
+        "pcs-backend/app/api/v1/lineage.py:72:    return [_serialize(c) for c in chain]  # upstream endpoint → 200 + [] when no lineage exists",
+        "pcs-backend/app/services/lineage.py:155-158:    cur = await self.latest(record_type=record_type, record_id=record_id) → None ⇒ chain stays [] (no exception)",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:161-170: the \"逐字相同\" assertion only exercises /graph, so /upstream's divergence is untested"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "In _guard_record_access (pcs-backend/app/api/v1/lineage.py:200-201), replace the silent `return` for a missing record with the same exception used for the no-access case: `if record is None: raise HTTPException(404, \"no lineage for record\")`. That makes all three endpoints answer the identical 404 for both \"missing\" and \"not mine\", while an authorized record that simply has no lineage still returns 200 [] on /upstream (the guard passes, the tracker returns []). Assumption: the frontend StreamLineageTab can tolerate a 404 for a stream with no lineage rows instead of an empty graph -- if it cannot, apply the same 404 only when record_type is in LINEAGE_GUARDED_RECORD_TYPES and add a matching frontend guard. Add a test that asserts GET /lineage/streams/{random_uuid}/upstream and GET /lineage/streams/{foreign_stream_id}/upstream return the same status, code and message (today only /graph is asserted)."
+    },
+    {
+      "title": "CWE-778: review-log filter drops PASS_CHECK/REJECT_CHECK rows",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "The new GET /streams/{id}/review-log endpoint is supposed to show designers the review trail (submit / pass / reject). Its query requires AuditLog.action == \"RECORD_TRANSITION\", but the state machine records the two check decisions under different audit actions: PASS_CHECK is written with AuditAction.APPROVAL_STEP_PASSED and REJECT_CHECK with AuditAction.APPROVAL_STEP_REJECTED (only SUBMIT_FOR_CHECK and MARK_STALE map to RECORD_TRANSITION). The consequence is that the endpoint silently returns only the submit row: the checker's pass/reject decision, its operator and the rejection reason never reach the reader, so the \"校核经过\" the feature was built to expose is missing two thirds of its events. The unit test does not catch this because it fabricates audit rows with action=\"RECORD_TRANSITION\" for every transition, which is not the shape the state machine actually writes.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64:                AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122:    StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123:    StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:474:                action=TRANSITION_AUDIT_ACTION[transition],",
+        "pcs-backend/app/services/stream_service.py:527-532: stream transitions go through StateMachineService.transition(record=stream, transition=transition, ...)",
+        "pcs-backend/app/models/enums.py:361-363: RECORD_TRANSITION = \"RECORD_TRANSITION\" / APPROVAL_STEP_PASSED = \"APPROVAL_STEP_PASSED\" / APPROVAL_STEP_REJECTED = \"APPROVAL_STEP_REJECTED\"",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:88-91:    row = AuditLog(action=\"RECORD_TRANSITION\", ...)  ← test fabricates a shape the state machine never writes"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Stop filtering on a single audit action. In pcs-backend/app/services/stream_review_log_service.py, replace `AuditLog.action == \"RECORD_TRANSITION\"` with `AuditLog.action.in_((\"RECORD_TRANSITION\", \"APPROVAL_STEP_PASSED\", \"APPROVAL_STEP_REJECTED\"))` and keep the existing detail_json->>'transition' IN (SUBMIT_FOR_CHECK, PASS_CHECK, REJECT_CHECK) filter as the authoritative selector (the state machine writes detail_json['transition'] = transition.value for every transition, including PASS/REJECT). Then fix the fixture in tests/api/v1/test_stream_review_log.py so the pass/reject rows carry the real actions, and add an assertion that a PASS_CHECK and a REJECT_CHECK row actually appear in the response."
+    },
+    {
+      "title": "Cross-tenant row lock taken before batch access check",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/stream_batch_service.py",
+      "line": 260,
+      "why_it_matters": "In the batch submit path the project guard runs AFTER the row has already been locked with SELECT ... FOR UPDATE. A DESIGNER with access only to project A can put a project B stream UUID into POST /streams/batch-submit and the service will take a write lock on that foreign stream row before discovering the caller has no access, holding it for the duration of the access check (and, for up to 100 ids per request, on many foreign rows at once). The response is still the indistinguishable \"not found\" failed item, so nothing leaks -- but a user outside the project can transiently block legitimate transitions/updates on another project's stream rows, which is a cross-tenant availability side effect introduced by the guard's placement in this batch.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_batch_service.py:260:        stream = await select_stream_for_update(db, stream_id)",
+        "pcs-backend/app/services/stream_batch_service.py:284-296:    if not await has_project_access(...) → the access check happens only after the lock was taken",
+        "pcs-backend/app/services/stream_batch_service.py:290:            await _release_precheck_transaction(db)  ← the lock is released only afterwards"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Resolve the owning project without locking, check access, then take the lock: before `select_stream_for_update`, do a plain `select(Stream.project_id).where(Stream.stream_id == stream_id)` (non-locking), call has_project_access() on that project_id and return the identical SIM_STREAM_NOT_FOUND failed item when access is denied; only then call select_stream_for_update() for the actual work. Assumption: a stream's project_id never changes after creation (it is set at creation and not mutated by the stream update path), so the unlocked read cannot be used to smuggle a project switch; re-check access after locking if that invariant ever changes."
+    },
+    {
+      "title": "ensure_user_row may grant to an identity other than the token's",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/user_project_service.py",
+      "line": 273,
+      "why_it_matters": "ensure_user_row() falls back to looking the user up by username and, on a hit, returns that row even when its user_id differs from the user_id the caller asked for. Callers then use creator.user_id for the grant, so the UserProject row (and the granted_by attribution written into the audit trail) is keyed on the row's id, not on the id carried by the authenticated token. In every path that currently populates users (token_issuer.issue_tokens and the seed script) the id is derive_user_id(username), so the two agree and the fallback never diverges today -- but the moment any other writer populates the table with a different id (an AD/LDAP sync keyed on another id scheme), a project grant is created against an identity the JWT never carries: the creator silently gets 404 on the project they just created, and the grant plus its granted_by audit attribution name a different principal. The helper is the single choke point for the new grants (projects.py create_project, the seed script, the test grant fixture), so the divergence is silent everywhere.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/user_project_service.py:272-273:    if existing is not None:\n        return existing   ← returns the username-matched row regardless of its user_id",
+        "pcs-backend/app/services/user_project_service.py:265-267:    row = await session.get(User, user_id)\n    if row is not None:\n        return row",
+        "pcs-backend/app/api/v1/projects.py (create_project, added in this batch):    creator = await ensure_user_row(db, user_id=user.user_id, username=user.username) followed by grant_project_access(user_id=creator.user_id, ...)",
+        "pcs-backend/app/services/token_issuer.py:54-60: derive_user_id = uuid5(NAMESPACE_DNS, username) — the only current writer of users.user_id"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the mismatch explicit instead of silent: in ensure_user_row, when the username lookup finds a row whose user_id != the requested user_id, raise a PcsError (status 409/500, code e.g. USER_ID_MISMATCH) instead of returning it, so the grant is never written against an identity the token does not carry; or, if the username row is authoritative, have callers key the grant on the token's user_id (the value the ACL guard compares against) rather than on creator.user_id. Assumption: the users table is populated exclusively through derive_user_id(username) today, so either variant is behaviour-preserving for the current data; the choice of which id is authoritative is a policy decision (human)."
+    }
+  ],
+  "residual_risks": [
+    "Lineage guard is an opt-in registry (LINEAGE_GUARDED_RECORD_TYPES): any record_type not registered is skipped entirely (lineage.py:190-192). Today only PipingResult writes data_lineage rows (cia_engine.CIA_TRACKED_TYPES = ('PipingResult',)), so no live leak, but the first new project-scoped record type added to data_lineage is silently unguarded. The docstring acknowledges this ('新增记录类型必须登记') — it is a convention, not an enforced invariant.",
+    "The default pytest `client` fixture monkeypatches UserProjectService.check_user_project_access to always return True, so the ordinary suite cannot detect a missing project guard on any endpoint; only the new `strict_client` fixture exercises the real guard. Nothing enforces that guard tests use strict_client, so a future endpoint tested with `client` can ship unguarded and stay green.",
+    "The seed script (pcs-backend/scripts/seed_user_project_access.py) prints raw exception text to stderr (line 170). A malformed-DATABASE_URL failure surfaces in SQLAlchemy as 'Could not parse SQLAlchemy URL from string ...', which can put the DB password into CI logs. Low impact (local ops script, needs DB credentials to run), but the print should be restricted to a safe message.",
+    "ensure_user_row creates rows with roles=[] and status=ACTIVE; the real login path (token_issuer.issue_tokens) only writes roles=[role] when it creates the row, and never updates an existing one. A user provisioned by the seed script before their first AD login therefore keeps users.roles == [] permanently, and notification_recipients.py (which treats users.roles as an authoritative input) will stop selecting them.",
+    "Mock login (/auth/mock-login) issues a token with an arbitrary role claim for any of four usernames; it is gated by settings.is_production (mock_auth.py:60-66) and the router is not mounted in production, so the ACL model trusting the JWT role claim is acceptable — but this gate is the only thing standing between that trust model and a full auth bypass, so it should stay covered by a production-config assertion.",
+    "callsite completeness: the reachability checks behind these findings used text search (grep/read) plus direct reading of the guard helpers; no symbol-level (LSP) or AST search was available in this harness, so an undiscovered call path into UserProjectService.check_user_project_access with a bypassed guard cannot be excluded."
+  ],
+  "testing_gaps": [
+    "No test asserts that GET /lineage/streams/{random_uuid}/upstream is indistinguishable from the cross-project case; the '逐字相同' test (tests/api/v1/test_lineage_guard.py:153-170) only exercises /graph, while the parametrized 404 test only covers the cross-project side of /upstream.",
+    "No test drives the review-log endpoint with audit rows produced by the real state machine; tests/api/v1/test_stream_review_log.py fabricates action='RECORD_TRANSITION' rows for every transition, so the PASS_CHECK/REJECT_CHECK action mismatch is invisible to the suite.",
+    "No test asserts that the batch endpoint leaves foreign-project rows unlocked (or at least does not block their writers) — the access check currently runs after SELECT ... FOR UPDATE.",
+    "No test covers ensure_user_row when a username already exists with a different user_id (the divergent-identity path that creates the grant/attribution mismatch).",
+    "No test asserts that the state-transition endpoints return the guard's 404 rather than the composition-gate 422 for a cross-project stream on all six transitions; only the single-stream path shape is asserted today."
+  ]
+}

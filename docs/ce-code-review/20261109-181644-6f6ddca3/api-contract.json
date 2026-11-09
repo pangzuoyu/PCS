@@ -1,0 +1,107 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "review-log 端点永不返回 PASS_CHECK / REJECT_CHECK",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "line": 64,
+      "why_it_matters": "设计师打开物流详情的「校核记录」Tab，在真后端上**永远只会看到「提交校对」** —— 校对通过（PASS_CHECK）与校对驳回（REJECT_CHECK，连同驳回理由 `detail`）一条都不会出现。原因是端点按 `AuditLog.action == \"RECORD_TRANSITION\"` 过滤审计行，而状态机给这两条转移写的 action 是 `APPROVAL_STEP_PASSED` / `APPROVAL_STEP_REJECTED`（`state_machine.py:122-123`），只有 `SUBMIT_FOR_CHECK` 才是 `RECORD_TRANSITION`（`:121`）⇒ 三个承诺值里有两个在生产上不可达，违反本批 SPEC V2.11「只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条」的公开契约与 OpenAPI 描述。单测之所以绿，是因为它手搓了 `action=\"RECORD_TRANSITION\"` 的假审计行，而不是真跑一次 approve/reject ⇒ writer/reader 之间的口径漂移正好被测试遮住。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "把 service 的 action 过滤改成三个校对转移实际写入的 action 集合：从 `app/services/state_machine.py::TRANSITION_AUDIT_ACTION` 派生（`{TRANSITION_AUDIT_ACTION[t] for t in (SUBMIT_FOR_CHECK, PASS_CHECK, REJECT_CHECK)}`），或干脆去掉 action 条件、只靠 `resource_type == 'streams'` + `resource_id` + `detail_json.transition IN REVIEW_TRANSITIONS` 过滤（`detail_json.transition` 由状态机对所有转移都写）。同时把 `tests/api/v1/test_stream_review_log.py` 的 `_audit` 改成按真实 action 造行（或直接走 `POST /streams/{id}/approve` / `/reject` 后再读端点），否则测试继续给假绿。",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/stream_review_log_service.py:64 --                 AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/state_machine.py:122 --     StateTransition.PASS_CHECK: AuditAction.APPROVAL_STEP_PASSED,",
+        "pcs-backend/app/services/state_machine.py:123 --     StateTransition.REJECT_CHECK: AuditAction.APPROVAL_STEP_REJECTED,",
+        "pcs-backend/app/services/state_machine.py:121 --     StateTransition.SUBMIT_FOR_CHECK: AuditAction.RECORD_TRANSITION,",
+        "pcs-backend/app/services/state_machine.py:473 --         await self._write_audit(",
+        "pcs-backend/app/services/state_machine.py:474 --             action=TRANSITION_AUDIT_ACTION[transition],",
+        "pcs-backend/tests/api/v1/test_stream_review_log.py:95 --     action=\"RECORD_TRANSITION\",",
+        "pcs-backend/app/schemas/stream_review_log.py:17 --         description=\"状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK\"",
+        "docs/PCS-UI-SPEC.md:2446 -- V2.11 2026-11-09 P9B-4 紧急批次（物流面项目守卫 + review-log）落地修订：①§7.7.2「校核记录」Tab 的数据源改写 —— 从 `GET /audit-logs`（限 SYSTEM_ADMIN ⇒ 非管理员「无权查看」）改成 **`GET /streams/{id}/review-log`**（**项目守卫**端点 ⇒ 设计师能读到**自己物流**的校核经过）；**过滤搬到后端**（只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条 ⇒ 前端**不得**再过滤一遍）"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "血缘 upstream：跨项目 404 vs 不存在 200[]",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 201,
+      "why_it_matters": "`GET /lineage/streams/{id}/upstream` 对**不存在的 UUID** 返回 `200 + []`，对**存在但跨项目**的物流返回 `404 no lineage for record` ⇒ 两者响应形态不同 ⇒ 攻击者能靠「200 空数组 vs 404」枚举出某个 UUID 是否存在，正好推翻本批 SPEC V2.11 §5.4 承诺的「无权与不存在必须逐字同形」。同一个家族里 `graph` / `downstream` 已经做到同形（记录不存在时它们自己抛 `no lineage for record`），只有 `upstream` 漏了这条分支 —— 也就是守卫注释「不存在 → 让 lineage endpoint 自然 404」所假设的那个自然 404 并不存在。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "让 upstream 与 graph/downstream 同形：在 `upstream` 端点里，`tracker.latest()` 为 None 时也抛 `HTTPException(404, \"no lineage for record\")`（或把 `_guard_record_access` 里「记录不存在」的 `return` 改成与无权同形的 404 —— 注意该 helper 现在的注释断言「让端点自然 404」）。同时把 `tests/api/v1/test_lineage_guard.py::test_lineage_cross_project_looks_identical_to_missing` 的同形断言从只测 `/graph` 扩到 `/graph|/upstream|/downstream` 三个 suffix（现有一个 `@pytest.mark.parametrize(\"suffix\", [\"/graph\", \"/upstream\", \"/downstream\"])` 只断言跨项目是 404，没断言「不存在」那一侧同形）。",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:201 --     return  # 不存在 → 让 lineage endpoint 自然 404（与「无权」同形）",
+        "pcs-backend/app/api/v1/lineage.py:210 --         raise HTTPException(404, \"no lineage for record\")",
+        "pcs-backend/app/api/v1/lineage.py:102 --         raise HTTPException(404, \"no lineage for record\")",
+        "pcs-backend/app/services/lineage.py:155 --         cur = await self.latest(record_type=record_type, record_id=record_id)",
+        "pcs-backend/app/services/lineage.py:157 --             if cur is None or cur.parent_lineage_id is None:",
+        "pcs-backend/app/services/lineage.py:170 --     return chain",
+        "pcs-backend/app/api/v1/lineage.py:72 --     return [_serialize(c) for c in chain]",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:153 -- async def test_lineage_cross_project_looks_identical_to_missing(",
+        "docs/PCS-UI-SPEC.md:2446 -- ②**§5.4 物流引用门禁** —— 补上**项目级访问守卫**后，「无权」与「不存在」必须**逐字同形**（否则可枚举 UUID）⇒ 物流的 20 个端点/路径统一按 404 处理。"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "transition 契约是裸 string，三值词表没进 OpenAPI",
+      "severity": "P2",
+      "file": "pcs-backend/app/schemas/stream_review_log.py",
+      "line": 16,
+      "why_it_matters": "OpenAPI 里 `ReviewLogItem.transition` 只是 `{type: string}` + 一句描述（「状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK」），**没有 enum** ⇒ 契约派生的 TS 类型是 `string` ⇒ 前端的映射表只能写成 `Record<string, string>`，没有穷尽性检查；后端哪天写出一个拼错的转移值（\"PASS_CHECK \"、\"PASS-CHECK\"），类型检查与契约检查都不会红，页面只会渲染出一个裸英文/空白单元格。同时词表本体在 service 里另有一份（`REVIEW_TRANSITIONS`），schema 与 service 两处各写一遍，迟早漂移 —— 正是本批注释反复强调要避免的「两处口径」。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "在 `app/schemas/stream_review_log.py` 里定义 `ReviewTransition = Literal[\"SUBMIT_FOR_CHECK\", \"PASS_CHECK\", \"REJECT_CHECK\"]`（或 `StrEnum`）并把 `transition` 标注成该类型 ⇒ OpenAPI 带 enum、前端 `components['schemas']['ReviewLogItem']['transition']` 变成字面量联合；随后让 `app/services/stream_review_log_service.py` 的 `REVIEW_TRANSITIONS` 从该 Literal 派生（service 已经 import schema，无循环依赖）⇒ 词表只剩一份。",
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/schemas/stream_review_log.py:16 --     transition: str = Field(",
+        "pcs-backend/app/schemas/stream_review_log.py:17 --         description=\"状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK\"",
+        "pcs-backend/app/services/stream_review_log_service.py:38 -- REVIEW_TRANSITIONS: tuple[str, ...] = (",
+        "pcs-backend/app/services/stream_review_log_service.py:81 --         transition=str(detail.get(\"transition\") or \"\"),",
+        "pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx:22 -- const TRANSITION_LABEL: Record<string, string> = {",
+        "pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx:75 --                 render: (v: string) => TRANSITION_LABEL[v] ?? v,"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "review-log 的 MSW mock 恒返两条行，遮住 404 与空态",
+      "severity": "P2",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "line": 279,
+      "why_it_matters": "dev/MSW 模式下，**任何** `stream_id` 的 review-log 都返回固定的两行（SUBMIT_FOR_CHECK + PASS_CHECK）⇒ 「（无校核记录）」空态和 404 错误条在 dev 里永远走不到，本批最核心的两条语义（跨项目 404 / 无记录 200+[]）在浏览器 QA 里不可见；而且 mock 里的 `PASS_CHECK` 行真后端根本产不出来（见第一条发现）⇒ 这个 mock 不只是不完整，它把 writer/reader 的口径缺陷一起盖住了。该文件自己的 doctrine（「mock 是契约的**替身**」「mock 与真端点**必须同形**」，bug-189 / TODO-065）也要求它跟随真端点行为；同文件的 `SEED_AUDIT_LOG_ITEMS` 已经有同题材的转移审计行，mock 却另抄了一份而不复用。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "让 mock 从 `SEED_AUDIT_LOG_ITEMS` 派生：按 `resource_type === 'streams' && resource_id === stream_id && ['SUBMIT_FOR_CHECK','PASS_CHECK','REJECT_CHECK'].includes(detail_json.transition)` 过滤并映射成 `ReviewLogItem`（`operator` = `user_id`，`occurred_at` = `occurred_at`，`detail` = `detail_json.reason`），命中不到就返回 `[]`；再补一条带 reason 的 `REJECT_CHECK` 行以便 `detail` 非空这条路径也在 dev 可测（同时把 handler 的响应体标成契约类型 `components['schemas']['ReviewLogItem'][]`，与同文件其它 handler 的做法一致）。",
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/mocks/handlers.ts:279 --   http.get(\"/api/v1/streams/:stream_id/review-log\", ({ request }) => {",
+        "pcs-frontend/src/mocks/handlers.ts:289 --         transition: \"PASS_CHECK\",",
+        "pcs-frontend/src/mocks/handlers.ts:281 --     return HttpResponse.json([",
+        "pcs-frontend/src/mocks/handlers.ts:143 -- const SEED_AUDIT_LOG_ITEMS = [",
+        "pcs-frontend/src/mocks/handlers.ts:153 --     detail_json: { transition: 'SUBMIT_FOR_CHECK' },",
+        "pcs-backend/app/services/stream_review_log_service.py:64 --                 AuditLog.action == \"RECORD_TRANSITION\",",
+        "pcs-backend/app/services/stream_review_log_service.py:73 --     return [_to_item(row) for row in rows]"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "本会话没有 grep/bash 工具，无法按关键字定位，因此**未能独立核对四个生成产物**（pcs-backend/docs/openapi.json、pcs-backend/docs/openapi-baseline.json、pcs-frontend/openapi.snapshot.json、pcs-frontend/src/types/api.d.ts）是否彼此一致、也未能核对 baseline 滚动吸收了什么。结论只基于源模型（pcs-backend/app/schemas/stream_review_log.py）与前端确实引用 `components['schemas']['ReviewLogItem']`（api.d.ts 在本次改动清单里 ⇒ 已重新生成）；「裸载荷数 ≤ 71」与 G-08 `--check-baseline` 通过来自 dispatch 上下文，未由我复跑。",
+    "`_guard_record_access` 对**未登记**的 record_type 直接跳过守卫（pcs-backend/app/api/v1/lineage.py:191-192）⇒ 未登记类型的血缘仍然没有项目隔离（代码注释里已自陈「新登记记录类型必须登记，否则又是同一个洞」）。",
+    "`operator` 语义上就是审计里的 user_id（schema 描述已写明），但前端「操作人」列直接渲染这个 UUID ⇒ 页面上是一串 UUID 而非人名；契约没骗人，但可读性有落差。",
+    "前端 rowKey = `${row.transition}-${row.occurred_at}`（StreamReviewLogTab.tsx:66）⇒ 同一 transition 且同一时间戳的两条记录会撞 React key（后端排序还用了 audit_id，但响应里没有暴露 audit_id 可用）。"
+  ],
+  "testing_gaps": [
+    "review-log 的全部单测都用手搓的审计行（tests/api/v1/test_stream_review_log.py:94-106 `_audit` 固定 `action=\"RECORD_TRANSITION\"`）⇒ 没有任何一条测试跑「真实 approve/reject 转移 ⇒ 端点能读到」⇒ writer/reader 的 action 口径漂移抓不到（这正是第一条发现能全绿通过的原因）。",
+    "血缘守卫的「逐字同形」断言只覆盖 /graph（tests/api/v1/test_lineage_guard.py:153-170），三个 suffix 的 @parametrize（:133）只断言「跨项目 ⇒ 404」，没有断言「不存在」那一侧同形 ⇒ upstream 的 200[] 漏网。",
+    "MSW 侧没有 review-log handler 的契约级校验：同文件把 buildNotificationList / buildBatchSubmitResponse 导出成「可被 tests/mocks/handlers.test.ts 用 ajv 对契约校验」的构造器（handlers.ts:742-744、:753-754），而新的 review-log handler 是内联字面量、未标注契约类型 ⇒ 形状漂移不会被 ajv 抓到。"
+  ]
+}

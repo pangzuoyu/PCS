@@ -1,0 +1,13 @@
+audit rows written (production action values):
+   action=RECORD_TRANSITION        transition=SUBMIT_FOR_CHECK
+   action=APPROVAL_STEP_PASSED     transition=PASS_CHECK
+   action=APPROVAL_STEP_REJECTED   transition=REJECT_CHECK
+   action=RECORD_TRANSITION        transition=MARK_STALE
+
+list_review_log returned 1 item(s):
+   SUBMIT_FOR_CHECK  detail=组成超差
+
+expected ['PASS_CHECK', 'REJECT_CHECK', 'SUBMIT_FOR_CHECK']
+got      ['SUBMIT_FOR_CHECK']
+MISSING   ['PASS_CHECK', 'REJECT_CHECK']
+VERDICT: BUG REPRODUCED
