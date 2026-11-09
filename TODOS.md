@@ -2246,7 +2246,7 @@ CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据�
 ⇒ 守卫测试（**新增**）：mixin 上的每一列，要么在跳过集里、要么在显式放行名单
 里 ⇒ **忘了**加就**测试变红**。
 
-## TODO-104: 校核记录的后端过滤 🟡
+## ✅ TODO-104: 已闭环（2026-11-09 · P9B-4 紧急批次）
 
 **现状**：`GET /audit-logs?...&action=RECORD_TRANSITION` 返回该物流的全部状态转移，
 前端按 `detail_json.transition` 过滤出校核相关的三条。
@@ -2259,6 +2259,15 @@ CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据�
 `(detail_json->>'transition')`。
 
 **归属：** P9B-4 或独立技术债。
+
+**✅ 已闭环（2026-11-09 · P9B-4 紧急批次 T6）**：**后端过滤**已并入
+`GET /streams/{id}/review-log`（只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK
+三条 ⇒ 前端**不再**自己过滤）。
+⚠️ **索引部分仍延后** —— 准确表述是「**已有 GIN 索引覆盖不到本查询的写法**」：
+表上 `ix_audit_logs_detail_json_gin` 是 `jsonb_path_ops` ⇒ 只支持 `@>` / `@?` / `@@`
+⇒ 本查询用 `->>` ⇒ **用不上它**；而 `@>` 在**测试库 SQLite 上不可用**
+（`unrecognized token: "@"`）⇒ 统一查询只能用 `->>` ⇒ 真要优化得**另加**表达式索引。
+**触发条件不变**：生产出现性能问题，或该类行数 > 10 万。
 
 ## TODO-105: `streams.source`（4 值 · 录入通道）与 `streams.source_type`（13 值 · 产出方式）长期是否合并 🟡
 
@@ -2378,7 +2387,7 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 
 **归属**：下一批（契约面统一收口时一并做 · 与 TODO-110 同族）。
 
-## TODO-112: 物流详情「校核记录」Tab 对**非 SYSTEM_ADMIN 不可见** 🟡
+## ✅ TODO-112: 已闭环（2026-11-09 · P9B-4 紧急批次）
 
 **现状**（2026-11-03 实测）：`GET /audit-logs` **限 SYSTEM_ADMIN**
 （`audit_logs` 表**没有** `project_id` ⇒ 端点无法按项目守卫 ⇒ 放开就等于
@@ -2394,7 +2403,12 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 
 **归属**：P9B-4 或独立技术债（**不要**靠放开 `/audit-logs` 解决）。
 
-## TODO-113: `GET /streams/{id}`（物流详情）**没有项目守卫** 🟡
+**✅ 已闭环（2026-11-09 · P9B-4 紧急批次 T6）**：新增
+`GET /streams/{id}/review-log`（**项目守卫**端点 + 具名 schema `ReviewLogItem`）⇒
+DESIGNER 能读到**自己物流**的校核经过。前端 Tab 改调它，**删掉**前端那一套过滤。
+⚠️ **裁决条件 3 守住**：只做「读 review-log」—— 无导出 / 无管理员视角 / 无时间筛选 / 无分页。
+
+## ✅ TODO-113: 已闭环（2026-11-09 · P9B-4 紧急批次）
 
 **现状**（2026-11-03 实测 · P9B-3 评审顺带发现 · **非本批引入**，`8b6d9ef` 已如此）：
 `GET /api/v1/streams/{stream_id}` 只做 `require_roles(user, "DESIGNER", …)`，
@@ -2408,7 +2422,14 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 
 **归属**：独立技术债（**不要**在 P9B-3b 里顺手改 —— 那是批量端点，不是权限面）。
 
-## TODO-114: `GET /lineage/{record_type}/{record_id}/graph` 对 `streams` **跳过访问校验** 🟡
+**✅ 已闭环（2026-11-09 · P9B-4 紧急批次 T2）**：`GET /api/v1/streams/{id}`
+等 10 个物流读/写端点全部补上项目守卫 ⇒ 跨项目一律 **404**，且**与「不存在」
+逐字同形**（`SIM_STREAM_NOT_FOUND`）⇒ 枚举不出某个 UUID 是否存在。
+⚠️ 守卫用**新**的 service 层 `has_project_access()`（只回 bool）而不是
+`check_record_access_or_404` —— 后者的 `"Project not found"` 与「不存在」的
+信封**不同** ⇒ 可枚举。
+
+## ✅ TODO-114: 已闭环（2026-11-09 · P9B-4 紧急批次）
 
 **现状**（2026-11-03 实测 · P9B-3 评审顺带发现 · **非本批引入**）：
 `app/api/v1/lineage.py::_guard_record_access` 里
@@ -2422,6 +2443,13 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 与 TODO-113 一并收口。
 
 **归属**：独立技术债（与 TODO-113 同批做更省事）。
+
+**✅ 已闭环（2026-11-09 · P9B-4 紧急批次 T5）**：`_guard_record_access`
+扩成**记录类型注册表**（`LINEAGE_GUARDED_RECORD_TYPES`：记录类型 → (模型, 主键列名)）⇒
+`streams` 登记进去 ⇒ 不再跳过。
+⚠️ 跨项目 ⇒ **与「无血缘」逐字同形**的 404（`no lineage for record`）—— 守卫**存在之前**
+`streams` 整个跳过 ⇒ 两种情况都是这句 ⇒ **不可枚举**；改抛别的 message 反而会**引入**
+枚举向量。
 
 ## TODO-115: 多数物流在 `data_lineage` 里**没有行** ⇒ 血缘 Tab 显示 404 报错 🟢
 
@@ -2438,7 +2466,7 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 **归属**：下一批（血缘 Tab 收口时一并做）。
 
 
-## TODO-118: streams **写面**的项目授权缺失（含本批的批次端点） 🔴
+## ✅ TODO-118: 已闭环（2026-11-09 · P9B-4 紧急批次）
 
 **现状**（2026-11-03 实测 · P9B-3b D3 决策 · **非本批引入**）：
 `POST /streams/{id}/submit` / `approve` / `reject` / `initiate-change` /
@@ -2469,6 +2497,14 @@ undefined」的隐性缺陷）⇒ 之后删掉 `StreamListItem` 与 `listByProje
 **触发条件**：任何一个真实越权事件发生，或访问控制审计要求。
 **归属**：独立批次（**不是** P9B-3b）。
 **相关**：TODO-113（读面）· TODO-114（血缘图的同类缺口）· P9B-3b 计划 D3 决策。
+
+**✅ 已闭环（2026-11-09 · P9B-4 紧急批次 T2/T3/T4）**：
+6 个状态转移端点（submit / approve / reject / initiate-change / pass-change /
+mark-stale）+ 批次端点（`POST /streams/batch-submit`）全部补上项目守卫。
+⚠️ **守卫先于组成门禁**：跨项目 submit ⇒ **404**（不是 422「组成合计 87.3%」）
+—— 那种 422 同时泄露「存在」与「组成数据」。
+⚠️ 批次端点的跨项目条目按「**不存在**」处理（`reason=SIM_STREAM_NOT_FOUND`）
+⇒ 合法条目**照常成功**（D2 部分成功语义不受影响）。
 
 ## TODO-116: 批量「只重试失败项」按钮 🟡
 
@@ -2701,3 +2737,68 @@ select_stream_for_update()`（物流专用），但仓里还有别的记录型�
 ⚠️ **TODO-121 的棘轮也提醒了一件事**：允许集必须包含**手写类型**的字段
 （`types/pipe.ts` 的 `seq` / 页面本地的 `CompositionRow.component` 等）
 ⇒ 否则会把**合法**的 rowKey 误报 ⇒ 误报的棘轮 ⇒ 没人敢用 ⇒ 很快被绕过。
+
+---
+
+## TODO-128: 全测试迁移到 `strict_client` —— 默认 client **测不到守卫缺陷** 🟡
+
+**现状**（2026-11-09 · P9B-4 紧急批次发现）：`tests/conftest.py` 的 `client`
+fixture 把 `UserProjectService.check_user_project_access` **mock 成永远 True**
+⇒ 任何「端点缺项目守卫」的缺陷在它上面**一个都测不出来**。
+
+⇒ 本批新增了 `strict_client`（**不** mock 守卫）+ `grant_project` fixture，
+但**只**新写的守卫测试在用 ⇒ 其余测试**仍然**用默认 `client` ⇒
+**其余模块若还有守卫缺口，照样测不出来**。
+
+⚠️ **为什么本批不迁**：裁决「新旧并存」⇒ 「全测试迁移」登记为**独立债项**，
+不拖住本批。
+
+**方案**：`client` 逐步改名 `permissive_client`（语义更准），默认改成严格；
+需要越权的测试显式请求 permissive 那个。
+
+**触发条件**：下一批要审计**物流面之外**的模块守卫时（那时才会大面积撞上）。
+
+## TODO-129: 物流面**之外**的模块守卫覆盖审计 🟡
+
+**现状**（2026-11-09 · P9B-4 紧急批次只扫了物流面）：
+本批**只**审了 `streams.py` / `stream_batch.py` / `lineage.py`。
+其它模块**未审**（已知的候选：`config.py` 12 端点、`report_builder.py` 9 端点、
+`psychro.py` 13 端点……）⇒ **不能**据此认为它们没问题。
+
+⚠️ 与 TODO-128 是一对：**没有 strict_client 就测不出**（TODO-128），
+**没有审计就不知道有多少缺口**（本条）⇒ 一起做才有效。
+
+**归属**：独立技术债。
+
+## TODO-130: `user_project_service.py` 的既有 ruff 债（F821 / UP035 / UP037） 🟢
+
+**现状**（2026-11-09 顺带发现 · **非本批引入**）：
+`uv run ruff check app/services/user_project_service.py` 报 3 条 ——
+`F821 Undefined name 'datetime'`（`_now()` 的返回标注 `"datetime.datetime"` 而
+`datetime` 未导入）、`UP035`（`Sequence` 应从 `collections.abc` 导入）、
+`UP037`（多余的引号）。
+
+⚠️ 本批**只**在同文件追加了新函数 ⇒ 按「不顺手改无关代码」的纪律**没动**它们。
+
+**归属**：独立技术债（顺手可修，但别混进功能批）。
+
+## TODO-131: 部署前置 —— 各环境必须先 seed 授权行，否则**全站物流 404** 🔴
+
+**现状**（2026-11-09 · P9B-4 紧急批次 T0 的结论）：补上物流面项目守卫后，
+**任何没有 `UserProject` 授权行的用户访问任何物流端点都 404**。
+
+⇒ 仓里**没有一条能持续产生授权行的路径**（除了 SYSTEM_ADMIN only、
+前端无页面的 `POST /user-projects/grant`）⇒ 本批交付了两条：
+① `POST /projects` ⇒ **自动授权创建者**；② `scripts/seed_user_project_access.py`
+（幂等，**用户不在 `users` 表时建行**）。
+
+⚠️ **mock 登录不落 `users` 表**（ADR-0046 §③b）⇒ dev 环境的 alice / bob /
+carol / dan **必须靠 seed 脚本**拿到授权 ⇒ **上线前每个环境跑一次**：
+
+```bash
+cd pcs-backend
+uv run python scripts/seed_user_project_access.py --username alice --project <该环境的项目 UUID>
+```
+
+⚠️ **生产库的用户必须先在 `users` 表里存在**（FK 约束）⇒ 走真实登录路径即可。
+

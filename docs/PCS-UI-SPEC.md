@@ -1356,16 +1356,20 @@ Tab：
 
 血缘：LineageGraph 局部视图。
 
-校核记录：数据来源 = `GET /audit-logs?resource_type=streams&resource_id=<id>`
-⇒ 取该物流的**状态转移**审计行，按 `detail_json.transition` 过滤出
-校对相关的三条（`SUBMIT_FOR_CHECK` / `PASS_CHECK` / `REJECT_CHECK`）
-⇒ **其它 transition 不显示**。
-⚠️ `detail_json` 在契约里是 `object`（任意）⇒ 前端**防御性**读
-（`detail_json?.transition`），不得假设它存在。
-⚠️ **该端点限 SYSTEM_ADMIN**（`audit_logs` 表**没有** `project_id` ⇒ 无法按
-项目守卫）⇒ 非管理员看到的是「无权查看」，**不是**空白。
-⚠️ 过滤目前落在**前端**（端点把该物流的全部状态转移都返回）⇒ 技术债见
-TODO-104。
+校核记录：数据来源 = `GET /streams/{id}/review-log`（**项目守卫**端点）
+⇒ **后端已过滤**：只返回校对相关的三条（`SUBMIT_FOR_CHECK` / `PASS_CHECK` /
+`REJECT_CHECK`）⇒ **其它 transition 不显示**。
+⚠️ **过滤在后端**（最小暴露原则）⇒ 前端**不得**再过滤一遍（两处过滤 = 两个
+口径 = 迟早漂移）⇒ 前端**没有**自己的 `REVIEW_TRANSITIONS`。
+⚠️ **无记录 ⇒ 200 + `[]`**（不是 404）—— 端点存在，只是没记录。
+⚠️ **跨项目 ⇒ 404**（与「不存在」**逐字同形**：`SIM_STREAM_NOT_FOUND`）。
+⚠️ 响应是**具名 schema** `ReviewLogItem`（`transition` / `operator` /
+`occurred_at` / `detail`）⇒ 前端类型**契约派生**。
+⚠️ **不再用 `GET /audit-logs`**：那个端点限 SYSTEM_ADMIN（`audit_logs` 表**没有**
+`project_id` ⇒ 无法按项目守卫）⇒ 设计师看不到自己物流的校核经过。
+⚠️ **不设索引**（TODO-104）：表上已有的 GIN 索引（`jsonb_path_ops`）**覆盖不到**
+本查询的写法（`->>`）⇒ 加表达式索引是**投机性优化** ⇒ 等生产出现性能问题
+（或该类行数 > 10 万）再补。
 
 7.7.3 导入向导
 步骤：
@@ -2439,6 +2443,7 @@ V2.7	2026-11-03	P9B-3 §7.7.1 物流列表落地修订：①**「物流号」列
 V2.8	2026-11-03	P9B-3 §7.7.3「手工」分支落地修订：①**§7.7.1 工具栏「新建物流」⏳ → ✅**（手动创建向导已落地：`/sim/streams/new`，**独立页面**，不塞进导入向导）；②**§7.7.3 的「手工」分支步骤口径确认落地**（基本信息 → 组成 → 状态点 → 校验 → 写入 DRAFT → 物性估算 → 提交校对；**顺序固定**为 校验 → 写入 → 估算 → 提交；**物性估算失败只提示、不阻塞提交校对**；**校验有红项 ⇒「写入 DRAFT」按钮禁用**）；③「来源」在向导里**不暴露**（手工新建 ⇒ 来源固定 `MANUAL`，由后端 `source` 缺省值兜住）；④**写入成功后留在向导**（后面还有估算 / 提交两步）⇒ 跳回物流列表发生在**提交校对成功**之后。	Claude Code
 V2.9	2026-11-03	P9B-3 §7.7.2 物流详情落地修订：①**7 个 Tab 全部落地**（基本信息 / 组成 / 物性 / 状态点 / 设备连接 / 血缘 / 校核记录）⇒ 详情页改成 **Tab 宿主**，内容下沉到 7 个 Tab 组件（每个 ≤ 150 行）；②**「组成」Tab 底部合计校验**（100±0.5%，与后端送审门禁**同口径**：值域是 0~1 的小数 ⇒ `|合计 − 1| ≤ 0.005`；`null` 跳过 / `{}` 标红；**非数值组分不计入合计**并标出）；③**「校核记录」的数据源限 SYSTEM_ADMIN**（`audit_logs` 无 `project_id` ⇒ 无法按项目守卫）⇒ 非管理员看到「无权查看」而不是空白；④「设备连接」只显示**上游**（物流自身字段）⇒ 下游看「血缘」Tab；⑤「血缘」Tab 如实列出后端返回的 root/upstream/downstream（**不**套前端合成的 `{center,nodes,edges}` 形状）。	Claude Code
 V2.10	2026-11-03	P9B-3b §7.7.1 批量「提交校对」落地修订：①**工具栏「批量提交校对」⏳ → ✅**（`POST /streams/batch-submit`，**207 Multi-Status**：成功与失败**分两张清单**；⚠️ 207 是 2xx ⇒ 客户端**不会**自动报错 ⇒ 必须自己看 `failed`；**部分成功** —— 一条失败**不回滚**其它条）；②**幂等**（批次内按 id 去重；已 `IN_APPROVAL` 记**成功** + `note=already_in_approval`，**不重复写审计**）；③**上限**取系统参数 `stream.batch_submit_limit`（默认 100，超出 ⇒ **422** `SIM_STREAM_BATCH_LIMIT_EXCEEDED`，整批拒）；④**审计 N+1**（每条真正转移 1 条 `RECORD_TRANSITION` + 批次 1 条 `STREAM_BATCH_SUBMITTED`）；⑤**预演** `dry_run=true`（不改状态、**不写任何审计**，只返回预判结果）。	Claude Code
+V2.11	2026-11-09	P9B-4 紧急批次（物流面项目守卫 + review-log）落地修订：①**§7.7.2「校核记录」Tab 的数据源改写** —— 从 `GET /audit-logs`（限 SYSTEM_ADMIN ⇒ 非管理员「无权查看」）改成 **`GET /streams/{id}/review-log`**（**项目守卫**端点 ⇒ 设计师能读到**自己物流**的校核经过）；**过滤搬到后端**（只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条 ⇒ 前端**不得**再过滤一遍）；响应是**具名 schema** `ReviewLogItem`；**无记录 ⇒ 200 + []**；**跨项目 ⇒ 404**（与「不存在」逐字同形）；②**§5.4 物流引用门禁** —— 补上**项目级访问守卫**后，「无权」与「不存在」必须**逐字同形**（否则可枚举 UUID）⇒ 物流的 20 个端点/路径统一按 404 处理。
 
 文档结束。
 

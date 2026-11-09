@@ -3048,3 +3048,104 @@
 | 07:19 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | modified catch() | ~79 |
 | 07:20 | Edited pcs-backend/app/services/system_setting_service.py | 4→5 lines | ~65 |
 | 07:35 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b3b-minors.md | — | ~603 |
+| 09:14 | Created pcs-backend/tests/api/v1/test_zz_probe_cross_project.py | — | ~873 |
+| 09:14 | Edited pcs-backend/tests/api/v1/test_zz_probe_cross_project.py | "S-B-1" → "project_id" | ~21 |
+| 09:28 | Created docs/superpowers/plans/2026-11-04-stream-project-guard.md | — | ~10402 |
+| 09:29 | Created docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | — | ~5033 |
+| 09:29 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | expanded (+12 lines) | ~131 |
+| 09:29 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | expanded (+9 lines) | ~100 |
+| 09:30 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | modified test_reference_counts_returns_only_requested_ids() | ~117 |
+| 09:30 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | expanded (+6 lines) | ~353 |
+| 09:30 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | 2→4 lines | ~144 |
+| 09:50 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | modified test_creating_a_project_grants_the_creator_access() | ~1424 |
+| 09:50 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | modified has_project_access() | ~445 |
+| 09:50 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | modified has_project_access() | ~744 |
+| 09:50 | Edited docs/superpowers/plans/2026-11-04-stream-project-guard.md | expanded (+10 lines) | ~328 |
+| 09:51 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 5→9 lines | ~73 |
+| 09:51 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | modified test_reference_count_accumulates_across_both_tables() | ~107 |
+| 09:51 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 2→7 lines | ~108 |
+| 09:51 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 7→12 lines | ~68 |
+| 10:08 | Created docs/superpowers/plans/2026-11-04-p10-master-plan.md | — | ~2482 |
+| 10:10 | Created docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md | — | ~9896 |
+| 12:32 | Session end: 259 writes across 77 files (progress.md, brief.sh, test_pytest_pg_gate.py, pytest_pg.sh, pyproject.toml) | 92 reads | ~227659 tok |
+
+## Session: 2026-11-08 22:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-11-08 22:15
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 01:06 | Created .superpowers/sdd/2026-11-04-stream-project-guard/progress.md | — | ~189 |
+| 07:49 | Created pcs-backend/.tmp_probe_write.txt | — | ~2 |
+| 07:51 | Edited pcs-backend/app/services/user_project_service.py | added 1 import(s) | ~29 |
+| 07:51 | Edited pcs-backend/app/services/user_project_service.py | modified _now() | ~470 |
+| 07:51 | Edited pcs-backend/app/api/v1/projects.py | added 1 import(s) | ~90 |
+| 07:51 | Edited pcs-backend/app/api/v1/projects.py | expanded (+23 lines) | ~306 |
+| 07:51 | Created pcs-backend/scripts/seed_user_project_access.py | — | ~1468 |
+| 07:52 | Created pcs-backend/tests/api/v1/test_project_owner_access.py | — | ~2160 |
+| 07:57 | Edited pcs-backend/tests/api/v1/test_project_owner_access.py | modified test_seed_grants_by_username_and_creates_the_user_row() | ~35 |
+| 07:57 | Edited pcs-backend/tests/api/v1/test_project_owner_access.py | inline fix | ~20 |
+| 12:09 | Edited pcs-backend/app/api/v1/projects.py | 14→15 lines | ~115 |
+| 12:13 | Edited pcs-backend/tests/conftest.py | added 1 import(s) | ~103 |
+| 12:13 | Edited pcs-backend/tests/conftest.py | modified _restore_real_project_guard() | ~1052 |
+| 12:13 | Created pcs-backend/tests/api/v1/test_strict_client_fixture.py | — | ~1064 |
+| 12:33 | Edited pcs-backend/app/services/user_project_service.py | modified has_project_access() | ~346 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~65 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | modified _load_stream_guarded() | ~779 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | 7→4 lines | ~54 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | 11→13 lines | ~143 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | 7→9 lines | ~102 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | 11→13 lines | ~148 |
+| 12:34 | Edited pcs-backend/app/api/v1/streams.py | 7→8 lines | ~101 |
+| 12:35 | Edited pcs-backend/app/api/v1/streams.py | 7→5 lines | ~74 |
+| 12:35 | Edited pcs-backend/app/api/v1/streams.py | 11→13 lines | ~148 |
+| 12:35 | Edited pcs-backend/app/api/v1/streams.py | 9→11 lines | ~120 |
+| 12:36 | Edited pcs-backend/app/api/v1/streams.py | 12→9 lines | ~126 |
+| 12:36 | Edited pcs-backend/app/api/v1/streams.py | get() → _load_stream_guarded() | ~60 |
+| 13:35 | Created pcs-backend/tests/api/v1/test_stream_project_guard.py | — | ~3120 |
+| 13:36 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified _make() | ~193 |
+| 13:36 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified _make() | ~180 |
+| 13:36 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified test_not_found_and_cross_project_are_indistinguishable() | ~514 |
+| 13:36 | Edited pcs-backend/app/api/v1/streams.py | 13→16 lines | ~178 |
+| 13:36 | Edited pcs-backend/app/api/v1/streams.py | 7→7 lines | ~88 |
+| 13:37 | Edited pcs-backend/app/api/v1/streams.py | 7→8 lines | ~96 |
+| 13:43 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | 3→3 lines | ~49 |
+| 13:44 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~27 |
+| 13:44 | Edited pcs-backend/app/api/v1/streams.py | modified _transition_endpoint() | ~327 |
+| 13:45 | Edited pcs-backend/app/api/v1/streams.py | get() → _composition_gate() | ~343 |
+| 13:45 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified designer_user_id() | ~162 |
+| 13:45 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified two_projects() | ~134 |
+| 13:50 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | db_session_commit() → commit() | ~153 |
+| 13:53 | Edited pcs-backend/app/services/stream_batch_service.py | added 1 import(s) | ~38 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | modified _submit_one() | ~67 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | 8→9 lines | ~69 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | modified _submit_one_inner() | ~68 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | modified has_project_access() | ~343 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | 21→24 lines | ~205 |
+| 13:54 | Edited pcs-backend/app/services/stream_batch_service.py | 7→8 lines | ~72 |
+| 13:54 | Edited pcs-backend/app/api/v1/stream_batch.py | 7→9 lines | ~77 |
+| 14:07 | Edited pcs-backend/tests/services/test_stream_batch_service.py | expanded (+8 lines) | ~83 |
+| 14:07 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified batch_project() | ~72 |
+| 14:08 | Edited pcs-backend/tests/services/test_stream_batch_service.py | 3→4 lines | ~44 |
+| 14:17 | Edited pcs-backend/tests/api/v1/test_stream_batch_concurrency_pg.py | inline fix | ~22 |
+| 14:19 | Edited pcs-backend/app/api/v1/lineage.py | modified _guard_record_access() | ~439 |
+| 14:19 | Edited pcs-backend/app/api/v1/lineage.py | expanded (+16 lines) | ~252 |
+| 14:19 | Created pcs-backend/tests/api/v1/test_lineage_guard.py | — | ~1660 |
+| 14:21 | Created pcs-backend/app/schemas/stream_review_log.py | — | ~194 |
+| 14:21 | Created pcs-backend/app/services/stream_review_log_service.py | — | ~688 |
+| 14:21 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~74 |
+| 14:21 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~66 |
+| 14:21 | Edited pcs-backend/app/api/v1/streams.py | modified get_stream_review_log() | ~319 |
+| 14:21 | Created pcs-backend/tests/api/v1/test_stream_review_log.py | — | ~2557 |
+| 15:00 | Edited pcs-frontend/src/api/stream.ts | expanded (+9 lines) | ~104 |
+| 15:00 | Edited pcs-frontend/src/api/stream.ts | expanded (+10 lines) | ~163 |
+| 15:00 | Created pcs-frontend/src/pages/sim/tabs/StreamReviewLogTab.tsx | — | ~835 |
+| 15:01 | Edited pcs-frontend/src/mocks/handlers.ts | 2→1 lines | ~25 |
+| 15:01 | Edited pcs-frontend/src/mocks/handlers.ts | added 1 condition(s) | ~283 |
+| 15:01 | Edited pcs-frontend/src/mocks/handlers.ts | 18→17 lines | ~167 |
+| 15:01 | Created pcs-frontend/tests/pages/sim/tabs/StreamReviewLogTab.test.tsx | — | ~793 |
+| 15:12 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | 4→2 lines | ~20 |
+| 15:22 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-09-stream-guard.md | — | ~586 |

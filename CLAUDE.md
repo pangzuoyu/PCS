@@ -88,6 +88,24 @@ For the full operating protocol (session handoff, memory discipline, bug logging
      那条延迟迁移得有人手写，否则 DB 上压根没这个约束（`projects` 曾整表零外键，
      bug-146）。
 
+## 物流面项目守卫（部署前置 · 2026-11-09 起）
+
+物流的 **20 个端点/路径**已补上**项目级访问守卫** ⇒ **任何没有 `UserProject`
+授权行的用户访问任何物流端点都 404**（与「不存在」**逐字同形** ⇒ 枚举不出 UUID）。
+
+⇒ **每个环境上线前**跑一次（幂等）：
+
+```bash
+cd pcs-backend
+uv run python scripts/seed_user_project_access.py --username <用户名> --project <项目 UUID>
+```
+
+⚠️ **mock 登录不落 `users` 表**（ADR-0046 §③b）⇒ seed 脚本会**建行**（`roles=[]`）
+⇒ dev 环境的 alice / bob / carol / dan **必须**靠它拿到授权 ⇒ 否则 dev 前端
+**全站 404**（连 `/sim/streams` 列表页都空）。
+⇒ `POST /projects` 会**自动授权创建者**（无需手动 seed 自己建的项目）。
+
+
 ## 发布前检查（必做）
 
 - [ ] `alembic check` 在两库（pcs / pcs_test）各 exit 0 —— ⚠️ 必须**独立进程**跑，

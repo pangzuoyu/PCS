@@ -8114,6 +8114,70 @@
         }
       }
     },
+    "/api/v1/streams/{stream_id}/review-log": {
+      "get": {
+        "tags": [
+          "streams"
+        ],
+        "summary": "Get Stream Review Log",
+        "description": "物流的校核记录（**只读**，TODO-112）。\n\n⚠️ **为什么不用 `GET /audit-logs`**：那个端点限 SYSTEM_ADMIN\n（`audit_logs` 表**没有** `project_id` ⇒ 无法按项目守卫）⇒\n设计师打开这个 Tab 只看到「无权查看」—— **他看不到自己物流的校核经过**。\n\n⚠️ **范围**（裁决条件 3）：只返回三条校对相关转移；**不加**导出 /\n管理员视角 / 时间筛选 / 分页。\n\n⚠️ **先守卫再查审计**：`audit_logs` 表**没有** `project_id` ⇒ 项目归属\n只能**经物流**解析 ⇒ 守卫必须先加载物流。\n\n⚠️ **无记录 ⇒ 200 + `[]`**（不是 404）—— 端点存在，只是没记录。",
+        "operationId": "get_stream_review_log_api_v1_streams__stream_id__review_log_get",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Stream Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewLogItem"
+                  },
+                  "title": "Response Get Stream Review Log Api V1 Streams  Stream Id  Review Log Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/streams/batch-submit": {
       "post": {
         "summary": "批量提交校对（DRAFT → IN_APPROVAL，207 Multi-Status）",
@@ -13025,7 +13089,7 @@
           "projects"
         ],
         "summary": "建项目（P9B-2 · T-1 · SYSTEM_ADMIN）",
-        "description": "建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。\n\n## 为什么必须「建项目」与「默认绑矩阵」同批\n\nR-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒\n没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）\n⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。\n⇒ **同批**落地 ⇒ 新项目**当场就能送审**。\n\n## 事务边界\n\n建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**\n⇒ 不会留下「项目建好了但送不了审」的半成品。",
+        "description": "建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵 + 给创建者授权。\n\n## 为什么必须「建项目」与「默认绑矩阵」同批\n\nR-17 之后**送审批准链由项目绑定的 `module='RECORD'` 矩阵推导** ⇒\n没绑矩阵的项目**送不了审**（后端 422 `RECORD_APPROVAL_MATRIX_NOT_BOUND`）\n⇒ 新项目建出来就送不了审 ⇒ 用户看到的是 422 而不是引导。\n⇒ **同批**落地 ⇒ 新项目**当场就能送审**。\n\n## 事务边界\n\n建行 + 绑矩阵 + 建默认矩阵模板 + **授权创建者**在**同一事务**里 ⇒\n任一步失败**全回滚** ⇒ 不会留下「项目建好了但送不了审」或\n「项目建好了但创建者进不去」的半成品。",
         "operationId": "create_project_api_v1_projects_post",
         "parameters": [
           {
@@ -36626,6 +36690,51 @@
         ],
         "title": "ReversalDecisionRequest",
         "description": "撤销裁决（ADR-0010：3 级 REVIEWER / 4 级 APPROVER）。"
+      },
+      "ReviewLogItem": {
+        "properties": {
+          "transition": {
+            "type": "string",
+            "title": "Transition",
+            "description": "状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator",
+            "description": "操作人 user_id（审计里的 actor）"
+          },
+          "occurred_at": {
+            "type": "string",
+            "title": "Occurred At",
+            "description": "发生时间（ISO 8601）"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "附加说明（如驳回理由）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transition",
+          "occurred_at"
+        ],
+        "title": "ReviewLogItem",
+        "description": "一条校核记录（一次校对相关状态转移）。"
       },
       "RevokeRequest": {
         "properties": {
