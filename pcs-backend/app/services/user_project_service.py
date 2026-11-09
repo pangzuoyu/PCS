@@ -192,6 +192,42 @@ def _now() -> "datetime.datetime":  # type: ignore[name-defined]
     return dt.datetime.now(dt.UTC)
 
 
+async def has_project_access(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    actor_roles: list[str] | None = None,
+) -> bool:
+    """项目访问权判定（**含 SYSTEM_ADMIN bypass**）—— 只回 bool，**不抛异常**。
+
+    ## 为什么要有它（而不是直接用 `check_project_access_or_404`）
+
+    `app/api/v1/_guard.py::check_project_access_or_404` 无权时抛
+    `HTTPException(404, "Project not found: <id>")` ⇒ 全局 handler 把它渲染成
+    信封 **`code="HTTP_404"` / `message="Project not found: …"`**；
+    而「物流不存在」走 `PcsError(SIM_STREAM_NOT_FOUND)` ⇒ 信封
+    **`code="SIM_STREAM_NOT_FOUND"` / `message="Stream … 不存在"`**。
+
+    ⇒ **两个 404 的信封完全不同** ⇒ 攻击者能靠 `code`/message 区分
+    「这个 UUID 不存在」与「这个 UUID 存在但不属于我」⇒ **可枚举 UUID**。
+
+    ⇒ 所以本函数只做**判定**，由调用方决定**抛什么** ⇒ 调用方可以抛**与
+    「不存在」逐字相同**的 `PcsError` ⇒ 无权 ≡ 不存在。
+
+    ## 口径与 `check_project_access_or_404` **完全一致**
+
+    SYSTEM_ADMIN 全局 bypass + 同样的 `UserProject` 行判定 ⇒ 两处不会漂移。
+
+    ⚠️ 放 **service 层** ⇒ `app/services/` **不**反向 import `app/api/v1/`。
+    """
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return True
+    return await UserProjectService.check_user_project_access(
+        session, user_id=user_id, project_id=project_id
+    )
+
+
 async def ensure_user_row(
     session: AsyncSession,
     *,

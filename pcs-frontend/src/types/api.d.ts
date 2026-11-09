@@ -4228,7 +4228,7 @@ export interface paths {
         put?: never;
         /**
          * 建项目（P9B-2 · T-1 · SYSTEM_ADMIN）
-         * @description 建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。
+         * @description 建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵 + 给创建者授权。
          *
          *     ## 为什么必须「建项目」与「默认绑矩阵」同批
          *
@@ -4239,8 +4239,9 @@ export interface paths {
          *
          *     ## 事务边界
          *
-         *     建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**
-         *     ⇒ 不会留下「项目建好了但送不了审」的半成品。
+         *     建行 + 绑矩阵 + 建默认矩阵模板 + **授权创建者**在**同一事务**里 ⇒
+         *     任一步失败**全回滚** ⇒ 不会留下「项目建好了但送不了审」或
+         *     「项目建好了但创建者进不去」的半成品。
          */
         post: operations["create_project_api_v1_projects_post"];
         delete?: never;

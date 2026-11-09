@@ -57,6 +57,7 @@ from app.services.stream_service import (
     _to_parsed_stream,  # SIM-24
     composition_mole_fraction_total,  # P9B-3b T1：组成合计口径的**唯一来源**
 )
+from app.services.user_project_service import has_project_access
 
 router = APIRouter(tags=["streams"])
 
@@ -199,6 +200,89 @@ def _to_response_dict(stream: Stream) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# 项目守卫（P9B-4 紧急批次 T2）
+# ---------------------------------------------------------------------------
+#
+# ⚠️ **为什么不用 `check_record_access_or_404`**
+#
+# 它无权时抛 `HTTPException(404, "Project not found: <id>")` ⇒ 全局 handler
+# 渲染成信封 **`code="HTTP_404"` / `message="Project not found: …"`**；
+# 而「物流不存在」走 `PcsError(SIM_STREAM_NOT_FOUND)` ⇒ 信封
+# **`code="SIM_STREAM_NOT_FOUND"` / `message="Stream … 不存在"`**。
+#
+# ⇒ **两个 404 的信封完全不同** ⇒ 攻击者能靠 `code`/message 区分
+# 「这个 UUID 不存在」与「这个 UUID 存在但不属于我」⇒ **可枚举 UUID**。
+#
+# ⇒ 所以这里**自己抛**：无权 ⇒ 抛**与「不存在」逐字相同**的 `PcsError`
+# ⇒ 「无权 ≡ 不存在」。
+
+
+async def _load_stream_guarded(
+    db: AsyncSession, stream_id: uuid.UUID, user: _Actor
+) -> Stream:
+    """加载物流 + **项目守卫**。
+
+    ⚠️ **不存在**与**无权**抛**逐字相同**的 404（`SIM_STREAM_NOT_FOUND`）
+    ⇒ 攻击者无法靠响应差异枚举出某个 UUID 是否存在。
+
+    ⚠️ 文案沿用 `StreamService.get` 的措辞（`Stream {id} 不存在`）⇒
+    「不存在」与「无权」两条路径的 `code` 与 `message` **逐字相同**
+    ⇒ 同形性不靠「两处写一样的话」，靠**同一个 helper**。
+
+    ⚠️ 用 `db.get`（**不加锁**）—— 守卫只读项目归属；
+    真正要加锁的写路径由 `StreamService.transition` 内部的
+    `SELECT ... FOR UPDATE`（`populate_existing=True`）负责。
+    """
+    stream = await db.get(Stream, stream_id)
+    if stream is None:
+        raise PcsError(
+            f"Stream {stream_id} 不存在",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
+        )
+    if not await has_project_access(
+        db,
+        user_id=user.user_id,
+        project_id=stream.project_id,
+        actor_roles=user.roles,
+    ):
+        # ⚠️ **与「不存在」逐字同形** —— 不是 403、也不是别的 code。
+        raise PcsError(
+            f"Stream {stream_id} 不存在",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
+        )
+    return stream
+
+
+async def _load_state_point_guarded(
+    db: AsyncSession, state_point_id: uuid.UUID, user: _Actor
+) -> tuple[StreamStatePoint, Stream]:
+    """加载状态点 + **经其 `stream_id` 解析**物流 + 项目守卫。
+
+    ⚠️ 状态点表**没有** `project_id`（只有 `stream_id` FK）⇒ 守卫只能
+    绕道物流拿项目归属。
+
+    ⚠️ 跨项目 ⇒ 抛 `SIM_STATEPOINT_NOT_FOUND`（与「状态点不存在」**同码同形**
+    ⇒ 同一条消息 ⇒ 攻击者无法区分「不存在」与「不是我的」）。
+    """
+    sp = await StreamService.get_state_point(db, state_point_id)
+    stream = await db.get(Stream, sp.stream_id)
+    if stream is None or not await has_project_access(
+        db,
+        user_id=user.user_id,
+        project_id=stream.project_id,
+        actor_roles=user.roles,
+    ):
+        raise PcsError(
+            f"StreamStatePoint {state_point_id} 不存在",
+            code="SIM_STATEPOINT_NOT_FOUND",
+            status=404,
+        )
+    return sp, stream
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -329,10 +413,7 @@ async def get_stream(
 ) -> StreamResponse:
     """单条物流查询。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    try:
-        stream = await StreamService.get(db, stream_id)
-    except PcsError as e:
-        raise _to_http(e) from e
+    stream = await _load_stream_guarded(db, stream_id, user)
     return _to_response_dict(stream)
 
 
@@ -345,6 +426,11 @@ async def update_stream(
 ) -> StreamResponse:
     """部分更新：字段子集 → StreamUpdate。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠ **守卫是这里最外层的检查** —— 在**载荷校验之前**。
+    #    理由：守卫之前的一切（422 载荷错、422 业务门禁……）都是「这条物流
+    #    存在且我能看到」的副产物 ⇒ 跨项目用户绝不该先撞上它们
+    #    （bug-2039 的同款：守卫写在写入之后 ⇒ 响应是 404 但行已经被改了）。
+    await _load_stream_guarded(db, stream_id, user)
     try:
         update_payload = StreamUpdate(**req.payload)
     except Exception as e:
@@ -366,6 +452,8 @@ async def delete_stream(
 ) -> Response:
     """删除物流。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠ **守卫先于删除** —— 跨项目用户不得删除别人的物流。
+    await _load_stream_guarded(db, stream_id, user)
     try:
         await StreamService.delete(db, stream_id, actor=user.user_id)
     except PcsError as e:
@@ -400,6 +488,8 @@ async def create_state_point(
 ) -> dict[str, Any]:
     """创建状态点：SIM-9 冲突检测，BLOCK 拒绝。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠ **守卫是这里最外层的检查** —— 在**载荷校验之前**（理由同 `update_stream`）。
+    await _load_stream_guarded(db, stream_id, user)
     try:
         sp_create = StreamStatePointCreate(stream_id=stream_id, **payload)
     except Exception as e:
@@ -421,6 +511,7 @@ async def list_state_points(
 ) -> list[dict[str, Any]]:
     """某物流下状态点列表（按 case_type 排序）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _load_stream_guarded(db, stream_id, user)
     try:
         sps = await StreamService.list_state_points(db, stream_id)
     except PcsError as e:
@@ -436,10 +527,8 @@ async def get_state_point(
 ) -> dict[str, Any]:
     """单条状态点查询。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    try:
-        sp = await StreamService.get_state_point(db, state_point_id)
-    except PcsError as e:
-        raise _to_http(e) from e
+    # ⚠ 状态点**没有** `project_id` ⇒ 守卫**经物流解析**项目归属。
+    sp, _stream = await _load_state_point_guarded(db, state_point_id, user)
     return _state_point_to_response(sp)
 
 
@@ -452,6 +541,9 @@ async def update_state_point(
 ) -> dict[str, Any]:
     """部分更新：state_label/case_type/temp/press/phase/mass_flow/source_type。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠ **守卫是这里最外层的检查** —— 在**载荷校验之前**（理由同 `update_stream`）。
+    #    状态点没有 `project_id` ⇒ 经物流解析项目归属。
+    await _load_state_point_guarded(db, state_point_id, user)
     try:
         update = StreamStatePointUpdate(**payload)
     except Exception as e:
@@ -473,6 +565,8 @@ async def delete_state_point(
 ) -> Response:
     """删除状态点。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # ⚠ **守卫先于删除** —— 状态点没有 `project_id` ⇒ 经物流解析项目归属。
+    await _load_state_point_guarded(db, state_point_id, user)
     try:
         await StreamService.delete_state_point(
             db, state_point_id, actor=user.user_id
@@ -684,10 +778,7 @@ async def get_stream_properties(
     - conflict_resolutions：PropertyConflictResolver 输出
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    try:
-        stream = await StreamService.get(db, stream_id)
-    except PcsError as e:
-        raise _to_http(e) from e
+    stream = await _load_stream_guarded(db, stream_id, user)
     return {
         "stream_id": str(stream.stream_id),
         "user_provided": stream.user_provided_properties_json,
@@ -710,8 +801,8 @@ async def estimate_properties(
     独立跑一次补全（COMMON 库 + chemicals + CoolProp），返回每 CAS 的 dict。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # 先校验 stream 存在 → 不存在 404
-    await StreamService.get(db, stream_id)
+    # 先校验 stream 存在 + 项目守卫 → 不存在 / 无权都是 404
+    await _load_stream_guarded(db, stream_id, user)
     completer = PropertyAutoCompleter()
     raw = completer.batch_complete(req.cas_list)
     # 注入 cas 字段（PropertyAutoCompleter 不返回 cas）
