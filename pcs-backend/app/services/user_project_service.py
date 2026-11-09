@@ -24,7 +24,8 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import UserProject
+from app.models.enums import UserStatus
+from app.models.project import User, UserProject
 
 #: 项目内角色词表。
 #:
@@ -189,3 +190,60 @@ def _now() -> "datetime.datetime":  # type: ignore[name-defined]
     import datetime as dt
 
     return dt.datetime.now(dt.UTC)
+
+
+async def ensure_user_row(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    username: str,
+) -> User:
+    """确保 `users` 表里有该用户的行（**有则原样返回，绝不改任何字段**）。
+
+    ## 为什么需要它
+
+    `user_projects.user_id` 是 **NOT NULL 的 FK → `users.user_id`**，而
+    PostgreSQL **强制**它 —— SQLite 单测**默认不强制** ⇒ 缺 `users` 行的测试
+    会**本地绿、生产炸**（这正是本仓最熟悉的「漂移盲区」形状）。
+    ⇒ 任何要写 `user_projects` 的路径，都得先保证用户行存在。
+
+    ## 为什么**建行时 `roles` 写空数组**
+
+    - 请求路径的 ACL 权威是 **JWT 的 role claim**
+      （`app/api/v1/config.py::current_actor` → `require_roles`），
+      **不是** `users.roles` ⇒ 空 roles 不影响鉴权。
+    - ADR-0046 §③b 禁止 **mock 登录**往 `users.roles` 写角色（mock 与真实 AD
+      同名 ⇒ 污染同一行 ⇒ 权限污染**且不报错**）⇒ 这里**只建行、不写角色**。
+
+    ## 为什么**已有行绝不改**
+
+    真实登录路径（`app/services/token_issuer.py::issue_tokens`）已经**惰性建行**
+    并写入真实 roles ⇒ 本函数的职责只是「保证行存在」⇒ 改 roles 会覆盖真实身份。
+
+    ## 查找顺序
+
+    先按 `user_id` 找 ⇒ 再按 `username` 找（兼容历史上 `user_id` 与派生值
+    不一致的遗留行 —— 那种行不能新建，否则撞 `users.username` 唯一约束）
+    ⇒ 都没有才新建。
+    """
+    row = await session.get(User, user_id)
+    if row is not None:
+        return row
+
+    existing = (
+        await session.execute(select(User).where(User.username == username))
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    row = User(
+        user_id=user_id,
+        username=username,
+        display_name=username,
+        roles=[],
+        ad_groups=[],
+        status=UserStatus.ACTIVE.value,
+    )
+    session.add(row)
+    await session.flush()
+    return row

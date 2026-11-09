@@ -37,6 +37,7 @@ from app.models.util import UtilityEnergySummary
 from app.schemas.project import ProductCategoryUpdate, ProjectCreate, ProjectOut
 from app.services.exceptions import WorkspaceNotFoundError
 from app.services.signature_matrix_service import SignatureMatrixService
+from app.services.user_project_service import UserProjectService, ensure_user_row
 from app.services.util.utility_energy_summary_service import (
     derive_electricity_value_type,
 )
@@ -100,7 +101,7 @@ async def create_project(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[_Actor, Depends(current_actor)],
 ) -> ProjectOut:
-    """建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵。
+    """建项目，**同一事务**里默认绑一份 ACTIVE 的 RECORD 签署矩阵 + 给创建者授权。
 
     ## 为什么必须「建项目」与「默认绑矩阵」同批
 
@@ -111,8 +112,9 @@ async def create_project(
 
     ## 事务边界
 
-    建行 + 绑矩阵 + 建默认矩阵模板在**同一事务**里 ⇒ 任一步失败**全回滚**
-    ⇒ 不会留下「项目建好了但送不了审」的半成品。
+    建行 + 绑矩阵 + 建默认矩阵模板 + **授权创建者**在**同一事务**里 ⇒
+    任一步失败**全回滚** ⇒ 不会留下「项目建好了但送不了审」或
+    「项目建好了但创建者进不去」的半成品。
     """
     require_roles(user, "SYSTEM_ADMIN")
     workspace = await db.get(Workspace, payload.workspace_id)
@@ -167,6 +169,29 @@ async def create_project(
     await SignatureMatrixService.ensure_default_record_matrix(
         db, project_id=record.project_id
     )
+
+    # ⚠️ **建项目 ⇒ 自动给创建者授权**（P9B-4 紧急批次 T0）。
+    #    理由：「我建的项目我当然能进」—— 没有这条，项目就**没有授权行**，
+    #    补上物流面项目守卫后**谁都进不去**（含创建者）。
+    #    `grant_project_access` 是 upsert ⇒ 重复调用无害。
+    #
+    # ⚠️ **调用位置**：在 `ensure_default_record_matrix` 之后、显式
+    #    `await db.commit()` **之前** —— `grant_project_access` 内部自带
+    #    `session.commit()` ⇒ 那一刻把「建行 + 绑矩阵 + 授权」**一起**提交
+    #    ⇒ 仍是「全成或全败」，不会留下「项目建好了但进不去」的半成品。
+    #
+    # ⚠️ **先 `ensure_user_row`**：`user_projects.user_id` 是 NOT NULL 的 FK
+    #    → `users.user_id`（PG 强制、SQLite 不强制）⇒ 创建者没有 `users` 行时
+    #    直接授权会撞 FK ⇒ 先保证行存在。
+    creator = await ensure_user_row(db, user_id=user.user_id, username=user.username)
+    await UserProjectService.grant_project_access(
+        db,
+        user_id=creator.user_id,
+        project_id=record.project_id,
+        role_in_project="PROJECT_LEAD",
+        granted_by=creator.user_id,
+    )
+
     await db.commit()
     await db.refresh(record)
     return _to_out(record)
