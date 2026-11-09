@@ -273,6 +273,26 @@ const devOnlyMockHandlers = [
       },
     ]);
   }),
+  // === 校核记录（TODO-112）：项目守卫端点，只返回校对相关的三条转移 ===
+  // ⚠️ 形状取契约类型 `ReviewLogItem`；**后端已过滤** ⇒ mock 也只给这三条
+  //    （前端**不得**再过滤一遍）。
+  http.get("/api/v1/streams/:stream_id/review-log", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json([
+      {
+        transition: "SUBMIT_FOR_CHECK",
+        operator: "00000000-0000-0000-0000-000000000001",
+        occurred_at: "2026-09-15T10:00:00+08:00",
+        detail: null,
+      },
+      {
+        transition: "PASS_CHECK",
+        operator: "00000000-0000-0000-0000-000000000002",
+        occurred_at: "2026-09-16T14:30:00+08:00",
+        detail: null,
+      },
+    ]);
+  }),
   http.get("/api/v1/lineage/:record_type/:record_id/graph", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json({

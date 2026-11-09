@@ -2784,6 +2784,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/streams/{stream_id}/review-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Stream Review Log
+         * @description 物流的校核记录（**只读**，TODO-112）。
+         *
+         *     ⚠️ **为什么不用 `GET /audit-logs`**：那个端点限 SYSTEM_ADMIN
+         *     （`audit_logs` 表**没有** `project_id` ⇒ 无法按项目守卫）⇒
+         *     设计师打开这个 Tab 只看到「无权查看」—— **他看不到自己物流的校核经过**。
+         *
+         *     ⚠️ **范围**（裁决条件 3）：只返回三条校对相关转移；**不加**导出 /
+         *     管理员视角 / 时间筛选 / 分页。
+         *
+         *     ⚠️ **先守卫再查审计**：`audit_logs` 表**没有** `project_id` ⇒ 项目归属
+         *     只能**经物流**解析 ⇒ 守卫必须先加载物流。
+         *
+         *     ⚠️ **无记录 ⇒ 200 + `[]`**（不是 404）—— 端点存在，只是没记录。
+         */
+        get: operations["get_stream_review_log_api_v1_streams__stream_id__review_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/streams/batch-submit": {
         parameters: {
             query?: never;
@@ -16028,6 +16060,32 @@ export interface components {
             reason: string;
         };
         /**
+         * ReviewLogItem
+         * @description 一条校核记录（一次校对相关状态转移）。
+         */
+        ReviewLogItem: {
+            /**
+             * Transition
+             * @description 状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK
+             */
+            transition: string;
+            /**
+             * Operator
+             * @description 操作人 user_id（审计里的 actor）
+             */
+            operator?: string | null;
+            /**
+             * Occurred At
+             * @description 发生时间（ISO 8601）
+             */
+            occurred_at: string;
+            /**
+             * Detail
+             * @description 附加说明（如驳回理由）
+             */
+            detail?: string | null;
+        };
+        /**
          * RevokeRequest
          * @description revoke 请求 body.
          */
@@ -25516,6 +25574,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_stream_review_log_api_v1_streams__stream_id__review_log_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                stream_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewLogItem"][];
                 };
             };
             /** @description Validation Error */

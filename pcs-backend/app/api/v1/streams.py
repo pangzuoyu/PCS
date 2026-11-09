@@ -50,9 +50,11 @@ from app.schemas.stream import (
     StreamStatePointUpdate,
     StreamUpdate,
 )
+from app.schemas.stream_review_log import ReviewLogItem
 from app.services.conflict_resolver import ConflictResolver
 from app.services.exceptions import PcsError
 from app.services.property_auto_complete import PropertyAutoCompleter
+from app.services.stream_review_log_service import list_review_log
 from app.services.stream_service import (
     StreamService,
     _to_parsed_stream,  # SIM-24
@@ -843,6 +845,36 @@ async def estimate_properties(
         for cas, data in zip(req.cas_list, raw, strict=True)
     ]
     return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# 校核记录（TODO-112 · P9B-4 紧急批次 T6）
+# ---------------------------------------------------------------------------
+
+
+@router.get("/streams/{stream_id}/review-log", response_model=list[ReviewLogItem])
+async def get_stream_review_log(
+    stream_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ReviewLogItem]:
+    """物流的校核记录（**只读**，TODO-112）。
+
+    ⚠️ **为什么不用 `GET /audit-logs`**：那个端点限 SYSTEM_ADMIN
+    （`audit_logs` 表**没有** `project_id` ⇒ 无法按项目守卫）⇒
+    设计师打开这个 Tab 只看到「无权查看」—— **他看不到自己物流的校核经过**。
+
+    ⚠️ **范围**（裁决条件 3）：只返回三条校对相关转移；**不加**导出 /
+    管理员视角 / 时间筛选 / 分页。
+
+    ⚠️ **先守卫再查审计**：`audit_logs` 表**没有** `project_id` ⇒ 项目归属
+    只能**经物流**解析 ⇒ 守卫必须先加载物流。
+
+    ⚠️ **无记录 ⇒ 200 + `[]`**（不是 404）—— 端点存在，只是没记录。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await _load_stream_guarded(db, stream_id, user)   # 404
+    return await list_review_log(db, stream_id=stream_id)
 
 
 __all__ = ["router"]

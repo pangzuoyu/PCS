@@ -38,6 +38,15 @@ export type StreamCaseType = components['schemas']['StreamCaseType'];
 export type StreamSignStatus = components['schemas']['StreamSignStatus'];
 
 /**
+ * 校核记录（**契约派生** · TODO-112）。
+ *
+ * ⚠️ **过滤在后端**（`GET /streams/{id}/review-log` 只返回
+ * SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条）⇒ 前端**不得**再过滤
+ * 一遍（两处过滤 = 两个口径 = 迟早漂移）。
+ */
+export type ReviewLogItem = components['schemas']['ReviewLogItem'];
+
+/**
  * 列表筛选（SPEC §7.7.1：工况 / 相态 / 状态 / 来源，**后端按 AND 组合**）。
  *
  * ⚠️ 四个字段名与后端 Query 参数**逐字一致**（`case_type` / `phase` /
@@ -233,6 +242,16 @@ export const streamApi = {
   /** 血缘图（GET /lineage/{record_type}/{record_id}/graph）。 */
   lineageGraph: (recordType: string, recordId: string): Promise<LineageGraph> =>
     api.get<LineageGraph>(`/lineage/${recordType}/${recordId}/graph`).then((r) => r.data),
+
+  /**
+   * 校核记录（**只读** · 契约派生 · TODO-112）。
+   *
+   * ⚠️ **后端已过滤**（只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK
+   * 三条）⇒ 前端**不得**再过滤一遍。
+   * ⚠️ 跨项目 ⇒ 404（与「不存在」同形）⇒ 调用方按普通错误处理。
+   */
+  fetchReviewLog: (streamId: string): Promise<ReviewLogItem[]> =>
+    api.get<ReviewLogItem[]>(`/streams/${streamId}/review-log`).then((r) => r.data),
 
   /**
    * 物性估算（POST /streams/{id}/properties/estimate）。

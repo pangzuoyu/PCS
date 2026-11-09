@@ -8114,6 +8114,70 @@
         }
       }
     },
+    "/api/v1/streams/{stream_id}/review-log": {
+      "get": {
+        "tags": [
+          "streams"
+        ],
+        "summary": "Get Stream Review Log",
+        "description": "物流的校核记录（**只读**，TODO-112）。\n\n⚠️ **为什么不用 `GET /audit-logs`**：那个端点限 SYSTEM_ADMIN\n（`audit_logs` 表**没有** `project_id` ⇒ 无法按项目守卫）⇒\n设计师打开这个 Tab 只看到「无权查看」—— **他看不到自己物流的校核经过**。\n\n⚠️ **范围**（裁决条件 3）：只返回三条校对相关转移；**不加**导出 /\n管理员视角 / 时间筛选 / 分页。\n\n⚠️ **先守卫再查审计**：`audit_logs` 表**没有** `project_id` ⇒ 项目归属\n只能**经物流**解析 ⇒ 守卫必须先加载物流。\n\n⚠️ **无记录 ⇒ 200 + `[]`**（不是 404）—— 端点存在，只是没记录。",
+        "operationId": "get_stream_review_log_api_v1_streams__stream_id__review_log_get",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Stream Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewLogItem"
+                  },
+                  "title": "Response Get Stream Review Log Api V1 Streams  Stream Id  Review Log Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/streams/batch-submit": {
       "post": {
         "summary": "批量提交校对（DRAFT → IN_APPROVAL，207 Multi-Status）",
@@ -36626,6 +36690,51 @@
         ],
         "title": "ReversalDecisionRequest",
         "description": "撤销裁决（ADR-0010：3 级 REVIEWER / 4 级 APPROVER）。"
+      },
+      "ReviewLogItem": {
+        "properties": {
+          "transition": {
+            "type": "string",
+            "title": "Transition",
+            "description": "状态转移名：SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator",
+            "description": "操作人 user_id（审计里的 actor）"
+          },
+          "occurred_at": {
+            "type": "string",
+            "title": "Occurred At",
+            "description": "发生时间（ISO 8601）"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "附加说明（如驳回理由）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transition",
+          "occurred_at"
+        ],
+        "title": "ReviewLogItem",
+        "description": "一条校核记录（一次校对相关状态转移）。"
       },
       "RevokeRequest": {
         "properties": {

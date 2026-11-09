@@ -3,8 +3,8 @@
  *
  * 守三件事：
  * 1. 7 个 Tab **都在**（label 逐个断言）
- * 2. ⚠️ **校核记录 Tab** 调 `GET /audit-logs` 且带 `resource_type=streams` +
- *    `resource_id=<id>` ⇒ **只显示校对相关**的行（其它 transition 不出现）
+ * 2. ⚠️ **校核记录 Tab** 调 `GET /streams/<id>/review-log`（TODO-112 改）
+ *    ⇒ 该端点**后端已过滤**（只返回校对相关的三条）⇒ 前端**不再**自己过滤
  * 3. **组成 Tab** 底部显示合计 + 超出 100±0.5% 时**标红**
  *
  * ⚠️ 只有**当前 Tab** 会取数（antd 的 Tabs 懒渲染未激活面板）⇒ 打开详情页
@@ -38,47 +38,28 @@ const stream: Stream = {
   updated_at: '2026-09-15 14:32',
 };
 
-/** 校核记录请求的 URL（断言 query 参数）。 */
-let auditUrls: string[] = [];
+/** 校核记录请求的 URL（断言调的是**新端点**）。 */
+let reviewLogUrls: string[] = [];
 
 const server = setupServer(
-  http.get('/api/v1/audit-logs', ({ request }) => {
-    auditUrls.push(request.url);
-    return HttpResponse.json({
-      items: [
-        {
-          audit_id: 'a-1',
-          user_id: 'u-1',
-          action: 'RECORD_TRANSITION',
-          resource_type: 'streams',
-          resource_id: 's-1',
-          detail_json: { transition: 'SUBMIT_FOR_CHECK' },
-          occurred_at: '2026-09-15 14:00',
-        },
-        {
-          audit_id: 'a-2',
-          user_id: 'u-2',
-          action: 'RECORD_TRANSITION',
-          resource_type: 'streams',
-          resource_id: 's-1',
-          detail_json: { transition: 'PASS_CHECK' },
-          occurred_at: '2026-09-15 15:00',
-        },
-        {
-          audit_id: 'a-3',
-          user_id: 'u-3',
-          action: 'RECORD_TRANSITION',
-          resource_type: 'streams',
-          resource_id: 's-1',
-          // ⚠️ **不是**校对相关的 transition ⇒ 不得显示
-          detail_json: { transition: 'MARK_STALE' },
-          occurred_at: '2026-09-15 16:00',
-        },
-      ],
-      total: 3,
-      limit: 50,
-      offset: 0,
-    });
+  // ⚠️ TODO-112：校核记录走**项目守卫**端点，**后端已过滤**
+  //    （只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条）。
+  http.get('/api/v1/streams/:stream_id/review-log', ({ request }) => {
+    reviewLogUrls.push(request.url);
+    return HttpResponse.json([
+      {
+        transition: 'SUBMIT_FOR_CHECK',
+        operator: 'u-1',
+        occurred_at: '2026-09-15T14:00:00+08:00',
+        detail: null,
+      },
+      {
+        transition: 'PASS_CHECK',
+        operator: 'u-2',
+        occurred_at: '2026-09-15T15:00:00+08:00',
+        detail: null,
+      },
+    ]);
   }),
   http.get('/api/v1/streams/:stream_id/properties', () =>
     HttpResponse.json({
@@ -131,7 +112,7 @@ describe('StreamDetailPage —— 7 Tab（T8）', () => {
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
   afterAll(() => server.close());
   beforeEach(() => {
-    auditUrls = [];
+    reviewLogUrls = [];
   });
 
   it('7 个 Tab 都在：基本信息 / 组成 / 物性 / 状态点 / 设备连接 / 血缘 / 校核记录', () => {
@@ -150,20 +131,18 @@ describe('StreamDetailPage —— 7 Tab（T8）', () => {
     }
   });
 
-  it('⚠️ 校核记录 Tab ⇒ 带 resource_type/resource_id 请求，且**只显示校对相关**的行', async () => {
+  it('⚠️ 校核记录 Tab ⇒ 调**新端点** `/streams/<id>/review-log`，且渲染出记录', async () => {
     render(<StreamDetailPage stream={stream} />);
     clickTab('校核记录');
 
-    await waitFor(() => expect(auditUrls.length).toBe(1));
-    expect(auditUrls[0]).toContain('resource_type=streams');
-    expect(auditUrls[0]).toContain('resource_id=s-1');
+    // ⚠️ **不再调 `/audit-logs`**（那个端点限 SYSTEM_ADMIN ⇒ 设计师看不到自己的物流）
+    await waitFor(() => expect(reviewLogUrls.length).toBe(1));
+    expect(reviewLogUrls[0]).toContain('/api/v1/streams/s-1/review-log');
 
     await waitFor(() => expect(screen.getByTestId('stream-tab-review-log')).toBeTruthy());
     // ⚠️ 校对相关的两条显示
     expect(document.body.textContent).toContain('提交校对');
     expect(document.body.textContent).toContain('校对通过');
-    // ⚠️ **其它 transition 不显示**（MARK_STALE 不在校核记录里）
-    expect(document.body.textContent).not.toContain('MARK_STALE');
   });
 
   it('⚠️ 未知 sign_status ⇒ 详情页**照常渲染**（徽章降级，不整页崩）', () => {
