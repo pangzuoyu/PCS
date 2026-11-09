@@ -43,6 +43,7 @@ from app.models.config_domain import (
     DocNoSequence,
 )
 from app.models.enums import ConfigStatus
+from app.services.user_project_service import UserProjectService
 
 # ---------------------------------------------------------------------------
 # SQLite JSONB / INET / Uuid 兼容垫片（Sprint 1 沿用）
@@ -265,6 +266,114 @@ async def client(db_engine, monkeypatch) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+# ---------------------------------------------------------------------------
+# P9B-4 紧急批次 T1：`strict_client` —— **不** mock 项目守卫的客户端
+# ---------------------------------------------------------------------------
+#
+#: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
+#:
+#: ⚠️ **为什么必须在模块导入时取**：`client` fixture 的 monkeypatch 会把
+#: `UserProjectService.check_user_project_access` 换成「永远 True」的 mock ⇒
+#: 运行时再取就取到**假身**了 ⇒ 还原不回去。
+_ORIGINAL_CHECK_ACCESS = UserProjectService.__dict__["check_user_project_access"]
+
+
+def _restore_real_project_guard() -> None:
+    """把项目守卫**还原成真身**（真身 = 模块导入时取的那个 classmethod）。"""
+    UserProjectService.check_user_project_access = _ORIGINAL_CHECK_ACCESS
+
+
+class _StrictAsyncClient(AsyncClient):
+    """`strict_client` 专用：**每次请求前**把守卫还原成真身。
+
+    ## 为什么是「每次请求前」而不是「fixture 建立时还原一次」
+
+    `client` fixture 的 monkeypatch 是**函数级**的 ⇒ 若同一个测试里既请求
+    `client` 又请求 `strict_client`，`client` 的 patch 可能**在**
+    `strict_client` 之后生效 ⇒ 只在建立时还原一次**留有窗口** ⇒ 守卫测试
+    会**静默假绿**（测的是一条不存在的路径）。
+
+    ⇒ **每次请求前**还原 ⇒ 无论 fixture 的建立顺序如何，守卫都是真的。
+
+    ⚠️ 副作用（可接受）：一旦 `strict_client` 发过请求，`client` 的 mock 也被
+    还原了 ⇒ 同一个测试里 `client` 之后的行为也变严格 ⇒ 这正是我们要的
+    （混用两套 client 本来就是 bug）。
+    """
+
+    async def request(self, *args, **kwargs):  # noqa: ANN002, ANN003, ANN201
+        _restore_real_project_guard()
+        return await super().request(*args, **kwargs)
+
+
+@pytest_asyncio.fixture
+async def strict_client(db_engine) -> AsyncIterator[AsyncClient]:
+    """**严格**测试 client —— **不** mock 项目守卫，走真实的
+    `check_user_project_access`。
+
+    ⚠️ **默认的 `client` 测不到守卫缺陷** —— 它把守卫 mock 成永远 True ⇒
+    「端点缺项目守卫」这类缺陷在它上面**一个都测不出来** ⇒ 守卫测试**必须**
+    用本 fixture。
+
+    用它时**必须先造 `UserProject` 授权行**（用 `grant_project` fixture），
+    否则所有带项目守卫的请求都 404 —— 这不是 bug，是你没授权。
+
+    用途：
+    - 守卫测试（证明跨项目越权被拒 → 404）
+    - review-log 端点测试（证明有权限时能读到 → 200 + 正确内容）
+    """
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    async def _override_get_db() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    from fastapi import FastAPI
+
+    from app.core.errors import install_exception_handlers
+
+    app = FastAPI(title="PCS Test (strict)")
+    install_exception_handlers(app)
+    app.include_router(api_router)
+    app.dependency_overrides[get_db] = _override_get_db
+    transport = ASGITransport(app=app)
+    async with _StrictAsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+
+
+@pytest_asyncio.fixture
+async def grant_project(db_session: AsyncSession):
+    """给某个 user 造一条 `UserProject` 授权行（`strict_client` 专用）。
+
+    ⚠️ 先 `ensure_user_row` —— `user_projects.user_id` 是 NOT NULL 的 FK →
+    `users.user_id`（**PG 强制、SQLite 单测不强制**）⇒ 不建 `users` 行的授权
+    在 PG 车道上会炸（而 SQLite 上照样绿 ⇒ 又一个「本地绿、生产炸」）。
+
+    `username` 缺省用 `user_id` 的字符串形式（唯一、确定、长度合规）⇒ 需要
+    人可读的名字时显式传。
+    """
+
+    async def _grant(
+        user_id: uuid.UUID,
+        project_id: uuid.UUID,
+        role_in_project: str = "DESIGNER",
+        username: str | None = None,
+    ) -> None:
+        from app.services.user_project_service import ensure_user_row
+
+        await ensure_user_row(
+            db_session, user_id=user_id, username=username or str(user_id)
+        )
+        await UserProjectService.grant_project_access(
+            db_session,
+            user_id=user_id,
+            project_id=project_id,
+            role_in_project=role_in_project,
+        )
+        await db_session.commit()
+
+    return _grant
 
 
 @pytest.fixture(autouse=True)
