@@ -772,6 +772,134 @@ async def test_db_level_failure_does_not_poison_the_rest_of_the_batch(
     assert str(getattr(good_status, "value", good_status)) == "IN_APPROVAL"
 
 
+async def test_guard_db_failure_does_not_poison_the_rest_of_the_batch(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ **项目守卫那条 DB 查询失败** ⇒ 后面每一条**仍要能处理**。
+
+    ## 为什么单独一条（ce-code-review P1 #3 · bug-2148）
+
+    项目守卫是**新增**的 DB 查询。它挂在**加锁读之后**、且兜底**不回滚**时：
+    它一抛错 ⇒ 异常冒到 `_submit_one` 的兜底 ⇒ 只返回 INTERNAL_ERROR 而
+    **没人回滚** ⇒ 事务被 abort ⇒ **后面每一条都失败**（D2「单条失败不影响
+    其他」被打破）+ 行锁被持有。
+
+    ⚠️ **必须造真的 DB 级失败**（不是 Python 异常）：Python 异常不会让事务
+    进入「需要 rollback」状态 ⇒ 后面那条照样能跑 ⇒ 这条测试会**假绿**
+    （变异实测：抛 `RuntimeError` 时旧代码也绿；查一张不存在的表也一样）。
+    ⇒ 用**真的 flush 失败**（同 `test_db_level_failure_does_not_poison_the_rest_of_the_batch`
+    的做法：插一行 `action=None` 撞 NOT NULL）⇒ session 被标记成
+    「需要 rollback」⇒ 后面任何 DB 操作都抛 `PendingRollbackError`。
+    """
+    from app.models.system import AuditLog
+
+    from app.services import stream_batch_service
+    from app.services.stream_batch_service import submit_batch
+
+    bad = await _make_draft(db_session, batch_project, "GUARD-BAD")
+    good = await _make_draft(db_session, batch_project, "GUARD-GOOD")
+    bad_id = bad.stream_id
+    good_id = good.stream_id
+
+    calls = {"n": 0}
+    original = stream_batch_service.has_project_access
+
+    async def boom_on_first_call(session, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            # ⚠️ **真的** DB 级失败 ⇒ 事务被 abort（session 需要 rollback）
+            session.add(AuditLog(user_id=None, action=None, resource_type="Y"))
+            await session.flush()  # ← 这里真的失败（action 是 NOT NULL）
+        return await original(session, **kwargs)
+
+    monkeypatch.setattr(stream_batch_service, "has_project_access", boom_on_first_call)
+
+    result = await submit_batch(
+        db_session,
+        [bad_id, good_id],
+        actor_user_id=BATCH_ACTOR_ID,
+        actor_role="DESIGNER",
+    )
+
+    assert [i.stream_id for i in result.failed] == [bad_id]
+    assert result.failed[0].reason == "INTERNAL_ERROR"
+    # ⚠️⚠️ **关键**：好的那条**必须成功**（⇒ 事务被回滚救回来了）
+    assert [i.stream_id for i in result.succeeded] == [good_id]
+
+
+async def test_project_guard_rejection_happens_before_the_row_lock(
+    db_session, batch_project, monkeypatch
+):
+    """⚠️ 跨项目条目 ⇒ **不能**对别人项目的行加过锁才拒绝。
+
+    ## 为什么（ce-code-review P2 #9）
+
+    守卫若在 `SELECT ... FOR UPDATE` **之后**才拒绝 ⇒ 只拥有项目 A 权限的
+    调用方能短暂 `FOR UPDATE` 锁住**项目 B** 的物流行 ⇒ 阻塞 B 的写者
+    （锁序侧信道）。
+
+    ⇒ 断言：跨项目条目**根本没走到加锁读**（守卫先于加锁）。
+
+    另外顺带钉住「守卫拒绝后事务已结束」（行锁不留着 ⇒ 锁不跨条目累积，
+    与 bug-2135 的修复同族）。
+    """
+    from app.models.project import Project, Workspace
+    from app.services import stream_batch_service
+    from app.services.stream_batch_service import submit_batch
+
+    # 另一个项目：**不给** BATCH_ACTOR_ID 授权 ⇒ 守卫必然拒绝
+    ws = Workspace(workspace_type="FORMAL", name=f"ws-{uuid.uuid4().hex[:8]}")
+    db_session.add(ws)
+    await db_session.flush()
+    other = Project(
+        project_no=f"P-{uuid.uuid4().hex[:8]}",
+        project_name="未授权项目",
+        owner_company="测试业主",
+        location="测试地点",
+        project_type="CHEMICAL",
+        design_phase="FEED",
+        unit_system="SI",
+        workspace_id=ws.workspace_id,
+    )
+    db_session.add(other)
+    await db_session.commit()
+    foreign = await _make_draft(db_session, other, "FOREIGN")
+
+    # spy 批次模块的**加锁读**（与 `test_batch_submit_uses_the_locked_select`
+    # 同款接线：必须 spy 批次模块的引用，spy 服务层那个会被内部调用满足）
+    seen: list[uuid.UUID] = []
+    original_lock = stream_batch_service.select_stream_for_update
+
+    async def spy(db, stream_id):
+        seen.append(stream_id)
+        return await original_lock(db, stream_id)
+
+    monkeypatch.setattr(stream_batch_service, "select_stream_for_update", spy)
+
+    result = await submit_batch(
+        db_session,
+        [foreign.stream_id],
+        actor_user_id=BATCH_ACTOR_ID,
+        actor_role="DESIGNER",
+    )
+
+    # 跨项目 ⇒ 按「不存在」处理（逐字同形 ⇒ 不可枚举）
+    assert [i.stream_id for i in result.failed] == [foreign.stream_id]
+    assert result.failed[0].reason == "SIM_STREAM_NOT_FOUND"
+    assert result.failed[0].detail == f"物流 {foreign.stream_id} 不存在"
+
+    # ⚠️⚠️ **关键**：守卫拒绝前**不能**对别人的行加过锁
+    assert seen == [], (
+        f"跨项目条目竟然先加了行锁才拒绝：{seen} ⇒ 只拥有别项目权限的调用方"
+        "能锁住别人项目的行（锁序侧信道）"
+    )
+
+    assert not db_session.in_transaction(), (
+        "守卫拒绝后事务仍然开着 ⇒ 那条的行锁仍然被持有 ⇒ "
+        "锁会跨条目累积（与 docstring 断言的「只持一把锁」矛盾）"
+    )
+
+
 async def test_commit_failure_itself_becomes_a_failed_item(
     db_session, batch_project, monkeypatch
 ):

@@ -167,6 +167,12 @@ async def _submit_one(
     except Exception:  # noqa: BLE001 —— 兜底：非预期异常也**不中断批次**
         # ⚠️ 这不是「打补丁」，是批次语义的要求：单条失败不应中断批次。
         logger.exception("批量提交校对：条目 %s 处理失败", stream_id)
+        # ⚠️⚠️ **必须回滚**（ce-code-review P1 #3 · bug-2148）：非预期异常
+        #    （典型：项目守卫那条 DB 查询抖动）会**中止当前事务** ⇒ PG 上事务
+        #    进入 aborted 状态 ⇒ **后面每一条**都跟着失败（D2「单条失败不影响
+        #    其他」被打破）+ 行锁一直持有。
+        #    ⇒ 这里回滚**这条**的事务（每条自成事务 ⇒ 前几条已提交的**不受影响**）。
+        await db.rollback()
         return BatchFailedItem(
             status="failed",
             stream_id=stream_id,
@@ -246,22 +252,30 @@ async def _submit_one_inner(
     dry_run: bool,
 ) -> BatchSucceededItem | BatchFailedItem:
     """处理一条的**业务逻辑**（异常由 `_submit_one` 统一兜住）。"""
-    if dry_run:
-        # ⚠️ 预演**不加锁**（不改任何东西 ⇒ 不该占着别人的行锁）。
-        stream = (
-            await db.execute(
-                select(Stream).where(Stream.stream_id == stream_id)
-            )
-        ).scalar_one_or_none()
-    else:
-        # ⚠️ 加锁读走**唯一入口**（T1 抽出的 `select_stream_for_update`）——
-        #    它带 `populate_existing=True`（C-1 的修复点）⇒ 并发时读到的是
-        #    **锁住的那一行**，不是 identity map 里的旧副本。
-        stream = await select_stream_for_update(db, stream_id)
-
-    if stream is None:
-        # ⚠️ 结束预检的事务（下面所有「提前返回」路径都这么做）——
-        #    理由见 `_release_precheck_transaction` 的 docstring。
+    # ⚠️⚠️ **项目守卫必须早于加锁**（ce-code-review `20261109-181644-6f6ddca3`
+    #    的 P1 #3 + P2 #9 · bug-2148）
+    #
+    #    原来的顺序是「`SELECT ... FOR UPDATE` → 项目守卫」⇒ 两个问题：
+    #
+    #    ① **守卫的 DB 查询在行锁窗口内** ⇒ 它一旦抛错（DB 抖动 / 连接断 /
+    #       序列化失败），异常一路冒到 `_submit_one` 的兜底 ⇒ 只返回
+    #       INTERNAL_ERROR 而**没人回滚** ⇒ PG 上事务进入 aborted 状态
+    #       ⇒ **后面每一条**都跟着失败 ⇒ D2「单条失败不影响其他」被打破
+    #       + 行锁一直持有到 session 结束。
+    #    ② **守卫拒绝之前已经锁了别人项目的行** ⇒ 只拥有项目 A 权限的调用方
+    #       能短暂 `FOR UPDATE` 锁住项目 B 的物流行 ⇒ 阻塞 B 的写者
+    #       （锁序侧信道）。
+    #
+    #    ⇒ 改成：**非加锁**读 `project_id` → 守卫 → 再加锁做正事。
+    #       （`Stream.project_id` 创建后不变 ⇒ 非加锁读不会被用来偷换项目；
+    #        加锁之后仍然只按锁住的那一行做事。）
+    project_id = (
+        await db.execute(
+            select(Stream.project_id).where(Stream.stream_id == stream_id)
+        )
+    ).scalar_one_or_none()
+    if project_id is None:
+        # ⚠️ 与「无权」**逐字同形**（`reason` 与 `detail` 都一样）⇒ 不可枚举。
         await _release_precheck_transaction(db)
         return BatchFailedItem(
             status="failed",
@@ -278,15 +292,39 @@ async def _submit_one_inner(
     #    都逐字相同）⇒ 无泄露。代价：用户分不清「打错 id」与「不是我的」
     #    —— 但那正是 404 语义该给的信息。
     #
-    #    ⚠️ **必须先结束预检的事务**（行锁只在此刻释放）—— 否则这条的
-    #    `SELECT ... FOR UPDATE` 拿到的行锁会**跨条目累积** ⇒ 两个顺序相反
-    #    的并发批次 ⇒ 死锁环（见 `_release_precheck_transaction` 的 docstring）。
+    #    ⚠️ **必须结束预检的事务** —— 否则这条读到的事务会**跨条目累积**
+    #    ⇒ 两个顺序相反的并发批次 ⇒ 死锁环（见 `_release_precheck_transaction`
+    #    的 docstring）。
     if not await has_project_access(
         db,
         user_id=actor_user_id,
-        project_id=stream.project_id,
+        project_id=project_id,
         actor_roles=actor_roles,
     ):
+        await _release_precheck_transaction(db)
+        return BatchFailedItem(
+            status="failed",
+            stream_id=stream_id,
+            reason="SIM_STREAM_NOT_FOUND",
+            detail=f"物流 {stream_id} 不存在",
+        )
+
+    if dry_run:
+        # ⚠️ 预演**不加锁**（不改任何东西 ⇒ 不该占着别人的行锁）。
+        stream = (
+            await db.execute(
+                select(Stream).where(Stream.stream_id == stream_id)
+            )
+        ).scalar_one_or_none()
+    else:
+        # ⚠️ 加锁读走**唯一入口**（T1 抽出的 `select_stream_for_update`）——
+        #    它带 `populate_existing=True`（C-1 的修复点）⇒ 并发时读到的是
+        #    **锁住的那一行**，不是 identity map 里的旧副本。
+        stream = await select_stream_for_update(db, stream_id)
+
+    if stream is None:
+        # ⚠️ 结束预检的事务（下面所有「提前返回」路径都这么做）——
+        #    理由见 `_release_precheck_transaction` 的 docstring。
         await _release_precheck_transaction(db)
         return BatchFailedItem(
             status="failed",
