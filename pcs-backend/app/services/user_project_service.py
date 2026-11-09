@@ -22,6 +22,7 @@ import uuid
 from typing import Sequence
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import UserStatus
@@ -101,7 +102,25 @@ class UserProjectService:
             role_in_project=role_in_project,
             granted_by=granted_by,
         )
-        session.add(record)
+        try:
+            # ⚠️ `session.add` 必须在 savepoint **之内**（`begin_nested()` 会先
+            #    flush pending ⇒ savepoint 之外的 INSERT 撞约束时会**中止整个
+            #    事务** —— 调用方（POST /projects）的项目 INSERT 与本插入同
+            #    事务 ⇒ 整体回滚）。
+            #    配方来源：`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`
+            #    （同文件里已修好的同族方法 `_get_or_create_default_record_matrix`）。
+            async with session.begin_nested():
+                session.add(record)
+                await session.flush()
+        except IntegrityError:
+            # ⚠️ 并发插同一 `(user_id, project_id)` ⇒ **重读赢家**。
+            #    ⚠️ **只读不写**：绝不把赢家的列改回自己的版本（那是第二种数据损坏）。
+            winner = (await session.execute(stmt)).scalar_one_or_none()
+            if winner is None:
+                raise  # 不是那唯一约束 ⇒ 原样抛
+            await session.commit()
+            await session.refresh(winner)
+            return winner
         await session.commit()
         await session.refresh(record)
         return record
@@ -280,6 +299,22 @@ async def ensure_user_row(
         ad_groups=[],
         status=UserStatus.ACTIVE.value,
     )
-    session.add(row)
-    await session.flush()
+    try:
+        # ⚠️ `session.add` 必须在 savepoint **之内**（`begin_nested()` 会先
+        #    flush pending ⇒ savepoint 之外的 INSERT 撞 `users.username` 唯一
+        #    约束时会**中止整个事务** —— 调用方（POST /projects）的项目 INSERT
+        #    与本插入同事务 ⇒ 整体回滚）。
+        #    配方来源：`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`
+        async with session.begin_nested():
+            session.add(row)
+            await session.flush()
+    except IntegrityError:
+        # ⚠️ 并发首建撞车（两个请求都「库为空 + 都要建」）⇒ **重读赢家**。
+        #    ⚠️ **只读不写**：绝不改赢家的列（那会把赢家的身份改回自己的版本）。
+        winner = (
+            await session.execute(select(User).where(User.username == username))
+        ).scalar_one_or_none()
+        if winner is None:
+            raise  # 不是 username 唯一约束 ⇒ 原样抛
+        return winner
     return row

@@ -225,3 +225,108 @@ async def test_project_lead_role_is_grantable(db, user_id, project_id):
         role_in_project="PROJECT_LEAD",
     )
     assert record.role_in_project == "PROJECT_LEAD"
+
+
+# ---------------------------------------------------------------------------
+# get-or-create 的 savepoint 兜底（ce-code-review P2 #11 · bug-2149）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_grant_insert_failure_does_not_abort_the_caller_transaction(
+    db_session: AsyncSession, monkeypatch
+):
+    """撞唯一约束时**不得**中止**调用方**的事务。
+
+    ## 为什么（ce-code-review P2 #11）
+
+    `grant_project_access` 是**无锁 get-or-create**（`SELECT` 后 `INSERT`），
+    而 `users` / `user_projects` 都有唯一约束 ⇒ 两个并发请求都会「SELECT-见空」
+    ⇒ 都 INSERT ⇒ 输家撞约束。
+
+    ⚠️ **savepoint 之外的 INSERT 撞约束会中止整个事务** ⇒ 调用方
+    （`POST /projects`）的**项目 INSERT 与本插入同事务** ⇒ 整体回滚 ⇒
+    偶发 500 + 项目建不出来。
+
+    ⇒ 配方（`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`）：
+    `db.add()` 放进 `async with db.begin_nested():` 之内。
+
+    ## 本测试钉什么
+
+    真正的并发赢家**在 SQLite 上复现不了**（单连接串行）⇒ 这里钉**配方本身**：
+    插入失败**之后**，**调用方的事务仍然可用**（未被 abort）。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    original_flush = db_session.flush
+
+    async def boom(*args, **kwargs):
+        raise IntegrityError(
+            "INSERT INTO user_projects ...",
+            None,
+            Exception("模拟唯一约束冲突"),
+        )
+
+    monkeypatch.setattr(db_session, "flush", boom)
+
+    with pytest.raises(IntegrityError):
+        await UserProjectService.grant_project_access(
+            db_session,
+            user_id=uuid.uuid4(),
+            project_id=uuid.uuid4(),
+            role_in_project="DESIGNER",
+            granted_by=uuid.uuid4(),
+        )
+
+    # ⚠️⚠️ **关键**：调用方的事务**没有被中止** ⇒ 后续 DB 操作照常
+    #    （没有 savepoint 时这里会抛 `PendingRollbackError` ⇒ 整个项目创建回滚）
+    monkeypatch.setattr(db_session, "flush", original_flush)
+    from sqlalchemy import func, select
+
+    count = (
+        await db_session.execute(select(func.count()).select_from(UserProject))
+    ).scalar_one()
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_row_insert_failure_does_not_abort_the_caller_transaction(
+    db_session: AsyncSession, monkeypatch
+):
+    """`ensure_user_row` 同款：撞唯一约束**不得**中止调用方的事务。
+
+    见上一条的说明（同一个配方、同一个理由）。`ensure_user_row` 是
+    `POST /projects` 的**必经之路**（`user_projects.user_id` 是 NOT NULL FK）
+    ⇒ 它一旦中止事务 ⇒ 建项目整体回滚。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.services.user_project_service import ensure_user_row
+
+    original_flush = db_session.flush
+
+    async def boom(*args, **kwargs):
+        raise IntegrityError(
+            "INSERT INTO users ...",
+            None,
+            Exception("模拟唯一约束冲突"),
+        )
+
+    monkeypatch.setattr(db_session, "flush", boom)
+
+    with pytest.raises(IntegrityError):
+        await ensure_user_row(
+            db_session,
+            user_id=uuid.uuid4(),
+            username="savepoint-user",
+        )
+
+    monkeypatch.setattr(db_session, "flush", original_flush)
+    from sqlalchemy import func, select
+
+    from app.models.project import User
+
+    count = (
+        await db_session.execute(select(func.count()).select_from(User))
+    ).scalar_one()
+    assert count == 0

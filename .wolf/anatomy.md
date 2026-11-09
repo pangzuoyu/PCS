@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:34:37.269Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:54:16.403Z
 > Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1370,7 +1370,7 @@
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1252 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
-- `user_project_service.py` — UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。 (~2375 tok)
+- `user_project_service.py` — UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。 (~2860 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
 
 ## pcs-backend/app/services/cool_tower/

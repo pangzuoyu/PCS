@@ -3172,3 +3172,6 @@
 | 07:34 | Edited pcs-backend/app/services/stream_review_log_service.py | 4→3 lines | ~37 |
 | 07:34 | Edited pcs-backend/app/services/stream_review_log_service.py | expanded (+13 lines) | ~260 |
 | 07:34 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | modified test_review_log_does_not_filter_on_the_audit_action() | ~441 |
+| 07:54 | Edited pcs-backend/app/services/user_project_service.py | added error handling | ~345 |
+| 07:54 | Edited pcs-backend/app/services/user_project_service.py | added error handling | ~286 |
+| 07:54 | Edited pcs-backend/app/services/user_project_service.py | added 1 import(s) | ~34 |

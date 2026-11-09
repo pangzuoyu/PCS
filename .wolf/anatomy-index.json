@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-09T23:34:37.269Z",
+    "lastScanned": "2026-11-09T23:54:16.403Z",
     "fileCount": 1196,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b5120fd948b6488f13aadd39252d35d1ac51c4f3ca75c69d33908116a2cca004",
-    "storeUpdatedAt": "2026-11-09T23:34:37.281Z",
-    "rootHash": "98a2a0e9e97f159e"
+    "renderedHash": "ce8338f10607c9b0ac414b117450b6caa16a31e704449f70c36c6b6a66e17066",
+    "storeUpdatedAt": "2026-11-09T23:54:16.414Z",
+    "rootHash": "a0361d87e3e375e4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42384,40 +42384,40 @@
     },
     "pcs-backend/app/services/user_project_service.py": {
       "description": "UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。",
-      "tokens": 2375,
-      "hash": "874d1a880aef0a70",
-      "size": 10262,
-      "mtimeMs": 1794198838024.3135,
-      "updatedAt": "2026-11-09T04:33:58.070Z",
+      "tokens": 2860,
+      "hash": "3fc55da26ede25dd",
+      "size": 12465,
+      "mtimeMs": 1794268456354.9434,
+      "updatedAt": "2026-11-09T23:54:16.403Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UserProjectService",
           "kind": "class",
-          "startLine": 49,
-          "endLine": 187,
-          "tokens": 1222
+          "startLine": 50,
+          "endLine": 206,
+          "tokens": 1480
         },
         {
           "name": "_now",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 194,
+          "startLine": 207,
+          "endLine": 213,
           "tokens": 46
         },
         {
           "name": "has_project_access",
           "kind": "fn",
-          "startLine": 195,
-          "endLine": 230,
+          "startLine": 214,
+          "endLine": 249,
           "tokens": 338
         },
         {
           "name": "ensure_user_row",
           "kind": "fn",
-          "startLine": 231,
-          "endLine": 286,
-          "tokens": 424
+          "startLine": 250,
+          "endLine": 321,
+          "tokens": 639
         }
       ]
     },
