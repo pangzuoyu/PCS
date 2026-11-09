@@ -150,22 +150,37 @@ async def test_lineage_of_another_project_stream_is_404(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("suffix", ["/graph", "/upstream", "/downstream"])
 async def test_lineage_cross_project_looks_identical_to_missing(
-    strict_client, make_stream, make_lineage, projects, designer_headers
+    strict_client, make_stream, make_lineage, projects, designer_headers, suffix
 ):
-    """跨项目与不存在 ⇒ **逐字相同**的 404 ⇒ 枚举不出某个 UUID 是否存在。"""
+    """跨项目与不存在 ⇒ **逐字相同**的 404 ⇒ 枚举不出某个 UUID 是否存在。
+
+    ## ⚠️ 必须**三个后缀都测**（ce-code-review P1 #1）
+
+    守卫在「记录不存在」时**静默返回** ⇒ 端点各自落到自己的兜底：
+
+    - `/graph`、`/downstream`：`tracker.latest()` 为 None ⇒ 抛 404 ⇒ 恰好同形
+    - `/upstream`：`tracker.upstream()` **不抛**，返回 **200 + []** ⇒
+      **与跨项目的 404 不一致** ⇒ 攻击者据此区分「这个 UUID 存在但不属于我」
+      与「这个 UUID 根本不存在」⇒ **枚举向量**。
+
+    ⇒ 断言必须覆盖三个后缀；只测 `/graph` 会让 `/upstream` 的漏洞漏网。
+    """
     _project_a, project_b = projects
     stream = await make_stream(project_b)
     await make_lineage(stream)
 
     r_missing = await strict_client.get(
-        f"/api/v1/lineage/streams/{uuid.uuid4()}/graph", headers=designer_headers
+        f"/api/v1/lineage/streams/{uuid.uuid4()}{suffix}", headers=designer_headers
     )
     r_forbidden = await strict_client.get(
-        f"/api/v1/lineage/streams/{stream.stream_id}/graph", headers=designer_headers
+        f"/api/v1/lineage/streams/{stream.stream_id}{suffix}", headers=designer_headers
     )
 
-    assert r_missing.status_code == r_forbidden.status_code == 404
+    assert r_missing.status_code == r_forbidden.status_code == 404, (
+        f"{suffix}: missing={r_missing.status_code} forbidden={r_forbidden.status_code}"
+    )
     assert r_missing.json()["code"] == r_forbidden.json()["code"]
     assert r_missing.json()["message"] == r_forbidden.json()["message"]
 

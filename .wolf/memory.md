@@ -3158,3 +3158,8 @@
 | 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | modified test_review_log_returns_check_verdicts_written_with_their_real_actions() | ~504 |
 | 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | added 1 import(s) | ~33 |
 | 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | expanded (+17 lines) | ~272 |
+| 07:23 | Edited pcs-backend/tests/api/v1/test_lineage_guard.py | modified test_lineage_cross_project_looks_identical_to_missing() | ~378 |
+| 07:23 | Edited pcs-backend/app/api/v1/lineage.py | expanded (+14 lines) | ~390 |
+| 07:24 | Edited pcs-backend/tests/test_lineage_api.py | modified test_upstream_empty_when_no_lineage() | ~299 |
+| 07:24 | Edited pcs-backend/tests/test_lineage_api.py | modified test_lineage_endpoint_serialization_envelope() | ~124 |
+| 07:25 | Edited pcs-backend/app/api/v1/lineage.py | 13→16 lines | ~175 |

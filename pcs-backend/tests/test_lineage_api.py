@@ -72,13 +72,36 @@ async def _flush_full(session, *objs):
 
 # === upstream ===
 
-async def test_upstream_empty_when_no_lineage(client, user_id):
+async def test_upstream_empty_when_no_lineage(client, db_session, user_id):
+    """记录**存在**但没有血缘行 ⇒ 200 + []（这才是「无血缘」的语义）。
+
+    ⚠️ 原来这条测试用的是**随机 uuid**（记录不存在）⇒ 它断言的其实是
+    「记录不存在 ⇒ 200 + []」⇒ 那个契约**正是枚举向量**
+    （跨项目 ⇒ 404，不存在 ⇒ 200 ⇒ 可区分 ⇒ bug-2147）。
+    ⇒ 现在拆成两条：记录存在但无血缘 ⇒ 200 + []；记录不存在 ⇒ 404。
+    """
+    pipe = _make_pipe()
+    await _flush_full(db_session, pipe)
     r = await client.get(
-        f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/upstream"
+        f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/upstream"
 , headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     assert r.json() == []
+
+
+async def test_upstream_of_missing_record_is_404(client, user_id):
+    """记录**不存在** ⇒ **404**（与「无权」逐字同形）⇒ 枚举不出 UUID 真伪。
+
+    见 `tests/api/v1/test_lineage_guard.py::test_lineage_cross_project_looks_identical_to_missing`
+    （那边是跨项目 vs 不存在的对照；这边钉住「不存在」这一侧自己的形状）。
+    """
+    r = await client.get(
+        f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/upstream"
+, headers=_auth_headers(user_id)
+    )
+    assert r.status_code == 404
+    assert r.json()["message"] == "no lineage for record"
 
 
 async def test_upstream_traverses_parent_chain(client, db_session, user_id):
@@ -231,10 +254,15 @@ async def test_graph_returns_root_up_down(client, db_session, user_id):
     assert body["downstream"] == []
 
 
-async def test_lineage_endpoint_serialization_envelope(client, user_id):
-    """序列化字段完整性。"""
+async def test_lineage_endpoint_serialization_envelope(client, db_session, user_id):
+    """序列化字段完整性。
+
+    ⚠️ 用**存在的**记录（原来用随机 uuid ⇒ 撞上「记录不存在 ⇒ 404」的新契约）。
+    """
+    pipe = _make_pipe()
+    await _flush_full(db_session, pipe)
     r = await client.get(
-        f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/upstream"
+        f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/upstream"
 , headers=_auth_headers(user_id)
     )
     assert r.status_code == 200

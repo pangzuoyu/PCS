@@ -978,6 +978,9 @@ export interface paths {
          *
          *     步骤：
          *     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+         *     0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**
+         *         ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`
+         *         本来就是这个形状，只有本端点原先漏了）
          *     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
          *        （不走 latest()，因为上游追溯用最近一次就行）
          *     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）

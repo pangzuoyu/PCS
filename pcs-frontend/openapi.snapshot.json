@@ -2459,7 +2459,7 @@
           "lineage"
         ],
         "summary": "Upstream",
-        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
+        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**\n    ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`\n    本来就是这个形状，只有本端点原先漏了）\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
         "operationId": "upstream_api_v1_lineage__record_type___record_id__upstream_get",
         "parameters": [
           {

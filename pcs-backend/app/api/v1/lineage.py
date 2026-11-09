@@ -53,6 +53,9 @@ async def upstream(
 
     步骤：
     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+    0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**
+        ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`
+        本来就是这个形状，只有本端点原先漏了）
     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
        （不走 latest()，因为上游追溯用最近一次就行）
     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
@@ -186,6 +189,17 @@ async def _guard_record_access(
     ⇒ ⚠️ 在本守卫**存在之前**，`record_type='streams'` 是**整个跳过**的 ⇒
     跨项目与不存在**都**是 `no lineage for record` ⇒ **不可枚举**；
     ⇒ 若这里改抛 `"Project not found"` ⇒ **反而引入**了枚举向量 ⇒ 守住它。
+
+    ## ⚠️⚠️ 「记录不存在」**也**抛同一个 404（bug-2147）
+
+    原来这里 `return`（注释写「让 endpoint 自然 404」）⇒ **端点各有各的兜底**：
+
+    - `/graph`、`/downstream`：`tracker.latest()` 为 None ⇒ 抛 404 ⇒ 恰好同形
+    - `/upstream`：`tracker.upstream()` **不抛**，返回 **200 + []** ⇒
+      **与跨项目的 404 可区分** ⇒ 「这个 UUID 存在但不属于我」vs
+      「这个 UUID 根本不存在」⇒ **UUID 枚举向量**（本守卫要关的正是它）。
+
+    ⇒ 守卫**自己**抛同一个 404 ⇒ 三条路径**逐字同形**，与端点各自的兜底无关。
     """
     entry = LINEAGE_GUARDED_RECORD_TYPES.get(record_type)
     if entry is None:
@@ -198,7 +212,10 @@ async def _guard_record_access(
         )
     ).scalar_one_or_none()
     if record is None:
-        return  # 不存在 → 让 lineage endpoint 自然 404（与「无权」同形）
+        # ⚠️ **不存在 ⇒ 与「无权」同一个 404**（不是 `return`）。
+        #    `return` 会让端点落到自己的兜底 ⇒ `/upstream` 返 200 + [] ⇒
+        #    与跨项目的 404 **可区分** ⇒ 枚举向量（bug-2147）。
+        raise HTTPException(404, "no lineage for record")
 
     if not await has_project_access(
         session,

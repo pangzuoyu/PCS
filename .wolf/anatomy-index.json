@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-09T23:22:39.725Z",
-    "fileCount": 1195,
+    "lastScanned": "2026-11-09T23:25:15.577Z",
+    "fileCount": 1196,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "194e5d05fb9769f5b3db652cff835934168f1979df390bff36ace0e95dbfeea6",
-    "storeUpdatedAt": "2026-11-09T23:22:39.736Z",
-    "rootHash": "36c7fe544ec01b10"
+    "renderedHash": "1a724d9d5b66ea5d205a5902d8dfac829d54c4034d50686646c0a4262dbce089",
+    "storeUpdatedAt": "2026-11-09T23:25:15.589Z",
+    "rootHash": "0fb0d95d35142de4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42874,57 +42874,57 @@
     },
     "pcs-backend/app/api/v1/lineage.py": {
       "description": "Lineage API（Sprint 3）。",
-      "tokens": 2059,
-      "hash": "e4b36c6d0a0b30aa",
-      "size": 8816,
-      "mtimeMs": 1794205173626.0447,
-      "updatedAt": "2026-11-09T06:19:33.691Z",
+      "tokens": 2258,
+      "hash": "c924f375089a0d5a",
+      "size": 9952,
+      "mtimeMs": 1794266715529.0413,
+      "updatedAt": "2026-11-09T23:25:15.577Z",
       "source": "hook",
       "symbols": [
         {
           "name": "upstream",
           "kind": "fn",
           "startLine": 45,
-          "endLine": 75,
-          "tokens": 295
+          "endLine": 78,
+          "tokens": 339
         },
         {
           "name": "downstream",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 108,
+          "startLine": 79,
+          "endLine": 111,
           "tokens": 344
         },
         {
           "name": "graph",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 145,
+          "startLine": 112,
+          "endLine": 148,
           "tokens": 368
         },
         {
           "name": "_serialize",
           "kind": "fn",
-          "startLine": 146,
-          "endLine": 163,
+          "startLine": 149,
+          "endLine": 166,
           "tokens": 229
         },
         {
           "name": "_guard_record_access",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 210,
-          "tokens": 439
+          "startLine": 167,
+          "endLine": 227,
+          "tokens": 594
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_lineage_guard.py": {
       "description": "血缘端点的项目守卫 —— P9B-4 紧急批次 T5（TODO-114）。",
-      "tokens": 1660,
-      "hash": "e81c25edf7dd5c45",
-      "size": 6605,
-      "mtimeMs": 1794205182927.8567,
-      "updatedAt": "2026-11-09T06:19:44.176Z",
+      "tokens": 1817,
+      "hash": "055786429b57e35f",
+      "size": 7397,
+      "mtimeMs": 1794266617022.1409,
+      "updatedAt": "2026-11-09T23:23:37.077Z",
       "source": "hook",
       "symbols": [
         {
@@ -42973,21 +42973,21 @@
           "name": "test_lineage_of_another_project_stream_is_404",
           "kind": "fn",
           "startLine": 134,
-          "endLine": 152,
-          "tokens": 188
+          "endLine": 153,
+          "tokens": 210
         },
         {
           "name": "test_lineage_cross_project_looks_identical_to_missing",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 177,
-          "tokens": 274
+          "startLine": 154,
+          "endLine": 192,
+          "tokens": 410
         },
         {
           "name": "test_own_project_lineage_graph_is_readable",
           "kind": "fn",
-          "startLine": 178,
-          "endLine": 192,
+          "startLine": 193,
+          "endLine": 207,
           "tokens": 154
         }
       ]
@@ -43154,6 +43154,108 @@
       "mtimeMs": 1794266461281.094,
       "updatedAt": "2026-11-09T23:21:01.323Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/test_lineage_api.py": {
+      "description": "Lineage API 端到端测试（Sprint 3）。",
+      "tokens": 2363,
+      "hash": "1f504b548871391a",
+      "size": 8974,
+      "mtimeMs": 1794266687571.9187,
+      "updatedAt": "2026-11-09T23:24:47.617Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth_headers",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 31,
+          "tokens": 96
+        },
+        {
+          "name": "_make_pipe",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 63,
+          "tokens": 232
+        },
+        {
+          "name": "_flush_full",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 74,
+          "tokens": 56
+        },
+        {
+          "name": "test_upstream_empty_when_no_lineage",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 92,
+          "tokens": 160
+        },
+        {
+          "name": "test_upstream_of_missing_record_is_404",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 106,
+          "tokens": 140
+        },
+        {
+          "name": "test_upstream_traverses_parent_chain",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 131,
+          "tokens": 250
+        },
+        {
+          "name": "test_upstream_respects_max_depth",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 156,
+          "tokens": 223
+        },
+        {
+          "name": "test_downstream_404_when_no_lineage",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 164,
+          "tokens": 66
+        },
+        {
+          "name": "test_downstream_returns_bfs",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 189,
+          "tokens": 244
+        },
+        {
+          "name": "test_downstream_returns_children_of_latest",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 218,
+          "tokens": 288
+        },
+        {
+          "name": "test_graph_404_when_no_lineage",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 226,
+          "tokens": 63
+        },
+        {
+          "name": "test_graph_returns_root_up_down",
+          "kind": "fn",
+          "startLine": 227,
+          "endLine": 256,
+          "tokens": 296
+        },
+        {
+          "name": "test_lineage_endpoint_serialization_envelope",
+          "kind": "fn",
+          "startLine": 257,
+          "endLine": 269,
+          "tokens": 124
+        }
+      ]
     }
   }
 }

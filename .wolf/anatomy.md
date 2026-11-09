@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:22:39.725Z
-> Files: 1195 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:25:15.577Z
+> Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1261,7 +1261,7 @@
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~536 tok)
-- `lineage.py` — Lineage API（Sprint 3）。 (~2059 tok)
+- `lineage.py` — Lineage API（Sprint 3）。 (~2258 tok)
 - `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1958 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~604 tok)
 - `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
@@ -1469,6 +1469,7 @@
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
+- `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3389 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
@@ -1508,7 +1509,7 @@
 - `test_edit_lock_api.py` — 编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。 (~2367 tok)
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
-- `test_lineage_guard.py` — 血缘端点的项目守卫 —— P9B-4 紧急批次 T5（TODO-114）。 (~1660 tok)
+- `test_lineage_guard.py` — 血缘端点的项目守卫 —— P9B-4 紧急批次 T5（TODO-114）。 (~1817 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
