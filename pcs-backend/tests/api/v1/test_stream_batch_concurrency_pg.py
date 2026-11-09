@@ -81,7 +81,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.errors import PcsError
 from app.models.enums import StateTransition
-from app.models.project import Project, Stream, Workspace
+from app.models.project import Project, Stream, User, UserProject, Workspace
 from app.services.stream_batch_service import submit_batch
 from app.services.stream_service import StreamService
 
@@ -146,6 +146,33 @@ async def main():
         sid = stream.stream_id
         sid2 = stream2.stream_id
 
+        # ⚠️ P9B-4 紧急批次 T4：批次 service 现在**逐条**做项目守卫 ⇒
+        #    操作人必须有该项目的授权行，否则每条都判成「不存在」。
+        #    ⇒ 这里给一个**固定**操作人建 `users` 行 + `user_projects` 行。
+        #    （⚠️ 真 PG 上 FK **强制** ⇒ `users` 行必须先建。）
+        actor_id = uuid.uuid5(uuid.NAMESPACE_DNS, "pg-conc-actor")
+        if await db.get(User, actor_id) is None:
+            db.add(
+                User(
+                    user_id=actor_id,
+                    username="pg-conc-actor",
+                    display_name="pg-conc-actor",
+                    roles=[],
+                    ad_groups=[],
+                    status="ACTIVE",
+                )
+            )
+            await db.flush()
+        db.add(
+            UserProject(
+                user_id=actor_id,
+                project_id=proj.project_id,
+                role_in_project="DESIGNER",
+                granted_by=actor_id,
+            )
+        )
+        await db.commit()
+
     # ---- ① 单条：并发两次 ⇒ 一胜一拒 -------------------------------
     async def submit_once():
         async with maker() as s:
@@ -193,7 +220,7 @@ async def main():
         async with maker() as s:
             res = await submit_batch(
                 s, [sid],
-                actor_user_id=uuid.uuid4(),
+                actor_user_id=actor_id,
                 actor_role="DESIGNER",
             )
             return res
@@ -228,7 +255,7 @@ async def main():
         async with maker() as s:
             res = await submit_batch(
                 s, ids,
-                actor_user_id=uuid.uuid4(),
+                actor_user_id=actor_id,
                 actor_role="DESIGNER",
             )
             return res

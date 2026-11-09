@@ -471,3 +471,66 @@ async def test_cross_project_submit_does_not_change_status(
 
     await db_session.refresh(stream)
     assert stream.sign_status == StreamSignStatus.DRAFT
+
+
+# ---------------------------------------------------------------------------
+# 批量端点（T4 · TODO-118）：跨项目条目按「不存在」处理
+# ---------------------------------------------------------------------------
+
+
+async def test_batch_submit_skips_cross_project_stream_as_not_found(
+    strict_client, make_stream, two_projects, designer_headers
+):
+    """跨项目的那条 ⇒ 报告为失败，且理由与「不存在」**逐字相同**；
+    自己项目的那条 ⇒ **照常成功**（D2 部分成功语义不受守卫影响）。"""
+    project_a, project_b = two_projects
+    own = await make_stream(project_a)
+    foreign = await make_stream(project_b)
+
+    r = await strict_client.post(
+        "/api/v1/streams/batch-submit",
+        json={"stream_ids": [str(own.stream_id), str(foreign.stream_id)]},
+        headers=designer_headers,
+    )
+    assert r.status_code == 207, r.text
+    body = r.json()
+
+    assert [s["stream_id"] for s in body["succeeded"]] == [str(own.stream_id)]
+    assert len(body["failed"]) == 1
+    assert body["failed"][0]["stream_id"] == str(foreign.stream_id)
+    # ⚠️ 与「不存在」**同一个码** —— 不是 403、不是别的 code
+    assert body["failed"][0]["reason"] == "SIM_STREAM_NOT_FOUND"
+
+
+async def test_batch_submit_of_only_foreign_stream_looks_identical_to_missing(
+    strict_client, make_stream, two_projects, designer_headers
+):
+    """⚠️ **同形**：跨项目条目与「不存在」条目 ⇒ **逐字相同**的失败项。
+
+    两次请求用**同一个 uuid**（第一次：不存在；第二次：存在但在别的项目）
+    ⇒ 攻击者看到的失败项必须一模一样 ⇒ 无法判断那个 UUID 是否存在。
+    """
+    _project_a, project_b = two_projects
+    sid = uuid.uuid4()
+
+    # ① 此刻这条物流**还不存在**
+    r_missing = await strict_client.post(
+        "/api/v1/streams/batch-submit",
+        json={"stream_ids": [str(sid)]},
+        headers=designer_headers,
+    )
+
+    # ② 同一个 id，现在它**存在**但在**别的项目**里
+    await make_stream(project_b, stream_id=sid)
+    r_forbidden = await strict_client.post(
+        "/api/v1/streams/batch-submit",
+        json={"stream_ids": [str(sid)]},
+        headers=designer_headers,
+    )
+
+    assert r_missing.status_code == r_forbidden.status_code == 207
+    failed_missing = r_missing.json()["failed"]
+    failed_forbidden = r_forbidden.json()["failed"]
+    assert len(failed_missing) == len(failed_forbidden) == 1
+    assert failed_missing[0]["reason"] == failed_forbidden[0]["reason"]
+    assert failed_missing[0]["detail"] == failed_forbidden[0]["detail"]

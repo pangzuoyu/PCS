@@ -60,5 +60,7 @@ async def batch_submit_streams(
         req.stream_ids,
         actor_user_id=user.user_id,
         actor_role=user.role,
+        # ⚠️ `actor_roles` 是项目守卫的 SYSTEM_ADMIN bypass（与单条端点同口径）
+        actor_roles=list(user.roles),
         dry_run=req.dry_run,
     )

@@ -28,6 +28,14 @@ from app.services.system_setting_service import get_setting_value
 
 pytestmark = pytest.mark.asyncio
 
+#: 批次测试用的**固定**操作人。
+#:
+#: ⚠️ P9B-4 紧急批次 T4：批次 service 现在**逐条**做项目守卫 ⇒ 操作人没有
+#: 授权行 ⇒ 每条都会被判成「不存在」⇒ 下面那些用例就全在测「全失败」而不是
+#: 它们各自要测的东西了 ⇒ 用**固定**操作人 + `batch_project` 里给它授权。
+#: （是**补授权行**，不是放宽守卫。）
+BATCH_ACTOR_ID = uuid.uuid5(uuid.NAMESPACE_DNS, "batch-actor")
+
 
 def _stream(**kw) -> Stream:
     """构造一个**不落库**的 Stream（只测组成口径，不碰 DB）。"""
@@ -85,8 +93,13 @@ async def test_batch_audit_action_exists():
 
 
 @pytest_asyncio.fixture
-async def batch_project(db_session: AsyncSession):
-    """一个项目 + 一个工作区（批次里的物流都挂在它下面）。"""
+async def batch_project(db_session: AsyncSession, grant_project):
+    """一个项目 + 一个工作区（批次里的物流都挂在它下面）。
+
+    ⚠️ 同时给 `BATCH_ACTOR_ID` 授一行项目权限 —— 批次 service **逐条**做项目
+    守卫（P9B-4 T4）⇒ 没授权 ⇒ 每条都判成「不存在」⇒ 用例全测不到它们要测
+    的东西。
+    """
     from app.models.project import Project, Workspace
 
     ws = Workspace(workspace_type="FORMAL", name=f"ws-{uuid.uuid4().hex[:8]}")
@@ -104,6 +117,7 @@ async def batch_project(db_session: AsyncSession):
     )
     db_session.add(proj)
     await db_session.commit()
+    await grant_project(BATCH_ACTOR_ID, proj.project_id, username="batch-actor")
     return proj
 
 
@@ -142,7 +156,7 @@ async def test_batch_deduplicates_stream_ids(db_session, batch_project):
     result = await submit_batch(
         db_session,
         [s.stream_id, s.stream_id, s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -161,7 +175,7 @@ async def test_batch_success_moves_status_and_reports_transition(
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -200,7 +214,7 @@ async def test_batch_partial_success_does_not_roll_back_the_good_ones(
     result = await submit_batch(
         db_session,
         [good.stream_id, bad.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -225,7 +239,7 @@ async def test_batch_already_in_approval_is_idempotent_success(db_session, batch
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -243,7 +257,7 @@ async def test_batch_reports_missing_stream_as_failed_item(db_session, batch_pro
     result = await submit_batch(
         db_session,
         [uuid.uuid4()],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -263,7 +277,7 @@ async def test_batch_rejects_stream_in_non_submittable_status(db_session, batch_
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -281,7 +295,7 @@ async def test_batch_limit_exceeded_raises(db_session, batch_project):
         await submit_batch(
             db_session,
             ids,
-            actor_user_id=uuid.uuid4(),
+            actor_user_id=BATCH_ACTOR_ID,
             actor_role="DESIGNER",
             limit=2,
         )
@@ -298,7 +312,7 @@ async def test_batch_limit_is_configurable(db_session, batch_project):
     await update_batch(
         db_session,
         {"stream.batch_submit_limit": 1},
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
     )
     await db_session.commit()
     assert await get_setting_value(db_session, "stream.batch_submit_limit") == 1
@@ -313,7 +327,7 @@ async def test_batch_limit_is_configurable(db_session, batch_project):
         await submit_batch(
             db_session,
             [s.stream_id, s2.stream_id],
-            actor_user_id=uuid.uuid4(),
+            actor_user_id=BATCH_ACTOR_ID,
             actor_role="DESIGNER",
         )
     assert exc.value.code == "SIM_STREAM_BATCH_LIMIT_EXCEEDED"
@@ -334,7 +348,7 @@ async def test_dry_run_changes_nothing_and_writes_no_audit(db_session, batch_pro
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
         dry_run=True,
     )
@@ -369,7 +383,7 @@ async def test_dry_run_still_reports_failures(db_session, batch_project):
     result = await submit_batch(
         db_session,
         [bad.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
         dry_run=True,
     )
@@ -422,7 +436,7 @@ async def test_batch_response_splits_by_status(db_session, batch_project):
     result = await submit_batch(
         db_session,
         [good.stream_id, bad.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -482,7 +496,7 @@ async def test_unexpected_error_becomes_failed_item_and_batch_continues(
     result = await stream_batch_service.submit_batch(
         db_session,
         [boom.stream_id, good.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -508,7 +522,7 @@ async def test_single_item_role_forbidden_becomes_failed_item(db_session, batch_
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="VIEWER",  # 不在 TRANSITION_ROLES[SUBMIT_FOR_CHECK] 里
     )
 
@@ -542,7 +556,7 @@ async def test_batch_audit_write_failure_still_returns_results(
     result = await stream_batch_service.submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -608,7 +622,7 @@ async def test_failed_item_does_not_leak_its_partial_write_into_the_next_item(
     result = await submit_batch(
         db_session,
         [bad_id, good_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -680,7 +694,7 @@ async def test_precheck_lock_is_released_on_the_early_return_paths(
     await stream_batch_service._submit_one_inner(
         db_session,
         hit_id,
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
         dry_run=False,
     )
@@ -730,7 +744,7 @@ async def test_db_level_failure_does_not_poison_the_rest_of_the_batch(
     result = await submit_batch(
         db_session,
         [bad_id, good_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -814,7 +828,7 @@ async def test_commit_failure_itself_becomes_a_failed_item(
     result = await submit_batch(
         db_session,
         [bad_id, good_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -872,7 +886,7 @@ async def test_item_whose_commit_succeeded_is_reported_as_success(
     result = await submit_batch(
         db_session,
         [s_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 
@@ -914,7 +928,7 @@ async def test_batch_limit_treats_boolean_as_garbage(db_session, batch_project):
 
     # ⚠️ 存成布尔 `true`（JSONB 允许）⇒ 上限**不该**变成 1
     await update_batch(
-        db_session, {"stream.batch_submit_limit": True}, actor_user_id=uuid.uuid4()
+        db_session, {"stream.batch_submit_limit": True}, actor_user_id=BATCH_ACTOR_ID
     )
     await db_session.commit()
 
@@ -922,7 +936,7 @@ async def test_batch_limit_treats_boolean_as_garbage(db_session, batch_project):
     result = await submit_batch(
         db_session,
         [s.stream_id, s2.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
     assert len(result.succeeded) == 2, (
@@ -943,20 +957,20 @@ async def test_batch_limit_falls_back_when_value_is_garbage(db_session, batch_pr
 
     # ① 值不是整数 ⇒ 回落 100（这条能过 ⇒ 上限**没有**变成「无上限」）
     await update_batch(
-        db_session, {"stream.batch_submit_limit": "abc"}, actor_user_id=uuid.uuid4()
+        db_session, {"stream.batch_submit_limit": "abc"}, actor_user_id=BATCH_ACTOR_ID
     )
     await db_session.commit()
     result = await submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
     assert len(result.succeeded) == 1, "上限读成垃圾值时不该整批失败"
 
     # ② limit < 1 ⇒ 兜底成 1（不是 0 ⇒ 那样任何批次都会被拒）
     await update_batch(
-        db_session, {"stream.batch_submit_limit": 0}, actor_user_id=uuid.uuid4()
+        db_session, {"stream.batch_submit_limit": 0}, actor_user_id=BATCH_ACTOR_ID
     )
     await db_session.commit()
     from app.core.errors import PcsError
@@ -968,7 +982,7 @@ async def test_batch_limit_falls_back_when_value_is_garbage(db_session, batch_pr
         await submit_batch(
             db_session,
             [s.stream_id, s2.stream_id],
-            actor_user_id=uuid.uuid4(),
+            actor_user_id=BATCH_ACTOR_ID,
             actor_role="DESIGNER",
         )
     assert exc.value.code == "SIM_STREAM_BATCH_LIMIT_EXCEEDED"
@@ -1062,7 +1076,7 @@ async def test_batch_submit_uses_the_locked_select(
     await stream_batch_service.submit_batch(
         db_session,
         [s.stream_id],
-        actor_user_id=uuid.uuid4(),
+        actor_user_id=BATCH_ACTOR_ID,
         actor_role="DESIGNER",
     )
 

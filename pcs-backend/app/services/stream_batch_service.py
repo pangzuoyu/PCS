@@ -79,6 +79,7 @@ from app.services.stream_service import (
     select_stream_for_update,
 )
 from app.services.system_setting_service import get_setting_value
+from app.services.user_project_service import has_project_access
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,7 @@ async def _submit_one(
     *,
     actor_user_id: uuid.UUID,
     actor_role: str,
+    actor_roles: list[str] | None = None,
     dry_run: bool,
 ) -> BatchSucceededItem | BatchFailedItem:
     """处理一条 ⇒ 返回**成功或失败**（**绝不抛异常**）。
@@ -152,6 +154,7 @@ async def _submit_one(
             stream_id,
             actor_user_id=actor_user_id,
             actor_role=actor_role,
+            actor_roles=actor_roles,
             dry_run=dry_run,
         )
     except PcsError as e:
@@ -239,6 +242,7 @@ async def _submit_one_inner(
     *,
     actor_user_id: uuid.UUID,
     actor_role: str,
+    actor_roles: list[str] | None = None,
     dry_run: bool,
 ) -> BatchSucceededItem | BatchFailedItem:
     """处理一条的**业务逻辑**（异常由 `_submit_one` 统一兜住）。"""
@@ -258,6 +262,31 @@ async def _submit_one_inner(
     if stream is None:
         # ⚠️ 结束预检的事务（下面所有「提前返回」路径都这么做）——
         #    理由见 `_release_precheck_transaction` 的 docstring。
+        await _release_precheck_transaction(db)
+        return BatchFailedItem(
+            status="failed",
+            stream_id=stream_id,
+            reason="SIM_STREAM_NOT_FOUND",
+            detail=f"物流 {stream_id} 不存在",
+        )
+
+    # ⚠️ **项目守卫**（P9B-4 紧急批次 T4 · TODO-118）—— 跨项目条目
+    #    **按「不存在」处理**。
+    #
+    #    为什么不用 403：403 与 404 的差别**就是存在性** ⇒ 攻击者据此枚举。
+    #    ⇒ 判成「不存在」⇒ 与真不存在**逐字同形**（`reason` 与 `detail`
+    #    都逐字相同）⇒ 无泄露。代价：用户分不清「打错 id」与「不是我的」
+    #    —— 但那正是 404 语义该给的信息。
+    #
+    #    ⚠️ **必须先结束预检的事务**（行锁只在此刻释放）—— 否则这条的
+    #    `SELECT ... FOR UPDATE` 拿到的行锁会**跨条目累积** ⇒ 两个顺序相反
+    #    的并发批次 ⇒ 死锁环（见 `_release_precheck_transaction` 的 docstring）。
+    if not await has_project_access(
+        db,
+        user_id=actor_user_id,
+        project_id=stream.project_id,
+        actor_roles=actor_roles,
+    ):
         await _release_precheck_transaction(db)
         return BatchFailedItem(
             status="failed",
@@ -431,6 +460,7 @@ async def submit_batch(
     *,
     actor_user_id: uuid.UUID,
     actor_role: str,
+    actor_roles: list[str] | None = None,
     dry_run: bool = False,
     limit: int | None = None,
 ) -> StreamBatchSubmitResponse:
@@ -441,6 +471,8 @@ async def submit_batch(
         stream_ids: 待提交的物流 id（**去重后**处理；保留请求顺序）
         actor_user_id: 操作用户（写审计）
         actor_role: 操作用户角色（状态机按 `TRANSITION_ROLES` 校验）
+        actor_roles: 操作人的**全部**全局角色（**可选**）—— 用于项目守卫的
+            SYSTEM_ADMIN bypass（与单条端点同口径）。缺省 `None` ⇒ 不 bypass。
         dry_run: 只校验，不改状态、不写审计（D6）
         limit: **覆盖**批次上限（默认 `None` ⇒ 读系统参数 `stream.batch_submit_limit`）
 
@@ -480,6 +512,7 @@ async def submit_batch(
                 stream_id,
                 actor_user_id=actor_user_id,
                 actor_role=actor_role,
+                actor_roles=actor_roles,
                 dry_run=dry_run,
             )
         )
