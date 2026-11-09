@@ -15,14 +15,30 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1._guard import check_record_access_or_404
 from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
+from app.models.calc import PipingResult
+from app.models.project import Stream
 from app.services.lineage import LineageTracker
+from app.services.user_project_service import has_project_access
 
 router = APIRouter(prefix="/lineage", tags=["lineage"])
+
+
+#: 需要项目守卫的记录类型 → (ORM 模型, 主键列名)。
+#:
+#: ⚠️ **必须带主键列名** —— `PipingResult` 的主键是 `pipe_id`、`Stream` 的是
+#: `stream_id` ⇒ 一个 `record_id` 要按类型映射到不同的列。
+#:
+#: ⚠️ **只有带 `project_id` 的模型才能登记** ⇒ 登记一个没有项目归属的模型
+#: ⇒ 守卫拿不到项目 ⇒ `record.project_id` 会炸（fail-loud，而不是静默放行）。
+LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {
+    "PipingResult": (PipingResult, "pipe_id"),
+    "streams": (Stream, "stream_id"),
+}
 
 
 @router.get("/{record_type}/{record_id}/upstream", response_model=list[dict])
@@ -151,19 +167,44 @@ async def _guard_record_access(
     record_type: str,
     record_id: uuid.UUID,
 ) -> None:
-    """P7-7+ BLOCKER-3: 拉 record (PipingResult) 拿 project_id, 验证访问权.
+    """P7-7+ BLOCKER-3：按**记录类型注册表**拉 record 拿 project_id，验证访问权。
 
-    record 不存在时跳过 (lineage endpoint 本身后续会返 404 no lineage for record).
+    ⚠️ **以前这里是 `if record_type != "PipingResult": return`** ⇒ 任何其它记录
+    类型（`streams` …）**完全跳过**访问校验（TODO-114）⇒ 跨项目用户能读别人
+    物流的血缘图。⇒ 改成**注册表** ⇒ 加一种记录类型只要**登记一行**，不会再漏。
+
+    ⚠️ **不在注册表里的记录类型 ⇒ 跳过**（沿用旧行为）⇒ 但**新增记录类型必须
+    登记**，否则又是同一个洞。
+
+    ## ⚠️ 无权 ⇒ 与「不存在」**同形**（不是 "Project not found"）
+
+    跨项目 ⇒ 抛**与「无血缘」完全相同**的 404（`no lineage for record`）。
+
+    为什么不用 `check_record_access_or_404` 的 `"Project not found: …"`：
+    那个 message 与「这条记录不存在 ⇒ no lineage for record」**不同** ⇒
+    攻击者能靠响应差异**枚举出某个 UUID 是否存在**。
+    ⇒ ⚠️ 在本守卫**存在之前**，`record_type='streams'` 是**整个跳过**的 ⇒
+    跨项目与不存在**都**是 `no lineage for record` ⇒ **不可枚举**；
+    ⇒ 若这里改抛 `"Project not found"` ⇒ **反而引入**了枚举向量 ⇒ 守住它。
     """
-    if record_type != "PipingResult":
-        return  # lineage 仅对 PipingResult 做访问校验
-    from sqlalchemy import select as _sa_select
-    from app.models.calc import PipingResult
-    pre = (await session.execute(
-        _sa_select(PipingResult).where(PipingResult.pipe_id == record_id)
-    )).scalar_one_or_none()
-    if pre is None:
-        return  # 不存在 → 让 lineage endpoint 自然 404
-    await check_record_access_or_404(
-        session, user_id=user.user_id, record=pre, actor_roles=user.roles,
-    )
+    entry = LINEAGE_GUARDED_RECORD_TYPES.get(record_type)
+    if entry is None:
+        return  # 未登记的类型 ⇒ 跳过（旧行为）
+    model, pk_col = entry
+
+    record = (
+        await session.execute(
+            select(model).where(getattr(model, pk_col) == record_id)
+        )
+    ).scalar_one_or_none()
+    if record is None:
+        return  # 不存在 → 让 lineage endpoint 自然 404（与「无权」同形）
+
+    if not await has_project_access(
+        session,
+        user_id=user.user_id,
+        project_id=record.project_id,
+        actor_roles=user.roles,
+    ):
+        # ⚠️ **与「无血缘」逐字同形** —— 不是 403、也不是别的 code。
+        raise HTTPException(404, "no lineage for record")
