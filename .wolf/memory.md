@@ -3151,3 +3151,10 @@
 | 15:22 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-09-stream-guard.md | — | ~586 |
 | 15:30 | P9B-4 紧急批次（物流面 20 个端点/路径补项目守卫 + review-log 端点）· 8 commits a848bed..cbc701b | pcs-backend/app/api/v1/streams.py, stream_batch.py, lineage.py, projects.py, app/services/user_project_service.py, stream_batch_service.py, stream_review_log_service.py, app/schemas/stream_review_log.py, scripts/seed_user_project_access.py, tests/conftest.py, tests/api/v1/test_stream_project_guard.py, test_stream_review_log.py, test_lineage_guard.py, test_strict_client_fixture.py, test_project_owner_access.py, tests/services/test_stream_batch_service.py, tests/api/v1/test_stream_batch_concurrency_pg.py, pcs-frontend/src/api/stream.ts, src/pages/sim/tabs/StreamReviewLogTab.tsx, src/mocks/handlers.ts, tests/pages/sim/tabs/StreamReviewLogTab.test.tsx, tests/pages/sim/streamDetailTabs.test.tsx, docs/PCS-UI-SPEC.md, TODOS.md, CLAUDE.md | 全部落地：守卫 404 且与「不存在」逐字同形；后端 5528 passed / 前端 1028 passed / PG 5 passed / 裸载荷 71 未涨；7 条裁决见 commit 正文 | ~62000 |
 | 07:21 | Created docs/ce-code-review/20261109-181644-6f6ddca3/README.md | — | ~643 |
+| 07:21 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | modified _audit() | ~368 |
+| 07:21 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | added 2 import(s) | ~73 |
+| 07:21 | Edited pcs-backend/app/services/stream_review_log_service.py | expanded (+19 lines) | ~334 |
+| 07:21 | Edited pcs-backend/app/services/stream_review_log_service.py | 4→4 lines | ~54 |
+| 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | modified test_review_log_returns_check_verdicts_written_with_their_real_actions() | ~504 |
+| 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | added 1 import(s) | ~33 |
+| 07:22 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | expanded (+17 lines) | ~272 |

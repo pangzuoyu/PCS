@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-09T23:21:01.323Z",
+    "lastScanned": "2026-11-09T23:22:39.725Z",
     "fileCount": 1195,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f2471d146f042f9f5f6e9140a7d444d5d3b90670e867a33ca9a8727901e0e7c5",
-    "storeUpdatedAt": "2026-11-09T23:21:01.334Z",
-    "rootHash": "d67733c2ca7117eb"
+    "renderedHash": "194e5d05fb9769f5b3db652cff835934168f1979df390bff36ace0e95dbfeea6",
+    "storeUpdatedAt": "2026-11-09T23:22:39.736Z",
+    "rootHash": "36c7fe544ec01b10"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -43003,120 +43003,127 @@
     },
     "pcs-backend/app/services/stream_review_log_service.py": {
       "description": "读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。",
-      "tokens": 688,
-      "hash": "fd0000df26fb592e",
-      "size": 3198,
-      "mtimeMs": 1794205274889.126,
-      "updatedAt": "2026-11-09T06:21:14.937Z",
+      "tokens": 944,
+      "hash": "0bd399bc9aa852c9",
+      "size": 4432,
+      "mtimeMs": 1794266518112.278,
+      "updatedAt": "2026-11-09T23:21:58.159Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_review_log",
           "kind": "fn",
-          "startLine": 45,
-          "endLine": 75,
-          "tokens": 250
+          "startLine": 64,
+          "endLine": 94,
+          "tokens": 252
         },
         {
           "name": "_to_item",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 86,
+          "startLine": 95,
+          "endLine": 105,
           "tokens": 142
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_stream_review_log.py": {
       "description": "`GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。",
-      "tokens": 2549,
-      "hash": "24580796594b98aa",
-      "size": 9589,
-      "mtimeMs": 1794208345807.9468,
-      "updatedAt": "2026-11-09T07:12:25.866Z",
+      "tokens": 3370,
+      "hash": "205f4eb98ee1afb1",
+      "size": 13263,
+      "mtimeMs": 1794266559676.9565,
+      "updatedAt": "2026-11-09T23:22:39.724Z",
       "source": "hook",
       "symbols": [
         {
           "name": "designer_headers",
           "kind": "fn",
-          "startLine": 30,
-          "endLine": 35,
+          "startLine": 33,
+          "endLine": 38,
           "tokens": 53
         },
         {
           "name": "designer_user_id",
           "kind": "fn",
-          "startLine": 36,
-          "endLine": 40,
+          "startLine": 39,
+          "endLine": 43,
           "tokens": 36
         },
         {
           "name": "make_project",
           "kind": "fn",
-          "startLine": 41,
-          "endLine": 64,
+          "startLine": 44,
+          "endLine": 67,
           "tokens": 192
         },
         {
           "name": "make_stream",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 83,
+          "startLine": 68,
+          "endLine": 86,
           "tokens": 151
         },
         {
           "name": "_audit",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 119,
-          "tokens": 268
+          "startLine": 87,
+          "endLine": 139,
+          "tokens": 422
         },
         {
           "name": "test_review_log_returns_only_review_transitions",
           "kind": "fn",
-          "startLine": 120,
-          "endLine": 148,
+          "startLine": 140,
+          "endLine": 168,
           "tokens": 351
+        },
+        {
+          "name": "test_review_log_returns_check_verdicts_written_with_their_real_actions",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 234,
+          "tokens": 628
         },
         {
           "name": "test_review_log_is_sorted_by_occurred_at_asc",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 191,
+          "startLine": 235,
+          "endLine": 277,
           "tokens": 356
         },
         {
           "name": "test_review_log_carries_operator_and_reason",
           "kind": "fn",
-          "startLine": 192,
-          "endLine": 218,
+          "startLine": 278,
+          "endLine": 304,
           "tokens": 251
         },
         {
           "name": "test_review_log_of_a_stream_without_transitions_is_empty_list",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 234,
+          "startLine": 305,
+          "endLine": 320,
           "tokens": 167
         },
         {
           "name": "test_review_log_ignores_other_streams_records",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 261,
+          "startLine": 321,
+          "endLine": 347,
           "tokens": 291
         },
         {
           "name": "test_review_log_of_another_project_stream_is_404",
           "kind": "fn",
-          "startLine": 262,
-          "endLine": 276,
+          "startLine": 348,
+          "endLine": 362,
           "tokens": 165
         },
         {
           "name": "test_review_log_of_unknown_stream_is_404",
           "kind": "fn",
-          "startLine": 277,
-          "endLine": 286,
+          "startLine": 363,
+          "endLine": 372,
           "tokens": 98
         }
       ]

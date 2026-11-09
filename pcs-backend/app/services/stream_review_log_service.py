@@ -29,16 +29,35 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.enums import StateTransition
 from app.models.system import AuditLog
 from app.schemas.stream_review_log import ReviewLogItem
+from app.services.state_machine import TRANSITION_AUDIT_ACTION
 
 #: 校对相关的状态转移（其余 transition **不显示**）。
 #:
 #: ⚠️ 这是**唯一**一份口径（后端过滤）⇒ 前端**不得**再过滤一遍。
-REVIEW_TRANSITIONS: tuple[str, ...] = (
-    "SUBMIT_FOR_CHECK",
-    "PASS_CHECK",
-    "REJECT_CHECK",
+#:
+#: ⚠️⚠️ **词表从枚举派生，不手抄**（bug-2146）：手抄字符串当"唯一口径"，
+#: 迟早与状态机漂移 —— 而且漂移过一次：手抄的 `action == "RECORD_TRANSITION"`
+#: 那个过滤把 `PASS_CHECK` / `REJECT_CHECK` 两行**全吞了**（状态机给它们写的
+#: 是 `APPROVAL_STEP_PASSED` / `APPROVAL_STEP_REJECTED`）⇒ 端点在生产里
+#: **只能**返回「提交校对」一条，而失败是静默的（200 + 部分列表）。
+REVIEW_TRANSITIONS: tuple[StateTransition, ...] = (
+    StateTransition.SUBMIT_FOR_CHECK,
+    StateTransition.PASS_CHECK,
+    StateTransition.REJECT_CHECK,
+)
+
+#: `detail_json->>'transition'` 里存的**字符串**值（= 枚举的 `.value`）。
+REVIEW_TRANSITION_VALUES: tuple[str, ...] = tuple(t.value for t in REVIEW_TRANSITIONS)
+
+#: 这些转移在 `audit_logs.action` 上**真实**写的动作（也从状态机的映射派生）。
+#:
+#: ⚠️ `SUBMIT_FOR_CHECK` 与 `MARK_STALE` **共用** `RECORD_TRANSITION` ⇒
+#: 只靠 `action` 放行会带进 `MARK_STALE` ⇒ 必须**同时**用 transition 白名单收口。
+REVIEW_AUDIT_ACTIONS: tuple[str, ...] = tuple(
+    TRANSITION_AUDIT_ACTION[t].value for t in REVIEW_TRANSITIONS
 )
 
 
@@ -61,10 +80,10 @@ async def list_review_log(
             .where(
                 AuditLog.resource_type == "streams",
                 AuditLog.resource_id == str(stream_id),
-                AuditLog.action == "RECORD_TRANSITION",
+                AuditLog.action.in_(REVIEW_AUDIT_ACTIONS),
                 AuditLog.detail_json["transition"]
                 .as_string()
-                .in_(REVIEW_TRANSITIONS),
+                .in_(REVIEW_TRANSITION_VALUES),
             )
             .order_by(AuditLog.occurred_at.asc(), AuditLog.audit_id.asc())
         )
