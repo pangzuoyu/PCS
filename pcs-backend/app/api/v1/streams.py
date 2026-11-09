@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -587,12 +588,29 @@ async def _transition_endpoint(
     user: _Actor,
     db: AsyncSession,
     reason: str | None,
+    *,
+    precheck: Callable[[Stream], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
-    """6 状态机端点共用 helper：SELECT FOR UPDATE → StateMachineService。
+    """6 状态机端点共用 helper：**项目守卫（404）→ precheck（422）→ 转移**。
+
+    ## ⚠️ 顺序**不可换**
+
+    - **守卫在前** ⇒ 跨项目用户只会拿到 **404**，**看不到**任何业务细节
+      （组成百分比、当前状态……）⇒ 那些细节本身就是信息泄露
+      （Review Focus #2：跨项目 submit 若返回 422「组成合计 87.3%」⇒
+      存在性 + 组成数据**同时**泄露）。
+    - **precheck 在守卫之后、转移之前** ⇒ 非法组成**不会**留下「已进校对」的
+      半成品（门禁前置，SPEC §5.1）。
 
     Returns:
         dict 含 sign_status（最新态）便于前端更新展示
     """
+    # ① 项目守卫 —— 不存在 / 跨项目 ⇒ **同一个** 404
+    stream = await _load_stream_guarded(db, stream_id, user)
+    # ② 业务门禁（组成合计）—— 只在**有权**的调用方身上才可能触发
+    if precheck is not None:
+        await precheck(stream)
+    # ③ 真正的转移
     try:
         stream = await StreamService.transition(
             db,
@@ -639,28 +657,42 @@ async def submit_stream(
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
 
-    # ⚠️ 组成合计门禁 —— 在 `_transition_endpoint`（拿行锁 + 转移）**之前**：
-    #    先校验再转移 ⇒ 非法组成**不会**留下「已进校对」的半成品。
-    stream = await db.get(Stream, stream_id)
-    if stream is not None:
-        composition = stream.composition_json
-        # `None` = 无组成（纯物质）⇒ **跳过**；`{}` = 未填写 ⇒ **拒绝**。
-        if composition is not None:
-            total = composition_mole_fraction_total(stream)
-            # 空对象 ⇒ total = 0.0 ⇒ 落在范围外 ⇒ 拒绝（与「未填写」语义一致）。
-            if total is None or abs(total - 1.0) > 0.005:
-                raise CorePcsError(
-                    code="SIM_STREAM_COMPOSITION_OUT_OF_RANGE",
-                    message=(
-                        f"物流 {stream_id} 的组成摩尔分率合计 {total * 100:.2f}%，"
-                        "不在 100±0.5% 内 ⇒ 不能提交校对"
-                    ),
-                    status=422,
-                )
-
+    # ⚠️ 组成合计门禁**挪进** `_transition_endpoint` 的 `precheck` 钩子 ——
+    #    顺序变成「项目守卫（404）→ 组成门禁（422）→ 转移」。
+    #    为什么挪：门禁之前**必须**是项目守卫 ⇒ 跨项目用户拿到的是 404，
+    #    而不是「组成合计 87.3%」这种**既泄露存在性又泄露数据**的 422。
     return await _transition_endpoint(
-        stream_id, StateTransition.SUBMIT_FOR_CHECK, user, db, reason=None
+        stream_id,
+        StateTransition.SUBMIT_FOR_CHECK,
+        user,
+        db,
+        reason=None,
+        precheck=_composition_gate,
     )
+
+
+async def _composition_gate(stream: Stream) -> None:
+    """组成合计门禁 —— 100±0.5%（SPEC §7.7.2）。
+
+    ⚠️ `None` = 无组成（纯物质）⇒ **跳过**；`{}` = 未填写 ⇒ **拒绝**。
+    （空对象 ⇒ total = 0.0 ⇒ 落在范围外 ⇒ 拒绝，与「未填写」语义一致。）
+
+    ⚠️ 这个门禁**只在有权调用方的路径上**才可能触发 ⇒ 它抛出的 422 里
+    含组成百分比 ⇒ **必须**在项目守卫之后。
+    """
+    composition = stream.composition_json
+    if composition is None:
+        return
+    total = composition_mole_fraction_total(stream)
+    if total is None or abs(total - 1.0) > 0.005:
+        raise CorePcsError(
+            code="SIM_STREAM_COMPOSITION_OUT_OF_RANGE",
+            message=(
+                f"物流 {stream.stream_id} 的组成摩尔分率合计 {total * 100:.2f}%，"
+                "不在 100±0.5% 内 ⇒ 不能提交校对"
+            ),
+            status=422,
+        )
 
 
 @router.post("/streams/{stream_id}/approve")

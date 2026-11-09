@@ -61,6 +61,18 @@ def designer_user_id() -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_DNS, "guard-designer")
 
 
+@pytest.fixture
+def controller_headers() -> dict[str, str]:
+    """PROCESS_CONTROLLER 身份 —— `approve` / `reject` 端点只放行它。"""
+    token = create_access_token(subject="guard-controller", role="PROCESS_CONTROLLER")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def controller_user_id() -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_DNS, "guard-controller")
+
+
 @pytest_asyncio.fixture
 async def make_project(db: AsyncSession):
     """最小 Workspace + Project 工厂。"""
@@ -146,11 +158,16 @@ async def make_state_point(db: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def two_projects(make_project, grant_project, designer_user_id):
+async def two_projects(
+    make_project, grant_project, designer_user_id, controller_user_id
+):
     """项目 A（**已授权**）+ 项目 B（**未授权**）。"""
     project_a = await make_project()
     project_b = await make_project()
     await grant_project(designer_user_id, project_a.project_id, username="guard-designer")
+    await grant_project(
+        controller_user_id, project_a.project_id, username="guard-controller"
+    )
     return project_a, project_b
 
 
@@ -382,3 +399,75 @@ async def test_own_project_state_points_list_is_readable(
     )
     assert r.status_code == 200, r.text
     assert len(r.json()) == 1
+
+
+# ---------------------------------------------------------------------------
+# 6 个状态转移端点（T3）：跨项目一律 404
+# ---------------------------------------------------------------------------
+#
+# ⚠️ **每个端点用的身份不同** —— `approve` / `reject` 限 PROCESS_CONTROLLER
+# （端点层的 `require_roles` 在守卫**之前** ⇒ 用错身份会拿到 403 而不是 404，
+# 那是**角色**的判定，不是存在性的判定 ⇒ 不影响「可枚举」结论，但会让
+# 本测试测不到守卫）。
+
+_TRANSITION_ENDPOINTS = [
+    ("/submit", "designer"),
+    ("/approve", "controller"),
+    ("/reject", "controller"),
+    ("/initiate-change", "designer"),
+    ("/pass-change", "designer"),
+    ("/mark-stale", "designer"),
+]
+
+
+@pytest.mark.parametrize("path,who", _TRANSITION_ENDPOINTS)
+async def test_state_transition_in_another_project_is_404(
+    strict_client, stream_in_b, designer_headers, controller_headers, path, who
+):
+    """6 个状态转移端点：跨项目 ⇒ **404**（不是 200/403/422）。"""
+    headers = designer_headers if who == "designer" else controller_headers
+    body = {} if path == "/submit" else {"reason": "测试"}
+    r = await strict_client.post(
+        f"/api/v1/streams/{stream_in_b.stream_id}{path}", json=body, headers=headers
+    )
+    assert r.status_code == 404, r.text
+
+
+async def test_cross_project_submit_leaks_no_composition_detail(
+    strict_client, make_stream, two_projects, designer_headers, db_session
+):
+    """⚠️ **守卫必须先于组成门禁**（Review Focus #2）。
+
+    这条物流的组成合计是 **50%**（非法）⇒ 修复前跨项目 submit 会返回
+    **422「组成摩尔分率合计 50.00%」** ⇒ 那一条响应**同时**泄露了
+    「这条物流存在」**和**「它的组成是多少」。
+
+    ⇒ 修复后必须是 **404**，且响应里**不得**出现「组成」二字。
+    """
+    _project_a, project_b = two_projects
+    stream = await make_stream(project_b)
+    stream.composition_json = {"7732-18-5": 0.5}   # 合计 50% ⇒ 非法
+    await db_session.commit()
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{stream.stream_id}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 404, r.text
+    assert "组成" not in r.text
+    assert "50.00" not in r.text
+
+
+async def test_cross_project_submit_does_not_change_status(
+    strict_client, make_stream, two_projects, designer_headers, db_session
+):
+    """守卫失败 ⇒ 状态**一个字节都不能变**（不留半成品）。"""
+    _project_a, project_b = two_projects
+    stream = await make_stream(project_b)
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{stream.stream_id}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 404, r.text
+
+    await db_session.refresh(stream)
+    assert stream.sign_status == StreamSignStatus.DRAFT
