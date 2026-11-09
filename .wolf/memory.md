@@ -3163,3 +3163,12 @@
 | 07:24 | Edited pcs-backend/tests/test_lineage_api.py | modified test_upstream_empty_when_no_lineage() | ~299 |
 | 07:24 | Edited pcs-backend/tests/test_lineage_api.py | modified test_lineage_endpoint_serialization_envelope() | ~124 |
 | 07:25 | Edited pcs-backend/app/api/v1/lineage.py | 13→16 lines | ~175 |
+| 07:32 | Edited pcs-backend/app/services/stream_batch_service.py | modified has_project_access() | ~810 |
+| 07:32 | Edited pcs-backend/app/services/stream_batch_service.py | expanded (+6 lines) | ~178 |
+| 07:32 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_guard_db_failure_does_not_poison_the_rest_of_the_batch() | ~994 |
+| 07:33 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified test_guard_db_failure_does_not_poison_the_rest_of_the_batch() | ~1145 |
+| 07:33 | Edited pcs-backend/tests/services/test_stream_batch_service.py | modified boom_on_first_call() | ~352 |
+| 07:34 | Edited pcs-backend/app/services/stream_review_log_service.py | reduced (-9 lines) | ~229 |
+| 07:34 | Edited pcs-backend/app/services/stream_review_log_service.py | 4→3 lines | ~37 |
+| 07:34 | Edited pcs-backend/app/services/stream_review_log_service.py | expanded (+13 lines) | ~260 |
+| 07:34 | Edited pcs-backend/tests/api/v1/test_stream_review_log.py | modified test_review_log_does_not_filter_on_the_audit_action() | ~441 |

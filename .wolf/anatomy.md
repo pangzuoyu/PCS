@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:25:15.577Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:34:37.269Z
 > Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1364,8 +1364,8 @@
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~8562 tok)
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
-- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~5306 tok)
-- `stream_review_log_service.py` — 读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。 (~944 tok)
+- `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~5708 tok)
+- `stream_review_log_service.py` — 读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。 (~966 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~7269 tok)
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1252 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
@@ -1531,7 +1531,7 @@
 - `test_stream_composition_sum.py` — 物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。 (~1901 tok)
 - `test_stream_list_filters.py` — 物流列表的四项筛选（SPEC §7.7.1 · P9B-3 · 评审 I-4）。 (~1346 tok)
 - `test_stream_project_guard.py` — 物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。 (~4172 tok)
-- `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3370 tok)
+- `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3795 tok)
 - `test_stream_source.py` — `streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。 (~2312 tok)
 - `test_strict_client_fixture.py` — `strict_client` fixture 本身的测试 —— P9B-4 紧急批次 T1。 (~1064 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
@@ -1612,7 +1612,7 @@
 - `test_record_snapshot_codec.py` — 记录快照**数据编解码**（TODO-087）。 (~1629 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5024 tok)
-- `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~9947 tok)
+- `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~11179 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)

@@ -20,6 +20,19 @@
 
 ⚠️ **TODO-104 的准确表述**是「**已有 GIN 索引覆盖不到本查询的写法**」，
 不是「表上没索引」。
+
+## ⚠️⚠️ **只按 `detail_json.transition` 收口，不按 `action`**（bug-2146）
+
+原来这里还有一条 `AuditLog.action == "RECORD_TRANSITION"` ⇒ 它**冗余**，
+而且正是**害死端点的那一条**：状态机给 `PASS_CHECK` / `REJECT_CHECK` 写的
+是 `APPROVAL_STEP_PASSED` / `APPROVAL_STEP_REJECTED` ⇒ 两行被静默吞掉。
+
+⇒ 去掉 `action` 谓词：
+- `detail_json.transition` **已经精确**选中那三条转移（状态机**每次**转移
+  都写这个字段）⇒ `action` 那一维**没有信息量**；
+- 少一个依赖 ⇒ 状态机改动作名时**不会再**把端点打瞎（少一个漂移点）；
+- `MARK_STALE` / `INITIATE_CHANGE` 等**自动**被 transition 白名单排除
+  （它们的 `transition` 值不在白名单里）⇒ 不需要靠 `action` 区分。
 """
 
 from __future__ import annotations
@@ -32,7 +45,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.enums import StateTransition
 from app.models.system import AuditLog
 from app.schemas.stream_review_log import ReviewLogItem
-from app.services.state_machine import TRANSITION_AUDIT_ACTION
 
 #: 校对相关的状态转移（其余 transition **不显示**）。
 #:
@@ -51,14 +63,6 @@ REVIEW_TRANSITIONS: tuple[StateTransition, ...] = (
 
 #: `detail_json->>'transition'` 里存的**字符串**值（= 枚举的 `.value`）。
 REVIEW_TRANSITION_VALUES: tuple[str, ...] = tuple(t.value for t in REVIEW_TRANSITIONS)
-
-#: 这些转移在 `audit_logs.action` 上**真实**写的动作（也从状态机的映射派生）。
-#:
-#: ⚠️ `SUBMIT_FOR_CHECK` 与 `MARK_STALE` **共用** `RECORD_TRANSITION` ⇒
-#: 只靠 `action` 放行会带进 `MARK_STALE` ⇒ 必须**同时**用 transition 白名单收口。
-REVIEW_AUDIT_ACTIONS: tuple[str, ...] = tuple(
-    TRANSITION_AUDIT_ACTION[t].value for t in REVIEW_TRANSITIONS
-)
 
 
 async def list_review_log(
@@ -80,7 +84,6 @@ async def list_review_log(
             .where(
                 AuditLog.resource_type == "streams",
                 AuditLog.resource_id == str(stream_id),
-                AuditLog.action.in_(REVIEW_AUDIT_ACTIONS),
                 AuditLog.detail_json["transition"]
                 .as_string()
                 .in_(REVIEW_TRANSITION_VALUES),

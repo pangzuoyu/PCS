@@ -232,6 +232,51 @@ async def test_review_log_returns_check_verdicts_written_with_their_real_actions
     ], body
 
 
+async def test_review_log_does_not_filter_on_the_audit_action(
+    strict_client, make_project, make_stream, grant_project, designer_user_id,
+    designer_headers, db_session
+):
+    """端点**只按 `detail_json.transition` 收口**，**不看** `action`。
+
+    ## 为什么钉这条（bug-2146 的教训）
+
+    端点原来还有一条 `action == "RECORD_TRANSITION"` ⇒ 它**冗余**（transition
+    白名单已经精确选中那三条）而且**有害**：状态机给 `PASS_CHECK` /
+    `REJECT_CHECK` 写的动作是 `APPROVAL_STEP_PASSED` / `APPROVAL_STEP_REJECTED`
+    ⇒ 两行被静默吞掉（200 + 部分列表 ⇒ 不报错）。
+
+    ⇒ 这条测试写一行**动作名任意**的 `PASS_CHECK` ⇒ 它**必须**被返回
+    ⇒ 端点将来若又被加回 action 谓词，这条立刻红。
+    """
+    project = await make_project()
+    await grant_project(designer_user_id, project.project_id, username="review-designer")
+    stream = await make_stream(project)
+
+    db_session.add(
+        AuditLog(
+            action="SOME_FUTURE_ACTION_NAME",  # ⚠️ 故意不是已知的任何一个
+            resource_type="streams",
+            resource_id=str(stream.stream_id),
+            user_id=None,
+            detail_json={
+                "from": "IN_APPROVAL",
+                "to": "CHECKED",
+                "transition": "PASS_CHECK",
+                "reason": None,
+                "role": "CHECKER",
+            },
+        )
+    )
+    await db_session.commit()
+
+    r = await strict_client.get(
+        f"/api/v1/streams/{stream.stream_id}/review-log", headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [item["transition"] for item in body] == ["PASS_CHECK"], body
+
+
 async def test_review_log_is_sorted_by_occurred_at_asc(
     strict_client, make_project, make_stream, grant_project, designer_user_id,
     designer_headers, db_session
