@@ -111,7 +111,14 @@ class CreateStreamRequest(BaseModel):
     """精简创建请求：project_id 从 URL 取；workspace_id 可缺省。"""
 
     workspace_id: uuid.UUID | None = Field(
-        None, description="所属工作区 ID（缺省取 Project.workspace_id）"
+        None,
+        deprecated=True,
+        description=(
+            "**已废弃 · 忽略**：一律取 URL 里那个项目的 `Project.workspace_id`。"
+            "P9B-4 T0-C（TODO-133）：此字段此前取自**请求体**且**从不校验归属**"
+            "⇒ 只拥有项目 A 权限的用户能把物流挂到**项目 B 的工作区**。"
+            "⇒ 字段**保留**（删字段 = 破坏性契约变更）但**不再被读取**。"
+        ),
     )
     payload: dict[str, Any] = Field(
         ..., description="StreamBase 字段（stream_name/case_type/data_mode/...）"
@@ -310,7 +317,12 @@ async def create_stream(
         actor_roles=actor_roles_list,
     )
     project = await _load_project(db, project_id)
-    workspace_id = req.workspace_id or project.workspace_id
+    # ⚠️ P9B-4 T0-C（TODO-133）：**一律取项目的 workspace_id** ⇒
+    # 请求体里的 `workspace_id` **被忽略**（字段已标 deprecated）。
+    # 理由：此前取自请求体且**从不校验归属** ⇒ 只拥有项目 A 权限的用户
+    # 能把物流挂到**项目 B 的工作区**（上批补的是 URL 那一维，工作区那一维
+    # 一直空着）。⇒ 静默纠正（不报错）：落点仍在**正确**的地方。
+    workspace_id = project.workspace_id
     try:
         # 构造 StreamCreate：把 body 字段与 URL project_id 合并
         stream_create = StreamCreate(
@@ -353,7 +365,9 @@ async def validate_stream(
     )
     # 仅校验 project 存在 + 借用其 workspace_id，不留副作用
     project = await _load_project(db, project_id)
-    workspace_id = req.workspace_id or project.workspace_id
+    # ⚠️ P9B-4 T0-C（TODO-133）：与 `create_stream` **同口径** ⇒
+    # 一律取项目的 workspace_id ⇒ 预演结论与实际落点**同一口径**。
+    workspace_id = project.workspace_id
     try:
         stream_create = StreamCreate(
             project_id=project_id,

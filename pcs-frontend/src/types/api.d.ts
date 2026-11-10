@@ -8608,7 +8608,8 @@ export interface components {
         CreateStreamRequest: {
             /**
              * Workspace Id
-             * @description 所属工作区 ID（缺省取 Project.workspace_id）
+             * @deprecated
+             * @description **已废弃 · 忽略**：一律取 URL 里那个项目的 `Project.workspace_id`。P9B-4 T0-C（TODO-133）：此字段此前取自**请求体**且**从不校验归属**⇒ 只拥有项目 A 权限的用户能把物流挂到**项目 B 的工作区**。⇒ 字段**保留**（删字段 = 破坏性契约变更）但**不再被读取**。
              */
             workspace_id?: string | null;
             /**
