@@ -28,11 +28,11 @@
 
 ## Review Focus
 
-1. **AI 路由的审计必须在「认证失败」时也留下记录**（`user_id=None`）—— 否则用无效 token 探测 AI 端点**不留痕** ⇒ 审计表对探测行为完全失明。（T10）
-2. **中间件读完 body 后下游 Pydantic 仍要能收到 body** —— 纯 ASGI 中间件若吞了 body，AI 路由会报 422 而不是 501 ⇒ **症状与「参数错」无法区分**。（T10）
-3. **AI 审计写库必须幂等**（同一 `request_id` 重试不产生第二行）—— ARQ 的 `max_tries` 重试若不幂等 ⇒ 一次请求留下 N 条审计 ⇒ 审计表被灌水。（T11）
-4. **种子数据脚本必须可重复执行**（幂等）—— E2E 每次跑之前都要重置 ⇒ 不幂等 ⇒ 第二次跑要么撞唯一约束、要么留下脏数据让断言飘。（T2）
-5. **E2E 的页面导航必须走 SPA 菜单点击** —— 本仓 zustand auth store 是**内存态** ⇒ `page.goto` / `reload` 会清 session ⇒ 弹回 `/login` ⇒ 表格永远没有行。（T3）
+1. **AI 路由的审计必须在「认证失败」时也留下记录**（`user_id=None`）—— 否则用无效 token 探测 AI 端点**不留痕** ⇒ 审计表对探测行为完全失明。（**T11** 中间件）
+2. **中间件读完 body 后下游 Pydantic 仍要能收到 body** —— 纯 ASGI 中间件若吞了 body，AI 路由会报 422 而不是 501 ⇒ **症状与「参数错」无法区分**。（**T11** 中间件）
+3. **AI 审计写库必须幂等**（同一 `request_id` 重试不产生第二行）—— ARQ 的 `max_tries` 重试若不幂等 ⇒ 一次请求留下 N 条审计 ⇒ 审计表被灌水。（**T10** 审计任务）
+4. **种子数据脚本必须可重复执行**（幂等）—— E2E 每次跑之前都要重置 ⇒ 不幂等 ⇒ 第二次跑要么撞唯一约束、要么留下脏数据让断言飘。（**T2** 建 / **P10-B** 用）
+5. **E2E 的页面导航必须走 SPA 菜单点击** —— 本仓 zustand auth store 是**内存态** ⇒ `page.goto` / `reload` 会清 session ⇒ 弹回 `/login` ⇒ 表格永远没有行。（**T3** 建 helper / **P10-B** 的 18 场景用）
 
 ---
 
@@ -234,6 +234,10 @@ git commit -F <msgfile>   # 首行: chore(P10-A): compose 加 seed 一次性服�
     ⇒ ⚠️ `role_in_project` 的合法值是 6 个项目内角色
     （`DESIGNER` / `CHECKER` / `APPROVER` / `REVIEWER` / `VIEWER` / `PROJECT_LEAD`）
     ⇒ 种子用 **`DESIGNER`**（审查 S3）
+  - ⚠️ **`Workspace` 也要建**（审查 C2）：`Project.workspace_id` 是 **`nullable=False`**
+    ⇒ 没有工作区就建不出项目 ⇒ 种子必须造
+    `Workspace(workspace_id=<固定 UUID>, workspace_type="FORMAL", name="E2E Workspace", status="ACTIVE")`
+    ⇒ ⚠️ `Workspace` 的 `workspace_type` / `name` / `status` 都是必填
 
 - [ ] **Step 2: 跑测试确认**失败**
 
@@ -244,9 +248,11 @@ Expected: FAIL —— 脚本不存在
 
 `pcs-backend/scripts/seed_e2e_data.py`：
 
-- ⚠️ **`--reset` 的删除顺序必须遵守外键约束**（审查 S2）：
-  `UserProject` → `Stream` → `Project` → `User` / `Workspace`
-  ⇒ 反了就撞 FK。**只删自己造的**（按固定 UUID 列表筛），不碰业务数据。
+- ⚠️ **`--reset` 的删除顺序必须遵守外键约束**（审查 S2 + C2）：
+  `UserProject` → `Stream` → **`Project` → `Workspace`** → `User`
+  ⇒ ⚠️ **`Workspace` 必须在 `Project` 之后删**（`Project.workspace_id` FK → workspaces
+  ⇒ 项目还在时删工作区会撞 FK）⇒ 反了就撞 FK。**只删自己造的**（按固定 UUID 列表筛），
+  不碰业务数据。
 
 - 用**固定 UUID**（不是随机）⇒ 幂等的基础
 - 幂等手段：`session.merge()` 或「先查后插」；**不要**用 `add()` 无条件插
@@ -357,6 +363,13 @@ export async function gotoViaMenu(page: Page, menuName: string): Promise<void> {
 `goto('/login')` → 点「登 录」⇒ 前端 LoginPage 调 `POST /auth/mock-login`
 ⇒ MSW 关掉后这个请求**打到真后端**（后端的 mock 登录在非生产环境可用）⇒
 拿到**真 token** ⇒ 写进 zustand 内存态 store。
+
+⚠️ **不用填凭据**（审查 C3 · 已核实）：
+- 后端 `MockLoginRequest` **只有 `username` 一个字段**（`password` 根本不校验），
+  且 `MOCK_USERS` 里预置了 `alice` / `bob` / `carol` / `dan`；
+- 前端 `LoginPage` 的用户名**默认值就是 `alice`** ⇒ 表单是**预填**的。
+⇒ 所以「`goto('/login')` → 点登录」即可通过。⚠️ 但若将来 LoginPage 清空默认值 ⇒
+测试会失败在「未知 mock 用户」⇒ 届时在测试里显式 `fill('alice')`。
 
 ⚠️ **不要**试图用 `page.evaluate` 把 token 塞进 store —— zustand store **没有**
 暴露到 `window`（审查 S5）⇒ 塞不进去 ⇒ 只能走 UI 登录。
@@ -512,7 +525,20 @@ Expected: PASS（6 passed）
 
 ⚠️ 光有 `validate_ai_endpoint` **不算**落实「启动时校验」⇒ 必须真的在启动路径上调用。
 
-`pcs-backend/app/main.py` 的 `lifespan` 里（`seed_system_setting_defaults` 之后）加：
+`pcs-backend/app/main.py` 的 `lifespan` 里 —— ⚠️ **必须放在现有的
+`async with factory() as session:` 块内**（`session` 只在那个块里有作用域；
+块外引用它 ⇒ `NameError`）：
+
+```python
+    factory = get_async_session_factory()
+    async with factory() as session:
+        await CoefficientService.seed_default_tables(session)
+        await seed_system_setting_defaults(session)
+        # ↓↓↓ AI 启动校验放这里（与上面同一段、同一个 session）↓↓↓
+```
+
+⚠️ `get_setting_value` 的签名是 **`(db, key, *, default=None)`** ⇒ **有** `default`
+参数 ⇒ 下面那句成立（审查 C1 已核实）。
 
 ```python
     # ⚠️ **启动时校验 AI endpoint**（SPEC §3.2.1(5)）：`ai_enabled` 为真时
@@ -666,7 +692,7 @@ print('冲突:', [c for c in new if c in cols])
 - [ ] **Step 2: 写失败的测试**
 
 ```python
-def test_migration_adds_the_nine_columns():
+def test_migration_adds_the_eight_columns():
     """迁移 upgrade 后 ai_audit_log 有这 8 个新列（时间列复用既有 occurred_at ⇒ 不含 timestamp）。"""
 
 def test_request_id_unique_index_is_partial():
@@ -818,7 +844,12 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AINotImplementedError + 全局 
     若 schema 只写 `top_k` ⇒ Pydantic 默认**忽略** `topK` ⇒ 前端传的值**静默失效**、
     而且**不报错** ⇒ 契约字段名必须仍是 `topK`（`populate_by_name=True` 允许两种写法都能进）
   - 两个路由都带 `openapi_extra={"x-status": "reserved"}`（**不用** `deprecated`）
-  - `AiContext`（**具名** schema）：`project_id: str | None` · `module: str | None` · `record_id: str | None`
+  - `AiContext`（**具名** schema）：`project_id: str | None = Field(None, alias="projectId")` · `module: str | None = None` · `record_id: str | None = Field(None, alias="recordId")` + `model_config = ConfigDict(populate_by_name=True)`
+    ⇒ ⚠️ **必须带 alias**（审查 M2）：SPEC §4.1.1 的 `context` 用**驼峰**
+      （`projectId` / `module` / `recordId`）⇒ 若只写蛇形字段名，
+      Pydantic 默认**忽略未知字段** ⇒ 前端传的 `projectId` **静默变成 None**
+      ⇒ **与 B7（topK）完全同型**的缺陷。
+    ⇒ `populate_by_name=True` ⇒ 蛇形与驼峰**两种写法都能进**（内部仍用蛇形）
     ⇒ ⚠️ SPEC §4.1.1 的 `context` 有 3 个字段 ⇒ 声明成**具名 schema**而不是裸 dict
     （仓的纪律：新增端点必须显式声明结构）
     ⇒ ⚠️ **注**：裸 `dict | None` 其实**不会**让裸载荷数上涨 —— 闸门的 `_TYPED_KEYS`
@@ -847,6 +878,10 @@ async def test_ai_knowledge_search_accepts_topK_alias(client, designer_headers):
 
 async def test_ai_intent_context_is_a_named_schema():
     """`context` 是具名 schema（`AiContext`）⇒ 字段名有编译期约束。"""
+
+async def test_ai_intent_context_accepts_camelCase_aliases(client, designer_headers):
+    """⚠️ **SPEC §4.1.1 的 context 用驼峰**（`projectId` / `recordId`）
+    ⇒ 必须能收到（审查 M2）—— 否则前端传的值静默变 None（同 B7）。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -907,14 +942,27 @@ async def test_enqueue_failure_is_swallowed(monkeypatch):
     """Redis 挂 ⇒ enqueue 返回 False，**不抛**（降级）。"""
 
 async def test_task_is_registered_in_worker_functions():
-    """⚠️ ARQ 对**未注册**的函数名不报错 ⇒ job 静静躺着 ⇒ 棘轮会抓。"""
+    """⚠️ ARQ 对**未注册**的函数名不报错 ⇒ job 静静躺着 ⇒ 棘轮会抓。
+
+    ⚠️ **与既有棘轮的关系**（审查 m3）：仓里已有
+    `tests/workers/test_worker_registers_all_enqueued_tasks.py` 断言
+    「入队的 ⊆ 已注册的」⇒ **那条是通用棘轮**；本条是**具体的**断言
+    （`write_ai_audit_log` 在 `WorkerSettings.functions` 里）⇒ **两条不重复**：
+    通用棘轮防「漏注册任何任务」，本条防「这个任务被改名后忘了同步注册表」。"""
 
 async def test_audit_write_uses_the_pg_conflict_clause_on_postgres():
     """PG 分支走 `ON CONFLICT DO NOTHING`（方言级断言）。"""
 
-async def test_audit_write_swallows_integrity_error_on_sqlite(db_session, ...):
+async def test_audit_write_swallows_integrity_error_on_sqlite(db_session, monkeypatch):
     """⚠️ SQLite 分支是「先查后插」⇒ 并发下第二个插入抛 IntegrityError
-    ⇒ 必须 catch 掉，不算失败（审查 S8）。"""
+    ⇒ 必须 catch 掉，不算失败（审查 S8）。
+
+    ⚠️ **单线程里造不出这个竞态** ⇒ 必须**显式构造**（审查 C4）：
+    monkeypatch 掉查询，让它**返回空**（模拟「查的时候不存在」），
+    再让插入抛 `IntegrityError`（模拟「插的时候已经存在」）⇒
+    断言 `write_ai_audit_log` **不抛**且**返回 None**。
+    ⇒ ⚠️ 不这样构造的话，这条测试**永远绿**（第二次调用时查询确实查到了 ⇒ 走的是
+    「跳过」分支 ⇒ 根本没碰 IntegrityError）⇒ **假测试**。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -986,7 +1034,12 @@ async def test_non_ai_paths_are_not_audited(client, designer_headers):
 
 async def test_audit_is_enqueued_not_written_inline(client, designer_headers):
     """审计**异步**（入队）⇒ 端点不因审计写库慢而变慢。
-    ⚠️ 单测里 monkeypatch `enqueue_ai_audit_log`（别真连 Redis）。"""
+    ⚠️ 单测里 monkeypatch `enqueue_ai_audit_log`（别真连 Redis）。
+    ⚠️ **patch 的是中间件模块里的那个引用**
+    （`app.core.ai_audit_middleware.enqueue_ai_audit_log`），
+    **不是**源模块 `app.services.ai.arq_queue` ⇒ 因为中间件是
+    `from ... import enqueue_ai_audit_log`（**绑定了名字**），
+    patch 源模块**不会**影响中间件手里的引用（审查 m4）。"""
 
 async def test_audit_records_500_when_no_response_is_sent(client, designer_headers):
     """⚠️ **SPEC E10** —— 下游异常**未产生响应**时 ⇒ status_code 记 **500**
@@ -1031,7 +1084,11 @@ git commit -F <msgfile>   # 首行: feat(P10-A): AI 审计中间件（纯 ASGI �
 - Create: `pcs-backend/tests/api/v1/test_health_ai.py`
 
 **Interfaces:**
-- Produces: `GET /health/ai` ⇒ `{"status": "not_configured" | "ok" | "degraded", "ai_enabled": bool, "endpoint_configured": bool, "cidrs_configured": bool}`
+- Produces: `GET /health/ai` ⇒ `{"status": "not_configured" | "ok" | "degraded", "reason": str | None, "ai_enabled": bool, "endpoint_configured": bool, "cidrs_configured": bool}`
+  ⇒ ⚠️ **`cidrs_configured` 的判据 = `parse_cidrs()` 之后**非空（不是原始串非空）
+  ⇒ ⚠️ **非法 CIDR 不许让健康端点崩**（审查 C6）：`parse_cidrs` 会抛 `RuntimeError`
+    ⇒ 必须 `try/except` ⇒ 降级为 `cidrs_configured=False` + `reason="invalid_cidrs"`
+    ⇒ 健康端点**恒 200**
 
 - [ ] **Step 2: 写失败的测试**
 
@@ -1045,6 +1102,10 @@ async def test_health_ai_reports_endpoint_not_in_cidrs(client, monkeypatch):
 async def test_health_ai_does_not_resolve_dns_for_a_domain_endpoint(client, monkeypatch):
     """⚠️ **域名 endpoint 不做 DNS 解析**（审查 I8）⇒ 恒 degraded +
     reason='endpoint_is_domain_not_verified'。"""
+
+async def test_health_ai_does_not_crash_on_invalid_cidrs(client, monkeypatch):
+    """⚠️ **非法 CIDR 不许让健康端点崩**（审查 C6）⇒ 恒 200 +
+    cidrs_configured=False + reason='invalid_cidrs'。"""
 ```
 
 - [ ] **Step 2: 跑测试确认**失败**
@@ -1252,7 +1313,7 @@ Expected: **至少 1 passed**（⚠️ 若显示「0 passed」⇒ grep 没匹配
 - `.wolf/buglog.json`：本批若无缺陷则不记
 - `.wolf/cerebrum.md` Do-Not-Repeat 新增：
   - 「**审计/日志类需求先查既有表** ⇒ 本仓 `ai_audit_log` 已存在（SUP-006）⇒ spec 说『建表』时先核字段」
-  - 「**纯 ASGI 中间件读 body ⇒ 必须重放** ⇒ 否则下游 Pydantic 收不到 ⇒ 症状是 422 不是 501」
+- 「**纯 ASGI 中间件读 body ⇒ 必须重放** ⇒ 否则下游 Pydantic 收不到 ⇒ 症状是 422 不是 501」
 - 「**compose profile：日常开发服务绝不加 profile**」⇒ 加了之后 `docker compose up` 不再起它们 ⇒ 破坏开发流程；profile 只给**一次性任务**（如 seed）
 - 「**一次性容器服务必须挂源码卷 + 用 `uv run --frozen`**」⇒ uv 官方镜像里**没有**项目依赖 ⇒ 裸 `python scripts/x.py` 立刻 ModuleNotFoundError
 - 「**改既有表前先列一遍既有列名**」⇒ 与要加的列**撞名** ⇒ `op.add_column` 直接失败（PG: column already exists）
@@ -1289,7 +1350,7 @@ git commit -F <msgfile>   # 首行: docs(P10-A): 契约滚动 + SPEC 偏离登�
 | 契约 | G-08 4/4；裸载荷 **不涨**；前后端类型同步 |
 | 后端全量 | 0 failed（基线 5481 ⇒ 净增）；PG 车道 exit 0 |
 | 前端全量 | typecheck + lint + vitest 全绿；Playwright mock 通道全绿 |
-| SPEC | **偏离登记 D1~D9 全部回写** |
+| SPEC | **偏离登记 D1~D16 全部回写** |
 | 浏览器 | 顶栏 AI 禁用按钮；控制台 0 error；0×404 |
 
 ---
@@ -1301,7 +1362,7 @@ git commit -F <msgfile>   # 首行: docs(P10-A): 契约滚动 + SPEC 偏离登�
 | 1 | **P10-OPEN-010 内网 CIDR 清单** | 待 IT 提供 ⇒ 本批只做机制（可配置 + 非法即启动报错）⇒ 用回环地址测试 | **不阻塞** ⇒ 登记 TODO |
 | 2 | **P10-OPEN-002 pgvector 维度** | 未定 ⇒ 本批**不建扩展**（偏离 D3）⇒ `document_chunks.embedding_vector` 仍是 JSONB | 登记 TODO（P10-A 收口） |
 | 3 | **PgBouncer 引入** | SPEC 部署图有、仓里没有 ⇒ 引入要改所有服务的 `DATABASE_URL` + 会话级特性约束 | **本批不做** ⇒ P10-D 开工前裁决（总纲 Q1） |
-| 4 | **`ai_audit_log` 的 `timestamp` 列名** | 与 PG 类型名同名（non-reserved，可作列名）⇒ 与仓里 `AuditLog.occurred_at` 命名**不一致** | 照 SPEC 用 `timestamp` ⇒ 若将来统一命名，登记一条技术债 |
+| 4 | ~~`ai_audit_log` 的 `timestamp` 列名~~ | —— | ✅ **已由 D16 裁决**：既有表已有 `occurred_at` ⇒ **复用它、不新增 `timestamp`** ⇒ 本批加 **8** 列（不是 9） |
 | 5 | **`document_chunks` 字段与 SPEC 不同** | 仓里已有 7 个字段（含 `embedding_vector JSONB`），SPEC 描述的是另 4 个字段 | 本批**不动**（偏离 D6）⇒ P10-OPEN-002 一并处理 |
 | 6 | **AI 端点的权限模型** | SPEC 只说 `Depends(current_user)`，没说什么角色能调 | 本批：**任何已认证用户**都能调（但一律 501）⇒ 将来真开时再定 |
 | 7 | **18 个 E2E 场景的种子规模** | 未知 | P10-B 开工前量一次（总纲开放问题 6） |
