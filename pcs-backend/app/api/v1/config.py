@@ -76,6 +76,7 @@ from app.services.formula_engine import FormulaEngine
 from app.services.formula_service import FormulaService
 from app.services.report_service import ConfigAssetReport, ReportService
 from app.services.toe_conversion_service import ToeConversionService
+from app.services.user_status_service import is_account_disabled
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -480,7 +481,8 @@ class _Actor:
         return [self.role]
 
 
-def current_actor(
+async def current_actor(
+    db: Annotated[AsyncSession, Depends(get_db)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> _Actor:
     """从 Authorization: Bearer <token> 解 JWT，构造 actor；与 ACL helper 兼容。
@@ -493,7 +495,24 @@ def current_actor(
     - dev/test: 缺 role → fallback DESIGNER (mock 友好); 非法 role → 拒
     切分条件 = settings.is_production. 与 JWT iss/aud (config-driven) 职责分离:
     decode_token 保证 token 层 (签名/时效/iss/aud); role 语义由本函数处理.
+
+    ## ⚠️ P9B-4 T0-B（TODO-132）：**账号状态**也在这一层判
+
+    登录路径在**发 token 时**拦禁用用户（`token_issuer` ⇒ 401），但**已经发出的
+    token 仍然有效** ⇒ 「停用」形同虚设（禁用用户带着在手 token 仍能访问
+    20+ 物流端点）。
+
+    ⇒ **每请求**查一次 `users.status` ⇒ 停用**立即生效**。
+    ⇒ 判定放在**这一层**（而不是项目守卫里）的理由：**一处判定，全局生效**
+    —— 含 SYSTEM_ADMIN bypass；放守卫层则判定分裂在两处（service 层判
+    status + API 层 bypass 分支也要判），将来加第三条 bypass 路径就会漏。
+
+    ⚠️ **`db` 排在第一个参数**：`Depends` 参数若排在有默认值的参数之后，
+    Python 语法不允许（除非写成 keyword-only）⇒ 顺序即调用约定。
+    FastAPI 按**注解**注入，与顺序无关 ⇒ 端点侧写法不变
+    （`user: Annotated[_Actor, Depends(current_actor)]`）。
     """
+
     if not authorization:
         raise PcsError(
             code="MISSING_BEARER",
@@ -538,6 +557,15 @@ def current_actor(
             user_id = _uuid.uuid5(_uuid.NAMESPACE_DNS, sub)
     else:
         user_id = _uuid.uuid5(_uuid.NAMESPACE_DNS, sub)
+
+    # P9B-4 T0-B（TODO-132）：账号状态判定 ⇒ 停用**立即生效**。
+    # ⚠️ **无 `users` 行 ⇒ 放行**（mock 登录不落 users 表 · ADR-0046 §③b）。
+    if await is_account_disabled(db, user_id=user_id):
+        raise PcsError(
+            code="USER_DISABLED",
+            message=f"user account is disabled: {sub}",
+            status=401,
+        )
     return _Actor(user_id=user_id, username=sub, role=role)
 
 

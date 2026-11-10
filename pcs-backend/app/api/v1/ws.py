@@ -30,6 +30,7 @@ from fastapi import APIRouter, Header, Query, WebSocket, WebSocketDisconnect
 
 from app.api.v1.config import current_actor
 from app.core.errors import PcsError
+from app.db.session import get_async_session_factory
 from app.services.broadcaster import UserSubscriptionRegistry
 
 logger = logging.getLogger(__name__)
@@ -58,13 +59,23 @@ def set_registry(reg: UserSubscriptionRegistry | None) -> None:
     _registry = reg
 
 
-def _authenticate(token: str | None, authorization: str | None) -> uuid.UUID:
-    """复用 REST 侧的 JWT 解析，返回 user_id。失败抛 PcsError。"""
+async def _authenticate(token: str | None, authorization: str | None) -> uuid.UUID:
+    """复用 REST 侧的 JWT 解析，返回 user_id。失败抛 PcsError。
+
+    ⚠️ **P9B-4 T0-B（TODO-132）**：这里**直接调用** `current_actor`（**不走
+    `Depends`**）⇒ `current_actor` 改 async / 改签名后**不会自动适配**
+    ⇒ 必须一并改，否则握手直接断（拿到的是 coroutine 不是 actor）。
+
+    ⇒ `current_actor` 需要一个 `AsyncSession`（判 `users.status`）⇒ 这里
+    **自己开一个短命 session**（握手是一次性动作，不值得为它挂一个依赖）。
+    """
     if token:
         authorization = f"Bearer {token}"
     if not authorization:
         raise PcsError(code="MISSING_TOKEN", message="?token= 或 Authorization: Bearer", status=401)
-    actor = current_actor(authorization)
+    factory = get_async_session_factory()
+    async with factory() as session:
+        actor = await current_actor(session, authorization)
     return actor.user_id
 
 
@@ -81,7 +92,7 @@ async def notifications_ws(
     前端会把它记成「连上了但没消息」。
     """
     try:
-        user_id = _authenticate(token, authorization)
+        user_id = await _authenticate(token, authorization)
     except PcsError as e:
         await websocket.close(code=_WS_POLICY_VIOLATION, reason=e.code)
         return

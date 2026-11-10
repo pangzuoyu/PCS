@@ -261,6 +261,91 @@ def test_ws_requires_a_token():
     assert exc.value.code == 1008, "未鉴权必须以 policy violation 关闭"
 
 
+# ==========================================================================
+# P9B-4 T0-B（TODO-132）：WS 握手也判账号状态
+# ==========================================================================
+#
+# ## 为什么这条用例放在这个文件
+#
+# `ws.py` 的鉴权是**直接调用** `current_actor`（**不走 `Depends`**）⇒
+# `current_actor` 改 async / 改签名后**不会自动适配** ⇒ 漏改 ⇒
+# **握手直接断**（或更糟：拿到一个 coroutine 当 actor 用）。
+#
+# ⇒ 这条用例是「漏改」的**唯一**探针 ⇒ 必须与其它 WS 用例放一起。
+#
+# ## 为什么 monkeypatch `get_async_session_factory`
+#
+# WS 握手**没有** `Depends(get_db)` ⇒ 自己开 session ⇒ 若用真库，
+# 这条用例会往**开发库**写一行 `users`（测试污染开发数据）⇒
+# 改成指到 in-memory SQLite ⇒ 零污染。
+
+
+async def test_ws_authenticate_rejects_disabled_user(
+    monkeypatch, db_session, db_engine
+):
+    """禁用用户（`users.status = DISABLED`）⇒ WS 握手被拒（1008）。
+
+    ⚠️ 断言 **close code 1008**（policy violation）而不是「抛了异常」——
+    盲断异常在「端点根本没注册」时也绿（本仓已为这种假绿栽过三次）。
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from starlette.websockets import WebSocketDisconnect
+
+    from app.api.v1 import ws as ws_mod
+    from app.models.project import User
+
+    username = "ws-disabled-user"
+    user_id = uuid.uuid5(uuid.NAMESPACE_DNS, username)
+    db_session.add(
+        User(
+            user_id=user_id,
+            username=username,
+            display_name=username,
+            roles=["DESIGNER"],
+            ad_groups=[],
+            status="DISABLED",
+        )
+    )
+    await db_session.commit()
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    monkeypatch.setattr(ws_mod, "get_async_session_factory", lambda: factory)
+
+    token = create_access_token(
+        subject=username, role="DESIGNER", extra={"user_id": str(user_id)}
+    )
+    with TestClient(create_app()) as client:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(
+                f"/api/v1/ws/notifications?token={token}"
+            ) as ws:
+                ws.receive_text()
+    assert exc.value.code == 1008, "禁用用户必须以 policy violation 关闭"
+
+
+async def test_ws_authenticate_allows_user_without_users_row(
+    monkeypatch, db_session, db_engine
+):
+    """⚠️ **`users` 表无该 user_id 的行 ⇒ 放行**（对照组）。
+
+    mock 登录**不落 `users` 表**（ADR-0046 §③b）⇒ 判拒 ⇒
+    **dev / E2E 的 mock 登录全线挂掉** ⇒ 而这个缺陷**只有 dev 环境跑起来
+    才会发现**（单测里 mock 路由压根没挂）。
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.api.v1 import ws as ws_mod
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    monkeypatch.setattr(ws_mod, "get_async_session_factory", lambda: factory)
+
+    username = "ws-no-row-user"
+    token = create_access_token(subject=username, role="DESIGNER")
+    got = await ws_mod._authenticate(None, f"Bearer {token}")
+    assert got == uuid.uuid5(uuid.NAMESPACE_DNS, username)
+
+
+
 def test_ws_rejects_invalid_token():
     from starlette.websockets import WebSocketDisconnect
 

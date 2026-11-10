@@ -219,9 +219,16 @@ class TestCurrentVersionIdOverHttp:
     async def test_list_endpoint_is_not_n_plus_one(
         self, client, auth, db_engine, db_session: AsyncSession, project_id: uuid.UUID
     ):
-        """100 个交付物 ⇒ SQL 查询数 ≤ 3（交付物 + 版本 + 计数）。
+        """100 个交付物 ⇒ **业务**查询数 ≤ 3（交付物 + 版本 + 计数）。
 
         ⚠️ 这是「禁 N+1」的**验收**：序列化时逐行查版本会让查询数随行数线性增长。
+
+        ⚠️ **P9B-4 T0-B 后多了一条 `users.status` 查询**（actor 层判账号状态
+        · TODO-132）⇒ 它是**每请求一次**的常量（不随行数增长）⇒ **不计入**
+        本断言的预算，否则这条守卫会因「无关的新增查询」而失去意义。
+
+        ⇒ 但**必须**单独断言它是 **恰好 1 次**（不是 0、不是 N 次）⇒
+        「每请求一次」这个性质本身被钉住（将来有人把它挪进循环里 ⇒ 这里红）。
         """
         matrix = await _make_matrix(db_session)
         for i in range(100):
@@ -256,6 +263,20 @@ class TestCurrentVersionIdOverHttp:
         assert len(version_queries) == 1, (
             f"deliverable_versions 被查 {len(version_queries)} 次 ⇒ N+1"
         )
-        assert len(selects) <= 3, (
-            f"查询数 {len(selects)} > 3 ⇒ N+1：\n" + "\n".join(selects)
+        # ⚠️ P9B-4 T0-B：actor 层判账号状态 ⇒ 每请求**一次** users.status 查询。
+        #    它是**常量**（不随行数增长）⇒ 不计入下面的预算，但必须恰好 1 次。
+        is_status_query = [
+            "users" in s and "status" in s for s in selects
+        ]
+        assert sum(is_status_query) == 1, (
+            f"users.status 被查 {sum(is_status_query)} 次（应为每请求恰好 1 次）：\n"
+            + "\n".join(
+                s for s, hit in zip(selects, is_status_query, strict=True) if hit
+            )
+        )
+        business_selects = [
+            s for s, hit in zip(selects, is_status_query, strict=True) if not hit
+        ]
+        assert len(business_selects) <= 3, (
+            f"查询数 {len(business_selects)} > 3 ⇒ N+1：\n" + "\n".join(business_selects)
         )

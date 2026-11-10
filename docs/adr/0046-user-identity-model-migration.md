@@ -157,8 +157,33 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 
 ### ⑤ 停用即刻作废的实现
 
-`POST /auth/refresh` 比对 `claim.tv == users.token_version`，不等 → 401。
-停用操作（`PUT /admin/users/{id}/disable`）在同一事务里 `token_version += 1`。
+**两道闸**（P9B-4 T0-B 起）：
+
+1. **refresh 时比对 `token_version`**：`POST /auth/refresh` 比对
+   `claim.tv == users.token_version`，不等 → 401。
+   停用操作（`PUT /admin/users/{id}/disable`）在同一事务里 `token_version += 1`。
+2. **每请求判 `users.status`**（P9B-4 T0-B · TODO-132）：`current_actor`
+   （actor 层）**每次请求**查一次 `users.status` ⇒ `DISABLED` ⇒ **401
+   `USER_DISABLED`** ⇒ **在手 access token 立即失效**。
+
+> ⚠️ **第 2 道闸改变了本 ADR 的「已知边界」** —— 见下节。
+> 「30 分钟窗口」（access token 无状态、不查库）**不再成立**。
+> ⇒ 这正是本 ADR「后果」节早就写明的那条出路：
+> 「**要缩短吊销窗口，唯一出路是把 access token 改为有状态（每次校验查库）**」
+> ⇒ T0-B **只查 `status`、不查 `tv`** ⇒ 是**部分有状态**。
+>
+> ⚠️ **判定放在 actor 层（不是项目守卫层）** ⇒ **一处判定、全局生效**
+> （含 SYSTEM_ADMIN bypass）；放守卫层则判定分裂在两处（service 层判 status +
+> API 层 bypass 分支也要判），将来加第三条 bypass 路径就会漏。
+>
+> ⚠️ **`users` 表无该 `user_id` 的行 ⇒ 放行**（不是拒）：
+> ① mock 登录**不落 `users` 表**（§③b）⇒ 判拒 ⇒ dev/E2E 的 mock 登录全线挂掉；
+> ② 遗留账号行（`user_id` ≠ 派生值 · TODO-137）⇒ 查不到行 ⇒ 判拒 ⇒ 遗留用户
+> **全部**被锁在门外（比现在更糟）。
+>
+> **代价**：每请求多一次 `SELECT users.status WHERE user_id = ?`
+> ⇒ 实测（真实 PG · 100 次）：**P50 0.198ms / P95 0.297ms / P99 0.380ms**
+> ⇒ 可接受（每请求**一次**的常量，不随行数增长）。
 
 > 📌 **该端点今天不存在**（实测 `grep -rn "admin/users" app/` → 0 命中），
 > 且 SPEC 原本**没有 `P9A-ADM-*` 条目** —— 本 ADR 早期版本引用了一个不存在的端点。
@@ -174,9 +199,16 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 
 ## 已知边界（**不得被表述为「已解决」**）
 
-停用后**在手 access token 仍可用至多 30 分钟**（无状态，不查库）。
-这是 SPEC P9A-USR-007 明确接受的吊销粒度，不是缺陷。若业务要求秒级失效，
-唯一出路是改 access token 为有状态（每次校验查库）—— 属独立裁决，本 ADR 不做。
+⚠️ **P9B-4 T0-B 之后，本节的第一条已被部分消解** ——
+「停用后在手 access token 仍可用至多 30 分钟」**不再成立**：
+actor 层**每请求**查 `users.status` ⇒ 停用**立即生效**（§⑤ 第 2 道闸）。
+⇒ 改写为：**停用的即时失效已解决**；**仍存在的边界是「角色变更」不是「停用」** ——
+改 `users.roles` **不会**让在手 access token 失效（role claim 在 token 里，
+要到 refresh 才更新）⇒ 这条边界**仍然成立**，且**仍然不要**被表述为「已解决」。
+
+**角色变更仍是边界**：`users.roles` 改了 ⇒ 在手 access token 的 role claim
+**不变** ⇒ 该 token 仍按**旧角色**通过授权，直到它自然过期或被 refresh。
+（`token_version` 那道闸也拦不住它 —— `tv` 只在 refresh 时比对。）
 
 > ⚠️ **不接受「加个内存黑名单」这类半吊子方案。**
 >
@@ -194,19 +226,30 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 > 所以：**要缩短吊销窗口，唯一出路是把 access token 改为有状态（每次校验查库）**，
 > 走已收敛的 `users.token_version`。走内存名单是**换一个更安静的坑**。
 >
+> ✅ **P9B-4 T0-B 走的正是这条出路**（每次校验查库 ⇒ 查 `users.status`）
+> ⇒ 上面的「唯一出路」**已被采纳**，不是被绕过。
+> ⇒ 但**只查 `status`、不查 `tv`** ⇒ 是**部分有状态**（见 §⑤）。
+>
 > 📌 本段须被 **P9A 实施计划原文引用**，不能只链接 ADR —— 实施者可能只看计划不看 ADR。
 > 同理，TODO-047 本身也应在 P9A-LCK 开工前处理，否则那条锁在多 worker 下一直无效。
 
 ## 后果
 
 - `users` 表从 0 行变为登录路径的必经表 ⇒ AD 同步（P9A-USR-002）成为必需而非可选。
-- 历史 JWT 在 30 分钟窗口内 actor id 仍可能是 uuid5 值 ⇒ 该窗口内不得启用
-  「按 users 行判停用」的强拦截以外的新逻辑。
+- ⚠️ **P9B-4 T0-B 之后**：请求路径**也**变成查表路径 ⇒
+  ① 每请求多一次 `users.status` 查询（实测 P95 **0.297ms** · 真实 PG · 100 次）；
+  ② `users` 表**从「登录路径必经」变成「每个请求都读」** ⇒ 该表的**可用性**
+  现在影响**全部 API**（不只是登录）⇒ 部署清单必须把它算进关键路径。
+- ⚠️ **角色变更仍不即时生效**（见「已知边界」）⇒ `users.roles` 的改动
+  （AD 同步、admin 改角色）**不会**立刻反映到在手 token 上。
 - 迁移纪律：新表列走 `TimestampMixin` 三列纪律；本 ADR 涉及的列变更需手写迁移
   —— ORM 里写 `ForeignKey(..., use_alter=True)` **不会**自动生成迁移（bug-146）。
 - 登录路径与 mock 路径共用 `_issue_tokens()` 后，`/auth/login` 的响应时延增加一次
   `users` 查表 + 可能的 upsert。**这是有意的**：把身份判定放在登录时，
   换来请求路径上不必每请求查库。
+  ⚠️ **P9B-4 T0-B 之后这句的后半段不再成立**（请求路径**也**查表了）
+  ⇒ 但登录时的检查**仍然保留**（它挡住「停用用户拿到新 token」）⇒
+  **两道闸都要在**：登录时拦 + 每请求判。
 
 ### 🔧 待办（带归属）：`users.roles` 的列注释词表是陈旧的
 
