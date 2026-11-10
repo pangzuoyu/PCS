@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T01:57:50.084Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T02:13:17.563Z
 > Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1770,7 +1770,7 @@
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~322 tok)
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~15371 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~15610 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)

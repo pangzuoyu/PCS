@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv, { type AnySchema } from "ajv";
 
-import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList, buildBatchSubmitResponse } from "../../src/mocks/handlers";
+import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList, buildBatchSubmitResponse, buildReviewLog } from "../../src/mocks/handlers";
 import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { signFlowHandlers } from "../../src/mocks/signFlow";
@@ -467,6 +467,40 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     );
     const ok = validate(data);
     expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/streams/{stream_id}/review-log 的响应体符合契约（TODO-112）", () => {
+    // ⚠️ 棘轮同步：端点进了契约 ⇒ 必须**一并**加 ajv 校验
+    // （否则「有契约可漂移」却没校验 = 漂移被藏住 = bug-2040 重演）。
+    const op = openapi.paths["/api/v1/streams/{stream_id}/review-log"]?.get;
+    expect(op, "契约里没有 GET /api/v1/streams/{stream_id}/review-log").toBeDefined();
+    const schemaJson = op!.responses["200"].content["application/json"].schema;
+    const schema = (schemaJson.$ref
+      ? inlineRefs(resolveRef(openapi, schemaJson.$ref), openapi)
+      : inlineRefs(schemaJson, openapi)) as AnySchema;
+    const validate = ajv.compile(schema);
+    const data = buildReviewLog("s-102");
+    const ok = validate(data);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("校核记录 mock **按后端口径过滤**（ce-code-review P2 #5）", () => {
+    // ⚠️ **只返回校对相关的三条**，且**按时间升序** —— 与后端
+    //    `list_review_log` 的过滤口径**逐条对应**：
+    //    - transition 白名单（SUBMIT/PASS/REJECT）⇒ MARK_STALE 被排除
+    //    - resource_id 精确匹配 ⇒ 别的物流看不到这些行
+    //    - occurred_at 升序
+    const rows = buildReviewLog("s-102");
+    expect(rows.map((r) => r.transition)).toEqual([
+      "SUBMIT_FOR_CHECK",
+      "PASS_CHECK",
+      "REJECT_CHECK",
+    ]);
+    // ⚠️ 驳回行带 reason ⇒ 「说明」列非空的分支在 dev 里走得到
+    expect(rows[2].detail).toBe("组成超差");
+    // ⚠️ 别的物流 ⇒ 空数组（= 后端「没有这些转移」时的 200 + []）
+    expect(buildReviewLog("s-101")).toEqual([]);
+    expect(buildReviewLog("不存在的物流")).toEqual([]);
   });
 
   it("GET /api/v1/deliverables 的响应体符合契约（P9B-1）", () => {

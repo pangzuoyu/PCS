@@ -44,6 +44,7 @@ type HeatingValueCalcResponse = components["schemas"]["HeatingValueCalcResponse"
 type SaturationWaterContentResponse = components["schemas"]["SaturationWaterContentResponse"];
 type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
 type StreamBatchSubmitResponse = components["schemas"]["StreamBatchSubmitResponse"];
+type ReviewLogItem = components["schemas"]["ReviewLogItem"];
 type BatchSucceededItem = components["schemas"]["BatchSucceededItem"];
 
 import { heatHandlers } from "./heat";
@@ -139,9 +140,25 @@ const MOCK_USER_IDS: Record<string, string> = {
   dan: '00000000-0000-0000-0000-0000000da0001',
 };
 
-/** 通用 audit 的 seed 行（dev mock）—— 3 条 ⇒ 翻页看得出来。 */
-const SEED_AUDIT_LOG_ITEMS = [
-  // ⚠️ 物流详情「校核记录」Tab 的两条（**状态转移**审计 ⇒ 按
+/**
+ * 通用 audit 的 seed 行（dev mock）—— 3 条 ⇒ 翻页看得出来。
+ *
+ * ⚠️ **显式类型**（`SeedAuditLogRow`）—— 数组字面量里的 `detail_json` 各不相同
+ * （有 transition 的 / 只有 changed_fields 的 / 空的）⇒ 不标类型的话 TS 会把
+ * 元素推成联合类型 ⇒ 读 `detail_json.transition` 直接编译不过。
+ */
+type SeedAuditLogRow = {
+  audit_id: string;
+  user_id: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  detail_json: { transition?: string; reason?: string | null; [key: string]: unknown };
+  occurred_at: string;
+};
+
+const SEED_AUDIT_LOG_ITEMS: SeedAuditLogRow[] = [
+  // ⚠️ 物流详情「校核记录」Tab 的三条（**状态转移**审计 ⇒ 按
   //    `detail_json.transition` 过滤）—— 另有一条**非**校对 transition
   //    （MARK_STALE）⇒ dev 里能看出「过滤掉了」。
   {
@@ -156,11 +173,21 @@ const SEED_AUDIT_LOG_ITEMS = [
   {
     audit_id: '66666666-6666-6666-6666-6666666666a2',
     user_id: '00000000-0000-0000-0000-000000000002',
-    action: 'RECORD_TRANSITION',
+    action: 'APPROVAL_STEP_PASSED',
     resource_type: 'streams',
     resource_id: 's-102',
     detail_json: { transition: 'PASS_CHECK' },
     occurred_at: '2026-09-16T03:00:00+00:00',
+  },
+  {
+    // ⚠️ **驳回**行带 reason ⇒ dev 里能走到「说明」列非空的分支
+    audit_id: '66666666-6666-6666-6666-6666666666a4',
+    user_id: '00000000-0000-0000-0000-000000000003',
+    action: 'APPROVAL_STEP_REJECTED',
+    resource_type: 'streams',
+    resource_id: 's-102',
+    detail_json: { transition: 'REJECT_CHECK', reason: '组成超差' },
+    occurred_at: '2026-09-16T03:30:00+00:00',
   },
   {
     audit_id: '66666666-6666-6666-6666-6666666666a3',
@@ -200,6 +227,49 @@ const SEED_AUDIT_LOG_ITEMS = [
     occurred_at: '2026-10-03T09:10:00+00:00',
   },
 ];
+
+/**
+ * 校核记录（`GET /streams/{id}/review-log`）的**校对相关转移**词表。
+ *
+ * ⚠️ **唯一口径在后端**（`pcs-backend/app/services/stream_review_log_service.py`
+ *    的 `REVIEW_TRANSITIONS`）⇒ 这里只是 **mock 侧的同形拷贝** ⇒ 改后端时
+ *    **必须**同步改这里（后端那份是从 `StateTransition` 枚举派生的）。
+ *
+ * ⚠️ 前端**页面**（`StreamReviewLogTab.tsx`）**不得**再过滤一遍 ——
+ *    过滤只在服务端做（两处过滤 = 两个口径 = 迟早漂移）。
+ */
+const REVIEW_TRANSITIONS = ["SUBMIT_FOR_CHECK", "PASS_CHECK", "REJECT_CHECK"] as const;
+
+/**
+ * 校核记录响应体（**契约形状**：`ReviewLogItem[]`）。
+ *
+ * ⚠️ **按后端的口径过滤**（`stream_review_log_service.list_review_log`）：
+ * `resource_type='streams'` + `resource_id` 精确匹配 + transition 白名单
+ * ⇒ dev 里 mock 返回的行集合 == 生产里后端返回的行集合。
+ *
+ * ⚠️ **导出**是为了让 `tests/mocks/handlers.test.ts` 能拿 ajv 把它**对着契约
+ * 校验** —— handler 返回什么就得是什么形状，不能靠「约定」。
+ */
+export function buildReviewLog(streamId: string): ReviewLogItem[] {
+  return SEED_AUDIT_LOG_ITEMS.filter(
+    (row) =>
+      row.resource_type === "streams" &&
+      row.resource_id === streamId &&
+      row.detail_json.transition !== undefined &&
+      (REVIEW_TRANSITIONS as readonly string[]).includes(row.detail_json.transition),
+  )
+    .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
+    .map((row) => ({
+      transition: row.detail_json.transition as string,
+      operator: row.user_id,
+      occurred_at: row.occurred_at,
+      detail: row.detail_json.reason ?? null,
+    }));
+}
+
+/** 编译期断言：mock 产出的形状**就是**契约形状（契约改名 ⇒ `tsc` 红）。 */
+const _reviewLogConforms: ReviewLogItem[] = buildReviewLog("s-102");
+void _reviewLogConforms;
 
 const devOnlyMockHandlers = [
   // === 认证 ===
@@ -274,24 +344,14 @@ const devOnlyMockHandlers = [
     ]);
   }),
   // === 校核记录（TODO-112）：项目守卫端点，只返回校对相关的三条转移 ===
-  // ⚠️ 形状取契约类型 `ReviewLogItem`；**后端已过滤** ⇒ mock 也只给这三条
-  //    （前端**不得**再过滤一遍）。
-  http.get("/api/v1/streams/:stream_id/review-log", ({ request }) => {
+  // ⚠️ **响应体由 `buildReviewLog()` 从 seed 派生**（契约形状）——
+  //    原来这里写死两条内联字面量 ⇒ ① 与契约**没有**类型绑定 ⇒ 契约改名
+  //    `tsc` 仍绿；② 伪造了一条**后端产生不了**的 `PASS_CHECK`（老后端按
+  //    `action=='RECORD_TRANSITION'` 过滤）⇒ **浏览器 QA 看到的是假数据**
+  //    ⇒ 后端那个过滤缺陷就是这么躲过 QA 的（ce-code-review P2 #5）。
+  http.get("/api/v1/streams/:stream_id/review-log", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json([
-      {
-        transition: "SUBMIT_FOR_CHECK",
-        operator: "00000000-0000-0000-0000-000000000001",
-        occurred_at: "2026-09-15T10:00:00+08:00",
-        detail: null,
-      },
-      {
-        transition: "PASS_CHECK",
-        operator: "00000000-0000-0000-0000-000000000002",
-        occurred_at: "2026-09-16T14:30:00+08:00",
-        detail: null,
-      },
-    ]);
+    return HttpResponse.json(buildReviewLog(String(params["stream_id"])));
   }),
   http.get("/api/v1/lineage/:record_type/:record_id/graph", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
