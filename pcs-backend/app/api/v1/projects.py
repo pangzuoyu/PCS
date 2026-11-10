@@ -183,13 +183,19 @@ async def create_project(
     # ⚠️ **先 `ensure_user_row`**：`user_projects.user_id` 是 NOT NULL 的 FK
     #    → `users.user_id`（PG 强制、SQLite 不强制）⇒ 创建者没有 `users` 行时
     #    直接授权会撞 FK ⇒ 先保证行存在。
-    creator = await ensure_user_row(db, user_id=user.user_id, username=user.username)
+    await ensure_user_row(db, user_id=user.user_id, username=user.username)
+    # ⚠️⚠️ **授权键在「请求方自己的身份」上**（ce-code-review P2 #10 · bug-2150）
+    #    ⇒ **不用** `ensure_user_row` 的返回值去授权：那个返回值可能是一行
+    #    **user_id 不同**的遗留行 ⇒ 授权会落到「请求方的 token 根本不认」的
+    #    身份上 ⇒ 创建者访问不到自己刚建的项目 + 另一个账号被授了权。
+    #    ⇒ `ensure_user_row` 现在**只认 user_id**（username 被别人占着 ⇒
+    #    显式 409）⇒ 这里用 `user.user_id` 授权就是**同一个身份**。
     await UserProjectService.grant_project_access(
         db,
-        user_id=creator.user_id,
+        user_id=user.user_id,
         project_id=record.project_id,
         role_in_project="PROJECT_LEAD",
-        granted_by=creator.user_id,
+        granted_by=user.user_id,
     )
 
     await db.commit()

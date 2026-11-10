@@ -78,17 +78,24 @@ async def seed_user_project_access(
     ).scalar_one_or_none()
     user_created = existing is None
 
-    creator = await ensure_user_row(
+    # ⚠️⚠️ **授权键在「派生 id」上**（ce-code-review P2 #10 · bug-2150）
+    #    ⇒ 不用 `ensure_user_row` 的返回值去授权（那个返回值可能是一行
+    #    **user_id 不同**的遗留行 ⇒ 授权落到脚本调用方**不认**的身份上
+    #    ⇒ seed「成功」了但那个用户**访问不到**这个项目）。
+    #    ⇒ `ensure_user_row` 现在**只认 user_id**（username 被别人占着 ⇒
+    #    显式报错）⇒ 派生 id 就是唯一身份。
+    derived_user_id = derive_user_id(username)
+    await ensure_user_row(
         session,
-        user_id=derive_user_id(username),
+        user_id=derived_user_id,
         username=username,
     )
     grant = await UserProjectService.grant_project_access(
         session,
-        user_id=creator.user_id,
+        user_id=derived_user_id,
         project_id=project_id,
         role_in_project=role_in_project,
-        granted_by=creator.user_id,
+        granted_by=derived_user_id,
     )
     return grant, user_created
 

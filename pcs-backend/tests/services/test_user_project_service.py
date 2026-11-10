@@ -330,3 +330,50 @@ async def test_ensure_user_row_insert_failure_does_not_abort_the_caller_transact
         await db_session.execute(select(func.count()).select_from(User))
     ).scalar_one()
     assert count == 0
+
+
+# ---------------------------------------------------------------------------
+# 身份不被静默替换（ce-code-review P2 #10 · bug-2150）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_row_refuses_to_substitute_a_legacy_identity(
+    db_session: AsyncSession,
+):
+    """⚠️ **username 已被别人占着** ⇒ **显式报错**，绝不静默替换。
+
+    ## 缺陷（ce-code-review P2 #10）
+
+    `ensure_user_row` 原来按 `user_id` 找不到就**按 username 兜底** ⇒
+    返回的那行可能 `user_id` 与请求方**完全不同** ⇒
+    `POST /projects` 随后按那一行授权 ⇒ **授权落在一个「请求方的 token 根本
+    不认」的身份上** ⇒ 创建者访问不到自己刚建的项目 + 另一个账号被授了权。
+
+    ⇒ 现在：**只认 `user_id`** ⇒ username 被占 ⇒ 显式 `USER_ID_CONFLICT`。
+    """
+    from app.core.errors import PcsError
+    from app.models.project import User
+    from app.services.user_project_service import ensure_user_row
+
+    legacy_id = uuid.uuid4()
+    derived_id = uuid.uuid5(uuid.NAMESPACE_DNS, "legacy-identity-user")
+    db_session.add(
+        User(
+            user_id=legacy_id,
+            username="legacy-identity-user",
+            display_name="legacy-identity-user",
+            roles=[],
+            ad_groups=[],
+            status="ACTIVE",
+        )
+    )
+    await db_session.commit()
+
+    with pytest.raises(PcsError) as exc:
+        await ensure_user_row(
+            db_session, user_id=derived_id, username="legacy-identity-user"
+        )
+    assert exc.value.code == "USER_ID_CONFLICT", exc.value.code
+    # ⚠️ 报错**指名道姓**（运维要靠它做迁移）
+    assert "legacy-identity-user" in exc.value.message

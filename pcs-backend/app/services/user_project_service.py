@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import PcsError
 from app.models.enums import UserStatus
 from app.models.project import User, UserProject
 
@@ -275,21 +276,31 @@ async def ensure_user_row(
     真实登录路径（`app/services/token_issuer.py::issue_tokens`）已经**惰性建行**
     并写入真实 roles ⇒ 本函数的职责只是「保证行存在」⇒ 改 roles 会覆盖真实身份。
 
-    ## 查找顺序
+    ## 查找顺序（**只认 `user_id`** —— 不按 username 兜底）
 
-    先按 `user_id` 找 ⇒ 再按 `username` 找（兼容历史上 `user_id` 与派生值
-    不一致的遗留行 —— 那种行不能新建，否则撞 `users.username` 唯一约束）
-    ⇒ 都没有才新建。
+    ⚠️ **绝不按 `username` 兜底**（ce-code-review P2 #10 · bug-2150）：
+
+    原来这里是「先按 `user_id` 找 ⇒ 再按 `username` 找 ⇒ 都没有才新建」，
+    而**username 兜底返回的那行可能 `user_id` 与请求方完全不同** ⇒
+    调用方（`POST /projects`）随后按 `creator.user_id` 授权 ⇒
+    **授权落在一个「请求方的 token 根本不认」的身份上** ⇒
+    - 创建者**访问不到自己刚建的项目**（处处 404）；
+    - 而**另一个账号**被授了权。
+
+    ⇒ 现在：**只认 `user_id`** ⇒ 返回的行**必然**就是请求方那个身份。
+    ⇒ username 已被**别人**占着（遗留行）⇒ 撞唯一约束 ⇒ **显式报错**
+    （不静默替换）⇒ 运维按 TODO 里的迁移步骤把遗留授权 transfer 到派生 id。
+
+    ## ⚠️ 遗留行的迁移（一次性运维动作，不是代码逻辑）
+
+    `users.username` 唯一 ⇒ 派生 id 与遗留 id **不能并存** ⇒ 迁移顺序：
+    ① 把遗留行的 username 改成不冲突的值（如 `legacy:<原名>`）→
+    ② 建派生 id 的行（username 用原名）→
+    ③ `UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>`。
     """
     row = await session.get(User, user_id)
     if row is not None:
         return row
-
-    existing = (
-        await session.execute(select(User).where(User.username == username))
-    ).scalar_one_or_none()
-    if existing is not None:
-        return existing
 
     row = User(
         user_id=user_id,
@@ -316,5 +327,18 @@ async def ensure_user_row(
         ).scalar_one_or_none()
         if winner is None:
             raise  # 不是 username 唯一约束 ⇒ 原样抛
+        if winner.user_id != user_id:
+            # ⚠️⚠️ **username 已被别人占着**（遗留行）⇒ **显式报错**，
+            #    绝不静默返回一个「不是请求方」的身份（bug-2150）。
+            raise PcsError(
+                code="USER_ID_CONFLICT",
+                message=(
+                    f"用户名 {username!r} 已存在一条 user_id 不同的遗留账号行"
+                    f"（{winner.user_id}）⇒ 本次请求的身份是 {user_id} ⇒ "
+                    "无法安全授权（授权会落到请求方不认的身份上）⇒ "
+                    "请先按迁移步骤把遗留账号的授权转到派生 id"
+                ),
+                status=409,
+            )
         return winner
     return row

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-10T02:13:17.563Z",
+    "lastScanned": "2026-11-10T03:02:26.861Z",
     "fileCount": 1196,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f41f46d7d335b52779071137815c91bd2fea535e399947ea86e28cba53bc2cf4",
-    "storeUpdatedAt": "2026-11-10T02:13:17.574Z",
-    "rootHash": "41f687c6c0286ccf"
+    "renderedHash": "54fdd813671ea43eebd208a41521096901789061986ca1fb08f64616e2e7b032",
+    "storeUpdatedAt": "2026-11-10T03:02:26.876Z",
+    "rootHash": "4b4457eaf1f56ae3"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42384,40 +42384,40 @@
     },
     "pcs-backend/app/services/user_project_service.py": {
       "description": "UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。",
-      "tokens": 2860,
-      "hash": "3fc55da26ede25dd",
-      "size": 12465,
-      "mtimeMs": 1794268456354.9434,
-      "updatedAt": "2026-11-09T23:54:16.403Z",
+      "tokens": 3146,
+      "hash": "277426014e9afc29",
+      "size": 14139,
+      "mtimeMs": 1794279746785.312,
+      "updatedAt": "2026-11-10T03:02:26.860Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UserProjectService",
           "kind": "class",
-          "startLine": 50,
-          "endLine": 206,
+          "startLine": 51,
+          "endLine": 207,
           "tokens": 1480
         },
         {
           "name": "_now",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 213,
+          "startLine": 208,
+          "endLine": 214,
           "tokens": 46
         },
         {
           "name": "has_project_access",
           "kind": "fn",
-          "startLine": 214,
-          "endLine": 249,
+          "startLine": 215,
+          "endLine": 250,
           "tokens": 338
         },
         {
           "name": "ensure_user_row",
           "kind": "fn",
-          "startLine": 250,
-          "endLine": 321,
-          "tokens": 639
+          "startLine": 251,
+          "endLine": 345,
+          "tokens": 914
         }
       ]
     },
