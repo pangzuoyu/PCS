@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-09T23:54:16.403Z",
+    "lastScanned": "2026-11-10T01:57:50.084Z",
     "fileCount": 1196,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ce8338f10607c9b0ac414b117450b6caa16a31e704449f70c36c6b6a66e17066",
-    "storeUpdatedAt": "2026-11-09T23:54:16.414Z",
-    "rootHash": "a0361d87e3e375e4"
+    "renderedHash": "9e00d98780b046397ebef0b33623078200072d9f08434cf4ec93bcce82d94321",
+    "storeUpdatedAt": "2026-11-10T01:57:50.096Z",
+    "rootHash": "24b734f036a70101"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42610,11 +42610,11 @@
     },
     "pcs-backend/tests/api/v1/test_stream_project_guard.py": {
       "description": "物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。",
-      "tokens": 4172,
-      "hash": "556713ed36f6544d",
-      "size": 16603,
-      "mtimeMs": 1794203424823.36,
-      "updatedAt": "2026-11-09T05:50:24.872Z",
+      "tokens": 7088,
+      "hash": "dca15d355611c248",
+      "size": 28270,
+      "mtimeMs": 1794275870033.7397,
+      "updatedAt": "2026-11-10T01:57:50.084Z",
       "source": "hook",
       "symbols": [
         {
@@ -42656,155 +42656,176 @@
           "name": "make_stream",
           "kind": "fn",
           "startLine": 103,
-          "endLine": 131,
-          "tokens": 230
+          "endLine": 139,
+          "tokens": 314
         },
         {
           "name": "make_state_point",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 160,
+          "startLine": 140,
+          "endLine": 168,
           "tokens": 213
         },
         {
           "name": "two_projects",
           "kind": "fn",
-          "startLine": 161,
-          "endLine": 174,
+          "startLine": 169,
+          "endLine": 182,
           "tokens": 134
         },
         {
           "name": "stream_in_b",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 186,
+          "startLine": 183,
+          "endLine": 194,
           "tokens": 105
         },
         {
           "name": "test_get_stream_in_another_project_is_404",
           "kind": "fn",
-          "startLine": 187,
-          "endLine": 195,
+          "startLine": 195,
+          "endLine": 203,
           "tokens": 75
         },
         {
           "name": "test_patch_stream_in_another_project_is_404",
           "kind": "fn",
-          "startLine": 196,
-          "endLine": 206,
+          "startLine": 204,
+          "endLine": 214,
           "tokens": 93
         },
         {
           "name": "test_delete_stream_in_another_project_is_404",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 215,
+          "startLine": 215,
+          "endLine": 223,
           "tokens": 77
         },
         {
           "name": "test_create_state_point_in_another_project_is_404",
           "kind": "fn",
-          "startLine": 216,
-          "endLine": 234,
+          "startLine": 224,
+          "endLine": 242,
           "tokens": 155
         },
         {
           "name": "test_list_state_points_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 243,
+          "startLine": 243,
+          "endLine": 251,
           "tokens": 81
         },
         {
           "name": "test_get_state_point_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 254,
+          "startLine": 252,
+          "endLine": 262,
           "tokens": 113
         },
         {
           "name": "test_patch_state_point_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 255,
-          "endLine": 266,
+          "startLine": 263,
+          "endLine": 274,
           "tokens": 109
         },
         {
           "name": "test_delete_state_point_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 267,
-          "endLine": 276,
+          "startLine": 275,
+          "endLine": 284,
           "tokens": 97
         },
         {
           "name": "test_get_properties_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 277,
-          "endLine": 285,
+          "startLine": 285,
+          "endLine": 293,
           "tokens": 80
         },
         {
           "name": "test_estimate_properties_of_another_project_is_404",
           "kind": "fn",
-          "startLine": 286,
-          "endLine": 301,
+          "startLine": 294,
+          "endLine": 309,
           "tokens": 156
         },
         {
           "name": "test_not_found_and_cross_project_are_indistinguishable",
           "kind": "fn",
-          "startLine": 302,
-          "endLine": 332,
+          "startLine": 310,
+          "endLine": 340,
           "tokens": 284
         },
         {
           "name": "test_state_point_not_found_and_cross_project_are_indistinguishable",
           "kind": "fn",
-          "startLine": 333,
-          "endLine": 359,
+          "startLine": 341,
+          "endLine": 367,
           "tokens": 286
         },
         {
           "name": "test_own_project_stream_is_fully_readable",
           "kind": "fn",
-          "startLine": 360,
-          "endLine": 373,
+          "startLine": 368,
+          "endLine": 381,
           "tokens": 132
         },
         {
           "name": "test_own_project_state_point_is_fully_readable",
           "kind": "fn",
-          "startLine": 374,
-          "endLine": 388,
+          "startLine": 382,
+          "endLine": 396,
           "tokens": 148
         },
         {
           "name": "test_own_project_state_points_list_is_readable",
           "kind": "fn",
-          "startLine": 389,
-          "endLine": 423,
+          "startLine": 397,
+          "endLine": 431,
           "tokens": 322
         },
         {
           "name": "test_state_transition_in_another_project_is_404",
           "kind": "fn",
-          "startLine": 424,
-          "endLine": 435,
+          "startLine": 432,
+          "endLine": 443,
           "tokens": 141
         },
         {
           "name": "test_cross_project_submit_leaks_no_composition_detail",
           "kind": "fn",
-          "startLine": 436,
-          "endLine": 459,
+          "startLine": 444,
+          "endLine": 467,
           "tokens": 220
         },
         {
           "name": "test_cross_project_submit_does_not_change_status",
           "kind": "fn",
-          "startLine": 460,
-          "endLine": 474,
-          "tokens": 150
+          "startLine": 468,
+          "endLine": 488,
+          "tokens": 206
+        },
+        {
+          "name": "test_batch_submit_skips_cross_project_stream_as_not_found",
+          "kind": "fn",
+          "startLine": 489,
+          "endLine": 512,
+          "tokens": 254
+        },
+        {
+          "name": "test_batch_submit_of_only_foreign_stream_looks_identical_to_missing",
+          "kind": "fn",
+          "startLine": 513,
+          "endLine": 612,
+          "tokens": 880
+        },
+        {
+          "name": "test_own_project_simple_endpoint_still_works",
+          "kind": "fn",
+          "startLine": 613,
+          "endLine": 777,
+          "tokens": 1643
         }
       ]
     },

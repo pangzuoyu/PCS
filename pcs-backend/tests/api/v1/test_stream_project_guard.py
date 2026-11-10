@@ -117,6 +117,14 @@ async def make_stream(db: AsyncSession):
             case_type="NORMAL",
             data_mode="CHEMICAL",
             source_type="MANUAL_ENTRY",
+            source="MANUAL",
+            phase="LIQUID",
+            temp=80.0,
+            press=200.0,
+            mass_flow=1000.0,
+            # ⚠️ 组成合计 **1.0** ⇒ 过「100±0.5%」门禁（`/submit` 的 precheck）
+            #    ⇒ 正向对照能真的走完转移，而不是被组成门禁挡下。
+            composition_json={"7732-18-5": 1.0},
             approval_depth=1,
             sign_status=StreamSignStatus.DRAFT,
         )
@@ -534,3 +542,235 @@ async def test_batch_submit_of_only_foreign_stream_looks_identical_to_missing(
     assert len(failed_missing) == len(failed_forbidden) == 1
     assert failed_missing[0]["reason"] == failed_forbidden[0]["reason"]
     assert failed_missing[0]["detail"] == failed_forbidden[0]["detail"]
+
+
+# ---------------------------------------------------------------------------
+# 正向对照（ce-code-review `20261109-181644-6f6ddca3` 的 P2 #12）
+# ---------------------------------------------------------------------------
+#
+# ## 为什么要有这一节
+#
+# 本文件开头写着自己的一条原则：
+# 「只有 404 测试的话，一个「永远 404」的守卫也能让它们全绿 ⇒ 每个端点都有
+# 「自己项目内**照常工作**」的对照。」
+#
+# ⚠️ 但**原来只兑现了 3 个端点**（GET /streams/{id}、GET/PATCH/DELETE
+# /state-points/{id}、GET /streams/{id}/state-points）⇒ 其余端点只有
+# 「跨项目 ⇒ 404」的**否定**断言 ⇒ **一个把物主自己的数据也拒掉的守卫
+# 照样能全绿**。
+#
+# ## 分层（委员会的成本评估意见）
+#
+# - **简单端点**（不需要特殊前置状态）⇒ 一张表 **parametrize**；
+# - **状态转移端点**（每个都要合法前置状态）⇒ **单独写**，用「走真实端点
+#   链」把物流驱动到目标状态（顺带把链上的端点也正向了）。
+#
+# ⚠️ 全部用 `strict_client` ⇒ 走**真守卫** ⇒ 对照才有意义。
+
+_OWN_PROJECT_SIMPLE_CASES = [
+    (
+        "patch_stream",
+        "patch",
+        "/api/v1/streams/{sid}",
+        {"payload": {"description": "改一下"}},
+        200,
+    ),
+    ("delete_stream", "delete", "/api/v1/streams/{sid}", None, 204),
+    (
+        "create_state_point",
+        "post",
+        "/api/v1/streams/{sid}/state-points",
+        {
+            "state_label": "X-1",
+            "case_type": "NORMAL",
+            "temp": 25.0,
+            "press": 200.0,
+            "phase": "LIQUID",
+            "mass_flow": 1000.0,
+            "composition_json": {},
+            "source_type": "MANUAL_ENTRY",
+        },
+        201,
+    ),
+    ("patch_state_point", "patch", "/api/v1/state-points/{spid}", {"state_label": "改一下"}, 200),
+    ("delete_state_point", "delete", "/api/v1/state-points/{spid}", None, 204),
+    ("get_properties", "get", "/api/v1/streams/{sid}/properties", None, 200),
+    (
+        "estimate_properties",
+        "post",
+        "/api/v1/streams/{sid}/properties/estimate",
+        {"cas_list": ["7732-18-5"]},
+        200,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "name,method,path,body,expected_status",
+    _OWN_PROJECT_SIMPLE_CASES,
+    ids=[c[0] for c in _OWN_PROJECT_SIMPLE_CASES],
+)
+async def test_own_project_simple_endpoint_still_works(
+    strict_client,
+    make_stream,
+    make_state_point,
+    two_projects,
+    designer_headers,
+    name,
+    method,
+    path,
+    body,
+    expected_status,
+):
+    """已授权项目里 ⇒ 每个守卫端点**照常工作**（不是只有 404 断言）。"""
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    # ⚠️ **只有用到状态点的用例才建状态点** —— `DELETE /streams/{id}` 在物流
+    #    仍有外部引用时返 **409 SIM_STREAM_REFERENCED**（正确行为）⇒ 建了
+    #    状态点就删不掉物流了。
+    sp = await make_state_point(own) if "{spid}" in path else None
+    url = path.format(sid=own.stream_id, spid=sp.state_point_id if sp else "")
+
+    if body is None:
+        r = await getattr(strict_client, method)(url, headers=designer_headers)
+    else:
+        r = await getattr(strict_client, method)(url, json=body, headers=designer_headers)
+
+    assert r.status_code == expected_status, f"{name}: {r.status_code} {r.text}"
+
+
+# ---------------------------------------------------------------------------
+# 状态转移端点的正向对照（每个都要**合法前置状态**）
+# ---------------------------------------------------------------------------
+
+
+async def _drive_to_checked(strict_client, sid, designer_headers, controller_headers):
+    """DRAFT ⇒ IN_APPROVAL ⇒ CHECKED（走**真实端点**）。"""
+    r = await strict_client.post(
+        f"/api/v1/streams/{sid}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+    r = await strict_client.post(
+        f"/api/v1/streams/{sid}/approve", json={"reason": "ok"}, headers=controller_headers
+    )
+    assert r.status_code == 200, r.text
+
+
+async def test_own_project_submit_still_works(
+    strict_client, make_stream, two_projects, designer_headers
+):
+    """`/submit`：DRAFT ⇒ IN_APPROVAL（物主自己的物流**提交得上去**）。"""
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "IN_APPROVAL"
+
+
+async def test_own_project_approve_still_works(
+    strict_client, make_stream, two_projects, designer_headers, controller_headers
+):
+    """`/approve`：IN_APPROVAL ⇒ CHECKED。
+
+    ⚠️ 前置状态只要 **IN_APPROVAL**（`/submit` 之后）⇒ **不能**先走到 CHECKED
+    （那是 `PASS_CHECK` 的前置 ⇒ 再 approve 会 422「当前状态 CHECKED 无法执行
+    PASS_CHECK」）。
+    """
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/approve",
+        json={"reason": "ok"},
+        headers=controller_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "CHECKED"
+
+
+async def test_own_project_reject_still_works(
+    strict_client, make_stream, two_projects, designer_headers, controller_headers
+):
+    """`/reject`：IN_APPROVAL ⇒ CHECK_REJECTED。"""
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/submit", json={}, headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/reject",
+        json={"reason": "数据冲突"},
+        headers=controller_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "CHECK_REJECTED"
+
+
+async def test_own_project_initiate_change_still_works(
+    strict_client, make_stream, two_projects, designer_headers, controller_headers
+):
+    """`/initiate-change`：CHECKED ⇒ CHANGE_PENDING。"""
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    await _drive_to_checked(strict_client, own.stream_id, designer_headers, controller_headers)
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/initiate-change",
+        json={"reason": "客户变更压力"},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "CHANGE_PENDING"
+
+
+async def test_own_project_pass_change_still_works(
+    strict_client, make_stream, two_projects, designer_headers, controller_headers
+):
+    """`/pass-change`：CHANGE_PENDING ⇒ CHANGED。
+
+    ⚠️ 这个转移**需要一份 ACTIVE 的 BEFORE_CHANGE 快照** ⇒ 必须**先走**
+    `/initiate-change`（由它建快照）⇒ 直接把状态改成 CHANGE_PENDING **不行**。
+    """
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    await _drive_to_checked(strict_client, own.stream_id, designer_headers, controller_headers)
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/initiate-change",
+        json={"reason": "x"},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/pass-change",
+        json={"reason": "已校核"},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "CHANGED"
+
+
+async def test_own_project_mark_stale_still_works(
+    strict_client, make_stream, two_projects, designer_headers, controller_headers
+):
+    """`/mark-stale`：CHECKED ⇒ STALE。"""
+    project_a, _project_b = two_projects
+    own = await make_stream(project_a)
+    await _drive_to_checked(strict_client, own.stream_id, designer_headers, controller_headers)
+
+    r = await strict_client.post(
+        f"/api/v1/streams/{own.stream_id}/mark-stale",
+        json={"reason": "上游 PFD 变更"},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["sign_status"] == "STALE"

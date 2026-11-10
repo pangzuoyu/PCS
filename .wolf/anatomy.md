@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-09T23:54:16.403Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T01:57:50.084Z
 > Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1530,7 +1530,7 @@
 - `test_stream_batch_concurrency_pg.py` — 批量/单条「提交校对」的**真并发**（PG 车道 · P9B-3b · T4）。 (~3466 tok)
 - `test_stream_composition_sum.py` — 物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。 (~1901 tok)
 - `test_stream_list_filters.py` — 物流列表的四项筛选（SPEC §7.7.1 · P9B-3 · 评审 I-4）。 (~1346 tok)
-- `test_stream_project_guard.py` — 物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。 (~4172 tok)
+- `test_stream_project_guard.py` — 物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。 (~7088 tok)
 - `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3795 tok)
 - `test_stream_source.py` — `streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。 (~2312 tok)
 - `test_strict_client_fixture.py` — `strict_client` fixture 本身的测试 —— P9B-4 紧急批次 T1。 (~1064 tok)

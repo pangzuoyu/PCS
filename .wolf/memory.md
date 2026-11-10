@@ -3175,3 +3175,7 @@
 | 07:54 | Edited pcs-backend/app/services/user_project_service.py | added error handling | ~345 |
 | 07:54 | Edited pcs-backend/app/services/user_project_service.py | added error handling | ~286 |
 | 07:54 | Edited pcs-backend/app/services/user_project_service.py | added 1 import(s) | ~34 |
+| 09:56 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified _make() | ~248 |
+| 09:57 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | modified test_own_project_approve_still_works() | ~234 |
+| 09:57 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | 15→16 lines | ~116 |
+| 09:57 | Edited pcs-backend/tests/api/v1/test_stream_project_guard.py | 5→8 lines | ~118 |
