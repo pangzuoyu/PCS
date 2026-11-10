@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T07:36:29.728Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T08:58:21.825Z
 > Files: 1198 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -542,8 +542,8 @@
 - `2026-10-31-p6-9-pickup-2-critical-fixes.md` — P6-9-PICKUP-2 — 4 CRITICAL + 2 HIGH 修复批 (~1794 tok)
 - `2026-11-03-p9b-3b-batch-submit.md` — P9B-3b 批量「提交校对」实施计划 (~28888 tok)
 - `2026-11-04-p10-batch-a-preflight-ai-reserve.md` — P10-A 实施计划：前置与测试左移（10.0）+ AI 预留接口（10.1） (~9278 tok)
-- `2026-11-04-p10-master-plan.md` — P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序） (~2327 tok)
-- `2026-11-04-p9b-4-ux-batch.md` — P9B-4 实施计划：批量体验收口（TODO-116 只重试失败项 + TODO-108 引用 📎×N） (~5196 tok)
+- `2026-11-04-p10-master-plan.md` — P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序） (~3955 tok)
+- `2026-11-04-p9b-4-ux-batch.md` — P9B-4 实施计划：批量体验收口（TODO-116 只重试失败项 + TODO-108 引用 📎×N） (~10667 tok)
 - `2026-11-04-stream-project-guard.md` — 物流面项目守卫补齐 + review-log 端点 实施计划（紧急批次） (~12205 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)

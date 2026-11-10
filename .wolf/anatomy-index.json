@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-10T07:36:29.728Z",
+    "lastScanned": "2026-11-10T08:58:21.825Z",
     "fileCount": 1198,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4c6a03594b806b73906681a8427a78ae3f98ca2f6d21696722665804c422a82a",
-    "storeUpdatedAt": "2026-11-10T07:36:29.740Z",
-    "rootHash": "0c75fbd8e4f426f1"
+    "renderedHash": "333ed1841c0d47b2fd5ec1fcfd2827ef955664d754d56de547ed25951bf9a606",
+    "storeUpdatedAt": "2026-11-10T08:58:21.836Z",
+    "rootHash": "d9895da61f7ecc72"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -42339,20 +42339,20 @@
     },
     "docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md": {
       "description": "P9B-4 实施计划：批量体验收口（TODO-116 只重试失败项 + TODO-108 引用 📎×N）",
-      "tokens": 5196,
-      "hash": "9d381e9f0a571bf9",
-      "size": 30500,
-      "mtimeMs": 1793757099972.7544,
-      "updatedAt": "2026-11-04T01:51:40.019Z",
+      "tokens": 10667,
+      "hash": "6d4bf02390b71143",
+      "size": 65116,
+      "mtimeMs": 1794301101775.2498,
+      "updatedAt": "2026-11-10T08:58:21.825Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md": {
       "description": "P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序）",
-      "tokens": 2327,
-      "hash": "8af3622c89dd190f",
-      "size": 14448,
-      "mtimeMs": 1793758119699.1858,
-      "updatedAt": "2026-11-04T02:08:39.747Z",
+      "tokens": 3955,
+      "hash": "dd6c9ff66c55d881",
+      "size": 25170,
+      "mtimeMs": 1794300554753.3455,
+      "updatedAt": "2026-11-10T08:49:14.810Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md": {
