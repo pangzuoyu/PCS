@@ -2818,8 +2818,20 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 
 **归属**：独立技术债（与 P9B-4 紧急批次**无关**，是守卫面扩大后暴露得更明显）。
 
-**建议改法**：`check_user_project_access` 联结 `users` 一起判 `status`（或守卫层
-统一先判 actor 是否被禁用），并补一条「禁用用户的既有 token 访问物流 ⇒ 404/401」的测试。
+**建议改法（2026-11-10 委员会裁决）**：**在 actor 层判**（`current_actor`），
+**不在守卫层 join** ⇒ 一处判定、全局生效（含 SYSTEM_ADMIN bypass 与将来新增的
+bypass 路径）⇒ `current_actor` 改 **async + `Depends(get_db)`**，
+`status == DISABLED` ⇒ 401 `USER_DISABLED`；⚠️ **`users` 表无该行 ⇒ 放行**
+（mock 登录不落 `users` 表 ⇒ 否则 dev/E2E 全挂）。
+
+⚠️ **连带义务**：**ADR-0046 §⑤ + 「已知边界」要改** —— 「停用后 access token 仍可用
+至多 30 分钟」在每请求查 status 后**不再成立**（停用立即生效）⇒ `token_version`
+（refresh 比对）**仍在** ⇒ 改写成「**两道闸**」。
+
+⚠️ **另一个连带点**：`app/api/v1/ws.py` 里 `current_actor(...)` 是**直接调用**
+（不是 `Depends`）⇒ 必须一并改，否则 WebSocket 握手断。
+
+⇒ 落地批次：**P9B-4 体验批 T0-B**（P1）。
 
 ## TODO-133: `create_stream` 不校验 `workspace_id` 属于 URL 的项目 ⇒ 可把物流挂到别人的工作区 🔴
 
@@ -2834,8 +2846,13 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 
 **归属**：独立技术债（与 P9B-4 紧急批次**无关**，守卫没覆盖工作区这一维）。
 
-**建议改法**：`workspace_id` 若来自请求体 ⇒ 必须校验它属于 `project_id`；
-否则忽略请求体、强制用 `project.workspace_id`（更简单 ⇒ 推荐后者）。
+**建议改法（2026-11-10 核实 + 裁决）**：**忽略请求体、强制用 `project.workspace_id`**
+⇒ ✅ **已核实前端不用这个字段**：`grep -rn "workspace_id" pcs-frontend/src/pages/sim/
+pcs-frontend/src/api/stream.ts` ⇒ **0 命中**；且 `StreamCreatePayload` 的
+`Pick<...>` 字段清单里**没有** `workspace_id` ⇒ 前端根本发不出。
+⇒ 契约里该字段**保留但标 deprecated**（删字段 = 破坏性契约变更）。
+
+⇒ 落地批次：**P9B-4 体验批 T0-C**（P1）。
 
 ## TODO-134: seed 建出来的用户 `roles=[]` ⇒ 永远不会被通知选人逻辑选中 🟡
 
@@ -2891,12 +2908,22 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 
 **归属**：与 TODO-129（物流面之外的守卫覆盖审计）**是一对**。
 
-**建议改法**：
-- 从 `app/services/calc_lineage.py::RECORD_TYPE_REGISTRY`（+ `streams`）**派生**注册表，
-  别手写第二份；主键列用 `inspect(model).primary_key[0].name` 取，别硬编码；
-- **键口径统一成写入方用的类名**（或写入方改成表名 —— 二选一，别混）；
-- 加一条**镜像测试**：所有 `LineageTracker.track` 能写出的 `record_type` 必须在注册表里；
-- 未登记类型 ⇒ **fail-closed**（与「无血缘」同形的 404）而不是跳过。
+**建议改法（2026-11-10 委员会裁决 = 分三步，不是二选一）**：
+1. **快照**（✅ **已实测**：前端只查 `streams` 一个类型；后端能写出的类型 =
+   `RECORD_TYPE_REGISTRY` 的 **21 个**，其中 **20 个有 `project_id`**、
+   **1 个（`TwoPhaseResult`）没有**）；
+2. **补已知** —— 把那 20 个类型补进守卫注册表 ⇒ **从 `RECORD_TYPE_REGISTRY` 派生**，
+   别手写第二份；主键列用 `inspect(model).primary_key[0].name` 取，别硬编码；
+   **键口径统一成写入方用的类名**（写入方写的就是类名 ⇒ 统一到类名；
+   而 `streams` 是「按源引用查」的**入口键**，不是写入方的键 ⇒ 注释写明区别）；
+3. **未知 fail-closed** —— 未登记的 `record_type` ⇒ 与「无血缘」**同形**的 404
+   （不能成为可枚举信号）；再加一条**镜像测试**（所有能写出的 `record_type`
+   都在注册表里 ⇒ 用 `RECORD_TYPE_REGISTRY` 的键参数化断言）。
+
+⚠️ **`TwoPhaseResult` 没有 `project_id`** ⇒ 无法登记 ⇒ fail-closed 下永久 404
+⇒ 另立 **TODO-138**。
+
+⇒ 落地批次：**P9B-4 体验批 T0-D**（P1）—— ⚠️ 成本从「半天」升到「**一天到一天半**」。
 
 ## TODO-137: 遗留账号（`user_id` ≠ 派生值）的授权迁移 —— 一次性运维动作 🟡
 
@@ -2925,3 +2952,22 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 （`uuid5(NAMESPACE_DNS, username)`）⇒ 迁移脚本必须**调用它**，不要另抄一份。
 
 **归属**：一次性运维动作（代码侧已 fail-loud 护住）。
+
+## TODO-138: `TwoPhaseResult` **没有 `project_id`** ⇒ 无法登记血缘守卫 🟡
+
+**现状**（2026-11-10 · P9B-4 体验批 T0-D 的注册完整性快照实测）：
+`app/services/calc_lineage.py::RECORD_TYPE_REGISTRY` 的 **21 个类型**里，
+`TwoPhaseResult`（表 `two_phase_results`，pk `two_phase_id`）**没有 `project_id`**
+⇒ 它**能写出 `data_lineage` 行**，但守卫**拿不到项目归属**
+⇒ 无法登记进 `LINEAGE_GUARDED_RECORD_TYPES`
+⇒ 在「未登记类型 fail-closed」下**永久 404**（该类型的血缘查不到）。
+
+⚠️ 兄弟类型（20 个）都有 `project_id`（含 `TaggedRecordMixin` 的）⇒ 这是**单点缺列**。
+
+**归属**：独立技术债（改 schema = 要迁移 ⇒ 不进 P9B-4）。
+
+**建议改法**：二选一 —— ① 给 `two_phase_results` 加 `project_id`（NOT NULL ⇒ 要回填
++ 迁移 ⇒ 独立批）；② 明确「该类型**不提供**血缘查询」⇒ 把它从
+`RECORD_TYPE_REGISTRY` 里摘掉（⚠️ 摘掉会影响它已写出的血缘行 ⇒ 先查数据量）。
+
+⇒ 落地批次：**独立批**（P9B-4 只把它 fail-closed 掉 + 登记本条）。
