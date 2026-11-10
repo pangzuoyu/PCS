@@ -91,7 +91,14 @@ For the full operating protocol (session handoff, memory discipline, bug logging
 ## 物流面项目守卫（部署前置 · 2026-11-09 起）
 
 物流的 **20 个端点/路径**已补上**项目级访问守卫** ⇒ **任何没有 `UserProject`
-授权行的用户访问任何物流端点都 404**（与「不存在」**逐字同形** ⇒ 枚举不出 UUID）。
+授权行的用户访问物流端点都被拒**（与「不存在」**逐字同形** ⇒ 枚举不出 UUID）。
+
+⚠️ **形状按端点族分两种**（2026-11-10 修订 · ce-code-review 报告的 residual risk）：
+- **单对象端点**（`GET/PATCH/DELETE /streams/{id}`、状态点、属性、六个状态转移端点、
+  血缘三端点）⇒ **404**，与「不存在」**逐字同形**；
+- **批量端点**（`POST /streams/batch-submit`）⇒ **207**，跨项目条目以
+  **失败项**（`reason=SIM_STREAM_NOT_FOUND`）表达 ⇒ 与「真不存在」的失败项
+  **逐字同形**（枚举向量同样被守住，只是**整体状态码**不是 404）。
 
 ⇒ **每个环境上线前**跑一次（幂等）：
 

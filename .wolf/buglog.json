@@ -5808,6 +5808,164 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-09"
+    },
+    {
+      "id": "bug-2146",
+      "timestamp": "2026-11-10",
+      "severity": "high",
+      "error_message": "`GET /streams/{id}/review-log` 在生产里**永远只返回「提交校对」一条** —— 校对通过（PASS_CHECK）与校对驳回（REJECT_CHECK）两行**静默消失**（200 + 部分列表，**不报错**）⇒ TODO-112 想解决的「设计师看不到自己物流的校核经过」**并未真正解决**",
+      "file": "pcs-backend/app/services/stream_review_log_service.py",
+      "root_cause": "端点写死 `AuditLog.action == \"RECORD_TRANSITION\"` ⇒ 而状态机**每次转移只写一行**审计、动作由 `state_machine.TRANSITION_AUDIT_ACTION` 决定：`SUBMIT_FOR_CHECK→RECORD_TRANSITION`、**`PASS_CHECK→APPROVAL_STEP_PASSED`**、**`REJECT_CHECK→APPROVAL_STEP_REJECTED`** ⇒ PASS/REJECT 两行被过滤掉。\n\n⚠️ **测试为什么没抓到**：`tests/api/v1/test_stream_review_log.py` 的 fixture 手抄 `action=\"RECORD_TRANSITION\"` 当**所有**转移的形状 ⇒ 造出**生产中不存在的行** ⇒ 口径一旦漂移测试**照样绿**；前端 MSW mock 伪造同一条不可能的 `PASS_CHECK` ⇒ 浏览器 QA 也看不到（bug-2151）。",
+      "fix": "① `stream_review_log_service.py`：**词表从 `StateTransition` 枚举派生**（`REVIEW_TRANSITIONS` / `REVIEW_TRANSITION_VALUES`），**去掉冗余的 `action` 谓词**（`detail_json.transition` 白名单**已经精确**选中那三条 ⇒ `action` 那一维没有信息量 ⇒ 少一个漂移点；`MARK_STALE` 等自动被 transition 白名单排除）。\n② 测试 fixture 从 `TRANSITION_AUDIT_ACTION` **派生** action（不再手抄）。\n③ 新增两条回归钉子：`test_review_log_returns_check_verdicts_written_with_their_real_actions`（先断言三条审计行**确实**是三个不同动作名 ⇒ 防假绿）与 `test_review_log_does_not_filter_on_the_audit_action`（动作名任意也必须返回 ⇒ 防加回 action 谓词）。",
+      "fix_commit": "3a0ecde",
+      "tags": [
+        "api",
+        "audit",
+        "false-green",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2144",
+        "bug-2151"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2147",
+      "timestamp": "2026-11-10",
+      "severity": "high",
+      "error_message": "`GET /api/v1/lineage/{type}/{id}/upstream` 对**不存在的 UUID** 返 **200 `[]`**，对**存在但不属于我**的 UUID 返 **404** ⇒ 攻击者据此区分「这个 UUID 存在但不是我的」vs「这个 UUID 根本不存在」⇒ **UUID 枚举向量**（本批守卫要关的正是它）",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "root_cause": "`_guard_record_access` 在「记录不存在」时**静默 `return`**（注释写「让 endpoint 自然 404」）⇒ 端点**各有各的兜底**：`/graph`、`/downstream` 走 `tracker.latest()` ⇒ None ⇒ 抛 404（恰好同形）；**`/upstream` 走 `tracker.upstream()` ⇒ 不抛 ⇒ 返回 `[]` ⇒ 200**。\n\n⚠️ 断言**只测了 `/graph`**（`test_lineage_cross_project_looks_identical_to_missing`）⇒ `/upstream` 的漏洞漏网。",
+      "fix": "① `_guard_record_access`：「记录不存在」**抛同一个 404**（`no lineage for record`）⇒ 三条路径**逐字同形**，与端点各自的兜底**无关**；② 端点 docstring 补 0b 步；③ 同形断言 **parametrize 到三个后缀**；④ `tests/test_lineage_api.py` 两条旧测试原来用**随机 uuid** 并断言 **200 + []**（那正是被关掉的契约）⇒ 拆成「记录存在但无血缘 ⇒ 200 + []」与「记录不存在 ⇒ 404」。",
+      "fix_commit": "c44d265",
+      "tags": [
+        "security",
+        "enumeration",
+        "lineage",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2142"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2148",
+      "timestamp": "2026-11-10",
+      "severity": "high",
+      "error_message": "批次提交里**项目守卫的 DB 查询失败** ⇒ 后面**每一条**都失败（D2「单条失败不影响其他」被打破）+ 行锁一直持有；且守卫**拒绝之前**已经 `FOR UPDATE` 锁住了**别人项目**的行（锁序侧信道）",
+      "file": "pcs-backend/app/services/stream_batch_service.py",
+      "root_cause": "顺序是「`SELECT ... FOR UPDATE` → 项目守卫」⇒ ① 守卫的 DB 查询**在行锁窗口内**，它一抛错 ⇒ 异常冒到 `_submit_one` 的兜底 ⇒ 兜底只返回 INTERNAL_ERROR 而**没人回滚** ⇒ PG 上事务 aborted ⇒ 后面每一条都失败；② 守卫拒绝**之前**行锁已经落在**跨项目**的物流上 ⇒ 只拥有项目 A 权限的调用方能短暂阻塞项目 B 的写者。",
+      "fix": "① 顺序改成「**非加锁**读 `project_id` → 守卫 → 再加锁读」（`Stream.project_id` 创建后不变 ⇒ 非加锁读不会被用来偷换项目；加锁后仍按锁住的那一行做事 ⇒ ②→③ 之间的并发窗口由锁保证）；② `_submit_one` 的兜底（`except Exception`）补 `await db.rollback()` ⇒ 任何非预期异常都不让事务留在 aborted 状态（同模块转移路径早就有这个回滚，缺的是守卫这条新路径）。\n\n⚠️ 测试第一版是**假绿**：抛 Python `RuntimeError` 不会让事务 abort ⇒ 旧代码也绿 ⇒ 改成**真的 flush 失败**（插一行 `action=None` 撞 NOT NULL）才红。",
+      "fix_commit": "a3409f0",
+      "tags": [
+        "concurrency",
+        "batch",
+        "lock",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2134",
+        "bug-2135"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2149",
+      "timestamp": "2026-11-10",
+      "severity": "medium",
+      "error_message": "`ensure_user_row` / `grant_project_access` 是**无锁 get-or-create** ⇒ 撞唯一约束时**中止整个调用方事务** ⇒ `POST /projects` 整体回滚（偶发 500，项目建不出来）",
+      "file": "pcs-backend/app/services/user_project_service.py",
+      "root_cause": "`SELECT` 见空 → `INSERT` 的形状 ⇒ 两个并发请求都「SELECT-见空」⇒ 都 INSERT ⇒ 输家撞 `users.username` / `user_projects(user_id,project_id)` 唯一约束。⚠️ **savepoint 之外的 INSERT 撞约束会中止整个事务** ⇒ 调用方（`POST /projects`）的项目 INSERT 与本插入同事务 ⇒ 整体回滚。\n\n⚠️ 这个形状**新近可达**：`POST /projects` 现在**必经** `ensure_user_row`（`user_projects.user_id` 是 NOT NULL FK ⇒ PG 强制、SQLite 不强制），而 mock 登录**不落 `users` 表** ⇒ 那行**真的是第一次被建** ⇒ 竞态窗口真实存在。",
+      "fix": "照抄本仓已修好的同族方法 `_get_or_create_default_record_matrix` 的配方：① `session.add()` **移进** `async with session.begin_nested():` 之内；② 撞 `IntegrityError` ⇒ **重读赢家并原样返回**（⚠️ **只读不写** —— 绝不把赢家的列改回自己的版本）；③ 赢家不存在 ⇒ 原样抛。",
+      "fix_commit": "9abb6af",
+      "tags": [
+        "database",
+        "race",
+        "savepoint",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2062",
+        "bug-2143"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2150",
+      "timestamp": "2026-11-10",
+      "severity": "medium",
+      "error_message": "创建者自动授权**可能落到一个「请求方的 token 根本不认」的身份上** ⇒ 创建者访问不到自己刚建的项目（物流面处处 404），而**另一个账号**被授了权",
+      "file": "pcs-backend/app/services/user_project_service.py",
+      "root_cause": "`ensure_user_row` 按 `user_id` 找不到就**按 `username` 兜底** ⇒ 返回的那行可能 `user_id` 与请求方**完全不同** ⇒ `POST /projects` 随后按 `creator.user_id` 授权 ⇒ 授权落在那个身份上。`scripts/seed_user_project_access.py` 同款 ⇒ seed 打印「成功」但那个用户访问不到这个项目。",
+      "fix": "按委员会裁决的**选项 A**（以派生 id 为准）：① `ensure_user_row` **只认 `user_id`**，**不再按 username 兜底** ⇒ 返回的行必然是请求方那个身份；② username 被**别人**占着（遗留行）⇒ 撞唯一约束 ⇒ **显式 409 `USER_ID_CONFLICT`**（报错指名道姓）⇒ 绝不静默替换；③ `create_project` 与 seed 脚本的授权键改用**调用方自己的身份**（`user.user_id` / `derive_user_id(username)`）。\n\n⇒ 遗留行的**一次性迁移**登记为 TODO-137（开发库实测 0 条冲突行 ⇒ 本条是防复发的护栏）。",
+      "fix_commit": "7fedd61",
+      "tags": [
+        "authorization",
+        "identity",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2143"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2151",
+      "timestamp": "2026-11-10",
+      "severity": "medium",
+      "error_message": "校核记录的 MSW mock **伪造了一条后端产生不了的 `PASS_CHECK` 行** ⇒ 浏览器 QA 看到的「200 + 两行」是**假数据** ⇒ 后端那个过滤缺陷（bug-2146）就这么躲过了 QA",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "root_cause": "handler 写死两条**内联字面量** ⇒ ① 与契约**没有类型绑定** ⇒ 契约改名 `tsc` 仍绿；② 那条 `PASS_CHECK` 在老后端（按 `action=='RECORD_TRANSITION'` 过滤）下**根本产生不出来** ⇒ dev 永远比生产「多一行」。",
+      "fix": "① 新增 `buildReviewLog(streamId)`：**按后端的口径**从 seed 派生（`resource_type='streams'` + `resource_id` 精确匹配 + transition 白名单 + `occurred_at` 升序）⇒ dev 看到的行集合 == 生产里后端返回的行集合；② 响应体标注为契约类型 `ReviewLogItem` + **编译期断言**（契约改名 ⇒ `tsc` 红）；③ `buildReviewLog` **导出** ⇒ `tests/mocks/handlers.test.ts` 能拿 ajv 对着契约校验；④ seed 行加**显式类型** `SeedAuditLogRow`；⑤ seed 补一条**带 reason 的 `REJECT_CHECK` 行** ⇒ dev 里「说明」列非空的分支走得到。",
+      "fix_commit": "5eed720",
+      "tags": [
+        "frontend",
+        "mock",
+        "contract-drift",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2146",
+        "bug-2040"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2152",
+      "timestamp": "2026-11-10",
+      "severity": "medium",
+      "error_message": "物流面 10 个守卫端点**只有「跨项目 ⇒ 404」的否定断言**、**没有「自己项目内照常工作」的正向对照** ⇒ 一个「把物主自己的数据也拒掉」的守卫**照样能全绿**",
+      "file": "pcs-backend/tests/api/v1/test_stream_project_guard.py",
+      "root_cause": "测试文件开头写着自己的一条原则（「只有 404 测试的话，一个『永远 404』的守卫也能让它们全绿 ⇒ 每个端点都有『自己项目内照常工作』的对照」），但**只兑现了 3 个端点**（GET /streams/{id}、GET/PATCH/DELETE /state-points/{id}、GET /streams/{id}/state-points）⇒ 其余 10 个端点只有否定断言。",
+      "fix": "分层补齐（按委员会的成本评估意见）：① **简单端点**（无需特殊前置状态）⇒ 一张表 **parametrize**（PATCH/DELETE /streams/{id}、POST /streams/{id}/state-points、PATCH/DELETE /state-points/{id}、GET properties、POST estimate，共 7 条）；② **状态转移端点**（每个都要合法前置状态）⇒ **单独写**（6 条），用「走真实端点链」把物流驱动到目标前置状态。\n\n⚠️ 顺带修正 fixture 缺陷：`make_stream` 原来没设 `temp`/`press`/`mass_flow`/`composition_json` ⇒ 正向对照一跑就被 SIM-7 冲突检测 BLOCK ⇒ 补上（组成合计 1.0 ⇒ 过「100±0.5%」门禁）。\n\n⇒ **变异实测**：把守卫改成「永远拒绝」⇒ 失败条数 **3 → 13**。",
+      "fix_commit": "dda1d78",
+      "tags": [
+        "testing",
+        "false-green",
+        "guard",
+        "p9b-4",
+        "ce-code-review"
+      ],
+      "related_bugs": [
+        "bug-2145",
+        "bug-2142"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-10"
     }
   ]
 }

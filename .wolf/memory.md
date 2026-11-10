@@ -3182,3 +3182,5 @@
 | 10:13 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+26 lines) | ~822 |
 | 11:02 | Edited pcs-backend/app/services/user_project_service.py | modified begin_nested() | ~677 |
 | 11:02 | Edited pcs-backend/app/services/user_project_service.py | added 1 import(s) | ~36 |
+| 15:36 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-10-review-log-fix.md | — | ~694 |
+| 15:36 | Created docs/ce-code-review/20261109-181644-6f6ddca3/CLOSURE-2026-11-10.md | — | ~1158 |

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-10T03:02:26.861Z",
-    "fileCount": 1196,
+    "lastScanned": "2026-11-10T07:36:29.728Z",
+    "fileCount": 1198,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "54fdd813671ea43eebd208a41521096901789061986ca1fb08f64616e2e7b032",
-    "storeUpdatedAt": "2026-11-10T03:02:26.876Z",
-    "rootHash": "4b4457eaf1f56ae3"
+    "renderedHash": "4c6a03594b806b73906681a8427a78ae3f98ca2f6d21696722665804c422a82a",
+    "storeUpdatedAt": "2026-11-10T07:36:29.740Z",
+    "rootHash": "0c75fbd8e4f426f1"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -43284,6 +43284,24 @@
           "tokens": 124
         }
       ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-10-review-log-fix.md": {
+      "description": "QA 报告 — PCS 前端 · 校核记录 Tab 修复后回归（2026-11-10）",
+      "tokens": 651,
+      "hash": "f157e455f0ea2179",
+      "size": 3936,
+      "mtimeMs": 1794296166350.9685,
+      "updatedAt": "2026-11-10T07:36:06.398Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261109-181644-6f6ddca3/CLOSURE-2026-11-10.md": {
+      "description": "ce-code-review 收口报告 —— P9B-4 紧急批次（2026-11-10）",
+      "tokens": 1086,
+      "hash": "9ff919c971295ac1",
+      "size": 7130,
+      "mtimeMs": 1794296189676.5806,
+      "updatedAt": "2026-11-10T07:36:29.728Z",
+      "source": "hook"
     }
   }
 }

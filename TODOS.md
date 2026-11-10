@@ -2802,3 +2802,126 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 
 ⚠️ **生产库的用户必须先在 `users` 表里存在**（FK 约束）⇒ 走真实登录路径即可。
 
+
+## TODO-132: `check_user_project_access` **不看 `users.status`** ⇒ 已禁用用户仍能访问物流面 🔴
+
+**现状**（2026-11-10 · ce-code-review `20261109-181644-6f6ddca3` 的 residual risk
+第 1 条 · 委员会要求**升格为 TODO**）：
+
+`UserProjectService.check_user_project_access` 只查 `user_projects` 有没有有效授权行
+⇒ **不看 `users.status`** ⇒ 一个被**禁用**（`status=DISABLED`）的用户，只要还有一条
+未撤销的授权行，**仍然能访问物流面 20+ 个受守卫端点**（读物流详情、状态点、属性、
+血缘，以及写：改、删、提交校对、批量提交……）。
+
+⚠️ 现实登录路径在**发 token 时**拦了禁用用户（`token_issuer` ⇒ `USER_DISABLED` 401），
+⇒ 已持有的 **token 仍有效**（除非靠 `token_version` 失效）⇒ 这段时间里禁用是**形同虚设**。
+
+**归属**：独立技术债（与 P9B-4 紧急批次**无关**，是守卫面扩大后暴露得更明显）。
+
+**建议改法**：`check_user_project_access` 联结 `users` 一起判 `status`（或守卫层
+统一先判 actor 是否被禁用），并补一条「禁用用户的既有 token 访问物流 ⇒ 404/401」的测试。
+
+## TODO-133: `create_stream` 不校验 `workspace_id` 属于 URL 的项目 ⇒ 可把物流挂到别人的工作区 🔴
+
+**现状**（2026-11-10 · 同上报告 residual risk 第 2 条 · 委员会要求**升格为 TODO**）：
+
+`POST /projects/{project_id}/streams` 的 `workspace_id` 取自**请求体**
+（`req.workspace_id or project.workspace_id`）⇒ **从不校验它属于 URL 里的那个项目**
+⇒ 只拥有项目 A 权限的用户可以把物流**挂到项目 B 的工作区**下。
+
+⚠️ 本批给 `create_stream` 补了**项目守卫**（守卫的是 URL 的 `project_id`）⇒
+**工作区那一维仍然是缺口** ⇒ 跨项目写入仍然可能发生（只是落点不是 URL 的项目）。
+
+**归属**：独立技术债（与 P9B-4 紧急批次**无关**，守卫没覆盖工作区这一维）。
+
+**建议改法**：`workspace_id` 若来自请求体 ⇒ 必须校验它属于 `project_id`；
+否则忽略请求体、强制用 `project.workspace_id`（更简单 ⇒ 推荐后者）。
+
+## TODO-134: seed 建出来的用户 `roles=[]` ⇒ 永远不会被通知选人逻辑选中 🟡
+
+**现状**（2026-11-10 · 同上报告 residual risk 第 3 条 · 委员会要求**升格为 TODO**）：
+
+`ensure_user_row` 建行时 `roles=[]`（**刻意**：ADR-0046 §③b 禁止 mock 登录往
+`users.roles` 写角色）⇒ 而真实登录路径（`token_issuer`）**只在自己建行时**写 roles，
+**不会更新已存在的行** ⇒ 一个先被 seed 脚本建出来、之后才走真实登录的用户，
+**`users.roles` 永远是 `[]`** ⇒ `notification_recipients.py` 之类**按 `users.roles`
+圈人**的逻辑**永远选不到他**。
+
+**归属**：独立技术债。
+
+**建议改法**：真实登录路径在**已存在**的行上也**合并**真实角色（而非只在建行时写）
+—— 但要绕开 ADR-0046 §③b 的「mock 与真实 AD 同名 ⇒ 污染同一行」问题
+（mock 登录**不得**写真实角色，真实登录**可以**写真实角色）。
+
+## TODO-135: mock 登录的「任意 role claim」只靠 `settings.is_production` 一道闸 🔴
+
+**现状**（2026-11-10 · 同上报告 residual risk 第 4 条 · 委员会要求**升格为 TODO**）：
+
+`auth.py::mock_login` 给四个固定用户名签发**任意 role claim** 的 token
+⇒ 这是一条**完整的鉴权旁路**（拿到 token = 任意角色）。
+⇒ 现在**只**靠两道闸：① `settings.is_production`；② 该 router **不在生产挂载**。
+
+⚠️ 闸门回归（配置写错 / 挂载代码改动）⇒ 就是**完整 auth bypass**。
+
+**归属**：独立技术债（与 P9B-4 紧急批次**无关**）。
+
+**建议改法**：mock 登录的启用条件**双闸**（`is_production` **且** 显式的
+`PCS_ENABLE_MOCK_LOGIN=true`）+ 给「mock 路由未挂载」加一条**部署期断言**
+（启动时检查生产环境里没有 mock 路由）。
+
+## TODO-136: 血缘守卫的 `record_type` 注册表**新增类型必须手动登记** ⇒ 漏登记 = 无项目隔离 🟡
+
+**现状**（2026-11-10 · ce-code-review 的 **#6 rejection** 的残余 · 委员会要求登记）：
+
+`app/api/v1/lineage.py::LINEAGE_GUARDED_RECORD_TYPES` 只有两项
+（`PipingResult` / `streams`）⇒ **未登记的 `record_type` 直接跳过守卫**
+（fail-open）。
+
+⚠️ ce-code-review 把「fail-open」判为 **pre-existing**（改前是
+`if record_type != "PipingResult": return`）⇒ **本批不修**（收窄了暴露面，
+不是引入）。
+⚠️ 但**注册表这个机制**是本批引入的 ⇒ 它**允许**新增类型被遗漏 ⇒ 这条要登记。
+
+⚠️ 另外两个**不一致**也要一并记：
+① 注册表的键**混用两种口径**（`PipingResult` 是**类名**（写入方存的就是类名），
+`streams` 是**表名**）⇒ 写方用 `record.__class__.__name__` ⇒ 按表名登记的那一项
+**匹配不上**写入方的值；
+② 前端调的是 `/lineage/streams/{id}/graph`（表名拼写）⇒ 与写入方的类名拼写**不一致**
+⇒ 物流的血缘图**永远是空的**。
+
+**归属**：与 TODO-129（物流面之外的守卫覆盖审计）**是一对**。
+
+**建议改法**：
+- 从 `app/services/calc_lineage.py::RECORD_TYPE_REGISTRY`（+ `streams`）**派生**注册表，
+  别手写第二份；主键列用 `inspect(model).primary_key[0].name` 取，别硬编码；
+- **键口径统一成写入方用的类名**（或写入方改成表名 —— 二选一，别混）；
+- 加一条**镜像测试**：所有 `LineageTracker.track` 能写出的 `record_type` 必须在注册表里；
+- 未登记类型 ⇒ **fail-closed**（与「无血缘」同形的 404）而不是跳过。
+
+## TODO-137: 遗留账号（`user_id` ≠ 派生值）的授权迁移 —— 一次性运维动作 🟡
+
+**现状**（2026-11-10 · ce-code-review 的 **#10** 修复引入的**新前置**）：
+
+`ensure_user_row` 现在**只认 `user_id`** ⇒ 若某个用户名已被一条
+**`user_id` 与派生值不同**的遗留行占着（`users.username` 唯一 ⇒ 派生 id 与遗留 id
+**不能并存**）⇒ 建行会撞唯一约束 ⇒ **显式 409 `USER_ID_CONFLICT`**（不再静默替换）。
+
+⇒ 需要**一次性迁移**把遗留账号的授权转到派生 id。**核查结果**：开发库
+`users` **0 行**、`user_projects` **0 行**、**0 条** id 与派生值不一致的行
+⇒ **当前没有这样的遗留行** ⇒ 本条是**预防性**的。
+
+**迁移步骤**（顺序不能错 —— FK 约束）：
+
+```sql
+-- ① 遗留行让出 username（否则派生 id 的行建不出来）
+UPDATE users SET username = 'legacy:' || username
+ WHERE user_id <> uuid5(namespace_dns, username);   -- ← 派生函数在应用层，见下
+-- ② 建派生 id 的行（username 用原名，roles 按真实登录路径补）
+-- ③ 把授权转到派生 id
+UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
+```
+
+⚠️ 派生 id 的**唯一**算法在 `app/services/token_issuer.py::derive_user_id`
+（`uuid5(NAMESPACE_DNS, username)`）⇒ 迁移脚本必须**调用它**，不要另抄一份。
+
+**归属**：一次性运维动作（代码侧已 fail-loud 护住）。

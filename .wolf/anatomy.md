@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T03:02:26.861Z
-> Files: 1196 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-10T07:36:29.728Z
+> Files: 1198 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -191,6 +191,7 @@
 - `qa-report-pcs-frontend-2026-11-03-p9b3b.md` — QA 报告 —— P9B-3b 批量「提交校对」 (~1395 tok)
 - `qa-report-pcs-frontend-2026-11-04-p9b3b-minors.md` — QA 报告 —— PCS 前端 · P9B-3b 评审 Minor 清理 (~566 tok)
 - `qa-report-pcs-frontend-2026-11-09-stream-guard.md` — QA 报告 — PCS 前端 · 物流面项目守卫 + review-log（2026-11-09） (~549 tok)
+- `qa-report-pcs-frontend-2026-11-10-review-log-fix.md` — QA 报告 — PCS 前端 · 校核记录 Tab 修复后回归（2026-11-10） (~651 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -473,6 +474,7 @@
 
 ## docs/ce-code-review/20261109-181644-6f6ddca3/
 
+- `CLOSURE-2026-11-10.md` — ce-code-review 收口报告 —— P9B-4 紧急批次（2026-11-10） (~1086 tok)
 - `README.md` — Project documentation (~603 tok)
 
 ## docs/contracts/
