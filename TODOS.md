@@ -2770,6 +2770,21 @@ fixture 把 `UserProjectService.check_user_project_access` **mock 成永远 True
 
 **归属**：独立技术债。
 
+**T0-A 快照结果**（2026-11-10 · P9B-4 开工前实测 · 关键词
+`check_project_access_or_404` / `check_record_access_or_404` / `has_project_access`）：
+
+| 分类 | 模块 | 结论 |
+|---|---|---|
+| 有项目守卫 | `streams.py` · `lineage.py` · `stream_batch.py`（service 层）· `util.py` · `pipe_*` · `checklist` · `open_channel` · `flare` · `filtration` · `cost_est` · `cool_tower` · `stream_symbols` · `psychro` · `imports` · `deliverables` · `records*` · `heat` · `flash` · `change_impact` · `report` · `projects` · `workspaces` · `workflow_progress` · `supplier` · `sep_equip` · `pump` · `pipe_net` · `equip_list` · `cv` · `audit` · `record_edits` · `notifications` | ✅ 物流面**已覆盖** |
+| **无项目守卫（缺口）** | `vessel.py`（1）· `psv.py`（1）· `restriction.py`（2）· `thermosiphon.py`（1）· `report_builder.py`（9）· `locks.py`（3） | 🔴 这几个模块**只有角色 ACL**，**不按项目隔离** ⇒ 计算结果/报表定义/编辑锁**可能跨项目** ⇒ **本条 TODO 的具体清单** |
+| 不适用 | `config.py` · `meta.py` · `auth.py` · `admin_users.py` · `system_settings.py` · `user_projects.py` · `mock_auth.py` · `health.py` · `ws.py` · `common.py` · `equip_lib.py` | 非项目数据面 / 本身即 ACL 管理面 |
+
+⚠️ `vessel/psv/restriction/thermosiphon` 的 api 层 **0 处** `project_id`
+⇒ 不是「忘了加守卫」而是「**结果记录根本不带项目维度**」⇒ 补守卫要先想清楚
+「项目归属从哪来」⇒ 审计工作量比「加一行守卫」大。
+
+**归属**：独立技术债。
+
 ## TODO-130: `user_project_service.py` 的既有 ruff 债（F821 / UP035 / UP037） 🟢
 
 **现状**（2026-11-09 顺带发现 · **非本批引入**）：
