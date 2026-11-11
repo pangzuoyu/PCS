@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-10T08:58:21.825Z",
-    "fileCount": 1198,
+    "lastScanned": "2026-11-11T06:07:35.087Z",
+    "fileCount": 1212,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "333ed1841c0d47b2fd5ec1fcfd2827ef955664d754d56de547ed25951bf9a606",
-    "storeUpdatedAt": "2026-11-10T08:58:21.836Z",
-    "rootHash": "d9895da61f7ecc72"
+    "renderedHash": "4e5c1ec30c00a0121bca757504a6875cfa747f688892f022ee97f215aee8af12",
+    "storeUpdatedAt": "2026-11-11T06:07:35.098Z",
+    "rootHash": "5798ed7af53f3a92"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1757,11 +1757,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 17046,
-      "hash": "f0b98e38b28e98d9",
-      "size": 111999,
-      "mtimeMs": 1793703935293.026,
-      "updatedAt": "2026-11-03T11:05:35.342Z",
+      "tokens": 17914,
+      "hash": "f6ce20ff6a51add6",
+      "size": 117990,
+      "mtimeMs": 1794362808009.8088,
+      "updatedAt": "2026-11-11T02:06:48.065Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -12351,20 +12351,20 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 4601,
-      "hash": "abacf33db19150d3",
-      "size": 25425,
-      "mtimeMs": 1792543934693.3784,
-      "updatedAt": "2026-10-21T00:52:14.743Z",
+      "tokens": 5129,
+      "hash": "3508e5ccb321a951",
+      "size": 29113,
+      "mtimeMs": 1794367764747.8298,
+      "updatedAt": "2026-11-11T03:29:24.791Z",
       "source": "hook"
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 21358,
-      "hash": "fdb85fda655d11fe",
-      "size": 142032,
-      "mtimeMs": 1793635845641.7334,
-      "updatedAt": "2026-11-02T16:10:45.693Z",
+      "tokens": 28192,
+      "hash": "c9a6626979227871",
+      "size": 189108,
+      "mtimeMs": 1794311735240.6523,
+      "updatedAt": "2026-11-10T11:55:35.295Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -12456,46 +12456,46 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 2817,
-      "hash": "4055f7749105d689",
-      "size": 13825,
-      "mtimeMs": 1792422482446.049,
-      "updatedAt": "2026-10-19T15:08:02.498Z",
+      "tokens": 3008,
+      "hash": "0e1a867376d6748a",
+      "size": 14804,
+      "mtimeMs": 1794365752776.6902,
+      "updatedAt": "2026-11-11T02:55:52.825Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Settings",
           "kind": "class",
-          "startLine": 30,
-          "endLine": 122,
-          "tokens": 1106
+          "startLine": 31,
+          "endLine": 137,
+          "tokens": 1285
         },
         {
           "name": "get_settings",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 225,
+          "startLine": 138,
+          "endLine": 240,
           "tokens": 1049
         },
         {
           "name": "assert_secret_key_configured",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 235,
+          "startLine": 241,
+          "endLine": 250,
           "tokens": 69
         },
         {
           "name": "parse_cors_origins",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 243,
+          "startLine": 251,
+          "endLine": 258,
           "tokens": 67
         },
         {
           "name": "validate_cors_for_production",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 271,
+          "startLine": 259,
+          "endLine": 286,
           "tokens": 246
         }
       ]
@@ -12569,124 +12569,131 @@
     },
     "pcs-backend/app/api/v1/config.py": {
       "description": "Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。",
-      "tokens": 5196,
-      "hash": "c5897cb44883d6ec",
-      "size": 19580,
-      "mtimeMs": 1791081168388.606,
-      "updatedAt": "2026-10-04T02:32:48.434Z",
+      "tokens": 5944,
+      "hash": "af796e7712e52a90",
+      "size": 23210,
+      "mtimeMs": 1794314165858.0269,
+      "updatedAt": "2026-11-10T12:36:05.905Z",
       "source": "hook",
       "symbols": [
         {
           "name": "require_roles",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 105,
+          "startLine": 89,
+          "endLine": 106,
           "tokens": 169
         },
         {
           "name": "_load_asset",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 117,
+          "startLine": 107,
+          "endLine": 118,
           "tokens": 103
         },
         {
           "name": "_load_current_version",
           "kind": "fn",
-          "startLine": 118,
-          "endLine": 148,
-          "tokens": 285
+          "startLine": 119,
+          "endLine": 159,
+          "tokens": 374
+        },
+        {
+          "name": "list_assets",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 191,
+          "tokens": 369
         },
         {
           "name": "create_asset",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 165,
+          "startLine": 192,
+          "endLine": 208,
           "tokens": 186
         },
         {
           "name": "create_version",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 199,
+          "startLine": 209,
+          "endLine": 242,
           "tokens": 366
         },
         {
           "name": "fork_version",
           "kind": "fn",
-          "startLine": 200,
-          "endLine": 228,
+          "startLine": 243,
+          "endLine": 271,
           "tokens": 316
         },
         {
           "name": "submit",
           "kind": "fn",
-          "startLine": 229,
-          "endLine": 252,
+          "startLine": 272,
+          "endLine": 295,
           "tokens": 245
         },
         {
           "name": "approve",
           "kind": "fn",
-          "startLine": 253,
-          "endLine": 282,
+          "startLine": 296,
+          "endLine": 325,
           "tokens": 310
         },
         {
           "name": "publish",
           "kind": "fn",
-          "startLine": 283,
-          "endLine": 323,
+          "startLine": 326,
+          "endLine": 366,
           "tokens": 421
         },
         {
           "name": "obsolete",
           "kind": "fn",
-          "startLine": 324,
-          "endLine": 347,
+          "startLine": 367,
+          "endLine": 390,
           "tokens": 253
         },
         {
           "name": "asset_status_report",
           "kind": "fn",
-          "startLine": 348,
-          "endLine": 361,
+          "startLine": 391,
+          "endLine": 404,
           "tokens": 149
         },
         {
           "name": "asset_status_report_export",
           "kind": "fn",
-          "startLine": 362,
-          "endLine": 383,
+          "startLine": 405,
+          "endLine": 426,
           "tokens": 293
         },
         {
           "name": "diff",
           "kind": "fn",
-          "startLine": 384,
-          "endLine": 405,
+          "startLine": 427,
+          "endLine": 448,
           "tokens": 194
         },
         {
           "name": "get_toe_conversion",
           "kind": "fn",
-          "startLine": 406,
-          "endLine": 427,
+          "startLine": 449,
+          "endLine": 470,
           "tokens": 212
         },
         {
           "name": "_Actor",
           "kind": "class",
-          "startLine": 428,
-          "endLine": 440,
+          "startLine": 471,
+          "endLine": 483,
           "tokens": 69
         },
         {
           "name": "current_actor",
           "kind": "fn",
-          "startLine": 441,
-          "endLine": 502,
-          "tokens": 680
+          "startLine": 484,
+          "endLine": 572,
+          "tokens": 947
         }
       ]
     },
@@ -13862,46 +13869,60 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 15610,
-      "hash": "300c0dd824120f49",
-      "size": 59602,
-      "mtimeMs": 1794276797516.0278,
-      "updatedAt": "2026-11-10T02:13:17.563Z",
+      "tokens": 16413,
+      "hash": "1231a14c766a6013",
+      "size": 63536,
+      "mtimeMs": 1794362696384.0525,
+      "updatedAt": "2026-11-11T02:04:56.433Z",
       "source": "hook",
       "symbols": [
         {
           "name": "conflictByScenario",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 119,
+          "startLine": 88,
+          "endLine": 121,
           "tokens": 251
         },
         {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 120,
-          "endLine": 771,
-          "tokens": 7927
+          "startLine": 122,
+          "endLine": 253,
+          "tokens": 1250
+        },
+        {
+          "name": "buildReviewLog",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 288,
+          "tokens": 361
+        },
+        {
+          "name": "buildLineageGraph",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 841,
+          "tokens": 7081
         },
         {
           "name": "buildNotificationList",
           "kind": "fn",
-          "startLine": 772,
-          "endLine": 779,
+          "startLine": 842,
+          "endLine": 849,
           "tokens": 64
         },
         {
           "name": "buildTodoList",
           "kind": "fn",
-          "startLine": 780,
-          "endLine": 789,
+          "startLine": 850,
+          "endLine": 859,
           "tokens": 77
         },
         {
           "name": "buildBatchSubmitResponse",
           "kind": "fn",
-          "startLine": 790,
-          "endLine": 1256,
+          "startLine": 860,
+          "endLine": 1326,
           "tokens": 6215
         }
       ]
@@ -15212,11 +15233,11 @@
     },
     "pcs-backend/app/api/v1/streams.py": {
       "description": "P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。",
-      "tokens": 8556,
-      "hash": "9cfe2914b38d6292",
-      "size": 34325,
-      "mtimeMs": 1794205290218.8584,
-      "updatedAt": "2026-11-09T06:21:30.267Z",
+      "tokens": 8711,
+      "hash": "35a2362f8898175f",
+      "size": 35297,
+      "mtimeMs": 1794326156363.7979,
+      "updatedAt": "2026-11-10T15:55:56.410Z",
       "source": "hook",
       "symbols": [
         {
@@ -15237,196 +15258,196 @@
           "name": "CreateStreamRequest",
           "kind": "class",
           "startLine": 110,
-          "endLine": 120,
-          "tokens": 94
+          "endLine": 127,
+          "tokens": 162
         },
         {
           "name": "UpdateStreamRequest",
           "kind": "class",
-          "startLine": 121,
-          "endLine": 126,
+          "startLine": 128,
+          "endLine": 133,
           "tokens": 44
         },
         {
           "name": "TransitionRequest",
           "kind": "class",
-          "startLine": 127,
-          "endLine": 139,
+          "startLine": 134,
+          "endLine": 146,
           "tokens": 100
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 152,
+          "startLine": 147,
+          "endLine": 159,
           "tokens": 131
         },
         {
           "name": "_load_project",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 164,
+          "startLine": 160,
+          "endLine": 171,
           "tokens": 100
         },
         {
           "name": "_to_response_dict",
           "kind": "fn",
-          "startLine": 165,
-          "endLine": 222,
+          "startLine": 172,
+          "endLine": 229,
           "tokens": 574
         },
         {
           "name": "_load_stream_guarded",
           "kind": "fn",
-          "startLine": 223,
-          "endLine": 260,
+          "startLine": 230,
+          "endLine": 267,
           "tokens": 310
         },
         {
           "name": "_load_state_point_guarded",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 297,
+          "startLine": 268,
+          "endLine": 304,
           "tokens": 317
         },
         {
           "name": "create_stream",
           "kind": "fn",
-          "startLine": 298,
-          "endLine": 335,
-          "tokens": 383
+          "startLine": 305,
+          "endLine": 347,
+          "tokens": 446
         },
         {
           "name": "validate_stream",
           "kind": "fn",
-          "startLine": 336,
-          "endLine": 380,
-          "tokens": 490
+          "startLine": 348,
+          "endLine": 394,
+          "tokens": 514
         },
         {
           "name": "list_project_streams",
           "kind": "fn",
-          "startLine": 381,
-          "endLine": 411,
+          "startLine": 395,
+          "endLine": 425,
           "tokens": 353
         },
         {
           "name": "get_stream",
           "kind": "fn",
-          "startLine": 412,
-          "endLine": 423,
+          "startLine": 426,
+          "endLine": 437,
           "tokens": 124
         },
         {
           "name": "update_stream",
           "kind": "fn",
-          "startLine": 424,
-          "endLine": 450,
+          "startLine": 438,
+          "endLine": 464,
           "tokens": 285
         },
         {
           "name": "delete_stream",
           "kind": "fn",
-          "startLine": 451,
-          "endLine": 471,
+          "startLine": 465,
+          "endLine": 485,
           "tokens": 202
         },
         {
           "name": "_state_point_to_response",
           "kind": "fn",
-          "startLine": 472,
-          "endLine": 485,
+          "startLine": 486,
+          "endLine": 499,
           "tokens": 131
         },
         {
           "name": "create_state_point",
           "kind": "fn",
-          "startLine": 486,
-          "endLine": 509,
+          "startLine": 500,
+          "endLine": 523,
           "tokens": 259
         },
         {
           "name": "list_state_points",
           "kind": "fn",
-          "startLine": 510,
-          "endLine": 525,
+          "startLine": 524,
+          "endLine": 539,
           "tokens": 168
         },
         {
           "name": "get_state_point",
           "kind": "fn",
-          "startLine": 526,
-          "endLine": 538,
+          "startLine": 540,
+          "endLine": 552,
           "tokens": 140
         },
         {
           "name": "update_state_point",
           "kind": "fn",
-          "startLine": 539,
-          "endLine": 563,
+          "startLine": 553,
+          "endLine": 577,
           "tokens": 285
         },
         {
           "name": "delete_state_point",
           "kind": "fn",
-          "startLine": 564,
-          "endLine": 586,
+          "startLine": 578,
+          "endLine": 600,
           "tokens": 224
         },
         {
           "name": "_transition_endpoint",
           "kind": "fn",
-          "startLine": 587,
-          "endLine": 646,
+          "startLine": 601,
+          "endLine": 660,
           "tokens": 500
         },
         {
           "name": "submit_stream",
           "kind": "fn",
-          "startLine": 647,
-          "endLine": 675,
+          "startLine": 661,
+          "endLine": 689,
           "tokens": 255
         },
         {
           "name": "_composition_gate",
           "kind": "fn",
-          "startLine": 676,
-          "endLine": 700,
+          "startLine": 690,
+          "endLine": 714,
           "tokens": 223
         },
         {
           "name": "approve_stream",
           "kind": "fn",
-          "startLine": 701,
-          "endLine": 716,
+          "startLine": 715,
+          "endLine": 730,
           "tokens": 152
         },
         {
           "name": "reject_stream",
           "kind": "fn",
-          "startLine": 717,
-          "endLine": 734,
+          "startLine": 731,
+          "endLine": 748,
           "tokens": 163
         },
         {
           "name": "initiate_change_stream",
           "kind": "fn",
-          "startLine": 735,
-          "endLine": 752,
+          "startLine": 749,
+          "endLine": 766,
           "tokens": 161
         },
         {
           "name": "pass_change_stream",
           "kind": "fn",
-          "startLine": 753,
-          "endLine": 769,
+          "startLine": 767,
+          "endLine": 783,
           "tokens": 163
         },
         {
           "name": "mark_stale_stream",
           "kind": "fn",
-          "startLine": 770,
-          "endLine": 880,
+          "startLine": 784,
+          "endLine": 894,
           "tokens": 1108
         }
       ]
@@ -16113,11 +16134,11 @@
     },
     "pcs-backend/app/services/stream_service.py": {
       "description": "P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。",
-      "tokens": 7269,
-      "hash": "319e17495389eef7",
-      "size": 29389,
-      "mtimeMs": 1793677385660.5156,
-      "updatedAt": "2026-11-03T03:43:05.711Z",
+      "tokens": 7776,
+      "hash": "478f6a167ca9790e",
+      "size": 31642,
+      "mtimeMs": 1794373267084.4473,
+      "updatedAt": "2026-11-11T05:01:07.129Z",
       "source": "hook",
       "symbols": [
         {
@@ -16166,8 +16187,8 @@
           "name": "StreamService",
           "kind": "class",
           "startLine": 225,
-          "endLine": 734,
-          "tokens": 5109
+          "endLine": 790,
+          "tokens": 5617
         }
       ]
     },
@@ -16212,11 +16233,11 @@
     },
     "pcs-backend/app/api/v1/mock_auth.py": {
       "description": "Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。",
-      "tokens": 604,
-      "hash": "5c6ae152b530b81e",
-      "size": 2476,
-      "mtimeMs": 1792420621234.5898,
-      "updatedAt": "2026-10-19T14:37:01.284Z",
+      "tokens": 692,
+      "hash": "c4d9c6ba7a953463",
+      "size": 2872,
+      "mtimeMs": 1794365757015.6687,
+      "updatedAt": "2026-11-11T02:55:57.068Z",
       "source": "hook",
       "symbols": [
         {
@@ -16237,8 +16258,8 @@
           "name": "mock_login",
           "kind": "fn",
           "startLine": 49,
-          "endLine": 77,
-          "tokens": 275
+          "endLine": 81,
+          "tokens": 364
         }
       ]
     },
@@ -16490,11 +16511,11 @@
     },
     "pcs-frontend/tests/mocks/handlers.test.ts": {
       "description": "MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5)",
-      "tokens": 7022,
-      "hash": "efce5b78318a0f78",
-      "size": 28378,
-      "mtimeMs": 1793703377485.9434,
-      "updatedAt": "2026-11-03T10:56:17.533Z",
+      "tokens": 7862,
+      "hash": "12481f7e51e8d637",
+      "size": 32031,
+      "mtimeMs": 1794362713693.924,
+      "updatedAt": "2026-11-11T02:05:13.743Z",
       "source": "hook",
       "symbols": [
         {
@@ -16529,8 +16550,8 @@
           "name": "schemaFor",
           "kind": "fn",
           "startLine": 231,
-          "endLine": 655,
-          "tokens": 4524
+          "endLine": 719,
+          "tokens": 5354
         }
       ]
     },
@@ -28362,11 +28383,11 @@
     },
     "docs/adr/0046-user-identity-model-migration.md": {
       "description": "ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键",
-      "tokens": 2304,
-      "hash": "86b47859f89499b1",
-      "size": 16042,
-      "mtimeMs": 1792408563095.1836,
-      "updatedAt": "2026-10-19T11:16:03.145Z",
+      "tokens": 2850,
+      "hash": "24ec2ae875683f2a",
+      "size": 19890,
+      "mtimeMs": 1794314915960.9426,
+      "updatedAt": "2026-11-10T12:48:36.013Z",
       "source": "hook"
     },
     "docs/adr/0047-workflow-progress-observation-layer.md": {
@@ -28434,71 +28455,99 @@
     },
     "pcs-backend/tests/test_token_issuer.py": {
       "description": "`issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。",
-      "tokens": 1228,
-      "hash": "804363d6848eff91",
-      "size": 4757,
-      "mtimeMs": 1792420516984.81,
-      "updatedAt": "2026-10-19T14:35:17.044Z",
+      "tokens": 2166,
+      "hash": "d60359d1f8a3a8e4",
+      "size": 8436,
+      "mtimeMs": 1794364379745.4246,
+      "updatedAt": "2026-11-11T02:32:59.793Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_mk_user",
           "kind": "fn",
           "startLine": 12,
-          "endLine": 24,
-          "tokens": 136
+          "endLine": 25,
+          "tokens": 145
         },
         {
           "name": "test_real_login_persists_user_row",
           "kind": "fn",
-          "startLine": 25,
-          "endLine": 38,
+          "startLine": 26,
+          "endLine": 39,
           "tokens": 181
         },
         {
           "name": "test_mock_does_not_persist",
           "kind": "fn",
-          "startLine": 39,
-          "endLine": 50,
+          "startLine": 40,
+          "endLine": 51,
           "tokens": 139
         },
         {
           "name": "test_mock_tv_is_sentinel_zero",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 63,
+          "startLine": 52,
+          "endLine": 64,
           "tokens": 186
         },
         {
           "name": "test_tv_actually_lands_in_the_refresh_token",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 76,
+          "startLine": 65,
+          "endLine": 77,
           "tokens": 183
         },
         {
           "name": "test_disabled_user_rejected",
           "kind": "fn",
-          "startLine": 77,
-          "endLine": 93,
+          "startLine": 78,
+          "endLine": 94,
           "tokens": 225
         },
         {
           "name": "test_verify_refresh_tv_accepts_matching_tv",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 100,
-          "tokens": 112
+          "startLine": 95,
+          "endLine": 106,
+          "tokens": 132
+        },
+        {
+          "name": "test_real_login_fills_roles_of_existing_user",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 134,
+          "tokens": 264
+        },
+        {
+          "name": "test_real_login_merges_roles_without_dropping_existing",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 157,
+          "tokens": 216
+        },
+        {
+          "name": "test_real_login_is_idempotent_about_roles",
+          "kind": "fn",
+          "startLine": 158,
+          "endLine": 180,
+          "tokens": 209
+        },
+        {
+          "name": "test_mock_login_does_not_touch_roles",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 204,
+          "tokens": 220
         }
       ]
     },
     "pcs-backend/app/services/token_issuer.py": {
       "description": "登录签发的**唯一**路径（ADR-0046 §③）。",
-      "tokens": 1690,
-      "hash": "090c5fc535ba2136",
-      "size": 7646,
-      "mtimeMs": 1792423975169.8215,
-      "updatedAt": "2026-10-19T15:32:55.228Z",
+      "tokens": 1986,
+      "hash": "7e0a74ea7ffc4db0",
+      "size": 9051,
+      "mtimeMs": 1794364404725.0203,
+      "updatedAt": "2026-11-11T02:33:24.774Z",
       "source": "hook",
       "symbols": [
         {
@@ -28519,35 +28568,42 @@
           "name": "issue_tokens",
           "kind": "fn",
           "startLine": 63,
-          "endLine": 127,
-          "tokens": 549
+          "endLine": 134,
+          "tokens": 652
+        },
+        {
+          "name": "_merge_real_role",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 159,
+          "tokens": 192
         },
         {
           "name": "effective_token_version",
           "kind": "fn",
-          "startLine": 128,
-          "endLine": 149,
+          "startLine": 160,
+          "endLine": 181,
           "tokens": 182
         },
         {
           "name": "verify_refresh_tv",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 158,
+          "startLine": 182,
+          "endLine": 190,
           "tokens": 91
         },
         {
           "name": "sign_with_tv",
           "kind": "fn",
-          "startLine": 159,
-          "endLine": 183,
+          "startLine": 191,
+          "endLine": 215,
           "tokens": 230
         },
         {
           "name": "_record_denied_login",
           "kind": "fn",
-          "startLine": 184,
-          "endLine": 203,
+          "startLine": 216,
+          "endLine": 235,
           "tokens": 162
         }
       ]
@@ -31131,166 +31187,194 @@
     },
     "pcs-backend/tests/api/v1/test_ws_notifications.py": {
       "description": "P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号",
-      "tokens": 3930,
-      "hash": "b5de015e6bd4adb0",
-      "size": 15531,
-      "mtimeMs": 1792461841190.1313,
-      "updatedAt": "2026-10-20T02:04:01.244Z",
+      "tokens": 5415,
+      "hash": "dc1bd43c7014482b",
+      "size": 21841,
+      "mtimeMs": 1794323009663.938,
+      "updatedAt": "2026-11-10T15:03:29.709Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_redis_up",
           "kind": "fn",
-          "startLine": 34,
-          "endLine": 46,
+          "startLine": 35,
+          "endLine": 47,
           "tokens": 82
         },
         {
           "name": "_token",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 57,
+          "startLine": 48,
+          "endLine": 58,
           "tokens": 99
         },
         {
           "name": "_seed",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 81,
+          "startLine": 59,
+          "endLine": 82,
           "tokens": 223
         },
         {
           "name": "test_messages_during_disconnect_are_recoverable_via_api",
           "kind": "fn",
-          "startLine": 82,
-          "endLine": 95,
+          "startLine": 83,
+          "endLine": 96,
           "tokens": 130
         },
         {
           "name": "test_after_excludes_older_notifications",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 126,
+          "startLine": 97,
+          "endLine": 127,
           "tokens": 348
         },
         {
           "name": "test_get_notifications_returns_only_my_own",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 139,
+          "startLine": 128,
+          "endLine": 140,
           "tokens": 130
         },
         {
           "name": "test_get_notifications_respects_limit",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 149,
+          "startLine": 141,
+          "endLine": 150,
           "tokens": 97
         },
         {
           "name": "test_get_notifications_rejects_oversized_limit",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 158,
+          "startLine": 151,
+          "endLine": 159,
           "tokens": 90
         },
         {
           "name": "test_get_notifications_requires_auth",
           "kind": "fn",
-          "startLine": 159,
-          "endLine": 164,
+          "startLine": 160,
+          "endLine": 165,
           "tokens": 56
         },
         {
           "name": "test_mark_read_sets_read_at",
           "kind": "fn",
-          "startLine": 165,
-          "endLine": 175,
+          "startLine": 166,
+          "endLine": 176,
           "tokens": 120
         },
         {
           "name": "test_mark_read_of_other_users_notification_is_404",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 192,
+          "startLine": 177,
+          "endLine": 193,
           "tokens": 181
         },
         {
           "name": "test_mark_read_of_nonexistent_id_is_404_with_same_code",
           "kind": "fn",
-          "startLine": 193,
-          "endLine": 202,
+          "startLine": 194,
+          "endLine": 203,
           "tokens": 113
         },
         {
           "name": "test_mark_read_is_idempotent",
           "kind": "fn",
-          "startLine": 203,
-          "endLine": 213,
+          "startLine": 204,
+          "endLine": 214,
           "tokens": 165
         },
         {
           "name": "test_mark_read_requires_auth",
           "kind": "fn",
-          "startLine": 214,
-          "endLine": 225,
+          "startLine": 215,
+          "endLine": 226,
           "tokens": 130
         },
         {
           "name": "test_ws_accepts_a_valid_token",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 243,
+          "startLine": 227,
+          "endLine": 244,
           "tokens": 166
         },
         {
           "name": "test_ws_requires_a_token",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 255,
-          "tokens": 107
+          "startLine": 245,
+          "endLine": 282,
+          "tokens": 356
+        },
+        {
+          "name": "test_ws_authenticate_rejects_disabled_user",
+          "kind": "fn",
+          "startLine": 283,
+          "endLine": 325,
+          "tokens": 398
+        },
+        {
+          "name": "test_ws_authenticate_allows_user_without_users_row",
+          "kind": "fn",
+          "startLine": 326,
+          "endLine": 348,
+          "tokens": 218
         },
         {
           "name": "test_ws_rejects_invalid_token",
           "kind": "fn",
-          "startLine": 256,
-          "endLine": 265,
-          "tokens": 104
+          "startLine": 349,
+          "endLine": 361,
+          "tokens": 135
         },
         {
           "name": "test_ws_delivers_notification_published_by_another_worker",
           "kind": "fn",
-          "startLine": 266,
-          "endLine": 312,
+          "startLine": 362,
+          "endLine": 408,
           "tokens": 440
         },
         {
           "name": "test_health_realtime_reflects_broadcaster_without_blocking",
           "kind": "fn",
-          "startLine": 313,
-          "endLine": 341,
+          "startLine": 409,
+          "endLine": 437,
           "tokens": 292
         },
         {
           "name": "test_health_returns_200_even_when_realtime_degraded",
           "kind": "fn",
-          "startLine": 342,
-          "endLine": 367,
+          "startLine": 438,
+          "endLine": 463,
           "tokens": 242
         },
         {
           "name": "test_health_realtime_reason_is_null_when_ok",
           "kind": "fn",
-          "startLine": 368,
-          "endLine": 387,
+          "startLine": 464,
+          "endLine": 483,
           "tokens": 185
         },
         {
           "name": "test_health_still_has_the_pre_existing_fields",
           "kind": "fn",
-          "startLine": 388,
-          "endLine": 399,
+          "startLine": 484,
+          "endLine": 496,
           "tokens": 124
+        },
+        {
+          "name": "test_old_detail_json_does_not_break_the_whole_list",
+          "kind": "fn",
+          "startLine": 497,
+          "endLine": 530,
+          "tokens": 294
+        },
+        {
+          "name": "test_lifespan_closes_the_redis_connections",
+          "kind": "fn",
+          "startLine": 531,
+          "endLine": 558,
+          "tokens": 285
         }
       ]
     },
@@ -31369,46 +31453,46 @@
     },
     "pcs-backend/app/api/v1/ws.py": {
       "description": "WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。",
-      "tokens": 1047,
-      "hash": "0d8b745a03702086",
-      "size": 4648,
-      "mtimeMs": 1792461804732.9155,
-      "updatedAt": "2026-10-20T02:03:24.784Z",
+      "tokens": 1176,
+      "hash": "e106f54e1d4b4001",
+      "size": 5277,
+      "mtimeMs": 1794314217165.1284,
+      "updatedAt": "2026-11-10T12:36:57.218Z",
       "source": "hook",
       "symbols": [
         {
           "name": "get_registry",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 55,
+          "startLine": 48,
+          "endLine": 56,
           "tokens": 68
         },
         {
           "name": "set_registry",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 60,
+          "startLine": 57,
+          "endLine": 61,
           "tokens": 31
         },
         {
           "name": "_authenticate",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 71,
-          "tokens": 120
+          "startLine": 62,
+          "endLine": 82,
+          "tokens": 232
         },
         {
           "name": "notifications_ws",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 108,
-          "tokens": 302
+          "startLine": 83,
+          "endLine": 119,
+          "tokens": 304
         },
         {
           "name": "_handle_client_frame",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 128,
+          "startLine": 120,
+          "endLine": 139,
           "tokens": 160
         }
       ]
@@ -31915,32 +31999,39 @@
     },
     "pcs-backend/app/main.py": {
       "description": "FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。",
-      "tokens": 1551,
-      "hash": "660c4422a79c1d8a",
-      "size": 6810,
-      "mtimeMs": 1793639170644.0981,
-      "updatedAt": "2026-11-02T17:06:10.693Z",
+      "tokens": 1794,
+      "hash": "c5d340832e348001",
+      "size": 8039,
+      "mtimeMs": 1794367732250.8289,
+      "updatedAt": "2026-11-11T03:28:52.306Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "lifespan",
+          "name": "assert_mock_auth_not_exposed",
           "kind": "fn",
           "startLine": 34,
-          "endLine": 80,
-          "tokens": 511
+          "endLine": 58,
+          "tokens": 295
+        },
+        {
+          "name": "lifespan",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 101,
+          "tokens": 461
         },
         {
           "name": "_close_redis_connections",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 104,
+          "startLine": 102,
+          "endLine": 125,
           "tokens": 215
         },
         {
           "name": "create_app",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 160,
+          "startLine": 126,
+          "endLine": 181,
           "tokens": 541
         }
       ]
@@ -35316,11 +35407,11 @@
     },
     "pcs-backend/tests/api/v1/test_deliverables_current_version.py": {
       "description": "交付物「当前版本 id」（P9B-1 Task T0）。",
-      "tokens": 2582,
-      "hash": "06cf2bd5d9bc6669",
-      "size": 9997,
-      "mtimeMs": 1792545425495.8115,
-      "updatedAt": "2026-10-21T01:17:05.547Z",
+      "tokens": 2829,
+      "hash": "33ddb262a2a39a2e",
+      "size": 11239,
+      "mtimeMs": 1794322993073.0605,
+      "updatedAt": "2026-11-10T15:03:13.121Z",
       "source": "hook",
       "symbols": [
         {
@@ -35362,8 +35453,8 @@
           "name": "TestCurrentVersionIdOverHttp",
           "kind": "class",
           "startLine": 178,
-          "endLine": 262,
-          "tokens": 973
+          "endLine": 283,
+          "tokens": 1220
         }
       ]
     },
@@ -41252,11 +41343,11 @@
     },
     "pcs-frontend/src/api/stream.ts": {
       "description": "SIM 物流 API 客户端（P9B-3 · T6/T7/T8 扩展）。",
-      "tokens": 2414,
-      "hash": "58911eeff8c2c102",
-      "size": 10634,
-      "mtimeMs": 1794207647975.956,
-      "updatedAt": "2026-11-09T07:00:48.030Z",
+      "tokens": 2454,
+      "hash": "e78e6b23d8d7de0b",
+      "size": 11007,
+      "mtimeMs": 1794362570533.9856,
+      "updatedAt": "2026-11-11T02:02:50.583Z",
       "source": "hook",
       "symbols": [
         {
@@ -41291,22 +41382,8 @@
           "name": "StreamStatePoint",
           "kind": "section",
           "startLine": 134,
-          "endLine": 145,
-          "tokens": 90
-        },
-        {
-          "name": "LineageEntry",
-          "kind": "section",
-          "startLine": 146,
-          "endLine": 159,
-          "tokens": 108
-        },
-        {
-          "name": "LineageGraph",
-          "kind": "section",
-          "startLine": 160,
           "endLine": 267,
-          "tokens": 1107
+          "tokens": 1344
         }
       ]
     },
@@ -41513,40 +41590,40 @@
     },
     "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx": {
       "description": "物流详情 —— 「血缘」Tab（SPEC §7.7.2 · P9B-3 · T8）。",
-      "tokens": 1049,
-      "hash": "f12b9a9b1d4dc37b",
-      "size": 3951,
-      "mtimeMs": 1793641333529.8828,
-      "updatedAt": "2026-11-02T17:42:13.574Z",
+      "tokens": 1376,
+      "hash": "87cba13ed72a0886",
+      "size": 5460,
+      "mtimeMs": 1794362598899.308,
+      "updatedAt": "2026-11-11T02:03:18.946Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Row",
           "kind": "section",
-          "startLine": 18,
-          "endLine": 23,
-          "tokens": 22
+          "startLine": 20,
+          "endLine": 38,
+          "tokens": 98
         },
         {
           "name": "toRows",
           "kind": "fn",
-          "startLine": 24,
-          "endLine": 36,
+          "startLine": 39,
+          "endLine": 51,
           "tokens": 122
         },
         {
           "name": "text",
           "kind": "fn",
-          "startLine": 37,
-          "endLine": 40,
+          "startLine": 52,
+          "endLine": 55,
           "tokens": 34
         },
         {
           "name": "StreamLineageTab",
           "kind": "fn",
-          "startLine": 41,
-          "endLine": 120,
-          "tokens": 691
+          "startLine": 56,
+          "endLine": 153,
+          "tokens": 898
         }
       ]
     },
@@ -42348,11 +42425,11 @@
     },
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md": {
       "description": "P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序）",
-      "tokens": 3955,
-      "hash": "dd6c9ff66c55d881",
-      "size": 25170,
-      "mtimeMs": 1794300554753.3455,
-      "updatedAt": "2026-11-10T08:49:14.810Z",
+      "tokens": 4057,
+      "hash": "309402935899639a",
+      "size": 25892,
+      "mtimeMs": 1794323219757.138,
+      "updatedAt": "2026-11-10T15:06:59.804Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md": {
@@ -42895,47 +42972,61 @@
     },
     "pcs-backend/app/api/v1/lineage.py": {
       "description": "Lineage API（Sprint 3）。",
-      "tokens": 2258,
-      "hash": "c924f375089a0d5a",
-      "size": 9952,
-      "mtimeMs": 1794266715529.0413,
-      "updatedAt": "2026-11-09T23:25:15.577Z",
+      "tokens": 3142,
+      "hash": "0e2a9014128b3422",
+      "size": 14010,
+      "mtimeMs": 1794353905422.4866,
+      "updatedAt": "2026-11-10T23:38:25.472Z",
       "source": "hook",
       "symbols": [
         {
           "name": "upstream",
           "kind": "fn",
-          "startLine": 45,
-          "endLine": 78,
-          "tokens": 339
+          "startLine": 46,
+          "endLine": 83,
+          "tokens": 380
         },
         {
           "name": "downstream",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 111,
-          "tokens": 344
+          "startLine": 84,
+          "endLine": 125,
+          "tokens": 449
         },
         {
           "name": "graph",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 148,
-          "tokens": 368
+          "startLine": 126,
+          "endLine": 169,
+          "tokens": 459
         },
         {
           "name": "_serialize",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 166,
+          "startLine": 170,
+          "endLine": 187,
           "tokens": 229
         },
         {
           "name": "_guard_record_access",
           "kind": "fn",
-          "startLine": 167,
-          "endLine": 227,
-          "tokens": 594
+          "startLine": 188,
+          "endLine": 259,
+          "tokens": 689
+        },
+        {
+          "name": "_stream_graph",
+          "kind": "fn",
+          "startLine": 260,
+          "endLine": 284,
+          "tokens": 249
+        },
+        {
+          "name": "_synthetic_stream_root",
+          "kind": "fn",
+          "startLine": 285,
+          "endLine": 310,
+          "tokens": 291
         }
       ]
     },
@@ -43301,6 +43392,784 @@
       "size": 7130,
       "mtimeMs": 1794296189676.5806,
       "updatedAt": "2026-11-10T07:36:29.728Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_user_disabled_guard.py": {
+      "description": "禁用用户不得访问物流面 —— P9B-4 T0-B（TODO-132）。",
+      "tokens": 2443,
+      "hash": "0bd88d34239bff63",
+      "size": 9874,
+      "mtimeMs": 1794315093006.8015,
+      "updatedAt": "2026-11-10T12:51:33.051Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_headers",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 55,
+          "tokens": 52
+        },
+        {
+          "name": "_derived_user_id",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 60,
+          "tokens": 53
+        },
+        {
+          "name": "_mk_user",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 77,
+          "tokens": 128
+        },
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 101,
+          "tokens": 195
+        },
+        {
+          "name": "make_stream",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 133,
+          "tokens": 276
+        },
+        {
+          "name": "test_disabled_user_with_existing_token_is_rejected",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 153,
+          "tokens": 209
+        },
+        {
+          "name": "test_active_user_with_existing_token_is_allowed",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 170,
+          "tokens": 188
+        },
+        {
+          "name": "test_user_without_users_row_is_allowed",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 209,
+          "tokens": 376
+        },
+        {
+          "name": "test_current_actor_is_awaitable",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 233,
+          "tokens": 233
+        },
+        {
+          "name": "test_endpoints_depending_on_current_actor_still_work",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 270,
+          "tokens": 354
+        }
+      ]
+    },
+    "pcs-backend/app/services/user_status_service.py": {
+      "description": "用户**账号状态**判定（P9B-4 T0-B · TODO-132）。",
+      "tokens": 448,
+      "hash": "97cc76a3ff03efdc",
+      "size": 2449,
+      "mtimeMs": 1794314008206.7651,
+      "updatedAt": "2026-11-10T12:33:28.254Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_stream_workspace_ownership.py": {
+      "description": "物流创建的 **workspace 归属** —— P9B-4 T0-C（TODO-133）。",
+      "tokens": 2016,
+      "hash": "ccf17d0e43a66086",
+      "size": 8587,
+      "mtimeMs": 1794326125423.4216,
+      "updatedAt": "2026-11-10T15:55:25.472Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 55,
+          "tokens": 51
+        },
+        {
+          "name": "designer_user_id",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 61,
+          "tokens": 53
+        },
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 86,
+          "tokens": 202
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 109,
+          "tokens": 210
+        },
+        {
+          "name": "_created_stream_workspace",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 117,
+          "tokens": 69
+        },
+        {
+          "name": "test_foreign_workspace_id_is_ignored",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 144,
+          "tokens": 254
+        },
+        {
+          "name": "test_own_workspace_id_is_accepted",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 165,
+          "tokens": 211
+        },
+        {
+          "name": "test_omitted_workspace_id_uses_project_workspace",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 186,
+          "tokens": 206
+        },
+        {
+          "name": "test_validate_endpoint_also_ignores_foreign_workspace_id",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 232,
+          "tokens": 386
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py": {
+      "description": "物流血缘的「按源引用查」+ 合成 root —— P9B-4 T0-D（TODO-136）。",
+      "tokens": 5134,
+      "hash": "4a086cc594c561c2",
+      "size": 20057,
+      "mtimeMs": 1794353945737.0505,
+      "updatedAt": "2026-11-10T23:39:05.783Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 63,
+          "tokens": 52
+        },
+        {
+          "name": "designer_user_id",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 68,
+          "tokens": 34
+        },
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 92,
+          "tokens": 192
+        },
+        {
+          "name": "make_stream",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 114,
+          "tokens": 186
+        },
+        {
+          "name": "make_source_ref_lineage",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 139,
+          "tokens": 217
+        },
+        {
+          "name": "test_graph_returns_downstream_by_source_ref",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 164,
+          "tokens": 228
+        },
+        {
+          "name": "test_graph_without_any_lineage_row_is_still_200",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 192,
+          "tokens": 248
+        },
+        {
+          "name": "test_synthetic_root_fields",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 223,
+          "tokens": 286
+        },
+        {
+          "name": "test_synthetic_root_lineage_id_is_deterministic",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 252,
+          "tokens": 274
+        },
+        {
+          "name": "test_synthetic_root_has_same_shape_as_real_root",
+          "kind": "fn",
+          "startLine": 253,
+          "endLine": 310,
+          "tokens": 454
+        },
+        {
+          "name": "test_synthetic_root_is_not_a_real_db_row",
+          "kind": "fn",
+          "startLine": 311,
+          "endLine": 345,
+          "tokens": 307
+        },
+        {
+          "name": "test_cross_project_stream_graph_is_404",
+          "kind": "fn",
+          "startLine": 346,
+          "endLine": 367,
+          "tokens": 188
+        },
+        {
+          "name": "test_missing_and_cross_project_are_identical",
+          "kind": "fn",
+          "startLine": 368,
+          "endLine": 396,
+          "tokens": 293
+        },
+        {
+          "name": "test_registry_covers_every_writable_record_type",
+          "kind": "fn",
+          "startLine": 397,
+          "endLine": 418,
+          "tokens": 253
+        },
+        {
+          "name": "test_streams_is_registered_separately",
+          "kind": "fn",
+          "startLine": 419,
+          "endLine": 427,
+          "tokens": 80
+        },
+        {
+          "name": "test_two_phase_result_is_not_registered",
+          "kind": "fn",
+          "startLine": 428,
+          "endLine": 434,
+          "tokens": 70
+        },
+        {
+          "name": "test_unknown_record_type_is_404",
+          "kind": "fn",
+          "startLine": 435,
+          "endLine": 444,
+          "tokens": 90
+        },
+        {
+          "name": "test_registry_key_cv_result_is_404",
+          "kind": "fn",
+          "startLine": 445,
+          "endLine": 460,
+          "tokens": 165
+        },
+        {
+          "name": "_dummy_value",
+          "kind": "fn",
+          "startLine": 461,
+          "endLine": 494,
+          "tokens": 298
+        },
+        {
+          "name": "_make_calc_row",
+          "kind": "fn",
+          "startLine": 495,
+          "endLine": 518,
+          "tokens": 246
+        },
+        {
+          "name": "_registered_calc_models",
+          "kind": "fn",
+          "startLine": 519,
+          "endLine": 531,
+          "tokens": 96
+        },
+        {
+          "name": "test_each_registered_type_is_guarded",
+          "kind": "fn",
+          "startLine": 532,
+          "endLine": 585,
+          "tokens": 471
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/lineage.py": {
+      "description": "血缘图的契约（**具名 schema**）—— P9B-4 T0-D（TODO-136 · TODO-111 的一半）。",
+      "tokens": 831,
+      "hash": "5b421a9842ef821a",
+      "size": 4007,
+      "mtimeMs": 1794362979140.1597,
+      "updatedAt": "2026-11-11T02:09:39.189Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "LineageNode",
+          "kind": "class",
+          "startLine": 29,
+          "endLine": 56,
+          "tokens": 280
+        },
+        {
+          "name": "LineageRoot",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 80,
+          "tokens": 196
+        },
+        {
+          "name": "LineageGraphResponse",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 97,
+          "tokens": 154
+        }
+      ]
+    },
+    "pcs-backend/app/services/lineage_registry.py": {
+      "description": "血缘守卫的记录类型注册表（**派生**，不手抄）—— P9B-4 T0-D（TODO-136）。",
+      "tokens": 594,
+      "hash": "d38e8a98ce2e2e30",
+      "size": 2927,
+      "mtimeMs": 1794353784857.5398,
+      "updatedAt": "2026-11-10T23:36:24.902Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_pk_col",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 67,
+          "tokens": 252
+        }
+      ]
+    },
+    "pcs-backend/app/services/lineage.py": {
+      "description": "血缘追踪（Sprint 3）。",
+      "tokens": 3101,
+      "hash": "ec1bc5fc8e3d1450",
+      "size": 11770,
+      "mtimeMs": 1794353918185.6694,
+      "updatedAt": "2026-11-10T23:38:38.233Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_compute_hash",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 59,
+          "tokens": 211
+        },
+        {
+          "name": "_record_pk",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 87,
+          "tokens": 288
+        },
+        {
+          "name": "LineageTracker",
+          "kind": "class",
+          "startLine": 88,
+          "endLine": 240,
+          "tokens": 1330
+        },
+        {
+          "name": "lineage",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 284,
+          "tokens": 494
+        },
+        {
+          "name": "lineage_ctx",
+          "kind": "class",
+          "startLine": 285,
+          "endLine": 324,
+          "tokens": 327
+        },
+        {
+          "name": "_resolve_session",
+          "kind": "fn",
+          "startLine": 325,
+          "endLine": 332,
+          "tokens": 75
+        },
+        {
+          "name": "_resolve_actor",
+          "kind": "fn",
+          "startLine": 333,
+          "endLine": 340,
+          "tokens": 64
+        },
+        {
+          "name": "_iter_records",
+          "kind": "fn",
+          "startLine": 341,
+          "endLine": 356,
+          "tokens": 85
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx": {
+      "description": "「血缘」Tab 测试（P9B-4 T0-D · TODO-136）。",
+      "tokens": 768,
+      "hash": "3d4575fe5022e54e",
+      "size": 3142,
+      "mtimeMs": 1794362752142.889,
+      "updatedAt": "2026-11-11T02:05:52.190Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/test_mock_auth.py": {
+      "description": "Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。",
+      "tokens": 1889,
+      "hash": "3064ae30dab4821d",
+      "size": 7352,
+      "mtimeMs": 1794365828468.407,
+      "updatedAt": "2026-11-11T02:57:08.516Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_client_with_mock",
+          "kind": "fn",
+          "startLine": 14,
+          "endLine": 21,
+          "tokens": 60
+        },
+        {
+          "name": "_settings",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 30,
+          "tokens": 72
+        },
+        {
+          "name": "_patch_settings",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 37,
+          "tokens": 61
+        },
+        {
+          "name": "test_mock_login_alice_designer",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 48,
+          "tokens": 102
+        },
+        {
+          "name": "test_mock_login_bob_checker",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 54,
+          "tokens": 58
+        },
+        {
+          "name": "test_mock_login_unknown_user_404",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 61,
+          "tokens": 72
+        },
+        {
+          "name": "test_mock_login_production_403",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 81,
+          "tokens": 167
+        },
+        {
+          "name": "test_mock_login_double_gate",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 94,
+          "tokens": 146
+        },
+        {
+          "name": "test_mock_login_is_disabled_by_default",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 108,
+          "tokens": 155
+        },
+        {
+          "name": "test_env_var_name_is_pcs_enable_mock_login",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 122,
+          "tokens": 116
+        },
+        {
+          "name": "test_production_with_mock_enabled_fails_startup",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 133,
+          "tokens": 115
+        },
+        {
+          "name": "test_production_with_mock_route_mounted_fails_startup",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 144,
+          "tokens": 117
+        },
+        {
+          "name": "test_development_passes_the_startup_assertion",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 156,
+          "tokens": 110
+        },
+        {
+          "name": "test_main_create_app_skips_mock_in_production",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 199,
+          "tokens": 446
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/sim/useStreamBatchSubmit.test.ts": {
+      "description": "批次「提交校对」hook 的失败清单语义（P9B-4 · TODO-116）。",
+      "tokens": 2000,
+      "hash": "ca03d9a7835a25c8",
+      "size": 8228,
+      "mtimeMs": 1794372992872.1636,
+      "updatedAt": "2026-11-11T04:56:32.933Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "response",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 44,
+          "tokens": 88
+        },
+        {
+          "name": "mixed",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 233,
+          "tokens": 1634
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts": {
+      "description": "批次「提交校对」的状态持有者（P9B-4 · TODO-116）。",
+      "tokens": 910,
+      "hash": "4112e250b02f229a",
+      "size": 4780,
+      "mtimeMs": 1794373010378.305,
+      "updatedAt": "2026-11-11T04:56:50.428Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UseStreamBatchSubmit",
+          "kind": "section",
+          "startLine": 41,
+          "endLine": 57,
+          "tokens": 147
+        },
+        {
+          "name": "useStreamBatchSubmit",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 113,
+          "tokens": 462
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_stream_reference_count.py": {
+      "description": "物流「被引用数」的口径（P9B-4 · TODO-108）。",
+      "tokens": 1701,
+      "hash": "e8bb2a903172f2f1",
+      "size": 6873,
+      "mtimeMs": 1794373239543.2964,
+      "updatedAt": "2026-11-11T05:00:39.588Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 58,
+          "tokens": 186
+        },
+        {
+          "name": "_make_stream",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 80,
+          "tokens": 155
+        },
+        {
+          "name": "_make_flash",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 102,
+          "tokens": 175
+        },
+        {
+          "name": "test_reference_count_counts_downstream_streams",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 111,
+          "tokens": 110
+        },
+        {
+          "name": "test_reference_count_counts_flash_results",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 120,
+          "tokens": 102
+        },
+        {
+          "name": "test_reference_count_excludes_own_state_points",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 144,
+          "tokens": 193
+        },
+        {
+          "name": "test_reference_count_is_zero_for_unreferenced_stream",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 151,
+          "tokens": 83
+        },
+        {
+          "name": "test_reference_counts_returns_only_requested_ids",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 162,
+          "tokens": 126
+        },
+        {
+          "name": "test_reference_counts_with_empty_input_returns_empty_dict",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 170,
+          "tokens": 72
+        },
+        {
+          "name": "test_reference_count_accumulates_across_both_tables",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 184,
+          "tokens": 156
+        },
+        {
+          "name": "test_reference_counts_with_none_input_returns_empty_dict",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 192,
+          "tokens": 99
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_stream_list_reference_count.py": {
+      "description": "物流列表的「引用 📎×N」字段（P9B-4 · TODO-108）。",
+      "tokens": 1460,
+      "hash": "d0a327a03074d28d",
+      "size": 5609,
+      "mtimeMs": 1794373324738.801,
+      "updatedAt": "2026-11-11T05:02:04.801Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 52,
+          "tokens": 190
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 57,
+          "tokens": 47
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 73,
+          "tokens": 107
+        },
+        {
+          "name": "_create",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 83,
+          "tokens": 84
+        },
+        {
+          "name": "test_list_streams_includes_reference_count",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 100,
+          "tokens": 158
+        },
+        {
+          "name": "test_list_streams_reference_count_is_zero_when_unreferenced",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 114,
+          "tokens": 127
+        },
+        {
+          "name": "test_list_streams_counts_downstream_streams",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 142,
+          "tokens": 274
+        },
+        {
+          "name": "test_list_streams_does_not_query_per_row",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 175,
+          "tokens": 302
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md": {
+      "description": "QA 报告 —— P9B-4 体验批（T0-A~T0-F + T1 + T2）",
+      "tokens": 914,
+      "hash": "1f63f634c3766934",
+      "size": 5787,
+      "mtimeMs": 1794377255038.6587,
+      "updatedAt": "2026-11-11T06:07:35.086Z",
       "source": "hook"
     }
   }

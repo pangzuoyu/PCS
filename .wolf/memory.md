@@ -3201,3 +3201,85 @@
 | 16:57 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 15→17 lines | ~288 |
 | 16:58 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 3→4 lines | ~135 |
 | 16:58 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 8→9 lines | ~261 |
+| 19:10 | Session end: 122 writes across 30 files (progress.md, .tmp_probe_write.txt, user_project_service.py, projects.py, seed_user_project_access.py) | 101 reads | ~266198 tok |
+
+## Session: 2026-11-10 19:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 19:55 | Edited TODOS.md | expanded (+15 lines) | ~347 |
+| 20:31 | Created pcs-backend/tests/api/v1/test_user_disabled_guard.py | — | ~2714 |
+| 20:33 | Created pcs-backend/app/services/user_status_service.py | — | ~448 |
+| 20:35 | Edited pcs-backend/app/api/v1/config.py | modified current_actor() | ~350 |
+| 20:35 | Edited pcs-backend/app/api/v1/config.py | modified except() | ~189 |
+| 20:36 | Edited pcs-backend/app/api/v1/config.py | added 1 import(s) | ~38 |
+| 20:36 | Edited pcs-backend/app/api/v1/ws.py | added 1 import(s) | ~56 |
+| 20:36 | Edited pcs-backend/app/api/v1/ws.py | modified _authenticate() | ~220 |
+| 20:36 | Edited pcs-backend/app/api/v1/ws.py | inline fix | ~17 |
+| 20:47 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | expanded (+7 lines) | ~105 |
+| 20:47 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | expanded (+8 lines) | ~247 |
+| 20:48 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+25 lines) | ~292 |
+| 20:48 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+18 lines) | ~535 |
+| 20:51 | Edited pcs-backend/tests/api/v1/test_user_disabled_guard.py | reduced (-21 lines) | ~90 |
+| 20:51 | Edited pcs-backend/tests/api/v1/test_user_disabled_guard.py | 11→10 lines | ~71 |
+| 20:52 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | modified test_ws_requires_a_token() | ~972 |
+| 20:53 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | 11→13 lines | ~185 |
+| 20:53 | Edited docs/PCS-UI-SPEC.md | expanded (+6 lines) | ~71 |
+| 20:53 | Edited docs/PCS-UI-SPEC.md | 6→5 lines | ~51 |
+| 20:54 | Edited docs/PCS-UI-SPEC.md | 1→3 lines | ~132 |
+| 23:03 | Edited pcs-backend/tests/api/v1/test_deliverables_current_version.py | 5→9 lines | ~105 |
+| 23:03 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | 21→21 lines | ~183 |
+| 23:03 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | 6→6 lines | ~70 |
+| 23:03 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | 6→5 lines | ~56 |
+| 23:06 | Edited docs/superpowers/plans/2026-11-04-p10-master-plan.md | 1→2 lines | ~115 |
+| 23:53 | Created pcs-backend/tests/api/v1/test_stream_workspace_ownership.py | — | ~1696 |
+| 23:54 | Edited pcs-backend/tests/api/v1/test_stream_workspace_ownership.py | modified _payload() | ~114 |
+| 23:55 | Edited pcs-backend/tests/api/v1/test_stream_workspace_ownership.py | modified _created_stream_workspace() | ~1221 |
+| 23:55 | Edited pcs-backend/app/api/v1/streams.py | modified CreateStreamRequest() | ~161 |
+| 23:55 | Edited pcs-backend/app/api/v1/streams.py | 9→14 lines | ~155 |
+| 23:55 | Edited pcs-backend/app/api/v1/streams.py | 6→8 lines | ~90 |
+| 07:35 | Created pcs-backend/tests/api/v1/test_lineage_by_source_ref.py | — | ~5098 |
+| 07:36 | Created pcs-backend/app/schemas/lineage.py | — | ~838 |
+| 07:36 | Created pcs-backend/app/services/lineage_registry.py | — | ~594 |
+| 07:36 | Edited pcs-backend/app/api/v1/lineage.py | added 1 import(s) | ~222 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | 8→12 lines | ~121 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | expanded (+9 lines) | ~153 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | modified graph() | ~29 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | expanded (+7 lines) | ~141 |
+| 07:38 | Edited pcs-backend/app/api/v1/lineage.py | modified _guard_record_access() | ~1229 |
+| 07:38 | Edited pcs-backend/app/services/lineage.py | modified by_source_ref() | ~282 |
+| 07:39 | Edited pcs-backend/tests/api/v1/test_lineage_by_source_ref.py | 6→8 lines | ~125 |
+| 10:02 | Edited pcs-frontend/src/api/stream.ts | 20→20 lines | ~200 |
+| 10:03 | Edited pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx | expanded (+15 lines) | ~322 |
+| 10:03 | Edited pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx | added 1 condition(s) | ~267 |
+| 10:03 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+8 lines) | ~329 |
+| 10:03 | Edited pcs-frontend/src/mocks/handlers.ts | "00000000-0000-4000-8000-0" → "00000000-0000-4000-8000-0" | ~17 |
+| 10:04 | Edited pcs-frontend/src/mocks/handlers.ts | 1→2 lines | ~39 |
+| 10:04 | Edited pcs-frontend/src/mocks/handlers.ts | reduced (-13 lines) | ~215 |
+| 10:04 | Edited pcs-frontend/src/mocks/handlers.ts | modified buildLineageGraph() | ~385 |
+| 10:05 | Edited pcs-frontend/tests/mocks/handlers.test.ts | inline fix | ~50 |
+| 10:05 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added optional chaining | ~440 |
+| 10:05 | Created pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx | — | ~768 |
+| 10:06 | Edited docs/PCS-UI-SPEC.md | expanded (+15 lines) | ~181 |
+| 10:06 | Edited docs/PCS-UI-SPEC.md | 1→3 lines | ~195 |
+| 10:09 | Edited pcs-backend/app/schemas/lineage.py | 9→9 lines | ~84 |
+| 10:32 | Edited pcs-backend/tests/test_token_issuer.py | modified _mk_user() | ~139 |
+| 10:32 | Edited pcs-backend/tests/test_token_issuer.py | modified test_verify_refresh_tv_accepts_matching_tv() | ~1047 |
+| 10:33 | Edited pcs-backend/app/services/token_issuer.py | modified _merge_real_role() | ~334 |
+| 10:55 | Edited pcs-backend/app/core/config.py | expanded (+14 lines) | ~190 |
+| 10:55 | Edited pcs-backend/app/core/config.py | added 1 import(s) | ~30 |
+| 10:55 | Edited pcs-backend/app/api/v1/mock_auth.py | 7→11 lines | ~155 |
+| 10:56 | Edited pcs-backend/app/main.py | modified endswith() | ~164 |
+| 10:56 | Edited pcs-backend/tests/test_mock_auth.py | modified _client_with_mock() | ~1370 |
+| 10:56 | Edited pcs-backend/app/main.py | 6→7 lines | ~45 |
+| 10:56 | Edited pcs-backend/app/main.py | removed 13 lines | ~24 |
+| 10:57 | Edited pcs-backend/app/main.py | modified assert_mock_auth_not_exposed() | ~234 |
+| 10:57 | Edited pcs-backend/tests/test_mock_auth.py | modified test_production_with_mock_enabled_fails_startup() | ~342 |
+| 11:28 | Edited pcs-backend/app/main.py | 7→12 lines | ~177 |
+| 11:29 | Edited README.md | expanded (+6 lines) | ~108 |
+| 12:56 | Created pcs-frontend/tests/pages/sim/useStreamBatchSubmit.test.ts | — | ~2000 |
+| 12:56 | Created pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts | — | ~910 |
+| 13:00 | Created pcs-backend/tests/services/test_stream_reference_count.py | — | ~1701 |
+| 13:01 | Edited pcs-backend/app/services/stream_service.py | modified reference_counts() | ~546 |
+| 13:02 | Created pcs-backend/tests/api/v1/test_stream_list_reference_count.py | — | ~1460 |
+| 14:07 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md | — | ~975 |
