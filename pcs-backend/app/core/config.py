@@ -8,6 +8,7 @@ import secrets
 import warnings
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # P0-MED-004 fix（2026-09-18）：移除源代码中明文默认 secret_key。
@@ -108,6 +109,20 @@ class Settings(BaseSettings):
     #   2. 报表定义数量限 3 个
     # 默认关闭 —— 正式部署开着会挡住正常建报表。
     report_demo_mode: bool = False
+
+    # === mock 登录开关（T0-F · TODO-135）===
+    # ⚠️ **默认关** —— mock 登录给四个固定用户名签发**任意 role claim** 的 token
+    #    ⇒ 那是一条**完整的鉴权旁路**（拿到 token = 任意角色）。
+    #    ⇒ 启用条件**双闸**：① 非生产（`is_production`）② 显式开这个开关。
+    #    ⚠️ 之前的防线**只有** `is_production` 一道 ⇒ 闸门回归（配置写错 /
+    #    挂载代码改动）= 全站失守 ⇒ 这一层是显式 opt-in。
+    #    ⚠️ dev 要用 ⇒ `.env` 里显式写 `PCS_ENABLE_MOCK_LOGIN=true`。
+    enable_mock_login: bool = Field(
+        default=False,
+        # `AliasChoices` 让**环境变量名**与**字段名**都能赋值
+        # （只给 `validation_alias` 的话，init kwargs 就得写别名名 ⇒ 测试难写）。
+        validation_alias=AliasChoices("PCS_ENABLE_MOCK_LOGIN", "enable_mock_login"),
+    )
 
     @property
     def is_production(self) -> bool:

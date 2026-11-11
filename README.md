@@ -68,6 +68,12 @@ uv run alembic upgrade head       # 应用数据库迁移
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
+⚠️ **mock 登录（`POST /api/v1/auth/mock-login`）默认关** —— 它给四个固定用户名
+签发**任意 role claim** 的 token ⇒ 那是一条**完整的鉴权旁路** ⇒ 启用条件
+**双闸**：① `ENV != production` ② 显式 `PCS_ENABLE_MOCK_LOGIN=true`。
+⇒ dev 要用就在 `pcs-backend/.env` 里加一行（`.env.example` 里已带）；
+⚠️ 生产环境里设成 `true` ⇒ **启动即失败**（部署期断言）。
+
 #### ARQ worker（可选，容器）
 
 `docker-compose.yml` 里的 `worker` 服务跑报表异步生成（`generate_report_task`、

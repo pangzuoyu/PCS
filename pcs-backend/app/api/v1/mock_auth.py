@@ -53,11 +53,15 @@ async def mock_login(body: MockLoginRequest) -> MockLoginResponse:
     mock 的 alice 与真实 AD 的 alice 同名，落库会污染同一行的 `roles`，
     而那是 ACL 的权威输入。tv 写保留值 0。
     """
-    if get_settings().is_production:
-        # 双重保险：main.py 已不挂载，这里再 raise 防误用
+    settings = get_settings()
+    if settings.is_production or not settings.enable_mock_login:
+        # ⚠️ **双闸**（T0-F · TODO-135）：① 非生产 ② 显式 `PCS_ENABLE_MOCK_LOGIN=true`
+        #    —— 此前**只有** `is_production` 一道 ⇒ 闸门回归 = 完整 auth bypass
+        #    （mock 签发**任意 role claim** 的 token）。
+        #    双重保险：main.py 在生产**不挂载**这个 router，这里再 raise 防误用。
         raise PcsError(
             code="MOCK_DISABLED",
-            message="mock auth is disabled in production",
+            message="mock auth is disabled (needs non-production AND PCS_ENABLE_MOCK_LOGIN=true)",
             status=403,
         )
     role = MOCK_USERS.get(body.username)

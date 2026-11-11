@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import api_router
 from app.api.v1.mock_auth import router as mock_auth_router
 from app.core.config import (
+    Settings,
     assert_secret_key_configured,
     get_settings,
     parse_cors_origins,
@@ -28,6 +29,30 @@ from app.db.session import (
 )
 from app.services.coefficient_service import CoefficientService
 from app.services.system_setting_service import seed_defaults as seed_system_setting_defaults
+
+
+def assert_mock_auth_not_exposed(app: FastAPI, settings: Settings) -> None:
+    """**部署期断言**：生产里 mock 登录**不得**可用（T0-F · TODO-135）。
+
+    ⚠️ 两条防线都得在：
+    ① mock router **不得**挂载（挂了 ⇒ `/auth/mock-login` 存在）；
+    ② mock 开关**不得**打开（打开它 = 矛盾配置 ⇒ 哪天有人把 router 挂回去，
+       闸门就没了 ⇒ mock 登录签发**任意 role claim** 的 token = 完整 auth bypass）。
+
+    非生产环境**一律放行**（dev/E2E 要用 mock 登录 ⇒ 显式 opt-in 即可）。
+    """
+    if not settings.is_production:
+        return
+    if settings.enable_mock_login:
+        raise RuntimeError("PCS_ENABLE_MOCK_LOGIN MUST NOT be enabled in production")
+    # ⚠️ 用 **OpenAPI 的实际路径**判（**不**遍历 `app.routes`）：
+    #    FastAPI ≥ 0.141 改成**懒挂载** ⇒ `include_router` 进来的 router 在
+    #    `app.routes` 里是一个**没有 `path` 属性**的包装对象 ⇒ 只遍历
+    #    `app.routes` 会**漏掉整棵子树** ⇒ 旧的「生产里 mock 路由不得挂载」
+    #    断言**一直是空转**（升级后失效了，却一直绿）。
+    paths = app.openapi().get("paths", {})
+    if any(path.endswith("/mock-login") for path in paths):
+        raise RuntimeError("mock-login route MUST NOT be mounted in production")
 
 
 @asynccontextmanager
@@ -49,11 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # middleware 跑在每个请求上，配错时的症状是"所有接口 403"，极难自查。
     validate_cors_for_production(settings)
     if settings.is_production:
-        for route in app.routes:
-            if getattr(route, "path", "").endswith("/mock-login"):
-                raise RuntimeError(
-                    "mock-login route MUST NOT be mounted in production"
-                )
+        assert_mock_auth_not_exposed(app, settings)
     # V1.4 P2-OPEN-005 / SPEC-P2 §3.2.3：启动时 seed CATEGORY_3 默认 6 张系数表（幂等）
     # P9B-3 §7.20.1：启动时 seed 系统参数默认 7 键（幂等）
     # ⚠️ `system_settings` 真库 0 行 ⇒ 不 seed 的话管理员打开参数页**一片空白**
