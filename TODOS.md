@@ -2313,7 +2313,29 @@ CHANGE_PENDING 里又改了一遍数据，**不是**因为撤销恢复了数据�
 
 **归属：** 下一批。
 
-## TODO-108: SPEC §7.7.1「引用 📎×N」的 N 是什么 —— 口径待定 🟡
+## ✅ TODO-108: 已闭环（2026-11-11 · P9B-4 体验批 T2）
+
+**本批修了什么**：① 后端 `StreamService.reference_counts` —— **两条聚合查询**
+（`GROUP BY`）⇒ 整个列表 2 次往返 ⇒ **不是 N+1**；② `StreamResponse.reference_count`
+（默认 0）+ 列表端点显式填（⚠️ 它**不是 ORM 列**）；③ 前端列表加「引用 📎×N」
+列（0 ⇒ 「—」）；④ mock seed 同步。
+
+**口径（钉死）** = **下游物流数**（`streams.upstream_stream_id`）+
+**闪蒸结果数**（`flash_results.stream_id`）⇒ **不含**状态点（物流自己的子表）
+与设备引用（JSONB 数组 · 无索引 · 延后）。
+
+⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，因为状态点
+会阻塞删除）⇒ 两个数字**不要**混用 ⇒ SPEC §7.7.1 已写明（「引用 0」**不等于**
+「可以删」）。
+
+⚠️ **空入参早返回**（`IN ()` 在 PG 上是**语法错误** ⇒ 筛选后列表为空时不让接口 500）。
+
+**证据**：`tests/services/test_stream_reference_count.py`（8 例 · 口径）+
+`tests/api/v1/test_stream_list_reference_count.py`（4 例 · 接线 + N+1 守卫）·
+浏览器回归见 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md` §2.2。
+
+**遗留**：设备引用（JSONB 数组）**是否**计入 ⇒ 登记为新条目（下一批裁决）。
+
 
 **现状**：SPEC §7.7.1 的物流列表有一列「引用 📎×N」，但**只给了列名，没定义口径**；
 后端列表响应**不返回**该字段 ⇒ 前端**画不出**这一列。
@@ -2506,7 +2528,31 @@ mark-stale）+ 批次端点（`POST /streams/batch-submit`）全部补上项目�
 ⚠️ 批次端点的跨项目条目按「**不存在**」处理（`reason=SIM_STREAM_NOT_FOUND`）
 ⇒ 合法条目**照常成功**（D2 部分成功语义不受影响）。
 
-## TODO-116: 批量「只重试失败项」按钮 🟡
+## ✅ TODO-116: 已闭环（2026-11-11 · P9B-4 体验批 T1）
+
+**本批修了什么**：① 失败清单从**组件局部 state** 提升到 **hook**
+（`src/pages/sim/hooks/useStreamBatchSubmit.ts`）⇒ **关闭摘要弹窗不清清单**；
+② 工具栏**下方**加**失败清单条**（`stream-batch-failure-bar`）+「只重试失败项」
++「清除」；③ 弹窗内也加「只重试失败项」（**复用同一份 hook 状态**，别写第二套）；
+④ 关闭提示文案改写（「关闭后失败清单将不再显示」**已不成立** ⇒ 改成
+「关闭弹窗后仍可用上方『只重试失败项』重试这 M 条」）。
+
+**登记时写下的两条约束，落地结论**：
+1. ⚠️ **失败清单要提升到上层状态** ⇒ 已做（hook）⇒ 「失败 id 已现成」**不再**
+   只在弹窗打开期间成立；
+2. ⚠️ **重试的幂等语义** ⇒ **不需要**后端区分「我重试成功的」与「被别人抢跑的」
+   ⇒ 摘要里已有一行「其中 M 条本来就在审批中（幂等命中 · 本次**未**提交）」
+   （TODO-124）⇒ 幂等命中**如实显示** ⇒ 用户不会误以为是自己重试生效的。
+
+**语义**：**只重试上次的失败项**（成功的已经提交过了 ⇒ 重发是浪费）⇒ 重试后
+失败清单**替换**为本次重试的失败清单（「上次失败、这次不再失败」的条目消失）。
+
+**证据**：`tests/pages/sim/useStreamBatchSubmit.test.ts`（9 例）+ 页面 2 例
+（关闭弹窗后仍能只重试失败项 / 清单条可清除）+ 浏览器回归见
+`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md` §2.3。
+
+**已知限制**：失败清单是**内存态** ⇒ 刷新页面丢失 ⇒ UI 上已如实提示。
+
 
 **现状**（2026-11-03 · P9B-3b）：`POST /streams/batch-submit` 返回 207（部分成功）
 ⇒ 前端摘要弹窗显示「失败 M 条」+ 每条原因，但**没有**「只把这 M 条再提交一次」
@@ -2818,7 +2864,22 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 ⚠️ **生产库的用户必须先在 `users` 表里存在**（FK 约束）⇒ 走真实登录路径即可。
 
 
-## TODO-132: `check_user_project_access` **不看 `users.status`** ⇒ 已禁用用户仍能访问物流面 🔴
+## ✅ TODO-132: 已闭环（2026-11-11 · P9B-4 体验批 T0-B）
+
+**本批修了什么**：**判定放在 actor 层**（`current_actor` 改 async + `Depends(get_db)`
+⇒ 每请求查一次 `users.status`）⇒ 一处判定、**全局生效**（含 SYSTEM_ADMIN bypass）。
+- **无行 ⇒ 放行**（mock 登录不落 `users` 表 · ADR-0046 §③b ⇒ 判拒会让 dev/E2E 全线挂掉）。
+- `ws.py::_authenticate` 是**唯一**非 `Depends` 的直接调用点 ⇒ 一并改 async。
+- 实测开销（真实 PG · 100 次）：P50 **0.198ms** / P95 **0.297ms** / P99 **0.380ms**
+  ⇒ 低于委员会 3ms 阈值 ⇒ 未触发「status 塞 token claim」的独立批预案。
+
+⚠️ **改行为 ⇒ 文档同 commit 同步**（代码与 ADR **同一个 commit**）：ADR-0046 §⑤ +
+「已知边界」+「后果」三处 + UI-SPEC §7.1 + V2.12 ⇒ 「停用后 access token 仍可用
+至多 30 分钟」**不再成立**（⇒ 改成「**两道闸**：token_version（refresh 时校验）+
+users.status（每请求校验）」）。
+⚠️ **角色变更仍不立即生效**（`users.roles` 仍只在登录时写 ⇒ 见 TODO-134）。
+
+**证据**：`tests/api/v1/test_user_disabled_guard.py`（8 例）+ ws 用例 2 例 + 后端全量绿。
 
 **现状**（2026-11-10 · ce-code-review `20261109-181644-6f6ddca3` 的 residual risk
 第 1 条 · 委员会要求**升格为 TODO**）：
@@ -2848,7 +2909,17 @@ bypass 路径）⇒ `current_actor` 改 **async + `Depends(get_db)`**，
 
 ⇒ 落地批次：**P9B-4 体验批 T0-B**（P1）。
 
-## TODO-133: `create_stream` 不校验 `workspace_id` 属于 URL 的项目 ⇒ 可把物流挂到别人的工作区 🔴
+## ✅ TODO-133: 已闭环（2026-11-11 · P9B-4 体验批 T0-C）
+
+**本批修了什么**：`create_stream` / `validate_stream` **一律**用
+`project.workspace_id` ⇒ 请求体里的 `workspace_id` **被忽略**
+（字段保留但标 `deprecated` ⇒ 非破坏性契约变更）。
+⚠️ **静默纠正的取舍**：传了别的项目的 `workspace_id` ⇒ **不报错**（创建成功 201），
+但落点 = URL 那个项目的工作区 ⇒ **数据落在正确的地方**（不是越权）⇒ 比报错更
+接近「零影响」（前端**根本不发**这个字段 ⇒ 报错路径没有真实调用方）。
+⚠️ `/validate`（预演）**同口径** ⇒ 预演结论与实际落点**同一口径**。
+
+**证据**：`tests/api/v1/test_stream_workspace_ownership.py`（4 例）。
 
 **现状**（2026-11-10 · 同上报告 residual risk 第 2 条 · 委员会要求**升格为 TODO**）：
 
@@ -2869,7 +2940,15 @@ pcs-frontend/src/api/stream.ts` ⇒ **0 命中**；且 `StreamCreatePayload` 的
 
 ⇒ 落地批次：**P9B-4 体验批 T0-C**（P1）。
 
-## TODO-134: seed 建出来的用户 `roles=[]` ⇒ 永远不会被通知选人逻辑选中 🟡
+## ✅ TODO-134: 已闭环（2026-11-11 · P9B-4 体验批 T0-E）
+
+**本批修了什么**：`issue_tokens` 的**真实分支**在「行已存在」时把真实角色
+**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。
+⚠️ **mock 分支绝不碰 roles**（ADR-0046 §③b：mock 与真实 AD 同名 ⇒ 写真实角色
+⇒ 污染同一行 ⇒ 权限污染且不报错）⇒ mock 路径仍在「一次 DB 往返都没有」的位置
+早返回 ⇒ 对照组用例钉住。
+
+**证据**：`tests/test_token_issuer.py` +4 例（含 **mock 不改 roles** 对照组）。
 
 **现状**（2026-11-10 · 同上报告 residual risk 第 3 条 · 委员会要求**升格为 TODO**）：
 
@@ -2885,7 +2964,20 @@ pcs-frontend/src/api/stream.ts` ⇒ **0 命中**；且 `StreamCreatePayload` 的
 —— 但要绕开 ADR-0046 §③b 的「mock 与真实 AD 同名 ⇒ 污染同一行」问题
 （mock 登录**不得**写真实角色，真实登录**可以**写真实角色）。
 
-## TODO-135: mock 登录的「任意 role claim」只靠 `settings.is_production` 一道闸 🔴
+## ✅ TODO-135: 已闭环（2026-11-11 · P9B-4 体验批 T0-F）
+
+**本批修了什么**：① 新开关 **`PCS_ENABLE_MOCK_LOGIN`**（**默认关**）⇒ 启用条件
+**双闸**（非生产 **且** 显式 opt-in）⇒ 部署时忘了配 = 安全的；
+② 生产里开关开着 ⇒ **启动即失败**（部署期断言 · 矛盾配置 fail-fast）；
+③ `.env.example` + README 写明 dev 要显式打开。
+
+⚠️ **顺带修好一条既有空转的断言**：旧的「生产里 mock 路由不得挂载」断言
+**一直是空转** —— FastAPI ≥ 0.141 改成**懒挂载** ⇒ `include_router` 进来的 router
+在 `app.routes` 里是一个**没有 `path` 属性**的包装对象 ⇒ 只遍历 `app.routes`
+**漏掉整棵子树** ⇒ 断言**升级后失效了，却一直绿** ⇒ 改成按 **OpenAPI 的实际路径**判。
+
+**证据**：`tests/test_mock_auth.py` 14 例（闸门矩阵 4 种组合 + 默认关 + 环境变量名
++ 部署期断言 3 例）。
 
 **现状**（2026-11-10 · 同上报告 residual risk 第 4 条 · 委员会要求**升格为 TODO**）：
 
@@ -2901,7 +2993,26 @@ pcs-frontend/src/api/stream.ts` ⇒ **0 命中**；且 `StreamCreatePayload` 的
 `PCS_ENABLE_MOCK_LOGIN=true`）+ 给「mock 路由未挂载」加一条**部署期断言**
 （启动时检查生产环境里没有 mock 路由）。
 
-## TODO-136: 血缘守卫的 `record_type` 注册表**新增类型必须手动登记** ⇒ 漏登记 = 无项目隔离 🟡
+## ✅ TODO-136: 已闭环（2026-11-11 · P9B-4 体验批 T0-D）
+
+**本批修了什么**（委员会裁决的三步全做）：
+1. **快照** ✅（前端只查 `streams`；能写出的类型 = `RECORD_TYPE_REGISTRY` 的 21 个，
+   20 个有 `project_id`、1 个没有）；
+2. **补已知** ✅ —— 注册表**从 `RECORD_TYPE_REGISTRY` 派生**（新文件
+   `app/services/lineage_registry.py`）⇒ **不手写第二份**；pk 列用
+   `inspect(model).primary_key[0].name`；**键 = `model.__name__`**（写入方写进
+   `data_lineage.record_type` 的就是**类名** ⇒ registry 的 5 个非类名键
+   **抄不得**，抄了就永远匹配不上）；`streams` **单独登记**（入口专用键）；
+3. **未知 fail-closed** ✅ —— 未登记的 `record_type` ⇒ **404**（与「记录不存在」
+   **逐字同形**）⇒ 不再是「可枚举信号」（此前 `/upstream` 对未知类型返 200+[]）。
+
+**顺带**：① `/lineage/streams/{id}/graph` 补「**按源引用查**」（`source_ref_type='Stream'`）
++ **合成 root**（确定性 uuid5 · 10 字段与真实 root **同形**）；
+② 血缘 graph 响应改**具名 schema** `LineageGraphResponse {root, upstream, downstream}`
+（**三键形状不变** ⇒ 前端零改动）。
+
+**证据**：`tests/api/v1/test_lineage_by_source_ref.py`（33 例 · 含 20 个已登记类型
+的**参数化**跨项目 404 + 本项目 200 对照 + 镜像测试）+ 前端 4 例。
 
 **现状**（2026-11-10 · ce-code-review 的 **#6 rejection** 的残余 · 委员会要求登记）：
 
@@ -2995,6 +3106,10 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 
 ⇒ 落地批次：**P9B-4 体验批 T0-D**（fail-closed + SPEC 注明）；补列若需要 ⇒ 独立批。
 
+✅ **fail-closed 部分已落地**（2026-11-11 · T0-D）：`TwoPhaseResult` **不登记**
+⇒ 血缘端点对它 **404**（与「未登记类型」同形）⇒ SPEC §7.7.2 已注明
+「`TwoPhaseResult` 不支持血缘查询」。⇒ **本条只剩「补列」这一半**（未排期）。
+
 ## TODO-139: 物流来源 vs 计算来源是不是**同一个概念** ⚪
 
 **现状**（2026-11-10 · P9B-4 体验批 T0-D 的合成 root 带出的设计问题）：
@@ -3016,3 +3131,45 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 **触发条件**：用户反馈「来源列显示混乱」⇒ 重新评估。
 
 ⇒ 归属：独立设计债（不进 P9B-4）。
+
+## TODO-140: 「设备引用（JSONB 数组）」**是否**计入 📎×N 🟡
+
+**现状**（2026-11-11 · P9B-4 体验批 T2 留下的）：「引用 📎×N」的口径**钉死**为
+**下游物流数 + 闪蒸结果数** ⇒ **不含**设备引用（`sim_unit_op.*_streams_json`
+里的 id 数组）。
+
+**为什么没含**：设备表把物流 id 存在 **JSONB 数组**里 ⇒ **无索引** ⇒ 要统计
+只能全表扫 + JSONB 展开 ⇒ 与列表端点「2 次往返」的口径冲突 ⇒ 本批**明确不收**。
+
+**待裁决**：设备算不算「引用这条物流」？若算 ⇒
+- 口径要**逐设备类型**定（闪蒸出口 / 泵出口 / … 各表字段名不同）；
+- 性能方案要定（表达式索引？物化列？）。
+
+**触发条件**：用户问「这条物流被哪些设备用了」⇒ 重新评估。
+
+⇒ 归属：独立技术债（不进本批）。
+
+## TODO-141: 全量测试迁移到 `strict_client`（守卫测试的唯一入口） 🟡
+
+**现状**（2026-11-11 · P9B-4 紧急批次的遗留）：默认的 `client` fixture 把项目
+守卫 **mock 成永远 True** ⇒ 「端点缺项目守卫」这类缺陷在它上面**一个都测不出来**
+⇒ 守卫测试**必须**用 `strict_client`（不 mock 守卫 + 需先 `grant_project`）。
+
+⚠️ **风险**：新写的用例若图省事用 `client` ⇒ 守卫缺陷**静默通过**。
+
+**建议改法**（下一批）：
+- 逐步把**带项目维度的**用例迁到 `strict_client`；
+- 或加一条**架构守卫**：新写的 `tests/api/v1/**` 文件里若出现 `client` fixture ⇒
+  需显式写明理由（白名单 + 理由）。
+
+⇒ 归属：独立技术债（不进本批）。
+
+## TODO-142: 前端 review-log 的 `rowKey` 可能撞（同一事务两行） ⚪
+
+**现状**（2026-11-11 · 上批 ce-code-review 的 residual risk D3）：校核记录列表的
+`rowKey` 若用**时间戳**（或转移 id 之外的值）⇒ **同一事务里的两条转移**可能同值
+⇒ React `key` 重复 ⇒ 复用错行。
+
+**优先级**：低（不影响数据正确性，只影响极端情况下的渲染）。
+
+⇒ 归属：独立技术债（不进本批）。

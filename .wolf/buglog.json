@@ -5966,6 +5966,123 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-10"
+    },
+    {
+      "id": "bug-2153",
+      "timestamp": "2026-11-11",
+      "severity": "high",
+      "error_message": "被**停用**的用户，其**在手 access token** 仍能访问物流面（`check_user_project_access` **不看 `users.status`**）⇒ 「停用」形同虚设（最多还能用 30 分钟）",
+      "file": "pcs-backend/app/api/v1/config.py::current_actor",
+      "root_cause": "账号状态的判定只发生在**登录时**（`issue_tokens` 里查 `users.status`）⇒ 在手 token 在过期前**完全不受停用影响**。守卫层（`has_project_access`）也**不查** status ⇒ 没有第二道闸。",
+      "fix": "判定挪到 **actor 层**（一处判定、全局生效，含 SYSTEM_ADMIN bypass）：`current_actor` 改 async + `Depends(get_db)` ⇒ 每请求查一次 `users.status`；`DISABLED` ⇒ **401 `USER_DISABLED`**。\n⚠️ **无行 ⇒ 放行**（mock 登录不落 `users` 表 · ADR-0046 §③b ⇒ 判拒会让 dev/E2E 全线挂掉）。\n⚠️ `ws.py::_authenticate` 是**唯一**非 `Depends` 的直接调用点 ⇒ 一并改 async（并开短命 session）。\n⚠️ **改行为 ⇒ 文档同 commit 同步**：ADR-0046 §⑤ + 「已知边界」+「后果」+ UI-SPEC §7.1 + V2.12（「30 分钟窗口」不再成立 ⇒ 改成「两道闸」）。\n⇒ 实测开销（真实 PG · 100 次）：P50 0.198ms / P95 0.297ms / P99 0.380ms（< 委员会 3ms 阈值）。",
+      "fix_commit": "9d10767",
+      "tags": [
+        "auth",
+        "guard",
+        "actor-layer",
+        "todo-132",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2154",
+      "timestamp": "2026-11-11",
+      "severity": "high",
+      "error_message": "`POST /projects/{id}/streams` 的 `workspace_id` 取自**请求体**且**从不校验归属** ⇒ 只拥有项目 A 权限的用户能把物流**挂到项目 B 的工作区**",
+      "file": "pcs-backend/app/api/v1/streams.py::create_stream",
+      "root_cause": "上批补的是 URL 那一维（`project_id` 的项目守卫）⇒ **工作区那一维一直空着** ⇒ 两个维度都补齐才算「物流挂不到别处」。",
+      "fix": "两个端点（`create_stream` / `validate_stream`）一律用 `project.workspace_id` ⇒ 请求体的 `workspace_id` **被忽略**（字段保留但标 `deprecated` ⇒ 非破坏性契约变更）。\n⚠️ **静默纠正的取舍**：不报错（落点仍在**正确**的地方 ⇒ 比报错更接近零影响；前端**根本不发**该字段 ⇒ 报错路径无真实调用方）。\n⚠️ `/validate` **同口径** ⇒ 预演结论与实际落点同一口径。",
+      "fix_commit": "5338eed",
+      "tags": [
+        "guard",
+        "stream",
+        "todo-133",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2155",
+      "timestamp": "2026-11-11",
+      "severity": "high",
+      "error_message": "物流详情页的「血缘」Tab **永远空** —— 前端查 `record_type='streams'`，但写入方写的是**类名**且物流在血缘行里只作为 `source_ref_type='Stream'` 的**源引用** ⇒ **从来没有** `record_type='streams'` 的行",
+      "file": "pcs-backend/app/api/v1/lineage.py::graph",
+      "root_cause": "① 查询语义缺一种（**按源引用查**）；② 注册表的**键口径混用**（`RECORD_TYPE_REGISTRY` 的 5 个键不是类名 ⇒ 抄它们就永远匹配不上）；③ 注册表**手写第二份**且只登记 2 类 ⇒ **新增类型必漏**；④ 未登记类型**跳过守卫**（fail-open）⇒ `/upstream` 对未知类型返 200+[] ⇒ **可枚举信号**。",
+      "fix": "① `/lineage/streams/{id}/*` 走「**按源引用查**」（`LineageTracker.by_source_ref`）+ **合成 root**（确定性 uuid5 · **字段集与真实 root 同形**）；② 注册表**从 `RECORD_TYPE_REGISTRY` 派生**（新文件 `app/services/lineage_registry.py`）⇒ **键 = `model.__name__`**、pk 用 `inspect(model).primary_key[0].name`、`streams` 单独登记；③ **未知类型 fail-closed** ⇒ 与「不存在」**逐字同形**的 404；④ graph 响应改**具名 schema** `LineageGraphResponse {root, upstream, downstream}`（三键形状不变 ⇒ 前端零改动）。\n⚠️ `TwoPhaseResult` 无 `project_id` ⇒ **不登记** ⇒ 404（TODO-138 留触发条件）。",
+      "fix_commit": "a1c3da1",
+      "tags": [
+        "lineage",
+        "guard",
+        "fail-closed",
+        "todo-136",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2156",
+      "timestamp": "2026-11-11",
+      "severity": "medium",
+      "error_message": "先被 seed 建出来、之后才走真实登录的用户 ⇒ `users.roles` **永远是 `[]`** ⇒ 按 `users.roles` 圈人的逻辑（`notification_recipients.py`）**永远选不到他**",
+      "file": "pcs-backend/app/services/token_issuer.py::issue_tokens",
+      "root_cause": "真实登录**只在建行时**写 roles ⇒ 「行已存在」的那条路**不碰 roles**。",
+      "fix": "真实分支在「行已存在」时把真实角色**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加）。\n⚠️ **mock 分支绝不碰 roles**（ADR-0046 §③b：mock 与真实 AD 同名 ⇒ 写真实角色 ⇒ 污染同一行 ⇒ 权限污染且不报错）⇒ mock 路径仍在「一次 DB 往返都没有」的位置早返回。",
+      "fix_commit": "69b2327",
+      "tags": [
+        "auth",
+        "roles",
+        "todo-134",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2157",
+      "timestamp": "2026-11-11",
+      "severity": "medium",
+      "error_message": "mock 登录签发**任意 role claim** 的 token ⇒ 完整的鉴权旁路；**只**靠 `settings.is_production` 一道闸 ⇒ 闸门回归（配置写错 / 挂载代码改动）= 全站失守",
+      "file": "pcs-backend/app/api/v1/mock_auth.py::mock_login",
+      "root_cause": "① 启用条件只有一道闸；② **部署期断言是空转的** —— FastAPI ≥ 0.141 改成**懒挂载** ⇒ `include_router` 进来的 router 在 `app.routes` 里是一个**没有 `path` 属性**的包装对象 ⇒ 只遍历 `app.routes` **漏掉整棵子树** ⇒ 「生产里 mock 路由不得挂载」**升级后失效了，却一直绿**。",
+      "fix": "① 新开关 **`PCS_ENABLE_MOCK_LOGIN`**（**默认关**）⇒ 启用条件**双闸**（非生产 **且** 显式 opt-in）⇒ 生产里开着 ⇒ **启动即失败**；② 部署期断言改成按 **OpenAPI 的实际路径**判（版本无关）⇒ 不再空转。",
+      "fix_commit": "ebd6819",
+      "tags": [
+        "auth",
+        "mock",
+        "deploy-assertion",
+        "todo-135",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2158",
+      "timestamp": "2026-11-11",
+      "severity": "medium",
+      "error_message": "批量提交校对**部分失败**后，失败清单**关闭弹窗即丢** ⇒ 用户要重试得回列表逐条找（50 条里 8 条失败 ⇒ 下次不敢批量操作）",
+      "file": "pcs-frontend/src/pages/sim/StreamListPage.tsx",
+      "root_cause": "`batchResult` 是**组件局部 state** ⇒ 生命周期绑在弹窗上 ⇒ 摘要一关，失败 id 一起没。",
+      "fix": "失败清单提升到 **hook**（`useStreamBatchSubmit`）⇒ 关闭弹窗**不清**清单；工具栏下方加**失败清单条**（`stream-batch-failure-bar`）+「只重试失败项」+「清除」；弹窗内也加「只重试失败项」（**复用同一份 hook 状态**）。\n⚠️ 语义：**只重试上次的失败项**（成功的已提交 ⇒ 重发是浪费）⇒ 重试后清单**替换**。\n⚠️ 幂等命中**如实显示**（`note=already_in_approval` ⇒ 摘要仍显示「本来就在审批中」那行）⇒ 用户不会误以为是自己重试生效的。",
+      "fix_commit": "ff2dc60",
+      "tags": [
+        "ux",
+        "batch",
+        "todo-116",
+        "p9b-4"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-11"
     }
   ]
 }

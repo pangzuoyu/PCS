@@ -121,6 +121,9 @@ uv run python scripts/seed_user_project_access.py --username <用户名> --proje
 - [ ] `check_openapi_payload_coverage.py` RC 0（裸字段 ≤ 基线）
 - [ ] `check_migration_idempotency.py` RC 0
 - [ ] 前后端全量测试绿
+- [ ] 部署前确认**没有**遗留账号行：`SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0
+      ⇒ > 0 ⇒ 先按 TODO-137 迁移（授权转到派生 id），否则 legacy 用户**处处 404**
+      （`ensure_user_row` 只认派生 id ⇒ 建行撞唯一约束 ⇒ 显式 409 `USER_ID_CONFLICT`）
 
 ⚠️ 第 1 条验「迁移与 ORM 一致」，第 2 条验「迁移在**真实 PG** 上跑得通 + 并发语义正确」
 ⇒ 两者**不互相替代** ⇒ 「只跑 alembic check」不算发布前检查通过。
