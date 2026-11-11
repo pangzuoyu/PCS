@@ -41,6 +41,9 @@ function makeStream(over: Partial<Stream> = {}): Stream {
     source_type: 'MANUAL_ENTRY',
     source: 'MANUAL',
     approval_depth: 2,
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：契约里它带默认值 ⇒ openapi-typescript
+    //    生成的类型**是必填** ⇒ fixture 漏了就会 `tsc` 红（这是好事）。
+    reference_count: 0,
     created_at: '2026-09-15 14:00',
     updated_at: '2026-09-15 14:32',
     ...over,
@@ -549,6 +552,24 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     expect(screen.queryByTestId('stream-batch-summary')).toBeNull();
     // ⚠️ 请求失败 ⇒ **状态不变**（后端没执行）
     expect(screen.getByTestId('stream-row').getAttribute('data-status')).toBe('DRAFT');
+  });
+
+  it('「引用」列渲染 📎N（0 ⇒ —）', async () => {
+    // ⚠️ **口径**（P9B-4 · TODO-108）：下游物流数 + 闪蒸结果数；
+    //    **不含**状态点（子表）⇒ 每条物流都有的东西**不画** 📎。
+    rows = [
+      makeStream({ reference_count: 3 }),
+      makeStream({ stream_id: 's-2', stream_name: '塔顶气', reference_count: 0 }),
+    ];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    // ⚠️ 只有**非零**的那条画 📎（0 ⇒ 「—」⇒ 不噪声）
+    const refs = screen.getAllByTestId('stream-reference-count');
+    expect(refs.length).toBe(1);
+    expect(refs[0].textContent).toContain('📎3');
+    const cells = document.querySelectorAll('.ant-table-tbody tr.ant-table-row');
+    expect(cells[1].textContent).toContain('—');
   });
 
   it('⚠️ 批量成功后 ⇒ **列表刷新**（那一行的徽章变 IN_APPROVAL）', async () => {

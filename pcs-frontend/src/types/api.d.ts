@@ -18659,6 +18659,12 @@ export interface components {
              */
             record_hash: string;
             /**
+             * Reference Count
+             * @description 被引用数（P9B-4 · TODO-108）：下游物流数 + 闪蒸结果数；**不含**状态点（子表）与设备引用（JSONB · 延后）
+             * @default 0
+             */
+            reference_count: number;
+            /**
              * Last Change Reason
              * @description 最近变更原因
              */

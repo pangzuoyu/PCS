@@ -27,6 +27,8 @@ const stream: Stream = {
   mass_flow: 10000,
   molar_flow: 100,
   composition_json: { N2: 0.78, O2: 0.21, H2O: 0.01 },
+  // ⚠️ **被引用数**（P9B-4 · TODO-108）：契约带默认值 ⇒ 生成类型必填
+  reference_count: 0,
   sign_status: 'CHECKED',
   record_hash: 'a3f9b2e1c21ed7a8',
   case_type: 'NORMAL',

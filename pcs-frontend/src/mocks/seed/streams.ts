@@ -15,6 +15,9 @@ import type { UiSchemaResponse } from '../../components/common/SchemaForm';
 export const seedStreams: Stream[] = [
   {
     stream_id: 's-101',
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：口径 = 下游物流数 + 闪蒸结果数
+    //    （**不含**状态点 —— 它是物流自己的子表）。0 ⇒ 前端显示「—」。
+    reference_count: 2,
     // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
     case_type: 'NORMAL',
     data_mode: 'CHEMICAL',
@@ -35,6 +38,9 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-102',
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：口径 = 下游物流数 + 闪蒸结果数
+    //    （**不含**状态点 —— 它是物流自己的子表）。0 ⇒ 前端显示「—」。
+    reference_count: 0,
     // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
     case_type: 'NORMAL',
     data_mode: 'CHEMICAL',
@@ -56,6 +62,9 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-103',
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：口径 = 下游物流数 + 闪蒸结果数
+    //    （**不含**状态点 —— 它是物流自己的子表）。0 ⇒ 前端显示「—」。
+    reference_count: 1,
     // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
     case_type: 'NORMAL',
     data_mode: 'PETROLEUM',
@@ -77,6 +86,9 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-104',
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：口径 = 下游物流数 + 闪蒸结果数
+    //    （**不含**状态点 —— 它是物流自己的子表）。0 ⇒ 前端显示「—」。
+    reference_count: 0,
     // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
     case_type: 'NORMAL',
     data_mode: 'CHEMICAL',
@@ -97,6 +109,9 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-105',
+    // ⚠️ **被引用数**（P9B-4 · TODO-108）：口径 = 下游物流数 + 闪蒸结果数
+    //    （**不含**状态点 —— 它是物流自己的子表）。0 ⇒ 前端显示「—」。
+    reference_count: 3,
     // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
     case_type: 'TURN_DOWN',
     data_mode: 'CHEMICAL',

@@ -419,7 +419,17 @@ async def list_project_streams(
         sign_status=sign_status,
         source=source,
     )
-    return [_to_response_dict(s) for s in streams]
+    # ⚠️ **被引用数**（P9B-4 · TODO-108）：两条聚合查询（**整个列表 2 次往返**）
+    #    ⇒ **不是 N+1**。⚠️ `reference_count` **不是 ORM 列** ⇒ 必须显式塞。
+    counts = await StreamService.reference_counts(
+        db, [s.stream_id for s in streams]
+    )
+    out: list[dict[str, Any]] = []
+    for s in streams:
+        item = _to_response_dict(s)
+        item["reference_count"] = counts.get(s.stream_id, 0)
+        out.append(item)
+    return out
 
 
 @router.get("/streams/{stream_id}", response_model=StreamResponse)

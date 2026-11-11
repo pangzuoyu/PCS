@@ -36,6 +36,7 @@ pass-change,mark-stale}。
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import select
@@ -321,6 +322,62 @@ class StreamService:
         stmt = stmt.order_by(Stream.stream_name)
         result = await db.execute(stmt)
         return list(result.scalars().all())
+
+    @staticmethod
+    async def reference_counts(
+        db: AsyncSession, stream_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        """一批物流各自的**被引用数**（P9B-4 · TODO-108 · SPEC §7.7.1「引用 📎×N」）。
+
+        **口径（钉死）** = 下游物流数 + 闪蒸结果数：
+
+        | 引用方 | 表 | 关系 | 计入 |
+        |---|---|---|---|
+        | 下游物流 | `streams.upstream_stream_id` | 别的物流把本物流当上游 | ✅ |
+        | 闪蒸结果 | `flash_results.stream_id` | 计算结果引用本物流 | ✅ |
+        | 状态点 | `stream_state_points.stream_id` | 物流自己的工况点（**子表**） | ❌ |
+        | 设备 | `sim_unit_op.*_streams_json` | JSONB 数组里的 id（**无索引**） | ❌ 延后 |
+
+        ⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，
+        因为状态点会阻塞删除）⇒ 两个数字**不要**混用 ⇒ SPEC 里要写清。
+
+        ⚠️ **两条聚合查询**（整个列表 2 次往返）⇒ **不是 N+1**。
+
+        ⚠️ **空入参早返回**（`IN ()` 在 PG 上是**语法错误** ⇒ 筛选后列表为空
+        时不让接口 500）。
+        """
+        from sqlalchemy import func
+
+        from app.models.calc import FlashResult
+
+        if not stream_ids:
+            return {}
+        ids = list(stream_ids)
+        counts: dict[uuid.UUID, int] = {sid: 0 for sid in ids}
+
+        # ① 下游物流（别的物流把本物流当上游）
+        downstream = (
+            await db.execute(
+                select(Stream.upstream_stream_id, func.count())
+                .where(Stream.upstream_stream_id.in_(ids))
+                .group_by(Stream.upstream_stream_id)
+            )
+        ).all()
+        for upstream_id, n in downstream:
+            counts[upstream_id] += n
+
+        # ② 闪蒸结果（计算结果引用本物流）
+        flash = (
+            await db.execute(
+                select(FlashResult.stream_id, func.count())
+                .where(FlashResult.stream_id.in_(ids))
+                .group_by(FlashResult.stream_id)
+            )
+        ).all()
+        for sid, n in flash:
+            counts[sid] += n
+
+        return counts
 
     @staticmethod
     async def get(db: AsyncSession, stream_id: uuid.UUID) -> Stream:

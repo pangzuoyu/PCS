@@ -2545,7 +2545,7 @@
           "lineage"
         ],
         "summary": "Downstream",
-        "description": "GET 下游血缘链（沿计算记录向下传播）。\n\n步骤：\n1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id\n   （record 可能多次重算，latest 取最近一次）\n2. 不存在 → 404 no lineage for record\n3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播\n   （max_depth 限 1..50，防止极深递归触发 N+1 风暴）\n4. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 upstream 区别：upstream 沿 record_type+record_id 直接递归；\ndownstream 需 latest() 解析到 lineage_id 再传，跨多次重算。",
+        "description": "GET 下游血缘链（沿计算记录向下传播）。\n\n步骤：\n1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id\n   （record 可能多次重算，latest 取最近一次）\n2. 不存在 → 404 no lineage for record\n3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播\n   （max_depth 限 1..50，防止极深递归触发 N+1 风暴）\n4. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 upstream 区别：upstream 沿 record_type+record_id 直接递归；\ndownstream 需 latest() 解析到 lineage_id 再传，跨多次重算。\n\n⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行\n（`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。",
         "operationId": "downstream_api_v1_lineage__record_type___record_id__downstream_get",
         "parameters": [
           {
@@ -2631,7 +2631,7 @@
           "lineage"
         ],
         "summary": "Graph",
-        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。",
+        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。\n\n⚠️ **`record_type='streams'` 走「按源引用查」**（P9B-4 T0-D · TODO-136）：\n物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'`\n的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒ root 是**合成**的\n（`data_lineage` 表里**没有**这一行）。",
         "operationId": "graph_api_v1_lineage__record_type___record_id__graph_get",
         "parameters": [
           {
@@ -2688,9 +2688,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Graph Api V1 Lineage  Record Type   Record Id  Graph Get"
+                  "$ref": "#/components/schemas/LineageGraphResponse"
                 }
               }
             }
@@ -24396,7 +24394,8 @@
               }
             ],
             "title": "Workspace Id",
-            "description": "所属工作区 ID（缺省取 Project.workspace_id）"
+            "description": "**已废弃 · 忽略**：一律取 URL 里那个项目的 `Project.workspace_id`。P9B-4 T0-C（TODO-133）：此字段此前取自**请求体**且**从不校验归属**⇒ 只拥有项目 A 权限的用户能把物流挂到**项目 B 的工作区**。⇒ 字段**保留**（删字段 = 破坏性契约变更）但**不再被读取**。",
+            "deprecated": true
           },
           "payload": {
             "additionalProperties": true,
@@ -31100,6 +31099,266 @@
         ],
         "title": "LatestLineageResponse",
         "description": "血缘摘要。"
+      },
+      "LineageGraphResponse": {
+        "properties": {
+          "root": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineageRoot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "根节点（`streams` 入口下是**合成**的，DB 里没有这一行）"
+          },
+          "upstream": {
+            "items": {
+              "$ref": "#/components/schemas/LineageNode"
+            },
+            "type": "array",
+            "title": "Upstream",
+            "description": "上游血缘链（由近及远）"
+          },
+          "downstream": {
+            "items": {
+              "$ref": "#/components/schemas/LineageNode"
+            },
+            "type": "array",
+            "title": "Downstream",
+            "description": "下游血缘链（由近及远）"
+          }
+        },
+        "type": "object",
+        "title": "LineageGraphResponse",
+        "description": "血缘图 —— `{root, upstream, downstream}` **三键**（形状不变）。\n\n⚠️ 键名与顺序沿用既有契约（前端 `src/api/stream.ts` + `StreamLineageTab`\n的 `toRows` 依赖这三个键）⇒ **不要**改成 `{root, nodes}`。"
+      },
+      "LineageNode": {
+        "properties": {
+          "lineage_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lineage Id",
+            "description": "血缘行 id（`data_lineage.lineage_id`）"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型（**类名**，如 `PipingResult`）—— 不是 registry 的键"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 id（该记录类型的主键）"
+          },
+          "parent_lineage_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Lineage Id",
+            "description": "父血缘行 id（版本链的上一环）"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "**计算来源**（`CALC` 等）——「这条记录是怎么算出来的」"
+          },
+          "source_ref_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref Type",
+            "description": "上游引用**类型**（如 `Stream`）"
+          },
+          "source_ref_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref Id",
+            "description": "上游引用**id**"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id",
+            "description": "操作人 user_id"
+          },
+          "change_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Summary",
+            "description": "变更摘要"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At",
+            "description": "发生时间（ISO 8601）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lineage_id",
+          "record_type",
+          "record_id"
+        ],
+        "title": "LineageNode",
+        "description": "血缘节点（一条 `data_lineage` 行）。\n\n⚠️ `source` = **计算来源**（`CALC` 等）——「这条记录是怎么算出来的」。"
+      },
+      "LineageRoot": {
+        "properties": {
+          "lineage_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lineage Id",
+            "description": "血缘行 id（`data_lineage.lineage_id`）"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "记录类型（**类名**，如 `PipingResult`）—— 不是 registry 的键"
+          },
+          "record_id": {
+            "type": "string",
+            "title": "Record Id",
+            "description": "记录 id（该记录类型的主键）"
+          },
+          "parent_lineage_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Lineage Id",
+            "description": "父血缘行 id（版本链的上一环）"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "**root 的 source 是物流来源**（MANUAL / SIM_IMPORT / EXCEL / LAB）；**节点的 source 是计算来源**（CALC 等）⇒ 两者语义不同，前端不得混用。对非 `streams` 入口，root 的 source 与节点相同。"
+          },
+          "source_ref_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref Type",
+            "description": "上游引用**类型**（如 `Stream`）"
+          },
+          "source_ref_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref Id",
+            "description": "上游引用**id**"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id",
+            "description": "操作人 user_id"
+          },
+          "change_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Summary",
+            "description": "变更摘要"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At",
+            "description": "发生时间（ISO 8601）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lineage_id",
+          "record_type",
+          "record_id"
+        ],
+        "title": "LineageRoot",
+        "description": "血缘图的 **root**。\n\n⚠️ **root 的 `source` 与节点的 `source` 语义不同**：\n\n- **`record_type='streams'` 入口** ⇒ root 是**合成**的（`data_lineage` 表里\n  **没有**这一行）⇒ 它的 `source` = **物流来源**（录入通道）\n  （`MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`）——「物流怎么进系统的」；\n- **其它入口** ⇒ root 是一条真实血缘行 ⇒ 它的 `source` 与节点**相同**\n  （计算来源）。\n\n⇒ 两套词表**语义不同** ⇒ 前端**不得混用**（血缘 Tab 的「来源」列要区分）。"
       },
       "LockHolderResponse": {
         "properties": {
@@ -40965,6 +41224,12 @@
             "type": "string",
             "title": "Record Hash",
             "description": "SHA-256 实质变更判别"
+          },
+          "reference_count": {
+            "type": "integer",
+            "title": "Reference Count",
+            "description": "被引用数（P9B-4 · TODO-108）：下游物流数 + 闪蒸结果数；**不含**状态点（子表）与设备引用（JSONB · 延后）",
+            "default": 0
           },
           "last_change_reason": {
             "anyOf": [

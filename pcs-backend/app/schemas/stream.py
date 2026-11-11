@@ -315,6 +315,13 @@ class StreamResponse(StreamBase):
     approval_step: int | None = Field(None, description="当前校对步骤")
     approval_depth: int = Field(..., description="校对深度 1~4")
     record_hash: str = Field(..., description="SHA-256 实质变更判别")
+    reference_count: int = Field(
+        0,
+        description=(
+            "被引用数（P9B-4 · TODO-108）：下游物流数 + 闪蒸结果数；"
+            "**不含**状态点（子表）与设备引用（JSONB · 延后）"
+        ),
+    )
     last_change_reason: str | None = Field(None, description="最近变更原因")
     last_changed_at: str | None = Field(None, description="最近变更时间")
     created_at: str = Field(..., description="创建时间")

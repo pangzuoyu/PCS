@@ -41225,6 +41225,12 @@
             "title": "Record Hash",
             "description": "SHA-256 实质变更判别"
           },
+          "reference_count": {
+            "type": "integer",
+            "title": "Reference Count",
+            "description": "被引用数（P9B-4 · TODO-108）：下游物流数 + 闪蒸结果数；**不含**状态点（子表）与设备引用（JSONB · 延后）",
+            "default": 0
+          },
           "last_change_reason": {
             "anyOf": [
               {

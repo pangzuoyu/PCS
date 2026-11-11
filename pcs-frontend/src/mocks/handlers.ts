@@ -434,6 +434,8 @@ const devOnlyMockHandlers = [
       source: "MANUAL",
       sign_status: "DRAFT",
       approval_depth: 1,
+      // ⚠️ **被引用数**（P9B-4 · TODO-108）：契约带默认值 ⇒ 生成类型必填
+      reference_count: 0,
       record_hash: "mockrecordhash0001",
       created_at: "2026-11-03 10:00:00",
       updated_at: "2026-11-03 10:00:00",

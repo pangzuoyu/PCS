@@ -241,6 +241,17 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
         render: (s: Stream['source']) => (s ? STREAM_SOURCE_LABEL[s] ?? s : '—'),
       },
       {
+        // ⚠️ **「引用 📎×N」**（P9B-4 · TODO-108 · SPEC §7.7.1）
+        //    口径 = 下游物流数 + 闪蒸结果数（**不含**状态点 —— 那是子表）。
+        title: '引用',
+        dataIndex: 'reference_count',
+        width: 90,
+        // ⚠️ 0 ⇒ 显示「—」（不画 📎）—— 每条物流几乎都有状态点，
+        //   若口径含子表则整列都是 📎≥1 ⇒ 噪声。
+        render: (n: number | undefined) =>
+          n && n > 0 ? <span data-testid="stream-reference-count">📎{n}</span> : '—',
+      },
+      {
         title: '操作',
         key: 'actions',
         width: 220,

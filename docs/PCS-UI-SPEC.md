@@ -1283,9 +1283,16 @@ Tab	内容
 质量流量	NumericCell
 状态	StateBadge
 来源	source: MANUAL（手动）/ SIM_IMPORT（模拟软件：PRO/II·HYSYS·Aspen）/ EXCEL / LAB（化验报告 · 预留）
-引用	📎×N（⏳ 未实现 —— 口径待定，见 TODO）
+引用	📎×N（✅ P9B-4 · TODO-108）—— 口径 = **下游物流数 + 闪蒸结果数**；**不含**状态点（那是物流自己的子表）与设备引用（JSONB · 延后）。0 ⇒ 显示「—」
 操作	查看 / 校对（✅ 单条）/ 变更
 筛选：工况、相态、状态、来源（四项均随选择重新请求后端，后端按 AND 组合过滤）。
+
+⚠️ **「引用 📎×N」的口径 ≠ 删除门禁的口径**（两个数字**不要**混用）：
+- **本列**（`StreamResponse.reference_count`）= 下游物流数 + 闪蒸结果数
+  ⇒ **不含**状态点（物流自己的子表）、**不含**设备引用（JSONB 数组 · 无索引 · 延后）；
+- **删除门禁**（`StreamService._collect_references`）**含**状态点
+  ⇒ 状态点会**阻塞删除**（那是另一件事）。
+⇒ 「引用 0」**不等于**「可以删」。
 工具栏：导入（✅）/ 新建物流（✅）/ 导出（✅）/ **批量提交校对（✅）**。
 
 ⚠️ **「导出」导出的是当前**筛选后**的行**（CSV，UTF-8 BOM + RFC 4180 转义）。
@@ -2468,6 +2475,8 @@ V2.11	2026-11-09	P9B-4 紧急批次（物流面项目守卫 + review-log）落�
 V2.12	2026-11-10	P9B-4 T0-B（账号状态判定 · TODO-132）落地修订：①**§7.1 补「停用用户的会话」** —— 用户被停用（`users.status = DISABLED`）⇒ 其**在手 access token 立即失效** ⇒ **下一次请求**返 **401 `USER_DISABLED`**（不必等 token 过期，也不必等 refresh）⇒ 前端按**普通 401** 处理（跳登录页）；⚠️ **用户可见的行为变化**（此前「停用」只在**登录时**拦 ⇒ 在手 token 仍可用至多 30 分钟 ⇒ 「停用」形同虚设）；②**判定在 actor 层**（不是项目守卫层）⇒ 一处判定、全局生效（含 SYSTEM_ADMIN bypass）；③**`users` 表无该 `user_id` 的行 ⇒ 放行**（mock 登录不落 users 表 · ADR-0046 §③b ⇒ 判拒会让 dev/E2E 的 mock 登录全线挂掉）。**本版不含**任何页面布局/交互改动（纯会话语义）	Claude Code
 
 V2.13	2026-11-11	P9B-4 T0-D（物流血缘 Tab · TODO-136）落地修订：①**§7.7.2「血缘」Tab 的数据源与形状** —— `GET /lineage/streams/{id}/graph` 返**具名 schema** `LineageGraphResponse` = `{root, upstream, downstream}` **三键**（⚠️ **不是** `{root, nodes}` —— 前端 `toRows` 依赖那三个键）⇒ 前端类型**契约派生**；②**「按源引用查」语义** —— 物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'` 的**源引用**）⇒ 后端走「按源引用查」⇒ **root 是合成的**（`data_lineage` 表里**没有**这一行；`lineage_id` = 确定性 uuid5 `lineage-root:streams:{id}`）；③**两套词表**（「来源」列）—— 血缘 Tab 的「来源」显示**计算来源**（`CALC` 等），物流本身的来源（`MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`）在**基础信息** Tab ⇒ **根行**的来源带 Tooltip 标明「物流来源（录入通道）」；④**`TwoPhaseResult` 不支持血缘查询**（无 `project_id` ⇒ 无从守卫 ⇒ 404）；⑤**未登记的 `record_type` ⇒ 404**（fail-closed，与「记录不存在」逐字同形）。
+
+V2.14	2026-11-11	P9B-4 T2（物流列表「引用 📎×N」 · TODO-108）落地修订：①**§7.7.1 的「引用」列 ⏳ → ✅** —— 口径**钉死** = **下游物流数**（`streams.upstream_stream_id`）+ **闪蒸结果数**（`flash_results.stream_id`）⇒ **不含**状态点（物流自己的子表）与设备引用（JSONB 数组 · 无索引 · 延后）⇒ 0 ⇒ 显示「—」；②**新增「口径 ≠ 删除门禁口径」的警示** —— 删除门禁（`_collect_references`）**含**状态点（状态点阻塞删除）⇒ 「引用 0」**不等于**「可以删」；③**后端** `StreamResponse.reference_count`（默认 0）+ `StreamService.reference_counts`（**两条聚合查询** ⇒ 整个列表 2 次往返 ⇒ **不是 N+1**）；④**不加**筛选、**不加**排序（§7.7.1 的四项筛选仍是工况/相态/状态/来源）。
 
 文档结束。
 
