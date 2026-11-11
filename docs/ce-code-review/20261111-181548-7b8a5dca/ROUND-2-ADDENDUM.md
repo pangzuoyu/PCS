@@ -67,7 +67,8 @@ ce-code-review 自带的 cross-model worker 只认 `codex` / `claude` / `grok` /
 | 主 finding 总数 | **15**（重跑合成后） |
 | 已过独立验证门 | **10 / 15** —— 第一轮验证批次确认的全部（`confirmed 10 / rejected 0 / unresolved 0`），编号已重排，映射见 `synthesized-findings.json` 与 `validator-verdicts.round1.json` |
 | **未送验（本就 report-only）** | `#2`（批末浏览器回归 · 发布动作）· `#6`（WS 投递路径 · 待决策）· `#14`（docstring 口径 · 随决策改写）· `#16`（`current_user` 第二入口 · 待决策） |
-| **⚠️ 新条目 · 未过验证门** | **`#10`（停用判定两份实现、两把键不同）** —— 第二轮验证批次已派发，但同样被上游配额饿死（50 分钟未落盘）⇒ **它没经过验证门**。不过它有**两份独立佐证**：① hermes（异族模型）逐行引用 `token_issuer.py:96` 与 `user_status_service.py:53-58` 确认；② 编排方本人回源码核对同样确认（两处键分别是 `username` 与 `user_id`） |
+| **新条目 · 已过验证门** | **`#10`（停用判定两份实现、两把键不同）** —— 第二轮验证批次最终落盘（上游配额恢复后完成）⇒ **confirmed**（受保护主体 = authorization-authentication）⇒ **11/11 已过门** |
+| 跨模型新增 · 未过验证门 | **`#23`（删除被下游物流引用的物流 ⇒ 500）** —— 它由 hermes 在验证批次之后才折入 ⇒ **不在该批次内**；但编排方回源码复核了它的**每一条前提**（FK 无 `ondelete` · `_collect_references` 不含 `streams` 表 · 端点只捕 `PcsError`），且 hermes 本身是独立异族模型 ⇒ 属「双份独立佐证但未过验证门」 |
 | 全部评审子代理 | 只读（Read/Grep）⇒ **未跑测试 / EXPLAIN / 浏览器回归** ⇒ 运行期结论均为静态阅读推导；本批自述的「后端 5626 passed / 前端 1046 tests / 裸载荷 71 / PG 车道 5」**未经独立复核** |
 
 ## 4. 修复队列（合并两轮后的最终版）
@@ -101,11 +102,12 @@ ce-code-review 自带的 cross-model worker 只认 `codex` / `claude` / `grok` /
 
 | 文件 | 对应哪一轮 |
 |---|---|
-| `report.md` | **第一轮**（14 条主 finding 的完整报告，含需求完整性与 Coverage） |
+| `report.md` | **最终报告**（15+ 条主 finding，含 hermes 折入后的完整 triage / 需求完整性 / Coverage） |
 | `synthesized-findings.json` | **第二轮**（15 条主 finding，含 maintainability 并入后的降级/软桶/triage 分组） |
-| `validator-input.json` | **第二轮**的验证批次（11 条）—— 第二轮验证批次因配额饿死**未产出判定** |
-| `validator-verdicts.round1.json` | **第一轮**的 10 条判定（全部 confirmed） |
-| `validator-verdicts.json` | 与 `validator-verdicts.round1.json` 内容相同（当前磁盘上的判定文件） |
+| `validator-input.json` | **第二轮**的验证批次（11 条） |
+| `validator-verdicts.json` | **第二轮**的 11 条判定（**全部 confirmed** · 0 rejected · 0 unresolved） |
+| `validator-verdicts.round1.json` | 第一轮的 10 条判定（全部 confirmed；编号是首轮编号） |
+| `validator-verdicts.round2.json` | 第二轮 11 条判定的副本 |
 | `validator-input.round2.json` | 第二轮批次输入的副本 |
 | `hermes-adversarial-review.md` | hermes 的跨模型对抗审查（**已复核**版：含编排方逐条回源码的复核结论） |
 | `hermes-adversarial.raw.md` | hermes 的原始 stdout（未加工） |

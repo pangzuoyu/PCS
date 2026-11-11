@@ -4,61 +4,67 @@
       "#": 1,
       "status": "confirmed",
       "protected_subject": "authorization-authentication",
-      "reason": "pcs-frontend/src/api/client.ts:24-31/39 clears the session only for codes in SESSION_OVER_CODES (no USER_DISABLED) and skips clearSession()/redirect for any coded 401, while this diff adds the backend 401 USER_DISABLED at pcs-backend/app/api/v1/config.py:563-568 ⇒ grep shows no other USER_DISABLED handling in pcs-frontend/src and store/auth.ts has no compensating path ⇒ precondition: an account disabled while it still holds an unexpired access token, followed by any API call, leaves the user stuck on the page instead of the jump-to-login promised by docs/PCS-UI-SPEC.md:1199-1202."
+      "reason": "Verified on the reviewed head: pcs-frontend/src/api/client.ts:24-31 lists SESSION_OVER_CODES without 'USER_DISABLED' and line 39 only clears the session/redirects when `!code || SESSION_OVER_CODES.has(code)`, while the newly added pcs-backend/app/api/v1/config.py:563-568 raises PcsError(code='USER_DISABLED', status=401) inside current_actor (body carries `code`, so the `!code` branch is false) and docs/PCS-UI-SPEC.md:1201-1202 (V2.12, added in this diff) promises the frontend treats it as an ordinary 401 with a jump to /login; precondition = an admin disables a user who still holds an unexpired access token (disable_user bumps token_version, which only invalidates refresh), so the next API call returns 401 USER_DISABLED and the interceptor neither clears the session nor redirects — the stale token and old role stay on screen and the user is never told the account was disabled (incidence not measured)."
     },
     {
       "#": 3,
       "status": "confirmed",
       "protected_subject": "authorization-authentication",
-      "reason": "pcs-backend/app/api/v1/lineage.py has no require_roles anywhere (authz = current_actor + has_project_access, which only checks UserProject row existence, user_project_service.py:215-248) whereas every stream read gates on require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\") (streams.py:407, 443), and this diff's new record_type=='streams' branch (lineage.py:165-166, 272-298) makes stream metadata plus downstream calc-lineage rows reachable through the role-ungated surface for the first time (pre-diff tracker.latest('streams') always found no rows ⇒ 404) ⇒ precondition: a token whose role is outside the streams allow-list (current_actor's _ALLOWED_ROLES accepts VIEWER/REVIEWER/CHECKER, config.py:542-545) plus a UserProject row for the project ⇒ 200 from /lineage/streams/{id}/graph vs 403 from GET /streams/{id}."
+      "reason": "Verified: pcs-backend/app/api/v1/lineage.py imports only `_Actor, current_actor` and contains no `require_roles` anywhere, and its guard (lineage.py:261-268) checks project membership only via has_project_access, whereas pcs-backend/app/api/v1/streams.py:443 gates GET /streams/{id} with require_roles(user, 'DESIGNER','PROCESS_CONTROLLER','SYSTEM_ADMIN'); this diff newly makes GET /lineage/streams/{id}/graph and /downstream return the stream's own fields (lineage.py:320-323 source/created_by/created_at) plus downstream calc-lineage rows, whereas pre-diff the streams branch fell through to tracker.latest('streams') and 404'd, so a project member whose global role is outside the streams allow-list (REVIEWER is in _ALLOWED_ROLES at config.py:542-545) now reads stream metadata and calc-lineage content that the canonical streams endpoint refuses with 403 — the intended role model for the lineage surface is nowhere stated, so the reconciliation is the batch's call, but the two surfaces' answers demonstrably differ (incidence of such a role/project combination not measured)."
     },
     {
       "#": 4,
       "status": "confirmed",
       "protected_subject": "public-contract",
-      "reason": "Verified on the repo's own stack (pcs-backend/.venv: fastapi 0.141.1, pydantic 2.13.5): /upstream and /downstream keep response_model=list[dict] (lineage.py:45, 84) so the same lineage row's occurred_at is returned as '2026-09-15T14:00:00+00:00' (lineage.py:196 isoformat) while the new /graph LineageGraphResponse/LineageNode (occurred_at: datetime, schemas/lineage.py:54) re-serializes it as '2026-09-15T14:00:00Z' ⇒ one row crosses two representations and /graph's representation changed versus its pre-diff raw-dict response; the extra-field-drop hazard is latent only, since LineageNode currently carries all 10 _serialize fields."
-    },
-    {
-      "#": 6,
-      "status": "confirmed",
-      "protected_subject": null,
-      "reason": "pcs-backend/app/api/v1/ws.py:94-98 catches only PcsError while the new handshake DB read (current_actor → is_account_disabled, user_status_service.py:53-57) surfaces SQLAlchemy connection/pool-timeout errors that are not PcsError; the generic except at ws.py:113 sits after accept() and so cannot cover the handshake ⇒ precondition: DB unavailable or pool timeout exceeded during the WS handshake makes it end as an unhandled server error instead of the module-docstring's 1008 close."
+      "reason": "Measured on the repo's own venv (fastapi 0.141.1 / pydantic 2.13.5): a route with response_model=LineageGraphResponse serializes occurred_at as '2026-09-15T14:00:00Z' while the same payload through lineage.py's response_model=list[dict] (_serialize's isoformat, lineage.py:196) is '2026-09-15T14:00:00+00:00', so the same lineage row reports two different timestamp strings on /graph vs /upstream|/downstream, and /graph's representation changed from '+00:00' (pre-diff response_model=dict) to 'Z' on an externally consumed endpoint (the batch's own test calls /downstream 'a public endpoint (external scripts will hit it)', test_lineage_by_source_ref.py:284) — note the finding's second half (silent field loss today) is NOT demonstrated: _serialize emits exactly the 10 keys LineageNode declares, so that part is only a latent divergence risk."
     },
     {
       "#": 7,
       "status": "confirmed",
-      "protected_subject": "authorization-authentication",
-      "reason": "The new assertion (pcs-backend/app/main.py:53-55) decides 'is the mock router mounted' from app.openapi()['paths'], a derived view that omits routes mounted with include_in_schema=False, so mounting mock_auth_router that way passes the guard while /auth/mock-login stays mounted ⇒ precondition: such a production mount (absent today — create_app mounts the mock router only outside production, main.py:175-176, and mock_auth.py:57 still refuses in production, so there is no live bypass); the tripwire this diff rewrote remains a silent-pass for that edit."
+      "protected_subject": null,
+      "reason": "Verified: pcs-backend/app/api/v1/ws.py:96 catches only PcsError, the handshake now performs a DB read (ws.py:77-78 -> current_actor -> config.py:563 -> user_status_service.py:53-57), whose SQLAlchemy/connection-pool-timeout errors are not PcsError, and the module's blanket `except Exception` (ws.py:113) sits after accept() so it cannot cover the handshake — a DB failure therefore escapes the endpoint and the handshake ends as an unhandled ASGI exception (HTTP 500) instead of the module docstring's promised 1008 close, and the WS module itself logs nothing (the ASGI server does log the traceback); this is a reliability/error-path defect, not one of the eight protected subjects."
     },
     {
       "#": 8,
       "status": "confirmed",
-      "protected_subject": null,
-      "reason": "The guard registry is derived only from RECORD_TYPE_REGISTRY (lineage_registry.py:57-61) whose 21 keys exclude PsvResult, while PSV persists via finalize_calc_record → LineageTracker.track writes record_type='PsvResult' (lineage.py:109, psv_persist.py:444) and PsvResult does carry project_id (models/mixins.py:128) ⇒ the new fail-closed 404 (lineage.py:244-247) now blocks a lineage view the pre-diff 'skip unregistered' guard resolved (pre-diff the registry held only PipingResult/streams, diff-backend-app.txt:150-153); precondition: a finalized PSV calculation plus GET /lineage/PsvResult/{psv_id}/graph — no in-repo caller exists (the frontend only queries /lineage/streams/...), so external consumption is unproven."
+      "protected_subject": "authorization-authentication",
+      "reason": "Verified on the pinned fastapi 0.141.1: `app.include_router(router, include_in_schema=False)` leaves the route mounted and reachable (a POST to the GET-only /auth/mock-login answers 405, proving the route exists) while app.openapi()['paths'] is empty, so the whole 'is the route mounted' decision at pcs-backend/app/main.py:53-55 is made on a derived view that a schema-hidden mount bypasses, i.e. the rewritten assertion can still report green with the mock route mounted; precondition = someone mounting the mock router in production with include_in_schema=False, which today's code never does (main.py:175-176 mounts it only outside production, main.py:44-47 and mock_auth.py:57 still refuse in production), so the residual is a guard-robustness gap rather than a live bypass."
     },
     {
       "#": 9,
       "status": "confirmed",
-      "protected_subject": null,
-      "reason": "The two new fail-closed cases assert only the status code (tests/api/v1/test_lineage_by_source_ref.py:563, 574), while 'no lineage for record' is pinned only on other branches (tests/test_lineage_api.py:104 for a missing PipingResult, tests/api/v1/test_lineage_guard.py:184-185 for missing-vs-forbidden on 'streams') ⇒ rewriting the unregistered-type branch's message/code turns no test red, and the new file exercises only /graph and /downstream (no /upstream case for the new streams 200+[] branch nor for an unregistered type)."
+      "protected_subject": "public-contract",
+      "reason": "Verified: RECORD_TYPE_REGISTRY (pcs-backend/app/services/calc_lineage.py:84-115) has no PsvResult (grep for 'PsvResult' in that file returns 0 hits), hence lineage_registry.py:57-61 derives no 'PsvResult' guard key, yet PSV really writes such rows — pcs-backend/app/services/psv/psv_persist.py:444 calls finalize_calc_record, and LineageTracker.track stores record_type=record.__class__.__name__ (pcs-backend/app/services/lineage.py:109) = 'PsvResult', which the app itself reads back (pcs-backend/app/api/v1/psv.py:247) — while the diff changed lineage.py's guard from 'skip unregistered types' to a hard 404 (lineage.py:243-247), so GET /lineage/PsvResult/{psv_id}/graph returned the real lineage pre-diff and is now a permanent 404 for a record type that has lineage rows (the batch's own completeness step cannot catch it because the mirror test parameterizes over RECORD_TYPE_REGISTRY itself)."
     },
     {
       "#": 10,
       "status": "confirmed",
-      "protected_subject": null,
-      "reason": "TODOS.md:2945-2946 and .wolf/buglog.json:6036 (bug-2156, fix_commit 69b2327) both describe the T0-E role write as 合并 (merge), while the shipped implementation overwrites — token_issuer.py:140 docstring '⚠️ 覆盖，不是合并' and .values(roles=[role]) at token_issuer.py:159 ⇒ ledger and buglog contradict the code inside this diff and point the fix_commit reverse lookup at the reverted commit."
+      "protected_subject": "authorization-authentication",
+      "reason": "Verified: pcs-backend/app/services/user_status_service.py:8 declares the disable judgment to be the repo's '唯一一处', but pcs-backend/app/services/token_issuer.py:97 implements the same comparison independently, keyed by username (token_issuer.py:91-95 selects User where username = ?) while the per-request copy is keyed by user_id (user_status_service.py:53-57), so the two paths can reach opposite conclusions for the same account — a legacy DISABLED row (user_id != derived uuid5, TODO-137) is denied at login but its in-flight access token is let through because the derived user_id matches no users row (the fail-open window itself is already carried as residual risk; the newly established part is the false uniqueness claim and the duplicated rule in two modules with two different lookup keys, the plan's own 'B 只有一处判定' rationale not being realised)."
     },
     {
-      "#": 12,
+      "#": 11,
       "status": "confirmed",
-      "protected_subject": null,
-      "reason": "This diff documents a new return value on _guard_record_access (lineage.py:239-241, 269) but all three call sites discard it (lineage.py:70, 116, 162) and _stream_graph re-reads the same row with session.get(Stream, stream_id) (lineage.py:284) ⇒ the new contract is dead and the re-read is redundant (the guard's select already populated the identity map, so — as the finding itself states — this is not an extra DB round trip)."
+      "protected_subject": "authorization-authentication",
+      "reason": "Verified: the two new fail-closed cases in pcs-backend/tests/api/v1/test_lineage_by_source_ref.py:563 and :574 assert only `r.status_code == 404`, while the repo's own convention pins the body (pcs-backend/tests/test_lineage_api.py:104 asserts message == 'no lineage for record'; pcs-backend/tests/api/v1/test_lineage_guard.py:184-185 asserts equal code and message across the three suffixes), and the newly added authorized /upstream streams branch (lineage.py:73-76, 200 + []) and the unregistered-type /upstream 404 — whose shape this diff changed from 200 + [] to 404 — are not pinned by any assertion, so a divergence of the byte-identical 'no lineage for record' 404 (the anti-enumeration property the fail-closed guard exists for) would not turn any test red; the finding slightly overstates one sub-claim, since test_lineage_guard.py:133 does exercise /upstream with record_type='streams' in the cross-project case, but no test covers the authorized 200 + [] branch."
     },
     {
-      "#": 16,
+      "#": 13,
       "status": "confirmed",
       "protected_subject": null,
-      "reason": "The hook's single try/catch wraps both the submit call and the post-submit refresh (pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:76-86), so a rejected onDone clears the freshly set result and rethrows to the page as '批量提交校对失败' (StreamListPage.tsx:139) although the batch was submitted ⇒ precondition: an onDone that rejects — today's only consumer passes load(), which swallows every exception (StreamListPage.tsx:76-79), so the mislabelled path is latent rather than active."
+      "reason": "Verified: the batch's own ledger still describes the roles write as a merge — TODOS.md TODO-134 closure text ('把真实角色 **合并**进 users.roles（只合并、不冲掉已有角色…）') and .wolf/buglog.json:6036 bug-2156 `fix` — and bug-2156's fix_commit 69b2327 is exactly the merge version (git show 69b2327: '把真实角色**合并**进 users.roles'), whereas the shipped code is an overwrite (pcs-backend/app/services/token_issuer.py:140 docstring '⚠️ **覆盖，不是合并**' and :159 `.values(roles=[role])`, introduced by the later commit 4a8e882 in this same range), so a reader of the ledger is told to merge and would undo the intended overwrite semantics; this is a ledger/code consistency defect, not one of the eight protected subjects."
+    },
+    {
+      "#": 15,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified in pcs-backend/app/api/v1/lineage.py: the guard's signature was widened to `-> Any` and it now `return record` (lineage.py:269) with a docstring promising '返回查到的**记录行**（调用方要拿它的字段时不必再查一次）' (lineage.py:239-241), yet all three call sites (lineage.py:70-72, 116-118, 162-164) discard the value and _stream_graph re-reads the same row with `session.get(Stream, stream_id)` (lineage.py:284) plus a second 404 site — the new return contract is therefore dead and the re-fetch is redundant (as the finding itself corrects, Session.get hits the identity map, so this is not an extra DB round-trip); a dead-contract/redundant-read defect, not a protected subject."
+    },
+    {
+      "#": 20,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Verified: pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:81 awaits onDone inside the same try block as the submit, so the catch at :82-86 (setResult(null) + rethrow) treats a post-submit refresh failure as a whole-batch failure, contradicting the hook's own documented semantics ('批次**整批**失败 ⇒ 抛给调用方' and the catch comment '整批失败 ⇒ 没有新摘要') and closing the freshly obtained batch summary; precondition = an onDone that rejects — the only current consumer (StreamListPage's load, StreamListPage.tsx:70-84) swallows every exception, so the mis-report path is latent rather than currently reachable, and the hook's suggested fix (refresh in its own error domain) is the matching correction; a frontend error-handling defect, not a protected subject."
     }
   ]
 }

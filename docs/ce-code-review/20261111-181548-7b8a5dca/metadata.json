@@ -1,10 +1,7 @@
 {
   "branch": "main",
-  "completed_at": "2026-11-11T13:29:05Z",
+  "completed_at": "2026-11-11T23:22:33Z",
   "cost": {
-    "dangling_stages": [
-      "merge"
-    ],
     "host": "claude",
     "scope": {
       "base": "38c91ac",
@@ -53,35 +50,38 @@
         "started_at": "2026-11-11T10:29:20.945035+00:00"
       },
       {
-        "candidates": 14,
-        "elapsed_seconds": 642.142,
-        "ended_at": "2026-11-11T12:58:15.727765+00:00",
+        "candidates": 15,
+        "elapsed_seconds": 3304.87,
+        "ended_at": "2026-11-11T14:26:05.384023+00:00",
         "stage": "merge",
         "started_at": "2026-11-11T13:31:00.514263+00:00"
       },
       {
-        "elapsed_seconds": 588.223,
-        "ended_at": "2026-11-11T13:21:24.627656+00:00",
+        "elapsed_seconds": 31160.218,
+        "ended_at": "2026-11-11T23:18:53.030474+00:00",
         "facts": {
-          "confirmed": 10,
-          "verdicts": 10
+          "confirmed": 11,
+          "rejected": 0,
+          "unresolved": 0,
+          "verdicts": 11
         },
         "reviewers": 1,
         "stage": "validate",
-        "started_at": "2026-11-11T13:11:36.404439+00:00"
+        "started_at": "2026-11-11T14:39:32.812720+00:00"
       },
       {
-        "elapsed_seconds": 420.759,
-        "ended_at": "2026-11-11T13:29:30.932892+00:00",
+        "candidates": 20,
+        "elapsed_seconds": 324.563,
+        "ended_at": "2026-11-11T23:24:30.766264+00:00",
         "stage": "report",
-        "started_at": "2026-11-11T13:22:23.978526+00:00"
+        "started_at": "2026-11-11T23:19:06.203623+00:00"
       }
     ],
-    "status": "partial",
+    "status": "complete",
     "totals": {
-      "artifact_bytes": 2658321,
+      "artifact_bytes": 2922249,
       "candidates": 25,
-      "elapsed_seconds": 21543.02,
+      "elapsed_seconds": 54681.547,
       "reviewers": 11
     },
     "truncated_events": 0
