@@ -2,24 +2,39 @@
  * 物流详情 —— 「血缘」Tab（SPEC §7.7.2 · P9B-3 · T8）。
  *
  * 数据源：`GET /lineage/{record_type}/{record_id}/graph`（`record_type=streams`）
- * ⇒ `{root, upstream, downstream}`。
+ * ⇒ `{root, upstream, downstream}`（**契约派生** · P9B-4 T0-D）。
  *
- * ⚠️ 契约里是**裸 dict**（无结构）⇒ 字段可能缺 ⇒ 全部**防御性**读。
+ * ⚠️ **两套词表**（T0-D）：`source` 在**根节点**上是**物流来源**（录入通道
+ *    `MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`），在**血缘行**上是**计算来源**
+ *    （`CALC` 等）⇒ 同一列会出现两种词 ⇒ 根行加 tooltip 说清是哪一种。
  * ⚠️ 血缘图组件（`LineageGraph`）要的是**前端合成的** `{center, nodes, edges}`
  *    形状 ⇒ 那是前端自己造的（bug-189 同族）⇒ 本 Tab **不**套它，
  *    直接把后端返回的 root/upstream/downstream **如实**列出来。
  */
 import { useEffect, useState } from 'react';
-import { Alert, Card, Table, Typography } from 'antd';
+import { Alert, Card, Table, Tooltip, Typography } from 'antd';
 
-import { streamApi, type LineageEntry, type LineageGraph } from '../../../api/stream';
+import { streamApi, type LineageGraph, type LineageNode } from '../../../api/stream';
 import { describePcsError } from '../../../api/errors';
 
 interface Row {
   key: string;
   relation: string;
-  entry: LineageEntry;
+  entry: LineageNode;
 }
+
+/**
+ * 物流**录入通道**（`StreamSource` 4 值）的中文标签。
+ *
+ * ⚠️ 与 `StreamSourceType`（13 值 · 数据怎么算出来的）**不是一回事** ⇒
+ * 这里只覆盖**录入通道**那 4 个值。
+ */
+const STREAM_SOURCE_LABEL: Record<string, string> = {
+  MANUAL: '手动创建',
+  SIM_IMPORT: '模拟软件导出',
+  EXCEL: 'Excel 导入',
+  LAB: '化验报告',
+};
 
 function toRows(graph: LineageGraph | null): Row[] {
   if (!graph) return [];
@@ -95,7 +110,25 @@ export function StreamLineageTab({ streamId }: { streamId: string }): JSX.Elemen
                 title: '来源',
                 dataIndex: ['entry', 'source'],
                 width: 140,
-                render: (_: unknown, row: Row) => text(row.entry.source),
+                render: (_: unknown, row: Row) => {
+                  const value = text(row.entry.source);
+                  // ⚠️ 根行是**合成**的 ⇒ 它的 source 是**物流来源**（录入通道），
+                  //    其余行的 source 是**计算来源**（CALC 等）⇒ 两套词表 ⇒
+                  //    根行加 tooltip 说清是哪一种（SPEC §7.7.2）。
+                  if (row.relation !== '当前') return value;
+                  const label = STREAM_SOURCE_LABEL[value];
+                  return (
+                    <Tooltip
+                      title={
+                        label
+                          ? `物流来源（录入通道）：${value} = ${label}`
+                          : `物流来源（录入通道）：${value}`
+                      }
+                    >
+                      <span>{value}</span>
+                    </Tooltip>
+                  );
+                },
               },
               {
                 title: '变更摘要',

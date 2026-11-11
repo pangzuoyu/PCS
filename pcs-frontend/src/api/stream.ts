@@ -142,26 +142,26 @@ export interface StreamStatePoint {
   [key: string]: unknown;
 }
 
-/** 血缘条目（`GET /lineage/{record_type}/{record_id}/graph` 的一项）。 */
-export interface LineageEntry {
-  lineage_id?: string;
-  record_type?: string;
-  record_id?: string;
-  parent_lineage_id?: string | null;
-  source?: string | null;
-  source_ref_type?: string | null;
-  source_ref_id?: string | null;
-  actor_user_id?: string | null;
-  change_summary?: string | null;
-  occurred_at?: string | null;
-}
+/**
+ * 血缘节点（`GET /lineage/{record_type}/{record_id}/graph` 的一项）——
+ * **契约派生**（P9B-4 T0-D · TODO-111 的一半）。
+ *
+ * ⚠️ 此前是**手写**副本 ⇒ 后端改字段前端**静默失配** ⇒ 换成契约派生。
+ */
+export type LineageNode = components['schemas']['LineageNode'];
 
-/** 血缘图 —— ⚠️ 契约里是**裸 dict**（TODO-111）。 */
-export interface LineageGraph {
-  root?: LineageEntry;
-  upstream?: LineageEntry[];
-  downstream?: LineageEntry[];
-}
+/**
+ * 血缘图的根节点 —— **契约派生**。
+ *
+ * ⚠️ **`record_type='streams'` 入口下 root 是**合成**的**（`data_lineage` 表里
+ * 没有这一行）⇒ 它的 `source` = **物流来源**（录入通道：`MANUAL` /
+ * `SIM_IMPORT` / `EXCEL` / `LAB`）；而**节点**的 `source` = **计算来源**
+ * （`CALC` 等）⇒ **两套词表** ⇒ 前端**不得混用**（见血缘 Tab 的 tooltip）。
+ */
+export type LineageRoot = components['schemas']['LineageRoot'];
+
+/** 血缘图 —— **契约派生**（`{root, upstream, downstream}` 三键）。 */
+export type LineageGraph = components['schemas']['LineageGraphResponse'];
 
 export const streamApi = {
   /** 物流列表（契约派生 + 四项筛选）—— 物流列表页用。 */

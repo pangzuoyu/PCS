@@ -45,6 +45,7 @@ type SaturationWaterContentResponse = components["schemas"]["SaturationWaterCont
 type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
 type StreamBatchSubmitResponse = components["schemas"]["StreamBatchSubmitResponse"];
 type ReviewLogItem = components["schemas"]["ReviewLogItem"];
+type LineageGraphResponse = components["schemas"]["LineageGraphResponse"];
 type BatchSucceededItem = components["schemas"]["BatchSucceededItem"];
 
 import { heatHandlers } from "./heat";
@@ -271,6 +272,46 @@ export function buildReviewLog(streamId: string): ReviewLogItem[] {
 const _reviewLogConforms: ReviewLogItem[] = buildReviewLog("s-102");
 void _reviewLogConforms;
 
+/**
+ * 血缘图的 mock 响应体（**契约派生** · P9B-4 T0-D · TODO-136）。
+ *
+ * ⚠️ 后端 `record_type='streams'` 走「按源引用查」⇒ **root 是合成的**
+ *    （`data_lineage` 表里没有这一行）⇒：
+ * - `source` = **物流来源**（录入通道 4 值：`MANUAL` / `SIM_IMPORT` /
+ *   `EXCEL` / `LAB`）—— ⚠️ **不是** `StreamSourceType`（13 值）的词表；
+ * - `lineage_id` = **真 uuid 形状**（后端是确定性 uuid5）⇒ 免得哪天
+ *   `ajv-formats` 接上就红；
+ * - `occurred_at` = **ISO 8601**（带时区）。
+ *
+ * ⚠️ **导出**是为了让 `tests/mocks/handlers.test.ts` 能拿 ajv 把它**对着契约
+ * 校验**（ce-code-review P2 #5 的教训：mock 必须契约派生，不是手抄）。
+ */
+export function buildLineageGraph(
+  recordType: string,
+  recordId: string,
+): LineageGraphResponse {
+  return {
+    root: {
+      lineage_id: "00000000-0000-4000-8000-000000000001",
+      record_type: recordType,
+      record_id: recordId,
+      parent_lineage_id: null,
+      source: "MANUAL",
+      source_ref_type: null,
+      source_ref_id: null,
+      actor_user_id: null,
+      change_summary: "物流本身（合成根节点）",
+      occurred_at: "2026-09-15T14:00:00+00:00",
+    },
+    upstream: [],
+    downstream: [],
+  };
+}
+
+/** 编译期断言：mock 产出的形状**就是**契约形状（契约改名 ⇒ `tsc` 红）。 */
+const _lineageGraphConforms: LineageGraphResponse = buildLineageGraph("streams", "s-102");
+void _lineageGraphConforms;
+
 const devOnlyMockHandlers = [
   // === 认证 ===
   // P7-7+ actor 上下文一致性: mock-login 返回 user_id (与 backend /auth/me
@@ -353,24 +394,19 @@ const devOnlyMockHandlers = [
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json(buildReviewLog(String(params["stream_id"])));
   }),
+  // ⚠️ 血缘图 —— **契约派生**（P9B-4 T0-D · TODO-136）。
+  //    后端 `record_type='streams'` 走「按源引用查」⇒ root 是**合成**的：
+  //    - `source` = **物流来源**（录入通道 4 值）⇒ 此前写的 `MANUAL_ENTRY`
+  //      是 `StreamSourceType` 的值 ⇒ **词表用错了**；
+  //    - `lineage_id` = **真 uuid 形状**（后端是确定性 uuid5）⇒ 此前写的
+  //      `"l-root"` 不是 uuid；
+  //    - `occurred_at` = **ISO 8601**（此前写的 `"2026-09-15 14:00:00"` 不是）。
+  //    ⇒ 这三处正是上批 ce-code-review P2 #5 的教训：**mock 必须契约派生**。
   http.get("/api/v1/lineage/:record_type/:record_id/graph", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json({
-      root: {
-        lineage_id: "l-root",
-        record_type: String(params["record_type"]),
-        record_id: String(params["record_id"]),
-        parent_lineage_id: null,
-        source: "MANUAL_ENTRY",
-        source_ref_type: null,
-        source_ref_id: null,
-        actor_user_id: null,
-        change_summary: "创建",
-        occurred_at: "2026-09-15 14:00:00",
-      },
-      upstream: [],
-      downstream: [],
-    });
+    return HttpResponse.json(
+      buildLineageGraph(String(params["record_type"]), String(params["record_id"])),
+    );
   }),
   // === 物流手动创建向导（P9B-3 · T7）===
   // ⚠️ 写入 / 校验 / 估算 / 提交 / 状态点 —— 形状取契约类型；

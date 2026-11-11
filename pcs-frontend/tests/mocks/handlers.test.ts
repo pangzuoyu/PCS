@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv, { type AnySchema } from "ajv";
 
-import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList, buildBatchSubmitResponse, buildReviewLog } from "../../src/mocks/handlers";
+import { handlers, devOnlyMockHandlers, buildNotificationList, buildTodoList, buildBatchSubmitResponse, buildReviewLog, buildLineageGraph } from "../../src/mocks/handlers";
 import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { signFlowHandlers } from "../../src/mocks/signFlow";
@@ -467,6 +467,36 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     );
     const ok = validate(data);
     expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/lineage/{record_type}/{record_id}/graph 的响应体符合契约（P9B-4 T0-D）", () => {
+    // ⚠️ 棘轮同步：端点进了**具名 schema** ⇒ 必须**一并**加 ajv 校验
+    // （此前是裸 dict ⇒ 没有可校验的形状 ⇒ mock 能随便写）。
+    const op = openapi.paths["/api/v1/lineage/{record_type}/{record_id}/graph"]?.get;
+    expect(op, "契约里没有 GET /api/v1/lineage/{record_type}/{record_id}/graph").toBeDefined();
+    const schemaJson = op!.responses["200"].content["application/json"].schema;
+    const schema = (schemaJson.$ref
+      ? inlineRefs(resolveRef(openapi, schemaJson.$ref), openapi)
+      : inlineRefs(schemaJson, openapi)) as AnySchema;
+    const validate = ajv.compile(schema);
+    const data = buildLineageGraph("streams", "s-102");
+    const ok = validate(data);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("血缘 mock 的合成 root 用**物流来源**词表（不是 StreamSourceType）", () => {
+    // ⚠️ 合成 root 的 `source` = **物流来源**（录入通道 4 值）
+    //    ⇒ 此前写的 `MANUAL_ENTRY` 是 `StreamSourceType` 的值 ⇒ **词表用错了**
+    //    ⇒ 两套词表混用 ⇒ 用户看不懂「来源」列。
+    const data = buildLineageGraph("streams", "s-102");
+    expect(data.root?.source).toBe("MANUAL");
+    // ⚠️ 合成 id 必须是**真 uuid 形状**（此前是 `"l-root"`）⇒ 免得哪天
+    //    ajv-formats 接上就红。
+    expect(data.root?.lineage_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    // ⚠️ 时间必须是 **ISO 8601**（此前是 `"2026-09-15 14:00:00"`）。
+    expect(data.root?.occurred_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it("GET /api/v1/streams/{stream_id}/review-log 的响应体符合契约（TODO-112）", () => {

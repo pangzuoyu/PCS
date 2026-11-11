@@ -20,9 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
-from app.models.calc import PipingResult
 from app.models.project import Stream
+from app.schemas.lineage import LineageGraphResponse
 from app.services.lineage import LineageTracker
+from app.services.lineage_registry import LINEAGE_GUARDED_RECORD_TYPES
 from app.services.user_project_service import has_project_access
 
 router = APIRouter(prefix="/lineage", tags=["lineage"])
@@ -30,15 +31,15 @@ router = APIRouter(prefix="/lineage", tags=["lineage"])
 
 #: 需要项目守卫的记录类型 → (ORM 模型, 主键列名)。
 #:
-#: ⚠️ **必须带主键列名** —— `PipingResult` 的主键是 `pipe_id`、`Stream` 的是
-#: `stream_id` ⇒ 一个 `record_id` 要按类型映射到不同的列。
+#: ⚠️ **派生**自 `RECORD_TYPE_REGISTRY`（见 `app/services/lineage_registry.py`）
+#: ⇒ **不要在这里手抄第二份** ⇒ 键 = `model.__name__`（写入方写进
+#: `data_lineage.record_type` 的就是类名）。
 #:
 #: ⚠️ **只有带 `project_id` 的模型才能登记** ⇒ 登记一个没有项目归属的模型
 #: ⇒ 守卫拿不到项目 ⇒ `record.project_id` 会炸（fail-loud，而不是静默放行）。
-LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {
-    "PipingResult": (PipingResult, "pipe_id"),
-    "streams": (Stream, "stream_id"),
-}
+#:
+#: ⚠️ **未登记的类型 ⇒ 404**（fail-closed）—— 守卫见下。
+
 
 
 @router.get("/{record_type}/{record_id}/upstream", response_model=list[dict])
@@ -68,6 +69,10 @@ async def upstream(
     await _guard_record_access(
         session, user, record_type, record_id
     )
+    if record_type == "streams":
+        # ⚠️ 物流是**源** ⇒ **没有**上游血缘行 ⇒ 200 + []
+        #    （不是「查不到」的 404 —— 「没有」与「查不到」是两件事）
+        return []
     tracker = LineageTracker(session)
     chain = await tracker.upstream(
         record_type=record_type, record_id=record_id, max_depth=max_depth
@@ -96,10 +101,19 @@ async def downstream(
 
     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
+
+    ⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行
+    （`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。
     """
     await _guard_record_access(
         session, user, record_type, record_id
     )
+    if record_type == "streams":
+        tracker = LineageTracker(session)
+        rows = await tracker.by_source_ref(
+            source_ref_type="Stream", source_ref_id=record_id
+        )
+        return [_serialize(c) for c in rows]
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
@@ -108,7 +122,7 @@ async def downstream(
     return [_serialize(c) for c in chain]
 
 
-@router.get("/{record_type}/{record_id}/graph", response_model=dict)
+@router.get("/{record_type}/{record_id}/graph", response_model=LineageGraphResponse)
 async def graph(
     record_type: str,
     record_id: uuid.UUID,
@@ -127,10 +141,17 @@ async def graph(
     4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
 
     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
+
+    ⚠️ **`record_type='streams'` 走「按源引用查」**（P9B-4 T0-D · TODO-136）：
+    物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'`
+    的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒ root 是**合成**的
+    （`data_lineage` 表里**没有**这一行）。
     """
     await _guard_record_access(
         session, user, record_type, record_id
     )
+    if record_type == "streams":
+        return await _stream_graph(session, record_id)
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
@@ -169,15 +190,17 @@ async def _guard_record_access(
     user: _Actor,
     record_type: str,
     record_id: uuid.UUID,
-) -> None:
+):
     """P7-7+ BLOCKER-3：按**记录类型注册表**拉 record 拿 project_id，验证访问权。
 
     ⚠️ **以前这里是 `if record_type != "PipingResult": return`** ⇒ 任何其它记录
     类型（`streams` …）**完全跳过**访问校验（TODO-114）⇒ 跨项目用户能读别人
     物流的血缘图。⇒ 改成**注册表** ⇒ 加一种记录类型只要**登记一行**，不会再漏。
 
-    ⚠️ **不在注册表里的记录类型 ⇒ 跳过**（沿用旧行为）⇒ 但**新增记录类型必须
-    登记**，否则又是同一个洞。
+    ⚠️ **不在注册表里的记录类型 ⇒ 404**（fail-closed，P9B-4 T0-D）——
+    此前是「跳过」（沿用旧行为）⇒ 端点落到自己的兜底：`/graph` 与 `/downstream`
+    恰好 404，但 `/upstream` 返 **200 + []** ⇒ 「未登记类型」成了一个**可枚举
+    信号**（与「无权」可区分）⇒ 改成**同一个 404**（fail-closed）。
 
     ## ⚠️ 无权 ⇒ 与「不存在」**同形**（不是 "Project not found"）
 
@@ -200,10 +223,16 @@ async def _guard_record_access(
       「这个 UUID 根本不存在」⇒ **UUID 枚举向量**（本守卫要关的正是它）。
 
     ⇒ 守卫**自己**抛同一个 404 ⇒ 三条路径**逐字同形**，与端点各自的兜底无关。
+
+    ## 返回值
+
+    返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。
     """
     entry = LINEAGE_GUARDED_RECORD_TYPES.get(record_type)
     if entry is None:
-        return  # 未登记的类型 ⇒ 跳过（旧行为）
+        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）—— 与「记录不存在」**逐字同形**
+        #    ⇒ 「这个类型不被支持」不能成为一个可枚举信号。
+        raise HTTPException(404, "no lineage for record")
     model, pk_col = entry
 
     record = (
@@ -225,3 +254,57 @@ async def _guard_record_access(
     ):
         # ⚠️ **与「无血缘」逐字同形** —— 不是 403、也不是别的 code。
         raise HTTPException(404, "no lineage for record")
+    return record
+
+
+async def _stream_graph(session: AsyncSession, stream_id: uuid.UUID) -> dict:
+    """物流的血缘图 —— **「按源引用查」** + **合成 root**（T0-D · TODO-136）。
+
+    ⚠️ **物流在血缘行里从不作为 `record_type`**（它是 `source_ref_type='Stream'`
+    的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒
+
+    - **downstream** = 以该物流为**源**的血缘行；
+    - **upstream** = **空**（物流是源 ⇒ 没有上游血缘行）；
+    - **root** = **合成**（下面 `_synthetic_stream_root`）。
+    """
+    stream = await session.get(Stream, stream_id)
+    if stream is None:
+        # 守卫已经查过并放行 ⇒ 这里不该发生 ⇒ 仍抛**同一个** 404（不换形状）
+        raise HTTPException(404, "no lineage for record")
+    tracker = LineageTracker(session)
+    rows = await tracker.by_source_ref(
+        source_ref_type="Stream", source_ref_id=stream_id
+    )
+    return {
+        "root": _synthetic_stream_root(stream),
+        "upstream": [],
+        "downstream": [_serialize(c) for c in rows],
+    }
+
+
+def _synthetic_stream_root(stream: Stream) -> dict:
+    """合成 root —— 形状与真实 root **完全相同**（10 个字段）。
+
+    ⚠️ **这是合成的**：`data_lineage` 表里**没有**这一行 ⇒
+    - `lineage_id` = **确定性** uuid5（否则前端 `rowKey` 每次变）
+      ⇒ 约定：`uuid5(NAMESPACE_DNS, f"lineage-root:streams:{stream_id}")`；
+    - `source` = **物流来源**（录入通道 4 值：怎么进系统的）
+      ⇒ ⚠️ 与血缘行的 `source`（**计算来源** `CALC` 等）**是两套词表**；
+    - `source_ref_*` = `None`（物流**就是**源 ⇒ 没有上游引用）。
+    """
+    return {
+        "lineage_id": str(
+            uuid.uuid5(
+                uuid.NAMESPACE_DNS, f"lineage-root:streams:{stream.stream_id}"
+            )
+        ),
+        "record_type": "streams",
+        "record_id": str(stream.stream_id),
+        "parent_lineage_id": None,
+        "source": stream.source,
+        "source_ref_type": None,
+        "source_ref_id": None,
+        "actor_user_id": str(stream.created_by) if stream.created_by else None,
+        "change_summary": "物流本身（合成根节点）",
+        "occurred_at": stream.created_at.isoformat() if stream.created_at else None,
+    }

@@ -1361,6 +1361,21 @@ Tab：
 
 血缘：LineageGraph 局部视图。
 
+⚠️ **血缘 Tab 的数据源 = `GET /lineage/streams/{id}/graph`**（**具名 schema**
+`LineageGraphResponse` = `{root, upstream, downstream}` **三键**）⇒ 前端类型
+**契约派生**（不再手写副本）。
+⚠️ **物流在血缘行里从不作为 `record_type`**（它是 `source_ref_type='Stream'`
+的**源引用**）⇒ 后端走「**按源引用查**」⇒ **root 是合成的**
+（`data_lineage` 表里**没有**这一行；`lineage_id` 是**确定性** uuid5）。
+⚠️ **两套词表**：「来源」列在血缘 Tab 里显示的是**计算来源**（`CALC` 等），
+**不是**物流本身的来源；物流本身的来源（`MANUAL` / `SIM_IMPORT` / `EXCEL` /
+`LAB`）在**基础信息** Tab 显示 ⇒ **根行**的来源带 Tooltip 标明是
+「物流来源（录入通道）」，其余行不带。
+⚠️ **`TwoPhaseResult` 不支持血缘查询**（该表无 `project_id` ⇒ 无项目归属可
+守卫 ⇒ 端点对它 **404**，与「不存在」逐字同形）。
+⚠️ **未登记的 `record_type` ⇒ 404**（fail-closed，与「记录不存在」**逐字同形**
+⇒ 不可枚举）。
+
 校核记录：数据来源 = `GET /streams/{id}/review-log`（**项目守卫**端点）
 ⇒ **后端已过滤**：只返回校对相关的三条（`SUBMIT_FOR_CHECK` / `PASS_CHECK` /
 `REJECT_CHECK`）⇒ **其它 transition 不显示**。
@@ -2451,6 +2466,8 @@ V2.10	2026-11-03	P9B-3b §7.7.1 批量「提交校对」落地修订：①**工�
 V2.11	2026-11-09	P9B-4 紧急批次（物流面项目守卫 + review-log）落地修订：①**§7.7.2「校核记录」Tab 的数据源改写** —— 从 `GET /audit-logs`（限 SYSTEM_ADMIN ⇒ 非管理员「无权查看」）改成 **`GET /streams/{id}/review-log`**（**项目守卫**端点 ⇒ 设计师能读到**自己物流**的校核经过）；**过滤搬到后端**（只返回 SUBMIT_FOR_CHECK / PASS_CHECK / REJECT_CHECK 三条 ⇒ 前端**不得**再过滤一遍）；响应是**具名 schema** `ReviewLogItem`；**无记录 ⇒ 200 + []**；**跨项目 ⇒ 404**（与「不存在」逐字同形）；②**§5.4 物流引用门禁** —— 补上**项目级访问守卫**后，「无权」与「不存在」必须**逐字同形**（否则可枚举 UUID）⇒ 物流的 20 个端点/路径统一按 404 处理（⚠️ **2026-11-10 补充**：**批量端点** `POST /streams/batch-submit` 是例外 —— 它返 **207**，跨项目条目以**失败项** `reason=SIM_STREAM_NOT_FOUND` 表达 ⇒ 与「真不存在」的失败项**逐字同形**⇒ 枚举向量同样守住，只是**整体状态码**不是 404）。
 
 V2.12	2026-11-10	P9B-4 T0-B（账号状态判定 · TODO-132）落地修订：①**§7.1 补「停用用户的会话」** —— 用户被停用（`users.status = DISABLED`）⇒ 其**在手 access token 立即失效** ⇒ **下一次请求**返 **401 `USER_DISABLED`**（不必等 token 过期，也不必等 refresh）⇒ 前端按**普通 401** 处理（跳登录页）；⚠️ **用户可见的行为变化**（此前「停用」只在**登录时**拦 ⇒ 在手 token 仍可用至多 30 分钟 ⇒ 「停用」形同虚设）；②**判定在 actor 层**（不是项目守卫层）⇒ 一处判定、全局生效（含 SYSTEM_ADMIN bypass）；③**`users` 表无该 `user_id` 的行 ⇒ 放行**（mock 登录不落 users 表 · ADR-0046 §③b ⇒ 判拒会让 dev/E2E 的 mock 登录全线挂掉）。**本版不含**任何页面布局/交互改动（纯会话语义）	Claude Code
+
+V2.13	2026-11-11	P9B-4 T0-D（物流血缘 Tab · TODO-136）落地修订：①**§7.7.2「血缘」Tab 的数据源与形状** —— `GET /lineage/streams/{id}/graph` 返**具名 schema** `LineageGraphResponse` = `{root, upstream, downstream}` **三键**（⚠️ **不是** `{root, nodes}` —— 前端 `toRows` 依赖那三个键）⇒ 前端类型**契约派生**；②**「按源引用查」语义** —— 物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'` 的**源引用**）⇒ 后端走「按源引用查」⇒ **root 是合成的**（`data_lineage` 表里**没有**这一行；`lineage_id` = 确定性 uuid5 `lineage-root:streams:{id}`）；③**两套词表**（「来源」列）—— 血缘 Tab 的「来源」显示**计算来源**（`CALC` 等），物流本身的来源（`MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`）在**基础信息** Tab ⇒ **根行**的来源带 Tooltip 标明「物流来源（录入通道）」；④**`TwoPhaseResult` 不支持血缘查询**（无 `project_id` ⇒ 无从守卫 ⇒ 404）；⑤**未登记的 `record_type` ⇒ 404**（fail-closed，与「记录不存在」逐字同形）。
 
 文档结束。
 

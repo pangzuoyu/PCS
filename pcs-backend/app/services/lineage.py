@@ -141,6 +141,38 @@ class LineageTracker:
             )
         ).scalar_one_or_none()
 
+    async def by_source_ref(
+        self,
+        *,
+        source_ref_type: str,
+        source_ref_id: uuid.UUID,
+    ) -> list[DataLineage]:
+        """查「以某条记录为**源**」的血缘行（`source_ref_type` + `source_ref_id`）。
+
+        ⚠️ 写入方 `finalize_calc_record` 写的正是 `source_ref_type="Stream"` +
+        `source_ref_id=<物流 id>` ⇒ 这是「物流的**下游**」的**唯一**来源
+        （物流本身在血缘行里**从不作为 `record_type`** 出现）。
+
+        按 `occurred_at` 升序返回（同一物流的多次计算 ⇒ 早的在前）。
+        """
+        from sqlalchemy import select
+
+        rows = (
+            (
+                await self.session.execute(
+                    select(DataLineage)
+                    .where(
+                        DataLineage.source_ref_type == source_ref_type,
+                        DataLineage.source_ref_id == source_ref_id,
+                    )
+                    .order_by(DataLineage.occurred_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return list(rows)
+
     async def upstream(
         self,
         *,

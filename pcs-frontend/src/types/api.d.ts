@@ -1021,6 +1021,9 @@ export interface paths {
          *
          *     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
          *     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
+         *
+         *     ⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行
+         *     （`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。
          */
         get: operations["downstream_api_v1_lineage__record_type___record_id__downstream_get"];
         put?: never;
@@ -1051,6 +1054,11 @@ export interface paths {
          *     4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
          *
          *     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
+         *
+         *     ⚠️ **`record_type='streams'` 走「按源引用查」**（P9B-4 T0-D · TODO-136）：
+         *     物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'`
+         *     的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒ root 是**合成**的
+         *     （`data_lineage` 表里**没有**这一行）。
          */
         get: operations["graph_api_v1_lineage__record_type___record_id__graph_get"];
         put?: never;
@@ -12791,6 +12799,153 @@ export interface components {
             change_summary?: string | null;
         };
         /**
+         * LineageGraphResponse
+         * @description 血缘图 —— `{root, upstream, downstream}` **三键**（形状不变）。
+         *
+         *     ⚠️ 键名与顺序沿用既有契约（前端 `src/api/stream.ts` + `StreamLineageTab`
+         *     的 `toRows` 依赖这三个键）⇒ **不要**改成 `{root, nodes}`。
+         */
+        LineageGraphResponse: {
+            /** @description 根节点（`streams` 入口下是**合成**的，DB 里没有这一行） */
+            root?: components["schemas"]["LineageRoot"] | null;
+            /**
+             * Upstream
+             * @description 上游血缘链（由近及远）
+             */
+            upstream?: components["schemas"]["LineageNode"][];
+            /**
+             * Downstream
+             * @description 下游血缘链（由近及远）
+             */
+            downstream?: components["schemas"]["LineageNode"][];
+        };
+        /**
+         * LineageNode
+         * @description 血缘节点（一条 `data_lineage` 行）。
+         *
+         *     ⚠️ `source` = **计算来源**（`CALC` 等）——「这条记录是怎么算出来的」。
+         */
+        LineageNode: {
+            /**
+             * Lineage Id
+             * Format: uuid
+             * @description 血缘行 id（`data_lineage.lineage_id`）
+             */
+            lineage_id: string;
+            /**
+             * Record Type
+             * @description 记录类型（**类名**，如 `PipingResult`）—— 不是 registry 的键
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 id（该记录类型的主键）
+             */
+            record_id: string;
+            /**
+             * Parent Lineage Id
+             * @description 父血缘行 id（版本链的上一环）
+             */
+            parent_lineage_id?: string | null;
+            /**
+             * Source
+             * @description **计算来源**（`CALC` 等）——「这条记录是怎么算出来的」
+             */
+            source?: string | null;
+            /**
+             * Source Ref Type
+             * @description 上游引用**类型**（如 `Stream`）
+             */
+            source_ref_type?: string | null;
+            /**
+             * Source Ref Id
+             * @description 上游引用**id**
+             */
+            source_ref_id?: string | null;
+            /**
+             * Actor User Id
+             * @description 操作人 user_id
+             */
+            actor_user_id?: string | null;
+            /**
+             * Change Summary
+             * @description 变更摘要
+             */
+            change_summary?: string | null;
+            /**
+             * Occurred At
+             * @description 发生时间（ISO 8601）
+             */
+            occurred_at?: string | null;
+        };
+        /**
+         * LineageRoot
+         * @description 血缘图的 **root**。
+         *
+         *     ⚠️ **root 的 `source` 与节点的 `source` 语义不同**：
+         *
+         *     - **`record_type='streams'` 入口** ⇒ root 是**合成**的（`data_lineage` 表里
+         *       **没有**这一行）⇒ 它的 `source` = **物流来源**（录入通道）
+         *       （`MANUAL` / `SIM_IMPORT` / `EXCEL` / `LAB`）——「物流怎么进系统的」；
+         *     - **其它入口** ⇒ root 是一条真实血缘行 ⇒ 它的 `source` 与节点**相同**
+         *       （计算来源）。
+         *
+         *     ⇒ 两套词表**语义不同** ⇒ 前端**不得混用**（血缘 Tab 的「来源」列要区分）。
+         */
+        LineageRoot: {
+            /**
+             * Lineage Id
+             * Format: uuid
+             * @description 血缘行 id（`data_lineage.lineage_id`）
+             */
+            lineage_id: string;
+            /**
+             * Record Type
+             * @description 记录类型（**类名**，如 `PipingResult`）—— 不是 registry 的键
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * @description 记录 id（该记录类型的主键）
+             */
+            record_id: string;
+            /**
+             * Parent Lineage Id
+             * @description 父血缘行 id（版本链的上一环）
+             */
+            parent_lineage_id?: string | null;
+            /**
+             * Source
+             * @description **root 的 source 是物流来源**（MANUAL / SIM_IMPORT / EXCEL / LAB）；**节点的 source 是计算来源**（CALC 等）⇒ 两者语义不同，前端不得混用。对非 `streams` 入口，root 的 source 与节点相同。
+             */
+            source?: string | null;
+            /**
+             * Source Ref Type
+             * @description 上游引用**类型**（如 `Stream`）
+             */
+            source_ref_type?: string | null;
+            /**
+             * Source Ref Id
+             * @description 上游引用**id**
+             */
+            source_ref_id?: string | null;
+            /**
+             * Actor User Id
+             * @description 操作人 user_id
+             */
+            actor_user_id?: string | null;
+            /**
+             * Change Summary
+             * @description 变更摘要
+             */
+            change_summary?: string | null;
+            /**
+             * Occurred At
+             * @description 发生时间（ISO 8601）
+             */
+            occurred_at?: string | null;
+        };
+        /**
          * LockHolderResponse
          * @description 锁的持有者（体验层的全部价值：让人知道「谁在改」）。
          */
@@ -22674,9 +22829,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["LineageGraphResponse"];
                 };
             };
             /** @description Validation Error */
