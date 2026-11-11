@@ -114,11 +114,11 @@ npm run dev                       # 默认 http://localhost:5173
 # 后端（⚠️ 跑之前先起 Redis：ws / broadcaster 系列失败 = 环境未起，不是回归）
 cd pcs-backend
 docker compose up -d redis
-uv run pytest -q                    # baseline 5405 passed / 77 skipped / 1 xfailed
+uv run pytest -q                    # baseline 5626 passed / 77 skipped / 1 xfailed
 uv run ruff check .                 # 0 错为目标
 
 # 前端（pcs-frontend/）
-npm run test                        # baseline 989 tests / 107 files
+npm run test                        # baseline 1046 tests / 115 files
 npm run typecheck                   # = tsc --noEmit，0 错为目标
 npm run lint                        # eslint . --max-warnings 0，0 错为目标
 
@@ -167,15 +167,25 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 | **P9B-2** | **签署流程 + ADMIN 前端**：送审批准链从项目 `RECORD` 矩阵推导（**契约破坏性变更**：`submit-approval` 不再收 `approval_role` / `approval_depth`）+ 交付物级签署写面（签发 / 签署 / 代录）+ 记录操作栏（meta 状态机驱动 + 门禁前置）+ 交付物进度页接聚合端点 + 动作时间线 + ADMIN 用户管理页 + 审计日志筛选与导出 + 交付物工作流进度聚合端点 + 按项目守卫的编辑审计读端点；随后落 minor 批（B~F） | **CLOSED 2026-10-28** |
 | **P9B-2R** | **P9B-2 整批评审的修复批**：11 reviewer + 独立验证（6 confirmed / 2 rejected-as-pre-existing）⇒ 1 P1（审批链**提交时冻结快照** + 每步重断言提交人 + 写路径行锁 · 迁移 `p9_014` × 20 表）+ 建项目三守卫（FORMAL 422 / 重号 409 / 默认矩阵 savepoint 兜底）+ 审计分页决胜列 + `p9_013` 真跑引擎与降级环 + 前端修复组 + A-3 词表合一 + 8 项清理批 | **CLOSED 2026-10-31** |
 | **P9B-2F** | **follow-up 评审的修复批**：复审 8 reviewer + 独立验证（8/8 confirmed）⇒ 17 条 actionable 全修（1 P1 + 12 P2 + 4 P3）—— 行锁**可观测**（方言级 SQL 断言 + 接线断言 · 5 处变异实测）+ 存量行自审防护（从审计流水反推提交人 + 首次触达冻结）+ `sign_status` 词表进契约 + p9_014 表清单守卫 + SPEC V2.5 登记 + 未知 `workflow_type` 降级 + 列表信封契约派生；另批内自审发现并修掉「审计反推取错行」的自造缺陷（bug-2120）。pytest 5405 / vitest 989 / G-08 四阶段全过 / 三库 `p9_014`（每库独立进程 + 直查库）/ 浏览器 QA 0C-0H-0M | **CLOSED 2026-11-02** |
+| **P9B-3** | **系统参数页 + 物流列表页 + 手动创建向导 + 物流详情 7 Tab**：系统参数后端（批量原子 PUT + 审计）与前端页（一次保存 = 一个 PUT）+ 物流列表页（工具栏 / 四项筛选按 AND 组合 / 单条提交校对）+ **物流手动创建向导**（7 步 · 校验阻断 → 写入 DRAFT → 提交校对）+ 物流详情页 7 Tab（含校核记录）+ 组成合计门禁（100±0.5%）+ `streams.source` 列（4 值录入通道 + 迁移 `p9_015`）；整批评审修复（并发提交校对的新鲜读 + 详情页未知状态降级）| **CLOSED 2026-11-03** |
+| **P9B-3b** | **批量「提交校对」**（后端 207 Multi-Status + 前端多选与摘要弹窗）：批次端点 `POST /streams/batch-submit`（D1~D6 语义：去重 / 幂等 / 部分成功 / 预演 / 上限）+ 行锁断言（方言级 + `populate_existing` + PG 车道真并发）+ 前端多选 + 结果摘要（含「本来就在审批中」幂等提示）+ e2e；另修 2 条实现缺陷（**提前返回路径不释放行锁** ⇒ 死锁环 / **失败条目的部分写入泄漏**）+ 整批评审的 7 条 Minor（TODO-121~127）| **CLOSED 2026-11-03** |
+| **P9B-4 紧急批次** | **物流面项目守卫补齐**（TODO-112/114/118）：`strict_client` 测试基建（**不** mock 项目守卫）+ 10 个物流读端点 + 6 个状态转移端点 + 批量端点 + 血缘守卫注册表（`streams` 不再跳过）+ 新增 `GET /streams/{id}/review-log`（**开口子**，非修补）；跨项目一律 **404**（与「不存在」**逐字同形**）| **CLOSED 2026-11-09** |
+| **P9B-4 体验批** | **物流面 UX 与收口**（10 commits · TODO-108/116/132~136）：**停用立即生效**（actor 层判 `users.status` · ADR-0046 §⑤同 commit 改写）+ **工作区归属**（`create_stream` 一律用项目的工作区）+ **血缘按源引用查**（注册表**派生** · 键=类名 · 未知类型 fail-closed · 同形合成 root · 具名 schema）+ **roles 补写**（真实登录**覆盖**）+ **mock 登录双闸**（顺手救回一条**一直绿着的空转部署断言**）+ **「只重试失败项」**（失败清单常驻）+ **「引用 📎×N」**（口径钉死 + 两条聚合）；整支评审 **Critical 0 · Important 3 全闭合**；pytest 5626 / vitest 1046 / G-08 四阶段全过 / PG 车道 5 / 浏览器 QA 0C-0H-0M | **CLOSED 2026-11-11** |
+
 
 ### ⏳ 待启动批次
 
-- **P9B-3（下一条）**：系统参数前端 + 物流手动创建向导 + 校对 UI ——
-  SPEC §7.20 的「AI 开关 / 系统参数 / Prompt 模板 / 角色分配」几页仍未落地
+- **P9B-4 遗留的迁移批**（TODO-143）：两处**缺索引**
+  （`streams.upstream_stream_id` + `data_lineage(source_ref_type, source_ref_id)`
+  ⇒ 列表聚合与血缘 Tab 都是顺序扫描）+ `reference_count` **是否按项目隔离**
+  （口径待裁决）⇒ **要改 `alembic/versions/*`** ⇒ 独立批。
+  另有 TODO-138（`TwoPhaseResult` 无 `project_id` ⇒ 血缘永久 404）、
+  TODO-140（设备引用是否计入 📎×N）、TODO-141（全量测试迁 `strict_client`）、
+  TODO-142（review-log `rowKey` 可能撞）。
+- **P10（总纲）**：运维手册（P10-E）尚未开工 ⇒「**停用立即生效**」这条运维须知
+  登记在案，出手册时必须写进去。
+- **P9B-3 残余**：SPEC §7.20 的「AI 开关 / Prompt 模板 / 角色分配」几页仍未落地
   （TODO-092 同面）。
-  ⚠️ P9B-1 / P9B-2 已闭环（见上表）⇒ **下一轮 ce-code-review 的 scope 须含
-  TODO-100 点名的三处未深审部分**（`test_deliverable_issue.py` + deliveries /
-  record_edits API 改动 + 该批 diff 的其余部分）。
 - **P6-7**（OPEN-P6-6A-6 后续）：glycol dehydration service 4 子模块扩展（reboiler / stripping / full column / lean glycol）+ T9 CONFIG 典型工况范围已就位
 - **OPEN-P6-6A-9.1~9.4**（P6-6B 工程团队接管）：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
 - **OPEN-P6-6A-10**（P6-6B 工程团队接管）：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
