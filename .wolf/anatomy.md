@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-11T10:06:04.121Z
-> Files: 1212 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-11T14:21:20.977Z
+> Files: 1213 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -477,6 +477,10 @@
 
 - `CLOSURE-2026-11-10.md` — ce-code-review 收口报告 —— P9B-4 紧急批次（2026-11-10） (~1086 tok)
 - `README.md` — Project documentation (~603 tok)
+
+## docs/ce-code-review/20261111-181548-7b8a5dca/
+
+- `README.md` — Project documentation (~765 tok)
 
 ## docs/contracts/
 
