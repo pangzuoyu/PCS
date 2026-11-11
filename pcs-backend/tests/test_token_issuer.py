@@ -14,7 +14,8 @@ async def _mk_user(db_session, *, username="alice", roles=None,
     from app.models.project import User
     u = User(user_id=uuid.uuid5(uuid.NAMESPACE_DNS, username),
              username=username, display_name=username,
-             roles=roles or ["DESIGNER"], ad_groups=[], status=status,
+             roles=["DESIGNER"] if roles is None else roles,
+             ad_groups=[], status=status,
              token_version=token_version)
     db_session.add(u)
     await db_session.flush()
@@ -97,3 +98,106 @@ async def test_verify_refresh_tv_accepts_matching_tv(db_session):
     await _mk_user(db_session, username="frank", token_version=3)
     assert await verify_refresh_tv(db_session, username="frank", tv=3) is True
     assert await verify_refresh_tv(db_session, username="frank", tv=2) is False
+
+
+# === T0-E（TODO-134）：真实登录路径补写 `users.roles` ===
+
+
+@pytest.mark.asyncio
+async def test_real_login_fills_roles_of_existing_user(db_session):
+    """⚠️ **已有行 `roles=[]` ⇒ 真实登录必须把它补上**（TODO-134）。
+
+    缺陷形状：`ensure_user_row` 建行 `roles=[]`；真实登录**只在建行时**写 roles
+    ⇒ 先被 seed 建出来、之后才走真实登录的用户 ⇒ `users.roles` **永远是 `[]`**
+    ⇒ 按 `users.roles` 圈人的逻辑（`notification_recipients.py`）**永远选不到他**。
+    """
+    from app.models.project import User
+    from app.services.token_issuer import issue_tokens
+
+    await _mk_user(db_session, username="seeded", roles=[])
+
+    await issue_tokens(
+        session=db_session, username="seeded", role="DESIGNER", persist_user=True
+    )
+
+    row = (
+        await db_session.execute(
+            User.__table__.select()
+            .with_only_columns(User.__table__.c.roles)
+            .where(User.__table__.c.username == "seeded")
+        )
+    ).first()
+    assert row is not None
+    assert row.roles == ["DESIGNER"], f"真实登录没补 roles：{row.roles}"
+
+
+@pytest.mark.asyncio
+async def test_real_login_merges_roles_without_dropping_existing(db_session):
+    """已有角色**不能被冲掉** —— 只**合并**（seed 行可能已带别的角色）。"""
+    from app.models.project import User
+    from app.services.token_issuer import issue_tokens
+
+    await _mk_user(db_session, username="seeded2", roles=["CHECKER"])
+
+    await issue_tokens(
+        session=db_session, username="seeded2", role="DESIGNER", persist_user=True
+    )
+
+    row = (
+        await db_session.execute(
+            User.__table__.select()
+            .with_only_columns(User.__table__.c.roles)
+            .where(User.__table__.c.username == "seeded2")
+        )
+    ).first()
+    assert row is not None
+    assert set(row.roles) == {"CHECKER", "DESIGNER"}, f"合并错了：{row.roles}"
+
+
+@pytest.mark.asyncio
+async def test_real_login_is_idempotent_about_roles(db_session):
+    """重复登录**不重复追加**同一个角色。"""
+    from app.models.project import User
+    from app.services.token_issuer import issue_tokens
+
+    await _mk_user(db_session, username="seeded3", roles=[])
+    for _ in range(2):
+        await issue_tokens(
+            session=db_session, username="seeded3", role="DESIGNER", persist_user=True
+        )
+
+    row = (
+        await db_session.execute(
+            User.__table__.select()
+            .with_only_columns(User.__table__.c.roles)
+            .where(User.__table__.c.username == "seeded3")
+        )
+    ).first()
+    assert row is not None
+    assert row.roles == ["DESIGNER"], f"重复追加了：{row.roles}"
+
+
+@pytest.mark.asyncio
+async def test_mock_login_does_not_touch_roles(db_session):
+    """⚠️ **对照组**：mock 登录**不得**改 `roles`（ADR-0046 §③b）。
+
+    mock 与真实 AD **同名** ⇒ mock 写真实角色 ⇒ 污染同一行 ⇒ **权限污染且不报错**。
+    """
+    from app.models.project import User
+    from app.services.token_issuer import issue_tokens
+
+    await _mk_user(db_session, username="alice", roles=[])
+
+    await issue_tokens(
+        session=db_session, username="alice", role="SYSTEM_ADMIN", persist_user=False
+    )
+
+    row = (
+        await db_session.execute(
+            User.__table__.select()
+            .with_only_columns(User.__table__.c.roles)
+            .where(User.__table__.c.username == "alice")
+        )
+    ).first()
+    assert row is not None
+    assert row.roles == [], f"mock 改了 roles ⇒ 污染真实用户：{row.roles}"
