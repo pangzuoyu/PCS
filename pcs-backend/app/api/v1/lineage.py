@@ -106,6 +106,12 @@ async def downstream(
 
     ⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行
     （`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。
+
+    ⚠️ **`streams` 入口下 `max_depth` 是「下游条数上限」**（1..50，默认 10）
+    —— 本入口**没有遍历可限** ⇒ 用它当条数上限 ⇒ `data_lineage` 只增不删
+    ⇒ 不限则响应随重算次数**无界增长**。**最新的在前**（`occurred_at DESC`）。
+    ⚠️ 与 `/graph` **同口径**（否则两个端点对同一份数据给出不同的上限 ⇒
+    「两个端点互相打脸」）。
     """
     await _guard_record_access(
         session, user, record_type, record_id
@@ -113,7 +119,7 @@ async def downstream(
     if record_type == "streams":
         tracker = LineageTracker(session)
         rows = await tracker.by_source_ref(
-            source_ref_type="Stream", source_ref_id=record_id
+            source_ref_type="Stream", source_ref_id=record_id, limit=max_depth
         )
         return [_serialize(c) for c in rows]
     tracker = LineageTracker(session)

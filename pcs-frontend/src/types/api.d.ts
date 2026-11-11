@@ -1026,6 +1026,12 @@ export interface paths {
          *
          *     ⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行
          *     （`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。
+         *
+         *     ⚠️ **`streams` 入口下 `max_depth` 是「下游条数上限」**（1..50，默认 10）
+         *     —— 本入口**没有遍历可限** ⇒ 用它当条数上限 ⇒ `data_lineage` 只增不删
+         *     ⇒ 不限则响应随重算次数**无界增长**。**最新的在前**（`occurred_at DESC`）。
+         *     ⚠️ 与 `/graph` **同口径**（否则两个端点对同一份数据给出不同的上限 ⇒
+         *     「两个端点互相打脸」）。
          */
         get: operations["downstream_api_v1_lineage__record_type___record_id__downstream_get"];
         put?: never;

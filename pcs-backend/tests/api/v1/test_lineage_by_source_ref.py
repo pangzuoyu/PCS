@@ -268,6 +268,44 @@ async def test_max_depth_caps_the_downstream_rows(
     assert len(r.json()["downstream"]) == 2
 
 
+async def test_downstream_endpoint_also_caps_and_orders(
+    strict_client,
+    make_project,
+    make_stream,
+    make_source_ref_lineage,
+    grant_project,
+    designer_user_id,
+    designer_headers,
+):
+    """⚠️ **`/downstream` 也要封顶**（整批评审复核发现的尾巴）。
+
+    ⚠️ 此前只有 `/graph` 传了 `limit` ⇒ `/downstream` 仍返回**全部**历史重算行
+    ⇒ 两个端点对**同一份数据**给出**不同的上限与顺序**（正是本批 Ruling 要
+    消灭的「两个端点互相打脸」形状）⇒ 且它是个**公开端点**（外部脚本会撞上）。
+    """
+    project = await make_project()
+    await grant_project(designer_user_id, project.project_id, username="lineage-src")
+    stream = await make_stream(project)
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    rows = [
+        await make_source_ref_lineage(
+            stream, occurred_at=base + timedelta(hours=i)
+        )
+        for i in range(5)
+    ]
+
+    r = await strict_client.get(
+        f"/api/v1/lineage/streams/{stream.stream_id}/downstream?max_depth=2",
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    down = r.json()
+    assert len(down) == 2, f"下游没封顶：{len(down)} 条"
+    # ⚠️ **最新的在前**（与 `/graph` 同口径）
+    assert down[0]["lineage_id"] == str(rows[-1].lineage_id)
+
+
 # ---------------------------------------------------------------------------
 # 2. 合成 root（形状 / 确定性 / 语义）
 # ---------------------------------------------------------------------------
