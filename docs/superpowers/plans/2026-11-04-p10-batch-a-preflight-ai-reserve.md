@@ -43,7 +43,7 @@
 | alembic head = **`p9_015`** | `alembic/versions/` 最新 = `p9_015_stream_source.py` ⇒ 本批新迁移 `p10_001`，`down_revision = "p9_015"` |
 | `ai_audit_log` / `document_chunks` **已存在** | `app/models/system.py`：`AiAuditLog`（SUP-006 强制，11 个字段）· `DocumentChunk`（7 个字段，含 `embedding_vector JSONB`）⇒ **本批只给 `ai_audit_log` 加列**，`document_chunks` **不动**（偏离登记 D6） |
 | 无任何 AI 代码 | 无 `app/api/v1/ai/` · 无 `app/core/ai_sanitizer.py` · 无 `app/core/outbound_ai_client.py` · 无 `/health/ai` |
-| 认证依赖是 **`current_actor`**（不是 spec 的 `current_user`） | `app/api/v1/config.py:483` ⇒ 返回 `_Actor`（`user_id` / `username` / `role`）；`roles` 是 `@property` ⇒ 恒为 `[self.role]` |
+| 认证依赖是 **`current_actor`**（不是 spec 的 `current_user`） | `app/api/v1/config.py:484` ⇒ 返回 `_Actor`（`user_id` / `username` / `role`）；`roles` 是 `@property` ⇒ 恒为 `[self.role]`。<br>⚠️ **2026-11-11 起（P9B-4 T0-B）它是 `async` + `Depends(get_db)`** ⇒ ① 直接调用它的代码要 `await`；② **账号状态也在这一层判** ⇒ 停用用户 ⇒ **401 `USER_DISABLED`**（P10-A 的 E2E 账号若被停用 ⇒ 登录/请求会 401） |
 | JWT 验签入口 | `app/core/security.py:115::decode_token(token) -> dict`；`app/api/v1/auth.py:119::_decode_bearer`（抛 `PcsError`）⇒ **中间件里要用 `decode_token` 并捕获异常**（不能抛 `PcsError`，那会变成 401） |
 | 已有 `add_trace_id` 中间件 | `app/main.py:135` ⇒ 生成 `uuid4().hex`（**32 位无连字符**）写 `request.state.trace_id` ⇒ AI 的 `request_id` 要**另生成**标准 UUID 串（偏离登记 D8） |
 | ARQ worker 已注册任务表 + 棘轮 | `app/workers/worker.py::WorkerSettings.functions`；`tests/workers/test_worker_registers_all_enqueued_tasks.py` 断言「入队的 ⊆ 已注册的」⇒ **新任务必须注册** |
@@ -53,7 +53,7 @@
 | Playwright 已装且有 **8 个 spec** + `fixtures.ts::loggedInPage` + `webServer` 起 vite | `pcs-frontend/e2e/`（audit_log / cooling_water / deliverable_sign / energy_summary / record_actions / result_edit_conflict / stream_batch_submit + fixtures）⇒ **10.0(5)「E2E 框架」大部分已有** |
 | E2E 跑在 **MSW mock** 上（不是真后端） | `src/main.tsx`：`if (import.meta.env.DEV)` ⇒ 挂 MSW worker ⇒ SPEC §3.2.2 的 18 个「全流程」场景**跑不了**（要真后端 + 真库）⇒ 需第二个通道 |
 | vite 已把 `/api` 代理到 `localhost:8000` | `pcs-frontend/vite.config.ts` ⇒ 真后端 E2E 只要 MSW 关掉即可复用同一个 dev server |
-| 后端也有 mock 登录 | `app/api/v1/mock_auth.py::POST /auth/mock-login`（非生产可用）⇒ 真后端 E2E 可用它拿 token |
+| 后端也有 mock 登录 —— ⚠️ **现在默认关** | `app/api/v1/mock_auth.py::POST /auth/mock-login` ⇒ 启用条件**双闸**（非生产 **且** `PCS_ENABLE_MOCK_LOGIN=true`）⇒ ⚠️ **P9B-4 T0-F 之后默认关** ⇒ **真后端 E2E 的后端必须显式开这个开关**（否则登录返 **403 `MOCK_DISABLED`**）⇒ 见 T1 起栈命令 + T3 |
 | 已有架构测试目录 | `tests/architecture/` ⇒ 沿用**自定义扫描**做法，**不引入 import-linter**（spec 说「import-linter + 自定义架构测试」⇒ 仓里已有后者） |
 
 ---
@@ -82,6 +82,22 @@
 | `pcs-frontend/src/main.tsx` | 改 · MSW 可关（`VITE_ENABLE_MOCK`） |
 | `pcs-frontend/src/layouts/MainLayout.tsx` | 改 · 顶栏 AI 占位（禁用 + tooltip） |
 | `pcs-frontend/playwright.config.ts` | 改 · 第二个 Playwright 项目（真后端） |
+
+---
+
+## 前置状态更新（2026-11-11 · P9B-4 体验批已闭环）
+
+> P9B-4 体验批（`a5f62c6..3e362ea`）**已落地并推送** ⇒ 本计划（2026-11-04 写的）里有几处
+> **事实前提已变** ⇒ 开工前按本节校准。
+
+| # | 变化 | 对本计划的影响 |
+|---|---|---|
+| 1 | **mock 登录默认关**（`PCS_ENABLE_MOCK_LOGIN`，双闸） | ⚠️ **T1 起栈命令**与 **T3 的真后端 E2E** 都必须带 `PCS_ENABLE_MOCK_LOGIN=true` ⇒ 否则登录 **403 `MOCK_DISABLED`** ⇒ 见下面两处已改的地方 |
+| 2 | **`current_actor` 变 async**（`Depends(get_db)`）+ **账号状态也在这一层判** | T11 的 AI 审计中间件用 `decode_token`（不碰 `current_actor`）⇒ **不受影响**；但 E2E 账号若被停用 ⇒ 后续请求 **401 `USER_DISABLED`** ⇒ 种子数据里**不要**造停用账号当主角 |
+| 3 | **血缘语义变了**（按源引用查 + 合成 root + fail-closed） | T3 的冒烟只验「登录 ⇒ 仪表盘渲染」⇒ **不受影响**；但 **P10-B 的 18 个场景**若断言血缘内容 ⇒ 按**新语义**写（物流的 root 是**合成**的） |
+| 4 | **`users.roles` 由真实登录覆盖写** | T2 的种子数据脚本若造 `users` 行 ⇒ `roles` 写**空数组**即可（与 `ensure_user_row` 同款）⇒ 真实登录会覆盖它 |
+| 5 | **契约加了 `StreamResponse.reference_count`**（默认 0） | T2 的种子数据造物流时 ⇒ 响应里**会带** `reference_count` ⇒ 前端 fixture 若用**手写**类型要补（契约派生则自动跟上） |
+| 6 | 遗留：`reference_count` **未按项目隔离** + 两处**缺索引**（TODO-143） | ⇒ P10-D 压测要多两个观测点（见总纲 §二）⇒ **不阻塞本批** |
 
 ---
 
@@ -201,7 +217,8 @@ Expected: `postgres-pgtest` 在跑（`--profile test` 就能起它，不需再�
 
     docker compose --profile test up -d
     docker compose --profile test run --rm seed
-    # 后端：cd pcs-backend && uv run uvicorn app.main:app --port 8000
+    # ⚠️ 后端：mock 登录**默认关**（P9B-4 T0-F 的双闸）⇒ 真后端 E2E 要显式开：
+    #    cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000
     # 真后端 E2E：cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend
 ```
 
@@ -234,6 +251,10 @@ git commit -F <msgfile>   # 首行: chore(P10-A): compose 加 seed 一次性服�
     ⇒ ⚠️ `role_in_project` 的合法值是 6 个项目内角色
     （`DESIGNER` / `CHECKER` / `APPROVER` / `REVIEWER` / `VIEWER` / `PROJECT_LEAD`）
     ⇒ 种子用 **`DESIGNER`**（审查 S3）
+  - ⚠️ **`User.roles` 写**空数组**`[]`**（P9B-4 T0-E 之后）—— 与
+    `ensure_user_row` **同款** ⇒ 真实登录会**覆盖**它（不是合并）⇒
+    种子**不要**预置角色（预置了也会被真实登录冲掉 ⇒ 白写）。
+    ⚠️ `roles` **不影响鉴权**（ACL 的权威是 JWT 的 role claim）⇒ 空数组安全。
   - ⚠️ **`Workspace` 也要建**（审查 C2）：`Project.workspace_id` 是 **`nullable=False`**
     ⇒ 没有工作区就建不出项目 ⇒ 种子必须造
     `Workspace(workspace_id=<固定 UUID>, workspace_type="FORMAL", name="E2E Workspace", status="ACTIVE")`
@@ -314,6 +335,8 @@ test('@real-backend 真后端通道：登录 ⇒ 仪表盘渲染 ⇒ 无控制�
 
 Run: `cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test e2e/real_backend_smoke.spec.ts`
 Expected: FAIL —— MSW 仍被挂上（请求被 mock 拦截）或 `realPage` fixture 不存在
+⚠️ **后端必须在跑且带 `PCS_ENABLE_MOCK_LOGIN=true`**（mock 登录默认关 ⇒ 不带就
+403 `MOCK_DISABLED` ⇒ 失败原因会被**掩盖**成「登录失败」）
 
 - [ ] **Step 3: 实现 MSW 开关**
 
@@ -361,8 +384,14 @@ export async function gotoViaMenu(page: Page, menuName: string): Promise<void> {
 
 ⚠️ **`realPage` 的登录机制 = 走 UI**（不是调 API 塞 token）：
 `goto('/login')` → 点「登 录」⇒ 前端 LoginPage 调 `POST /auth/mock-login`
-⇒ MSW 关掉后这个请求**打到真后端**（后端的 mock 登录在非生产环境可用）⇒
-拿到**真 token** ⇒ 写进 zustand 内存态 store。
+⇒ MSW 关掉后这个请求**打到真后端** ⇒ 拿到**真 token** ⇒ 写进 zustand 内存态 store。
+
+⚠️⚠️ **mock 登录现在默认关**（P9B-4 T0-F · 2026-11-11）⇒ 启用条件**双闸**：
+① 非生产 **且** ② `PCS_ENABLE_MOCK_LOGIN=true` ⇒ **后端不起这个开关 ⇒
+登录返 403 `MOCK_DISABLED`** ⇒ **真后端 E2E 必挂** ⇒
+⇒ 起后端时必须带：`PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000`
+（见 T1 Step 6 写进 README 的那段命令）。
+⇒ ⚠️ 这条**只在 `ENV=production` 时是安全阀**；dev/test 环境**显式 opt-in** 才是常态。
 
 ⚠️ **不用填凭据**（审查 C3 · 已核实）：
 - 后端 `MockLoginRequest` **只有 `username` 一个字段**（`password` 根本不校验），
@@ -378,7 +407,7 @@ export async function gotoViaMenu(page: Page, menuName: string): Promise<void> {
 
 Run: `cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend`
 Expected: PASS（**且报告里显示跑了 1 个测试** —— ⚠️ 若显示「0 passed」说明 grep 没匹配上 ⇒ 标题漏了 tag）
-⚠️ 需后端在 :8000 跑着 + 种子数据已灌（见 T1 的起栈命令）
+⚠️ 需后端在 :8000 跑着（**带 `PCS_ENABLE_MOCK_LOGIN=true`**）+ 种子数据已灌（见 T1 的起栈命令）
 
 - [ ] **Step 6: 提交**
 
