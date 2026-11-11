@@ -31,7 +31,8 @@ import { Alert, Button, Modal, Select, Space, Table, Tag, Typography } from 'ant
 
 import { NumericCell } from '../../components/common/NumericCell';
 import { StateBadgeBoundary } from '../../components/common/StateBadgeBoundary';
-import { streamApi, type StreamBatchSubmitResponse, type StreamListFilters } from '../../api/stream';
+import { streamApi, type StreamListFilters } from '../../api/stream';
+import { useStreamBatchSubmit } from './hooks/useStreamBatchSubmit';
 import { describePcsError } from '../../api/errors';
 import { downloadCsv, toCsv } from '../../lib/csv';
 import { PROJECT_ID } from '../../constants/env';
@@ -63,12 +64,8 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   /** 行多选（批量提交校对的输入）。 */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  /** 批量提交的结果摘要（成功 N / 失败 M）。 */
-  const [batchResult, setBatchResult] = useState<StreamBatchSubmitResponse | null>(null);
   /** 批量提交**本身**失败（网络/超限/403）⇒ 顶部错误条。 */
   const [batchError, setBatchError] = useState<string | null>(null);
-  /** 批量提交进行中（禁用按钮，防重复提交）。 */
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -88,6 +85,14 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * 批次「提交校对」的状态持有者（P9B-4 · TODO-116）。
+   *
+   * ⚠️ **失败清单在 hook 里**（不是组件局部 state）⇒ 关闭摘要弹窗**不清**它
+   * ⇒ 用户可以「只重试失败项」，不必回列表逐条找。
+   */
+  const batch = useStreamBatchSubmit({ onDone: load });
 
   /** 改一项筛选 ⇒ **重新请求后端**（AND 组合）。 */
   function setFilter<K extends keyof StreamListFilters>(key: K, value: StreamListFilters[K]): void {
@@ -123,21 +128,25 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
   /** 工具栏：批量提交校对（一次请求 N 条 ⇒ 后端逐条处理、部分成功）。 */
   async function submitBatch(): Promise<void> {
     setBatchError(null);
-    setBatchSubmitting(true);
     try {
-      const result = await streamApi.batchSubmitForReview(selectedIds);
-      setBatchResult(result);
+      // ⚠️ hook 负责状态（结果摘要 + **失败清单** + 刷新列表）
+      await batch.submit(selectedIds);
       setSelectedIds([]);
-      // ⚠️ 重新拉列表（后端返回的最新态才是真相；成功项的状态已变）
-      await load();
     } catch (err) {
       // ⚠️ 207 不会进这里 ⇒ 走到这里的是**整批**失败（超限 / 403 / 网络）
-      setBatchResult(null);
       // ⚠️ 403 ⇒ 「无权**提交**」（不是「无权查看」—— 批量提交是**写**操作，
-      //    用户刚才在提交，不是��看 ⇒ TODO-127）。
+      //    用户刚才在提交，不是查看 ⇒ TODO-127）。
       setBatchError(describePcsError(err, '批量提交校对失败', '无权提交'));
-    } finally {
-      setBatchSubmitting(false);
+    }
+  }
+
+  /** 「只重试失败项」—— 复用 hook 的同一份状态（别写第二套）。 */
+  async function retryFailedItems(): Promise<void> {
+    setBatchError(null);
+    try {
+      await batch.retryFailed();
+    } catch (err) {
+      setBatchError(describePcsError(err, '重试失败项失败', '无权提交'));
     }
   }
   /** 行操作：发起变更（CHECKED → CHANGE_PENDING）。 */
@@ -294,11 +303,42 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
         <Button
           data-testid="stream-batch-submit"
           onClick={submitBatch}
-          disabled={selectedIds.length === 0 || batchSubmitting}
+          disabled={selectedIds.length === 0 || batch.submitting}
         >
           批量提交校对
         </Button>
       </Space>
+
+      {/* ⚠️ **失败清单条**（P9B-4 · TODO-116）：工具栏**下方**、摘要弹窗**之外**
+          ⇒ 关闭弹窗**不清**失败清单 ⇒ 用户能「只重试失败项」。 */}
+      {batch.failedIds.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          data-testid="stream-batch-failure-bar"
+          style={{ marginBottom: 12 }}
+          message={`上次批量提交校对：失败 ${batch.failedIds.length} 条`}
+          description={
+            <Space direction="vertical" size={4}>
+              <Typography.Text type="secondary">
+                ⚠️ 刷新页面会丢失这份清单，请先记录需要重试的条目。
+              </Typography.Text>
+              <Space>
+                <Button
+                  data-testid="stream-batch-retry-failed"
+                  onClick={() => void retryFailedItems()}
+                  disabled={batch.submitting}
+                >
+                  只重试失败项
+                </Button>
+                <Button data-testid="stream-batch-clear-failures" onClick={batch.clearFailures}>
+                  清除
+                </Button>
+              </Space>
+            </Space>
+          }
+        />
+      )}
 
       {/* 筛选：工况 / 相态 / 状态 / 来源 —— 随选择**重新请求后端**（AND 组合）*/}
       <Space style={{ marginBottom: 12 }} wrap>
@@ -388,16 +428,31 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
         })}
       />
 
-      {batchResult && (
+      {batch.result && (
         <Modal
           open
           title="批量提交校对结果"
-          onCancel={() => setBatchResult(null)}
-          footer={<Button onClick={() => setBatchResult(null)}>关闭</Button>}
+          onCancel={batch.dismissResult}
+          footer={
+            <Space>
+              {batch.failedIds.length > 0 && (
+                <Button
+                  data-testid="stream-batch-retry-failed-in-modal"
+                  onClick={() => void retryFailedItems()}
+                  disabled={batch.submitting}
+                >
+                  只重试失败项
+                </Button>
+              )}
+              <Button data-testid="stream-batch-close" onClick={batch.dismissResult}>
+                关闭
+              </Button>
+            </Space>
+          }
         >
           <div data-testid="stream-batch-summary">
-            成功 {batchResult.succeeded.length} · 失败 {batchResult.failed.length}
-            {batchResult.dry_run ? '（预演：未改状态）' : ''}
+            成功 {batch.result.succeeded.length} · 失败 {batch.result.failed.length}
+            {batch.result.dry_run ? '（预演：未改状态）' : ''}
           </div>
           {/*
            * ⚠️ **区分「真提交」与「幂等命中」**（TODO-124）：契约的 `note`
@@ -406,44 +461,43 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
            *   ⇒ 用户以为提交了 N 条。
            * ⇒ 补一行如实说明「其中 M 条本来就在审批中」。
            */}
-          {batchResult.succeeded.some((item) => item.note === 'already_in_approval') && (
+          {batch.result.succeeded.some((item) => item.note === 'already_in_approval') && (
             <Typography.Text
               type="secondary"
               data-testid="stream-batch-idempotent-hint"
               style={{ display: 'block' }}
             >
-              其中 {batchResult.succeeded.filter((item) => item.note === 'already_in_approval').length}{' '}
+              其中 {batch.result.succeeded.filter((item) => item.note === 'already_in_approval').length}{' '}
               条本来就在审批中（幂等命中 · 本次**未**提交）。
             </Typography.Text>
           )}
-          {batchResult.warning && (
+          {batch.result.warning && (
             <Alert
               type="warning"
               showIcon
-              message={batchResult.warning}
+              message={batch.result.warning}
               data-testid="stream-batch-warning"
               style={{ marginBottom: 8 }}
             />
           )}
-          {batchResult.failed.length > 0 && (
+          {batch.result.failed.length > 0 && (
             <>
               <ul data-testid="stream-batch-failures">
-                {batchResult.failed.map((f) => (
+                {batch.result.failed.map((f) => (
                   <li key={f.stream_id} data-testid={`stream-batch-failure-${f.stream_id}`}>
                     {f.stream_id}：{f.reason}
                     {f.detail ? `（${f.detail}）` : ''}
                   </li>
                 ))}
               </ul>
-              {/* ⚠️ **关闭提示**（委员会 2026-11-03 · D8 裁决的「本批必做」）：
-                  TODO-116（一键重试失败项）本批**不做** ⇒ 失败清单关闭即丢
-                  （`batchResult` 是组件局部 state）⇒ 至少要让用户**知道**
-                  这个缺口，而不是默默丢数据。成本 = 一行文案。 */}
+              {/* ⚠️ **关闭提示**（P9B-4 · TODO-116 落地后改写）：
+                  失败清单**不再**随弹窗关闭而丢 ⇒ 提示改成「关掉也能重试」。
+                  ⚠️ `data-testid` **保持不变**（既有测试断言它 ⇒ 改文案别改 testid）。 */}
               <Typography.Text
                 type="secondary"
                 data-testid="stream-batch-close-hint"
               >
-                ⚠️ 关闭后失败清单将不再显示；如需重试失败项，请先记录它们。
+                关闭弹窗后仍可用上方「只重试失败项」重试这 {batch.result.failed.length} 条。
               </Typography.Text>
             </>
           )}

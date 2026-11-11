@@ -384,10 +384,119 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
     // ⚠️ 每条失败**带原因**（用户要知道为什么失败）
     const failures = screen.getByTestId('stream-batch-failures').textContent ?? '';
     expect(failures).toContain('SIM_STREAM_COMPOSITION_OUT_OF_RANGE');
-    // ⚠️ **关闭提示**（D8 裁决的「本批必做」）：失败清单关闭即丢 ⇒ 必须告知用户
+    // ⚠️ **关闭提示**（P9B-4 · TODO-116 落地后改写）：失败清单**不再**随弹窗关闭
+    //    而丢 ⇒ 提示改成「关掉也能重试」。
     expect(screen.getByTestId('stream-batch-close-hint').textContent).toContain(
-      '关闭后失败清单将不再显示',
+      '关闭弹窗后仍可用上方「只重试失败项」重试这 1 条',
     );
+  });
+
+  it('⚠️ 批量部分失败 ⇒ 关闭弹窗后仍能「只重试失败项」（TODO-116）', async () => {
+    // ⚠️ 这是 TODO-116 的核心：失败清单**不随弹窗关闭而丢** ⇒ 用户能一键重试。
+    const sent: string[][] = [];
+    server.use(
+      http.post('/api/v1/streams/batch-submit', async ({ request }) => {
+        const body = (await request.json()) as { stream_ids: string[] };
+        sent.push(body.stream_ids);
+        return HttpResponse.json(
+          {
+            batch_id: 'b-retry',
+            total: body.stream_ids.length,
+            succeeded: [
+              {
+                status: 'succeeded',
+                stream_id: body.stream_ids[0],
+                from_status: 'DRAFT',
+                to_status: 'IN_APPROVAL',
+                note: null,
+              },
+            ],
+            failed: [
+              {
+                status: 'failed',
+                stream_id: body.stream_ids[1] ?? 's-2',
+                reason: 'SIM_STREAM_COMPOSITION_OUT_OF_RANGE',
+                detail: '组成摩尔分率合计 98.70%，不在 100±0.5% 内',
+              },
+            ],
+            dry_run: false,
+            warning: null,
+          },
+          { status: 207 },
+        );
+      }),
+    );
+    rows = [makeStream(), makeStream({ stream_id: 's-2', stream_name: '塔顶气' })];
+    renderPage();
+    await waitFor(() => expect(screen.getAllByTestId('stream-row').length).toBe(2));
+
+    const headerCheckbox = document.querySelector(
+      '.ant-table-selection-column .ant-checkbox-input',
+    ) as HTMLInputElement;
+    fireEvent.click(headerCheckbox);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+    await waitFor(() => expect(screen.getByTestId('stream-batch-summary')).toBeTruthy());
+
+    // ⚠️ 关闭弹窗
+    fireEvent.click(screen.getByTestId('stream-batch-close'));
+
+    // ⚠️ **失败清单条仍在**（不在弹窗里）
+    await waitFor(() => expect(screen.getByTestId('stream-batch-failure-bar')).toBeTruthy());
+    expect(screen.getByTestId('stream-batch-failure-bar').textContent).toContain('失败 1 条');
+
+    // ⚠️ 点「只重试失败项」⇒ **只发失败的那条**
+    fireEvent.click(screen.getByTestId('stream-batch-retry-failed'));
+    await waitFor(() => expect(sent.length).toBe(2));
+    expect(sent[0]).toHaveLength(2);
+    expect(sent[1]).toEqual(['s-2']);
+  });
+
+  it('失败清单条可「清除」', async () => {
+    server.use(
+      http.post('/api/v1/streams/batch-submit', async ({ request }) => {
+        const body = (await request.json()) as { stream_ids: string[] };
+        return HttpResponse.json(
+          {
+            batch_id: 'b-clear',
+            total: body.stream_ids.length,
+            succeeded: [],
+            failed: [
+              {
+                status: 'failed',
+                stream_id: body.stream_ids[0] ?? 's-1',
+                reason: 'SIM_STREAM_COMPOSITION_OUT_OF_RANGE',
+                detail: null,
+              },
+            ],
+            dry_run: false,
+            warning: null,
+          },
+          { status: 207 },
+        );
+      }),
+    );
+    rows = [makeStream()];
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+
+    const cbs = document.querySelectorAll(
+      '.ant-table-selection-column input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+    fireEvent.click(cbs[1]!);
+    await waitFor(() =>
+      expect(screen.getByTestId('stream-batch-submit')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('stream-batch-submit'));
+    await waitFor(() => expect(screen.getByTestId('stream-batch-summary')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('stream-batch-close'));
+
+    await waitFor(() => expect(screen.getByTestId('stream-batch-failure-bar')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('stream-batch-clear-failures'));
+    // ⚠️ 清单条**消失**
+    await waitFor(() => expect(screen.queryByTestId('stream-batch-failure-bar')).toBeNull());
   });
 
   it('⚠️ 403 ⇒ 文案说「无权**提交**」（不是「无权查看」）', async () => {
