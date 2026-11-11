@@ -1,0 +1,61 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "New USER_DISABLED 401 never ends the frontend session",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/config.py",
+      "line": 565,
+      "why_it_matters": "T0-B's whole point is that a disabled account's in-hand access token dies on the very next request. The backend now answers 401 USER_DISABLED, but the only consumer (pcs-frontend/src/api/client.ts) clears the session and redirects to /login ONLY for SESSION_OVER_CODES (MISSING_BEARER / INVALID_TOKEN / EXPIRED_TOKEN / WRONG_TOKEN_TYPE / INVALID_REFRESH / EXPIRED_REFRESH). USER_DISABLED is not in that set, and the string 'USER_DISABLED' does not occur anywhere in pcs-frontend/src (only as an admin audit-action name in api.d.ts / mocks). Consequence: the disabled user stays on the page with a dead session — every subsequent request 401s, the pages show generic messages ('加载物流列表失败'), and nothing routes them to /login; the UI looks broken rather than 'your account was disabled'. SPEC §7.1 (revision V2.12, added by this very batch) states the required behavior verbatim: '⇒ 前端按**普通 401** 处理（跳登录页）' — that clause is unimplemented, and SPEC is the project's frozen UI contract (仓库根 CLAUDE.md: 前端所有 UI 以 docs/PCS-UI-SPEC.md 为唯一编码依据). The new error code is therefore announced on the server side but not consumed on the client side.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/config.py:563-568 — `    if await is_account_disabled(db, user_id=user_id):` / `        raise PcsError(` / `            code=\"USER_DISABLED\",` / `            message=f\"user account is disabled: {sub}\",` / `            status=401,` / `        )`",
+        "pcs-frontend/src/api/client.ts:24-31 — `const SESSION_OVER_CODES = new Set([` / `  'MISSING_BEARER',` / `  'INVALID_TOKEN',` / `  'EXPIRED_TOKEN',` / `  'WRONG_TOKEN_TYPE',` / `  'INVALID_REFRESH',` / `  'EXPIRED_REFRESH',` / `]);`  ← no 'USER_DISABLED'",
+        "pcs-frontend/src/api/client.ts:36-44 — `    if (err.response?.status === 401) {` / `      const code = (err.response.data as { code?: string } | undefined)?.code;` / `      // ⚠️ **没有 code** ⇒ 不知道是什么 401 ⇒ 按会话过期处理（旧行为）` / `      if (!code || SESSION_OVER_CODES.has(code)) {` / `        useAuth.getState().clearSession();` / `        if (window.location.pathname !== '/login') {` / `          window.location.href = '/login';` / `        }` / `      }`",
+        "docs/PCS-UI-SPEC.md:1199-1202 — `⚠️ **停用用户的会话**（P9B-4 T0-B 之后）：用户被**停用**（`users.status =` / `DISABLED`）⇒ 其**在手 access token 立即失效** ⇒ **下一次请求**返回` / `**401 `USER_DISABLED`**（不需要等 token 过期，也不需要等 refresh）。` / `⇒ 前端按**普通 401** 处理（跳登录页）。`",
+        "grep -rn 'USER_DISABLED' pcs-frontend/src ⇒ 0 hits in application code (only `pcs-frontend/src/types/api.d.ts:180` describing the admin audit action and `pcs-frontend/src/mocks/handlers.ts:224` mock audit data); pcs-frontend/src/api/client.ts is not in the batch's changed-file list (files.txt) ⇒ the consumer was not updated for the new code."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Add 'USER_DISABLED' to SESSION_OVER_CODES in pcs-frontend/src/api/client.ts:24-31 so the 401 clears the session and redirects to /login exactly as SPEC §7.1 requires (one-line change; 'REFRESH_REVOKED' can be added at the same time — the ADR-0046 §⑤ tv gate produces it on the refresh path and it is likewise absent from the set, which is pre-existing but same-shaped). Assumption: the SPEC clause ('跳登录页') is the intended behavior because it is the only place the requirement is written; if the product instead wants a dedicated '账号已停用' message on the current page, amend SPEC §7.1 instead — the two must agree either way. Also consider surfacing the reason on the login page (pass the code through clearSession) so the user learns why."
+    },
+    {
+      "title": "Same lineage row serialized two ways across sibling endpoints",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 45,
+      "why_it_matters": "Only /graph moved to the named schema; /upstream and /downstream still declare response_model=list[dict], so one DataLineage row crosses two different serializers. (a) Timestamp representation: /graph now round-trips occurred_at through pydantic (datetime → '2026-09-15T14:00:00Z'), while /upstream and /downstream keep _serialize's raw isoformat ('2026-09-15T14:00:00+00:00') — verified against the repo's own pydantic 2.13.5. The same row therefore reports two different timestamp strings depending on the endpoint, and /graph's string changed relative to its pre-diff raw-dict response (a visible, undocumented value change on an existing endpoint that external scripts consume — the batch's own test comment calls /downstream 'a public endpoint (external scripts will hit it)'). (b) Silent field loss: LineageGraphResponse ignores unknown keys, so any field later added to _serialize (e.g. actor_ai_agent_id / record_hash_at_track, which exist on the model) appears on /upstream and /downstream but vanishes from /graph with no error — precisely the silent divergence this batch set out to remove by introducing the named schema. The frontend's contract-derived LineageNode type is only guaranteed for /graph.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:45 — `@router.get(\"/{record_type}/{record_id}/upstream\", response_model=list[dict])`",
+        "pcs-backend/app/api/v1/lineage.py:84 — `@router.get(\"/{record_type}/{record_id}/downstream\", response_model=list[dict])`",
+        "pcs-backend/app/api/v1/lineage.py:133 — `@router.get(\"/{record_type}/{record_id}/graph\", response_model=LineageGraphResponse)`",
+        "pcs-backend/app/api/v1/lineage.py:196 — `        \"occurred_at\": lineage.occurred_at.isoformat() if lineage.occurred_at else None,`",
+        "pcs-backend/app/schemas/lineage.py:87 — `    occurred_at: datetime | None = Field(None, description=\"发生时间（ISO 8601）\")`",
+        "Measured with the repo's own environment (pcs-backend/.venv, pydantic 2.13.5, fastapi 0.141.1): `datetime(2026,9,15,14,0,0,tzinfo=timezone.utc).isoformat()` → '2026-09-15T14:00:00+00:00' whereas a pydantic model with field `t: datetime | None` serializes to '{\"t\":\"2026-09-15T14:00:00Z\"}' ⇒ the /graph representation differs from the /upstream|/downstream representation."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Give all three lineage endpoints one node schema: change /upstream and /downstream to `response_model=list[LineageNode]` (import LineageNode next to LineageGraphResponse in app/api/v1/lineage.py) so every row crosses the same response model — that removes both the dual representation and the silent-drop hazard (a field added to _serialize must be added to LineageNode, and it then survives on all three endpoints). Note this changes the timestamp string on /upstream and /downstream from '+00:00' to 'Z'; that is the intended convergence. If byte-identical timestamps to the old raw output must be preserved, type occurred_at as `str | None` in LineageNode instead of `datetime` so the schema stops re-formatting the value."
+    }
+  ],
+  "residual_risks": [
+    "reference_count is a public field on StreamResponse but is only computed by the project stream list endpoint; GET/PATCH /streams/{id} answer 0. '0' therefore means both 'no references' and 'not computed' — the OpenAPI description ('下游物流数 + 闪蒸结果数') does not say the field is only populated by the list endpoint, so an external API consumer reading the contract would trust a wrong number. Registered as a known limitation in the batch context (frontend uses the field only on the list page), so reported as a residual risk rather than a finding; a discriminating shape (e.g. nullable reference_count, or computing it in the single-stream endpoint too) would remove the ambiguity.",
+    "CreateStreamRequest.workspace_id is now accepted and silently dropped (the endpoint forces project.workspace_id). The change is announced (OpenAPI deprecated:true + description) and the frontend never sends the field, but an external client that deliberately targeted another workspace receives no error and lands in the project's workspace instead — there is no 409/422 telling the caller its value was ignored.",
+    "The mock-login double gate (PCS_ENABLE_MOCK_LOGIN, default off) turns POST /auth/mock-login into 403 MOCK_DISABLED in every environment that does not set the flag. It is documented in pcs-backend/.env.example and self-announcing in the error message, and the local pcs-backend/.env sets it, but the flag is absent from docker-compose.yml and .github/workflows — any deployment or CI environment relying on mock login must add it explicitly.",
+    "The frontend's SESSION_OVER_CODES set also lacks 'REFRESH_REVOKED', which the ADR-0046 §⑤ token_version gate can return from POST /auth/refresh. Pre-existing (that code path predates this batch) but same shape as the USER_DISABLED gap: the client will not clear the session on that 401 either.",
+    "For record_type='streams', /upstream answers 200 + [] while /graph and /downstream answer data or 404 — the 'no upstream rows' vs 'not found' distinction is deliberate and documented in the endpoint docstrings, but the three endpoints still answer three different status/shape combinations for the same record family, so a client must special-case streams.",
+    "The MSW lineage mock always returns a synthetic root (source 'MANUAL', change_summary '物流本身（合成根节点）') regardless of the requested record_type, while the backend returns a real lineage row (source 'CALC') for non-streams record types. The shape matches the contract (ajv-checked), but the semantics only match the backend for record_type='streams'.",
+    "Callsite coverage for this review was grep-only (no symbol-aware search available in this harness); the 'no other consumer of current_actor / USER_DISABLED' claims rest on text search over pcs-backend/app, pcs-backend/tests and pcs-frontend/src, and would miss dynamic dispatch or external clients of the public HTTP API."
+  ],
+  "testing_gaps": [
+    "No test covers the frontend 401 handling for the new USER_DISABLED code: the axios interceptor's session-clearing/redirect branch is only exercised (if at all) for SESSION_OVER_CODES. A test asserting 'a 401 USER_DISABLED response clears the session and lands on /login' would pin SPEC §7.1's requirement.",
+    "No backend test asserts that the three lineage endpoints return the same representation for the same row — e.g. comparing the /graph node body against the /downstream node body for the same lineage_id (occurred_at string form included) would have caught the '+00:00' vs 'Z' divergence.",
+    "No test asserts that a field added to _serialize survives the LineageGraphResponse response model (i.e. that the named schema and the serializer stay in sync); the existing 'synthetic root has same shape as real root' test compares _serialize's dict to _serialize's dict, not to the validated response body, so a schema/serializer drift would pass it.",
+    "No test covers the mock-login double gate from a deployment angle (e.g. 'an app booted without PCS_ENABLE_MOCK_LOGIN answers 403 MOCK_DISABLED on /auth/mock-login while the route is still mounted and advertised in OpenAPI')."
+  ]
+}

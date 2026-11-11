@@ -1,0 +1,134 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Disabled user's browser session never ends (USER_DISABLED not session-ending)",
+      "severity": "P1",
+      "file": "pcs-frontend/src/api/client.ts",
+      "line": 39,
+      "why_it_matters": "T0-B's whole promise is that a disabled user is cut off immediately. The backend half works (401 USER_DISABLED at the actor layer), but the frontend's 401 interceptor only ends the session for a hard-coded set of codes. USER_DISABLED is not in that set, so the interceptor rejects the promise without clearing the session or redirecting. The disabled user stays on the page, still rendered as authenticated with the old role, and every subsequent action fails with an opaque error. UI-SPEC §7.1 (V2.12, written by this same batch) explicitly states the frontend must treat it as an ordinary 401 and jump to the login page - the implementation does neither, so the batch documents a behavior it does not ship.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/api/client.ts:39 - `      if (!code || SESSION_OVER_CODES.has(code)) {` (the set at lines 24-31 contains MISSING_BEARER / INVALID_TOKEN / EXPIRED_TOKEN / WRONG_TOKEN_TYPE / INVALID_REFRESH / EXPIRED_REFRESH only - no USER_DISABLED, no REFRESH_REVOKED)",
+        "Trigger: admin disables user X (PUT /admin/users/{id}/disable -> users.status = DISABLED); user X still holds an unexpired access token in the browser. Path: any API call -> current_actor -> is_account_disabled() -> True -> PcsError(code=\"USER_DISABLED\", status=401) -> axios response interceptor -> status 401, body.code = \"USER_DISABLED\" -> `!code` is False and SESSION_OVER_CODES.has(\"USER_DISABLED\") is False -> clearSession() and the /login redirect are both skipped -> the promise is rejected to the caller as an ordinary error. Outcome: the UI keeps the stale token, keeps showing the disabled user as signed in with their old role, and every page action fails; the user is never told the account was disabled.",
+        "pcs-backend/app/api/v1/config.py:95-100 (new in this diff) - `    if await is_account_disabled(db, user_id=user_id):` / `            code=\"USER_DISABLED\",` - this is the new error code the frontend must learn.",
+        "docs/PCS-UI-SPEC.md:1201 - `=> 前端按**普通 401** 处理（跳登录页）。` (SPEC V2.12 row 4345 repeats it) - the specification written by this batch promises the jump-to-login that the interceptor does not perform."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Add 'USER_DISABLED' (and, while there, 'REFRESH_REVOKED') to SESSION_OVER_CODES in pcs-frontend/src/api/client.ts so the interceptor clears the session and redirects to /login; optionally surface a distinct '账号已停用' message before redirecting so the user learns why. Then add a frontend test that a 401 with code USER_DISABLED clears the session (the interceptor is currently untested for any code outside the set)."
+    },
+    {
+      "title": "Fail-closed lineage guard makes PSV lineage permanently 404",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/lineage_registry.py",
+      "line": 57,
+      "why_it_matters": "T0-D turned the lineage guard fail-closed: any record_type that is not in the guard registry now returns 404 instead of falling through. The registry is derived from RECORD_TYPE_REGISTRY, but that registry does not contain PsvResult - yet PsvResult is exactly one of the models that writes lineage rows (finalize_calc_record in psv_persist). Before this diff the guard skipped unregistered types, so GET /lineage/PsvResult/{id}/graph resolved the real lineage; after it, the same request is a hard 404 for every PSV record. The 'derivation' therefore inherits a pre-existing gap in RECORD_TYPE_REGISTRY and turns it from 'works' into 'permanently unavailable', and nothing in the diff or the tests notices.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY.",
+        "pcs-backend/app/services/calc_lineage.py:84 - `RECORD_TYPE_REGISTRY: dict[str, type] = {` - the 21 keys are PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, ProjectCalculationStandardProfile, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult - `grep -n PsvResult app/services/calc_lineage.py` returns 0 hits, so PsvResult is NOT a registry member and therefore NOT a guard key.",
+        "pcs-backend/app/services/psv/psv_persist.py:444 - `    await finalize_calc_record(` - PSV persists a PsvResult through finalize_calc_record, and LineageTracker.track writes `record_type=record.__class__.__name__` (app/services/lineage.py:109) => real data_lineage rows exist with record_type='PsvResult'.",
+        "pcs-backend/app/api/v1/lineage.py:244-247 - `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）` / `        raise HTTPException(404, \"no lineage for record\")` - trigger: GET /api/v1/lineage/PsvResult/{psv_id}/graph; path: entry lookup misses -> 404 before any lineage query; outcome: previously this request returned the real lineage graph (the old guard did `return` for unregistered types), now it is a permanent 404 for a record type that has lineage rows in the database."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Register every lineage-writable model in the guard map instead of inheriting RECORD_TYPE_REGISTRY blindly: add `LINEAGE_GUARDED_RECORD_TYPES[\"PsvResult\"] = (PsvResult, \"psv_id\")` next to the explicit \"streams\" entry (line 66), and add a test that walks the models passed to finalize_calc_record (cia_engine.track as well) asserting each class name has a guard entry - otherwise the next model added to a persist service silently loses its lineage view."
+    },
+    {
+      "title": "WebSocket keeps pushing to a user disabled after handshake",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/ws.py",
+      "line": 78,
+      "why_it_matters": "T0-B's stated outcome is '停用立即生效' (deactivation takes effect immediately). For HTTP that holds because every request re-reads users.status. The notification WebSocket is a long-lived channel whose credential check happens exactly once, at handshake: a user who connects, is then disabled, keeps receiving every notification pushed to them until the socket closes - which is never on its own. So the account-status gate is effective on HTTP and ineffective on the one channel that keeps working after the account is switched off, and the docs claim a single global rule ('每请求查一次 users.status ⇒ 停用立即生效') without carving this out.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/ws.py:78 - `        actor = await current_actor(session, authorization)` - the only account-status evaluation for this channel, executed once inside `_authenticate` before the socket is accepted.",
+        "pcs-backend/app/api/v1/ws.py:100 - `    await websocket.accept()` - after the handshake the socket stays open and the registry keeps delivering messages to it; there is no later status evaluation on the delivery path.",
+        "Trigger: user X opens /api/v1/ws/notifications while ACTIVE; an admin then calls PUT /admin/users/{id}/disable (users.status -> DISABLED, token_version += 1). Path: the already-open socket is unaffected by both changes - the status check is not re-run and the token is never re-validated. Outcome: notifications for the disabled account keep being delivered over the established channel, while the same account's HTTP calls now return 401 USER_DISABLED - the two halves of '停用立即生效' disagree.",
+        "pcs-backend/app/services/user_status_service.py:22-24 - `⇒ 每请求在 **actor 层**查一次 ⇒ 停用**立即生效**。` - the module docstring states the guarantee without qualifying that a WebSocket handshake is not a per-request check."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Re-evaluate the account state on the WebSocket delivery path, or close the socket when the account is disabled. Minimal concrete option: in the ws sink, before send_json, call is_account_disabled(session, user_id=...) with a short TTL cache (e.g. 5-10s) and close with code 1008 when disabled; alternatively have the admin disable path publish an event that the broadcaster registry consumes to close matching sockets. If neither is done in this batch, record the WS channel explicitly as a known exception to '停用立即生效' in ADR-0046 §5 and UI-SPEC §7.1 instead of leaving the blanket claim."
+    },
+    {
+      "title": "Deployment assertion goes green while mock-login route is mounted",
+      "severity": "P2",
+      "file": "pcs-backend/app/main.py",
+      "line": 53,
+      "why_it_matters": "assert_mock_auth_not_exposed is a deployment guard whose stated invariant is 'the mock router must not be mounted in production'. The rewrite correctly replaced the app.routes walk (which FastAPI 0.141's lazy mounting made a no-op), but it swapped one proxy for another: it now asserts on the OpenAPI schema, which is a *derived view* of the routing table and is empty for any route excluded from the schema. A single plausible edit - including the mock router with include_in_schema=False so it stops showing up in /docs - makes the assertion pass while /auth/mock-login is mounted and reachable. The production double gate inside the endpoint still refuses to issue a token, so this is not a live bypass today; but the assertion that is supposed to fail fast on a mis-mounted router no longer fails, i.e. the guard this batch rewrote as a silent-pass fix is still a silent-pass.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/main.py:53 - `    paths = app.openapi().get(\"paths\", {})` followed by `    if any(path.endswith(\"/mock-login\") for path in paths):` - the whole 'is the route mounted' decision is made on the OpenAPI schema.",
+        "Mechanically verified on the installed stack (fastapi 0.141.1): `app.include_router(mock_auth_router, include_in_schema=False)` -> `app.openapi()['paths']` is `[]` while `TestClient(app).post('/auth/mock-login')` returns **200** with the route's payload. Trigger: someone mounts the mock router with include_in_schema=False (the natural way to hide a dev-only route from /docs); path: openapi paths contain no '/mock-login' -> the `any(...)` check is False -> no RuntimeError; outcome: production starts successfully with the mock-login route mounted - exactly the state the assertion exists to prevent, reported as green.",
+        "For contrast, the previous check was also a proxy: on fastapi 0.141.1 `app.routes` after include_router contains `('_IncludedRouter', None)` - an object with no `path` attribute - so `getattr(route, \"path\", \"\").endswith(\"/mock-login\")` never matched. Both the old and the new assertion read a derived view rather than the routing table.",
+        "pcs-backend/app/main.py:44-47 - the other half of the guard (`if settings.enable_mock_login: raise RuntimeError(...)`) still fires independently, and pcs-backend/app/api/v1/mock_auth.py:57 (`if settings.is_production or not settings.enable_mock_login:`) still refuses to issue a token in production - which is why this is not an active auth bypass."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Assert on the routing table instead of the schema: keep the OpenAPI check but add a walk of app.routes that resolves FastAPI 0.141's `_IncludedRouter` wrapper (e.g. `router = getattr(route, \"original_router\", None)` then check `getattr(r, \"path\", \"\")` over `router.routes`) and raise if any path ends with '/mock-login'. Add a regression test that mounts the mock router with include_in_schema=False and asserts the guard still raises - the current test only covers the schema-visible case, so it cannot catch this divergence."
+    },
+    {
+      "title": "Ledger promises role merge while code overwrites roles",
+      "severity": "P3",
+      "file": "TODOS.md",
+      "line": 2946,
+      "why_it_matters": "T0-E's closure note in TODOS.md - added by this same diff - states the new behavior is a merge that never removes an existing role. The implementation deliberately does the opposite (roles=[role], overwrite), for a stated reason (ad_sync also overwrites, and merge would make role downgrades never take effect). The two artifacts of the same change disagree, so the ledger - the document the next agent trusts to decide whether the work is done - describes a behavior the code does not have, and would lead someone to 'fix' the code back to merge semantics. The substantive consequence of the overwrite (a users row that legitimately holds several roles keeps only the role of the most recent login, and role-scoped notification selection stops matching the dropped roles) is also not written down anywhere.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "TODOS.md:2946 - `**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。` - the TODO-134 closure text added in this diff.",
+        "pcs-backend/app/services/token_issuer.py:159 - `        .values(roles=[role])` - the implementation overwrites the whole array with a single role.",
+        "pcs-backend/app/services/token_issuer.py:140 - `⚠️ **覆盖，不是合并**（整批评审 Important #1 · 2026-11-11）：` - the code comment states the opposite of the ledger, so the contradiction is inside this diff.",
+        "Consequence for the scenario the ledger describes: a user whose users.roles row contains two roles (e.g. seeded as ['DESIGNER','CHECKER']) logs in -> the row is rewritten to ['DESIGNER'] -> notification_recipients.resolve_role_recipients, which selects by users.roles, no longer selects that user for CHECKER work. The ledger's '不冲掉已有角色' promise is exactly what prevents this, and the code does not honour it."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Rewrite the TODO-134 closure paragraph in TODOS.md to match the implementation: say the real role is *overwritten* (roles=[role]), state why (ad_sync._apply is also an overwrite; merging would make role downgrades never take effect), and state the consequence explicitly (a users row holding several roles keeps only the role of the latest login, so role-scoped notification selection stops matching the dropped roles). Keep the code comment as the authoritative note."
+    },
+    {
+      "title": "Batch-submit mock never fails, so new failure-list UI is invisible to browser QA",
+      "severity": "P3",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "line": 879,
+      "why_it_matters": "T1 (TODO-116) is this batch's headline UX deliverable: the failed-item list survives closing the modal and can be retried. The MSW handler that the browser dev server serves builds every response with an empty failed array, so in the only environment where the frontend is manually verified, the failure bar, the retry button and the persistent-list behavior can never appear - a green browser QA that says nothing about the feature. The mock was already incapable of producing a partial failure before this diff; what is new is that a shipped feature now depends on that path, so the harness gap became newly relevant rather than merely pre-existing.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/mocks/handlers.ts:879 - `    failed: [],` inside buildBatchSubmitResponse (line 862) - every mocked batch response reports zero failures.",
+        "pcs-frontend/src/mocks/handlers.ts:465-471 - `http.post(\"/api/v1/streams/batch-submit\", ...)` returns `buildBatchSubmitResponse(body.stream_ids, ...)`, i.e. always `succeeded` for every id and `failed: []`.",
+        "Trigger: a user (or the per-batch browser QA) selects rows and clicks 批量提交校对 in the dev server (MSW active). Path: handler -> buildBatchSubmitResponse -> failed: [] -> the hook sets failedIds = [] -> StreamListPage renders neither the failure Alert bar nor the '只重试失败项' buttons. Outcome: browser QA passes while the batch's central new path (failure list persists across modal close, retry only the failed items) has never been rendered once in that lane - whereas the real backend returns 207 with per-item failures.",
+        "pcs-frontend/tests/pages/sim/useStreamBatchSubmit.test.ts covers the hook's failure branch with a stubbed API, so the logic is unit-tested; what is untested is the page-level wiring in the MSW lane."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the mocked batch response produce a deterministic partial failure (e.g. fail every id whose id ends with '-x', or fail the second id of any multi-id batch) in buildBatchSubmitResponse, so the failure bar and the retry path are reachable during browser QA; keep the current shape (contract-derived) so the ajv check still holds."
+    }
+  ],
+  "residual_risks": [
+    "Coverage boundary: this harness exposed no symbol-aware or AST search (only text search via grep), so the claim 'ws.py is the only non-Depends call site of current_actor' rests on grep over app/ and could miss a dynamic or string-keyed usage.",
+    "The account-status check lives only in current_actor; /auth/me and the six /api/v1/meta/* endpoints use current_user (app/api/v1/auth.py:149) and therefore still answer 200 to a disabled user. Whether that leaves a usable session in the browser depends on how the frontend auth store validates sessions, which I did not trace end to end (the USER_DISABLED interceptor gap is reported separately).",
+    "Settings.is_production is a case-sensitive comparison (self.env == \"production\"). A deployment that sets ENV=Production would silently disable BOTH the production guards (the mount decision and the endpoint gate) while PCS_ENABLE_MOCK_LOGIN=true stays effective - a full mock-login bypass. I could not verify how the deployment sets ENV (grep-only, outside the diff), so this stays a residual risk rather than a finding.",
+    "assert_mock_auth_not_exposed calls app.openapi() at startup, which generates the whole schema; a route whose response model cannot be introspected would abort startup rather than pass silently. I did not verify schema generation across every route, so the failure mode of this call at boot is unverified.",
+    "The reference_count column (downstream streams + flash results, same project only) deliberately differs from the delete gate's basis (state points + flash results, any project). The difference is documented in SPEC 7.7.1, but I did not verify that a stream whose only references are downstream streams is actually deletable (streams.upstream_stream_id FK behaviour) - the delete gate does not count downstream streams.",
+    "No tests were executed in this environment (forbidden by the review constraints), so all green/red statements about the batch's own suite are taken from the diff's own claims, not independently verified."
+  ],
+  "testing_gaps": [
+    "No test mounts the mock router with include_in_schema=False and asserts assert_mock_auth_not_exposed still raises - the exact green-while-red case of the rewritten deployment assertion.",
+    "No test asserts that a record type which writes lineage rows but is absent from RECORD_TYPE_REGISTRY (PsvResult today) still resolves GET /lineage/{record_type}/{id}/graph after the guard became fail-closed.",
+    "No frontend test asserts that a 401 response with code USER_DISABLED clears the session and redirects to /login (the interceptor's session-ending set has no case for it).",
+    "No test covers a WebSocket that stays open across a user-disable event (status re-check on the delivery path).",
+    "No test asserts that the MSW batch-submit mock can produce a partial failure, so the persistent failure list and the retry path are never rendered in the browser QA lane."
+  ]
+}

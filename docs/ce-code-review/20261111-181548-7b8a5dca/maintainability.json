@@ -1,0 +1,197 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "Guard registry derived from RECORD_TYPE_REGISTRY omits PsvResult",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/lineage_registry.py",
+      "line": 59,
+      "why_it_matters": "The guard registry is derived from RECORD_TYPE_REGISTRY, but that registry is not the set of models that actually write data_lineage rows — PsvResult writes lineage rows (psv_persist.py:444 -> finalize_calc_record -> LineageTracker.track -> record_type = record.__class__.__name__ == 'PsvResult') and the PSV API already queries exactly that value (app/api/v1/psv.py:247 DataLineage.record_type == 'PsvResult'), yet PsvResult has zero occurrences in calc_lineage.py, so it never enters LINEAGE_GUARDED_RECORD_TYPES. The 'derived, never hand-copied' promise therefore buys completeness only relative to a registry whose scope is ADR-0031 (result tables with record_hash), not relative to 'types that own lineage rows'. Consequences: (a) GET /lineage/PsvResult/{id}/{upstream,downstream,graph} is permanently 404 even though those rows exist — a silent, undocumented hole in a newly fail-closed endpoint; (b) the next finalize_calc_record caller that is not in RECORD_TYPE_REGISTRY falls out the same way, with no test to catch it. The set that matters is the set of lineage writers, so that is the set the guard should be derived from.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/lineage_registry.py:57-61 — LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = { model.__name__: (model, _pk_col(model)) for model in RECORD_TYPE_REGISTRY.values() if hasattr(model, \"project_id\") }",
+        "pcs-backend/app/services/calc_lineage.py — RECORD_TYPE_REGISTRY (lines 84-115) contains 21 keys, none of them 'PsvResult' (grep -c 'PsvResult' app/services/calc_lineage.py == 0), so the derived dict has no 'PsvResult' key",
+        "pcs-backend/app/services/psv/psv_persist.py:444 — await finalize_calc_record(db, record, source_stream_ids=[source_stream_id], formula_version=_FORMULA_VERSION) with record = PsvResult(...) ⇒ a data_lineage row with record_type='PsvResult' is written",
+        "pcs-backend/app/api/v1/psv.py:247 — DataLineage.record_type == \"PsvResult\", ⇒ the app itself reads rows of that record_type back (proof the rows exist in real data)",
+        "pcs-backend/app/services/lineage.py:109 — record_type=record.__class__.__name__ (writer key = class name), so the writer set is 'every model passed to finalize_calc_record', not RECORD_TYPE_REGISTRY",
+        "Runtime confirmation: importing app.services.lineage_registry yields 21 keys (20 models + 'streams'); 'PsvResult' is absent"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Stop deriving the guard from a registry whose scope is 'editable result tables'. Either (a) add PsvResult to RECORD_TYPE_REGISTRY (it is a project-scoped model with a record_hash column, so it qualifies), or (b) better: derive LINEAGE_GUARDED_RECORD_TYPES from the actual lineage-writer set — e.g. an explicit LINEAGE_WRITER_MODELS tuple that finalize_calc_record's callers must be drawn from — and add a contract test asserting every model passed to finalize_calc_record appears in LINEAGE_GUARDED_RECORD_TYPES (mirroring tests/architecture/test_record_type_vocabulary.py's role for edit_guard). Option (b) removes the hidden coupling between 'can be edited' and 'has lineage' that produced the hole."
+    },
+    {
+      "title": "Guard's new return value is discarded by every caller",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 269,
+      "why_it_matters": "The diff widened _guard_record_access from '-> None' to '-> Any' and made it return the fetched record, but all three endpoints call it as a bare statement and throw the value away (upstream:70, downstream:116, graph:162). Two costs: (a) the return type is `Any`, a type hole that erases the fact that the value is an ORM row of one of several unrelated model classes — the classic 'leaky abstraction' the schema work in this same diff was trying to fix; (b) _stream_graph then re-fetches the very row the guard already loaded via session.get(Stream, stream_id) (line 284), so the contract is duplicated: the record exists in two places, and the second one is the one that is actually used. A future caller who trusts the returned value and a future caller who trusts session.get can disagree, and the `if stream is None: raise 404` branch inside _stream_graph is unreachable-by-construction (the guard already 404'd) yet is kept alive as a second, differently-worded 404 site.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:269 —     return record   (the new return value)",
+        "pcs-backend/app/api/v1/lineage.py:205 — ) -> Any:   (the widened, type-erased signature)",
+        "pcs-backend/app/api/v1/lineage.py:70-72, 116-118, 162-164 — all three call sites are bare statements: `await _guard_record_access(session, user, record_type, record_id)` with no assignment",
+        "pcs-backend/app/api/v1/lineage.py:284-287 —     stream = await session.get(Stream, stream_id) / if stream is None: raise HTTPException(404, \"no lineage for record\") — re-fetches the row the guard already loaded and adds a second 404 site",
+        "Diff confirms the change: the guard's signature went from `) -> None:` to `) -> Any:` and gained `return record`, while no call site was updated to consume it"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the contract single: (a) give the guard a precise return type instead of Any — e.g. `-> Base` or a small Protocol exposing the fields the callers need (project_id, pk) — and (b) actually use it: have upstream/downstream/graph bind `record = await _guard_record_access(...)` and pass that row into _stream_graph(session, record, max_depth=...) instead of calling session.get again, deleting the duplicate lookup and the now-unreachable `if stream is None: raise 404` branch. If the returned record is not needed, revert the guard to '-> None' and drop the '## 返回值' docstring section rather than leaving a dead contract in place."
+    },
+    {
+      "title": "current_actor called outside Depends with positional session coupling",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/ws.py",
+      "line": 78,
+      "why_it_matters": "current_actor is shaped as a FastAPI dependency (Annotated[..., Depends(get_db)]) but the WS path now calls it as a plain function, so the session must be passed positionally as the first argument. The diff itself documents the fragility ('db 排在第一个参数 ... 顺序即调用约定'), which means the parameter order of one route module's helper has become a cross-module contract: any reordering or signature edit in app/api/v1/config.py breaks the WebSocket handshake at runtime, and the only thing signalling that coupling is a docstring. The bigger maintainability cost is that current_actor is now simultaneously three things — JWT decode, role-claim policy, and an account-status DB lookup — and is imported by ~30 other modules from a config router module (app/api/v1/config.py) that has nothing to do with authentication. Adding the DB dependency to this shared primitive is what forced the WS path to open its own session and duplicate the actor-resolution call convention, so there are now two ways to obtain an actor with different session lifetimes.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/ws.py:78 —         actor = await current_actor(session, authorization)   (dependency called as a plain function; session passed positionally)",
+        "pcs-backend/app/api/v1/config.py:484-487 — async def current_actor(db: Annotated[AsyncSession, Depends(get_db)], authorization: Annotated[str | None, Header()] = None) — the Depends-annotated first parameter is the reason for positional passing",
+        "pcs-backend/app/api/v1/config.py:53-68 (diff) — the diff's own docstring records the ordering hazard: '⚠️ **db 排在第一个参数**：`Depends` 参数若排在有默认值的参数之后，Python 语法不允许（除非写成 keyword-only）⇒ 顺序即调用约定'",
+        "pcs-backend/app/api/v1/ws.py:65-70 (diff) — '这里**直接调用** `current_actor`（**不走 `Depends`**）⇒ `current_actor` 改 async / 改签名后**不会自动适配**' — the diff states the coupling explicitly",
+        "app/api/v1/config.py is imported for _Actor/current_actor/require_roles by ~30 sibling route modules (grep 'from app.api.v1.config import' app/api/v1/*.py) — the shared auth primitive lives inside the config-assets router module"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Split the shared primitive into a pure part and an I/O part, so the WS path does not have to imitate the dependency: put `decode_actor(authorization) -> _Actor` (JWT + role claim, no DB) in a dedicated module (e.g. app/api/v1/_actor.py or app/core/actor.py) and keep `current_actor` in config.py as a thin Depends wrapper that calls it plus the account-status check. ws.py then calls the pure helper and performs the status check against its own short-lived session, with no positional coupling to a route module's signature. Moving the primitive out of app/api/v1/config.py at the same time removes the ~30-module dependency on a config router."
+    },
+    {
+      "title": "Disabled-account rule implemented twice despite sole-ownership claim",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/user_status_service.py",
+      "line": 8,
+      "why_it_matters": "The new module's docstring asserts that the disabled-account semantics live in exactly one place in the repository, and the sibling path token_issuer.py contradicts that on the very next login: both encode 'status == DISABLED means deny' with two independent comparisons, one keyed by username (login path) and one keyed by user_id (per-request path). This is the repo's own 'one concept, two definitions' bug family (bug-187~191, cited in the frontend part of this very diff), and the two copies drift for a different reason than the obvious one: the lookup keys differ, so a legacy row whose user_id is not the derived value is judged DISABLED at login but judged 'no row -> allow' on every subsequent request. Adding a third account state (or changing what counts as disabled) requires editing two modules that both claim the rule is theirs. The new module also duplicates the comparison that token_issuer already had, so the diff grew the duplication rather than consolidating it.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/user_status_service.py:8 — ## 判定语义（全仓**唯一**一处）   (the sole-ownership claim)",
+        "pcs-backend/app/services/user_status_service.py:58 —     return status == UserStatus.DISABLED.value   (comparison #1, keyed by user_id)",
+        "pcs-backend/app/services/token_issuer.py:97 —     if row is not None and row.status == UserStatus.DISABLED.value:   (comparison #2, keyed by username, login path — the same rule re-implemented)",
+        "pcs-backend/app/services/user_status_service.py:20-21 — the module itself notes the divergence: '遗留账号行（`user_id` ≠ 派生值 · TODO-137）⇒ token 里的 `user_id` 查不到行 ⇒ 判成拒 ⇒ 遗留用户**全部**被锁在门外' — the per-request copy and the login copy therefore disagree on exactly those rows"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the rule single by extracting the comparison, not the query: add to app/services/user_status_service.py a pure predicate such as `def is_disabled_status(status: str | None) -> bool: return status == UserStatus.DISABLED.value`, and have both is_account_disabled and token_issuer.issue_tokens call it. Then correct the docstring: state that the *per-request* semantics are the unique place for the no-row -> allow rule, while the login path deliberately applies the same DISABLED test to the username-keyed row (and say how the legacy-user_id case should behave on each path, or route the login check through the same user_id lookup so the two cannot disagree)."
+    },
+    {
+      "title": "Failed set kept in two state slots that drift after clearFailures",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/sim/StreamListPage.tsx",
+      "line": 449,
+      "why_it_matters": "The hook holds the failed items twice: once inside the batch result (result.failed, carrying reason and detail) and once as a bare id list (failedIds). The two are written together on submit but the page reads them from different places: the failure bar and the modal's retry button are gated on failedIds.length, while the modal's failure list, its '失败 N 条' count and its hint text are driven by result.failed. clearFailures() empties only failedIds and leaves result intact, so after the user clicks 清除 the modal still lists the failed streams and still says '关闭弹窗后仍可用上方「只重试失败项」重试这 N 条', but the bar is gone, the modal's own retry button is hidden by the failedIds.length > 0 condition, and retryFailed() is a no-op because failedIds is empty — the hint points at a button that no longer exists and the listed failures can no longer be retried. Two representations of one concept, with the divergence invisible at the call site.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/sim/StreamListPage.tsx:449 —               {batch.failedIds.length > 0 && (   (modal retry button gated on failedIds)",
+        "pcs-frontend/src/pages/sim/StreamListPage.tsx:494 —           {batch.result.failed.length > 0 && (   (modal failure list gated on result.failed — a different slot)",
+        "pcs-frontend/src/pages/sim/StreamListPage.tsx:511 —                 关闭弹窗后仍可用上方「只重试失败项」重试这 {batch.result.failed.length} 条。   (hint still advertises a retry path after 清除 emptied failedIds)",
+        "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:63 —   const [failedIds, setFailedIds] = useState<string[]>([]);   (second representation of the same set)",
+        "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:99 —   const clearFailures = useCallback(async () => setFailedIds([]), []);   (clears only failedIds; result.failed survives)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Keep one source of truth for the failed set. Either (a) have clearFailures also clear the result (setResult(null)) so no stale list or hint remains, or (b) better: stop storing failedIds separately — keep the failed items in a single state slice and derive the ids from it (e.g. `const failed = result?.failed ?? []` plus an explicit 'cleared' flag, or store failedItems in its own slice and derive both the bar count and the retry payload from it). Then gate the modal's list, the retry button and the hint text on the same value so they cannot disagree."
+    },
+    {
+      "title": "Three copies of the record_type == 'streams' branch",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 73,
+      "why_it_matters": "The streams special case is now a branch on the same discriminator in three endpoints (upstream:73, downstream:119, graph:165) plus a hand-added 'streams' entry in the guard registry, and each copy encodes a different answer (upstream returns [], downstream queries by source_ref, graph synthesizes a root). Adding a second source-ref style type (or changing how streams should behave) means editing three endpoint bodies plus the registry, and there is no single place that states 'streams is a source reference, not a record type' as executable policy — that fact currently lives in prose across lineage_registry.py, lineage.py's docstrings, schemas/lineage.py and the new schemas. The branching is also a discriminator switch over record_type that a third module would be expected to replicate.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:73 —     if record_type == \"streams\":",
+        "pcs-backend/app/api/v1/lineage.py:119 —     if record_type == \"streams\":",
+        "pcs-backend/app/api/v1/lineage.py:165 —     if record_type == \"streams\":",
+        "pcs-backend/app/services/lineage_registry.py:66 — LINEAGE_GUARDED_RECORD_TYPES[\"streams\"] = (Stream, \"stream_id\")   (fourth place encoding the same special case)",
+        "The three branches differ in substance: line 76 returns [] , line 121-124 queries by_source_ref, line 166 delegates to _stream_graph — so the special case is not one predicate but three behaviours"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Resolve the streams case once and let the endpoints stay uniform: put the source-ref logic in the service layer (LineageTracker already owns by_source_ref) and expose a single entry point such as `LineageTracker.for_record_type(record_type).graph(record_id, max_depth)` / `.upstream(...)` / `.downstream(...)`, with the streams-vs-record distinction decided by one dispatch (a small mapping from record_type to strategy) rather than three inline `if` statements. Then the endpoints contain no per-record-type branch at all and a future source-ref type is one mapping entry."
+    },
+    {
+      "title": "Unchecked as StreamSource cast instead of narrowing helper",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx",
+      "line": 115,
+      "why_it_matters": "The lineage tab looks a value up in STREAM_SOURCE_LABEL by casting it to the StreamSource union: STREAM_SOURCE_LABEL[value as StreamSource]. The cast asserts the value is one of the four channel values when nothing has established that — the value comes from the contract field typed string | null, and text() has already turned a null into the placeholder '—' one line earlier, so the cast is asserting a membership the code cannot know. The repo already has the canonical pattern for exactly this lookup one file over: streamPhaseLabel in src/types/stream.ts, which narrows explicitly and renders '未知相态: X' for out-of-vocabulary values instead of casting. The diff fixed the duplicate label table here (good) but reintroduced a cast on the value, which is the failure mode the shared table was supposed to remove.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx:114-115 —                   const label =\n                    STREAM_SOURCE_LABEL[value as StreamSource] ?? undefined;   (the cast; value is string | '—' at this point)",
+        "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx:107 —                   const value = text(row.entry.source);   (text() maps null/'' to '—', so the cast can be applied to '—')",
+        "pcs-frontend/src/types/stream.ts:166-174 — export function streamPhaseLabel(phase: Stream['phase']): string — the existing canonical narrowing helper for the sibling vocabulary (returns '未知相态: X' for unknown values rather than casting)",
+        "pcs-frontend/src/types/stream.ts:89-94 — export const STREAM_SOURCE_LABEL: Record<StreamSource, string] — the table is exhaustive over StreamSource, so indexing it with a plain string is what forces the cast"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Add a narrowing helper next to the table in src/types/stream.ts, mirroring streamPhaseLabel: e.g. `export function streamSourceLabel(source: string): string | undefined { return (STREAM_SOURCE_LABEL as Record<string, string | undefined>)[source]; }` (or narrow with `source in STREAM_SOURCE_LABEL`), then call it from the tab and drop the `as StreamSource` cast. This keeps the 'unknown value' path explicit and consistent with how the phase vocabulary is already handled."
+    },
+    {
+      "title": "Mock-auth docstring names a setting that does not exist",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/mock_auth.py",
+      "line": 26,
+      "why_it_matters": "The MockLoginRequest docstring says mock auth is switched off in production via 'settings.mock_auth_enabled'. No such setting exists anywhere in the repository — grep finds the identifier only in this docstring — and the actual knob the diff introduces is enable_mock_login (env PCS_ENABLE_MOCK_LOGIN). The diff touched both this file and the Settings class, so the file now contains two different names for one switch: the real one in the code, a fictional one in the prose. This is exactly the comment/sibling-path drift the review brief asks about: a comment that now claims something its sibling path (app/core/config.py) contradicts, and a reader debugging the mock gate will grep for mock_auth_enabled and find nothing.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/mock_auth.py:26 —     生产环境通过 settings.mock_auth_enabled 关闭。   (names a non-existent setting)",
+        "grep -rn 'mock_auth_enabled' --include=*.py . ⇒ exactly one hit, the docstring line itself; Settings has no such attribute",
+        "pcs-backend/app/core/config.py:120-125 —     enable_mock_login: bool = Field(default=False, validation_alias=AliasChoices(\"PCS_ENABLE_MOCK_LOGIN\", \"enable_mock_login\"))   (the actual switch the diff introduced)",
+        "pcs-backend/app/api/v1/mock_auth.py:451-459 (diff) — the new gate reads settings.enable_mock_login / not settings.enable_mock_login, so the docstring's setting name contradicts the function it documents"
+      ],
+      "pre_existing": true,
+      "suggested_fix": "Update the docstring to name the real knob: '生产环境通过 settings.enable_mock_login（env PCS_ENABLE_MOCK_LOGIN）关闭；且非生产也需显式置 true'. The stale identifier predates this diff, but this diff changed the switch's name and mechanism in the same file, so it is cheap to correct here."
+    },
+    {
+      "title": "Reference count exists in two variants with different meanings",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/stream_service.py",
+      "line": 344,
+      "why_it_matters": "The diff adds reference_counts (downstream streams + flash results, project-scoped) next to the pre-existing _collect_references (state points + flash results, used by the delete gate). Both answer 'does anything reference this stream' and both live in the same class roughly 180 lines apart, but they count different things; the only thing keeping a reader from mixing them up is a paragraph of prose in one docstring and a note in SPEC. This is a duplicated concept with deliberately divergent semantics — legitimate, but the divergence is invisible from the call sites, and the next referencing table added to one of them will silently not appear in the other, which is how the displayed count and the delete gate start disagreeing.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/stream_service.py:344 —         ⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，   (the divergence is only documented in prose)",
+        "pcs-backend/app/services/stream_service.py:494-495 —     async def _collect_references(   (the delete-gate counter: stream_state_points + flash_results)",
+        "pcs-backend/app/services/stream_service.py:330-336 (diff) — the new reference_counts: '下游物流数 + 闪蒸结果数' with state points and device references explicitly excluded",
+        "Both are members of StreamService and both answer 'what references this stream' — one is surfaced to users as the 📎 column, the other decides whether DELETE is blocked with code SIM_STREAM_REFERENCED"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the two scopes explicit in the names rather than only in prose: rename to reference_counts_for_display and _collect_delete_blocking_references (or expose a shared table of referencing sources — e.g. REFERENCE_SOURCES = ((Stream, 'upstream_stream_id', counted=True), (FlashResult, 'stream_id', counted=True), (StreamStatePoint, 'stream_id', counted=False)) — and derive both counters from it so adding a referencing table is a single edit). Keeping the current structure is defensible; the ask is only that the divergence be visible at the call site."
+    }
+  ],
+  "residual_risks": [
+    "reference_count on GET /streams/{id} (single) is always 0 — the field therefore carries two meanings across two endpoints ('no references' vs 'not computed'), even though SPEC documents the caveat. Not reported as a finding because the brief lists it as a registered limitation; flagged here because the field name does not distinguish them.",
+    "assert_mock_auth_not_exposed in app/main.py determines route mounting by calling app.openapi() at startup. That forces full OpenAPI schema generation during lifespan and caches the result, so the schema served later is the startup-time snapshot; the diff's own comment explains why app.routes traversal was abandoned (FastAPI >= 0.141 lazy mounting), but the replacement has a startup cost and a caching side effect that is not discussed in the code.",
+    "The guard registry filters candidates with `hasattr(model, 'project_id')` — duck-typing over ORM class attributes. A model that exposes a relationship or plain attribute named project_id would pass the filter while record.project_id would not be a project id at query time.",
+    "Callsite completeness rests on text search (grep) only: no LSP/AST or symbol-aware search was available in this environment, so statements that a symbol has only one consumer are grep-based and could miss re-exports or dynamic call sites.",
+    "Only the primary backend/frontend source diffs were read; the backend test diff (2225 lines) and the docs diff (5753 lines, mostly ledger and plan text) were sampled rather than read end to end, so a documentation-side contract for the lineage vocabulary may exist that this review did not cross-check.",
+    "No tests were executed and no browser run was performed, so all behavioural statements above (404 shapes, retry semantics, the drift after clearFailures) are derived from reading the diff and the current source, not from observed runs."
+  ],
+  "testing_gaps": [
+    "No contract test asserts that every model which writes data_lineage rows (i.e. every finalize_calc_record caller) is present in LINEAGE_GUARDED_RECORD_TYPES. Such a test would have failed on PsvResult and is the test that keeps the derived registry from silently drifting.",
+    "No test covers the /lineage/PsvResult/{id}/graph path at all, so the newly fail-closed 404 for a type that genuinely owns lineage rows is invisible to the suite.",
+    "No frontend test exercises clearFailures() while the result modal is open, so the drift between result.failed and failedIds (stale failure list plus a hint pointing at a hidden retry button) is not caught; the existing test only asserts failedIds becomes [].",
+    "No test asserts the guard and the endpoint agree on which stream row is in scope (the guard's select and _stream_graph's session.get), so the duplicated lookup and its now-unreachable 404 branch have no regression cover.",
+    "No test asserts that the WS handshake path and the REST path apply the same disabled-account rule to the same user — the two implementations are keyed differently (username vs user_id), and no test compares their verdicts."
+  ]
+}

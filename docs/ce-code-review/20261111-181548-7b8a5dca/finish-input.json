@@ -1,0 +1,165 @@
+{
+ "run_id": "20261111-181548-7b8a5dca",
+ "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca",
+ "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+ "docs_root": "docs",
+ "mode": {
+  "agent": false,
+  "apply_local": false,
+  "grouping": "auto",
+  "depth": "auto"
+ },
+ "invocation": {
+  "arguments": "审查 P9B-4 体验批（a5f62c6..3e362ea）+ Q7 裁决落地（74b23fa），计划 docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md",
+  "constraints": [
+   "只审查、不修改工作树（本 skill 为 report-only；mode.apply_local=false）",
+   "范围由调用方给的 a5f62c6 修正为 38c91ac —— 因为 T0-B 的实现落在 9d10767，早于 a5f62c6；若用 a5f62c6 作基线，T0-B（actor 层账号状态判定 + ws.py 连带 + user_status_service.py + ADR-0046 改写）会整块落在范围外。修正后的范围 = 38c91ac..1c3acb9 = P9B-4 体验批的完整产出（T0-A~T0-F + T1 + T2 + T3 + 评审修复 + Q7 裁决落地）",
+   "计划文件（doc 的唯一依据）：docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md；前端唯一编码依据：docs/PCS-UI-SPEC.md；ADR：docs/adr/0046-user-identity-model-migration.md",
+   "计划文档里「已知限制」一节列出的项（失败清单内存态、TwoPhaseResult 无 project_id、引用列不含状态点/设备引用、两处缺索引归 TODO-143）已在 context.md 的「已知并在文档里如实登记的限制」中列出 —— 不得当作缺陷重复上报"
+  ]
+ },
+ "scope": {
+  "mode": "standalone",
+  "base": "38c91ac",
+  "diff_a": "38c91ac",
+  "diff_b": null,
+  "pr": {
+   "number": null,
+   "url": null,
+   "title": null,
+   "body": null,
+   "base_ref_name": null,
+   "head_ref_oid": null,
+   "head_ref": null,
+   "base_ref": null,
+   "has_prior_comments": false
+  },
+  "branch": "main",
+  "head_sha": "1c3acb9",
+  "files": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/files.txt",
+  "diff": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/full.diff",
+  "tree_is_reviewed_head": true,
+  "untracked_excluded": []
+ },
+ "intent": {
+  "summary": "P9B-4 体验批 —— 收口 PCS 物流（SIM 物流）面的 7 处欠账：①T0-B 账号停用立即生效（判定移到 actor 层 current_actor，async + Depends(get_db)，判 users.status；在手 access token 下一次请求即 401 USER_DISABLED；users 表无行则放行）②T0-C create_stream/validate_stream 一律用 project.workspace_id（忽略请求体）③T0-D 物流血缘改「按源引用查」+ 合成 root（确定性 uuid5）+ 具名 schema LineageGraphResponse + 未登记类型 fail-closed 404④T0-E 真实登录补写 users.roles（覆盖）⑤T0-F mock 登录双闸（PCS_ENABLE_MOCK_LOGIN 默认关 + is_production）⑥T1 批量失败清单提升到 useStreamBatchSubmit hook（关弹窗不丢）+ 只重试失败项⑦T2 物流列表「引用 📎×N」列（后端两条 GROUP BY 聚合，口径=下游物流+闪蒸结果；Q7 裁决后只算同项目）。",
+  "confidence": "explicit"
+ },
+ "plan": {
+  "path": "docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md",
+  "source": "explicit",
+  "requirements": [],
+  "implementation_units": [
+   "T0-A",
+   "T0-B",
+   "T0-C",
+   "T0-D",
+   "T0-E",
+   "T0-F",
+   "T1",
+   "T2",
+   "T3"
+  ],
+  "settled_decisions": [],
+  "notes": "该计划是 legacy 形态：没有 `## Requirements` / `### Requirements` / `## Requirements Trace` 节，因此 requirements 提取为空。其可验证单元是 9 个 Task（T0-A~T0-F / T1 / T2 / T3），每个 Task 内含自己的验收/Expected 步骤 —— Stage 6 请按这些 Task 的验收口径核对实现覆盖，并按 `plan_source=explicit` 的规则给出 P1 `manual`/`downstream-resolver` 的未覆盖发现。"
+ },
+ "roster": {
+  "selected": [
+   {
+    "reviewer": "correctness",
+    "tier": "session",
+    "reason": "always-on"
+   },
+   {
+    "reviewer": "security",
+    "tier": "session",
+    "reason": "always-on（本批改了鉴权：actor 层账号状态判定 + mock 登录双闸 + 项目守卫）"
+   },
+   {
+    "reviewer": "adversarial",
+    "tier": "session",
+    "reason": "always-on 对抗视角（认证/持久化写入/并发 + 一条会绿而真实现红的部署断言）"
+   },
+   {
+    "reviewer": "project-standards",
+    "tier": "mid-tier",
+    "reason": "仓库根 CLAUDE.md 管辖全部 52 个改动文件（无 CODING_STANDARDS.md ⇒ 指令文件兜底）"
+   },
+   {
+    "reviewer": "testing",
+    "tier": "mid-tier",
+    "reason": "测试面大改（8 个测试文件）+ 多处新运行时行为"
+   },
+   {
+    "reviewer": "maintainability",
+    "tier": "mid-tier",
+    "reason": "新增派生注册表与新 service + 跨层改动（1238 可执行非测试行）"
+   },
+   {
+    "reviewer": "performance",
+    "tier": "mid-tier",
+    "reason": "两条聚合查询 + 血缘「按源引用查」的查询形状"
+   },
+   {
+    "reviewer": "api-contract",
+    "tier": "mid-tier",
+    "reason": "LineageGraphResponse 具名 schema + reference_count 字段 + 响应形状/错误信封"
+   },
+   {
+    "reviewer": "reliability",
+    "tier": "mid-tier",
+    "reason": "207 部分失败闭环 / fail-closed 404 / 错误不吞 / 部署断言"
+   },
+   {
+    "reviewer": "learnings-researcher",
+    "tier": "mid-tier",
+    "reason": "docs/solutions/ 命中两条与本批同构的既往教训（守卫被注释骗过、配置中途重绑击穿一次性守卫）"
+   }
+  ],
+  "standards": {
+   "criteria": [
+    "CLAUDE.md"
+   ],
+   "fallback_named": true,
+   "not_run_reason": null
+  },
+  "packs": {
+   "roots": [],
+   "errors": [],
+   "warnings": []
+  }
+ },
+ "collection": {
+  "returns": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/raw-returns.json",
+  "unstructured_returns": [
+   {
+    "reviewer": "learnings-researcher",
+    "path": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/learnings-researcher.md"
+   }
+  ],
+  "failed_reviewers": [],
+  "bound_exceeded": [],
+  "fast_pass": {
+   "emitted_preliminary": false,
+   "candidates": []
+  }
+ },
+ "peer": {
+  "selected": false,
+  "target": null,
+  "route": null,
+  "preference_source": null,
+  "outcome": "not-run",
+  "artifact": null,
+  "coverage": "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor-agent / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担（该评审已完成并交卷 6 条）。"
+ },
+ "coverage_notes": [
+  "project standards: 用仓库根 CLAUDE.md 作判据（无 CODING_STANDARDS.md ⇒ 指令文件兜底）；该文件同时指向 .claude/rules/openwolf.md（属本 checkout 的生效规则）。",
+  "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor-agent / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担。",
+  "范围修正：调用方给的基线 a5f62c6 早于 T0-B 的实现 commit 9d10767 ⇒ 基线修正为 38c91ac（批次真实起点），否则 T0-B 整块落在范围外。",
+  "未跟踪文件：无（工作树干净）。",
+  "评审环境限制：所有评审子代理均只读（Read/Grep），未执行任何测试、未执行 EXPLAIN ⇒ 涉及运行期行为的结论均为静态阅读推导。",
+  "所有评审子代理均只读（Read/Grep）：未执行任何测试、未执行 EXPLAIN、未跑浏览器回归 ⇒ 涉及运行期行为的结论均为静态阅读推导。",
+  "maintainability 视角：首次派发被上游 Token Plan 配额 429 中断；第二次派发最终交卷（9 条 finding · 5×P2 / 4×P3），但交卷时刻晚于首轮合成与验证，**重跑合成 + 验证 + 报告在配额内未能完成** ⇒ 这 9 条**未经本轮的独立验证批次**，以下方补充形式列出（已人工去重：与已验证项重复的 2 条标注为重复）。首轮报告的 14 条主 finding 与 10 条验证结论不受影响。"
+ ]
+}

@@ -1,0 +1,54 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "WS 握手：DB 异常逃出 except PcsError ⇒ 500 而非 1008",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/ws.py",
+      "line": 96,
+      "why_it_matters": "P9B-4 T0-B 把一次 DB 读（users.status）带进了 WebSocket 握手鉴权路径。ws.py 的握手错误处理只捕获 PcsError（缺 token / JWT 无效 / USER_DISABLED）⇒ DB 连接错误、连接池 30s 超时（pool_timeout=30）、语句超时抛的都是 SQLAlchemy 异常，不是 PcsError ⇒ 逃出 handler ⇒ 握手以未处理的异常结束（ASGI 服务器回 HTTP 500），而不是模块 docstring 承诺的「握手阶段鉴权失败 ⇒ 直接关连接（1008）」。模块里那条 except Exception + logger.exception 兜底在 accept() 之后的接收循环里，覆盖不到握手阶段 ⇒ 运维在 WS 模块里看不到任何一行日志。后果：一次 DB 抖动表现为「WS 连不上」而非「鉴权后端不可用」，客户端也无法区分「被拒」与「后端坏了」；这条路径同时把通知通道与 DB 的可用性绑死了（此前握手是纯 CPU 的 JWT 解码，与 DB 无关）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/ws.py:96 — `    except PcsError as e:`",
+        "pcs-backend/app/api/v1/ws.py:77-78 — `    async with factory() as session:` / `        actor = await current_actor(session, authorization)`（握手路径现在会做一次 DB 读）",
+        "pcs-backend/app/api/v1/config.py — `    if await is_account_disabled(db, user_id=user_id):` → pcs-backend/app/services/user_status_service.py — `        await session.execute(` / `            select(User.status).where(User.user_id == user_id)` ⇒ DB 异常从这里冒出来，它不是 PcsError",
+        "pcs-backend/app/api/v1/ws.py:113 — `    except Exception:  # noqa: BLE001 — 任何异常都必须摘掉 sink，否则泄漏` —— 这条兜底在 accept() 之后，覆盖不到握手阶段"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在握手的 except PcsError 之后补一条非业务异常的兜底，让失败形状与既有约定一致（同样在 accept() 之前 close，与现有 PcsError 分支同形）：\n\n    except Exception:  # noqa: BLE001 —— 鉴权现在依赖 DB ⇒ DB 抖动也会到这\n        logger.exception(\"通知 WS 握手：鉴权后端不可用\")\n        await websocket.close(code=_WS_POLICY_VIOLATION, reason=\"AUTH_UNAVAILABLE\")\n        return\n\n假设：前端把任何非 1000 的关闭都按「连不上」处理（现有前端在握手失败时即如此），因此用 1008 + reason=\"AUTH_UNAVAILABLE\" 关闭与现有 PcsError 分支行为一致。若希望区分「被拒」与「后端不可用」，可另加一个关闭码，但那是前端契约变更，需另行评估。"
+    },
+    {
+      "title": "重试/提交已成功但列表刷新失败 ⇒ 报成「批量提交失败」",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts",
+      "line": 81,
+      "why_it_matters": "hook 的 submit() 把「提交请求」与「提交后的列表刷新（onDone）」放在同一个 try 里、共用一个 catch。onDone 一旦 reject（网络抖动、页面卸载、调用方自己的 load 未来改成会抛），catch 会 setResult(null)（把刚拿到的批次摘要弹窗关掉）并把异常 rethrow 给页面 ⇒ 页面顶部显示「批量提交校对失败」，而批次其实已经提交成功。用户据此重发整批 ⇒ 重复提交（后端会返回 already_in_approval 幂等提示，但用户先看到的是「失败」，且失败清单已被清空）。这与 hook 自己的 docstring 明写的语义（「批次**整批**失败（网络 / 超限 / 403）⇒ **抛给调用方**」）不一致 —— 现在的实现把「刷新失败」也算成了「整批失败」。今天唯一消费者 StreamListPage 传的 onDone 是 load()，而 load 自己吞掉了所有异常（try/catch/finally）⇒ 所以这条路径目前是潜伏的，不是活跃故障；但它是一颗装在失败路径上的地雷：下一次有人让 load 抛出（或者换一个消费者），错误文案会立刻开始撒谎。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:81 — `      await onDoneRef.current?.();`",
+        "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:82-86 — `    } catch (err) {` / `      // ⚠️ 整批失败 ⇒ 没有新摘要（留着旧的会**误导**用户）` / `      setResult(null);` / `      // ⚠️ **不吞异常** ⇒ 页面负责显示（403 要说「无权提交」）` / `      throw err;`"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把刷新移出提交的错误域（提交结果已确定后，刷新失败不应改写提交结论）：\n\n      const res = await streamApi.batchSubmitForReview(streamIds);\n      setResult(res);\n      setFailedIds(res.failed.map((f) => f.stream_id));\n      try {\n        await onDoneRef.current?.();\n      } catch (err) {\n        // ⚠️ 刷新失败**不是**提交失败 ⇒ 不清 result、不 rethrow\n        console.warn('批量提交后刷新列表失败', err);\n      }\n\n假设：onDone 的契约是「刷新列表」且其失败不应被解释成提交失败；调用方仍可在自己的 onDone 里自行上报刷新错误。若项目禁止 console.*，改用仓库既有的日志/告警通道。"
+    }
+  ],
+  "residual_risks": [
+    "current_actor 的每请求 DB 读（users.status）：失败时异常**向上传播**（既不吞、也不转成「用户不存在」）⇒ 一次 DB 抖动会让全部挂 Depends(current_actor) 的端点（本仓 284 处调用点）返回 500。方向是 fail-closed（拒绝所有人而非放行所有人），符合本批意图，故不作为 finding；但没有独立于业务端点的降级信号（无 status 缓存 / 熔断），且「每请求一次额外往返」的成本已被文档登记为已知取舍（后续出路是塞进 token claim）。",
+    "生产态判定挂在自由文本上：Settings.env 是 str，is_production = (env == \"production\")。T0-F 新增的两道闸（mock 路由不挂载 + 部署期断言）都建立在它上面 ⇒ ENV=prod / ENV=Production 这类拼写会让断言与「不挂载」都不触发。本批新增的 enable_mock_login 双闸让「仅拼写错」不再足以打开 mock 登录（仍需额外显式开开关），但「拼写错 + 显式开开关」仍是完整的鉴权旁路。根因是既有字段（未在本批改动），仅作登记。",
+    "/auth/me 用的是 auth.py 里另一个函数 current_user（纯 JWT 解码、无 DB 读），不走 current_actor ⇒ 停用用户的在手 access token 仍能读到自己的档案。「停用立即生效」的覆盖面止于 current_actor 这一层；属覆盖面问题而非本批引入的失败路径。",
+    "调用点完整性：本轮对 current_actor 的直接（非 Depends）调用只做了 grep 级核对（app/api/v1/ws.py:78 + 一处测试）⇒ 结论「只有 ws.py 需要改 async」是 grep-only 证据；后台任务 / ARQ worker / 非 HTTP 入口是否还有以其它方式复用鉴权逻辑，未穷举。",
+    "WS 握手现在与 DB 共享 fate（此前是纯 CPU 的 JWT 解码）：DB 不可用或连接池耗尽时，握手会先等满 pool_timeout=30s 才失败 ⇒ 一批重连风暴下每个握手各占 30s。连接池本身的参数（pool_size=10 / max_overflow=20 / pool_timeout=30）本批未改动。"
+  ],
+  "testing_gaps": [
+    "没有覆盖 current_actor 里 DB 读失败（连接断开 / 连接池超时 / 语句超时）的用例 ⇒ 「DB 抖动 ⇒ 全站 500（fail-closed）」这一被依赖的行为没有被任何测试钉住；tests/api/v1/test_user_disabled_guard.py 只覆盖了 DISABLED / ACTIVE / 无 users 行 / awaitable / 端点仍可用。",
+    "WS 握手没有覆盖「DB 不可用（非 PcsError）」这一路：tests/api/v1/test_ws_notifications.py 覆盖了有效 token / 缺 token / 无效 token / DISABLED 用户 / 无 users 行，但没有任何一条让鉴权阶段的 DB 查询失败 ⇒ except PcsError 之外的异常逃逸路径无测试。",
+    "useStreamBatchSubmit 的 onDone 抛错路径无用例：tests/pages/sim/useStreamBatchSubmit.test.ts 的 8 条用例全部让 onDone 成功或不存在 ⇒ 「提交成功但刷新失败 ⇒ 摘要被清空 + 页面报『批量提交校对失败』」这条组合路径无覆盖。",
+    "没有针对「部署期断言在真实生产启动路径上是否可能触发」的端到端用例：现有 test_production_with_mock_route_mounted_fails_startup 是构造一个挂了 mock router 的 FastAPI 再调断言（单元级）⇒ create_app() 在 env=production 下真的不挂载、以及 lifespan 里断言确实被调用，只有 test_main_create_app_skips_mock_in_production 覆盖了前半段，后半段（lifespan 内断言被执行）无用例。"
+  ]
+}

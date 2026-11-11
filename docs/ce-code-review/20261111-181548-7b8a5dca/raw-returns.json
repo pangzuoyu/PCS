@@ -1,0 +1,615 @@
+[
+ {
+  "reviewer": "correctness",
+  "findings": [
+   {
+    "title": "前端不把 USER_DISABLED 401 当会话结束",
+    "severity": "P1",
+    "file": "pcs-frontend/src/api/client.ts",
+    "line": 39,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "把 `'USER_DISABLED'` 加进 `pcs-frontend/src/api/client.ts` 的 `SESSION_OVER_CODES`（该码只在真实停用时出现 ⇒ 归入会话结束码语义正确）；可选：跳转前先 `message.warning('账号已被停用，请联系管理员')`，别让用户误以为是网络问题。并补一条前端测试：mock 一个 401 `USER_DISABLED` ⇒ 断言 `clearSession` 被调用且导航到 `/login`。",
+    "first_evidence": "pcs-frontend/src/api/client.ts:39 — `if (!code || SESSION_OVER_CODES.has(code)) {`"
+   },
+   {
+    "title": "_stream_graph 重复查 Stream，守卫返回值被丢弃",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 166,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "把守卫的返回值传下去：`_stream_graph(session, stream, *, max_depth)`（`stream` 由 `_guard_record_access` 的返回值给出），并删掉 `_stream_graph` 里的 `session.get` 分支 —— 守卫已保证行存在（不存在时它自己抛 404）。",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`"
+   },
+   {
+    "title": "admin_users docstring 仍宣称在手 access 可用至过期",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/admin_users.py",
+    "line": 107,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "改写该 docstring 的「已知边界」段：① 停用 ⇒ actor 层每请求查 `users.status` ⇒ 在手 access **立即** 401 `USER_DISABLED`（本批 T0-B）；② 仍然成立的边界是「**角色变更**不即时生效」（role claim 在 token 里，要到 refresh 才更新）。措辞与 ADR-0046 §⑤ 的「已知边界」节保持逐字一致，避免第二份口径。",
+    "first_evidence": "pcs-backend/app/api/v1/admin_users.py:107-108 — `⚠️ 已知边界（不得表述为已解决）：`access` token 不带 `tv`，在手 access 仍可用至过期（默认 30 分钟）。见 ADR-0046 §⑤。`"
+   },
+   {
+    "title": "停用判定未覆盖 current_user 依赖的 7 个端点",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/auth.py",
+    "line": 149,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "首选：让 `current_user` 也做同样的判定（改成 `async def` + `Depends(get_db)`，复用 `app/services/user_status_service.py::is_account_disabled`；meta 的同步端点用 async 依赖在 FastAPI 里是合法的）⇒ `/auth/me` 与 meta 的 401 语义与 actor 层一致。次选（若刻意豁免）：在 ADR-0046 §⑤ 与 SPEC §7.1 明确登记这 7 个端点为豁免并写明理由（不返回任何用户数据），别让「全局生效」这句悬着。",
+    "first_evidence": "pcs-backend/app/api/v1/auth.py:149 — `def current_user(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:`（无 `users.status` 判定）"
+   }
+  ],
+  "residual_risks": [
+   "callsite completeness: grep-only —— 本批「`current_actor` 是唯一的 actor 层依赖」「`current_actor` 只有 `app/api/v1/ws.py` 一处直接调用（已同步改 async）」等结论只靠文本搜索得出（本 harness 未暴露符号级/结构化搜索工具），反射、依赖覆盖（`app.dependency_overrides`）或动态注册的调用点无法排除。",
+   "`useStreamBatchSubmit.submit` 把 `onDone`（列表刷新）放在同一个 try 里 ⇒ 若 `onDone` 抛错，catch 会把**已成功**的批次摘要 `setResult(null)` 清掉，并把异常抛给页面（页面会显示「批量提交校对失败」）。当前唯一消费者 `StreamListPage` 的 `load` 自行吞掉异常 ⇒ 该路径今天触发不了；但 hook 是导出组件，未来换消费者即成真 bug。",
+   "本机未执行测试（评审约束禁止跑测试）⇒ 所有「已有覆盖」的结论来自读测试文件源码，未实际运行；`pcs-backend/tests/services/test_stream_reference_count.py` 的 11 个用例（含两条跨项目排除）读起来是齐的。",
+   "FastAPI 版本相关：`uv.lock` 锁 0.141.1（`main.py` 注释里「FastAPI ≥ 0.141 懒挂载 ⇒ 旧的 `app.routes` 断言一直是空转」的前提在本仓成立），但系统解释器里装的是 0.135.3 ⇒ 若有人绕过 `uv` 用系统环境跑，`app.routes` 迭代会「有效」而 `app.openapi()` 路径判定仍有效 ⇒ 两版都判，无行为差异，只是断言写法与所装版本绑定。",
+   "`users.roles` 覆盖写只发生在**真实登录**成功时（`_write_real_role`）⇒ 生产里若某人被移出全部已映射的 LDAP 组，`resolve_role` 直接抛 `LdapAuthError` ⇒ 登录失败 ⇒ 覆盖写不发生 ⇒ `users.roles` 保留旧角色 ⇒ 按角色圈人的通知（`notification_recipients.resolve_role_recipients`）仍会找TA。AD 同步（`ad_sync._apply`，覆盖写且无角色时置 None）能覆盖这个场景 ⇒ 依赖 AD 同步在跑，属已知取舍（ADR-0046 已登记「角色变更不即时生效」）。"
+  ],
+  "testing_gaps": [
+   "无前端测试覆盖「401 `USER_DISABLED` ⇒ clearSession + 跳 `/login`」—— 正是 P1 那条的缺口；现有 `SESSION_OVER_CODES` 也没有对应的表驱动测试（改白名单时没有护栏）。",
+   "无后端测试断言 `GET /auth/me` 与 meta 的 6 个端点对**已停用**用户的行为（要么 401、要么明确豁免）⇒ 「全局生效」这句在代码上没被钉住。",
+   "无测试钉住 `/graph` 与 `/downstream` 两个端点在 `record_type='streams'` 下**同口径**（同一个 `max_depth` ⇒ 同一个下游条数上限、同为「最新的在前」）—— SPEC 明确要求两者同口径（「否则两个端点互相打脸」），但当前没有一条测试断言两者对同一份 `data_lineage` 数据返回相同的集合。"
+  ]
+ },
+ {
+  "reviewer": "security",
+  "findings": [
+   {
+    "title": "Lineage endpoints bypass streams role gate (CWE-862)",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 137,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add the same role gate the streams module applies to the lineage endpoints, e.g. in app/api/v1/lineage.py add `from app.api.v1.config import require_roles` and call `require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\")` at the top of upstream(), downstream() and graph() (before _guard_record_access, so the guard stays the outermost check per the batch's hard constraint). Assumption: the intended role model for the lineage surface is the streams-module allow-list; if the product instead intends any project member to read lineage, then the streams endpoints' role list is the thing to reconcile — either way the two surfaces should agree, and the choice should be recorded in docs/PCS-UI-SPEC.md §7.7.2. The fail-closed 404 shape for cross-project/unknown-type must stay byte-identical after the change.",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:137 — `    user: Annotated[_Actor, Depends(current_actor)],` (the /graph endpoint's only authz: current_actor + project guard; no require_roles anywhere in lineage.py — grep for require_roles in that file returns nothing, and its import line is `from app.api.v1.config import _Actor, current_actor`)"
+   },
+   {
+    "title": "current_user path skips new account-status check (CWE-613)",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/auth.py",
+    "line": 287,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Make the status check apply to the second entry point as well: either give current_user an `db: Annotated[AsyncSession, Depends(get_db)]` parameter and call `is_account_disabled(db, user_id=_derive_user_id(payload))` before returning the payload, or (smaller blast radius) have /auth/me and the /meta endpoints depend on current_actor instead of current_user. Assumption: /auth/me must keep working for non-production mock logins, which is satisfied because is_account_disabled returns False when the users row is absent. If the product decides the session-probe path should stay available for disabled users (to let the frontend render the 'account disabled' screen), record that as an explicit exemption in ADR-0046 §⑤ instead of leaving the two paths silently divergent.",
+    "first_evidence": "pcs-backend/app/api/v1/auth.py:287 — `    user: Annotated[dict[str, Any], Depends(current_user)],` (GET /auth/me authenticates through current_user, which never touches users.status)"
+   }
+  ],
+  "residual_risks": [
+   "Fail-open by construction on missing users rows: is_account_disabled queries `User.user_id == <token user_id claim>` and returns False when no row matches. Two consequences I could not rule out from code alone: (a) legacy account rows whose user_id != uuid5(NAMESPACE_DNS, username) (the shape TODO-137 tracks) are invisible to the check — the derived id has no row — so a disabled legacy account keeps full access until the row is migrated; the repo's release checklist requires `SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0, which makes this a deployment precondition rather than a code defect; (b) if the users table is empty or the AD sync never ran, the whole 'disabling takes effect immediately' feature degrades silently to pass-everything with no startup assertion or metric to reveal it.",
+   "users.status is a free VARCHAR(20) with no CHECK constraint restricting it to ACTIVE/DISABLED (app/models/project.py:157). is_account_disabled only compares against UserStatus.DISABLED.value, so a NULL status or any typo'd value is treated as 'not disabled' (fail-open). No code path writes such a value today (admin_user_service writes the enum value), so this is a data-integrity gap rather than a live bypass.",
+   "The mock-login double gate is only as strong as the two conditions it combines: `is_production` is an exact string compare (`self.env == \"production\"`, app/core/config.py:129) and the shipped pcs-backend/.env.example sets `PCS_ENABLE_MOCK_LOGIN=true`. A deployment that copies the example file and sets ENV to anything other than exactly 'production' (e.g. 'prod', 'Production') both mounts the mock router and passes the new second gate — leaving mock-login live, which issues a SYSTEM_ADMIN token for 'dan'. This exposure is pre-existing (the router-mount decision and is_production are untouched by the diff), and the diff's second gate does not compensate for it because the example file turns that gate on; I did not file it as a finding for that reason, but the 'double gate' should not be read as defence-in-depth while .env.example ships the switch enabled.",
+   "The WebSocket handshake accepts the bearer token as a query parameter (?token=), which puts credentials into access logs and proxy logs (CWE-532). ws.py is touched by this diff and the _authenticate function was rewritten, but the token transport itself is unchanged and I found no frontend caller of /api/v1/ws/notifications, so I could not establish live exposure.",
+   "callsite completeness: my sweep of current_actor's callers was grep-only over pcs-backend/app (no symbol-aware search was available in this session), so I cannot exclude a dynamically-bound or re-exported call site that would now receive a coroutine instead of an actor, nor a non-app/ caller (scripts/, worker) that calls current_actor directly.",
+   "The new per-request users.status lookup adds one DB round trip to every authenticated request (current_actor runs on all 18 streams endpoints plus the config/util/supplier/workspaces surfaces). I did not evaluate the resulting query-load amplification or lock behaviour under concurrency; that is a performance/reliability question I left to the performance and reliability reviewers."
+  ],
+  "testing_gaps": [
+   "No test pins the role model across the two surfaces: the new tests cover the disabled-account 401 and the cross-project 404, but nothing asserts what a non-streams-allow-list role (REVIEWER/CHECKER/VIEWER) gets from GET /lineage/streams/{id}/graph versus GET /streams/{id}. A test asserting 'REVIEWER ⇒ 403 on both, or ⇒ 200 on both by an explicit decision' would pin whichever answer is intended and would have caught the current divergence.",
+   "No test covers the disabled check against a users row whose user_id is not the derived uuid5(NAMESPACE_DNS, username) (the TODO-137 legacy shape), nor against a NULL/unrecognised status value — both currently evaluate to 'not disabled'. A test that documents the intended outcome (reject vs pass) for those rows would either close the hole or make the fail-open explicit.",
+   "No test exercises GET /auth/me (or the /meta endpoints) with a DISABLED account's existing access token, so the divergence between current_user and current_actor on account status is untested and would not be caught by a future refactor of either dependency.",
+   "The mock-login gate tests cover the PCS_ENABLE_MOCK_LOGIN env-var name and the production RuntimeError, but there is no test that a non-production deployment with the switch ON still refuses when is_production is true via the router-level path, nor that the startup assertion actually trips when the mock router is mounted in a production-configured app (the OpenAPI-path check depends on FastAPI's lazy-mount behaviour, which no test in the diff exercises)."
+  ]
+ },
+ {
+  "reviewer": "adversarial",
+  "findings": [
+   {
+    "title": "Disabled user's browser session never ends (USER_DISABLED not session-ending)",
+    "severity": "P1",
+    "file": "pcs-frontend/src/api/client.ts",
+    "line": 39,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add 'USER_DISABLED' (and, while there, 'REFRESH_REVOKED') to SESSION_OVER_CODES in pcs-frontend/src/api/client.ts so the interceptor clears the session and redirects to /login; optionally surface a distinct '账号已停用' message before redirecting so the user learns why. Then add a frontend test that a 401 with code USER_DISABLED clears the session (the interceptor is currently untested for any code outside the set).",
+    "first_evidence": "pcs-frontend/src/api/client.ts:39 - `      if (!code || SESSION_OVER_CODES.has(code)) {` (the set at lines 24-31 contains MISSING_BEARER / INVALID_TOKEN / EXPIRED_TOKEN / WRONG_TOKEN_TYPE / INVALID_REFRESH / EXPIRED_REFRESH only - no USER_DISABLED, no REFRESH_REVOKED)"
+   },
+   {
+    "title": "Fail-closed lineage guard makes PSV lineage permanently 404",
+    "severity": "P2",
+    "file": "pcs-backend/app/services/lineage_registry.py",
+    "line": 57,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Register every lineage-writable model in the guard map instead of inheriting RECORD_TYPE_REGISTRY blindly: add `LINEAGE_GUARDED_RECORD_TYPES[\"PsvResult\"] = (PsvResult, \"psv_id\")` next to the explicit \"streams\" entry (line 66), and add a test that walks the models passed to finalize_calc_record (cia_engine.track as well) asserting each class name has a guard entry - otherwise the next model added to a persist service silently loses its lineage view.",
+    "first_evidence": "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY."
+   },
+   {
+    "title": "WebSocket keeps pushing to a user disabled after handshake",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/ws.py",
+    "line": 78,
+    "confidence": 75,
+    "autofix_class": "advisory",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Re-evaluate the account state on the WebSocket delivery path, or close the socket when the account is disabled. Minimal concrete option: in the ws sink, before send_json, call is_account_disabled(session, user_id=...) with a short TTL cache (e.g. 5-10s) and close with code 1008 when disabled; alternatively have the admin disable path publish an event that the broadcaster registry consumes to close matching sockets. If neither is done in this batch, record the WS channel explicitly as a known exception to '停用立即生效' in ADR-0046 §5 and UI-SPEC §7.1 instead of leaving the blanket claim.",
+    "first_evidence": "pcs-backend/app/api/v1/ws.py:78 - `        actor = await current_actor(session, authorization)` - the only account-status evaluation for this channel, executed once inside `_authenticate` before the socket is accepted."
+   },
+   {
+    "title": "Deployment assertion goes green while mock-login route is mounted",
+    "severity": "P2",
+    "file": "pcs-backend/app/main.py",
+    "line": 53,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Assert on the routing table instead of the schema: keep the OpenAPI check but add a walk of app.routes that resolves FastAPI 0.141's `_IncludedRouter` wrapper (e.g. `router = getattr(route, \"original_router\", None)` then check `getattr(r, \"path\", \"\")` over `router.routes`) and raise if any path ends with '/mock-login'. Add a regression test that mounts the mock router with include_in_schema=False and asserts the guard still raises - the current test only covers the schema-visible case, so it cannot catch this divergence.",
+    "first_evidence": "pcs-backend/app/main.py:53 - `    paths = app.openapi().get(\"paths\", {})` followed by `    if any(path.endswith(\"/mock-login\") for path in paths):` - the whole 'is the route mounted' decision is made on the OpenAPI schema."
+   },
+   {
+    "title": "Ledger promises role merge while code overwrites roles",
+    "severity": "P3",
+    "file": "TODOS.md",
+    "line": 2946,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Rewrite the TODO-134 closure paragraph in TODOS.md to match the implementation: say the real role is *overwritten* (roles=[role]), state why (ad_sync._apply is also an overwrite; merging would make role downgrades never take effect), and state the consequence explicitly (a users row holding several roles keeps only the role of the latest login, so role-scoped notification selection stops matching the dropped roles). Keep the code comment as the authoritative note.",
+    "first_evidence": "TODOS.md:2946 - `**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。` - the TODO-134 closure text added in this diff."
+   },
+   {
+    "title": "Batch-submit mock never fails, so new failure-list UI is invisible to browser QA",
+    "severity": "P3",
+    "file": "pcs-frontend/src/mocks/handlers.ts",
+    "line": 879,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Make the mocked batch response produce a deterministic partial failure (e.g. fail every id whose id ends with '-x', or fail the second id of any multi-id batch) in buildBatchSubmitResponse, so the failure bar and the retry path are reachable during browser QA; keep the current shape (contract-derived) so the ajv check still holds.",
+    "first_evidence": "pcs-frontend/src/mocks/handlers.ts:879 - `    failed: [],` inside buildBatchSubmitResponse (line 862) - every mocked batch response reports zero failures."
+   }
+  ],
+  "residual_risks": [
+   "Coverage boundary: this harness exposed no symbol-aware or AST search (only text search via grep), so the claim 'ws.py is the only non-Depends call site of current_actor' rests on grep over app/ and could miss a dynamic or string-keyed usage.",
+   "The account-status check lives only in current_actor; /auth/me and the six /api/v1/meta/* endpoints use current_user (app/api/v1/auth.py:149) and therefore still answer 200 to a disabled user. Whether that leaves a usable session in the browser depends on how the frontend auth store validates sessions, which I did not trace end to end (the USER_DISABLED interceptor gap is reported separately).",
+   "Settings.is_production is a case-sensitive comparison (self.env == \"production\"). A deployment that sets ENV=Production would silently disable BOTH the production guards (the mount decision and the endpoint gate) while PCS_ENABLE_MOCK_LOGIN=true stays effective - a full mock-login bypass. I could not verify how the deployment sets ENV (grep-only, outside the diff), so this stays a residual risk rather than a finding.",
+   "assert_mock_auth_not_exposed calls app.openapi() at startup, which generates the whole schema; a route whose response model cannot be introspected would abort startup rather than pass silently. I did not verify schema generation across every route, so the failure mode of this call at boot is unverified.",
+   "The reference_count column (downstream streams + flash results, same project only) deliberately differs from the delete gate's basis (state points + flash results, any project). The difference is documented in SPEC 7.7.1, but I did not verify that a stream whose only references are downstream streams is actually deletable (streams.upstream_stream_id FK behaviour) - the delete gate does not count downstream streams.",
+   "No tests were executed in this environment (forbidden by the review constraints), so all green/red statements about the batch's own suite are taken from the diff's own claims, not independently verified."
+  ],
+  "testing_gaps": [
+   "No test mounts the mock router with include_in_schema=False and asserts assert_mock_auth_not_exposed still raises - the exact green-while-red case of the rewritten deployment assertion.",
+   "No test asserts that a record type which writes lineage rows but is absent from RECORD_TYPE_REGISTRY (PsvResult today) still resolves GET /lineage/{record_type}/{id}/graph after the guard became fail-closed.",
+   "No frontend test asserts that a 401 response with code USER_DISABLED clears the session and redirects to /login (the interceptor's session-ending set has no case for it).",
+   "No test covers a WebSocket that stays open across a user-disable event (status re-check on the delivery path).",
+   "No test asserts that the MSW batch-submit mock can produce a partial failure, so the persistent failure list and the retry path are never rendered in the browser QA lane."
+  ]
+ },
+ {
+  "reviewer": "project-standards",
+  "findings": [
+   {
+    "title": "SPEC 要求停用用户跳登录页，前端未实现该 401 处理",
+    "severity": "P2",
+    "file": "docs/PCS-UI-SPEC.md",
+    "line": 1202,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在 pcs-frontend/src/api/client.ts 的 `SESSION_OVER_CODES` 里加入 `'USER_DISABLED'`（后端 config.py 的 PcsError code），使拦截器走既有的「清 session + 跳 /login」路径（与 SPEC §7.1「按普通 401 处理」一致）；并在 pcs-frontend/tests 下补一条拦截器用例（mock 一个 401 + `{code:'USER_DISABLED'}` 的响应 ⇒ 断言 `useAuth.getState().clearSession()` 被调用且跳转 /login）。若产品上更希望「保留会话 + 页面提示停用原因」，则改 SPEC §7.1（V2.16）写明实际行为，并另加一条 `USER_DISABLED` 的页面级错误提示 —— 但无论选哪条，SPEC 与实现必须一致，且 SPEC 的修订要按 CLAUDE.md「登记 SPEC 修订」的规矩进 §4.4 修订登记。",
+    "first_evidence": "docs/PCS-UI-SPEC.md:1199-1202（本批新增，diff-docs.txt:4228-4231）—— 「⚠️ **停用用户的会话**（P9B-4 T0-B 之后）：用户被**停用**（`users.status = DISABLED`）⇒ 其**在手 access token 立即失效** ⇒ **下一次请求**返回 **401 `USER_DISABLED`**（不需要等 token 过期，也不需要等 refresh）。⇒ 前端按**普通 401** 处理（跳登录页）。」"
+   },
+   {
+    "title": "账簿写 roles「合并」，实现已是「覆盖」",
+    "severity": "P2",
+    "file": "TODOS.md",
+    "line": 2946,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "把两处「合并」改成「覆盖」，并把 bug-2156 的 `fix_commit` 更新为真正落地覆盖语义的那次提交（评审修复批的 commit 短 SHA，7 位）：① TODOS.md:2945-2946 改为「把真实角色**覆盖**写进 `users.roles`（只保留当前身份的角色 ⇒ 角色降级能生效）」；② .wolf/buglog.json 的 bug-2156 `fix` 字段同步改成覆盖口径、`fix_commit` 改成覆盖那次提交（并按仓库惯例在 `related_bugs`/说明里注明「原 69b2327 为合并版，已被整批评审推翻」）。顺带可把 TODO-134 标题下的旧「建议改法：…**合并**真实角色」（TODOS.md:2963，pre-existing 原文）标注为「已被覆盖口径取代」，避免同一节里两套口径并存。",
+    "first_evidence": "TODOS.md:2945-2946（本批新增行）：「**本批修了什么**：`issue_tokens` 的**真实分支**在「行已存在」时把真实角色 **合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。」"
+   },
+   {
+    "title": "批末浏览器回归跑在非最终 HEAD 上",
+    "severity": "P2",
+    "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md",
+    "line": 5,
+    "confidence": 75,
+    "autofix_class": "advisory",
+    "owner": "release",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在当前 main（批末）上重跑一次 gstack 浏览器回归（登录 → 仪表盘 → 物流列表 → 物流详情 7 Tab → 控制台/网络无 error），并把报告的「批末 HEAD」改写成**实际回归时的 commit**（本次 = 1c3acb9）、补一节「§4c 批末重跑（2026-11-11）」记录 Q7 与 downstream 封顶后的复测结果（尤其「引用」列与血缘 Tab）；若不打算重跑，则把报告与 README 中的「浏览器 QA 0C-0H-0M」改为「回归于 f062e27（批末前 2 个 commit），批末变更只有后端、无前端改动」并登记为待补项，避免下一批误以为已对最终状态回归。",
+    "first_evidence": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md:5（本批产物）：「- **批末 HEAD**：`f062e27`（`feat(P9B-4): 物流列表「引用 📎×N」—— 口径钉死 + 后端两条聚合（TODO-108）`）」；同文件 :15「后端全量 … **5623 passed / 77 skipped / 4 deselected / 1 xfailed · RC=0**」"
+   }
+  ],
+  "residual_risks": [
+   "未运行任何测试/闸门（本会话禁 Bash、禁跑测试）⇒ 「后端 5626 passed / 前端 1046 tests / 裸载荷 71 / PG 车道 5 / G-08 四阶段 RC=0」全部采信本批自述与 QA 报告，未经独立复核。",
+   "未复核 CLAUDE.md「发布前检查」的两条本批相关项：`check_openapi_payload_coverage.py`（裸载荷 71 = 基线 71 ⇒ 未涨，但基线是否仍 ≤ 71 未独立复算）与 `scripts/pytest_pg.sh`（QA 报告称 5 passed）—— 本批未改 `alembic/versions/*`，故 `alembic check` 两库各跑一次这一项不适用。",
+   "未验证 context.md 的硬约束「T0-B 改行为 ⇒ ADR-0046 §⑤ 与代码**同一个 commit**」：ADR-0046 §⑤/已知边界/后果 确实被改写了（diff-docs.txt:4380-4477），但 commit 粒度需 git log 才能确认（.wolf/memory.md 显示 ADR 编辑于 20:48、config.py 编辑于 20:35，分属不同编辑时段，是否同 commit 未知）。",
+   "未审 diff-backend-tests.txt / diff-frontend-tests.txt 的全部内容（只逐个读了新后端测试文件的头部与 cerebrum 账簿）⇒ 测试文件里可能存在未登记的标准偏离（例如新写的守卫用例是否一律用 `strict_client`：从「跨项目 ⇒ 404」用例在绿灯下成立推断它们用了真守卫，但未逐行确认 fixture 名）。",
+   "`.wolf/anatomy-index.json` 记录的 `pcs-backend/app/services/token_issuer.py` 符号仍是 `_merge_real_role`（最终代码已改名 `_write_real_role`）⇒ OpenWolf 索引滞后于最后一次重命名；该文件由 hook 维护（openwolf.md 禁止手工改），故未作为 finding，仅提示下次扫描会自愈。",
+   "本次评审只覆盖 CLAUDE.md（+ 其指向的 .claude/rules/openwolf.md / .wolf/cerebrum.md / docs/PCS-UI-SPEC.md）作为标准来源；全局 ~/.claude/rules 的通用规则（测试覆盖率 80%、函数 < 50 行、文件 < 800 行等）未作为标准适用 —— 例如 `current_actor`（app/api/v1/config.py）本批后约 89 行、StreamListPage.tsx 约 470 行，均未超限，故无差异。"
+  ],
+  "testing_gaps": [
+   "缺「停用用户在前端的会话表现」的回归：应有一条前端用例（拦截器收到 401 + `{code:'USER_DISABLED'}` ⇒ 断言清 session + 跳 /login）与一条浏览器用例（mock 401 USER_DISABLED ⇒ 落地到 /login 而非停在业务页）。本批 QA 报告 §2.1~§2.5 未覆盖该路径。",
+   "缺「批末 HEAD 的浏览器回归」：Q7（同项目过滤）与 `/lineage/streams/{id}/downstream` 封顶两个 commit 落地后未重跑浏览器（报告 §4b 仅为文字论证）⇒ 至少应复测物流列表「引用」列与血缘 Tab 两条路径。",
+   "缺「合成 root 与真实 root 的字段集同形」的前端侧断言：后端有 `test_synthetic_root_has_same_shape_as_real_root`（keys 相同），但前端 `buildLineageGraph` 的 mock 形状与契约的 ajv 校验只覆盖契约形状，未断言「合成 root 的 10 字段 == 真实 root 的 10 字段」在契约层等价 ⇒ 后端加字段时前端 mock 仍可能不红。",
+   "缺「前端 401 错误码清单」的单一来源：`SESSION_OVER_CODES` 是手写的错误码集合（第二份真相源），后端新增任何「会话结束类」401 码（USER_DISABLED / USER_LOGIN_DENIED_DISABLED / …）都不会被前端自动识别 ⇒ 建议加一条架构测试（后端错误码常量表 ↔ 前端 SESSION_OVER_CODES）或多一份「会话码」契约。"
+  ]
+ },
+ {
+  "reviewer": "testing",
+  "findings": [
+   {
+    "title": "未知 record_type 的 404 只断言状态码，「逐字同形」没被钉住",
+    "severity": "P2",
+    "file": "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py",
+    "line": 563,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在 tests/api/v1/test_lineage_by_source_ref.py 里把两条未登记类型用例（test_unknown_record_type_is_404、test_registry_key_cv_result_is_404）改成「与不存在响应逐字同形」的断言：先取一个**已登记**类型的随机 uuid 请求得到基准 404，再断言 `r.status_code == base.status_code == 404` 且 `r.json()[\"code\"] == base.json()[\"code\"]` 且 `r.json()[\"message\"] == base.json()[\"message\"] == \"no lineage for record\"`。这样才真正钉住本批宣称的「不可枚举」性质。",
+    "first_evidence": "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py:563 — `    assert r.status_code == 404, r.text`"
+   },
+   {
+    "title": "/upstream 的 fail-closed 变更与 streams 分支零覆盖",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 73,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在 tests/api/v1/test_lineage_by_source_ref.py 补两条：① 已授权物流的 `GET /api/v1/lineage/streams/{stream_id}/upstream` ⇒ 200 且 body == []（钉住「物流是源 ⇒ 没有上游血缘行」这条新分支）；② `GET /api/v1/lineage/NotARecordType/{uuid}/upstream` 与 `.../downstream` ⇒ 404 且 body 与「已登记类型 + 不存在的 uuid」那次 404 逐字相同（code + message），把 fail-closed 覆盖到三个端点。",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:73 — `    if record_type == \"streams\":`（/upstream 端点里本批新增的分支，其后 `        return []`）"
+   },
+   {
+    "title": "N+1 守卫用两个子串猜 users.status 查询，预算会被误判",
+    "severity": "P3",
+    "file": "pcs-backend/tests/api/v1/test_deliverables_current_version.py",
+    "line": 268,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "把判据换成与被测行为直接相关的形式：例如 `is_status_query = [\"FROM users\" in s for s in selects]`（actor 层那条是 `SELECT users.status FROM users WHERE …`），或用 SQLAlchemy 编译语句的表名/列名（`statement.column_descriptions` / `get_final_froms`）判定「这条查询读的是 users.status」而不是在原始 SQL 文本里做子串匹配；这样业务查询里出现 users/status 时不会被误吞，预算也不会被静默缩小。",
+    "first_evidence": "pcs-backend/tests/api/v1/test_deliverables_current_version.py:268-270 — `        is_status_query = [` / `            \"users\" in s and \"status\" in s for s in selects` / `        ]`"
+   },
+   {
+    "title": "血缘 Tab 负向用例靠真实 300ms sleep 断言 tooltip 不出现",
+    "severity": "P3",
+    "file": "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx",
+    "line": 78,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "改成确定性时钟：`vi.useFakeTimers()`（在 beforeEach 里）+ `fireEvent.mouseEnter(...)` 后 `act(() => { vi.advanceTimersByTime(1000); })`，再用 `expect(screen.queryByRole('tooltip')).toBeNull()` 断言 tooltip 节点不存在（而不是靠文案内不含某串 + 真实 sleep）。",
+    "first_evidence": "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx:78-79 — `    await new Promise((resolve) => setTimeout(resolve, 300));` / `    expect(document.body.textContent).not.toContain('物流来源（录入通道）');`"
+   }
+  ],
+  "residual_risks": [
+   "本轮**未运行任何测试**（该环境里 shell/测试会挂起）⇒ 全部覆盖判断来自静态阅读 diff + 仓库源码；若某条新用例其实从未真正执行（例如 fixture 装配失败、模块级 collection error），静态审查看不出来。已核对的风险点：pyproject 的 `asyncio_mode = \"auto\"` ⇒ 新加的 async 用例不需要 marker 也会跑；tests/setup.ts 有 `afterEach(() => cleanup())` ⇒ 前端 RTL 清理存在。",
+   "`current_actor` 的**直接调用点**用文本 grep 找过（只有 app/api/v1/ws.py 一处已改），但「是否还有动态/字符串式的调用点」grep 覆盖不到 ⇒ 新的 smoke 用例只抽查了 4 个端点（streams / properties / state-points / notifications）。",
+   "参考计数服务层（StreamService.reference_counts）与列表端点的项目口径：端点层只有「project_id 被透传」的断言（spy 捕获 kwargs），**没有**端到端「跨项目引用不计入列表响应」的用例 ⇒ 端点若改传别的 project id，只有服务层用例挡不住（服务层用例是直接调 service 的）。",
+   "「被引用数」在 OpenAPI 里带 `default: 0` 且**不在 required 列表**里 ⇒ 前端 ajv 棘轮**不会**因为 seed/mock 漏掉 reference_count 而红（ajv 不套用 default）；目前只有 `tsc` 能挡（生成的 TS 类型把该字段标成必填）—— 即「契约派生」的严格性与 OpenAPI 的 required 列表并不一致。",
+   "参考计数口径（下游物流 + 闪蒸结果）与删除门禁 `_collect_references`（含状态点）**有意不同**，两者没有共享的常量/断言 ⇒ 将来任一处改口径，另一处不会变红（SPEC 已写明，但代码里没有钉死的锚点）。",
+   "本批未改 alembic 迁移，但 `is_account_disabled` 读 `users.status`（String 列）⇒ 语义依赖 ORM 与 DB 的列定义一致；本轮未做跨库漂移核对（该仓有「alembic check 只在当前连接库上成立」的已知盲区，见 CLAUDE.md）。"
+  ],
+  "testing_gaps": [
+   "Review Focus 五条的落地核对结果（供综合参考）：① 空入参早返回 ⇒ 已落（tests/services/test_stream_reference_count.py::test_reference_counts_with_empty_input_returns_empty_dict）；② 跨两表累加 2+1=3 ⇒ 已落（::test_reference_count_accumulates_across_both_tables）；③ 重试命中幂等 ⇒ 摘要那行「本来就在审批中」的**渲染**由既有 StreamListPage 用例覆盖，本批新增的 hook 用例只断言数据透传（result.succeeded 里仍有 note）⇒ 端到端「重试后摘要仍显示那行」没有单条用例；④ 重试全成功 ⇒ 失败清单清空（hook 用例）+ 失败清单条消失（仅由「清除」按钮路径覆盖）⇒ 「重试成功后条消失」无页面级用例；⑤ 引用数为 0 ⇒ 渲染「—」⇒ 已落（StreamListPage.test.tsx「引用」列用例）。",
+   "没有 HTTP 级用例覆盖「**真实可写入但未登记**」的记录类型：镜像用例 test_registry_covers_every_writable_record_type 比对的是 RECORD_TYPE_REGISTRY，而 app/services/calc_lineage.py 的模块 docstring 明写 RECORD_TYPE_REGISTRY「**不是** finalize_calc_record 的支持清单 —— 那段逻辑是鸭子类型的，本注册表从未驱动过它（TODO-048）」⇒ 用例名声称的「所有能写出血缘行的类型都在注册表里」并未被这条用例证明（今天恰好没有落在集合外的可写模型，TwoPhaseResult 不写血缘行）。",
+   "没有端到端用例覆盖「跨项目引用 ⇒ 列表响应里 reference_count 为 0」：服务层有两条跨项目排除用例，但列表端点只断言了 project_id 被透传 ⇒ 若实现把端点的 project_id 传错，或服务层的 project_id 谓词被删，端到端行为无测试覆盖（只有服务层单测会红一半）。",
+   "GET /streams/{id}（单条）的 reference_count 恒为 0（context 已登记为已知限制）⇒ 没有用例把这个「恒 0」钉住；前端目前只在列表页用该字段，将来若在详情页用上会静默显示错误值。",
+   "T0-E（真实登录补写 roles）只覆盖了「已有行」的三种情形（补写 / 覆盖 / 重复登录不追加）+ mock 不写；没有用例覆盖「真实登录 + 角色降级到空角色（role 为 None/空）」这条 `_write_real_role` 会写 `roles=[role]` 的边界（AD 同步侧是 `roles=[role] if role else None`，两侧口径在此处不一致）。"
+  ]
+ },
+ {
+  "reviewer": "performance",
+  "findings": [
+   {
+    "title": "Every authenticated request now pays a users.status DB round trip",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/config.py",
+    "line": 563,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Keep the semantics (immediate disable) but stop paying an unconditional round trip. Two defensible options, both needing a product decision, so do not pick one silently:\n(a) Put `status` in the access-token claim at issue time and validate it locally — the escape hatch the module docstring already names, but it is a breaking change (token structure + every issue path + every verify path) and therefore belongs in its own batch, not as a drive-by.\n(b) Cache the (user_id → disabled?) verdict for a short TTL (a few seconds) in front of `is_account_disabled`. This keeps the DB out of the hot path but relaxes 'immediate' to 'within the TTL', so the staleness window must be an explicit, documented product decision, not a silent default.\nInterim, if neither is taken: measure the list endpoint's P95 with and without the probe before accepting it, and add the regression guard the repo already has a precedent for (a query-count or latency budget test) so a future refactor cannot silently add a second per-request probe.",
+    "first_evidence": "pcs-backend/app/api/v1/config.py:563:     if await is_account_disabled(db, user_id=user_id):"
+   },
+   {
+    "title": "reference_counts sends the whole project id list as an IN list",
+    "severity": "P3",
+    "file": "pcs-backend/app/services/stream_service.py",
+    "line": 378,
+    "confidence": 50,
+    "autofix_class": "gated_auto",
+    "owner": "release",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Drop the IN list and aggregate by project only, keeping the requested ids as the filter in Python:\n\n    downstream = (await db.execute(\n        select(Stream.upstream_stream_id, func.count())\n        .where(Stream.project_id == project_id,\n               Stream.upstream_stream_id.is_not(None))\n        .group_by(Stream.upstream_stream_id)\n    )).all()\n    for upstream_id, n in downstream:\n        if upstream_id in counts:      # 只保留问到的 id（保持今天不产生多余 key 的行为）\n            counts[upstream_id] += n\n\nand the same shape for the flash aggregate (`FlashResult.project_id == project_id` + `FlashResult.stream_id.is_not(None)`; both columns already carry indexes, so this stays an index scan).\n\nAssumption: `ids` is always a subset of the project's streams (the only caller passes the ids returned by `list_by_project(db, project_id, ...)`), so the counts for the requested ids are unchanged; the `if ... in counts` guard preserves today's behaviour of not adding keys for cross-project references (which the DB permits because `streams.upstream_stream_id` is a plain FK without a project constraint). If a future caller passes ids from another project, the filter must be reinstated.\n\nBundle this with the TODO-143 index work in P10-D rather than shipping it alone: with the index in place the IN list becomes a cheap index probe, and the two changes should be measured together.",
+    "first_evidence": "pcs-backend/app/services/stream_service.py:378:                    Stream.upstream_stream_id.in_(ids),"
+   }
+  ],
+  "residual_risks": [
+   "No query plans were executed: this review had no DB/shell access, so every planner-level claim (that the project_id index is chosen for the aggregates, that the IN list is re-planned per request, that data_lineage is seq-scanned for by_source_ref) is reasoned from the ORM/index definitions, not measured with EXPLAIN. A PG-side EXPLAIN (ANALYZE) on the list and lineage endpoints against the real project would confirm or refute F2's magnitude.",
+   "LineageTracker.by_source_ref (new in this diff, app/services/lineage.py:144-176) filters on data_lineage(source_ref_type, source_ref_id) — neither column is indexed (models/system.py:46-47), and the table only grows. Every open of the stream lineage tab therefore costs a scan of data_lineage plus a sort for `ORDER BY occurred_at DESC, lineage_id DESC` (the LIMIT is applied in the database, so the response is bounded at max_depth rows, but the scan/sort work is not). This is the same root cause and the same fix as the already-recorded TODO-143 deferral, so it is NOT reported as a finding — but note that TODO-143's two-column index would still leave the ORDER BY sort in place; a composite (source_ref_type, source_ref_id, occurred_at DESC) is what makes it an early-terminating index scan. Worth folding into the P10-D index task.",
+   "The blast radius of F1 is a lower bound: the code-review-graph import edges for `app/api/v1/config.py` list only 3 importers (equip_lib.py, __init__.py, pipe_classes.py), which is visibly incomplete — streams.py and lineage.py import `current_actor` directly (visible in the diff) and the graph does not track `Depends()`-based usage at all. The true count of endpoints now paying the extra probe is therefore larger than what was counted here.",
+   "`_stream_graph` re-reads the stream with `await session.get(Stream, stream_id)` (app/api/v1/lineage.py:389) even though `_guard_record_access` already loaded that row via `select(Stream)` a few lines earlier. This was judged NOT to be an extra round trip, because SQLAlchemy's `Session.get()` consults the identity map first and the guard's `select()` populated it; if that assumption is wrong (e.g. the row is evicted or a different session is used), every streams-lineage request pays one redundant SELECT. Low likelihood, but it was not executed to confirm.",
+   "Not reached (budget): the batch-submit backend path and its per-item work were not reviewed in depth — `POST /streams/batch-submit` does not appear in the diff hunks, so it was treated as pre-existing; the frontend list-refresh path was reviewed only for the diff's changed lines (the batch hook + `onDone`), not for the surrounding render/memoization behaviour of the table."
+  ],
+  "testing_gaps": [
+   "No query-count assertion for GET /projects/{project_id}/streams. The endpoint went from 4 round trips (access check + 2 list queries) to 6 (status probe + access check + 2 list queries + 2 reference-count aggregates) with nothing pinning the number, so a future change that turns the aggregates into a per-row query would stay green.",
+   "No perf-budget test for the per-request `users.status` probe. The repo already has the pattern (tests/services/test_export_service.py has a perf budget; TODO-029 wants a CIA propagation budget), so a request-count/latency budget for the list endpoint would give F1 a measurable gate instead of a docstring note.",
+   "reference_counts is never exercised with a large id list (the unit tests use a handful of streams). A test with a few thousand ids — asserting both the returned counts and the parameter count / query shape — would make the O(project) parameter growth visible before it matters.",
+   "No test asserts that `by_source_ref`'s limit is applied in the database (as opposed to truncating after fetch). A query-counting or statement-capturing test would pin the 'bounded response AND bounded scan' property the endpoint docstring claims."
+  ]
+ },
+ {
+  "reviewer": "api-contract",
+  "findings": [
+   {
+    "title": "New USER_DISABLED 401 never ends the frontend session",
+    "severity": "P1",
+    "file": "pcs-backend/app/api/v1/config.py",
+    "line": 565,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add 'USER_DISABLED' to SESSION_OVER_CODES in pcs-frontend/src/api/client.ts:24-31 so the 401 clears the session and redirects to /login exactly as SPEC §7.1 requires (one-line change; 'REFRESH_REVOKED' can be added at the same time — the ADR-0046 §⑤ tv gate produces it on the refresh path and it is likewise absent from the set, which is pre-existing but same-shaped). Assumption: the SPEC clause ('跳登录页') is the intended behavior because it is the only place the requirement is written; if the product instead wants a dedicated '账号已停用' message on the current page, amend SPEC §7.1 instead — the two must agree either way. Also consider surfacing the reason on the login page (pass the code through clearSession) so the user learns why.",
+    "first_evidence": "pcs-backend/app/api/v1/config.py:563-568 — `    if await is_account_disabled(db, user_id=user_id):` / `        raise PcsError(` / `            code=\"USER_DISABLED\",` / `            message=f\"user account is disabled: {sub}\",` / `            status=401,` / `        )`"
+   },
+   {
+    "title": "Same lineage row serialized two ways across sibling endpoints",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 45,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Give all three lineage endpoints one node schema: change /upstream and /downstream to `response_model=list[LineageNode]` (import LineageNode next to LineageGraphResponse in app/api/v1/lineage.py) so every row crosses the same response model — that removes both the dual representation and the silent-drop hazard (a field added to _serialize must be added to LineageNode, and it then survives on all three endpoints). Note this changes the timestamp string on /upstream and /downstream from '+00:00' to 'Z'; that is the intended convergence. If byte-identical timestamps to the old raw output must be preserved, type occurred_at as `str | None` in LineageNode instead of `datetime` so the schema stops re-formatting the value.",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:45 — `@router.get(\"/{record_type}/{record_id}/upstream\", response_model=list[dict])`"
+   }
+  ],
+  "residual_risks": [
+   "reference_count is a public field on StreamResponse but is only computed by the project stream list endpoint; GET/PATCH /streams/{id} answer 0. '0' therefore means both 'no references' and 'not computed' — the OpenAPI description ('下游物流数 + 闪蒸结果数') does not say the field is only populated by the list endpoint, so an external API consumer reading the contract would trust a wrong number. Registered as a known limitation in the batch context (frontend uses the field only on the list page), so reported as a residual risk rather than a finding; a discriminating shape (e.g. nullable reference_count, or computing it in the single-stream endpoint too) would remove the ambiguity.",
+   "CreateStreamRequest.workspace_id is now accepted and silently dropped (the endpoint forces project.workspace_id). The change is announced (OpenAPI deprecated:true + description) and the frontend never sends the field, but an external client that deliberately targeted another workspace receives no error and lands in the project's workspace instead — there is no 409/422 telling the caller its value was ignored.",
+   "The mock-login double gate (PCS_ENABLE_MOCK_LOGIN, default off) turns POST /auth/mock-login into 403 MOCK_DISABLED in every environment that does not set the flag. It is documented in pcs-backend/.env.example and self-announcing in the error message, and the local pcs-backend/.env sets it, but the flag is absent from docker-compose.yml and .github/workflows — any deployment or CI environment relying on mock login must add it explicitly.",
+   "The frontend's SESSION_OVER_CODES set also lacks 'REFRESH_REVOKED', which the ADR-0046 §⑤ token_version gate can return from POST /auth/refresh. Pre-existing (that code path predates this batch) but same shape as the USER_DISABLED gap: the client will not clear the session on that 401 either.",
+   "For record_type='streams', /upstream answers 200 + [] while /graph and /downstream answer data or 404 — the 'no upstream rows' vs 'not found' distinction is deliberate and documented in the endpoint docstrings, but the three endpoints still answer three different status/shape combinations for the same record family, so a client must special-case streams.",
+   "The MSW lineage mock always returns a synthetic root (source 'MANUAL', change_summary '物流本身（合成根节点）') regardless of the requested record_type, while the backend returns a real lineage row (source 'CALC') for non-streams record types. The shape matches the contract (ajv-checked), but the semantics only match the backend for record_type='streams'.",
+   "Callsite coverage for this review was grep-only (no symbol-aware search available in this harness); the 'no other consumer of current_actor / USER_DISABLED' claims rest on text search over pcs-backend/app, pcs-backend/tests and pcs-frontend/src, and would miss dynamic dispatch or external clients of the public HTTP API."
+  ],
+  "testing_gaps": [
+   "No test covers the frontend 401 handling for the new USER_DISABLED code: the axios interceptor's session-clearing/redirect branch is only exercised (if at all) for SESSION_OVER_CODES. A test asserting 'a 401 USER_DISABLED response clears the session and lands on /login' would pin SPEC §7.1's requirement.",
+   "No backend test asserts that the three lineage endpoints return the same representation for the same row — e.g. comparing the /graph node body against the /downstream node body for the same lineage_id (occurred_at string form included) would have caught the '+00:00' vs 'Z' divergence.",
+   "No test asserts that a field added to _serialize survives the LineageGraphResponse response model (i.e. that the named schema and the serializer stay in sync); the existing 'synthetic root has same shape as real root' test compares _serialize's dict to _serialize's dict, not to the validated response body, so a schema/serializer drift would pass it.",
+   "No test covers the mock-login double gate from a deployment angle (e.g. 'an app booted without PCS_ENABLE_MOCK_LOGIN answers 403 MOCK_DISABLED on /auth/mock-login while the route is still mounted and advertised in OpenAPI')."
+  ]
+ },
+ {
+  "reviewer": "reliability",
+  "findings": [
+   {
+    "title": "WS 握手：DB 异常逃出 except PcsError ⇒ 500 而非 1008",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/ws.py",
+    "line": 96,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在握手的 except PcsError 之后补一条非业务异常的兜底，让失败形状与既有约定一致（同样在 accept() 之前 close，与现有 PcsError 分支同形）：\n\n    except Exception:  # noqa: BLE001 —— 鉴权现在依赖 DB ⇒ DB 抖动也会到这\n        logger.exception(\"通知 WS 握手：鉴权后端不可用\")\n        await websocket.close(code=_WS_POLICY_VIOLATION, reason=\"AUTH_UNAVAILABLE\")\n        return\n\n假设：前端把任何非 1000 的关闭都按「连不上」处理（现有前端在握手失败时即如此），因此用 1008 + reason=\"AUTH_UNAVAILABLE\" 关闭与现有 PcsError 分支行为一致。若希望区分「被拒」与「后端不可用」，可另加一个关闭码，但那是前端契约变更，需另行评估。",
+    "first_evidence": "pcs-backend/app/api/v1/ws.py:96 — `    except PcsError as e:`"
+   },
+   {
+    "title": "重试/提交已成功但列表刷新失败 ⇒ 报成「批量提交失败」",
+    "severity": "P3",
+    "file": "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts",
+    "line": 81,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "把刷新移出提交的错误域（提交结果已确定后，刷新失败不应改写提交结论）：\n\n      const res = await streamApi.batchSubmitForReview(streamIds);\n      setResult(res);\n      setFailedIds(res.failed.map((f) => f.stream_id));\n      try {\n        await onDoneRef.current?.();\n      } catch (err) {\n        // ⚠️ 刷新失败**不是**提交失败 ⇒ 不清 result、不 rethrow\n        console.warn('批量提交后刷新列表失败', err);\n      }\n\n假设：onDone 的契约是「刷新列表」且其失败不应被解释成提交失败；调用方仍可在自己的 onDone 里自行上报刷新错误。若项目禁止 console.*，改用仓库既有的日志/告警通道。",
+    "first_evidence": "pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts:81 — `      await onDoneRef.current?.();`"
+   }
+  ],
+  "residual_risks": [
+   "current_actor 的每请求 DB 读（users.status）：失败时异常**向上传播**（既不吞、也不转成「用户不存在」）⇒ 一次 DB 抖动会让全部挂 Depends(current_actor) 的端点（本仓 284 处调用点）返回 500。方向是 fail-closed（拒绝所有人而非放行所有人），符合本批意图，故不作为 finding；但没有独立于业务端点的降级信号（无 status 缓存 / 熔断），且「每请求一次额外往返」的成本已被文档登记为已知取舍（后续出路是塞进 token claim）。",
+   "生产态判定挂在自由文本上：Settings.env 是 str，is_production = (env == \"production\")。T0-F 新增的两道闸（mock 路由不挂载 + 部署期断言）都建立在它上面 ⇒ ENV=prod / ENV=Production 这类拼写会让断言与「不挂载」都不触发。本批新增的 enable_mock_login 双闸让「仅拼写错」不再足以打开 mock 登录（仍需额外显式开开关），但「拼写错 + 显式开开关」仍是完整的鉴权旁路。根因是既有字段（未在本批改动），仅作登记。",
+   "/auth/me 用的是 auth.py 里另一个函数 current_user（纯 JWT 解码、无 DB 读），不走 current_actor ⇒ 停用用户的在手 access token 仍能读到自己的档案。「停用立即生效」的覆盖面止于 current_actor 这一层；属覆盖面问题而非本批引入的失败路径。",
+   "调用点完整性：本轮对 current_actor 的直接（非 Depends）调用只做了 grep 级核对（app/api/v1/ws.py:78 + 一处测试）⇒ 结论「只有 ws.py 需要改 async」是 grep-only 证据；后台任务 / ARQ worker / 非 HTTP 入口是否还有以其它方式复用鉴权逻辑，未穷举。",
+   "WS 握手现在与 DB 共享 fate（此前是纯 CPU 的 JWT 解码）：DB 不可用或连接池耗尽时，握手会先等满 pool_timeout=30s 才失败 ⇒ 一批重连风暴下每个握手各占 30s。连接池本身的参数（pool_size=10 / max_overflow=20 / pool_timeout=30）本批未改动。"
+  ],
+  "testing_gaps": [
+   "没有覆盖 current_actor 里 DB 读失败（连接断开 / 连接池超时 / 语句超时）的用例 ⇒ 「DB 抖动 ⇒ 全站 500（fail-closed）」这一被依赖的行为没有被任何测试钉住；tests/api/v1/test_user_disabled_guard.py 只覆盖了 DISABLED / ACTIVE / 无 users 行 / awaitable / 端点仍可用。",
+   "WS 握手没有覆盖「DB 不可用（非 PcsError）」这一路：tests/api/v1/test_ws_notifications.py 覆盖了有效 token / 缺 token / 无效 token / DISABLED 用户 / 无 users 行，但没有任何一条让鉴权阶段的 DB 查询失败 ⇒ except PcsError 之外的异常逃逸路径无测试。",
+   "useStreamBatchSubmit 的 onDone 抛错路径无用例：tests/pages/sim/useStreamBatchSubmit.test.ts 的 8 条用例全部让 onDone 成功或不存在 ⇒ 「提交成功但刷新失败 ⇒ 摘要被清空 + 页面报『批量提交校对失败』」这条组合路径无覆盖。",
+   "没有针对「部署期断言在真实生产启动路径上是否可能触发」的端到端用例：现有 test_production_with_mock_route_mounted_fails_startup 是构造一个挂了 mock router 的 FastAPI 再调断言（单元级）⇒ create_app() 在 env=production 下真的不挂载、以及 lifespan 里断言确实被调用，只有 test_main_create_app_skips_mock_in_production 覆盖了前半段，后半段（lifespan 内断言被执行）无用例。"
+  ]
+ },
+ {
+  "reviewer": "maintainability",
+  "findings": [
+   {
+    "title": "Guard registry derived from RECORD_TYPE_REGISTRY omits PsvResult",
+    "severity": "P2",
+    "file": "pcs-backend/app/services/lineage_registry.py",
+    "line": 59,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Stop deriving the guard from a registry whose scope is 'editable result tables'. Either (a) add PsvResult to RECORD_TYPE_REGISTRY (it is a project-scoped model with a record_hash column, so it qualifies), or (b) better: derive LINEAGE_GUARDED_RECORD_TYPES from the actual lineage-writer set — e.g. an explicit LINEAGE_WRITER_MODELS tuple that finalize_calc_record's callers must be drawn from — and add a contract test asserting every model passed to finalize_calc_record appears in LINEAGE_GUARDED_RECORD_TYPES (mirroring tests/architecture/test_record_type_vocabulary.py's role for edit_guard). Option (b) removes the hidden coupling between 'can be edited' and 'has lineage' that produced the hole.",
+    "first_evidence": "pcs-backend/app/services/lineage_registry.py:57-61 — LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = { model.__name__: (model, _pk_col(model)) for model in RECORD_TYPE_REGISTRY.values() if hasattr(model, \"project_id\") }"
+   },
+   {
+    "title": "Guard's new return value is discarded by every caller",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 269,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Make the contract single: (a) give the guard a precise return type instead of Any — e.g. `-> Base` or a small Protocol exposing the fields the callers need (project_id, pk) — and (b) actually use it: have upstream/downstream/graph bind `record = await _guard_record_access(...)` and pass that row into _stream_graph(session, record, max_depth=...) instead of calling session.get again, deleting the duplicate lookup and the now-unreachable `if stream is None: raise 404` branch. If the returned record is not needed, revert the guard to '-> None' and drop the '## 返回值' docstring section rather than leaving a dead contract in place.",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:269 —     return record   (the new return value)"
+   },
+   {
+    "title": "current_actor called outside Depends with positional session coupling",
+    "severity": "P2",
+    "file": "pcs-backend/app/api/v1/ws.py",
+    "line": 78,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Split the shared primitive into a pure part and an I/O part, so the WS path does not have to imitate the dependency: put `decode_actor(authorization) -> _Actor` (JWT + role claim, no DB) in a dedicated module (e.g. app/api/v1/_actor.py or app/core/actor.py) and keep `current_actor` in config.py as a thin Depends wrapper that calls it plus the account-status check. ws.py then calls the pure helper and performs the status check against its own short-lived session, with no positional coupling to a route module's signature. Moving the primitive out of app/api/v1/config.py at the same time removes the ~30-module dependency on a config router.",
+    "first_evidence": "pcs-backend/app/api/v1/ws.py:78 —         actor = await current_actor(session, authorization)   (dependency called as a plain function; session passed positionally)"
+   },
+   {
+    "title": "Disabled-account rule implemented twice despite sole-ownership claim",
+    "severity": "P2",
+    "file": "pcs-backend/app/services/user_status_service.py",
+    "line": 8,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Make the rule single by extracting the comparison, not the query: add to app/services/user_status_service.py a pure predicate such as `def is_disabled_status(status: str | None) -> bool: return status == UserStatus.DISABLED.value`, and have both is_account_disabled and token_issuer.issue_tokens call it. Then correct the docstring: state that the *per-request* semantics are the unique place for the no-row -> allow rule, while the login path deliberately applies the same DISABLED test to the username-keyed row (and say how the legacy-user_id case should behave on each path, or route the login check through the same user_id lookup so the two cannot disagree).",
+    "first_evidence": "pcs-backend/app/services/user_status_service.py:8 — ## 判定语义（全仓**唯一**一处）   (the sole-ownership claim)"
+   },
+   {
+    "title": "Failed set kept in two state slots that drift after clearFailures",
+    "severity": "P2",
+    "file": "pcs-frontend/src/pages/sim/StreamListPage.tsx",
+    "line": 449,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Keep one source of truth for the failed set. Either (a) have clearFailures also clear the result (setResult(null)) so no stale list or hint remains, or (b) better: stop storing failedIds separately — keep the failed items in a single state slice and derive the ids from it (e.g. `const failed = result?.failed ?? []` plus an explicit 'cleared' flag, or store failedItems in its own slice and derive both the bar count and the retry payload from it). Then gate the modal's list, the retry button and the hint text on the same value so they cannot disagree.",
+    "first_evidence": "pcs-frontend/src/pages/sim/StreamListPage.tsx:449 —               {batch.failedIds.length > 0 && (   (modal retry button gated on failedIds)"
+   },
+   {
+    "title": "Three copies of the record_type == 'streams' branch",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/lineage.py",
+    "line": 73,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Resolve the streams case once and let the endpoints stay uniform: put the source-ref logic in the service layer (LineageTracker already owns by_source_ref) and expose a single entry point such as `LineageTracker.for_record_type(record_type).graph(record_id, max_depth)` / `.upstream(...)` / `.downstream(...)`, with the streams-vs-record distinction decided by one dispatch (a small mapping from record_type to strategy) rather than three inline `if` statements. Then the endpoints contain no per-record-type branch at all and a future source-ref type is one mapping entry.",
+    "first_evidence": "pcs-backend/app/api/v1/lineage.py:73 —     if record_type == \"streams\":"
+   },
+   {
+    "title": "Unchecked as StreamSource cast instead of narrowing helper",
+    "severity": "P3",
+    "file": "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx",
+    "line": 115,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Add a narrowing helper next to the table in src/types/stream.ts, mirroring streamPhaseLabel: e.g. `export function streamSourceLabel(source: string): string | undefined { return (STREAM_SOURCE_LABEL as Record<string, string | undefined>)[source]; }` (or narrow with `source in STREAM_SOURCE_LABEL`), then call it from the tab and drop the `as StreamSource` cast. This keeps the 'unknown value' path explicit and consistent with how the phase vocabulary is already handled.",
+    "first_evidence": "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx:114-115 —                   const label =\n                    STREAM_SOURCE_LABEL[value as StreamSource] ?? undefined;   (the cast; value is string | '—' at this point)"
+   },
+   {
+    "title": "Mock-auth docstring names a setting that does not exist",
+    "severity": "P3",
+    "file": "pcs-backend/app/api/v1/mock_auth.py",
+    "line": 26,
+    "confidence": 75,
+    "autofix_class": "gated_auto",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": true,
+    "suggested_fix": "Update the docstring to name the real knob: '生产环境通过 settings.enable_mock_login（env PCS_ENABLE_MOCK_LOGIN）关闭；且非生产也需显式置 true'. The stale identifier predates this diff, but this diff changed the switch's name and mechanism in the same file, so it is cheap to correct here.",
+    "first_evidence": "pcs-backend/app/api/v1/mock_auth.py:26 —     生产环境通过 settings.mock_auth_enabled 关闭。   (names a non-existent setting)"
+   },
+   {
+    "title": "Reference count exists in two variants with different meanings",
+    "severity": "P3",
+    "file": "pcs-backend/app/services/stream_service.py",
+    "line": 344,
+    "confidence": 75,
+    "autofix_class": "advisory",
+    "owner": "downstream-resolver",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "Make the two scopes explicit in the names rather than only in prose: rename to reference_counts_for_display and _collect_delete_blocking_references (or expose a shared table of referencing sources — e.g. REFERENCE_SOURCES = ((Stream, 'upstream_stream_id', counted=True), (FlashResult, 'stream_id', counted=True), (StreamStatePoint, 'stream_id', counted=False)) — and derive both counters from it so adding a referencing table is a single edit). Keeping the current structure is defensible; the ask is only that the divergence be visible at the call site.",
+    "first_evidence": "pcs-backend/app/services/stream_service.py:344 —         ⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，   (the divergence is only documented in prose)"
+   }
+  ],
+  "residual_risks": [
+   "reference_count on GET /streams/{id} (single) is always 0 — the field therefore carries two meanings across two endpoints ('no references' vs 'not computed'), even though SPEC documents the caveat. Not reported as a finding because the brief lists it as a registered limitation; flagged here because the field name does not distinguish them.",
+   "assert_mock_auth_not_exposed in app/main.py determines route mounting by calling app.openapi() at startup. That forces full OpenAPI schema generation during lifespan and caches the result, so the schema served later is the startup-time snapshot; the diff's own comment explains why app.routes traversal was abandoned (FastAPI >= 0.141 lazy mounting), but the replacement has a startup cost and a caching side effect that is not discussed in the code.",
+   "The guard registry filters candidates with `hasattr(model, 'project_id')` — duck-typing over ORM class attributes. A model that exposes a relationship or plain attribute named project_id would pass the filter while record.project_id would not be a project id at query time.",
+   "Callsite completeness rests on text search (grep) only: no LSP/AST or symbol-aware search was available in this environment, so statements that a symbol has only one consumer are grep-based and could miss re-exports or dynamic call sites.",
+   "Only the primary backend/frontend source diffs were read; the backend test diff (2225 lines) and the docs diff (5753 lines, mostly ledger and plan text) were sampled rather than read end to end, so a documentation-side contract for the lineage vocabulary may exist that this review did not cross-check.",
+   "No tests were executed and no browser run was performed, so all behavioural statements above (404 shapes, retry semantics, the drift after clearFailures) are derived from reading the diff and the current source, not from observed runs."
+  ],
+  "testing_gaps": [
+   "No contract test asserts that every model which writes data_lineage rows (i.e. every finalize_calc_record caller) is present in LINEAGE_GUARDED_RECORD_TYPES. Such a test would have failed on PsvResult and is the test that keeps the derived registry from silently drifting.",
+   "No test covers the /lineage/PsvResult/{id}/graph path at all, so the newly fail-closed 404 for a type that genuinely owns lineage rows is invisible to the suite.",
+   "No frontend test exercises clearFailures() while the result modal is open, so the drift between result.failed and failedIds (stale failure list plus a hint pointing at a hidden retry button) is not caught; the existing test only asserts failedIds becomes [].",
+   "No test asserts the guard and the endpoint agree on which stream row is in scope (the guard's select and _stream_graph's session.get), so the duplicated lookup and its now-unreachable 404 branch have no regression cover.",
+   "No test asserts that the WS handshake path and the REST path apply the same disabled-account rule to the same user — the two implementations are keyed differently (username vs user_id), and no test compares their verdicts."
+  ]
+ }
+]

@@ -1,0 +1,93 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "未知 record_type 的 404 只断言状态码，「逐字同形」没被钉住",
+      "severity": "P2",
+      "file": "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py",
+      "line": 563,
+      "why_it_matters": "T0-D 把「未登记类型 ⇒ 404」做成 fail-closed 的**全部目的**是：响应与「记录不存在」**逐字同形**，攻击者分辨不出「这个类型不被支持」⇒ 不成为枚举信号。本批同族用例（tests/test_lineage_api.py:104、tests/api/v1/test_lineage_guard.py:181-185）都断言 body（code + message）相等，只有新加的未登记类型用例只断言 `status_code == 404`。⇒ 将来有人把该分支的 detail 改成别的文案（例如「unsupported record type」），或让错误信封带上别的 code，**没有任何测试会红** ⇒ 枚举向量被静默打开，而这条分支恰恰是本批新加的安全边界。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py:563 — `    assert r.status_code == 404, r.text`",
+        "pcs-backend/app/api/v1/lineage.py:244-247 — `    entry = LINEAGE_GUARDED_RECORD_TYPES.get(record_type)` / `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）—— 与「记录不存在」**逐字同形**` / `        raise HTTPException(404, \"no lineage for record\")`",
+        "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py:574 — `    assert r.status_code == 404, r.text`（test_registry_key_cv_result_is_404，同样只断言状态码）",
+        "pcs-backend/tests/test_lineage_api.py:104 — `    assert r.json()[\"message\"] == \"no lineage for record\"`（同仓既有约定：message 要钉）",
+        "pcs-backend/tests/api/v1/test_lineage_guard.py:184-185 — `    assert r_missing.json()[\"code\"] == r_forbidden.json()[\"code\"]` / `    assert r_missing.json()[\"message\"] == r_forbidden.json()[\"message\"]`"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 tests/api/v1/test_lineage_by_source_ref.py 里把两条未登记类型用例（test_unknown_record_type_is_404、test_registry_key_cv_result_is_404）改成「与不存在响应逐字同形」的断言：先取一个**已登记**类型的随机 uuid 请求得到基准 404，再断言 `r.status_code == base.status_code == 404` 且 `r.json()[\"code\"] == base.json()[\"code\"]` 且 `r.json()[\"message\"] == base.json()[\"message\"] == \"no lineage for record\"`。这样才真正钉住本批宣称的「不可枚举」性质。"
+    },
+    {
+      "title": "/upstream 的 fail-closed 变更与 streams 分支零覆盖",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 73,
+      "why_it_matters": "本批把 `_guard_record_access` 的「未登记类型 ⇒ 跳过」改成「⇒ 404」⇒ **`/upstream` 的对外形状变了**：未登记类型此前是 200 + []（守卫跳过 ⇒ tracker 查不到行 ⇒ 空数组），现在是 404。这是一条**公开端点的契约变更，却没有任何用例覆盖**（新增的 test_lineage_by_source_ref.py 只打 /graph 与 /downstream；既有 test_lineage_api.py 的 /upstream 用例全部用 PipingResult；test_lineage_guard.py 的 streams 用例全部在守卫处 404，走不到新分支）。同时 `/upstream` 里新加的 `record_type == \"streams\" ⇒ 200 + []` 分支（注释写明「『没有』与『查不到』是两件事」）也是零覆盖 ⇒ 将来有人还原旧守卫（/upstream 变回 200 + []，与跨项目的 404 可区分 ⇒ 枚举向量）或删掉 streams 分支，都不会有测试变红。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:73 — `    if record_type == \"streams\":`（/upstream 端点里本批新增的分支，其后 `        return []`）",
+        "pcs-backend/app/api/v1/lineage.py:244-247 — `    if entry is None:` / `        raise HTTPException(404, \"no lineage for record\")`（本批把「跳过」改成 404 ⇒ /upstream 对未登记类型由 200+[] 变 404）",
+        "pcs-backend/tests/api/v1/test_lineage_by_source_ref.py — 全文件只出现 `/graph` 与 `/downstream` 两个 URL（grep：`/api/v1/lineage/…/graph`、`/api/v1/lineage/…/downstream`），**没有任何一条 /upstream 用例**",
+        "pcs-backend/tests/test_lineage_api.py:86 — `        f\"/api/v1/lineage/PipingResult/{pipe.pipe_id}/upstream\"`（既有 /upstream 用例只覆盖已登记类型 PipingResult）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 tests/api/v1/test_lineage_by_source_ref.py 补两条：① 已授权物流的 `GET /api/v1/lineage/streams/{stream_id}/upstream` ⇒ 200 且 body == []（钉住「物流是源 ⇒ 没有上游血缘行」这条新分支）；② `GET /api/v1/lineage/NotARecordType/{uuid}/upstream` 与 `.../downstream` ⇒ 404 且 body 与「已登记类型 + 不存在的 uuid」那次 404 逐字相同（code + message），把 fail-closed 覆盖到三个端点。"
+    },
+    {
+      "title": "N+1 守卫用两个子串猜 users.status 查询，预算会被误判",
+      "severity": "P3",
+      "file": "pcs-backend/tests/api/v1/test_deliverables_current_version.py",
+      "line": 268,
+      "why_it_matters": "这条守卫现在靠「SQL 文本里同时出现 users 和 status」来区分「actor 层那条 users.status 查询」与业务查询。判据太宽：任何提到 users 表**且**带 status 列的业务 SQL 都会被算成「那条 status 查询」⇒ `sum(is_status_query) == 1` 变假红（一条无关的新查询就能把这条用例搞红）；反过来，被判成 status 查询的那些行又从 N+1 预算里被剔除 ⇒ 业务查询数预算（≤3）被悄悄缩小，守卫本身失去意义。今天恰好没有这样的业务查询（deliverables 列表不 join users），但判据与被测行为无关 ⇒ 属于结构耦合型脆弱断言。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/api/v1/test_deliverables_current_version.py:268-270 — `        is_status_query = [` / `            \"users\" in s and \"status\" in s for s in selects` / `        ]`",
+        "pcs-backend/tests/api/v1/test_deliverables_current_version.py:277-281 — `        business_selects = [` / `            s for s, hit in zip(selects, is_status_query, strict=True) if not hit` / `        ]` / `        assert len(business_selects) <= 3, (`（被误判的行从预算里消失 ⇒ 预算缩小）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把判据换成与被测行为直接相关的形式：例如 `is_status_query = [\"FROM users\" in s for s in selects]`（actor 层那条是 `SELECT users.status FROM users WHERE …`），或用 SQLAlchemy 编译语句的表名/列名（`statement.column_descriptions` / `get_final_froms`）判定「这条查询读的是 users.status」而不是在原始 SQL 文本里做子串匹配；这样业务查询里出现 users/status 时不会被误吞，预算也不会被静默缩小。"
+    },
+    {
+      "title": "血缘 Tab 负向用例靠真实 300ms sleep 断言 tooltip 不出现",
+      "severity": "P3",
+      "file": "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx",
+      "line": 78,
+      "why_it_matters": "「下游行不带『物流来源』tooltip」这条性质是用真实时钟等 300ms 再断言文案内不含该文案来钉的。负向断言在真实时间上只能证明「这 300ms 内没出现」：慢机器 / 负载高时 tooltip 若在 400ms 才弹出，用例照样绿 ⇒ 「计算来源行不套录入通道 tooltip」这条规格没被真正钉住（同文件的正向用例用 waitFor 轮询，是稳的）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx:78-79 — `    await new Promise((resolve) => setTimeout(resolve, 300));` / `    expect(document.body.textContent).not.toContain('物流来源（录入通道）');`",
+        "pcs-frontend/tests/pages/sim/tabs/StreamLineageTab.test.tsx:76 — `    // ⚠️ 等一会儿，tooltip 不该出现（tooltip 有延迟 ⇒ 必须等）`（用例自己承认依赖延迟）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "改成确定性时钟：`vi.useFakeTimers()`（在 beforeEach 里）+ `fireEvent.mouseEnter(...)` 后 `act(() => { vi.advanceTimersByTime(1000); })`，再用 `expect(screen.queryByRole('tooltip')).toBeNull()` 断言 tooltip 节点不存在（而不是靠文案内不含某串 + 真实 sleep）。"
+    }
+  ],
+  "residual_risks": [
+    "本轮**未运行任何测试**（该环境里 shell/测试会挂起）⇒ 全部覆盖判断来自静态阅读 diff + 仓库源码；若某条新用例其实从未真正执行（例如 fixture 装配失败、模块级 collection error），静态审查看不出来。已核对的风险点：pyproject 的 `asyncio_mode = \"auto\"` ⇒ 新加的 async 用例不需要 marker 也会跑；tests/setup.ts 有 `afterEach(() => cleanup())` ⇒ 前端 RTL 清理存在。",
+    "`current_actor` 的**直接调用点**用文本 grep 找过（只有 app/api/v1/ws.py 一处已改），但「是否还有动态/字符串式的调用点」grep 覆盖不到 ⇒ 新的 smoke 用例只抽查了 4 个端点（streams / properties / state-points / notifications）。",
+    "参考计数服务层（StreamService.reference_counts）与列表端点的项目口径：端点层只有「project_id 被透传」的断言（spy 捕获 kwargs），**没有**端到端「跨项目引用不计入列表响应」的用例 ⇒ 端点若改传别的 project id，只有服务层用例挡不住（服务层用例是直接调 service 的）。",
+    "「被引用数」在 OpenAPI 里带 `default: 0` 且**不在 required 列表**里 ⇒ 前端 ajv 棘轮**不会**因为 seed/mock 漏掉 reference_count 而红（ajv 不套用 default）；目前只有 `tsc` 能挡（生成的 TS 类型把该字段标成必填）—— 即「契约派生」的严格性与 OpenAPI 的 required 列表并不一致。",
+    "参考计数口径（下游物流 + 闪蒸结果）与删除门禁 `_collect_references`（含状态点）**有意不同**，两者没有共享的常量/断言 ⇒ 将来任一处改口径，另一处不会变红（SPEC 已写明，但代码里没有钉死的锚点）。",
+    "本批未改 alembic 迁移，但 `is_account_disabled` 读 `users.status`（String 列）⇒ 语义依赖 ORM 与 DB 的列定义一致；本轮未做跨库漂移核对（该仓有「alembic check 只在当前连接库上成立」的已知盲区，见 CLAUDE.md）。"
+  ],
+  "testing_gaps": [
+    "Review Focus 五条的落地核对结果（供综合参考）：① 空入参早返回 ⇒ 已落（tests/services/test_stream_reference_count.py::test_reference_counts_with_empty_input_returns_empty_dict）；② 跨两表累加 2+1=3 ⇒ 已落（::test_reference_count_accumulates_across_both_tables）；③ 重试命中幂等 ⇒ 摘要那行「本来就在审批中」的**渲染**由既有 StreamListPage 用例覆盖，本批新增的 hook 用例只断言数据透传（result.succeeded 里仍有 note）⇒ 端到端「重试后摘要仍显示那行」没有单条用例；④ 重试全成功 ⇒ 失败清单清空（hook 用例）+ 失败清单条消失（仅由「清除」按钮路径覆盖）⇒ 「重试成功后条消失」无页面级用例；⑤ 引用数为 0 ⇒ 渲染「—」⇒ 已落（StreamListPage.test.tsx「引用」列用例）。",
+    "没有 HTTP 级用例覆盖「**真实可写入但未登记**」的记录类型：镜像用例 test_registry_covers_every_writable_record_type 比对的是 RECORD_TYPE_REGISTRY，而 app/services/calc_lineage.py 的模块 docstring 明写 RECORD_TYPE_REGISTRY「**不是** finalize_calc_record 的支持清单 —— 那段逻辑是鸭子类型的，本注册表从未驱动过它（TODO-048）」⇒ 用例名声称的「所有能写出血缘行的类型都在注册表里」并未被这条用例证明（今天恰好没有落在集合外的可写模型，TwoPhaseResult 不写血缘行）。",
+    "没有端到端用例覆盖「跨项目引用 ⇒ 列表响应里 reference_count 为 0」：服务层有两条跨项目排除用例，但列表端点只断言了 project_id 被透传 ⇒ 若实现把端点的 project_id 传错，或服务层的 project_id 谓词被删，端到端行为无测试覆盖（只有服务层单测会红一半）。",
+    "GET /streams/{id}（单条）的 reference_count 恒为 0（context 已登记为已知限制）⇒ 没有用例把这个「恒 0」钉住；前端目前只在列表页用该字段，将来若在详情页用上会静默显示错误值。",
+    "T0-E（真实登录补写 roles）只覆盖了「已有行」的三种情形（补写 / 覆盖 / 重复登录不追加）+ mock 不写；没有用例覆盖「真实登录 + 角色降级到空角色（role 为 None/空）」这条 `_write_real_role` 会写 `roles=[role]` 的边界（AD 同步侧是 `roles=[role] if role else None`，两侧口径在此处不一致）。"
+  ]
+}

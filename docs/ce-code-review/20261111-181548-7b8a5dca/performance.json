@@ -1,0 +1,58 @@
+{
+  "reviewer": "performance",
+  "findings": [
+    {
+      "title": "Every authenticated request now pays a users.status DB round trip",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/config.py",
+      "line": 563,
+      "why_it_matters": "T0-B moved the account-disabled decision into the actor dependency, so `current_actor` (used by `Depends(current_actor)` on the whole `/config/*` router plus streams/lineage/equip_lib/pipe_classes) now issues `SELECT status FROM users WHERE user_id = $1` before the endpoint body runs. The lookup itself is a PK probe (cheap), but it is a new DB round trip on every authenticated request of the entire API, not just the 20 logistics endpoints the batch was about: request latency grows by ~1 RTT, and the DB round-trip count per request grows by one. On the hottest path (`GET /projects/{id}/streams`) the request now performs 1 status probe + 1 project-access check + 2 list queries + 2 reference-count aggregates = 6 round trips where it used to perform 4. Under concurrent load this turns one extra indexed probe per request into the dominant source of extra DB traffic, and it holds a pooled async connection for the whole request even on endpoints that otherwise needed no database. The batch documents the cost (`每请求多一次查询`) but the module docstring does not bound it, and no measurement gate exists.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/config.py:563:     if await is_account_disabled(db, user_id=user_id):",
+        "pcs-backend/app/api/v1/config.py:484-485: async def current_actor(\n    db: Annotated[AsyncSession, Depends(get_db)],",
+        "pcs-backend/app/services/user_status_service.py:55:             select(User.status).where(User.user_id == user_id)",
+        "pcs-backend/app/api/v1/config.py:505:     ⇒ **每请求**查一次 `users.status` ⇒ 停用**立即生效**。",
+        "pcs-backend/app/services/user_status_service.py:32-34: ⚠ 代价是**每请求多一次查询**（实测数字见 P9B-4 的 ledger + commit 正文）⇒ 若 P95 超标，唯一出路是「把 `status` 塞进 token claim」（**破坏性变更**，…）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Keep the semantics (immediate disable) but stop paying an unconditional round trip. Two defensible options, both needing a product decision, so do not pick one silently:\n(a) Put `status` in the access-token claim at issue time and validate it locally — the escape hatch the module docstring already names, but it is a breaking change (token structure + every issue path + every verify path) and therefore belongs in its own batch, not as a drive-by.\n(b) Cache the (user_id → disabled?) verdict for a short TTL (a few seconds) in front of `is_account_disabled`. This keeps the DB out of the hot path but relaxes 'immediate' to 'within the TTL', so the staleness window must be an explicit, documented product decision, not a silent default.\nInterim, if neither is taken: measure the list endpoint's P95 with and without the probe before accepting it, and add the regression guard the repo already has a precedent for (a query-count or latency budget test) so a future refactor cannot silently add a second per-request probe."
+    },
+    {
+      "title": "reference_counts sends the whole project id list as an IN list",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/stream_service.py",
+      "line": 378,
+      "why_it_matters": "The '2 round trips for the whole list, not N+1' claim holds for the round-trip count, but each of the two aggregates carries an `IN (<ids>)` list whose length equals the number of streams in the project: `list_by_project` has no LIMIT (stream_service.py:309-324) and the caller passes `[s.stream_id for s in streams]` (streams.py:425-427), so `ids` is the entire unpaginated project. Consequences that scale with project size rather than with the returned page: (1) one bind parameter per stream id per query — two such queries per list request — plus the SQL text/parameter transfer and per-statement planning cost for a list that is re-planned on every request because the parameter count changes as the project grows; (2) the aggregate's row scan is bounded by the project (`project_id = X` matches every stream in the project), not by the filtered result the caller asked for, so a narrow filter such as `?sign_status=CHECKED` still pays for a whole-project aggregate; (3) the IN list is redundant with the `project_id` predicate that is already present (ids are a subset of the project's streams), so today it buys no selectivity — it only becomes useful once an index on `streams.upstream_stream_id` exists (TODO-143, deferred to P10-D), and even then the same result is reachable by filtering on `project_id` alone. Nothing is broken today; the shape is that the per-request cost of the list endpoint grows with the project instead of with the page, with no bound.",
+      "autofix_class": "gated_auto",
+      "owner": "release",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/stream_service.py:378:                    Stream.upstream_stream_id.in_(ids),",
+        "pcs-backend/app/services/stream_service.py:393:                     FlashResult.stream_id.in_(ids),",
+        "pcs-backend/app/api/v1/streams.py:425-427:     counts = await StreamService.reference_counts(\n        db, [s.stream_id for s in streams], project_id=project_id\n    )",
+        "pcs-backend/app/services/stream_service.py:309-324: list_by_project 的 stmt 只有 where(Stream.project_id == project_id) 与筛选条件，**没有 LIMIT** ⇒ ids = 全项目物流",
+        "pcs-backend/app/services/stream_service.py:359:     ⚠ **两条聚合查询**（整个列表 2 次往返）⇒ **不是 N+1**。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Drop the IN list and aggregate by project only, keeping the requested ids as the filter in Python:\n\n    downstream = (await db.execute(\n        select(Stream.upstream_stream_id, func.count())\n        .where(Stream.project_id == project_id,\n               Stream.upstream_stream_id.is_not(None))\n        .group_by(Stream.upstream_stream_id)\n    )).all()\n    for upstream_id, n in downstream:\n        if upstream_id in counts:      # 只保留问到的 id（保持今天不产生多余 key 的行为）\n            counts[upstream_id] += n\n\nand the same shape for the flash aggregate (`FlashResult.project_id == project_id` + `FlashResult.stream_id.is_not(None)`; both columns already carry indexes, so this stays an index scan).\n\nAssumption: `ids` is always a subset of the project's streams (the only caller passes the ids returned by `list_by_project(db, project_id, ...)`), so the counts for the requested ids are unchanged; the `if ... in counts` guard preserves today's behaviour of not adding keys for cross-project references (which the DB permits because `streams.upstream_stream_id` is a plain FK without a project constraint). If a future caller passes ids from another project, the filter must be reinstated.\n\nBundle this with the TODO-143 index work in P10-D rather than shipping it alone: with the index in place the IN list becomes a cheap index probe, and the two changes should be measured together."
+    }
+  ],
+  "residual_risks": [
+    "No query plans were executed: this review had no DB/shell access, so every planner-level claim (that the project_id index is chosen for the aggregates, that the IN list is re-planned per request, that data_lineage is seq-scanned for by_source_ref) is reasoned from the ORM/index definitions, not measured with EXPLAIN. A PG-side EXPLAIN (ANALYZE) on the list and lineage endpoints against the real project would confirm or refute F2's magnitude.",
+    "LineageTracker.by_source_ref (new in this diff, app/services/lineage.py:144-176) filters on data_lineage(source_ref_type, source_ref_id) — neither column is indexed (models/system.py:46-47), and the table only grows. Every open of the stream lineage tab therefore costs a scan of data_lineage plus a sort for `ORDER BY occurred_at DESC, lineage_id DESC` (the LIMIT is applied in the database, so the response is bounded at max_depth rows, but the scan/sort work is not). This is the same root cause and the same fix as the already-recorded TODO-143 deferral, so it is NOT reported as a finding — but note that TODO-143's two-column index would still leave the ORDER BY sort in place; a composite (source_ref_type, source_ref_id, occurred_at DESC) is what makes it an early-terminating index scan. Worth folding into the P10-D index task.",
+    "The blast radius of F1 is a lower bound: the code-review-graph import edges for `app/api/v1/config.py` list only 3 importers (equip_lib.py, __init__.py, pipe_classes.py), which is visibly incomplete — streams.py and lineage.py import `current_actor` directly (visible in the diff) and the graph does not track `Depends()`-based usage at all. The true count of endpoints now paying the extra probe is therefore larger than what was counted here.",
+    "`_stream_graph` re-reads the stream with `await session.get(Stream, stream_id)` (app/api/v1/lineage.py:389) even though `_guard_record_access` already loaded that row via `select(Stream)` a few lines earlier. This was judged NOT to be an extra round trip, because SQLAlchemy's `Session.get()` consults the identity map first and the guard's `select()` populated it; if that assumption is wrong (e.g. the row is evicted or a different session is used), every streams-lineage request pays one redundant SELECT. Low likelihood, but it was not executed to confirm.",
+    "Not reached (budget): the batch-submit backend path and its per-item work were not reviewed in depth — `POST /streams/batch-submit` does not appear in the diff hunks, so it was treated as pre-existing; the frontend list-refresh path was reviewed only for the diff's changed lines (the batch hook + `onDone`), not for the surrounding render/memoization behaviour of the table."
+  ],
+  "testing_gaps": [
+    "No query-count assertion for GET /projects/{project_id}/streams. The endpoint went from 4 round trips (access check + 2 list queries) to 6 (status probe + access check + 2 list queries + 2 reference-count aggregates) with nothing pinning the number, so a future change that turns the aggregates into a per-row query would stay green.",
+    "No perf-budget test for the per-request `users.status` probe. The repo already has the pattern (tests/services/test_export_service.py has a perf budget; TODO-029 wants a CIA propagation budget), so a request-count/latency budget for the list endpoint would give F1 a measurable gate instead of a docstring note.",
+    "reference_counts is never exercised with a large id list (the unit tests use a handful of streams). A test with a few thousand ids — asserting both the returned counts and the parameter count / query shape — would make the O(project) parameter growth visible before it matters.",
+    "No test asserts that `by_source_ref`'s limit is applied in the database (as opposed to truncating after fetch). A query-counting or statement-capturing test would pin the 'bounded response AND bounded scan' property the endpoint docstring claims."
+  ]
+}

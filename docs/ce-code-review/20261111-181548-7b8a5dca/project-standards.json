@@ -1,0 +1,78 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "SPEC 要求停用用户跳登录页，前端未实现该 401 处理",
+      "severity": "P2",
+      "file": "docs/PCS-UI-SPEC.md",
+      "line": 1202,
+      "why_it_matters": "本批的招牌能力是「停用立即生效」：后端在 actor 层每请求判 `users.status` ⇒ 停用用户下一次请求即 401 `USER_DISABLED`（pcs-backend/app/api/v1/config.py 新增 `PcsError(code=\"USER_DISABLED\", status=401)`）。但前端唯一的 401 处理路径是 axios 拦截器里的 `SESSION_OVER_CODES` 集合（pcs-frontend/src/api/client.ts:24-31），该集合只含 MISSING_BEARER / INVALID_TOKEN / EXPIRED_TOKEN / WRONG_TOKEN_TYPE / INVALID_REFRESH / EXPIRED_REFRESH ⇒ `USER_DISABLED` 带 code 且不在集合里 ⇒ 拦截器**既不清 session 也不跳登录页**（拦截器注释写明「没有 code ⇒ 按会话过期处理」，有 code 但不认识 ⇒ 什么都不做）。后果：被停用的用户带着在手 token 停在任意业务页，之后每个请求都 401，页面只剩错误提示，永远回不到登录页 ⇒ SPEC §7.1（V2.12）承诺的「按普通 401 处理（跳登录页）」没有兑现，SPEC 与实现不一致（SPEC 是前端唯一编码依据 ⇒ 消费者按 SPEC 写代码会写错）。本批的 QA 报告也没有覆盖这一路径（浏览器回归只测了引用列 / 失败清单 / 血缘 Tab）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "docs/PCS-UI-SPEC.md:1199-1202（本批新增，diff-docs.txt:4228-4231）—— 「⚠️ **停用用户的会话**（P9B-4 T0-B 之后）：用户被**停用**（`users.status = DISABLED`）⇒ 其**在手 access token 立即失效** ⇒ **下一次请求**返回 **401 `USER_DISABLED`**（不需要等 token 过期，也不需要等 refresh）。⇒ 前端按**普通 401** 处理（跳登录页）。」",
+        "规则（standards file CLAUDE.md，前端 UI 规范）：「前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。」⇒ 本处无 OpenAPI 冲突（`USER_DISABLED` 是新增的业务错误码，未进 OpenAPI responses，属 TODO-096 一族）⇒ SPEC 说了算 ⇒ SPEC 说的「跳登录页」必须兑现。",
+        "违反处（实现未跟上）：pcs-frontend/src/api/client.ts:24-31 —— `const SESSION_OVER_CODES = new Set([ 'MISSING_BEARER', 'INVALID_TOKEN', 'EXPIRED_TOKEN', 'WRONG_TOKEN_TYPE', 'INVALID_REFRESH', 'EXPIRED_REFRESH', ]);`（**无 `USER_DISABLED`**）＋ client.ts:36-45 —— `if (!code || SESSION_OVER_CODES.has(code)) { useAuth.getState().clearSession(); ... window.location.href = '/login'; }` ⇒ 带 code 且不在集合 ⇒ 不清 session、不跳转。",
+        "本批新增的后端错误码（diff-backend-app.txt:95-100，pcs-backend/app/api/v1/config.py）：`if await is_account_disabled(db, user_id=user_id): raise PcsError(code=\"USER_DISABLED\", message=f\"user account is disabled: {sub}\", status=401)` ⇒ 该 code 会以 `{code, message, detail, trace_id}` 信封到达前端（pcs-frontend/src/api/errors.ts:16-17 记录的正是这个信封）。",
+        "覆盖面缺口：.gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md 的浏览器回归只覆盖 §2.2 引用列 / §2.3 失败清单 / §2.4 血缘 Tab / §2.5 路由可达 ⇒ 停用用户的 401 前端路径**从未被回归过**。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 pcs-frontend/src/api/client.ts 的 `SESSION_OVER_CODES` 里加入 `'USER_DISABLED'`（后端 config.py 的 PcsError code），使拦截器走既有的「清 session + 跳 /login」路径（与 SPEC §7.1「按普通 401 处理」一致）；并在 pcs-frontend/tests 下补一条拦截器用例（mock 一个 401 + `{code:'USER_DISABLED'}` 的响应 ⇒ 断言 `useAuth.getState().clearSession()` 被调用且跳转 /login）。若产品上更希望「保留会话 + 页面提示停用原因」，则改 SPEC §7.1（V2.16）写明实际行为，并另加一条 `USER_DISABLED` 的页面级错误提示 —— 但无论选哪条，SPEC 与实现必须一致，且 SPEC 的修订要按 CLAUDE.md「登记 SPEC 修订」的规矩进 §4.4 修订登记。"
+    },
+    {
+      "title": "账簿写 roles「合并」，实现已是「覆盖」",
+      "severity": "P2",
+      "file": "TODOS.md",
+      "line": 2946,
+      "why_it_matters": "本批 T0-E 的最终实现是**覆盖**：`pcs-backend/app/services/token_issuer.py::_write_real_role` 明确写「⚠️ **覆盖，不是合并**（整批评审 Important #1 · 2026-11-11）」并执行 `.values(roles=[role])`（只增不减会让「角色降级」永不生效 ⇒ 通知选人逻辑会继续找已降级的人）。但本批新写的两处账簿仍描述成**合并**：TODOS.md 的 TODO-134 闭环说明与 `.wolf/buglog.json` 的 bug-2156 `fix` 字段（都带「只合并、不冲掉已有角色、不重复追加」字样），而 bug-2156 的 `fix_commit` 指向的 `69b2327` 正是**被后续评审改掉的那一版**。后果：① 下一个读账簿的人（人或 agent）会以为「合并」才是口径，把 `_write_real_role` 改回只增不减 ⇒ 角色降级永不生效（这正是 cerebrum Do-Not-Repeat 里点名的坑）；② `.wolf/buglog.json` 的 `fix`/`fix_commit` 是 STATUS 反查「单点来源」的依据（openwolf.md 明确要求 `fix_commit` 必填以便反查），指向一个已被本批自己推翻的实现 ⇒ 反查到的代码与账簿描述对不上。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "TODOS.md:2945-2946（本批新增行）：「**本批修了什么**：`issue_tokens` 的**真实分支**在「行已存在」时把真实角色 **合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。」",
+        ".wolf/buglog.json:6036（本批新增行，bug-2156 的 `fix` 字段）：「真实分支在「行已存在」时把真实角色**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加）。」＋ :6037「\"fix_commit\": \"69b2327\"」",
+        "规则（.wolf/cerebrum.md:68-75，本批同一次改动新增的 Do-Not-Repeat 条目）：「### 角色的真值是**覆盖**，不是**合并**（2026-11-11 · P9B-4 整批评审）… ⇒ 真实登录**必须同口径覆盖** ⇒ 只增不减会让「**角色降级**」永不生效 ⇒ 旧角色一直留着 ⇒ 按 `users.roles` 圈人的通知逻辑会**继续找**已降级的人（「待办里有、点进去说你不是」比没有待办更坏）。」",
+        "实现（diff-backend-app.txt:1243-1268，pcs-backend/app/services/token_issuer.py::_write_real_role）：docstring「⚠️ **覆盖，不是合并**（整批评审 Important #1 · 2026-11-11）… ⇒ **只增不减会让「角色降级」永不生效**」，实现为 `await session.execute(update(User.__table__).where(User.__table__.c.username == username).values(roles=[role]))` ⇒ 覆盖，非合并。",
+        "规则（.claude/rules/openwolf.md）：「AFTER fixing one: log it there (error_message, root_cause, fix, fix_commit, tags). **fix_commit 必填**：修复该 bug 的 git commit 短 SHA 7 位，便于 STATUS 反查单点来源。」⇒ bug-2156 的 fix 字段与 fix_commit 必须指向**实际生效的修复**，否则反查失真。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把两处「合并」改成「覆盖」，并把 bug-2156 的 `fix_commit` 更新为真正落地覆盖语义的那次提交（评审修复批的 commit 短 SHA，7 位）：① TODOS.md:2945-2946 改为「把真实角色**覆盖**写进 `users.roles`（只保留当前身份的角色 ⇒ 角色降级能生效）」；② .wolf/buglog.json 的 bug-2156 `fix` 字段同步改成覆盖口径、`fix_commit` 改成覆盖那次提交（并按仓库惯例在 `related_bugs`/说明里注明「原 69b2327 为合并版，已被整批评审推翻」）。顺带可把 TODO-134 标题下的旧「建议改法：…**合并**真实角色」（TODOS.md:2963，pre-existing 原文）标注为「已被覆盖口径取代」，避免同一节里两套口径并存。"
+    },
+    {
+      "title": "批末浏览器回归跑在非最终 HEAD 上",
+      "severity": "P2",
+      "file": ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md",
+      "line": 5,
+      "why_it_matters": "CLAUDE.md 的 Per-Batch QA Gate 要求「每批 sprint 的**最后一个 commit 落地后**，开下一批之前」跑一次浏览器回归。本批的 QA 报告把 `f062e27` 记为「批末 HEAD」，pytest 记「5623 passed」；但本批在此之后仍有行为变更落地（3e362ea「fix(P9B-4): /lineage/streams/{id}/downstream 也要封顶」、74b23fa「fix(P9B-4): 「引用 📎×N」只算同项目 —— Q7 裁决 ① 落地」），README（本批同批落地）把后端 baseline 更新为「5626 passed」⇒ 恰好多出 3 条（Q7 的三条跨项目用例）⇒ QA 回归**早于**最终状态。报告 §4b 只用文字论证「本报告 §2.2 的实测数字仍然有效、前端零改动」，没有重跑浏览器。后果：README 里「浏览器 QA 0C-0H-0M」与「整支评审 Critical 0 · Important 3 全闭合」是按旧状态陈述的，下一批（P10-A）若以此为放行依据，等于在没有对最终状态做过回归的情况下开工 —— 而这正是该闸门要防的事。",
+      "autofix_class": "advisory",
+      "owner": "release",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md:5（本批产物）：「- **批末 HEAD**：`f062e27`（`feat(P9B-4): 物流列表「引用 📎×N」—— 口径钉死 + 后端两条聚合（TODO-108）`）」；同文件 :15「后端全量 … **5623 passed / 77 skipped / 4 deselected / 1 xfailed · RC=0**」",
+        "规则（CLAUDE.md，Per-Batch QA Gate → 何时跑）：「每批 sprint 的**最后一个 commit 落地后**，开下一批之前。」（同节 注意事项亦要求「正常流程下 main 就是批末，直接在 main 上跑即可」⇒ 回归对象是**批末**状态）",
+        "本批在 QA 之后仍落地的行为变更（均在本次 diff 的文件面内）：commit 3e362ea「fix(P9B-4): /lineage/streams/{id}/downstream 也要封顶 —— 与 /graph 同口径」、commit 74b23fa「fix(P9B-4): 「引用 📎×N」只算同项目 —— Q7 裁决 ① 落地（零迁移）」；后者给后端新增 3 条用例（test_reference_count_excludes_cross_project_downstream_streams / ..._flash_results / ..._still_counts_same_project_references）⇒ 与 README.md:3727-3728 把后端 baseline 从「5623」口径推到「baseline 5626 passed」一致（README 在本批 diff 内）。",
+        "报告自身的补记（:108-115）只做了文字论证、未重跑：「### 4b. 批后追加（2026-11-11 · 裁决落地，**非本批范围**）… ⇒ **本报告 §2.2 的实测数字仍然有效**，**前端零改动**」"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在当前 main（批末）上重跑一次 gstack 浏览器回归（登录 → 仪表盘 → 物流列表 → 物流详情 7 Tab → 控制台/网络无 error），并把报告的「批末 HEAD」改写成**实际回归时的 commit**（本次 = 1c3acb9）、补一节「§4c 批末重跑（2026-11-11）」记录 Q7 与 downstream 封顶后的复测结果（尤其「引用」列与血缘 Tab）；若不打算重跑，则把报告与 README 中的「浏览器 QA 0C-0H-0M」改为「回归于 f062e27（批末前 2 个 commit），批末变更只有后端、无前端改动」并登记为待补项，避免下一批误以为已对最终状态回归。"
+    }
+  ],
+  "residual_risks": [
+    "未运行任何测试/闸门（本会话禁 Bash、禁跑测试）⇒ 「后端 5626 passed / 前端 1046 tests / 裸载荷 71 / PG 车道 5 / G-08 四阶段 RC=0」全部采信本批自述与 QA 报告，未经独立复核。",
+    "未复核 CLAUDE.md「发布前检查」的两条本批相关项：`check_openapi_payload_coverage.py`（裸载荷 71 = 基线 71 ⇒ 未涨，但基线是否仍 ≤ 71 未独立复算）与 `scripts/pytest_pg.sh`（QA 报告称 5 passed）—— 本批未改 `alembic/versions/*`，故 `alembic check` 两库各跑一次这一项不适用。",
+    "未验证 context.md 的硬约束「T0-B 改行为 ⇒ ADR-0046 §⑤ 与代码**同一个 commit**」：ADR-0046 §⑤/已知边界/后果 确实被改写了（diff-docs.txt:4380-4477），但 commit 粒度需 git log 才能确认（.wolf/memory.md 显示 ADR 编辑于 20:48、config.py 编辑于 20:35，分属不同编辑时段，是否同 commit 未知）。",
+    "未审 diff-backend-tests.txt / diff-frontend-tests.txt 的全部内容（只逐个读了新后端测试文件的头部与 cerebrum 账簿）⇒ 测试文件里可能存在未登记的标准偏离（例如新写的守卫用例是否一律用 `strict_client`：从「跨项目 ⇒ 404」用例在绿灯下成立推断它们用了真守卫，但未逐行确认 fixture 名）。",
+    "`.wolf/anatomy-index.json` 记录的 `pcs-backend/app/services/token_issuer.py` 符号仍是 `_merge_real_role`（最终代码已改名 `_write_real_role`）⇒ OpenWolf 索引滞后于最后一次重命名；该文件由 hook 维护（openwolf.md 禁止手工改），故未作为 finding，仅提示下次扫描会自愈。",
+    "本次评审只覆盖 CLAUDE.md（+ 其指向的 .claude/rules/openwolf.md / .wolf/cerebrum.md / docs/PCS-UI-SPEC.md）作为标准来源；全局 ~/.claude/rules 的通用规则（测试覆盖率 80%、函数 < 50 行、文件 < 800 行等）未作为标准适用 —— 例如 `current_actor`（app/api/v1/config.py）本批后约 89 行、StreamListPage.tsx 约 470 行，均未超限，故无差异。"
+  ],
+  "testing_gaps": [
+    "缺「停用用户在前端的会话表现」的回归：应有一条前端用例（拦截器收到 401 + `{code:'USER_DISABLED'}` ⇒ 断言清 session + 跳 /login）与一条浏览器用例（mock 401 USER_DISABLED ⇒ 落地到 /login 而非停在业务页）。本批 QA 报告 §2.1~§2.5 未覆盖该路径。",
+    "缺「批末 HEAD 的浏览器回归」：Q7（同项目过滤）与 `/lineage/streams/{id}/downstream` 封顶两个 commit 落地后未重跑浏览器（报告 §4b 仅为文字论证）⇒ 至少应复测物流列表「引用」列与血缘 Tab 两条路径。",
+    "缺「合成 root 与真实 root 的字段集同形」的前端侧断言：后端有 `test_synthetic_root_has_same_shape_as_real_root`（keys 相同），但前端 `buildLineageGraph` 的 mock 形状与契约的 ajv 校验只覆盖契约形状，未断言「合成 root 的 10 字段 == 真实 root 的 10 字段」在契约层等价 ⇒ 后端加字段时前端 mock 仍可能不红。",
+    "缺「前端 401 错误码清单」的单一来源：`SESSION_OVER_CODES` 是手写的错误码集合（第二份真相源），后端新增任何「会话结束类」401 码（USER_DISABLED / USER_LOGIN_DENIED_DISABLED / …）都不会被前端自动识别 ⇒ 建议加一条架构测试（后端错误码常量表 ↔ 前端 SESSION_OVER_CODES）或多一份「会话码」契约。"
+  ]
+}

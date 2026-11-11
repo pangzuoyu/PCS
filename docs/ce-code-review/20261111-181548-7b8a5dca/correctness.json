@@ -1,0 +1,91 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "前端不把 USER_DISABLED 401 当会话结束",
+      "severity": "P1",
+      "file": "pcs-frontend/src/api/client.ts",
+      "line": 39,
+      "why_it_matters": "T0-B 新引入的 401 `USER_DISABLED` **带 code** ⇒ 前端拦截器的条件 `!code || SESSION_OVER_CODES.has(code)` 为假 ⇒ 既不 clearSession 也不跳登录页。SPEC §7.1（V2.12, 2026-11-10）明确承诺「下一次请求返 401 `USER_DISABLED` ⇒ **前端按普通 401 处理（跳登录页）**」—— 实现没兑现：被停用的人留在一个每次请求都 401 的僵尸会话里（access token 仍在 store，`RequireAuth` 只看 token 有无 ⇒ 仍进得去），看到的是一屏错误而不是「账号已停用」。前端全库 grep 无任何 `USER_DISABLED` 处理（唯二命中是审计动作名与 openapi 文档文本）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/api/client.ts:39 — `if (!code || SESSION_OVER_CODES.has(code)) {`",
+        "pcs-frontend/src/api/client.ts:24-31 — `const SESSION_OVER_CODES = new Set([ 'MISSING_BEARER', 'INVALID_TOKEN', 'EXPIRED_TOKEN', 'WRONG_TOKEN_TYPE', 'INVALID_REFRESH', 'EXPIRED_REFRESH' ]);`（无 USER_DISABLED）",
+        "pcs-backend/app/api/v1/config.py:565 — `code=\"USER_DISABLED\",`（T0-B 新增的 401，body 带 code ⇒ 走进 else 分支 ⇒ 不登出）",
+        "pcs-frontend/src/api/client.ts:74 — `me: () => api.get<MeResponse>('/auth/me').then((r) => r.data),` —— 前端无任何 USER_DISABLED 分支（`grep -rn USER_DISABLED src/` 只命中 types/api.d.ts 的注释与 mocks/handlers.ts 的审计动作名）",
+        "docs/PCS-UI-SPEC.md V2.12 — 「**下一次请求**返 **401 `USER_DISABLED`** ⇒ 前端按**普通 401** 处理（跳登录页）」"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 `'USER_DISABLED'` 加进 `pcs-frontend/src/api/client.ts` 的 `SESSION_OVER_CODES`（该码只在真实停用时出现 ⇒ 归入会话结束码语义正确）；可选：跳转前先 `message.warning('账号已被停用，请联系管理员')`，别让用户误以为是网络问题。并补一条前端测试：mock 一个 401 `USER_DISABLED` ⇒ 断言 `clearSession` 被调用且导航到 `/login`。"
+    },
+    {
+      "title": "_stream_graph 重复查 Stream，守卫返回值被丢弃",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/lineage.py",
+      "line": 166,
+      "why_it_matters": "本批给 `_guard_record_access` 加了返回值，并在 docstring 里写明「调用方要拿它的字段时不必再查一次」—— 但三个端点全都把返回值丢掉，`_stream_graph` 又 `session.get(Stream, stream_id)` 查了一遍 ⇒ 每次 `GET /lineage/streams/{id}/graph` 多一次 DB 往返，而新增的返回值契约是死的（读代码的人会以为它被用上了）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`",
+        "pcs-backend/app/api/v1/lineage.py:166 — `return await _stream_graph(session, record_id, max_depth=max_depth)`（守卫返回值被丢弃）",
+        "pcs-backend/app/api/v1/lineage.py:284 — `stream = await session.get(Stream, stream_id)`（第二次查同一行）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把守卫的返回值传下去：`_stream_graph(session, stream, *, max_depth)`（`stream` 由 `_guard_record_access` 的返回值给出），并删掉 `_stream_graph` 里的 `session.get` 分支 —— 守卫已保证行存在（不存在时它自己抛 404）。"
+    },
+    {
+      "title": "admin_users docstring 仍宣称在手 access 可用至过期",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/admin_users.py",
+      "line": 107,
+      "why_it_matters": "T0-B 让「停用」立即生效，ADR-0046 §⑤ 本批已改写为「停用的即时失效已解决」；但这个端点的 docstring 仍写着「在手 access 仍可用至过期（默认 30 分钟）」且标成「**不得表述为已解决**」⇒ 代码注释与 ADR/SPEC 互相矛盾 ⇒ 运维读注释会以为离职者的 token 还能用半小时。",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/admin_users.py:107-108 — `⚠️ 已知边界（不得表述为已解决）：`access` token 不带 `tv`，在手 access 仍可用至过期（默认 30 分钟）。见 ADR-0046 §⑤。`",
+        "docs/adr/0046-user-identity-model-migration.md §⑤（本批同一 commit 改写）—— 「每请求判 `users.status` ⇒ `DISABLED` ⇒ **401 `USER_DISABLED`** ⇒ **在手 access token 立即失效**」"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "改写该 docstring 的「已知边界」段：① 停用 ⇒ actor 层每请求查 `users.status` ⇒ 在手 access **立即** 401 `USER_DISABLED`（本批 T0-B）；② 仍然成立的边界是「**角色变更**不即时生效」（role claim 在 token 里，要到 refresh 才更新）。措辞与 ADR-0046 §⑤ 的「已知边界」节保持逐字一致，避免第二份口径。"
+    },
+    {
+      "title": "停用判定未覆盖 current_user 依赖的 7 个端点",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/auth.py",
+      "line": 149,
+      "why_it_matters": "ADR-0046 §⑤ 与 SPEC §7.1 都说判定放在 actor 层 ⇒「一处判定、**全局生效**」；但 `GET /auth/me` 与 meta.py 的 6 个端点用的是另一个依赖 `current_user`（不查 `users.status`）⇒ 被停用者的会话自检仍返 200 ⇒ 前端认为会话有效（叠加 P1 那条「没有登出」⇒ 僵尸会话）。影响面小（meta 只返回静态字典，`/auth/me` 只返回自己的身份），但「全局生效」这句在代码上不成立。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/auth.py:149 — `def current_user(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:`（无 `users.status` 判定）",
+        "pcs-backend/app/api/v1/meta.py:162 — `_user: Annotated[dict[str, Any], Depends(current_user)],`（enums / permissions / permissions.csv / error-codes / state-machine / ui-schema 共 6 处）",
+        "pcs-backend/app/api/v1/auth.py:287 — `user: Annotated[dict[str, Any], Depends(current_user)],`（`GET /auth/me`）",
+        "pcs-backend/app/api/v1/config.py:563 — `if await is_account_disabled(db, user_id=user_id):`（判定只加在 `current_actor` 上）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "首选：让 `current_user` 也做同样的判定（改成 `async def` + `Depends(get_db)`，复用 `app/services/user_status_service.py::is_account_disabled`；meta 的同步端点用 async 依赖在 FastAPI 里是合法的）⇒ `/auth/me` 与 meta 的 401 语义与 actor 层一致。次选（若刻意豁免）：在 ADR-0046 §⑤ 与 SPEC §7.1 明确登记这 7 个端点为豁免并写明理由（不返回任何用户数据），别让「全局生效」这句悬着。"
+    }
+  ],
+  "residual_risks": [
+    "callsite completeness: grep-only —— 本批「`current_actor` 是唯一的 actor 层依赖」「`current_actor` 只有 `app/api/v1/ws.py` 一处直接调用（已同步改 async）」等结论只靠文本搜索得出（本 harness 未暴露符号级/结构化搜索工具），反射、依赖覆盖（`app.dependency_overrides`）或动态注册的调用点无法排除。",
+    "`useStreamBatchSubmit.submit` 把 `onDone`（列表刷新）放在同一个 try 里 ⇒ 若 `onDone` 抛错，catch 会把**已成功**的批次摘要 `setResult(null)` 清掉，并把异常抛给页面（页面会显示「批量提交校对失败」）。当前唯一消费者 `StreamListPage` 的 `load` 自行吞掉异常 ⇒ 该路径今天触发不了；但 hook 是导出组件，未来换消费者即成真 bug。",
+    "本机未执行测试（评审约束禁止跑测试）⇒ 所有「已有覆盖」的结论来自读测试文件源码，未实际运行；`pcs-backend/tests/services/test_stream_reference_count.py` 的 11 个用例（含两条跨项目排除）读起来是齐的。",
+    "FastAPI 版本相关：`uv.lock` 锁 0.141.1（`main.py` 注释里「FastAPI ≥ 0.141 懒挂载 ⇒ 旧的 `app.routes` 断言一直是空转」的前提在本仓成立），但系统解释器里装的是 0.135.3 ⇒ 若有人绕过 `uv` 用系统环境跑，`app.routes` 迭代会「有效」而 `app.openapi()` 路径判定仍有效 ⇒ 两版都判，无行为差异，只是断言写法与所装版本绑定。",
+    "`users.roles` 覆盖写只发生在**真实登录**成功时（`_write_real_role`）⇒ 生产里若某人被移出全部已映射的 LDAP 组，`resolve_role` 直接抛 `LdapAuthError` ⇒ 登录失败 ⇒ 覆盖写不发生 ⇒ `users.roles` 保留旧角色 ⇒ 按角色圈人的通知（`notification_recipients.resolve_role_recipients`）仍会找TA。AD 同步（`ad_sync._apply`，覆盖写且无角色时置 None）能覆盖这个场景 ⇒ 依赖 AD 同步在跑，属已知取舍（ADR-0046 已登记「角色变更不即时生效」）。"
+  ],
+  "testing_gaps": [
+    "无前端测试覆盖「401 `USER_DISABLED` ⇒ clearSession + 跳 `/login`」—— 正是 P1 那条的缺口；现有 `SESSION_OVER_CODES` 也没有对应的表驱动测试（改白名单时没有护栏）。",
+    "无后端测试断言 `GET /auth/me` 与 meta 的 6 个端点对**已停用**用户的行为（要么 401、要么明确豁免）⇒ 「全局生效」这句在代码上没被钉住。",
+    "无测试钉住 `/graph` 与 `/downstream` 两个端点在 `record_type='streams'` 下**同口径**（同一个 `max_depth` ⇒ 同一个下游条数上限、同为「最新的在前」）—— SPEC 明确要求两者同口径（「否则两个端点互相打脸」），但当前没有一条测试断言两者对同一份 `data_lineage` 数据返回相同的集合。"
+  ]
+}
