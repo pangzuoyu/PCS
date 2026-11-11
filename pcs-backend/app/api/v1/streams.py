@@ -421,8 +421,9 @@ async def list_project_streams(
     )
     # ⚠️ **被引用数**（P9B-4 · TODO-108）：两条聚合查询（**整个列表 2 次往返**）
     #    ⇒ **不是 N+1**。⚠️ `reference_count` **不是 ORM 列** ⇒ 必须显式塞。
+    #    ⚠️ `project_id` **必填**（Q7 裁决 ① · 只算同项目）⇒ 别的项目的引用不计入。
     counts = await StreamService.reference_counts(
-        db, [s.stream_id for s in streams]
+        db, [s.stream_id for s in streams], project_id=project_id
     )
     out: list[dict[str, Any]] = []
     for s in streams:

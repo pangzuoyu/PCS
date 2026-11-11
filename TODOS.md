@@ -3132,22 +3132,27 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 
 ⇒ 归属：独立设计债（不进 P9B-4）。
 
-## TODO-140: 「设备引用（JSONB 数组）」**是否**计入 📎×N 🟡
+## TODO-140: 「设备引用（JSONB 数组）」**是否**计入 📎×N ✅（已裁决 · 维持不计）
 
-**现状**（2026-11-11 · P9B-4 体验批 T2 留下的）：「引用 📎×N」的口径**钉死**为
-**下游物流数 + 闪蒸结果数** ⇒ **不含**设备引用（`sim_unit_op.*_streams_json`
-里的 id 数组）。
+**裁决**（2026-11-11 · 用户裁决 **Q8 = ① 维持不计**）：「引用 📎×N」**继续不含**
+设备引用 ⇒ SPEC §7.7.1 已写明（V2.15）。
 
-**为什么没含**：设备表把物流 id 存在 **JSONB 数组**里 ⇒ **无索引** ⇒ 要统计
-只能全表扫 + JSONB 展开 ⇒ 与列表端点「2 次往返」的口径冲突 ⇒ 本批**明确不收**。
+**为什么没含**（四条障碍，缺一不可）：
+1. **装的是 SID 字符串、不是 UUID** —— `sim_unit_op_results.feed_streams_json` 等
+   4 个 JSONB 列里是 **PRO/II 的 stream tag**（`proii_parser.py:889/1014`）
+   ⇒ 落到 `streams` 上只能按 `stream_name` **字符串 join**
+   （`stream_name` 的唯一约束是 `(project_id, stream_name)` ⇒ 必须同时带项目条件）；
+2. **设备结果表没有 `project_id`** ⇒ 要绕 `import_id → sim_imports.project_id`；
+3. **JSONB 数组无索引** ⇒ `jsonb_array_elements_text` 是**全表扫**
+   ⇒ 列表页**每行每次请求**都要算；
+4. **口径未定义** —— 「进料 / 出料 / 塔侧线 / 计算器序列」各自算不算，
+   要**逐设备类型**定。
 
-**待裁决**：设备算不算「引用这条物流」？若算 ⇒
-- 口径要**逐设备类型**定（闪蒸出口 / 泵出口 / … 各表字段名不同）；
-- 性能方案要定（表达式索引？物化列？）。
+**触发条件**（翻案）：用户问「这条物流被哪些设备用了」⇒ 重新评估 ⇒ 那时做成
+**详情页「设备连接」Tab 的反查**（单条查询、允许慢、允许人工核对），
+**不是**列表页的每行计数。
 
-**触发条件**：用户问「这条物流被哪些设备用了」⇒ 重新评估。
-
-⇒ 归属：独立技术债（不进本批）。
+⇒ 归属：独立技术债（**已裁决 · 触发式重开**）。
 
 ## TODO-141: 全量测试迁移到 `strict_client`（守卫测试的唯一入口） 🟡
 
@@ -3174,7 +3179,7 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 
 ⇒ 归属：独立技术债（不进本批）。
 
-## TODO-143: 三处**缺索引 / 未按项目隔离**的聚合口径（要迁移 ⇒ 独立批） 🟡
+## TODO-143: 两处**缺索引**的聚合查询（要迁移 ⇒ 独立批） 🟡
 
 **现状**（2026-11-11 · P9B-4 体验批 T2 的整批评审 Minor #1 / #2）：
 
@@ -3182,14 +3187,35 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 |---|---|---|---|
 | 1 | `streams.upstream_stream_id`（`app/models/project.py:442`） | **无索引** | `reference_counts` 的第一条聚合（下游物流数）⇒ **每次列表请求全表扫** |
 | 2 | `data_lineage.source_ref_type` / `source_ref_id`（`app/models/system.py:46-47`） | **无索引** | 物流血缘 Tab 的「按源引用查」⇒ **每次开 Tab 扫 `data_lineage` 全表**（该表**只增不删**） |
-| 3 | `reference_count` | **未按项目过滤** | 跨项目的下游物流会计入本项目的计数（当前 API 造不出来 ⇒ 只是**潜在**的跨项目信号） |
 
-⚠️ 三条都要**改 `alembic/versions/*`** ⇒ **本批不动迁移**（P9B-4 的硬约束）
-⇒ 独立批处理（索引 + 可选的项目维度过滤）。
+⚠️ 两条都要**改 `alembic/versions/*`** ⇒ **本批不动迁移**（P9B-4 的硬约束）
+⇒ 独立批处理（**P10-D** · 压测驱动 ⇒ 同 TODO-104）。
 
-⚠️ **第 3 条的口径待定**：「引用数」要不要**只算同项目**的下游？
-- 同项目 ⇒ 计数**只**反映本项目的引用（更贴合「这条物流被本项目用了几次」）；
-- 全部项目 ⇒ 反映「这条物流在系统里被用了几次」。
-⇒ **待裁决**（下一批），SPEC §7.7.1 暂按「全部项目」写。
+✅ **原第 3 条（「`reference_count` 未按项目过滤」）已闭**（2026-11-11）——
+见下节。
 
 ⇒ 归属：独立技术债（不进本批）。
+
+### 已闭：TODO-143-3「`reference_count` 是否按项目过滤」 ✅（Q7 = ① 只算同项目）
+
+**裁决**（2026-11-11 · 用户裁决 **Q7 = ① 只算同项目**）：`reference_count`
+**只统计同项目**的引用（别的项目的引用**不计入**）。
+
+**已落地**（**零迁移** —— `Stream.project_id` 与 `FlashResult.project_id` 两列
+本来就存在）：
+- `StreamService.reference_counts(db, ids, *, project_id)` —— `project_id`
+  是**必填关键字参数**（没有默认值 ⇒ 忘传编译期就红）
+  ⇒ 两条聚合各带一个 `project_id` 谓词；
+- `list_project_streams` 传 `project_id=project_id`（路径参数）；
+- 用例：`test_reference_count_excludes_cross_project_downstream_streams` /
+  `..._excludes_cross_project_flash_results` /
+  `..._still_counts_same_project_references`（三条全 RED→GREEN）。
+
+⚠️ **今天的数值一个都没变** ⇒ 这不是修现存 bug，是**前瞻性保护**：
+`create_outlet_stream`（强制 `source.project_id == project_id`）与
+`flash_persist`（用 `stream.project_id`）都保证**同项目**
+⇒ **跨项目引用造不出来**；而 DB 层**允许**
+（`streams.upstream_stream_id` 只是 FK 到 `streams.stream_id`，没有 project
+约束）⇒ 过滤必须落在**查询**上，不能指望写入方。
+
+⇒ SPEC §7.7.1 已同步（V2.15）。

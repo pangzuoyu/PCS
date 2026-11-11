@@ -177,11 +177,12 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 
 - **P9B-4 遗留的迁移批**（TODO-143）：两处**缺索引**
   （`streams.upstream_stream_id` + `data_lineage(source_ref_type, source_ref_id)`
-  ⇒ 列表聚合与血缘 Tab 都是顺序扫描）+ `reference_count` **是否按项目隔离**
-  （口径待裁决）⇒ **要改 `alembic/versions/*`** ⇒ 独立批。
+  ⇒ 列表聚合与血缘 Tab 都是顺序扫描）⇒ **要改 `alembic/versions/*`** ⇒ 独立批。
   另有 TODO-138（`TwoPhaseResult` 无 `project_id` ⇒ 血缘永久 404）、
-  TODO-140（设备引用是否计入 📎×N）、TODO-141（全量测试迁 `strict_client`）、
+  TODO-141（全量测试迁 `strict_client`）、
   TODO-142（review-log `rowKey` 可能撞）。
+  ✅ 已闭：TODO-140（设备引用**维持不计入** 📎×N · 触发式重开）、
+  TODO-143-3（`reference_count` **只算同项目** · 零迁移已落地）。
 - **P10（总纲）**：运维手册（P10-E）尚未开工 ⇒「**停用立即生效**」这条运维须知
   登记在案，出手册时必须写进去。
 - **P9B-3 残余**：SPEC §7.20 的「AI 开关 / Prompt 模板 / 角色分配」几页仍未落地

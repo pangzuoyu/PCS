@@ -156,12 +156,12 @@ async def test_list_streams_does_not_query_per_row(
             client, proj, designer_headers, stream_name=f"S-{i:02d}"
         )
 
-    calls: list[int] = []
+    calls: list[tuple[int, object]] = []
     real = StreamService.reference_counts
 
-    async def _spy(db, stream_ids):  # noqa: ANN001
-        calls.append(len(list(stream_ids)))
-        return await real(db, stream_ids)
+    async def _spy(db, stream_ids, **kwargs):  # noqa: ANN001
+        calls.append((len(list(stream_ids)), kwargs.get("project_id")))
+        return await real(db, stream_ids, **kwargs)
 
     monkeypatch.setattr(StreamService, "reference_counts", staticmethod(_spy))
 
@@ -172,4 +172,6 @@ async def test_list_streams_does_not_query_per_row(
     assert len(resp.json()) == 10
     # ⚠️ **一次**调用（不是 10 次）⇒ 不是 N+1
     assert len(calls) == 1, f"reference_counts 被调 {len(calls)} 次 ⇒ N+1"
-    assert calls[0] == 10
+    assert calls[0][0] == 10
+    # ⚠️ **项目口径必须透传**（Q7 裁决 ① · 只算同项目）⇒ 端点要传本项目的 id
+    assert calls[0][1] == proj.project_id

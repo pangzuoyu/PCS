@@ -15,6 +15,13 @@
 ⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，
 因为状态点会阻塞删除）⇒ 两个数字**不要**混用。
 
+⚠️ **只算同项目**（Q7 裁决 ① · 2026-11-11）—— 别的项目的引用**不计入**
+⇒ `project_id` 是**必填关键字参数**（忘传编译期就红）。
+⚠️ **今天造不出跨项目引用**（`create_outlet_stream` / `flash_persist` 都强制
+同项目）⇒ 这是**前瞻性保护**；而 DB 层**允许**跨项目
+（`streams.upstream_stream_id` 只是 FK，没有 project 约束）⇒ 过滤必须落在
+**查询**上，不能指望写入方。
+
 ⚠️ **两条聚合查询**（整个列表 2 次往返）⇒ **不是 N+1**。
 """
 
@@ -33,8 +40,7 @@ from app.services.stream_service import StreamService
 pytestmark = pytest.mark.asyncio
 
 
-@pytest_asyncio.fixture
-async def project(db: AsyncSession) -> Project:
+async def _make_project(db: AsyncSession, name: str) -> Project:
     """一个项目 + 它的专属工作区（`Stream` 两个 FK 都指它）。"""
     ws = Workspace(workspace_type="FORMAL", name=f"ws-{uuid.uuid4().hex[:8]}")
     db.add(ws)
@@ -42,7 +48,7 @@ async def project(db: AsyncSession) -> Project:
 
     proj = Project(
         project_no=f"P-{uuid.uuid4().hex[:8]}",
-        project_name="引用计数测试",
+        project_name=name,
         owner_company="测试业主",
         location="测试地点",
         project_type="CHEMICAL",
@@ -54,6 +60,12 @@ async def project(db: AsyncSession) -> Project:
     await db.commit()
     await db.refresh(proj)
     return proj
+
+
+@pytest_asyncio.fixture
+async def project(db: AsyncSession) -> Project:
+    """一个项目 + 它的专属工作区（`Stream` 两个 FK 都指它）。"""
+    return await _make_project(db, "引用计数测试")
 
 
 async def _make_stream(
@@ -105,7 +117,9 @@ async def test_reference_count_counts_downstream_streams(db_session, project):
     source = await _make_stream(db_session, project)
     await _make_stream(db_session, project, upstream_stream_id=source.stream_id)
 
-    counts = await StreamService.reference_counts(db_session, [source.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
     assert counts[source.stream_id] == 1
 
 
@@ -114,7 +128,9 @@ async def test_reference_count_counts_flash_results(db_session, project):
     source = await _make_stream(db_session, project)
     await _make_flash(db_session, project, source)
 
-    counts = await StreamService.reference_counts(db_session, [source.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
     assert counts[source.stream_id] == 1
 
 
@@ -141,14 +157,18 @@ async def test_reference_count_excludes_own_state_points(db_session, project):
     )
     await db_session.commit()
 
-    counts = await StreamService.reference_counts(db_session, [source.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
     assert counts[source.stream_id] == 0
 
 
 async def test_reference_count_is_zero_for_unreferenced_stream(db_session, project):
     """无引用 ⇒ 0。"""
     source = await _make_stream(db_session, project)
-    counts = await StreamService.reference_counts(db_session, [source.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
     assert counts.get(source.stream_id, 0) == 0
 
 
@@ -158,7 +178,9 @@ async def test_reference_counts_returns_only_requested_ids(db_session, project):
     b = await _make_stream(db_session, project)
     await _make_stream(db_session, project, upstream_stream_id=b.stream_id)
 
-    counts = await StreamService.reference_counts(db_session, [a.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [a.stream_id], project_id=project.project_id
+    )
     assert set(counts) == {a.stream_id}
     assert counts[a.stream_id] == 0
 
@@ -168,7 +190,9 @@ async def test_reference_counts_with_empty_input_returns_empty_dict(db_session):
 
     `IN ()` 在 PG 上是**语法错误** ⇒ 不早返回会让列表接口直接 500。
     """
-    assert await StreamService.reference_counts(db_session, []) == {}
+    assert await StreamService.reference_counts(
+        db_session, [], project_id=uuid.uuid4()
+    ) == {}
 
 
 async def test_reference_count_accumulates_across_both_tables(db_session, project):
@@ -181,7 +205,9 @@ async def test_reference_count_accumulates_across_both_tables(db_session, projec
     await _make_stream(db_session, project, upstream_stream_id=source.stream_id)
     await _make_flash(db_session, project, source)
 
-    counts = await StreamService.reference_counts(db_session, [source.stream_id])
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
     assert counts[source.stream_id] == 3
 
 
@@ -191,4 +217,70 @@ async def test_reference_counts_with_none_input_returns_empty_dict(db_session):
     签名标的是 `Sequence[uuid.UUID]`，但 `if not stream_ids` 对 None 也成立
     ⇒ 行为安全 ⇒ 用测试把它**钉住**，免得将来有人改成 `len()` 判断而炸掉。
     """
-    assert await StreamService.reference_counts(db_session, None) == {}  # type: ignore[arg-type]
+    assert await StreamService.reference_counts(
+        db_session,
+        None,  # type: ignore[arg-type]
+        project_id=uuid.uuid4(),
+    ) == {}
+
+
+# ---------------------------------------------------------------------------
+# 项目隔离（Q7 裁决 ①：只算同项目 · 2026-11-11）
+# ---------------------------------------------------------------------------
+
+
+async def test_reference_count_excludes_cross_project_downstream_streams(
+    db_session, project
+):
+    """⚠️ **只算同项目** —— 别的项目把本物流当上游 ⇒ **不计入**。
+
+    ⚠️ **今天造不出**这种引用（`create_outlet_stream` 强制
+    `source.project_id == project_id`，否则抛 `OutletStreamProjectMismatchError`）
+    ⇒ 这是**前瞻性保护**（防将来新增一条不强制同项目的写入路径）。
+
+    ⚠️ DB 层**允许**跨项目（`streams.upstream_stream_id` 只是 FK 到
+    `streams.stream_id`，没有 project 约束）⇒ 只有 service 层在拦 ⇒
+    过滤必须落在**查询**上，不能指望写入方。
+    """
+    other = await _make_project(db_session, "另一个项目")
+    source = await _make_stream(db_session, project)
+    await _make_stream(db_session, other, upstream_stream_id=source.stream_id)
+
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
+    assert counts[source.stream_id] == 0
+
+
+async def test_reference_count_excludes_cross_project_flash_results(
+    db_session, project
+):
+    """⚠️ **只算同项目** —— 别的项目的闪蒸结果引用本物流 ⇒ **不计入**。
+
+    （`flash_persist` 今天也是强制同项目的 ⇒ 同上，前瞻性保护。）
+    """
+    other = await _make_project(db_session, "另一个项目")
+    source = await _make_stream(db_session, project)
+    await _make_flash(db_session, other, source)
+
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
+    assert counts[source.stream_id] == 0
+
+
+async def test_reference_count_still_counts_same_project_references(
+    db_session, project
+):
+    """⚠️ 过滤**不能**过激 —— 同项目的下游物流 + 闪蒸结果**照常计入**。
+
+    （防「加了 project_id 谓词 ⇒ 全变 0」这种把列做废的实现。）
+    """
+    source = await _make_stream(db_session, project)
+    await _make_stream(db_session, project, upstream_stream_id=source.stream_id)
+    await _make_flash(db_session, project, source)
+
+    counts = await StreamService.reference_counts(
+        db_session, [source.stream_id], project_id=project.project_id
+    )
+    assert counts[source.stream_id] == 2

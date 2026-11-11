@@ -325,7 +325,10 @@ class StreamService:
 
     @staticmethod
     async def reference_counts(
-        db: AsyncSession, stream_ids: Sequence[uuid.UUID]
+        db: AsyncSession,
+        stream_ids: Sequence[uuid.UUID],
+        *,
+        project_id: uuid.UUID,
     ) -> dict[uuid.UUID, int]:
         """一批物流各自的**被引用数**（P9B-4 · TODO-108 · SPEC §7.7.1「引用 📎×N」）。
 
@@ -341,6 +344,18 @@ class StreamService:
         ⚠️ **与删除门禁 `_collect_references` 的口径不同**（那边**含**状态点，
         因为状态点会阻塞删除）⇒ 两个数字**不要**混用 ⇒ SPEC 里要写清。
 
+        ⚠️ **只算同项目**（Q7 裁决 ① · 2026-11-11）—— `project_id` 是**必填
+        关键字参数**（没有默认值 ⇒ 忘传编译期就红）⇒ 两条聚合都带
+        `project_id` 谓词 ⇒ 别的项目的引用**不计入**。
+
+        ⚠️ **今天造不出跨项目引用**（`create_outlet_stream` 强制
+        `source.project_id == project_id`；`flash_persist` 用
+        `stream.project_id`）⇒ 这是**前瞻性保护**，不是修现存 bug。
+
+        ⚠️ **为什么过滤必须落在查询上**：DB 层**允许**跨项目引用
+        （`streams.upstream_stream_id` 只是 FK 到 `streams.stream_id`，
+        没有 project 约束）⇒ 只有 service 层在拦 ⇒ 计数不能指望写入方。
+
         ⚠️ **两条聚合查询**（整个列表 2 次往返）⇒ **不是 N+1**。
 
         ⚠️ **空入参早返回**（`IN ()` 在 PG 上是**语法错误** ⇒ 筛选后列表为空
@@ -355,22 +370,28 @@ class StreamService:
         ids = list(stream_ids)
         counts: dict[uuid.UUID, int] = {sid: 0 for sid in ids}
 
-        # ① 下游物流（别的物流把本物流当上游）
+        # ① 下游物流（别的物流把本物流当上游）—— ⚠️ **同项目才算**
         downstream = (
             await db.execute(
                 select(Stream.upstream_stream_id, func.count())
-                .where(Stream.upstream_stream_id.in_(ids))
+                .where(
+                    Stream.upstream_stream_id.in_(ids),
+                    Stream.project_id == project_id,
+                )
                 .group_by(Stream.upstream_stream_id)
             )
         ).all()
         for upstream_id, n in downstream:
             counts[upstream_id] += n
 
-        # ② 闪蒸结果（计算结果引用本物流）
+        # ② 闪蒸结果（计算结果引用本物流）—— ⚠️ **同项目才算**
         flash = (
             await db.execute(
                 select(FlashResult.stream_id, func.count())
-                .where(FlashResult.stream_id.in_(ids))
+                .where(
+                    FlashResult.stream_id.in_(ids),
+                    FlashResult.project_id == project_id,
+                )
                 .group_by(FlashResult.stream_id)
             )
         ).all()
