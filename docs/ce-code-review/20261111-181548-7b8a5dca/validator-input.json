@@ -3,10 +3,10 @@
  "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca",
  "template": "references/validator-batch-template.md",
  "batch": {
-  "count": 10,
+  "count": 11,
   "order": "severity (P0/P1 first), then stable # ascending",
   "selection_rule": "Stage 5b step 2 — every remaining P0/P1 plus every remaining actionable finding (autofix_class gated_auto|manual with owner downstream-resolver)",
-  "cap_note": "The normal cap is 8 findings; this batch holds 10 because step 2 selected 10 and the reference forbids splitting the batch or silently omitting a selected finding.",
+  "cap_note": "The normal cap is 8 findings; this batch holds 11 because step 2 selected 11 and the reference forbids splitting the batch or silently omitting a selected finding.",
   "findings": [
    {
     "#": 1,
@@ -105,7 +105,7 @@
     "pre_existing": false
    },
    {
-    "#": 6,
+    "#": 7,
     "title": "WS 握手：DB 异常逃出 except PcsError ⇒ 500 而非 1008",
     "severity": "P2",
     "confidence": 75,
@@ -130,7 +130,7 @@
     "pre_existing": false
    },
    {
-    "#": 7,
+    "#": 8,
     "title": "Deployment assertion goes green while mock-login route is mounted",
     "severity": "P2",
     "confidence": 75,
@@ -155,7 +155,7 @@
     "pre_existing": false
    },
    {
-    "#": 8,
+    "#": 9,
     "title": "Fail-closed lineage guard makes PSV lineage permanently 404",
     "severity": "P2",
     "confidence": 75,
@@ -163,14 +163,21 @@
     "file": "pcs-backend/app/services/lineage_registry.py",
     "line": 57,
     "reviewers": [
-     "adversarial"
+     "adversarial",
+     "maintainability"
     ],
     "why_it_matters": "T0-D turned the lineage guard fail-closed: any record_type that is not in the guard registry now returns 404 instead of falling through. The registry is derived from RECORD_TYPE_REGISTRY, but that registry does not contain PsvResult — yet PsvResult is exactly one of the models that writes lineage rows (finalize_calc_record in psv_persist). Before this diff the guard skipped unregistered types, so GET /lineage/PsvResult/{id}/graph resolved the real lineage; after it, the same request is a hard 404 for every PSV record.\n\nIndependently verified in this repo: (a) `grep -n PsvResult app/services/calc_lineage.py` ⇒ 0 hits (the 21 registry keys are PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, ProjectCalculationStandardProfile, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult); (b) `app/services/psv/psv_persist.py:444` calls `finalize_calc_record` ⇒ `LineageTracker.track` writes `record_type=record.__class__.__name__` (app/services/lineage.py:109) ⇒ real `data_lineage` rows with record_type='PsvResult' exist; (c) PsvResult has `project_id` (declared_attr on RecordMixin, app/models/mixins.py) ⇒ it *could* be registered.\n\n⇒ The derivation inherits a pre-existing gap in RECORD_TYPE_REGISTRY and turns it from 'works' into 'permanently unavailable'. The plan's own completeness step (T0-D Step 3.3) asks for a mirror test asserting 'every record_type LineageTracker.track can write is in the registry', but the implementation parameterizes over RECORD_TYPE_REGISTRY's keys ⇒ a model that writes lineage without being a registry member (PsvResult) can never be caught. TODO-138 registers only the TwoPhaseResult case, so this one is unregistered.",
     "evidence": [
      "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY.",
      "pcs-backend/app/services/calc_lineage.py:84 - `RECORD_TYPE_REGISTRY: dict[str, type] = {` - the 21 keys are PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, ProjectCalculationStandardProfile, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult - `grep -n PsvResult app/services/calc_lineage.py` returns 0 hits, so PsvResult is NOT a registry member and therefore NOT a guard key.",
      "pcs-backend/app/services/psv/psv_persist.py:444 - `    await finalize_calc_record(` - PSV persists a PsvResult through finalize_calc_record, and LineageTracker.track writes `record_type=record.__class__.__name__` (app/services/lineage.py:109) => real data_lineage rows exist with record_type='PsvResult'.",
-     "pcs-backend/app/api/v1/lineage.py:244-247 - `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）` / `        raise HTTPException(404, \"no lineage for record\")` - trigger: GET /api/v1/lineage/PsvResult/{psv_id}/graph; path: entry lookup misses -> 404 before any lineage query; outcome: previously this request returned the real lineage graph (the old guard did `return` for unregistered types), now it is a permanent 404 for a record type that has lineage rows in the database."
+     "pcs-backend/app/api/v1/lineage.py:244-247 - `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）` / `        raise HTTPException(404, \"no lineage for record\")` - trigger: GET /api/v1/lineage/PsvResult/{psv_id}/graph; path: entry lookup misses -> 404 before any lineage query; outcome: previously this request returned the real lineage graph (the old guard did `return` for unregistered types), now it is a permanent 404 for a record type that has lineage rows in the database.",
+     "pcs-backend/app/services/lineage_registry.py:57-61 — LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = { model.__name__: (model, _pk_col(model)) for model in RECORD_TYPE_REGISTRY.values() if hasattr(model, \"project_id\") }",
+     "pcs-backend/app/services/calc_lineage.py — RECORD_TYPE_REGISTRY (lines 84-115) contains 21 keys, none of them 'PsvResult' (grep -c 'PsvResult' app/services/calc_lineage.py == 0), so the derived dict has no 'PsvResult' key",
+     "pcs-backend/app/services/psv/psv_persist.py:444 — await finalize_calc_record(db, record, source_stream_ids=[source_stream_id], formula_version=_FORMULA_VERSION) with record = PsvResult(...) ⇒ a data_lineage row with record_type='PsvResult' is written",
+     "pcs-backend/app/api/v1/psv.py:247 — DataLineage.record_type == \"PsvResult\", ⇒ the app itself reads rows of that record_type back (proof the rows exist in real data)",
+     "pcs-backend/app/services/lineage.py:109 — record_type=record.__class__.__name__ (writer key = class name), so the writer set is 'every model passed to finalize_calc_record', not RECORD_TYPE_REGISTRY",
+     "Runtime confirmation: importing app.services.lineage_registry yields 21 keys (20 models + 'streams'); 'PsvResult' is absent"
     ],
     "first_evidence": "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY.",
     "suggested_fix": "Register every lineage-writable model in the guard map instead of inheriting RECORD_TYPE_REGISTRY blindly: add `LINEAGE_GUARDED_RECORD_TYPES[\"PsvResult\"] = (PsvResult, \"psv_id\")` next to the explicit \"streams\" entry, and add a test that walks the models actually passed to finalize_calc_record (cia_engine.track as well) asserting each class name has a guard entry — otherwise the next model added to a persist service silently loses its lineage view. If the product prefers to declare PSV lineage unsupported instead, register that decision the way TwoPhaseResult was registered (TODO + SPEC §7.7.2 note) so the loss of a previously working endpoint is explicit.",
@@ -180,7 +187,32 @@
     "pre_existing": false
    },
    {
-    "#": 9,
+    "#": 10,
+    "title": "「判定语义唯一一处」与代码不符：停用判定在两处各有一份实现，且两把键不同",
+    "severity": "P2",
+    "confidence": 75,
+    "category": "implementation consistency (duplicate disable rule across two lookup keys)",
+    "file": "pcs-backend/app/services/user_status_service.py",
+    "line": 8,
+    "reviewers": [
+     "maintainability"
+    ],
+    "why_it_matters": "本批新增的 `app/services/user_status_service.py` 的模块 docstring 第 8 行写着「## 判定语义（全仓**唯一**一处）」，并用一张表定义判定语义（无该 user_id 的行 ⇒ 放行 / status=DISABLED ⇒ 拒 / status=ACTIVE ⇒ 放行）。\n\n**但「唯一」是假的**：本批之前就存在的登录路径 `app/services/token_issuer.py:97` 另有一份独立实现 —— `if row is not None and row.status == UserStatus.DISABLED.value:` ⇒ 401 `USER_DISABLED`。两份实现的**查找键不同**：每请求那份按 `User.user_id == user_id` 查（`user_status_service.py:53-57`），登录那份按 `User.username == username` 查（`token_issuer.py:91-93`）。\n\n⇒ 同一份「禁用 ⇒ 拒」语义有两份代码，两份的**判定输入不同**（一份按 username、一份按 user_id）⇒ 在两把键指向不同行的账号上会给出**相反**的结论。最具体的一例：**遗留账号行**（`users.user_id` ≠ 派生值 · TODO-137 的形状）—— 登录路径按 username 查得到那行 ⇒ `status=DISABLED` ⇒ 拒；而每请求路径按 token 里的 `user_id` 查**不到**行 ⇒ 「无行 ⇒ 放行」⇒ **放行**。（这一条「无行 ⇒ 放行」的 fail-open 窗口，安全评审已作为**残余风险**登记，并挂在发布前检查 `SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0 这个部署前置条件上 ⇒ 本条**不重复**报那个窗口；本条报的是**让窗口存在的那份结构**：两份实现。）\n\n⇒ 后果有两层：① 契约层 —— 本批新写的模块声明「全仓唯一一处」，而代码里恰好不是唯一一处 ⇒ 下一个读这份 docstring 的人（或 agent）会以为改这一处就够；而计划当初**正是**用这条理由否掉了方案 A（「② 将来改 status 词表（加 `SUSPENDED`）要改两处」）⇒ 计划选了「B 只有一处判定」，实现却仍是两处 ⇒ 选型理由没兑现；② 行为层 —— 两把键不同 ⇒ 同一账号在两条路径上可以结论相反（登录被拒 / 在手 token 放行）。",
+    "evidence": [
+     "pcs-backend/app/services/user_status_service.py:8 — ## 判定语义（全仓**唯一**一处）   (the sole-ownership claim)",
+     "pcs-backend/app/services/user_status_service.py:58 —     return status == UserStatus.DISABLED.value   (comparison #1, keyed by user_id)",
+     "pcs-backend/app/services/token_issuer.py:97 —     if row is not None and row.status == UserStatus.DISABLED.value:   (comparison #2, keyed by username, login path — the same rule re-implemented)",
+     "pcs-backend/app/services/user_status_service.py:20-21 — the module itself notes the divergence: '遗留账号行（`user_id` ≠ 派生值 · TODO-137）⇒ token 里的 `user_id` 查不到行 ⇒ 判成拒 ⇒ 遗留用户**全部**被锁在门外' — the per-request copy and the login copy therefore disagree on exactly those rows"
+    ],
+    "first_evidence": "pcs-backend/app/services/user_status_service.py:8 — `## 判定语义（全仓**唯一**一处）`   (the sole-ownership claim)",
+    "suggested_fix": "把**比较**抽出来、让两处共用一份定义（**不要**动两把键 —— 键不同是有意的：登录按 username 是因为登录时只有 username）：\n\n    # app/services/user_status_service.py\n    def is_disabled_status(status: str | None) -> bool:\n        return status == UserStatus.DISABLED.value\n\n    async def is_account_disabled(session, *, user_id) -> bool:\n        status = (await session.execute(\n            select(User.status).where(User.user_id == user_id)\n        )).scalar_one_or_none()\n        return is_disabled_status(status)\n\n    # app/services/token_issuer.py\n    if row is not None and is_disabled_status(row.status):\n        ...\n\n同时把模块 docstring 第 8 行的「（全仓**唯一**一处）」改成**如实**的措辞：*判定语义（『status == DISABLED ⇒ 拒』这**条规则**）只有这一处实现；登录路径另有一份按 username 查的比较（token_issuer），故两把键不同 ⇒ 遗留行账号上两条路径结论可能相反（见 TODO-137 与 ADR-0046 §⑤）*。并把「遗留行账号在登录被拒、在手 token 放行」这一事实登记进 ADR-0046 §⑤ 的「已知边界」节（现在那里只写了角色变更不即时生效）。",
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false
+   },
+   {
+    "#": 11,
     "title": "T0-D 的 fail-closed 血缘守卫没有测试钉住「逐字同形 404」",
     "severity": "P2",
     "confidence": 75,
@@ -210,7 +242,7 @@
     "pre_existing": false
    },
    {
-    "#": 10,
+    "#": 13,
     "title": "账簿写 roles「合并」，实现已是「覆盖」",
     "severity": "P2",
     "confidence": 75,
@@ -241,7 +273,7 @@
     "pre_existing": false
    },
    {
-    "#": 12,
+    "#": 15,
     "title": "_stream_graph 重复查 Stream，守卫返回值被丢弃",
     "severity": "P3",
     "confidence": 100,
@@ -249,13 +281,19 @@
     "file": "pcs-backend/app/api/v1/lineage.py",
     "line": 166,
     "reviewers": [
-     "correctness"
+     "correctness",
+     "maintainability"
     ],
     "why_it_matters": "本批给 `_guard_record_access` 加了返回值，并在 docstring 里写明「返回查到的**记录行**（调用方要拿它的字段时不必再查一次）」—— 但三个端点全都把返回值丢掉，`_stream_graph` 又 `session.get(Stream, stream_id)` 取了一遍 ⇒ 新增的返回值契约是**死的**（读代码的人会以为它被用上了）。\n\n⚠️ 复核修正：这**不是**多一次 DB 往返 —— SQLAlchemy 的 `Session.get()` 先查 identity map，而守卫的 `select(Stream)` 已把该行放进 identity map ⇒ 真实后果只是「一处冗余的再取 + 一条没被兑现的 docstring 契约」，不是性能问题。",
     "evidence": [
      "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`",
      "pcs-backend/app/api/v1/lineage.py:166 — `return await _stream_graph(session, record_id, max_depth=max_depth)`（守卫返回值被丢弃）",
-     "pcs-backend/app/api/v1/lineage.py:284 — `stream = await session.get(Stream, stream_id)`（第二次查同一行）"
+     "pcs-backend/app/api/v1/lineage.py:284 — `stream = await session.get(Stream, stream_id)`（第二次查同一行）",
+     "pcs-backend/app/api/v1/lineage.py:269 —     return record   (the new return value)",
+     "pcs-backend/app/api/v1/lineage.py:205 — ) -> Any:   (the widened, type-erased signature)",
+     "pcs-backend/app/api/v1/lineage.py:70-72, 116-118, 162-164 — all three call sites are bare statements: `await _guard_record_access(session, user, record_type, record_id)` with no assignment",
+     "pcs-backend/app/api/v1/lineage.py:284-287 —     stream = await session.get(Stream, stream_id) / if stream is None: raise HTTPException(404, \"no lineage for record\") — re-fetches the row the guard already loaded and adds a second 404 site",
+     "Diff confirms the change: the guard's signature went from `) -> None:` to `) -> Any:` and gained `return record`, while no call site was updated to consume it"
     ],
     "first_evidence": "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`",
     "suggested_fix": "把守卫的返回值传下去：`_stream_graph(session, stream, *, max_depth)`（`stream` 由 `_guard_record_access` 的返回值给出），并删掉 `_stream_graph` 里的 `session.get` 分支 —— 守卫已保证行存在（不存在时它自己抛 404）。",
@@ -265,7 +303,7 @@
     "pre_existing": false
    },
    {
-    "#": 16,
+    "#": 20,
     "title": "重试/提交已成功但列表刷新失败 ⇒ 报成「批量提交失败」",
     "severity": "P3",
     "confidence": 75,
@@ -309,7 +347,7 @@
    "frontend_tests": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/diff-frontend-tests.txt",
    "docs": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/diff-docs.txt"
   },
-  "note": "The working tree is the reviewed head (clean) ⇒ inspected files may be read directly at their repo paths (repo root /home/pangzy/code_project/PCS). Findings marked with a file that is NOT in the changed set (pcs-frontend/src/api/client.ts, pcs-backend/app/api/v1/admin_users.py, .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md) are defects or gaps that this diff creates or leaves behind in unchanged code — not pre-existing defects.",
+  "note": "The working tree is the reviewed head (clean) ⇒ inspected files may be read directly at their repo paths (repo root /home/pangzy/code_project/PCS). Findings marked with a file that is NOT in the changed set (pcs-frontend/src/api/client.ts, pcs-backend/app/api/v1/admin_users.py, .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md) are defects or gaps that this diff creates or leaves behind in unchanged code — not pre-existing defects. One finding was routed to the pre-existing partition instead (pcs-backend/app/api/v1/mock_auth.py's docstring naming a setting that never existed, verified against the base commit) and is NOT part of this batch.",
   "no_tests_run": true
  },
  "protected_subject_policy": "Use the eight protected subjects and the evidence forms defined in references/validator-batch-template.md. Classify the claim itself, not its title.",

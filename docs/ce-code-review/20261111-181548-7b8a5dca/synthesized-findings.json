@@ -1,6 +1,6 @@
 {
  "run_id": "20261111-181548-7b8a5dca",
- "generated_by": "ce-code-review merge leaf (Stage 5 + Stage 5b steps 1-3)",
+ "generated_by": "ce-code-review merge leaf (Stage 5 + Stage 5b steps 1-3) — re-merge over 9 reviewers / 34 findings",
  "scope": {
   "mode": "standalone",
   "base": "38c91ac",
@@ -11,16 +11,17 @@
   "diff": "/tmp/compound-engineering-1000/ce-code-review/20261111-181548-7b8a5dca/full.diff"
  },
  "counts": {
-  "primary_findings": 14,
-  "pre_existing_findings": 0,
+  "primary_findings": 15,
+  "pre_existing_findings": 1,
   "demoted_to_testing_gaps": 3,
+  "demoted_to_residual_risks": 4,
   "suppressed_to_residual_risks": 1,
   "discarded_settled_decision": 1,
-  "merged_away_candidates": 6,
-  "residual_risks": 25,
-  "testing_gaps": 21,
-  "triage_groups": 3,
-  "validator_selected": 10,
+  "merged_away_candidates": 8,
+  "residual_risks": 30,
+  "testing_gaps": 24,
+  "triage_groups": 4,
+  "validator_selected": 11,
   "validator_skipped": 0
  },
  "primary_findings": [
@@ -157,7 +158,7 @@
    "why_it_matters": "Only /graph moved to the named schema; /upstream and /downstream still declare response_model=list[dict], so one DataLineage row crosses two different serializers. (a) Timestamp representation: /graph now round-trips occurred_at through pydantic (datetime -> '2026-09-15T14:00:00Z'), while /upstream and /downstream keep _serialize's raw isoformat ('2026-09-15T14:00:00+00:00'). The same row therefore reports two different timestamp strings depending on the endpoint, and /graph's string changed relative to its pre-diff raw-dict response (a visible, undocumented value change on an existing endpoint that external scripts consume — the batch's own test comment calls /downstream 'a public endpoint (external scripts will hit it)'). (b) Silent field loss: LineageGraphResponse ignores unknown keys, so any field later added to _serialize (e.g. actor_ai_agent_id / record_hash_at_track, which exist on the model) appears on /upstream and /downstream but vanishes from /graph with no error — precisely the silent divergence this batch set out to remove by introducing the named schema. The frontend's contract-derived LineageNode type is only guaranteed for /graph."
   },
   {
-   "#": 5,
+   "#": 6,
    "autofix_class": "advisory",
    "confidence": 75,
    "evidence": [
@@ -184,7 +185,7 @@
    "why_it_matters": "T0-B's stated outcome is '停用立即生效' (deactivation takes effect immediately). For HTTP that holds because every request re-reads users.status. The notification WebSocket is a long-lived channel whose credential check happens exactly once, at handshake: a user who connects, is then disabled, keeps receiving every notification pushed to them until the socket closes — which is never on its own. So the account-status gate is effective on HTTP and ineffective on the one channel that keeps working after the account is switched off, and the docs claim a single global rule ('每请求查一次 users.status ⇒ 停用立即生效') without carving this out (app/services/user_status_service.py:22-24 states the guarantee unqualified).\n\nExposure today is limited: no frontend caller of /api/v1/ws/notifications was found in this repo, so the channel is not known to be in use. The gap is that the batch's own guarantee is stated without the exception."
   },
   {
-   "#": 6,
+   "#": 7,
    "autofix_class": "gated_auto",
    "confidence": 75,
    "evidence": [
@@ -211,7 +212,7 @@
    "why_it_matters": "P9B-4 T0-B 把一次 DB 读（users.status）带进了 WebSocket 握手鉴权路径。ws.py 的握手错误处理只捕获 PcsError（缺 token / JWT 无效 / USER_DISABLED）⇒ DB 连接错误、连接池 30s 超时（pool_timeout=30）、语句超时抛的都是 SQLAlchemy 异常，不是 PcsError ⇒ 逃出 handler ⇒ 握手以未处理的异常结束（ASGI 服务器回 HTTP 500），而不是模块 docstring 承诺的「握手阶段鉴权失败 ⇒ 直接关连接（1008）」。模块里那条 `except Exception` 兜底在 accept() 之后的接收循环里，覆盖不到握手阶段 ⇒ 运维在 WS 模块里看不到任何一行日志。\n\n后果：一次 DB 抖动表现为「WS 连不上」而非「鉴权后端不可用」，客户端也无法区分「被拒」与「后端坏了」；这条路径同时把通知通道与 DB 的可用性绑死了（此前握手是纯 CPU 的 JWT 解码，与 DB 无关）。"
   },
   {
-   "#": 7,
+   "#": 8,
    "autofix_class": "manual",
    "confidence": 75,
    "evidence": [
@@ -238,26 +239,34 @@
    "why_it_matters": "assert_mock_auth_not_exposed is a deployment guard whose stated invariant is 'the mock router must not be mounted in production'. The rewrite correctly replaced the app.routes walk (which FastAPI 0.141's lazy mounting made a no-op), but it swapped one proxy for another: it now asserts on the OpenAPI schema, which is a *derived view* of the routing table and is empty for any route excluded from the schema. A single plausible edit — including the mock router with include_in_schema=False so it stops showing up in /docs — makes the assertion pass while /auth/mock-login is mounted and reachable. The production double gate inside the endpoint still refuses to issue a token, so this is not a live bypass today; but the assertion that is supposed to fail fast on a mis-mounted router no longer fails, i.e. the guard this batch rewrote as a silent-pass fix is still a silent-pass.\n\nIndependently verified: the OpenAPI-path check is version-independent for this failure mode — include_router(..., include_in_schema=False) keeps the route out of `app.openapi()['paths']` on both FastAPI 0.135 and 0.141.1 — so the finding does not depend on the version question raised about the comment above it (pcs-backend/uv.lock pins fastapi 0.141.1; the system interpreter has 0.135.3)."
   },
   {
-   "#": 8,
+   "#": 9,
    "autofix_class": "manual",
    "confidence": 75,
    "evidence": [
     "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY.",
     "pcs-backend/app/services/calc_lineage.py:84 - `RECORD_TYPE_REGISTRY: dict[str, type] = {` - the 21 keys are PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, ProjectCalculationStandardProfile, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult - `grep -n PsvResult app/services/calc_lineage.py` returns 0 hits, so PsvResult is NOT a registry member and therefore NOT a guard key.",
     "pcs-backend/app/services/psv/psv_persist.py:444 - `    await finalize_calc_record(` - PSV persists a PsvResult through finalize_calc_record, and LineageTracker.track writes `record_type=record.__class__.__name__` (app/services/lineage.py:109) => real data_lineage rows exist with record_type='PsvResult'.",
-    "pcs-backend/app/api/v1/lineage.py:244-247 - `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）` / `        raise HTTPException(404, \"no lineage for record\")` - trigger: GET /api/v1/lineage/PsvResult/{psv_id}/graph; path: entry lookup misses -> 404 before any lineage query; outcome: previously this request returned the real lineage graph (the old guard did `return` for unregistered types), now it is a permanent 404 for a record type that has lineage rows in the database."
+    "pcs-backend/app/api/v1/lineage.py:244-247 - `    if entry is None:` / `        # ⚠️ **未登记的类型 ⇒ 404**（fail-closed）` / `        raise HTTPException(404, \"no lineage for record\")` - trigger: GET /api/v1/lineage/PsvResult/{psv_id}/graph; path: entry lookup misses -> 404 before any lineage query; outcome: previously this request returned the real lineage graph (the old guard did `return` for unregistered types), now it is a permanent 404 for a record type that has lineage rows in the database.",
+    "pcs-backend/app/services/lineage_registry.py:57-61 — LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = { model.__name__: (model, _pk_col(model)) for model in RECORD_TYPE_REGISTRY.values() if hasattr(model, \"project_id\") }",
+    "pcs-backend/app/services/calc_lineage.py — RECORD_TYPE_REGISTRY (lines 84-115) contains 21 keys, none of them 'PsvResult' (grep -c 'PsvResult' app/services/calc_lineage.py == 0), so the derived dict has no 'PsvResult' key",
+    "pcs-backend/app/services/psv/psv_persist.py:444 — await finalize_calc_record(db, record, source_stream_ids=[source_stream_id], formula_version=_FORMULA_VERSION) with record = PsvResult(...) ⇒ a data_lineage row with record_type='PsvResult' is written",
+    "pcs-backend/app/api/v1/psv.py:247 — DataLineage.record_type == \"PsvResult\", ⇒ the app itself reads rows of that record_type back (proof the rows exist in real data)",
+    "pcs-backend/app/services/lineage.py:109 — record_type=record.__class__.__name__ (writer key = class name), so the writer set is 'every model passed to finalize_calc_record', not RECORD_TYPE_REGISTRY",
+    "Runtime confirmation: importing app.services.lineage_registry yields 21 keys (20 models + 'streams'); 'PsvResult' is absent"
    ],
    "file": "pcs-backend/app/services/lineage_registry.py",
    "first_evidence": "pcs-backend/app/services/lineage_registry.py:57-61 - `LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {` / `    model.__name__: (model, _pk_col(model))` / `    for model in RECORD_TYPE_REGISTRY.values()` / `    if hasattr(model, \"project_id\")` / `}` - the derived set contains only the models of RECORD_TYPE_REGISTRY.",
    "independent_reviewers": [
-    "adversarial"
+    "adversarial",
+    "maintainability"
    ],
    "line": 57,
    "owner": "downstream-resolver",
    "pre_existing": false,
    "requires_verification": true,
    "reviewers": [
-    "adversarial"
+    "adversarial",
+    "maintainability"
    ],
    "severity": "P2",
    "suggested_fix": "Register every lineage-writable model in the guard map instead of inheriting RECORD_TYPE_REGISTRY blindly: add `LINEAGE_GUARDED_RECORD_TYPES[\"PsvResult\"] = (PsvResult, \"psv_id\")` next to the explicit \"streams\" entry, and add a test that walks the models actually passed to finalize_calc_record (cia_engine.track as well) asserting each class name has a guard entry — otherwise the next model added to a persist service silently loses its lineage view. If the product prefers to declare PSV lineage unsupported instead, register that decision the way TwoPhaseResult was registered (TODO + SPEC §7.7.2 note) so the loss of a previously working endpoint is explicit.",
@@ -265,7 +274,34 @@
    "why_it_matters": "T0-D turned the lineage guard fail-closed: any record_type that is not in the guard registry now returns 404 instead of falling through. The registry is derived from RECORD_TYPE_REGISTRY, but that registry does not contain PsvResult — yet PsvResult is exactly one of the models that writes lineage rows (finalize_calc_record in psv_persist). Before this diff the guard skipped unregistered types, so GET /lineage/PsvResult/{id}/graph resolved the real lineage; after it, the same request is a hard 404 for every PSV record.\n\nIndependently verified in this repo: (a) `grep -n PsvResult app/services/calc_lineage.py` ⇒ 0 hits (the 21 registry keys are PipingResult, PumpResult, FlashResult, PipeNetworkResult, TwoPhaseResult, ReliefResult, ColumnSizingResult, MixerResult, ProjectCalculationStandardProfile, HeatResult, VesselResult, SepEquipResult, cv_result, restriction_result, flare_system_result, cooling_tower_result, psychro_result, OpenChannelResult, FiltrationResult, CostEstResult, ThermosiphonCirculationResult); (b) `app/services/psv/psv_persist.py:444` calls `finalize_calc_record` ⇒ `LineageTracker.track` writes `record_type=record.__class__.__name__` (app/services/lineage.py:109) ⇒ real `data_lineage` rows with record_type='PsvResult' exist; (c) PsvResult has `project_id` (declared_attr on RecordMixin, app/models/mixins.py) ⇒ it *could* be registered.\n\n⇒ The derivation inherits a pre-existing gap in RECORD_TYPE_REGISTRY and turns it from 'works' into 'permanently unavailable'. The plan's own completeness step (T0-D Step 3.3) asks for a mirror test asserting 'every record_type LineageTracker.track can write is in the registry', but the implementation parameterizes over RECORD_TYPE_REGISTRY's keys ⇒ a model that writes lineage without being a registry member (PsvResult) can never be caught. TODO-138 registers only the TwoPhaseResult case, so this one is unregistered."
   },
   {
-   "#": 9,
+   "#": 10,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/user_status_service.py:8 — ## 判定语义（全仓**唯一**一处）   (the sole-ownership claim)",
+    "pcs-backend/app/services/user_status_service.py:58 —     return status == UserStatus.DISABLED.value   (comparison #1, keyed by user_id)",
+    "pcs-backend/app/services/token_issuer.py:97 —     if row is not None and row.status == UserStatus.DISABLED.value:   (comparison #2, keyed by username, login path — the same rule re-implemented)",
+    "pcs-backend/app/services/user_status_service.py:20-21 — the module itself notes the divergence: '遗留账号行（`user_id` ≠ 派生值 · TODO-137）⇒ token 里的 `user_id` 查不到行 ⇒ 判成拒 ⇒ 遗留用户**全部**被锁在门外' — the per-request copy and the login copy therefore disagree on exactly those rows"
+   ],
+   "file": "pcs-backend/app/services/user_status_service.py",
+   "first_evidence": "pcs-backend/app/services/user_status_service.py:8 — `## 判定语义（全仓**唯一**一处）`   (the sole-ownership claim)",
+   "independent_reviewers": [
+    "maintainability"
+   ],
+   "line": 8,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "maintainability"
+   ],
+   "severity": "P2",
+   "suggested_fix": "把**比较**抽出来、让两处共用一份定义（**不要**动两把键 —— 键不同是有意的：登录按 username 是因为登录时只有 username）：\n\n    # app/services/user_status_service.py\n    def is_disabled_status(status: str | None) -> bool:\n        return status == UserStatus.DISABLED.value\n\n    async def is_account_disabled(session, *, user_id) -> bool:\n        status = (await session.execute(\n            select(User.status).where(User.user_id == user_id)\n        )).scalar_one_or_none()\n        return is_disabled_status(status)\n\n    # app/services/token_issuer.py\n    if row is not None and is_disabled_status(row.status):\n        ...\n\n同时把模块 docstring 第 8 行的「（全仓**唯一**一处）」改成**如实**的措辞：*判定语义（『status == DISABLED ⇒ 拒』这**条规则**）只有这一处实现；登录路径另有一份按 username 查的比较（token_issuer），故两把键不同 ⇒ 遗留行账号上两条路径结论可能相反（见 TODO-137 与 ADR-0046 §⑤）*。并把「遗留行账号在登录被拒、在手 token 放行」这一事实登记进 ADR-0046 §⑤ 的「已知边界」节（现在那里只写了角色变更不即时生效）。",
+   "title": "「判定语义唯一一处」与代码不符：停用判定在两处各有一份实现，且两把键不同",
+   "why_it_matters": "本批新增的 `app/services/user_status_service.py` 的模块 docstring 第 8 行写着「## 判定语义（全仓**唯一**一处）」，并用一张表定义判定语义（无该 user_id 的行 ⇒ 放行 / status=DISABLED ⇒ 拒 / status=ACTIVE ⇒ 放行）。\n\n**但「唯一」是假的**：本批之前就存在的登录路径 `app/services/token_issuer.py:97` 另有一份独立实现 —— `if row is not None and row.status == UserStatus.DISABLED.value:` ⇒ 401 `USER_DISABLED`。两份实现的**查找键不同**：每请求那份按 `User.user_id == user_id` 查（`user_status_service.py:53-57`），登录那份按 `User.username == username` 查（`token_issuer.py:91-93`）。\n\n⇒ 同一份「禁用 ⇒ 拒」语义有两份代码，两份的**判定输入不同**（一份按 username、一份按 user_id）⇒ 在两把键指向不同行的账号上会给出**相反**的结论。最具体的一例：**遗留账号行**（`users.user_id` ≠ 派生值 · TODO-137 的形状）—— 登录路径按 username 查得到那行 ⇒ `status=DISABLED` ⇒ 拒；而每请求路径按 token 里的 `user_id` 查**不到**行 ⇒ 「无行 ⇒ 放行」⇒ **放行**。（这一条「无行 ⇒ 放行」的 fail-open 窗口，安全评审已作为**残余风险**登记，并挂在发布前检查 `SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0 这个部署前置条件上 ⇒ 本条**不重复**报那个窗口；本条报的是**让窗口存在的那份结构**：两份实现。）\n\n⇒ 后果有两层：① 契约层 —— 本批新写的模块声明「全仓唯一一处」，而代码里恰好不是唯一一处 ⇒ 下一个读这份 docstring 的人（或 agent）会以为改这一处就够；而计划当初**正是**用这条理由否掉了方案 A（「② 将来改 status 词表（加 `SUSPENDED`）要改两处」）⇒ 计划选了「B 只有一处判定」，实现却仍是两处 ⇒ 选型理由没兑现；② 行为层 —— 两把键不同 ⇒ 同一账号在两条路径上可以结论相反（登录被拒 / 在手 token 放行）。"
+  },
+  {
+   "#": 11,
    "autofix_class": "gated_auto",
    "confidence": 75,
    "evidence": [
@@ -297,7 +333,7 @@
    "why_it_matters": "T0-D 把「未登记类型 ⇒ 404」做成 fail-closed 的**全部目的**是：响应与「记录不存在」**逐字同形**，攻击者分辨不出「这个类型不被支持」⇒ 不成为枚举信号。本批同族用例（tests/test_lineage_api.py:104、tests/api/v1/test_lineage_guard.py:181-185）都断言 body（code + message），只有本批新加的两条未登记类型用例（test_unknown_record_type_is_404、test_registry_key_cv_result_is_404）只断言 `status_code == 404` ⇒ 将来有人把该分支的 detail 改成别的文案（例如「unsupported record type」），或让错误信封带上别的 code，**没有任何测试会红**。\n\n同一条防线还有两处零覆盖（同一批引入的公开契约变化）：① `/upstream` 的对外形状变了 —— 未登记类型此前是 200 + []（守卫跳过 ⇒ tracker 查不到行 ⇒ 空数组），现在是 404，而**没有任何一条 /upstream 用例**覆盖未登记类型或 `record_type='streams'`（新加的 test_lineage_by_source_ref.py 只打 /graph 与 /downstream；既有 /upstream 用例全部用 已登记的 PipingResult）；② `/upstream` 里新加的 `record_type == \"streams\" ⇒ 200 + []` 分支（注释写明「『没有』与『查不到』是两件事」）也是零覆盖 ⇒ 有人还原旧守卫或删掉 streams 分支，都不会有测试变红。"
   },
   {
-   "#": 10,
+   "#": 13,
    "autofix_class": "gated_auto",
    "confidence": 75,
    "evidence": [
@@ -331,7 +367,7 @@
    "why_it_matters": "本批 T0-E 的最终实现是**覆盖**：`pcs-backend/app/services/token_issuer.py::_write_real_role` 的 docstring 明写「⚠️ **覆盖，不是合并**（整批评审 Important #1 · 2026-11-11）」并执行 `.values(roles=[role])`（只增不减会让「角色降级」永不生效 ⇒ 按 `users.roles` 圈人的通知逻辑会继续找已降级的人 —— 这正是 `.wolf/cerebrum.md` 的 Do-Not-Repeat 条目点名要避免的）。\n\n但本批新写的两处账簿仍描述成**合并**：TODOS.md 的 TODO-134 闭环说明（已核：第 2945-2946 行确实写 「**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）」）与 `.wolf/buglog.json` bug-2156 的 `fix` 字段（同一措辞），而 bug-2156 的 `fix_commit` 指向 `69b2327` —— 正是**被本批自己推翻**的那一版。\n\n后果：① 下一个读账簿的人（或 agent）会以为「合并」才是口径，把 `_write_real_role` 改回只增不减 ⇒ 角色降级永不生效；② `fix_commit` 是 STATUS 反查「单点来源」的依据（openwolf.md 要求 `fix_commit` 必填）⇒ 反查到的代码与账簿描述对不上。覆盖的真实后果（一个持有多个角色的 `users` 行只留最近一次登录的角色 ⇒ `notification_recipients.resolve_role_recipients` 不再按被丢掉的角色选人）也没有写进任何地方。"
   },
   {
-   "#": 11,
+   "#": 14,
    "autofix_class": "gated_auto",
    "confidence": 100,
    "evidence": [
@@ -356,25 +392,32 @@
    "why_it_matters": "T0-B 让「停用」立即生效，ADR-0046 §⑤ 本批已改写为「停用的即时失效已解决」；但这个端点的 docstring 仍写着「在手 access 仍可用至过期（默认 30 分钟）」且标成「**不得表述为已解决**」⇒ 代码注释与 ADR/SPEC 互相矛盾 ⇒ 运维读注释会以为离职者的 token 还能用半小时。（该文件本身不在本批改动面内 ⇒ 是本批的行为变化让它变成错的。）"
   },
   {
-   "#": 12,
+   "#": 15,
    "autofix_class": "gated_auto",
    "confidence": 100,
    "evidence": [
     "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`",
     "pcs-backend/app/api/v1/lineage.py:166 — `return await _stream_graph(session, record_id, max_depth=max_depth)`（守卫返回值被丢弃）",
-    "pcs-backend/app/api/v1/lineage.py:284 — `stream = await session.get(Stream, stream_id)`（第二次查同一行）"
+    "pcs-backend/app/api/v1/lineage.py:284 — `stream = await session.get(Stream, stream_id)`（第二次查同一行）",
+    "pcs-backend/app/api/v1/lineage.py:269 —     return record   (the new return value)",
+    "pcs-backend/app/api/v1/lineage.py:205 — ) -> Any:   (the widened, type-erased signature)",
+    "pcs-backend/app/api/v1/lineage.py:70-72, 116-118, 162-164 — all three call sites are bare statements: `await _guard_record_access(session, user, record_type, record_id)` with no assignment",
+    "pcs-backend/app/api/v1/lineage.py:284-287 —     stream = await session.get(Stream, stream_id) / if stream is None: raise HTTPException(404, \"no lineage for record\") — re-fetches the row the guard already loaded and adds a second 404 site",
+    "Diff confirms the change: the guard's signature went from `) -> None:` to `) -> Any:` and gained `return record`, while no call site was updated to consume it"
    ],
    "file": "pcs-backend/app/api/v1/lineage.py",
    "first_evidence": "pcs-backend/app/api/v1/lineage.py:239-241 — `## 返回值` / `返回查到的**记录行**（调用方要拿它的字段时不必再查一次）。`",
    "independent_reviewers": [
-    "correctness"
+    "correctness",
+    "maintainability"
    ],
    "line": 166,
    "owner": "downstream-resolver",
    "pre_existing": false,
    "requires_verification": false,
    "reviewers": [
-    "correctness"
+    "correctness",
+    "maintainability"
    ],
    "severity": "P3",
    "suggested_fix": "把守卫的返回值传下去：`_stream_graph(session, stream, *, max_depth)`（`stream` 由 `_guard_record_access` 的返回值给出），并删掉 `_stream_graph` 里的 `session.get` 分支 —— 守卫已保证行存在（不存在时它自己抛 404）。",
@@ -382,7 +425,7 @@
    "why_it_matters": "本批给 `_guard_record_access` 加了返回值，并在 docstring 里写明「返回查到的**记录行**（调用方要拿它的字段时不必再查一次）」—— 但三个端点全都把返回值丢掉，`_stream_graph` 又 `session.get(Stream, stream_id)` 取了一遍 ⇒ 新增的返回值契约是**死的**（读代码的人会以为它被用上了）。\n\n⚠️ 复核修正：这**不是**多一次 DB 往返 —— SQLAlchemy 的 `Session.get()` 先查 identity map，而守卫的 `select(Stream)` 已把该行放进 identity map ⇒ 真实后果只是「一处冗余的再取 + 一条没被兑现的 docstring 契约」，不是性能问题。"
   },
   {
-   "#": 13,
+   "#": 16,
    "autofix_class": "manual",
    "confidence": 75,
    "evidence": [
@@ -415,7 +458,7 @@
    "why_it_matters": "ADR-0046 §⑤、`app/services/user_status_service.py` 的模块 docstring 与本批计划都写「一处判定、**全局生效**」；但 `GET /auth/me`（auth.py:287）与 meta.py 的 6 个端点（meta.py:162/171/179/192/200/213）用的是另一个依赖 `current_user`（auth.py:149，纯 JWT 解码、**不查 `users.status`**）⇒ 被停用用户的会话自检仍返 200 ⇒ 前端认为会话有效（叠加 #1 的「没有登出」⇒ 僵尸会话）。\n\n影响面小（`/auth/me` 只回调用者自己的身份，meta 只回静态字典，不泄露任何用户数据），但「全局生效」这句在代码上不成立，且没有测试钉住任何一个端点的停用行为。"
   },
   {
-   "#": 16,
+   "#": 20,
    "autofix_class": "gated_auto",
    "confidence": 75,
    "evidence": [
@@ -440,31 +483,115 @@
    "why_it_matters": "hook 的 submit() 把「提交请求」与「提交后的列表刷新（onDone）」放在同一个 try 里、共用一个 catch。onDone 一旦 reject（网络抖动、页面卸载、调用方自己的 load 未来改成会抛），catch 会 `setResult(null)`（把刚拿到的批次摘要弹窗关掉）并把异常 rethrow 给页面 ⇒ 页面顶部显示「批量提交校对失败」，而批次其实已经提交成功。用户据此重发整批 ⇒ 重复提交（后端会返回 already_in_approval 幂等提示，但用户先看到的是「失败」，且失败清单已被清空）。\n\n这与 hook 自己的 docstring 明写的语义（「批次**整批**失败（网络 / 超限 / 403）⇒ **抛给调用方**」）和 catch 里的注释（「整批失败 ⇒ 没有新摘要」）不一致 —— 现在的实现把「刷新失败」也算成了「整批失败」。今天唯一消费者 StreamListPage 传的 onDone 是 load()，而 load 自己吞掉了所有异常 ⇒ 这条路径目前是潜伏的，不是活跃故障；但它是一颗装在失败路径上的地雷：下一次有人让 load 抛出（或者换一个消费者），错误文案会立刻开始撒谎。"
   }
  ],
- "pre_existing_findings": [],
+ "pre_existing_findings": [
+  {
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/mock_auth.py:26 —     生产环境通过 settings.mock_auth_enabled 关闭。   (names a non-existent setting)",
+    "grep -rn 'mock_auth_enabled' --include=*.py . ⇒ exactly one hit, the docstring line itself; Settings has no such attribute",
+    "pcs-backend/app/core/config.py:120-125 —     enable_mock_login: bool = Field(default=False, validation_alias=AliasChoices(\"PCS_ENABLE_MOCK_LOGIN\", \"enable_mock_login\"))   (the actual switch the diff introduced)",
+    "pcs-backend/app/api/v1/mock_auth.py:451-459 (diff) — the new gate reads settings.enable_mock_login / not settings.enable_mock_login, so the docstring's setting name contradicts the function it documents"
+   ],
+   "file": "pcs-backend/app/api/v1/mock_auth.py",
+   "first_evidence": "pcs-backend/app/api/v1/mock_auth.py:26 — `    生产环境通过 settings.mock_auth_enabled 关闭。`   (names a non-existent setting)",
+   "independent_reviewers": [
+    "maintainability"
+   ],
+   "line": 26,
+   "owner": "human",
+   "pre_existing": true,
+   "requires_verification": false,
+   "reviewers": [
+    "maintainability"
+   ],
+   "severity": "P3",
+   "suggested_fix": "把该行改成真实开关与真实形状：`生产环境通过 settings.is_production 关闭；非生产还需显式设 PCS_ENABLE_MOCK_LOGIN=true（settings.enable_mock_login）`。",
+   "title": "mock_auth 的 docstring 指向一个从来不存在的设置名（settings.mock_auth_enabled）",
+   "why_it_matters": "`MockLoginRequest` 的 docstring 第 26 行写着「生产环境通过 `settings.mock_auth_enabled` 关闭。」—— 全仓 grep `mock_auth_enabled` **只有这一行命中**，`Settings` 里从来没有这个属性（本批把真正的开关换成了 `enable_mock_login` / env `PCS_ENABLE_MOCK_LOGIN`）。\n\n⇒ 读这份 docstring 的人（或调试 mock 闸门时 grep 的人）会去找一个不存在的设置名，而真正的两个条件写在同文件 57 行的闸门里（`if settings.is_production or not settings.enable_mock_login:`）⇒ 文档与代码互相矛盾。**该 docstring 行本身早于本 diff**（`git show 38c91ac:pcs-backend/app/api/v1/mock_auth.py` 同文），但本 diff 恰好改了同一个文件里**这套闸门机制的名字与形状**（单闸 → 双闸、新增 `PCS_ENABLE_MOCK_LOGIN`）⇒ 顺手改正的成本 ≈ 0。"
+  }
+ ],
  "demotions": [
   {
-   "number": 14,
-   "cid": null,
-   "title": "N+1 守卫用两个子串猜 users.status 查询，预算会被误判",
-   "severity": "P3",
+   "number": 5,
+   "cid": "maintainability#3",
+   "title": "current_actor called outside Depends with positional session coupling",
+   "severity": "P2",
+   "reviewers": [
+    "maintainability"
+   ],
    "from": "primary",
-   "to": "testing_gaps",
-   "reason": "absence-of-coverage advisory with no established user-facing defect and no violated contract"
+   "to": "residual_risks",
+   "reason": "single-reviewer maintainability advisory (Stage 5 step 4 soft-bucket rule): no violated contract is quoted and no current user-facing defect is proven — the concrete cost is a maintenance/provenance risk, so it is retained as a residual risk rather than a finding"
   },
   {
-   "number": 15,
-   "cid": null,
-   "title": "Batch-submit mock never fails, so new failure-list UI is invisible to browser QA",
-   "severity": "P3",
+   "number": 12,
+   "cid": "maintainability#5",
+   "title": "Failed set kept in two state slots that drift after clearFailures",
+   "severity": "P2",
+   "reviewers": [
+    "maintainability"
+   ],
    "from": "primary",
-   "to": "testing_gaps",
-   "reason": "absence-of-coverage advisory with no established user-facing defect and no violated contract"
+   "to": "residual_risks",
+   "reason": "single-reviewer maintainability advisory (Stage 5 step 4 soft-bucket rule): no violated contract is quoted and no current user-facing defect is proven — the concrete cost is a maintenance/provenance risk, so it is retained as a residual risk rather than a finding"
   },
   {
    "number": 17,
-   "cid": null,
+   "cid": "maintainability#6",
+   "title": "Three copies of the record_type == 'streams' branch",
+   "severity": "P3",
+   "reviewers": [
+    "maintainability"
+   ],
+   "from": "primary",
+   "to": "residual_risks",
+   "reason": "single-reviewer maintainability advisory (Stage 5 step 4 soft-bucket rule): no violated contract is quoted and no current user-facing defect is proven — the concrete cost is a maintenance/provenance risk, so it is retained as a residual risk rather than a finding"
+  },
+  {
+   "number": 18,
+   "cid": "testing#3",
+   "title": "N+1 守卫用两个子串猜 users.status 查询，预算会被误判",
+   "severity": "P3",
+   "reviewers": [
+    "testing"
+   ],
+   "from": "primary",
+   "to": "testing_gaps",
+   "reason": "absence-of-coverage advisory with no established user-facing defect and no violated contract"
+  },
+  {
+   "number": 19,
+   "cid": "adversarial#6",
+   "title": "Batch-submit mock never fails, so new failure-list UI is invisible to browser QA",
+   "severity": "P3",
+   "reviewers": [
+    "adversarial"
+   ],
+   "from": "primary",
+   "to": "testing_gaps",
+   "reason": "absence-of-coverage advisory with no established user-facing defect and no violated contract"
+  },
+  {
+   "number": 21,
+   "cid": "maintainability#7",
+   "title": "Unchecked as StreamSource cast instead of narrowing helper",
+   "severity": "P3",
+   "reviewers": [
+    "maintainability"
+   ],
+   "from": "primary",
+   "to": "residual_risks",
+   "reason": "single-reviewer maintainability advisory (Stage 5 step 4 soft-bucket rule): no violated contract is quoted and no current user-facing defect is proven — the concrete cost is a maintenance/provenance risk, so it is retained as a residual risk rather than a finding"
+  },
+  {
+   "number": 22,
+   "cid": "testing#4",
    "title": "血缘 Tab 负向用例靠真实 300ms sleep 断言 tooltip 不出现",
    "severity": "P3",
+   "reviewers": [
+    "testing"
+   ],
    "from": "primary",
    "to": "testing_gaps",
    "reason": "absence-of-coverage advisory with no established user-facing defect and no violated contract"
@@ -475,7 +602,7 @@
    "reviewer": "performance",
    "title": "Every authenticated request now pays a users.status DB round trip",
    "severity": "P2",
-   "reason": "settled decision — plan T0-B Step 3 chose 方案 B (per-request users.status) and item E8 keeps 'status in the token claim' as a separate batch that only starts if the measured P95 exceeds the threshold; the candidate merely prefers another approach and the settled approach does achieve the agreed outcome. Its test-gap half (no perf-budget test for the probe) is kept under testing gaps."
+   "reason": "settled decision — plan T0-B Step 3 chose 方案 B (per-request users.status) and item E8 keeps 'status in the token claim' as a separate batch that only starts if the measured P95 exceeds the threshold; the candidate merely prefers another approach and the settled approach does achieve the agreed outcome (the implementation commit 9d10767 reports P50 0.198ms / P95 0.297ms / P99 0.380ms against the plan's 3ms threshold). Its test-gap half (no perf-budget test for the probe) is kept under testing gaps."
   }
  ],
  "soft_buckets": {
@@ -500,17 +627,22 @@
    "The reference-count 口径 (downstream streams + flash results) and the delete gate's 口径 (state points + flash results) are deliberately different and share no constant or assertion ⇒ changing one will not turn the other red (SPEC §7.7.1 documents the difference, but nothing pins it in code).",
    "'reference_count' carries default: 0 in OpenAPI but is not in the required list ⇒ the frontend's ajv ratchet does not fail when a seed or mock omits it (ajv does not apply defaults); only tsc catches the drift today.",
    "FastAPI version sensitivity: pcs-backend/uv.lock pins fastapi 0.141.1 while the system interpreter has 0.135.3 ⇒ assertions that depend on framework routing/schema behaviour are version-bound (main.py's comment about 'FastAPI ≥ 0.141 lazy mounting' describes the locked version, not the system one) ⇒ any such assertion should name the version it was verified against.",
-   "pcs-backend/app/api/v1/lineage.py's _stream_graph re-reads the stream with session.get(Stream, stream_id) although the guard already loaded that row; this is not an extra round trip (Session.get consults the identity map first), so the cost is only a redundant re-read plus an unused return contract — see finding #12.",
+   "pcs-backend/app/api/v1/lineage.py's _stream_graph re-reads the stream with session.get(Stream, stream_id) although the guard already loaded that row; this is not an extra round trip (Session.get consults the identity map first), so the cost is only a redundant re-read plus an unused return contract — see finding #15.",
    "assert_mock_auth_not_exposed calls app.openapi() at startup, which materialises the whole schema ⇒ a route whose response model cannot be introspected would abort startup rather than pass silently (the failure mode of this call at boot was not exercised by any test in the diff).",
    "pcs-backend/app/services/stream_service.py's list_by_project has no LIMIT and the list endpoint returns the whole project ⇒ the per-request cost of the list endpoint grows with the project, not with a page; no bound is asserted anywhere (see the testing gaps).",
    "The backend batch-submit path (POST /streams/batch-submit) does not appear in the diff hunks ⇒ it was treated as pre-existing and its per-item work was not reviewed in depth in this round.",
-   ".wolf/anatomy-index.json still records pcs-backend/app/services/token_issuer.py's symbol as _merge_real_role while the final code renamed it to _write_real_role ⇒ the OpenWolf index lags the last rename; the file is hook-maintained and must not be hand-edited, so this is a note only."
+   ".wolf/anatomy-index.json still records pcs-backend/app/services/token_issuer.py's symbol as _merge_real_role while the final code renamed it to _write_real_role ⇒ the OpenWolf index lags the last rename; the file is hook-maintained and must not be hand-edited, so this is a note only.",
+   "The lineage guard's type set is filtered by duck typing — `hasattr(model, \"project_id\")` over the ORM classes in RECORD_TYPE_REGISTRY (pcs-backend/app/services/lineage_registry.py:57-61) ⇒ a model that merely *exposes* an attribute or relationship named project_id would pass the filter while `record.project_id` is not a project id at query time ⇒ the guard would compare against the wrong value. Every current member of the registry inherits RecordMixin.project_id (a real FK), so no such model exists today; the filter's own docstring says the check is there to keep fail-loud, not to prove the column's nature.",
+   "current_actor is a FastAPI dependency (its first parameter is `session: Annotated[AsyncSession, Depends(get_db)]`) but pcs-backend/app/api/v1/ws.py:78 calls it as a plain function with the session passed positionally (`await current_actor(session, authorization)`) ⇒ the WebSocket handshake is coupled to the dependency's parameter order, and a change to that signature breaks the handshake at runtime with only a docstring as the warning (the plan's T0-B '方案 B' decision put the check at the actor layer and the plan lists this direct call as one of the three linked points, so the coupling is a known consequence of a settled design, not a slip). The handshake does work today (tests/api/v1/test_ws_notifications.py covers it).",
+   "The batch failure list lives in two state slots that can drift: useStreamBatchSubmit keeps `result` (the whole batch summary) and `failedIds` (the ids only), `clearFailures()` empties `failedIds` but leaves `result` intact, and `dismissResult()` nulls `result` but leaves `failedIds` intact. Today the drift is not reachable by mouse: the summary Modal renders only while `result` is non-null, and antd's Modal masks the page by default so the toolbar's 「清除」 button cannot be clicked while the modal is open — and every path that closes the modal nulls `result`, so the stale `result.failed` list is never displayed with an empty `failedIds`. The invariant becomes live the moment the modal is opened without a mask, the 「清除」 button is moved into the modal, or the failure list stops being rendered from `result`; the hook's own docstring promises 「彻底清除失败清单」, which the current implementation only satisfies for the `failedIds` half.",
+   "The record_type == \"streams\" branch is hand-written three times in pcs-backend/app/api/v1/lineage.py (the /upstream early return at ~:73-78, the /downstream branch at ~:121-124, and the /graph delegation at ~:166) with three different bodies ⇒ the plan's 「派生，不要手抄」 discipline is applied to the *registry* (lineage_registry.py derives its keys) but not to the *dispatch* ⇒ a change to the streams semantics has to be made in three places, and the three copies already answer three different shapes (see the residual item above).",
+   "pcs-frontend/src/pages/sim/tabs/StreamLineageTab.tsx:115 narrows the entry source with an unchecked cast (`STREAM_SOURCE_LABEL[value as StreamSource] ?? undefined`) where `value` is `text(row.entry.source)` — text() maps null to '—', and the entry source may be a calculation source such as 'CALC' that is not in the source vocabulary ⇒ the cast asserts a union membership the value does not have. The `?? undefined` fallback keeps the UI honest (the tooltip shows the raw value without a label), and the repo's own convention in src/types/stream.ts (streamPhaseLabel narrows explicitly and renders '未知相态: X' rather than an empty label) is the better shape, but nothing is currently wrong on screen."
   ],
   "testing_gaps": [
    "No frontend test covers '401 USER_DISABLED ⇒ clearSession + redirect to /login', and SESSION_OVER_CODES has no table-driven test at all ⇒ changing the whitelist has no guard rail (the missing scenario behind finding #1).",
    "SESSION_OVER_CODES is a hand-written second source of truth for session-ending 401 codes ⇒ any new backend 'session is over' code (USER_DISABLED, USER_LOGIN_DENIED_DISABLED, …) will not be recognised by the client ⇒ worth an architecture test (backend error-code table ↔ frontend set) or a shared 'session codes' contract.",
    "No test pins that /graph and /downstream behave identically for record_type='streams' (same max_depth ⇒ same downstream row cap, both 'newest first') — SPEC requires the two endpoints to agree, but no assertion compares them on the same data_lineage rows.",
-   "No HTTP-level case covers a record type that really writes lineage rows but is absent from RECORD_TYPE_REGISTRY (PsvResult today): the mirror test compares against RECORD_TYPE_REGISTRY, while app/services/calc_lineage.py's own docstring states that the registry is not the supported set of finalize_calc_record (duck typing, TODO-048) ⇒ the test name overstates what it proves (this is the coverage gap behind finding #8).",
+   "No contract test asserts that every model that really writes data_lineage rows (i.e. every finalize_calc_record caller) is present in LINEAGE_GUARDED_RECORD_TYPES, and no case exercises the /lineage/PsvResult/{id}/graph path at all: the existing mirror test compares against RECORD_TYPE_REGISTRY (pcs-backend/tests/api/v1/test_lineage_by_source_ref.py:563), while app/services/calc_lineage.py's own docstring states that the registry is not the supported set of finalize_calc_record (duck typing, TODO-048) ⇒ the test name overstates what it proves, and the newly fail-closed 404 for a type that genuinely owns lineage rows (PsvResult, written by app/services/psv/psv_persist.py) is invisible to the suite (this is the coverage gap behind finding #9). A contract test over the finalize_calc_record call sites — not over the registry — is the test that would have caught it.",
    "No end-to-end case covers 'cross-project reference ⇒ reference_count is 0 in the list response': the service layer has two cross-project exclusion cases, but the endpoint only asserts that project_id is passed through ⇒ if the endpoint passed the wrong project id, or the service's project_id predicate were dropped, nothing would go red end to end.",
    "No query-count assertion pins the round-trip count of GET /projects/{project_id}/streams (4 before this batch → 6 now) ⇒ a future change that turns the two aggregates into a per-row query would stay green.",
    "No perf-budget test covers the per-request users.status probe. The repo already has the pattern (tests/services/test_export_service.py has a perf budget) ⇒ a request-count or latency budget for the list endpoint would give the plan's P95 threshold (item E8: >5ms ⇒ evaluate 'status in the token claim') an automatic gate instead of a one-off measurement.",
@@ -520,53 +652,68 @@
    "No backend test asserts that the three lineage endpoints return the same representation for the same row (e.g. the /graph node body against the /downstream node body for the same lineage_id, including the occurred_at string form) ⇒ the '+00:00' vs 'Z' divergence behind finding #4 has no guard.",
    "No case covers current_actor's DB read failing (connection lost / pool timeout / statement timeout) ⇒ the behaviour the rest of the system depends on ('DB blip ⇒ 500 everywhere, fail-closed') is pinned by no test; tests/api/v1/test_user_disabled_guard.py only covers DISABLED / ACTIVE / no users row / awaitable / endpoint still usable.",
    "No case covers the disabled check against a users row whose user_id is not the derived uuid5(NAMESPACE_DNS, username) (the TODO-137 legacy shape), nor against a NULL or unrecognised status value ⇒ both currently evaluate to 'not disabled' and nothing records that as intentional.",
+   "No test compares the two implementations of the disable rule on the same account: the login path (app/services/token_issuer.py, keyed by username) and the per-request path (app/services/user_status_service.py, keyed by user_id) answer independently and no case asserts that they agree ⇒ the structural divergence behind finding #10 has no regression cover (the fix for #10 is one shared predicate, and a test that drives both paths for one username/user_id pair would pin it).",
    "T0-E only covers the 'row already exists' cases (append / overwrite / repeated login does not append) plus 'mock never writes' ⇒ no case covers 'real login whose role was downgraded to empty' (role is None), where _write_real_role writes roles=[role] while the AD-sync side writes roles=[role] if role else None — the two sides disagree at that boundary.",
    "GET /streams/{id} (single stream) always answers reference_count = 0 (registered as a known limitation) ⇒ no case pins that 'always 0'; the frontend only reads the field on the list page, so a future detail page would silently show a wrong number.",
    "No frontend case pins that the synthetic root and a real root expose the same field set: the backend has test_synthetic_root_has_same_shape_as_real_root (same keys), but the frontend's buildLineageGraph mock is only ajv-checked against the contract shape ⇒ the two can drift apart without either side going red.",
-   "No case covers a WebSocket that stays open across a user-disable event (status re-check on the delivery path) — the scenario behind finding #5's open decision.",
-   "The mock-login gate tests cover the PCS_ENABLE_MOCK_LOGIN env-var name and the production RuntimeError, but there is no test that the startup assertion trips when the mock router is mounted with include_in_schema=False (the exact green-while-red case of finding #7), nor that the lifespan actually runs the assertion in a production-configured app.",
+   "No case covers a WebSocket that stays open across a user-disable event (status re-check on the delivery path) — the scenario behind finding #6's open decision.",
+   "The mock-login gate tests cover the PCS_ENABLE_MOCK_LOGIN env-var name and the production RuntimeError, but there is no test that the startup assertion trips when the mock router is mounted with include_in_schema=False (the exact green-while-red case of finding #8), nor that the lifespan actually runs the assertion in a production-configured app.",
    "The N+1 guard in tests/api/v1/test_deliverables_current_version.py identifies the actor layer's users.status query by substring ('users' in s and 'status' in s) ⇒ any business query that mentions both the users table and a status column would be miscounted (false red) and would also be dropped from the ≤3 business-query budget ⇒ the criterion should test the compiled statement's table/column names instead of the raw SQL text.",
    "The MSW batch-submit mock always answers failed: [] ⇒ the persistent failure bar and the '只重试失败项' path — the batch's headline UX deliverable — can never be rendered in the browser-QA lane ⇒ a green browser regression says nothing about T1.",
-   "The negative lineage-tab case waits on a real 300ms sleep and asserts the tooltip text is absent ⇒ it only proves the tooltip did not appear within that window (a slow machine would still pass) ⇒ use fake timers and assert the tooltip node does not exist."
+   "The negative lineage-tab case waits on a real 300ms sleep and asserts the tooltip text is absent ⇒ it only proves the tooltip did not appear within that window (a slow machine would still pass) ⇒ use fake timers and assert the tooltip node does not exist.",
+   "No test pins the invariant that `batch.result.failed` and `batch.failedIds` describe the same failure set: the existing test only asserts that failedIds becomes [] after clearFailures(), and no case exercises clearFailures() while the summary modal is open ⇒ the two-slot drift behind the residual risk is untested rather than violated (today the antd modal mask keeps the toolbar's 「清除」 unreachable while the modal is open).",
+   "No test asserts that the lineage guard and the endpoint agree on which stream row is in scope — the guard's `select(model).where(pk == record_id)` and _stream_graph's `session.get(Stream, stream_id)` are two independent lookups for the same row ⇒ the duplicated lookup and the now-unreachable 404 branch inside _stream_graph (finding #15) have no regression cover."
   ]
  },
  "triage_groups": [
   {
-   "title": "「停用立即生效」的闭环：前端会话 / 第二条鉴权入口 / 长连接 / 文档口径",
+   "title": "「停用立即生效」的闭环：前端会话 / 第二条鉴权入口 / 长连接 / 文档口径 / 判定实现份数",
    "findings": [
     1,
-    13,
-    5,
-    11
+    16,
+    6,
+    14,
+    10
    ],
-   "context": "T0-B 把判定移到 actor 层，但「停用立即生效」这个对外承诺在四处没有兑现：前端收到 401 USER_DISABLED 不结束会话（#1）、current_user 这条第二入口不判状态（#13）、已握手的 WebSocket 继续推送（#5）、admin_users 的 docstring 仍写着旧边界（#11）。",
-   "preferred_resolution": "先做 #1（一行白名单 + 一条前端测试）⇒ 它单独就能解掉用户可见的僵尸会话；再对 #13 与 #5 各做一次「实现 or 明确登记为豁免」的决策（写进 ADR-0046 §⑤ / SPEC §7.1）；#11 的 docstring 随那两个决策一起改写，保持与 ADR 逐字一致。",
-   "why": "四处是同一条承诺的四个面，分头修会留下第二份口径；先做 #1 是因为它是唯一有用户可见症状的一处。",
+   "context": "T0-B 把判定移到 actor 层，但「停用立即生效」这个对外承诺在五处没有兑现：前端收到 401 USER_DISABLED 不结束会话（#1）、current_user 这条第二入口不判状态（#16）、已握手的 WebSocket 继续推送（#6）、admin_users 的 docstring 仍写着旧边界（#14）、新模块自称「全仓唯一一处」而代码里其实有两份实现、两把键（#10）。",
+   "preferred_resolution": "先做 #1（一行白名单 + 一条前端测试）⇒ 它单独就能解掉用户可见的僵尸会话；再对 #16 与 #6 各做一次「实现 or 明确登记为豁免」的决策（写进 ADR-0046 §⑤ / SPEC §7.1）；#10 与这两个决策同批做（把「status == DISABLED ⇒ 拒」抽成一份共享谓词并改写 docstring 的「唯一」措辞）；#14 的 docstring 随那几个决策一起改写，保持与 ADR 逐字一致。",
+   "why": "五处是同一条承诺的五个面，分头修会留下第二份口径；先做 #1 是因为它是唯一有用户可见症状的一处，而 #10 是唯一会让「下一个改词表的人改漏」的形状 ⇒ 它必须与 #16/#6 的口径决策一起落地。",
    "kind": "apply-queue"
   },
   {
    "title": "血缘面：角色门 / 未登记类型 / 序列化口径 / 测试钉子",
    "findings": [
     3,
-    8,
+    9,
     4,
-    9
+    11
    ],
-   "context": "T0-D 重写了血缘端点，四个面需要一起看：端点没有沿用 streams 的角色门（#3）、fail-closed 把「能写血缘但不在 registry 里」的类型变成永久 404（#8）、三个端点对同一行用两种表示（#4）、fail-closed 的「逐字同形」没有测试钉住（#9）。",
-   "preferred_resolution": "先定 #3 的角色模型（产品/权限口径，需一次决策）⇒ 再做 #8（登记 PsvResult 或按 TwoPhaseResult 的方式明确登记为「不提供」）⇒ 然后 #4（统一 LineageNode schema）⇒ 最后 #9（按 #3/#4 定下的形状补断言）。",
-   "why": "#9 的断言要按 #3/#4 定下来的最终形状写，先做会白写；#3 是这组里唯一需要人做决定的。",
+   "context": "T0-D 重写了血缘端点，四个面需要一起看：端点没有沿用 streams 的角色门（#3）、fail-closed 把「能写血缘但不在 registry 里」的类型变成永久 404（#9）、三个端点对同一行用两种表示（#4）、fail-closed 的「逐字同形」没有测试钉住（#11）。",
+   "preferred_resolution": "先定 #3 的角色模型（产品/权限口径，需一次决策）⇒ 再做 #9（登记 PsvResult 或按 TwoPhaseResult 的方式明确登记为「不提供」）⇒ 然后 #4（统一 LineageNode schema）⇒ 最后 #11（按 #3/#4 定下的形状补断言）。",
+   "why": "#11 的断言要按 #3/#4 定下来的最终形状写，先做会白写；#3 是这组里唯一需要人做决定的。",
    "kind": "decision-gate"
   },
   {
    "title": "写下来的口径与代码对不上：账簿 / docstring / hook 语义",
    "findings": [
-    10,
-    11,
-    16
+    13,
+    14,
+    20
    ],
-   "context": "三处「文档或注释承诺 A，代码做 B」：TODOS.md 与 buglog 说 roles 是「合并」而代码是「覆盖」（#10）、admin_users 的 docstring 说停用后 token 还能用 30 分钟（#11）、useStreamBatchSubmit 的 docstring 说「整批失败才抛异常」而实现把刷新失败也算整批失败（#16）。",
-   "preferred_resolution": "#10 先改（账簿是下一个 agent 的输入源，且 bug-2156 的 fix_commit 指向被推翻的那次提交）⇒ #11 随「停用立即生效」那一组的决策一起改 ⇒ #16 把 onDone 移出提交的错误域。",
+   "context": "三处「文档或注释承诺 A，代码做 B」：TODOS.md 与 buglog 说 roles 是「合并」而代码是「覆盖」（#13）、admin_users 的 docstring 说停用后 token 还能用 30 分钟（#14）、useStreamBatchSubmit 的 docstring 说「整批失败才抛异常」而实现把刷新失败也算整批失败（#20）。",
+   "preferred_resolution": "#13 先改（账簿是下一个 agent 的输入源，且 bug-2156 的 fix_commit 指向被推翻的那次提交）⇒ #14 随「停用立即生效」那一组的决策一起改 ⇒ #20 把 onDone 移出提交的错误域。",
    "why": "这组的共同后果是「下一个读代码/读账簿的人会按错的口径改回去」⇒ 改口径的收益大于改代码。",
+   "kind": "apply-queue"
+  },
+  {
+   "title": "新到的 maintainability 视角：注册表派生的盲区与守卫返回值被丢弃",
+   "findings": [
+    9,
+    15
+   ],
+   "context": "maintainability 评审交卷 9 条：其中 PsvResult 那条与 adversarial 的同一条是**同一个缺陷**（#9，本轮已合并，不重复计数），守卫返回值那条与 correctness 的 _stream_graph 重复查是**同一个缺陷**（#15，已合并）；真正新增的是「派生注册表只认 RECORD_TYPE_REGISTRY ⇒ 能写血缘但不在表里的类型永久 404」这个盲区本身。",
+   "preferred_resolution": "#9 的修复要同时处理**注册**与**派生**：登记 PsvResult 只解决一个类型，真正的修法是让「能写血缘的类型集合」有单一来源（finalize_calc_record 的写入方清单）⇒ #15 顺手把守卫的返回值用起来（守卫已经查过那一行 ⇒ _stream_graph 复用它 ⇒ 重复查与那条永不可达的 404 分支一起消失）。",
+   "why": "这两条都落在同一个模块（血缘守卫）⇒ 一起改才不会留下「登记了一部分类型、其余继续 404」的半截状态。",
    "kind": "apply-queue"
   }
  ],
@@ -585,7 +732,7 @@
    {
     "reviewer": "adversarial",
     "tier": "session",
-    "result": "6 findings, 4 retained, 1 merged, 1 demoted to testing_gaps"
+    "result": "6 findings, 4 retained, 2 merged, 1 demoted to testing_gaps"
    },
    {
     "reviewer": "project-standards",
@@ -600,7 +747,7 @@
    {
     "reviewer": "maintainability",
     "tier": "mid-tier",
-    "result": "FAILED — both dispatches were interrupted by an upstream Token Plan quota 429 (the second ran 30 minutes without producing an artifact) ⇒ the structural/maintainability lens is NOT covered in this round"
+    "result": "9 findings (delivered after the first merge round): 2 merged into retained findings, 1 new primary finding, 1 pre-existing, 4 demoted (3 → residual risks, 1 → residual risks); its residual_risks and testing_gaps lists were folded in after deduplication"
    },
    {
     "reviewer": "performance",
@@ -624,27 +771,30 @@
    }
   ],
   "sentences": [
-   "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor-agent / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担（该评审已完成并交卷 6 条）。",
-   "maintainability 视角缺失：两次派发都被上游 Token Plan 配额 429 中断（第二次运行 30 分钟仍未产出 artifact）⇒ 结构性视角未覆盖。",
+   "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担（该评审已完成并交卷 6 条）。",
+   "本轮是**重跑合成**（re-merge）：首轮合成在 maintainability 交卷前完成（该视角两次派发都被上游 Token Plan 配额 429 中断）⇒ 现按 raw-returns.json 的 **9 个评审 / 34 条 finding** 从头重跑 Stage 5，首轮的两份输出被覆盖。",
+   "maintainability 视角已覆盖：9 条 finding 中 2 条与既有 finding 语义重复（PsvResult ⇒ 合并进 #9；守卫返回值 ⇒ 合并进 #15）、1 条是新的主 finding（#10）、1 条落在 pre-existing 分区（mock_auth docstring）、4 条按 mode-aware 规则降级（#5 / #12 / #17 / #21 → residual risks）；其 residual_risks 6 条中 3 条与既有 residual 重复（reference_count、openapi() 启动物化、grep-only 调用点完备性）、1 条并入 coverage（只读了主源码 diff、测试/文档 diff 为抽样）、1 条并入 coverage（未跑测试、未跑浏览器）；其 testing_gaps 5 条全部并入（其中 2 条合并进 PsvResult 那条、3 条新增）。",
    "范围修正：调用方给的基线 a5f62c6 早于 T0-B 的实现 commit 9d10767 ⇒ 基线修正为 38c91ac（批次真实起点），否则 T0-B 整块落在范围外。",
    "project standards: 用仓库根 CLAUDE.md 作判据（无 CODING_STANDARDS.md ⇒ 指令文件兜底）；该文件同时指向 .claude/rules/openwolf.md（属本 checkout 的生效规则）。全局 ~/.claude/rules 的通用规则（覆盖率 80%、函数 <50 行等）未被当作本批的适用标准。",
    "未跟踪文件：无（工作树干净）。",
    "评审环境限制：所有评审子代理均只读（Read/Grep），未执行任何测试、未执行 EXPLAIN ⇒ 涉及运行期行为的结论均为静态阅读推导；本批自述的「后端 5626 passed / 前端 1046 tests / 裸载荷 71 / PG 车道 5」与 QA 报告的数字未经独立复核。",
    "计划来源 = explicit，但该计划没有 Requirements 节（legacy 形态）⇒ requirements 提取为空；Stage 6 的完整性基线按计划自带的 9 个 Task 单元（T0-A~T0-F / T1 / T2 / T3）各自的验收步骤核对。",
-   "结算检查：计划的 T0-B Step 3（方案 B：每请求查 users.status）与 E8（P95 超标才启动「status 塞进 token claim」的独立批）是已裁决的 KTD ⇒ performance 那条「每请求多一次 users.status 查询」的候选只是偏好另一种方案，已丢弃；其「加一条性能预算测试」的部分作为 testing gap 保留。",
-   "被丢弃的候选数：1（performance #1 —— 相对已裁决方案的偏好）；语义合并掉的候选数：6（correctness #1、adversarial #1、api-contract #1、project-standards #1 合成 #1；correctness #4 + security #2 合成 #13；project-standards #2 + adversarial #5 合成 #10；testing #1 + testing #2 合成 #9 的伞形项）。",
-   "mode-aware 降级数：4 —— 3 条从 primary 降为 testing_gaps（#14 N+1 守卫的子串判据、#15 MSW 批量 mock 永不失败、#17 血缘 Tab 负向用例的真实 sleep），1 条从 suppressed 分区降为 residual risk（performance 的 IN 列表，锚点 50）。",
+   "结算检查：计划的 T0-B Step 3（方案 B：每请求查 users.status）与 E8（P95 超标才启动「status 塞进 token claim」的独立批）是已裁决的 KTD ⇒ performance 那条「每请求多一次 users.status 查询」的候选只是偏好另一种方案，已丢弃；该候选被丢弃的依据不止裁决：实现 commit 9d10767 自述的实测为 P50 0.198ms / P95 0.297ms / P99 0.380ms，远低于计划的 3ms 阈值 ⇒ 已裁决的方案确实达成了约定的结果；其「加一条性能预算测试」的部分作为 testing gap 保留。",
+   "被丢弃的候选数：1（performance #1 —— 相对已裁决方案的偏好）；语义合并掉的候选数：8（correctness #1 + adversarial #1 + api-contract #1 + project-standards #1 合成 #1；correctness #4 + security #2 合成 #16；project-standards #2 + adversarial #5 合成 #13；testing #1 + testing #2 合成 #11 的伞形项；adversarial #2 + maintainability #1 合成 #9；correctness #2 + maintainability #2 合成 #15）。",
+   "mode-aware 降级数：7 —— 3 条从 primary 降为 testing_gaps（#18 N+1 守卫的子串判据、#19 MSW 批量 mock 永不失败、#22 血缘 Tab 负向用例的真实 sleep），4 条从 primary 降为 residual risks（#5 current_actor 在 Depends 之外被位置参数耦合调用、#12 失败清单两处 state 槽会漂移、#17 record_type == 'streams' 分支手抄三份、#21 未收窄的 as StreamSource 断言）；另有 1 条从 suppressed 分区降为 residual risk（performance 的 IN 列表，锚点 50）。",
    "helper 抑制计数：锚点 50 抑制 1 条（performance 的 IN 列表候选）；锚点 25 抑制 0 条；锚点 75 与 100 无抑制。",
-   "first_evidence_backfilled：0；quote-the-line 降级数：0（所有 25 条 compact finding 都带可核对的 first_evidence，其中合并后的 #1 / #10 / #13 使用其主来源评审员的引文）。",
-   "helper 运行：malformed_findings 0、malformed_returns 0（首轮 25 条 / 终轮 23 个 returns 全部通过校验）。",
-   "pre_existing 分区为空：#1（前端 client.ts）、#11（admin_users.py docstring）、#2（.gstack QA 报告）三处引用的文件本身不在本批改动面内，但它们的问题由本批的行为变化直接造成 ⇒ 按直接依赖规则留在 primary，不进 pre-existing。"
+   "first_evidence_backfilled：0；quote-the-line 降级数：0（所有 24 条 finding 都带可核对的 first_evidence，其中合并后的 #1 / #13 / #16 使用其主来源评审员的引文）。",
+   "helper 运行：malformed_findings 0、malformed_returns 0（31 个 returns → 24 条 finding 全部通过校验）。",
+   "pre_existing 分区现有 1 条：#1（前端 client.ts）、#14（admin_users.py docstring）、#2（.gstack QA 报告）三处引用的文件本身不在本批改动面内，但它们的问题由本批的行为变化直接造成 ⇒ 按直接依赖规则留在 primary，不进 pre-existing；而 maintainability 指出的 mock_auth docstring（settings.mock_auth_enabled）指向的设置名**在本批之前就不存在**（base 版同文，grep 全仓只命中该行本身）⇒ 本批只换了闸门机制的名字、不制造这个错 ⇒ 落在 pre-existing 分区。",
+   "Stage 5b 跳过数：0 —— peer.outcome = 'not-run'（本机只有一家模型 CLI）⇒ 不存在 adversarial-<provider> 评审员，「同一条 finding 同时有普通评审员与独立模型评审员」这一跳过前提无一满足 ⇒ 全部可行动 finding 送验证。"
   ],
   "learnings_notes": [
    "Known Pattern（相关但未被违反）：docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md ——「注释里的断言要当成待验证的代码事实」。本批 main.py:48-52 的注释断言「FastAPI ≥ 0.141 懒挂载 ⇒ 旧的 app.routes 断言一直是空转」，且同一说法被抄进 .wolf/buglog.json 的 root_cause。learnings-researcher 断言它在 0.135.3 上为假，但 pcs-backend/uv.lock 锁的是 fastapi 0.141.1（= 本仓在役版本），系统解释器的 0.135.3 不是在役版本 ⇒ 该「误诊」未被证实，本轮不作为 finding 登记，只留一条 residual risk（版本敏感的断言应写明验证时的版本）。",
    "Known Pattern（本批正面命中）：docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md ——T0-B 把账号状态判定从一次性登录闸门移到 actor 层、每次请求重读可变真值，正是该教训要求的形状；其「查不到就放行」的 fail-open 窗口（遗留 user_id 行）已在 residual risks 登记。",
    "Known Pattern（本批正面命中）：docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md ——新的 WS 守卫用例显式 commit 并让握手用自己的 session factory 指向同一个 engine（观测点看得见已提交数据）、T0-B 用例断言错误码而非状态码、并用 strict_client（避免「越权被拒」变成空断言）⇒ 三处都按该教训的纪律写。",
-   "Known Pattern（未闭合的一半）：docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md ——血缘注册表的镜像用例钉的是「对 RECORD_TYPE_REGISTRY 的覆盖」，不是「派生」；而 RECORD_TYPE_REGISTRY 本身不是finalize_calc_record 的写入方清单 ⇒ 「所有能写出血缘行的类型都在注册表里」这句没有被任何测试证明（见 #8 与其 testing gap）。",
-   "Known Pattern（已被本批推翻的写法）：docs/solutions/database-issues/information-schema-not-scoped-by-search-path.md ——本批未改任何 alembic/versions/*（无漂移风险），新聚合只用普通 IN + GROUP BY + count()，无方言相关选项 ⇒ 该条不适用。"
+   "Known Pattern（未闭合的一半）：docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md ——血缘注册表的镜像用例钉的是「对 RECORD_TYPE_REGISTRY 的覆盖」，不是「派生」；而 RECORD_TYPE_REGISTRY 本身不是finalize_calc_record 的写入方清单 ⇒ 「所有能写出血缘行的类型都在注册表里」这句没有被任何测试证明（见 #9 与其 testing gap）。",
+   "Known Pattern（已被本批推翻的写法）：docs/solutions/database-issues/information-schema-not-scoped-by-search-path.md ——本批未改任何 alembic/versions/*（无漂移风险），新聚合只用普通 IN + GROUP BY + count()，无方言相关选项 ⇒ 该条不适用。",
+   "Known Pattern（本轮新命中的形状）：docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md 的姊妹形态 ——「派生」的注册表把**派生源**当成了**完备集合**（lineage_registry 从 RECORD_TYPE_REGISTRY 派生 ⇒ 派生源漏掉的类型，派生结果一起漏）⇒ 与「窄声明不是约束」同源：测「对声明的覆盖」不等于测「对事实的覆盖」。见 #9。"
   ]
  },
  "learnings_residual_candidates": {
@@ -656,7 +806,7 @@
  "peer_fold_in": {
   "outcome": "not-run",
   "artifact": null,
-  "coverage": "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor-agent / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担（该评审已完成并交卷 6 条）。",
+  "coverage": "cross-model pass: not run —— 本机只装了 Claude 一家 CLI（codex / grok / cursor / composer / opencode 均未安装），无可用的异族路由 ⇒ 对抗视角由本地 adversarial-reviewer 承担（该评审已完成并交卷 6 条）。",
   "independent_reviewers_used": []
  }
 }

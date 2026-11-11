@@ -5,6 +5,8 @@
 - **计划**：`docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md`（`plan_source = explicit`）
 - **模式**：markdown report-only（`apply_local = false` ⇒ **未应用任何修复，仓库工作树全程未改动**）
 - **结论**：**Ready with fixes** —— 14 条主 finding（1×P1 · 9×P2 · 4×P3）
+- ⚠️ **本目录含第二轮补正**（`ROUND-2-ADDENDUM.md`）：maintainability 迟交并入（合成重跑 ⇒ **15 条**）
+  + **跨模型对抗审查**（hermes · `glm-5.2` / Z.AI / GLM）⇒ **最终修复队列以该文件 §4 为准**
 
 ## 范围基线的修正（重要）
 
@@ -57,7 +59,8 @@
 
 | 文件 | 内容 |
 |---|---|
-| `report.md` | **正式报告**（已验证的一轮；14 主 finding + 需求完整性 + Coverage） |
+| `report.md` | **正式报告**（第一轮；14 主 finding + 需求完整性 + Coverage） |
+| `ROUND-2-ADDENDUM.md` | ⚠️ **第二轮补正** —— maintainability 并入后的 15 条、hermes 的 5 条新发现 + 4 条挑战、**当前验证状态**、**最终修复队列** |
 | `maintainability-supplement.md` | 迟到的 maintainability 9 条（未验证，单独列出） |
 | `hermes-adversarial-review.md` | **跨模型对抗审查**（`glm-5.2` · Z.AI / GLM）—— 5 条新增 + 对报告 4 条挑战；编排方已逐条回源码复核（结论见文件头） |
 | `<reviewer>.json` | 9 位评审员的完整分析（含 `why_it_matters` / `evidence` / `suggested_fix`） |
