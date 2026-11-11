@@ -59,6 +59,7 @@
 |---|---|
 | `report.md` | **正式报告**（已验证的一轮；14 主 finding + 需求完整性 + Coverage） |
 | `maintainability-supplement.md` | 迟到的 maintainability 9 条（未验证，单独列出） |
+| `hermes-adversarial-review.md` | **跨模型对抗审查**（`glm-5.2` · Z.AI / GLM）—— 5 条新增 + 对报告 4 条挑战；编排方已逐条回源码复核（结论见文件头） |
 | `<reviewer>.json` | 9 位评审员的完整分析（含 `why_it_matters` / `evidence` / `suggested_fix`） |
 | `learnings-researcher.md` | 制度性既往教训的非结构化返回 |
 | `raw-returns.json` | 9 位评审员的紧凑返回（34 条 finding） |
