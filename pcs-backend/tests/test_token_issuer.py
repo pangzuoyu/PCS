@@ -132,8 +132,16 @@ async def test_real_login_fills_roles_of_existing_user(db_session):
 
 
 @pytest.mark.asyncio
-async def test_real_login_merges_roles_without_dropping_existing(db_session):
-    """已有角色**不能被冲掉** —— 只**合并**（seed 行可能已带别的角色）。"""
+async def test_real_login_overwrites_roles_with_the_current_role(db_session):
+    """⚠️ **真实登录按当前角色覆盖** `users.roles`（不是合并）。
+
+    理由（整批评审 Important #1）：`users.roles` 的权威来源是**真实身份**
+    （AD 同步 `ad_sync._apply` 也是**覆盖**：`roles=[role] if role else None`）
+    ⇒ 只增不减会让**角色降级永不生效**（降级后仍带着旧角色 ⇒ 按 `users.roles`
+    圈人的通知逻辑会**继续找**他 ⇒ 「待办里有、点进去说你不是」）。
+
+    ⇒ 与 AD 同步**同口径**：覆盖。
+    """
     from app.models.project import User
     from app.services.token_issuer import issue_tokens
 
@@ -151,7 +159,7 @@ async def test_real_login_merges_roles_without_dropping_existing(db_session):
         )
     ).first()
     assert row is not None
-    assert set(row.roles) == {"CHECKER", "DESIGNER"}, f"合并错了：{row.roles}"
+    assert row.roles == ["DESIGNER"], f"角色降级没生效（旧角色还在）：{row.roles}"
 
 
 @pytest.mark.asyncio

@@ -64,7 +64,9 @@ describe('StreamLineageTab（P9B-4 T0-D）', () => {
     // ⚠️ 悬停根行 ⇒ tooltip 出现（两套词表的区分）
     fireEvent.mouseEnter(screen.getByText('MANUAL'));
     await waitFor(() => expect(document.body.textContent).toContain('物流来源'));
-    expect(document.body.textContent).toContain('手动创建');
+    // ⚠️ 标签取**共享表**（`types/stream.ts::STREAM_SOURCE_LABEL`）⇒ 与列表页
+    //    「来源」列**同一份** ⇒ 后端加值时两边一起红（不静默漏）。
+    expect(document.body.textContent).toContain('手动');
   });
 
   it('下游行不带「物流来源」tooltip（它显示的是计算来源）', async () => {

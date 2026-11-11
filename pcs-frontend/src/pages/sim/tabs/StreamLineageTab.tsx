@@ -16,6 +16,7 @@ import { Alert, Card, Table, Tooltip, Typography } from 'antd';
 
 import { streamApi, type LineageGraph, type LineageNode } from '../../../api/stream';
 import { describePcsError } from '../../../api/errors';
+import { STREAM_SOURCE_LABEL, type StreamSource } from '../../../types/stream';
 
 interface Row {
   key: string;
@@ -23,18 +24,10 @@ interface Row {
   entry: LineageNode;
 }
 
-/**
- * 物流**录入通道**（`StreamSource` 4 值）的中文标签。
- *
- * ⚠️ 与 `StreamSourceType`（13 值 · 数据怎么算出来的）**不是一回事** ⇒
- * 这里只覆盖**录入通道**那 4 个值。
- */
-const STREAM_SOURCE_LABEL: Record<string, string> = {
-  MANUAL: '手动创建',
-  SIM_IMPORT: '模拟软件导出',
-  EXCEL: 'Excel 导入',
-  LAB: '化验报告',
-};
+// ⚠️ **录入通道的中文标签用共享表**（`types/stream.ts::STREAM_SOURCE_LABEL`）——
+//    本文件此前**自己抄了一份**且**标签还不一样**（手动创建 vs 手动）⇒
+//    后端加第 5 个值时共享表 `tsc` 会红、这份**静默漏**（bug-187~191 同族：
+//    「一份概念两份定义」）。
 
 function toRows(graph: LineageGraph | null): Row[] {
   if (!graph) return [];
@@ -116,7 +109,10 @@ export function StreamLineageTab({ streamId }: { streamId: string }): JSX.Elemen
                   //    其余行的 source 是**计算来源**（CALC 等）⇒ 两套词表 ⇒
                   //    根行加 tooltip 说清是哪一种（SPEC §7.7.2）。
                   if (row.relation !== '当前') return value;
-                  const label = STREAM_SOURCE_LABEL[value];
+                  // ⚠️ 契约的 `source` 是 `string | null`（血缘行的来源可能是
+                  //    `CALC` 等**计算来源**，不在录入通道词表里）⇒ 收窄后再查表。
+                  const label =
+                    STREAM_SOURCE_LABEL[value as StreamSource] ?? undefined;
                   return (
                     <Tooltip
                       title={

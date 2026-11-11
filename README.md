@@ -73,6 +73,8 @@ uv run uvicorn app.main:app --reload --port 8000
 **双闸**：① `ENV != production` ② 显式 `PCS_ENABLE_MOCK_LOGIN=true`。
 ⇒ dev 要用就在 `pcs-backend/.env` 里加一行（`.env.example` 里已带）；
 ⚠️ 生产环境里设成 `true` ⇒ **启动即失败**（部署期断言）。
+⚠️ **存量开发机升级后要补这一行**（`.env` 不入库 ⇒ 拉新代码**不会**自动带上）⇒
+不补 ⇒ mock 登录直接 **403 `MOCK_DISABLED`**（默认关是刻意的）。
 
 #### ARQ worker（可选，容器）
 

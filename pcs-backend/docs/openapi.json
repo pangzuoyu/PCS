@@ -2459,7 +2459,7 @@
           "lineage"
         ],
         "summary": "Upstream",
-        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**\n    ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`\n    本来就是这个形状，只有本端点原先漏了）\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
+        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**\n    ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`\n    本来就是这个形状，只有本端点原先漏了）\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/\n   record_id/parent_lineage_id/source/source_ref_*/actor_user_id/\n   change_summary/occurred_at）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
         "operationId": "upstream_api_v1_lineage__record_type___record_id__upstream_get",
         "parameters": [
           {
@@ -2545,7 +2545,7 @@
           "lineage"
         ],
         "summary": "Downstream",
-        "description": "GET 下游血缘链（沿计算记录向下传播）。\n\n步骤：\n1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id\n   （record 可能多次重算，latest 取最近一次）\n2. 不存在 → 404 no lineage for record\n3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播\n   （max_depth 限 1..50，防止极深递归触发 N+1 风暴）\n4. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 upstream 区别：upstream 沿 record_type+record_id 直接递归；\ndownstream 需 latest() 解析到 lineage_id 再传，跨多次重算。\n\n⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行\n（`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。",
+        "description": "GET 下游血缘链（沿计算记录向下传播）。\n\n步骤：\n1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id\n   （record 可能多次重算，latest 取最近一次）\n2. 不存在 → 404 no lineage for record\n3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播\n   （max_depth 限 1..50，防止极深递归触发 N+1 风暴）\n4. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/\n   record_id/parent_lineage_id/source/source_ref_*/actor_user_id/\n   change_summary/occurred_at）\n\n与 upstream 区别：upstream 沿 record_type+record_id 直接递归；\ndownstream 需 latest() 解析到 lineage_id 再传，跨多次重算。\n\n⚠️ `record_type='streams'` ⇒ 物流的「下游」= **以它为源**的血缘行\n（`finalize_calc_record` 写的正是 `source_ref_type='Stream'`）。",
         "operationId": "downstream_api_v1_lineage__record_type___record_id__downstream_get",
         "parameters": [
           {
@@ -2631,7 +2631,7 @@
           "lineage"
         ],
         "summary": "Graph",
-        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。\n\n⚠️ **`record_type='streams'` 走「按源引用查」**（P9B-4 T0-D · TODO-136）：\n物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'`\n的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒ root 是**合成**的\n（`data_lineage` 表里**没有**这一行）。",
+        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。\n\n⚠️ **`record_type='streams'` 走「按源引用查」**（P9B-4 T0-D · TODO-136）：\n物流在血缘行里**从不作为 `record_type`** 存在（它是 `source_ref_type='Stream'`\n的**源引用**）⇒ 走 `record_type` 那条路**永远查不到行** ⇒ root 是**合成**的\n（`data_lineage` 表里**没有**这一行）。\n\n⚠️ **`streams` 入口下 `max_depth` 是「下游条数上限」**（1..50，默认 10）\n—— 本入口**没有遍历可限** ⇒ 用它当条数上限 ⇒ `data_lineage` 只增不删\n⇒ 不限则响应随重算次数**无界增长**。**最新的在前**（`occurred_at DESC`）。",
         "operationId": "graph_api_v1_lineage__record_type___record_id__graph_get",
         "parameters": [
           {

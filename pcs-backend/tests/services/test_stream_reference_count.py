@@ -27,19 +27,18 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import FlashResult
-from app.models.project import Stream, Workspace
+from app.models.project import Project, Stream, Workspace
 from app.services.stream_service import StreamService
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture
-async def project(db: AsyncSession) -> Stream:
+async def project(db: AsyncSession) -> Project:
     """一个项目 + 它的专属工作区（`Stream` 两个 FK 都指它）。"""
     ws = Workspace(workspace_type="FORMAL", name=f"ws-{uuid.uuid4().hex[:8]}")
     db.add(ws)
     await db.flush()
-    from app.models.project import Project
 
     proj = Project(
         project_no=f"P-{uuid.uuid4().hex[:8]}",
@@ -54,7 +53,7 @@ async def project(db: AsyncSession) -> Stream:
     db.add(proj)
     await db.commit()
     await db.refresh(proj)
-    return proj  # type: ignore[return-value]
+    return proj
 
 
 async def _make_stream(

@@ -146,6 +146,7 @@ class LineageTracker:
         *,
         source_ref_type: str,
         source_ref_id: uuid.UUID,
+        limit: int | None = None,
     ) -> list[DataLineage]:
         """查「以某条记录为**源**」的血缘行（`source_ref_type` + `source_ref_id`）。
 
@@ -153,24 +154,25 @@ class LineageTracker:
         `source_ref_id=<物流 id>` ⇒ 这是「物流的**下游**」的**唯一**来源
         （物流本身在血缘行里**从不作为 `record_type`** 出现）。
 
-        按 `occurred_at` 升序返回（同一物流的多次计算 ⇒ 早的在前）。
+        ⚠️ **最新的在前**（`occurred_at DESC`）—— 同一条物流重算多次时，
+        用户先看到**最近**的产出（与另一个入口「从 latest 往回」的语义一致）。
+        ⚠️ **有上限**（`limit`）—— `data_lineage` **只增不删**（每次重算一行）
+        ⇒ 不限则响应随重算次数**无界增长**。
+        ⚠️ 排序带 `lineage_id` 兜底 ⇒ 同一时刻的多行**顺序确定**（可重复）。
         """
         from sqlalchemy import select
 
-        rows = (
-            (
-                await self.session.execute(
-                    select(DataLineage)
-                    .where(
-                        DataLineage.source_ref_type == source_ref_type,
-                        DataLineage.source_ref_id == source_ref_id,
-                    )
-                    .order_by(DataLineage.occurred_at)
-                )
+        stmt = (
+            select(DataLineage)
+            .where(
+                DataLineage.source_ref_type == source_ref_type,
+                DataLineage.source_ref_id == source_ref_id,
             )
-            .scalars()
-            .all()
+            .order_by(DataLineage.occurred_at.desc(), DataLineage.lineage_id.desc())
         )
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        rows = (await self.session.execute(stmt)).scalars().all()
         return list(rows)
 
     async def upstream(

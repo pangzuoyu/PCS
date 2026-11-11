@@ -23,7 +23,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -121,8 +121,12 @@ async def make_stream(db: AsyncSession):
 async def make_source_ref_lineage(db: AsyncSession):
     """造一条「以物流为**源**」的血缘行（= `finalize_calc_record` 写的那种）。"""
 
-    async def _make(stream: Stream, record_type: str = "PipingResult") -> DataLineage:
-        row = DataLineage(
+    async def _make(
+        stream: Stream,
+        record_type: str = "PipingResult",
+        occurred_at: datetime | None = None,
+    ) -> DataLineage:
+        payload = dict(
             record_type=record_type,
             record_id=uuid.uuid4(),
             source="CALC",
@@ -130,6 +134,9 @@ async def make_source_ref_lineage(db: AsyncSession):
             source_ref_id=stream.stream_id,
             change_summary="calc finalize",
         )
+        if occurred_at is not None:
+            payload["occurred_at"] = occurred_at
+        row = DataLineage(**payload)
         db.add(row)
         await db.commit()
         await db.refresh(row)
@@ -189,6 +196,76 @@ async def test_graph_without_any_lineage_row_is_still_200(
     assert body["downstream"] == []
     assert body["upstream"] == []
     assert body["root"] is not None
+
+
+# ---------------------------------------------------------------------------
+# 1b. 下游**有上限**且**最新的在前**（整批评审 Important #2）
+# ---------------------------------------------------------------------------
+
+
+async def test_downstream_is_bounded_and_newest_first(
+    strict_client,
+    make_project,
+    make_stream,
+    make_source_ref_lineage,
+    grant_project,
+    designer_user_id,
+    designer_headers,
+):
+    """⚠️ `data_lineage` **只增不删**（每次重算一行）⇒ 不限则响应**无界增长**。
+
+    ⇒ 下游**有上限**（`max_depth`，默认 10）且**最新的在前**（`occurred_at DESC`）。
+    """
+    project = await make_project()
+    await grant_project(designer_user_id, project.project_id, username="lineage-src")
+    stream = await make_stream(project)
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    rows = [
+        await make_source_ref_lineage(
+            stream, occurred_at=base + timedelta(hours=i)
+        )
+        for i in range(12)
+    ]
+
+    r = await strict_client.get(
+        f"/api/v1/lineage/streams/{stream.stream_id}/graph", headers=designer_headers
+    )
+    assert r.status_code == 200, r.text
+    down = r.json()["downstream"]
+    # ⚠️ 上限 = `max_depth`（默认 10）⇒ 12 条只回 10 条
+    assert len(down) == 10, f"下游没有上限：{len(down)} 条"
+    # ⚠️ **最新的在前**
+    assert down[0]["lineage_id"] == str(rows[-1].lineage_id)
+    assert down[1]["lineage_id"] == str(rows[-2].lineage_id)
+
+
+async def test_max_depth_caps_the_downstream_rows(
+    strict_client,
+    make_project,
+    make_stream,
+    make_source_ref_lineage,
+    grant_project,
+    designer_user_id,
+    designer_headers,
+):
+    """`?max_depth=2` ⇒ 下游只回 2 条（参数**真的**生效，不是摆设）。"""
+    project = await make_project()
+    await grant_project(designer_user_id, project.project_id, username="lineage-src")
+    stream = await make_stream(project)
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    for i in range(5):
+        await make_source_ref_lineage(
+            stream, occurred_at=base + timedelta(hours=i)
+        )
+
+    r = await strict_client.get(
+        f"/api/v1/lineage/streams/{stream.stream_id}/graph?max_depth=2",
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert len(r.json()["downstream"]) == 2
 
 
 # ---------------------------------------------------------------------------

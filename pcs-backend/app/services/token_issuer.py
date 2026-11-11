@@ -122,23 +122,29 @@ async def issue_tokens(
         ).first()
         assert row is not None, "惰性建行后仍查不到 —— session 状态异常"
     else:
-        # ⚠️ **已有行也要补写真实角色**（T0-E · TODO-134）。
+        # ⚠️ **已有行也要写真实角色**（T0-E · TODO-134）。
         #    `ensure_user_row` 建行 `roles=[]`；真实登录**此前只在建行时**写 roles
         #    ⇒ 先被 seed 建出来、之后才走真实登录的用户 ⇒ `users.roles` **永远是 []**
         #    ⇒ 按 `users.roles` 圈人的逻辑（`notification_recipients.py`）
         #    **永远选不到他**。
-        await _merge_real_role(session, username=username, role=role, row=row)
+        await _write_real_role(session, username=username, role=role)
 
     return sign_with_tv(username, role, user_id, tv=row.token_version)
 
 
-async def _merge_real_role(
-    session: AsyncSession, *, username: str, role: str, row
+async def _write_real_role(
+    session: AsyncSession, *, username: str, role: str
 ) -> None:
-    """把**真实**角色合并进已有行的 `users.roles`。
+    """把**真实**角色**覆盖**进已有行的 `users.roles`。
 
-    - **只合并、不冲掉**已有角色（seed 行可能已带别的角色）；
-    - **不重复追加**同一个角色（重复登录不该把列表撑长）；
+    ⚠️ **覆盖，不是合并**（整批评审 Important #1 · 2026-11-11）：
+    `users.roles` 的权威来源是**真实身份** ⇒ AD 同步（`ad_sync._apply`）也是
+    **覆盖**（`roles=[role] if role else None`）⇒ 两处口径必须一致 ⇒
+    **只增不减会让「角色降级」永不生效** ⇒ 旧角色一直留着 ⇒ 按 `users.roles`
+    圈人的通知逻辑（`notification_recipients.resolve_role_recipients`）会
+    **继续找**已降级的人 ⇒ 「待办里有、点进去说你不是」。
+
+    - 每次真实登录**以当前角色为准**（角色只有一个来源 ⇒ 不需要合并）；
     - ⚠️ **只在真实登录路径调用**（mock 路径连 SELECT 都不做 ⇒ 绝不碰 roles）
       —— ADR-0046 §③b：mock 与真实 AD **同名** ⇒ mock 写真实角色 ⇒
       污染同一行 ⇒ **权限污染且不报错**。
@@ -147,13 +153,10 @@ async def _merge_real_role(
 
     from app.models.project import User
 
-    current = list(row.roles or [])
-    if role in current:
-        return
     await session.execute(
         update(User.__table__)
         .where(User.__table__.c.username == username)
-        .values(roles=[*current, role])
+        .values(roles=[role])
     )
 
 
