@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-11T06:07:35.087Z",
+    "lastScanned": "2026-11-11T10:06:04.121Z",
     "fileCount": 1212,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4e5c1ec30c00a0121bca757504a6875cfa747f688892f022ee97f215aee8af12",
-    "storeUpdatedAt": "2026-11-11T06:07:35.098Z",
-    "rootHash": "5798ed7af53f3a92"
+    "renderedHash": "6cc3d426c1daa8319fc9b89f1bcdc7c0d88f030fa3eb419f758627d3fd3d9cde",
+    "storeUpdatedAt": "2026-11-11T10:06:04.133Z",
+    "rootHash": "fe569447e9bdc905"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1757,11 +1757,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 17914,
-      "hash": "f6ce20ff6a51add6",
-      "size": 117990,
-      "mtimeMs": 1794362808009.8088,
-      "updatedAt": "2026-11-11T02:06:48.065Z",
+      "tokens": 18524,
+      "hash": "0b4d64ce42de1fef",
+      "size": 122586,
+      "mtimeMs": 1794390931879.16,
+      "updatedAt": "2026-11-11T09:55:31.933Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -12351,20 +12351,20 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 5129,
-      "hash": "3508e5ccb321a951",
-      "size": 29113,
-      "mtimeMs": 1794367764747.8298,
-      "updatedAt": "2026-11-11T03:29:24.791Z",
+      "tokens": 5562,
+      "hash": "2c6805efffef0c6e",
+      "size": 32145,
+      "mtimeMs": 1794391480599.2722,
+      "updatedAt": "2026-11-11T10:04:40.645Z",
       "source": "hook"
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 28192,
-      "hash": "c9a6626979227871",
-      "size": 189108,
-      "mtimeMs": 1794311735240.6523,
-      "updatedAt": "2026-11-10T11:55:35.295Z",
+      "tokens": 30062,
+      "hash": "3222ded12f8cd215",
+      "size": 201909,
+      "mtimeMs": 1794390947537.3652,
+      "updatedAt": "2026-11-11T09:55:47.592Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -15233,11 +15233,11 @@
     },
     "pcs-backend/app/api/v1/streams.py": {
       "description": "P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。",
-      "tokens": 8711,
-      "hash": "35a2362f8898175f",
-      "size": 35297,
-      "mtimeMs": 1794326156363.7979,
-      "updatedAt": "2026-11-10T15:55:56.410Z",
+      "tokens": 8840,
+      "hash": "4b3878ec03fa5c4b",
+      "size": 35883,
+      "mtimeMs": 1794390735871.5247,
+      "updatedAt": "2026-11-11T09:52:15.920Z",
       "source": "hook",
       "symbols": [
         {
@@ -15328,126 +15328,126 @@
           "name": "list_project_streams",
           "kind": "fn",
           "startLine": 395,
-          "endLine": 425,
-          "tokens": 353
+          "endLine": 436,
+          "tokens": 482
         },
         {
           "name": "get_stream",
           "kind": "fn",
-          "startLine": 426,
-          "endLine": 437,
+          "startLine": 437,
+          "endLine": 448,
           "tokens": 124
         },
         {
           "name": "update_stream",
           "kind": "fn",
-          "startLine": 438,
-          "endLine": 464,
+          "startLine": 449,
+          "endLine": 475,
           "tokens": 285
         },
         {
           "name": "delete_stream",
           "kind": "fn",
-          "startLine": 465,
-          "endLine": 485,
+          "startLine": 476,
+          "endLine": 496,
           "tokens": 202
         },
         {
           "name": "_state_point_to_response",
           "kind": "fn",
-          "startLine": 486,
-          "endLine": 499,
+          "startLine": 497,
+          "endLine": 510,
           "tokens": 131
         },
         {
           "name": "create_state_point",
           "kind": "fn",
-          "startLine": 500,
-          "endLine": 523,
+          "startLine": 511,
+          "endLine": 534,
           "tokens": 259
         },
         {
           "name": "list_state_points",
           "kind": "fn",
-          "startLine": 524,
-          "endLine": 539,
+          "startLine": 535,
+          "endLine": 550,
           "tokens": 168
         },
         {
           "name": "get_state_point",
           "kind": "fn",
-          "startLine": 540,
-          "endLine": 552,
+          "startLine": 551,
+          "endLine": 563,
           "tokens": 140
         },
         {
           "name": "update_state_point",
           "kind": "fn",
-          "startLine": 553,
-          "endLine": 577,
+          "startLine": 564,
+          "endLine": 588,
           "tokens": 285
         },
         {
           "name": "delete_state_point",
           "kind": "fn",
-          "startLine": 578,
-          "endLine": 600,
+          "startLine": 589,
+          "endLine": 611,
           "tokens": 224
         },
         {
           "name": "_transition_endpoint",
           "kind": "fn",
-          "startLine": 601,
-          "endLine": 660,
+          "startLine": 612,
+          "endLine": 671,
           "tokens": 500
         },
         {
           "name": "submit_stream",
           "kind": "fn",
-          "startLine": 661,
-          "endLine": 689,
+          "startLine": 672,
+          "endLine": 700,
           "tokens": 255
         },
         {
           "name": "_composition_gate",
           "kind": "fn",
-          "startLine": 690,
-          "endLine": 714,
+          "startLine": 701,
+          "endLine": 725,
           "tokens": 223
         },
         {
           "name": "approve_stream",
           "kind": "fn",
-          "startLine": 715,
-          "endLine": 730,
+          "startLine": 726,
+          "endLine": 741,
           "tokens": 152
         },
         {
           "name": "reject_stream",
           "kind": "fn",
-          "startLine": 731,
-          "endLine": 748,
+          "startLine": 742,
+          "endLine": 759,
           "tokens": 163
         },
         {
           "name": "initiate_change_stream",
           "kind": "fn",
-          "startLine": 749,
-          "endLine": 766,
+          "startLine": 760,
+          "endLine": 777,
           "tokens": 161
         },
         {
           "name": "pass_change_stream",
           "kind": "fn",
-          "startLine": 767,
-          "endLine": 783,
+          "startLine": 778,
+          "endLine": 794,
           "tokens": 163
         },
         {
           "name": "mark_stale_stream",
           "kind": "fn",
-          "startLine": 784,
-          "endLine": 894,
+          "startLine": 795,
+          "endLine": 905,
           "tokens": 1108
         }
       ]
@@ -16134,61 +16134,61 @@
     },
     "pcs-backend/app/services/stream_service.py": {
       "description": "P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。",
-      "tokens": 7776,
-      "hash": "478f6a167ca9790e",
-      "size": 31642,
-      "mtimeMs": 1794373267084.4473,
-      "updatedAt": "2026-11-11T05:01:07.129Z",
+      "tokens": 8001,
+      "hash": "8293eea745df8905",
+      "size": 32746,
+      "mtimeMs": 1794390732817.6167,
+      "updatedAt": "2026-11-11T09:52:12.867Z",
       "source": "hook",
       "symbols": [
         {
           "name": "composition_mole_fraction_total",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 88,
+          "startLine": 73,
+          "endLine": 89,
           "tokens": 166
         },
         {
           "name": "build_stream_for_update_stmt",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 112,
+          "startLine": 90,
+          "endLine": 113,
           "tokens": 206
         },
         {
           "name": "select_stream_for_update",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 153,
+          "startLine": 114,
+          "endLine": 154,
           "tokens": 365
         },
         {
           "name": "_resolve_role",
           "kind": "fn",
-          "startLine": 154,
-          "endLine": 161,
+          "startLine": 155,
+          "endLine": 162,
           "tokens": 58
         },
         {
           "name": "_to_parsed_stream",
           "kind": "fn",
-          "startLine": 162,
-          "endLine": 190,
+          "startLine": 163,
+          "endLine": 191,
           "tokens": 327
         },
         {
           "name": "_to_parsed_state_point",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 224,
+          "startLine": 192,
+          "endLine": 225,
           "tokens": 354
         },
         {
           "name": "StreamService",
           "kind": "class",
-          "startLine": 225,
-          "endLine": 790,
-          "tokens": 5617
+          "startLine": 226,
+          "endLine": 812,
+          "tokens": 5831
         }
       ]
     },
@@ -42425,11 +42425,11 @@
     },
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md": {
       "description": "P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序）",
-      "tokens": 4057,
-      "hash": "309402935899639a",
-      "size": 25892,
-      "mtimeMs": 1794323219757.138,
-      "updatedAt": "2026-11-10T15:06:59.804Z",
+      "tokens": 5000,
+      "hash": "90f9c82a836133a2",
+      "size": 32161,
+      "mtimeMs": 1794391428895.0818,
+      "updatedAt": "2026-11-11T10:03:48.943Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md": {
@@ -44010,166 +44010,194 @@
     },
     "pcs-backend/tests/services/test_stream_reference_count.py": {
       "description": "物流「被引用数」的口径（P9B-4 · TODO-108）。",
-      "tokens": 1701,
-      "hash": "e8bb2a903172f2f1",
-      "size": 6873,
-      "mtimeMs": 1794373239543.2964,
-      "updatedAt": "2026-11-11T05:00:39.588Z",
+      "tokens": 2544,
+      "hash": "efa5e2218bb20abb",
+      "size": 10558,
+      "mtimeMs": 1794391564071.8728,
+      "updatedAt": "2026-11-11T10:06:04.121Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 65,
+          "tokens": 176
+        },
+        {
           "name": "project",
           "kind": "fn",
-          "startLine": 36,
-          "endLine": 58,
-          "tokens": 186
+          "startLine": 66,
+          "endLine": 70,
+          "tokens": 40
         },
         {
           "name": "_make_stream",
           "kind": "fn",
-          "startLine": 59,
-          "endLine": 80,
+          "startLine": 71,
+          "endLine": 92,
           "tokens": 155
         },
         {
           "name": "_make_flash",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 102,
+          "startLine": 93,
+          "endLine": 114,
           "tokens": 175
         },
         {
           "name": "test_reference_count_counts_downstream_streams",
           "kind": "fn",
-          "startLine": 103,
-          "endLine": 111,
-          "tokens": 110
+          "startLine": 115,
+          "endLine": 125,
+          "tokens": 123
         },
         {
           "name": "test_reference_count_counts_flash_results",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 120,
-          "tokens": 102
+          "startLine": 126,
+          "endLine": 136,
+          "tokens": 114
         },
         {
           "name": "test_reference_count_excludes_own_state_points",
           "kind": "fn",
-          "startLine": 121,
-          "endLine": 144,
-          "tokens": 193
+          "startLine": 137,
+          "endLine": 165,
+          "tokens": 240
         },
         {
           "name": "test_reference_count_is_zero_for_unreferenced_stream",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 151,
-          "tokens": 83
+          "startLine": 166,
+          "endLine": 174,
+          "tokens": 96
         },
         {
           "name": "test_reference_counts_returns_only_requested_ids",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 162,
-          "tokens": 126
+          "startLine": 175,
+          "endLine": 187,
+          "tokens": 139
         },
         {
           "name": "test_reference_counts_with_empty_input_returns_empty_dict",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 170,
-          "tokens": 72
+          "startLine": 188,
+          "endLine": 197,
+          "tokens": 83
         },
         {
           "name": "test_reference_count_accumulates_across_both_tables",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 184,
-          "tokens": 156
+          "startLine": 198,
+          "endLine": 213,
+          "tokens": 169
         },
         {
           "name": "test_reference_counts_with_none_input_returns_empty_dict",
           "kind": "fn",
-          "startLine": 185,
-          "endLine": 192,
-          "tokens": 99
+          "startLine": 214,
+          "endLine": 231,
+          "tokens": 171
+        },
+        {
+          "name": "test_reference_count_excludes_cross_project_downstream_streams",
+          "kind": "fn",
+          "startLine": 232,
+          "endLine": 254,
+          "tokens": 234
+        },
+        {
+          "name": "test_reference_count_excludes_cross_project_flash_results",
+          "kind": "fn",
+          "startLine": 255,
+          "endLine": 271,
+          "tokens": 150
+        },
+        {
+          "name": "test_reference_count_still_counts_same_project_references",
+          "kind": "fn",
+          "startLine": 272,
+          "endLine": 287,
+          "tokens": 158
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_stream_list_reference_count.py": {
       "description": "物流列表的「引用 📎×N」字段（P9B-4 · TODO-108）。",
-      "tokens": 1460,
-      "hash": "d0a327a03074d28d",
-      "size": 5609,
-      "mtimeMs": 1794373324738.801,
-      "updatedAt": "2026-11-11T05:02:04.801Z",
+      "tokens": 1524,
+      "hash": "a405433235637184",
+      "size": 5830,
+      "mtimeMs": 1794390760775.7778,
+      "updatedAt": "2026-11-11T09:52:40.829Z",
       "source": "hook",
       "symbols": [
         {
           "name": "make_project",
           "kind": "fn",
           "startLine": 30,
-          "endLine": 52,
-          "tokens": 190
+          "endLine": 53,
+          "tokens": 203
         },
         {
           "name": "designer_headers",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 57,
+          "startLine": 54,
+          "endLine": 58,
           "tokens": 47
         },
         {
           "name": "_payload",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 73,
+          "startLine": 59,
+          "endLine": 74,
           "tokens": 107
         },
         {
           "name": "_create",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 83,
+          "startLine": 75,
+          "endLine": 84,
           "tokens": 84
         },
         {
           "name": "test_list_streams_includes_reference_count",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 100,
+          "startLine": 85,
+          "endLine": 101,
           "tokens": 158
         },
         {
           "name": "test_list_streams_reference_count_is_zero_when_unreferenced",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 114,
+          "startLine": 102,
+          "endLine": 115,
           "tokens": 127
         },
         {
           "name": "test_list_streams_counts_downstream_streams",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 142,
-          "tokens": 274
+          "startLine": 116,
+          "endLine": 143,
+          "tokens": 279
         },
         {
           "name": "test_list_streams_does_not_query_per_row",
           "kind": "fn",
-          "startLine": 143,
-          "endLine": 175,
-          "tokens": 302
+          "startLine": 144,
+          "endLine": 178,
+          "tokens": 348
         }
       ]
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md": {
       "description": "QA 报告 —— P9B-4 体验批（T0-A~T0-F + T1 + T2）",
-      "tokens": 914,
-      "hash": "1f63f634c3766934",
-      "size": 5787,
-      "mtimeMs": 1794377255038.6587,
-      "updatedAt": "2026-11-11T06:07:35.086Z",
+      "tokens": 1034,
+      "hash": "fe4f2e8eb62ec8b7",
+      "size": 6621,
+      "mtimeMs": 1794391487288.1765,
+      "updatedAt": "2026-11-11T10:04:47.337Z",
       "source": "hook"
     }
   }

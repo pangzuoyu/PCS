@@ -3284,3 +3284,20 @@
 | 13:02 | Created pcs-backend/tests/api/v1/test_stream_list_reference_count.py | — | ~1460 |
 | 14:07 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md | — | ~975 |
 | 17:20 | **P9B-4 体验批全批落地**（10 commits · main）：T0-B 停用立即生效（actor 层判 users.status）+ T0-C create_stream 一律用项目工作区 + T0-D 血缘按源引用查（注册表派生 · 键=类名 · fail-closed · 同形合成 root · 具名 schema）+ T0-E roles 覆盖写 + T0-F mock 登录双闸（救回一条空转部署断言）+ T1 只重试失败项 + T2 引用 📎×N（两条聚合）+ T3 SPEC/TODOS/账簿（9 条 TODO 闭环 · 3 条新债项 · buglog +6 · cerebrum +11）；整支评审 Critical 0 · Important 3 全闭合（roles 覆盖 / 血缘下游有界 / 共享标签表）；后端 5626 passed · PG 5 · 前端 1046 · 裸载荷 71 · 浏览器 0C-0H-0M | pcs-backend/app/api/v1/{config,streams,lineage,main}.py · app/services/{lineage,lineage_registry,token_issuer,stream_service}.py · app/schemas/lineage.py · pcs-frontend/src/pages/sim/{StreamListPage.tsx,hooks/useStreamBatchSubmit.ts,tabs/StreamLineageTab.tsx} · docs/PCS-UI-SPEC.md · TODOS.md · README.md | done（已 push） | ~180k |
+| 17:51 | Edited pcs-backend/tests/services/test_stream_reference_count.py | modified _make_project() | ~216 |
+| 17:51 | Edited pcs-backend/tests/services/test_stream_reference_count.py | modified test_reference_counts_with_none_input_returns_empty_dict() | ~696 |
+| 17:52 | Edited pcs-backend/app/services/stream_service.py | modified reference_counts() | ~54 |
+| 17:52 | Edited pcs-backend/app/services/stream_service.py | modified from() | ~541 |
+| 17:52 | Edited pcs-backend/app/api/v1/streams.py | 5→6 lines | ~88 |
+| 17:52 | Edited pcs-backend/tests/api/v1/test_stream_list_reference_count.py | modified _spy() | ~222 |
+| 17:55 | Edited docs/PCS-UI-SPEC.md | inline fix | ~30 |
+| 17:55 | Edited docs/PCS-UI-SPEC.md | expanded (+13 lines) | ~217 |
+| 17:55 | Edited docs/PCS-UI-SPEC.md | 2→4 lines | ~215 |
+| 17:55 | Edited TODOS.md | 17→22 lines | ~207 |
+| 17:55 | Edited TODOS.md | expanded (+21 lines) | ~407 |
+| 18:03 | Edited docs/superpowers/plans/2026-11-04-p10-master-plan.md | 2→2 lines | ~172 |
+| 18:03 | Edited docs/superpowers/plans/2026-11-04-p10-master-plan.md | 3→3 lines | ~139 |
+| 18:04 | Edited pcs-backend/tests/services/test_stream_reference_count.py | 3→5 lines | ~44 |
+| 18:04 | Edited README.md | 7→8 lines | ~109 |
+| 18:04 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md | expanded (+9 lines) | ~116 |
+| 18:06 | Edited pcs-backend/tests/services/test_stream_reference_count.py | expanded (+7 lines) | ~111 |

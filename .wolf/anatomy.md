@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-11T06:07:35.087Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-11T10:06:04.121Z
 > Files: 1212 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -13,8 +13,8 @@
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~1290 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
-- `README.md` — Project documentation (~5129 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~28192 tok)
+- `README.md` — Project documentation (~5562 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~30062 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -190,7 +190,7 @@
 - `qa-report-pcs-frontend-2026-11-03-p9b3.md` — QA Report: pcs-frontend / pcs-backend P9B-3（系统参数 + SIM 物流前端）批末 (~1406 tok)
 - `qa-report-pcs-frontend-2026-11-03-p9b3b.md` — QA 报告 —— P9B-3b 批量「提交校对」 (~1395 tok)
 - `qa-report-pcs-frontend-2026-11-04-p9b3b-minors.md` — QA 报告 —— PCS 前端 · P9B-3b 评审 Minor 清理 (~566 tok)
-- `qa-report-pcs-frontend-2026-11-04-p9b4.md` — QA 报告 —— P9B-4 体验批（T0-A~T0-F + T1 + T2） (~914 tok)
+- `qa-report-pcs-frontend-2026-11-04-p9b4.md` — QA 报告 —— P9B-4 体验批（T0-A~T0-F + T1 + T2） (~1034 tok)
 - `qa-report-pcs-frontend-2026-11-09-stream-guard.md` — QA 报告 — PCS 前端 · 物流面项目守卫 + review-log（2026-11-09） (~549 tok)
 - `qa-report-pcs-frontend-2026-11-10-review-log-fix.md` — QA 报告 — PCS 前端 · 校核记录 Tab 修复后回归（2026-11-10） (~651 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
@@ -370,7 +370,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~17914 tok)
+- `PCS-UI-SPEC.md` (~18524 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -543,7 +543,7 @@
 - `2026-10-31-p6-9-pickup-2-critical-fixes.md` — P6-9-PICKUP-2 — 4 CRITICAL + 2 HIGH 修复批 (~1794 tok)
 - `2026-11-03-p9b-3b-batch-submit.md` — P9B-3b 批量「提交校对」实施计划 (~28888 tok)
 - `2026-11-04-p10-batch-a-preflight-ai-reserve.md` — P10-A 实施计划：前置与测试左移（10.0）+ AI 预留接口（10.1） (~9278 tok)
-- `2026-11-04-p10-master-plan.md` — P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序） (~4057 tok)
+- `2026-11-04-p10-master-plan.md` — P10 总纲：AI 预留 + 测试左移 + 部署可观测（批次划分与执行顺序） (~5000 tok)
 - `2026-11-04-p9b-4-ux-batch.md` — P9B-4 实施计划：批量体验收口（TODO-116 只重试失败项 + TODO-108 引用 📎×N） (~10667 tok)
 - `2026-11-04-stream-project-guard.md` — 物流面项目守卫补齐 + review-log 端点 实施计划（紧急批次） (~12205 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
@@ -1285,7 +1285,7 @@
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_batch.py` — 批量「提交校对」的端点（P9B-3b）。 (~608 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
-- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8711 tok)
+- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8840 tok)
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
@@ -1372,7 +1372,7 @@
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
 - `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~5708 tok)
 - `stream_review_log_service.py` — 读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。 (~966 tok)
-- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~7776 tok)
+- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~8001 tok)
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1252 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1986 tok)
@@ -1539,7 +1539,7 @@
 - `test_stream_batch_concurrency_pg.py` — 批量/单条「提交校对」的**真并发**（PG 车道 · P9B-3b · T4）。 (~3466 tok)
 - `test_stream_composition_sum.py` — 物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。 (~1901 tok)
 - `test_stream_list_filters.py` — 物流列表的四项筛选（SPEC §7.7.1 · P9B-3 · 评审 I-4）。 (~1346 tok)
-- `test_stream_list_reference_count.py` — 物流列表的「引用 📎×N」字段（P9B-4 · TODO-108）。 (~1460 tok)
+- `test_stream_list_reference_count.py` — 物流列表的「引用 📎×N」字段（P9B-4 · TODO-108）。 (~1524 tok)
 - `test_stream_project_guard.py` — 物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。 (~7088 tok)
 - `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3795 tok)
 - `test_stream_source.py` — `streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。 (~2312 tok)
@@ -1625,7 +1625,7 @@
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_signature_matrix_service.py` — 签署矩阵服务的守卫（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~5024 tok)
 - `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~11179 tok)
-- `test_stream_reference_count.py` — 物流「被引用数」的口径（P9B-4 · TODO-108）。 (~1701 tok)
+- `test_stream_reference_count.py` — 物流「被引用数」的口径（P9B-4 · TODO-108）。 (~2544 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
