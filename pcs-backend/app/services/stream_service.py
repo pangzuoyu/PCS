@@ -488,7 +488,21 @@ class StreamService:
             )
 
         await db.delete(stream)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError as e:
+            # ⚠️ **兜底**：上面那张引用清单是**写下来的清单** ⇒ 将来新增一条
+            #    指向 `streams.stream_id` 的 FK 而忘了加进清单 ⇒ 这里撞 FK ⇒
+            #    `IntegrityError`（**不是** `PcsError`）⇒ 端点只捕 `PcsError`
+            #    ⇒ 裸穿成 **500**（用户看到一个无任何解释的 500）。
+            #    ⇒ 统一兜成 409 `SIM_STREAM_REFERENCED`（与清单命中时同形）。
+            await db.rollback()
+            raise PcsError(
+                f"物流 {stream.stream_name} 存在外部引用，无法删除；"
+                f"请先清理引用（删除相关状态点/计算结果/下游物流）后重试",
+                code="SIM_STREAM_REFERENCED",
+                status=409,
+            ) from e
 
     @staticmethod
     async def _collect_references(
@@ -499,6 +513,15 @@ class StreamService:
         SIM-35：单次往返多表 count 查询，避免 N+1。引用表清单：
         - stream_state_points（物流状态点）
         - flash_results（flash 计算结果）
+        - streams.upstream_stream_id（自引用：下游物流把本物流当上游）
+
+        ⚠️ **第三条是 P9B-4 评审 #23 补上的** —— 清单早就写在测试文件的
+        docstring 里，但实现漏了 ⇒ 删除被下游物流引用的物流时查不到引用 ⇒
+        直接 `db.delete` ⇒ 撞 FK（该 FK **无 `ondelete`** ⇒ PG 默认 NO ACTION）
+        ⇒ `IntegrityError` 裸穿成 500。
+        ⚠️ 且本批的「引用 📎×N」列（第①条聚合）数的**正是**这一类引用
+        ⇒ 操作员看到「📎1 ⇒ 被引用」后删除 ⇒ 撞 500 ⇒ **本批招牌功能把用户
+        直接引向这条路径**。
 
         Returns:
             {table_name: count}，无引用返回空 dict。
@@ -531,6 +554,17 @@ class StreamService:
         ).scalar_one()
         if flash_count > 0:
             result["flash_results"] = flash_count
+
+        # 3. streams.upstream_stream_id（自引用：下游物流）
+        downstream_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(Stream)
+                .where(Stream.upstream_stream_id == stream_id)
+            )
+        ).scalar_one()
+        if downstream_count > 0:
+            result["streams"] = downstream_count
 
         return result
 

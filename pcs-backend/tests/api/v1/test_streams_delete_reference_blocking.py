@@ -26,6 +26,7 @@ from app.core.security import create_access_token
 from app.models.calc import FlashResult
 from app.models.project import (
     Project,
+    Stream,
     StreamStatePoint,
     Workspace,
 )
@@ -169,6 +170,52 @@ async def test_delete_blocked_when_flash_result_references(
     body = r.json()
     assert body["code"] == "SIM_STREAM_REFERENCED"
     assert "flash" in body["message"].lower() or "flash_results" in body["message"]
+
+
+# ---------------------------------------------------------------------------
+# 被下游物流引用（streams.upstream_stream_id 自引用）：拒绝
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_blocked_when_downstream_stream_references(
+    client, db, make_project, designer_headers
+):
+    """存在**下游物流**引用（`streams.upstream_stream_id`）→ 409。
+
+    ⚠️ **本模块 docstring 的引用表清单第三条就是它**（`streams.upstream_stream_id`
+    自引用）⇒ 下面是「**已写下的契约没实现**」，不是新需求。
+
+    ⚠️ **为什么这条要紧**：本批的「引用 📎×N」列（第①条聚合）数的就是
+    `streams.upstream_stream_id` ⇒ 操作员看到「📎1 ⇒ 被引用」⇒ 删除 ⇒
+    旧实现（清单里只有状态点与闪蒸结果）**查不到引用** ⇒ 直接 `db.delete` ⇒
+    撞 FK（该 FK **无 `ondelete`** ⇒ PG 默认 NO ACTION）⇒ `IntegrityError`
+    ⇒ 端点只捕 `PcsError` ⇒ **裸穿成 500**（用户看到一个无任何解释的 500，
+    也不知道「先删下游 B」这条唯一出路）。
+    """
+    proj = await make_project()
+    sid = await _create_stream(client, proj.project_id, designer_headers)
+
+    # 下游物流：B 的 upstream_stream_id = A（计算出口流就是这么写的）
+    downstream = Stream(
+        project_id=proj.project_id,
+        workspace_id=proj.workspace_id,
+        stream_name=f"S-102-{uuid.uuid4().hex[:6]}",
+        case_type="NORMAL",
+        data_mode="CHEMICAL",
+        source_type="MANUAL_ENTRY",
+        approval_depth=1,
+        upstream_stream_id=uuid.UUID(sid),
+    )
+    db.add(downstream)
+    await db.commit()
+
+    r = await client.delete(f"/api/v1/streams/{sid}", headers=designer_headers)
+    assert r.status_code == 409, r.text
+    body = r.json()
+    assert body["code"] == "SIM_STREAM_REFERENCED"
+    # 错误信息要指明是哪张表 + 几条（SIM-35 的契约）
+    assert "streams" in body["message"].lower()
 
 
 # ---------------------------------------------------------------------------
