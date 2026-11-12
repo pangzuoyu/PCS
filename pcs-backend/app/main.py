@@ -140,6 +140,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # TODO-019: CORS 配置自检必须在 startup 做（而非 middleware 阶段）——
     # middleware 跑在每个请求上，配错时的症状是"所有接口 403"，极难自查。
     validate_cors_for_production(settings)
+    # ⚠️ **人名遮蔽开关**（P10-A · SPEC §2.5「数据脱敏强制」）：
+    #    ⚠️ **默认关** —— 开了会把几乎每个中文词都遮掉 ⇒ 脱敏后的文本基本不可读。
+    #    ⇒ 开关放在 env（`AI_MASK_PERSON_NAME`）⇒ **部署级**决策。
+    #    ⚠️ 放在**不依赖 DB** 的位置 ⇒ 读不到库时脱敏配置照样生效。
+    from app.core.ai_sanitizer import enable_person_name_mask
+
+    enable_person_name_mask(settings.ai_mask_person_name)
     if settings.is_production:
         assert_mock_auth_not_exposed(app, settings)
     # V1.4 P2-OPEN-005 / SPEC-P2 §3.2.3：启动时 seed CATEGORY_3 默认 6 张系数表（幂等）
