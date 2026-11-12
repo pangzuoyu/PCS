@@ -6033,8 +6033,8 @@
       "error_message": "先被 seed 建出来、之后才走真实登录的用户 ⇒ `users.roles` **永远是 `[]`** ⇒ 按 `users.roles` 圈人的逻辑（`notification_recipients.py`）**永远选不到他**",
       "file": "pcs-backend/app/services/token_issuer.py::issue_tokens",
       "root_cause": "真实登录**只在建行时**写 roles ⇒ 「行已存在」的那条路**不碰 roles**。",
-      "fix": "真实分支在「行已存在」时把真实角色**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加）。\n⚠️ **mock 分支绝不碰 roles**（ADR-0046 §③b：mock 与真实 AD 同名 ⇒ 写真实角色 ⇒ 污染同一行 ⇒ 权限污染且不报错）⇒ mock 路径仍在「一次 DB 往返都没有」的位置早返回。",
-      "fix_commit": "69b2327",
+      "fix": "真实分支在「行已存在」时把真实角色**覆盖**进 `users.roles`（`roles=[role]` —— **不是合并**）。\n⚠️ **口径更正（2026-11-12 · P9B-4 评审 #13）**：本条曾写成「**合并**」⇒ 那是 `69b2327` 的实现 ⇒ **已被 `4a8e882` 推翻**（整批评审 Important #1）。\n⇒ 改成覆盖的理由：`users.roles` 的权威来源是**真实身份** ⇒ AD 同步（`ad_sync._apply`）也是**覆盖** ⇒ 两处口径必须一致 ⇒ **只增不减会让「角色降级」永不生效** ⇒ 按 `users.roles` 圈人的通知逻辑会**继续找**已降级的人（「待办里有、点进去说你不是」）。\n⚠️ **覆盖的代价**：一个 `users` 行若带**多个**角色 ⇒ 真实登录**只保留最后一个角色** ⇒ `notification_recipients.resolve_role_recipients`**不再**为被丢掉的那些角色选中该用户。\n⚠️ **mock 分支绝不碰 roles**（ADR-0046 §③b：mock 与真实 AD 同名 ⇒ 写真实角色 ⇒ 污染同一行 ⇒ 权限污染且不报错）⇒ mock 路径仍在「一次 DB 往返都没有」的位置早返回。",
+      "fix_commit": "4a8e882",
       "tags": [
         "auth",
         "roles",
@@ -6043,7 +6043,7 @@
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-11-11"
+      "last_seen": "2026-11-12"
     },
     {
       "id": "bug-2157",

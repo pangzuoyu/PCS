@@ -154,6 +154,28 @@ def test_production_with_mock_route_mounted_fails_startup():
         assert_mock_auth_not_exposed(app, settings)
 
 
+def test_production_with_mock_route_hidden_from_openapi_still_fails_startup():
+    """⚠️ **路由挂载但对 OpenAPI 隐身** ⇒ 断言仍必须炸（评审 #8）。
+
+    `include_router(router, include_in_schema=False)` ⇒ 路由**照样挂载**
+    （`/auth/mock-login` 照样能打）⇒ 但 `app.openapi()["paths"]` 里**没有它**
+    ⇒ 只看 OpenAPI 的断言**报绿** ⇒ 部署期闸门**形同虚设**。
+
+    ⇒ 断言必须**另看路由表**（`app.routes` 递归展开懒挂载包装）。
+    """
+    from app.main import assert_mock_auth_not_exposed
+
+    app = FastAPI()
+    app.include_router(mock_auth_router, include_in_schema=False)
+
+    # ⚠️ **前置条件**：这条路径确实对 OpenAPI 隐身了 ⇒ 旧断言会漏掉它。
+    assert "/auth/mock-login" not in app.openapi()["paths"]
+
+    settings = cfg.Settings(_env_file=None, env="production", secret_key="x" * 40)
+    with pytest.raises(RuntimeError, match="mock-login route"):
+        assert_mock_auth_not_exposed(app, settings)
+
+
 def test_development_passes_the_startup_assertion():
     """dev ⇒ 断言放行（mock 登录要能用 ⇒ 显式 opt-in 即可）。"""
     from app.main import assert_mock_auth_not_exposed

@@ -29,6 +29,7 @@ from app.services.token_issuer import (
     issue_tokens,
     sign_with_tv,
 )
+from app.services.user_status_service import is_account_disabled
 
 # 与 Depends(current_actor) 推导保持一致: 优先从 JWT user_id 声明读取, 缺省回退
 # uuid5(NAMESPACE_DNS, sub). 前端 /auth/me 拿到权威 actor id, 避免自行派生分叉.
@@ -146,22 +147,54 @@ def _decode_bearer(authorization: str) -> dict[str, Any]:
     return payload
 
 
-def current_user(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+async def current_user(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """FastAPI 依赖：取 Authorization Bearer JWT 解析 payload。
 
     步骤：
     1. 无 Authorization header → MISSING_BEARER 401
     2. 调 _decode_bearer 解析 JWT（HS256 + 密钥校验 + 过期检查）
-    3. 返回 payload dict（含 user_id / role / exp / iat 等）
+    3. ⚠️ **账号状态判定**（P9B-4 评审 #16）⇒ 停用 ⇒ 401 `USER_DISABLED`
+    4. 返回 payload dict（含 user_id / role / exp / iat 等）
 
     返回 _Actor TypedDict（FastAPI Depends 注入端点）。
     与 login 区别：login 颁发 JWT；current_user 解析验证。
+
+    ## ⚠️ 为什么这里也要判账号状态（评审 #16）
+
+    ADR-0046 §5 与 `user_status_service` 的 docstring 都说「判定在**一处**
+    ⇒ **全局生效**」⇒ 而本依赖此前是**纯 JWT 解码**、**从不碰**
+    `users.status` ⇒ 它背后的 **7 个端点**（`GET /auth/me` + 6 个
+    `GET /meta/*`）对**停用**用户**照样 200** ⇒
+
+    - `/auth/me` 是前端的**会话自查**接口 ⇒ 停用用户的会话**仍然「有效」**
+      ⇒ 前端不登出 ⇒ **僵尸会话**（叠加评审 #1 的前端缺口）；
+    - meta 端点只回**静态字典**（暴露面小）⇒ 但承诺要么兑现、要么明写例外。
+
+    ⇒ 用户 2026-11-12 裁决「停用覆盖面 = **全部补齐**」⇒ 这里也判。
+    ⇒ 判定**复用** `user_status_service.is_account_disabled`（**同一处**比较，
+    见评审 #10）⇒ 「无行 ⇒ 放行」的边界**不变**（mock 登录不落库）。
     """
     if not authorization:
         raise PcsError(
             code="MISSING_BEARER", message="Authorization: Bearer <token>", status=401
         )
-    return _decode_bearer(authorization)
+    payload = _decode_bearer(authorization)
+    # ⚠️ **账号状态判定**（P9B-4 评审 #16）
+    try:
+        user_id = _derive_user_id(payload)
+    except (ValueError, TypeError):
+        # ⚠️ 与 `current_actor` 同口径：claim 坏了 ⇒ 回退派生值（**不**炸）
+        user_id = uuid.uuid5(_UUID5_NAMESPACE_DNS, str(payload.get("sub", "")))
+    if await is_account_disabled(db, user_id=user_id):
+        raise PcsError(
+            code="USER_DISABLED",
+            message=f"user account is disabled: {payload.get('sub', 'unknown')}",
+            status=401,
+        )
+    return payload
 
 
 def _normalize_ip(raw: str | None) -> str | None:

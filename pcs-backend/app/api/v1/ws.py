@@ -32,6 +32,7 @@ from app.api.v1.config import current_actor
 from app.core.errors import PcsError
 from app.db.session import get_async_session_factory
 from app.services.broadcaster import UserSubscriptionRegistry
+from app.services.user_status_service import is_account_disabled
 
 logger = logging.getLogger(__name__)
 
@@ -90,18 +91,44 @@ async def notifications_ws(
     握手阶段鉴权失败 ⇒ 直接关连接（**不接受**再报错）。
     先 accept 再关会让客户端认为连接已建立，随后收到一条空的关闭 ——
     前端会把它记成「连上了但没消息」。
+
+    ## ⚠️ 拒绝原因**只对日志可见**（P9B-4 评审 #24）
+
+    ASGI 规定：**accept 之前**的 close 会被服务端当成 **HTTP 403 握手拒绝**
+    ⇒ close code（1008）与 reason（`USER_DISABLED` / `MISSING_TOKEN` /
+    `INVALID_TOKEN`）**到不了客户端** ⇒ 每一种拒绝在客户端看来**完全一样**。
+
+    ⚠️ Starlette 的 `TestClient` 会把 accept 前的 close 还原成
+    `WebSocketDisconnect(1008)` ⇒ **测试观察到的是一个部署里不存在的拒绝语义**
+    ⇒ 「绿灯的测试，nobody 能观测的通道」。
+
+    ⇒ 两条纪律：
+    ① **原因写进日志**（运维可查「谁在什么时候因为什么被拒」）；
+    ② 文档**不再**承诺「客户端能区分拒绝原因」。
+
+    （要让原因**真正**到达客户端 ⇒ 必须**先 accept 再 close** ⇒ 那是**传输层
+    变更**（客户端会看到「连上了又断」）⇒ 属于设计裁决，不在本批顺手做。）
     """
     try:
         user_id = await _authenticate(token, authorization)
     except PcsError as e:
+        logger.warning("通知 WS 握手被拒（原因=%s）", e.code)
         await websocket.close(code=_WS_POLICY_VIOLATION, reason=e.code)
+        return
+    except Exception:  # noqa: BLE001 — 握手期的**任何**后端故障都不得裸穿成 500
+        # ⚠️ **评审 #7**：鉴权要**查库**（判 `users.status`）⇒ 连接错误 /
+        #    连接池超时 / 语句超时都**不是** `PcsError` ⇒ 原先的
+        #    `except PcsError` 捕不到 ⇒ 异常逃出 ASGI 处理器 ⇒
+        #    握手变成 **HTTP 500**（且**无日志**）⇒ 观测不到。
+        #    ⇒ 与 `PcsError` 分支**同形**地关连接（1008）+ 记日志。
+        logger.exception("通知 WS 握手失败（后端故障）")
+        await websocket.close(code=_WS_POLICY_VIOLATION, reason="HANDSHAKE_FAILED")
         return
 
     await websocket.accept()
     registry = get_registry()
 
-    async def sink(message: dict) -> None:
-        await websocket.send_json(message)
+    sink = _make_sink(websocket, user_id)
 
     await registry.add(user_id, sink)
     try:
@@ -115,6 +142,52 @@ async def notifications_ws(
     finally:
         with contextlib.suppress(Exception):
             await registry.remove(user_id, sink)
+
+
+async def _account_disabled_now(user_id: uuid.UUID) -> bool:
+    """这个账号**此刻**是否被停用（WS 投递路径复检 · 评审 #6）。
+
+    ⚠️ **无行 ⇒ False（放行）**（与 HTTP 侧同口径 · mock 登录不落库）。
+    """
+    factory = get_async_session_factory()
+    async with factory() as session:
+        return await is_account_disabled(session, user_id=user_id)
+
+
+def _make_sink(
+    websocket: WebSocket, user_id: uuid.UUID
+) -> Callable[[dict], Awaitable[None]]:
+    """造这条连接的 sink —— **投递前复检账号状态**（评审 #6）。
+
+    ## 为什么要有这次复检
+
+    握手只查**一次**账号状态 ⇒ 握手之后才被停用的用户**继续收到推送**
+    （没有任何东西会替他关连接）⇒ HTTP 侧「停用立即生效」与长连接侧的
+    实际行为**不一致**。
+
+    ⇒ 用户 2026-11-12 裁决「停用覆盖面 = **全部补齐**」⇒ 投递前复检。
+
+    ## 复检**失败**（DB 挂了）怎么办
+
+    ⇒ **不投递**（fail-closed），但**不关连接** ⇒ 下次投递再试。
+    ⚠️ 理由：HTTP 侧此时也是坏的（每请求都 500）⇒ 少一条通知不影响大局；
+    反过来「检查失败就放行」会把「停用立即生效」这条承诺在**最需要**的时候
+    破掉。
+    """
+
+    async def sink(message: dict) -> None:
+        try:
+            disabled = await _account_disabled_now(user_id)
+        except Exception:  # noqa: BLE001 — 复检失败 ⇒ 不投递（见上文）
+            logger.exception("通知 WS 投递前复检失败（user=%s）", user_id)
+            return
+        if disabled:
+            logger.warning("通知 WS：账号已停用 ⇒ 关连接（user=%s）", user_id)
+            await websocket.close(code=_WS_POLICY_VIOLATION, reason="USER_DISABLED")
+            return
+        await websocket.send_json(message)
+
+    return sink
 
 
 async def _handle_client_frame(websocket: WebSocket, raw: str) -> None:

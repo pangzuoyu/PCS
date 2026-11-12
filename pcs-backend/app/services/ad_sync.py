@@ -33,6 +33,7 @@ from app.models.enums import AuditAction, UserStatus
 from app.models.project import User
 from app.services.ldap_client import DirectoryUser, enumerate_users, resolve_role
 from app.services.token_issuer import derive_user_id
+from app.services.user_status_service import is_disabled_status
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +136,7 @@ async def sync_users(db: AsyncSession) -> SyncResult:
         unmapped += 0 if role else 1
 
     for username, row in existing.items():
-        if username in seen or row.status == UserStatus.DISABLED.value:
+        if username in seen or is_disabled_status(row.status):
             continue
         row.status = UserStatus.DISABLED.value
         row.token_version += 1

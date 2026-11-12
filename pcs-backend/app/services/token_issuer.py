@@ -25,12 +25,15 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import PcsError
 from app.core.security import create_access_token, create_refresh_token
 from app.models.enums import UserStatus
+from app.services.user_status_service import is_disabled_status
 
 #: 保留值：mock 令牌的 `tv` 哨兵。真实用户 `token_version >= 1`
 #: （DB 层 `ck_users_token_version_ge_1` 兜住，ADR-0046 §③b）。
@@ -94,7 +97,7 @@ async def issue_tokens(
         )
     ).first()
 
-    if row is not None and row.status == UserStatus.DISABLED.value:
+    if row is not None and is_disabled_status(row.status):
         await _record_denied_login(session, username=username, user_id=user_id)
         raise PcsError(
             code="USER_DISABLED",
@@ -103,24 +106,9 @@ async def issue_tokens(
         )
 
     if row is None:
-        session.add(
-            User(
-                user_id=user_id,
-                username=username,
-                display_name=username,
-                roles=[role],
-                ad_groups=[],
-                status=UserStatus.ACTIVE.value,
-            )
+        row = await _create_user_row(
+            session, username=username, role=role, user_id=user_id
         )
-        await session.flush()
-        # flush 后 server_default '1' 才会落到 python 侧对象上
-        row = (
-            await session.execute(
-                User.__table__.select().where(User.username == username)
-            )
-        ).first()
-        assert row is not None, "惰性建行后仍查不到 —— session 状态异常"
     else:
         # ⚠️ **已有行也要写真实角色**（T0-E · TODO-134）。
         #    `ensure_user_row` 建行 `roles=[]`；真实登录**此前只在建行时**写 roles
@@ -130,6 +118,61 @@ async def issue_tokens(
         await _write_real_role(session, username=username, role=role)
 
     return sign_with_tv(username, role, user_id, tv=row.token_version)
+
+
+async def _create_user_row(
+    session: AsyncSession, *, username: str, role: str, user_id: uuid.UUID
+) -> Any:
+    """惰性建 `users` 行 ⇒ 返回那一行（**含并发首次登录的撞车处理**）。
+
+    ## ⚠️ 并发首次登录 ⇒ 撞唯一约束**不是** 500（P9B-4 评审 #25）
+
+    `users.username` 唯一 ⇒ 两个请求同时「SELECT 见空」⇒ 都 INSERT
+    ⇒ **输家**撞唯一约束 ⇒ `IntegrityError`（**不是** `PcsError`）
+    ⇒ 端点只捕 `PcsError` ⇒ 裸穿成 **500 INTERNAL_ERROR**
+    ⇒ 用户看到一个无任何解释的 500（而且**偶发** ⇒ 极难复现）。
+
+    ⇒ 撞车 ⇒ 语义是「**另一个请求已经把行建好了**」⇒ 回滚自己这次插入
+    ⇒ 重读那一行 ⇒ 照常签发（tv 取那一行的）。
+    """
+    from app.models.project import User
+
+    session.add(
+        User(
+            user_id=user_id,
+            username=username,
+            display_name=username,
+            roles=[role],
+            ad_groups=[],
+            status=UserStatus.ACTIVE.value,
+        )
+    )
+    try:
+        await session.flush()
+    except IntegrityError:
+        # ⚠️ **输家**：另一个请求刚把行建好 ⇒ 回滚自己这次插入
+        #    （不回滚 ⇒ 会话留在失败态 ⇒ 后续语句全挂）。
+        await session.rollback()
+        row = (
+            await session.execute(
+                User.__table__.select().where(User.username == username)
+            )
+        ).first()
+        if row is None:
+            # ⚠️ 撞的唯一约束**不是** username ⇒ 不是「并发建行」⇒ 原样抛出
+            raise
+        # ⚠️ 角色仍按**本次**登录写（T0-E：每次真实登录以当前角色为准 ⇒
+        #    并发的另一个请求可能是**别的角色**）。
+        await _write_real_role(session, username=username, role=role)
+        return row
+    # flush 后 server_default '1' 才会落到 python 侧对象上
+    row = (
+        await session.execute(
+            User.__table__.select().where(User.username == username)
+        )
+    ).first()
+    assert row is not None, "惰性建行后仍查不到 —— session 状态异常"
+    return row
 
 
 async def _write_real_role(

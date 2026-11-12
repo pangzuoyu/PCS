@@ -7,6 +7,7 @@ username 为键 ⇒ 若落库会污染同一行；而 `app/core/acl.py:13` 明�
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 
 async def _mk_user(db_session, *, username="alice", roles=None,
@@ -209,3 +210,84 @@ async def test_mock_login_does_not_touch_roles(db_session):
     ).first()
     assert row is not None
     assert row.roles == [], f"mock 改了 roles ⇒ 污染真实用户：{row.roles}"
+
+
+# === 评审 #25：并发首次登录 ⇒ 不能变成 500 ===
+
+
+class _FakeRow:
+    """一行 `users` 的最小替身（只带被读到的字段）。"""
+
+    def __init__(self, *, username, user_id, token_version=1, status="ACTIVE", roles=None):
+        self.username = username
+        self.user_id = user_id
+        self.token_version = token_version
+        self.status = status
+        self.roles = roles if roles is not None else []
+
+
+class _FakeResult:
+    def __init__(self, row):
+        self._row = row
+
+    def first(self):
+        return self._row
+
+
+class _RaceSession:
+    """模拟「并发首次登录」：**第一次 SELECT 见空** ⇒ flush 撞唯一约束。
+
+    ⚠️ 真库上：两个请求同时「SELECT 见空」⇒ 都 INSERT ⇒ **输家**撞
+    `users.username` 唯一约束 ⇒ `IntegrityError`（**不是** `PcsError`）
+    ⇒ 端点只捕 `PcsError` ⇒ 裸穿成 **500 INTERNAL_ERROR**
+    ⇒ 用户看到一个无任何解释的 500（而且是**偶发**的 ⇒ 极难复现）。
+    """
+
+    def __init__(self, *, username, user_id):
+        self.selects = 0
+        self.added = []
+        self.rolled_back = False
+        self._row = _FakeRow(username=username, user_id=user_id)
+
+    async def execute(self, stmt):
+        self.selects += 1
+        # ⚠️ **第一次** SELECT 见空（模拟「还没建行」）⇒ 走惰性建行分支
+        return _FakeResult(None if self.selects == 1 else self._row)
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    async def flush(self):
+        raise IntegrityError(
+            "INSERT INTO users ...",
+            params=None,
+            orig=Exception(
+                'violates unique constraint "users_username_key"'
+            ),
+        )
+
+    async def rollback(self):
+        self.rolled_back = True
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_login_race_does_not_become_a_500():
+    """⚠️ **并发首次登录** ⇒ 撞唯一约束**不是** 500（评审 #25）。
+
+    ⇒ 「另一个请求已经把行建好了」⇒ 回滚自己这次插入 ⇒ 重读那一行 ⇒ 照常签发。
+    """
+    from app.services.token_issuer import derive_user_id, issue_tokens
+
+    username = "racer"
+    session = _RaceSession(username=username, user_id=derive_user_id(username))
+
+    pair = await issue_tokens(
+        session=session, username=username, role="DESIGNER", persist_user=True
+    )
+
+    # ⚠️ 不抛 ⇒ 没变成 500
+    assert pair.token_version == 1
+    # ⚠️ 撞车后必须**回滚**自己那次插入（否则会话留在失败态 ⇒ 后续全挂）
+    assert session.rolled_back is True
+    # ⚠️ 签发用的是**那一行**的 tv（不是保留值 0）
+    assert pair.token_version == session._row.token_version

@@ -165,6 +165,23 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 2. **每请求判 `users.status`**（P9B-4 T0-B · TODO-132）：`current_actor`
    （actor 层）**每次请求**查一次 `users.status` ⇒ `DISABLED` ⇒ **401
    `USER_DISABLED`** ⇒ **在手 access token 立即失效**。
+   ⚠️⚠️ **覆盖面补齐（2026-11-12 · P9B-4 评审 #16 · 用户裁决「全部补齐」）**：
+   判定**不只在 actor 层** ⇒ **两个入口都判** ⇒
+   - `current_actor` ⇒ 全部业务端点；
+   - **`current_user`** ⇒ `GET /auth/me` + 6 个 `GET /meta/*`
+     ⇒ **`GET /auth/me` 对停用用户返 401** ⇒ 前端的**会话自查**不再返回
+     「会话有效」⇒ **不再有「僵尸会话」**。
+
+   ⇒ 「**一处判定、全局生效**」的准确含义是「**一处比较**」
+   （`user_status_service.is_disabled_status` · 评审 #10），
+   **不是**「只有一个入口」—— 两个入口复用**同一个**比较与同一个查库函数。
+   ⚠️ **查表键不同是刻意的**（actor 层按 `user_id`；登录按 `username`）
+   ⇒ **遗留行**（`user_id` ≠ 派生值 · TODO-137）上两条路径**会分歧**
+   ⇒ 详见 `app/services/user_status_service.py` 的模块 docstring。
+
+   ⚠️ **长连接例外已消除**（2026-11-12 · 评审 #6）：通知 WebSocket
+   （`/ws/notifications`）在**投递前复检**账号状态 ⇒ 停用用户的连接
+   **被关掉**、不再收到推送 ⇒ 「停用即刻作废」**不再有长连接例外**。
 
 > ⚠️ **第 2 道闸改变了本 ADR 的「已知边界」** —— 见下节。
 > 「30 分钟窗口」（access token 无状态、不查库）**不再成立**。

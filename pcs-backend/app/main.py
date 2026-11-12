@@ -5,7 +5,7 @@
 """
 
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -31,6 +31,33 @@ from app.services.coefficient_service import CoefficientService
 from app.services.system_setting_service import seed_defaults as seed_system_setting_defaults
 
 
+def _iter_mounted_paths(routes, prefix: str = "") -> Iterator[str]:
+    """**路由表**里实际挂载的全部路径（递归展开懒挂载包装）。
+
+    ⚠️ FastAPI ≥ 0.141 改成**懒挂载** ⇒ `include_router` 进来的 router 在
+    `app.routes` 里是一个**包装对象**（**没有 `path` 属性**）⇒ 只遍历一层
+    会**漏掉整棵子树** ⇒ 旧的「生产里 mock 路由不得挂载」断言**一直是空转**
+    （升级后失效了，却一直绿）。
+
+    ⇒ 这里**递归**下钻 `original_router.routes`，并把每一层的
+    `include_context.prefix` **累加**上去 ⇒ 拿到**完整路径**。
+
+    ⚠️ **不 import FastAPI 的私有类**（`_IncludedRouter`）⇒ 用**鸭子类型**
+    判定（有 `original_router` + `include_context` 就是包装对象）⇒
+    FastAPI 升级改名也不炸。
+    """
+    for route in routes:
+        original_router = getattr(route, "original_router", None)
+        include_context = getattr(route, "include_context", None)
+        if original_router is not None and include_context is not None:
+            child_prefix = prefix + (getattr(include_context, "prefix", "") or "")
+            yield from _iter_mounted_paths(original_router.routes, child_prefix)
+            continue
+        path = getattr(route, "path", None)
+        if path is not None:
+            yield prefix + path
+
+
 def assert_mock_auth_not_exposed(app: FastAPI, settings: Settings) -> None:
     """**部署期断言**：生产里 mock 登录**不得**可用（T0-F · TODO-135）。
 
@@ -40,16 +67,23 @@ def assert_mock_auth_not_exposed(app: FastAPI, settings: Settings) -> None:
        闸门就没了 ⇒ mock 登录签发**任意 role claim** 的 token = 完整 auth bypass）。
 
     非生产环境**一律放行**（dev/E2E 要用 mock 登录 ⇒ 显式 opt-in 即可）。
+
+    ## ①「挂没挂」看**路由表**（权威）
+
+    ⚠️ **只看 OpenAPI 会漏**（P9B-4 评审 #8）：`include_router(router,
+    include_in_schema=False)` ⇒ 路由**照样挂载**（`/auth/mock-login` 照样能打）
+    ⇒ 但 `app.openapi()["paths"]` 里**没有它** ⇒ 派生视图说「没挂」
+    ⇒ 断言**报绿** ⇒ 部署期闸门形同虚设。
+    ⇒ **路由表**才是权威（挂载与否是**挂载行为**决定的，不是**文档开关**）。
     """
     if not settings.is_production:
         return
     if settings.enable_mock_login:
         raise RuntimeError("PCS_ENABLE_MOCK_LOGIN MUST NOT be enabled in production")
-    # ⚠️ 用 **OpenAPI 的实际路径**判（**不**遍历 `app.routes`）：
-    #    FastAPI ≥ 0.141 改成**懒挂载** ⇒ `include_router` 进来的 router 在
-    #    `app.routes` 里是一个**没有 `path` 属性**的包装对象 ⇒ 只遍历
-    #    `app.routes` 会**漏掉整棵子树** ⇒ 旧的「生产里 mock 路由不得挂载」
-    #    断言**一直是空转**（升级后失效了，却一直绿）。
+    # ① **路由表**（权威）—— 递归展开懒挂载包装 ⇒ 拿到全部实际路径
+    if any(path.endswith("/mock-login") for path in _iter_mounted_paths(app.routes)):
+        raise RuntimeError("mock-login route MUST NOT be mounted in production")
+    # ② **OpenAPI**（派生视图）—— 留着当第二道（路由表查不到时的兜底）
     paths = app.openapi().get("paths", {})
     if any(path.endswith("/mock-login") for path in paths):
         raise RuntimeError("mock-login route MUST NOT be mounted in production")

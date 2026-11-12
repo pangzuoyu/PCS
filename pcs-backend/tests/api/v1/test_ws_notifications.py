@@ -358,6 +358,126 @@ def test_ws_rejects_invalid_token():
     assert exc.value.code == 1008
 
 
+# ==========================================================================
+# P9B-4 评审 #6 / #7 / #24：WS 通道的账号状态与失败路径
+# ==========================================================================
+
+
+def test_ws_handshake_db_failure_closes_instead_of_500(monkeypatch):
+    """⚠️ **握手期 DB 故障** ⇒ 不得裸穿成 500（评审 #7）。
+
+    握手里的鉴权会**查库**（判 `users.status`）⇒ 连接错误 / 连接池超时 /
+    语句超时都**不是** `PcsError` ⇒ 原先的 `except PcsError` 捕不到
+    ⇒ 异常逃出 ASGI 处理器 ⇒ 握手变成 **HTTP 500**（模块 docstring 承诺的
+    「关连接」没有兑现）⇒ 而且 WS 模块**什么日志都没有**。
+    """
+    from starlette.websockets import WebSocketDisconnect
+
+    from app.api.v1 import ws as ws_mod
+
+    async def _boom(*_args, **_kwargs):
+        raise RuntimeError("connection pool timeout")
+
+    monkeypatch.setattr(ws_mod, "_authenticate", _boom)
+
+    with TestClient(create_app()) as client:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(
+                "/api/v1/ws/notifications?token=x"
+            ) as ws:
+                ws.receive_text()
+    assert exc.value.code == 1008, "握手期后端故障必须以 policy violation 关闭"
+
+
+class _FakeWS:
+    """最小 WebSocket 替身（只带 sink 用到的两个方法）。"""
+
+    def __init__(self):
+        self.sent: list[dict] = []
+        self.closed: list[tuple[int | None, str | None]] = []
+
+    async def send_json(self, message: dict) -> None:
+        self.sent.append(message)
+
+    async def close(self, code=None, reason=None) -> None:
+        self.closed.append((code, reason))
+
+
+async def test_ws_sink_stops_delivering_to_a_disabled_user(
+    monkeypatch, db_session, db_engine
+):
+    """⚠️ **投递路径复检账号状态**（评审 #6 · 用户 2026-11-12 裁决「全部补齐」）。
+
+    握手只查**一次** ⇒ 握手之后才被停用的用户**继续收到推送**（直到 socket
+    自己断，而没有任何东西会断它）⇒ HTTP 侧「停用立即生效」与长连接侧的
+    实际行为**不一致**。
+
+    ⇒ 投递前**复检** ⇒ 停用 ⇒ 关连接 + 不再投递。
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.api.v1 import ws as ws_mod
+    from app.models.project import User
+
+    username = "ws-sink-disabled"
+    user_id = uuid.uuid5(uuid.NAMESPACE_DNS, username)
+    db_session.add(
+        User(
+            user_id=user_id,
+            username=username,
+            display_name=username,
+            roles=["DESIGNER"],
+            ad_groups=[],
+            status="DISABLED",
+        )
+    )
+    await db_session.commit()
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    monkeypatch.setattr(ws_mod, "get_async_session_factory", lambda: factory)
+
+    ws = _FakeWS()
+    sink = ws_mod._make_sink(ws, user_id)
+    await sink({"notification_id": "n-1"})
+
+    assert ws.sent == [], "停用用户不该再收到推送"
+    assert ws.closed == [(1008, "USER_DISABLED")]
+
+
+async def test_ws_sink_still_delivers_to_an_active_user(
+    monkeypatch, db_session, db_engine
+):
+    """⚠️ **对照组**：正常用户**照常收到**（复检不许把推送打死）。"""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.api.v1 import ws as ws_mod
+    from app.models.project import User
+
+    username = "ws-sink-active"
+    user_id = uuid.uuid5(uuid.NAMESPACE_DNS, username)
+    db_session.add(
+        User(
+            user_id=user_id,
+            username=username,
+            display_name=username,
+            roles=["DESIGNER"],
+            ad_groups=[],
+            status="ACTIVE",
+        )
+    )
+    await db_session.commit()
+
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    monkeypatch.setattr(ws_mod, "get_async_session_factory", lambda: factory)
+
+    ws = _FakeWS()
+    sink = ws_mod._make_sink(ws, user_id)
+    await sink({"notification_id": "n-2"})
+
+    assert ws.sent == [{"notification_id": "n-2"}]
+    assert ws.closed == []
+
+
 @pytest.mark.skipif(not _redis_up(), reason="真 Redis 未运行（docker compose up redis）")
 def test_ws_delivers_notification_published_by_another_worker():
     """端到端跨进程推送：连接在 worker A 上，发布在 worker B 上。
