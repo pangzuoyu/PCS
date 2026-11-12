@@ -49,6 +49,25 @@ def _source() -> str:
     return MIGRATION.read_text(encoding="utf-8")
 
 
+def _create_index_calls(src: str) -> list[ast.Call]:
+    """迁移里**所有** `op.create_index(...)` 调用（**按 AST 找**，不按字符串）。
+
+    ⚠️ `op` 是裸名字接收者 ⇒ `alembic.op.create_index(...)` 这种别名写法
+    **扫不到**（评审 P-1：迁移棘轮只看裸 `op.` 接收者）—— 那是另一条
+    pre-existing 发现，不在本用例范围内。
+    """
+    tree = ast.parse(src)
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "create_index"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "op"
+    ]
+
+
 def test_migration_exists_and_is_chained_to_p9_015() -> None:
     """`revision = p10_001` / `down_revision = p9_015`（p9_015 是当前 head）。"""
     assert MIGRATION.exists(), "p10_001 迁移文件不存在"
@@ -96,11 +115,33 @@ def test_request_id_unique_index_is_partial() -> None:
     """唯一索引是 partial（`WHERE request_id IS NOT NULL`）。
 
     ⚠️ **既有 SUP-006 行 `request_id` 为 NULL** ⇒ 非 partial 会因重复 NULL 失败。
+
+    ⚠️⚠️ **必须按「调用块」结构查，不能全文匹配字符串**（评审 #10 · 2026-11-12）：
+    旧写法是 `assert "request_id IS NOT NULL" in src` ⇒ 而**同一句话就在迁移的
+    docstring 里** ⇒ 把 `postgresql_where=sa.text(...)` 删掉，这句断言**照样绿**
+    ⇒ 守门守不住它要守的东西（这正是
+    `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` 记的那类）。
+    ⇒ 这里用 **AST** 找到那个 `op.create_index(...)` 调用，再看它的
+    **`postgresql_where` 关键字**。
     """
     src = _source()
-    assert "ux_ai_audit_log_request_id" in src
-    assert "unique=True" in src
-    assert "request_id IS NOT NULL" in src
+    calls = _create_index_calls(src)
+    partial = [
+        call
+        for call in calls
+        if call.args
+        and isinstance(call.args[0], ast.Constant)
+        and call.args[0].value == "ux_ai_audit_log_request_id"
+    ]
+    assert partial, "迁移里没有 ux_ai_audit_log_request_id 的 op.create_index"
+
+    kwargs = {kw.arg: kw.value for kw in partial[0].keywords if kw.arg}
+    assert "postgresql_where" in kwargs, (
+        "唯一索引必须声明 postgresql_where（partial）—— 缺了它，"
+        "PG 的 ON CONFLICT (request_id) 就匹配不到这个索引 ⇒ 每次写审计行都炸"
+    )
+    assert "request_id IS NOT NULL" in ast.unparse(kwargs["postgresql_where"])
+    assert "unique" in kwargs, "唯一索引必须 unique=True"
 
 
 def test_create_index_uses_if_not_exists() -> None:

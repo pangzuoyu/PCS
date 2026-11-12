@@ -163,6 +163,7 @@ async def main():
 asyncio.run(main())
 '''
 
+    cleanup: subprocess.CompletedProcess[str] | None = None
     try:
         created = subprocess.run(
             [
@@ -223,7 +224,12 @@ print("UPGRADE_OK")
         )
         assert "AI_AUDIT_PG_OK" in result.stdout, result.stdout
     finally:
-        subprocess.run(
+        # ⚠️⚠️ **清理失败要响亮**（评审 #11 · 2026-11-12）——
+        # `DROP SCHEMA` 失败 ⇒ **孤儿 schema 留在开发库里**、而 DDL 已经落地
+        # ⇒ 下一次跑会撞上残骸 ⇒ 排查方向被带偏。
+        # ⚠️ 断言**放在 try/finally 之外**（在 finally 里断言会**掩盖**
+        # try 块里真正的错误）⇒ 这里只**记录**结果，事后断言。
+        cleanup = subprocess.run(
             [
                 sys.executable,
                 "-c",
@@ -245,3 +251,9 @@ asyncio.run(main())
             text=True,
             timeout=300,
         )
+
+    # ⚠️ 只有在 try 块**成功**时才会走到这里 ⇒ 断言清理结果。
+    assert cleanup is not None and cleanup.returncode == 0, (
+        f"隔离 schema 清理失败（孤儿 schema 留在库里）:\n"
+        f"{cleanup.stderr if cleanup is not None else '（清理没跑）'}"
+    )
