@@ -25,7 +25,7 @@ import logging
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,14 +76,27 @@ def _row_values(fields: dict[str, Any]) -> dict[str, Any]:
 def _build_insert(values: dict[str, Any], *, is_postgres: bool):
     """构造插入语句（**方言相关**）。
 
-    - PG ⇒ `INSERT ... ON CONFLICT (request_id) DO NOTHING`（原子幂等）
+    - PG ⇒ `INSERT ... ON CONFLICT (request_id) WHERE request_id IS NOT NULL
+      DO NOTHING`（原子幂等）
     - 其它（单测的 SQLite）⇒ ORM 实体（`ON CONFLICT` 在 SQLite 上不可用）
+
+    ⚠️⚠️ **`index_where` 必须与 partial 唯一索引的谓词**逐字一致** ——
+    唯一索引是 **partial** 的（`WHERE request_id IS NOT NULL`）⇒ PG 的
+    `ON CONFLICT (request_id)` **匹配不到它** ⇒ 抛
+    `InvalidColumnReferenceError: there is no unique or exclusion constraint
+    matching the ON CONFLICT specification`
+    ⇒ **每次写 AI 审计都炸**，而单测（SQLite）照绿。
+    ⇒ 加上 `index_where` 后，PG 才能对上那个 partial 索引。
+    （真 PG 用例：`tests/services/ai/test_ai_audit_task_pg.py`。）
     """
     if is_postgres:
         return (
             pg_insert(AiAuditLog)
             .values(**values)
-            .on_conflict_do_nothing(index_elements=["request_id"])
+            .on_conflict_do_nothing(
+                index_elements=["request_id"],
+                index_where=text("request_id IS NOT NULL"),
+            )
         )
     return AiAuditLog(**values)
 

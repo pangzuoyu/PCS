@@ -67,9 +67,15 @@ def designer_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def recorded_audits(monkeypatch) -> list[dict]:
     """截住中间件的入队（**不真连 Redis**）。
+
+    ⚠️ **autouse**：本模块的**每个**用例都必须拦住入队 ——
+    否则没用 `recorded_audits` 的那两条会**真的把 job 入进 Redis**
+    ⇒ 单测污染队列（实测：这些 job 后来被 worker 捡到 ⇒ 队列里躺着
+    一堆测试残留）。
+    ⇒ autouse + 每个用例自己从 `recorded_audits` 里读断言。
 
     ⚠️ **patch 的是中间件模块里的那个引用**
     （`app.core.ai_audit_middleware.enqueue_ai_audit_log`），
