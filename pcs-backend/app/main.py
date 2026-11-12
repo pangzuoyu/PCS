@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import api_router
 from app.api.v1.mock_auth import router as mock_auth_router
@@ -89,6 +90,38 @@ def assert_mock_auth_not_exposed(app: FastAPI, settings: Settings) -> None:
         raise RuntimeError("mock-login route MUST NOT be mounted in production")
 
 
+async def _validate_ai_startup_config(session: AsyncSession, settings: Settings) -> None:
+    """**启动时**校验 AI 配置（SPEC §3.2.1(5)）。
+
+    ⚠️ **读不到 DB ⇒ 降级为跳过 + 记 warning** ⇒ 不因 AI 配置挡住整个服务启动
+    （AI 在 P10 阶段是**预留**功能，不该有能力把服务拖垮）。
+    ⚠️ **非法 CIDR ⇒ 启动即失败**（不降级）—— 那属于**配置写错**，
+    必须在启动时看到，而不是等到真开 AI 才发现。
+    """
+    import logging
+
+    from app.core.ai_cidr import parse_cidrs, validate_ai_startup_config
+    from app.services.system_setting_service import get_setting_value
+
+    log = logging.getLogger(__name__)
+
+    # ⚠️ 先解析 CIDR（**即使 AI 关着**）：非法值是配置写错 ⇒ 启动即报。
+    cidrs = parse_cidrs(settings.internal_cidrs)
+
+    try:
+        ai_enabled = bool(await get_setting_value(session, "ai_enabled", default=False))
+        endpoint = (await get_setting_value(session, "ai_endpoint", default=None)) or (
+            settings.ai_endpoint
+        )
+    except Exception as exc:  # noqa: BLE001 — 读不到库不该挡住启动
+        log.warning("读取 AI 配置失败，跳过 AI 启动校验：%s", exc)
+        return
+
+    validate_ai_startup_config(
+        ai_enabled=ai_enabled, endpoint=endpoint, cidrs=cidrs
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """FastAPI 应用生命周期（启动/关闭 hook）。
@@ -117,6 +150,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with factory() as session:
         await CoefficientService.seed_default_tables(session)
         await seed_system_setting_defaults(session)
+        # ⚠️ **AI 启动校验**（SPEC §3.2.1(5)）：`ai_enabled` 为真时 endpoint
+        #    必须存在、且必须解析到内网 CIDR ⇒ 否则**启动即失败**
+        #    （而不是等到第一次调用才发现打到了公网 —— SPEC §2.5「私有化强制」）。
+        #
+        #    ⚠️ 有效开关 = `system_settings.ai_enabled`（**单一真相源** · 偏离 D13）；
+        #    endpoint = `system_settings.ai_endpoint`，为空则回退 env 的 `AI_ENDPOINT`。
+        #    ⚠️ 读不到 DB 时**降级为跳过 + 记 warning** ⇒ 不因 AI 配置挡住整个服务启动。
+        #
+        #    ⚠️ **CIDR 串总是先解析**（即使 AI 关着）—— 非法 CIDR 属于**配置写错**
+        #    ⇒ 启动时就要看到，而不是等到真开 AI 才发现。
+        await _validate_ai_startup_config(session, settings)
     try:
         yield
     finally:
