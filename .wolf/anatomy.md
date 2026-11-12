@@ -1,20 +1,20 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-11T14:21:20.977Z
-> Files: 1213 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T00:54:51.683Z
+> Files: 1221 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~1609 tok)
+- `CLAUDE.md` — OpenWolf (~1926 tok)
 - `CONCEPTS.md` — Concepts (~1673 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~1290 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5562 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~30062 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~30211 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -193,6 +193,7 @@
 - `qa-report-pcs-frontend-2026-11-04-p9b4.md` — QA 报告 —— P9B-4 体验批（T0-A~T0-F + T1 + T2） (~1034 tok)
 - `qa-report-pcs-frontend-2026-11-09-stream-guard.md` — QA 报告 — PCS 前端 · 物流面项目守卫 + review-log（2026-11-09） (~549 tok)
 - `qa-report-pcs-frontend-2026-11-10-review-log-fix.md` — QA 报告 — PCS 前端 · 校核记录 Tab 修复后回归（2026-11-10） (~651 tok)
+- `qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md` — QA 报告 —— P9B-4 评审修复批（2026-11-12） (~1196 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -370,7 +371,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~18524 tok)
+- `PCS-UI-SPEC.md` (~18952 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -406,7 +407,7 @@
 - `0032-vessel-process-calculation.md` — VESSEL 工艺计算架构（P5-1 容器计算） (~2158 tok)
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
-- `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~2850 tok)
+- `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~3031 tok)
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3977 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
@@ -480,7 +481,8 @@
 
 ## docs/ce-code-review/20261111-181548-7b8a5dca/
 
-- `README.md` — Project documentation (~765 tok)
+- `README.md` — Project documentation (~793 tok)
+- `ROUND-2-ADDENDUM.md` — 第二轮补正（2026-11-12）—— maintainability 迟交并入 + 跨模型对抗审查 (~1670 tok)
 
 ## docs/contracts/
 
@@ -1251,15 +1253,15 @@
 
 ## pcs-backend/app/
 
-- `main.py` — FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。 (~1794 tok)
+- `main.py` — FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。 (~2182 tok)
 
 ## pcs-backend/app/api/v1/
 
 - `__init__.py` (~1874 tok)
 - `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~1599 tok)
-- `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~819 tok)
+- `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1088 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
-- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
+- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3928 tok)
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5944 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
@@ -1268,7 +1270,7 @@
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~536 tok)
-- `lineage.py` — Lineage API（Sprint 3）。 (~3142 tok)
+- `lineage.py` — Lineage API（Sprint 3）。 (~3731 tok)
 - `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1958 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~692 tok)
 - `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
@@ -1293,7 +1295,7 @@
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
-- `ws.py` — WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。 (~1176 tok)
+- `ws.py` — WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。 (~1864 tok)
 
 ## pcs-backend/app/core/
 
@@ -1347,7 +1349,7 @@
 
 ## pcs-backend/app/services/
 
-- `ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，ADR-0046 §⑤）。 (~1532 tok)
+- `ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，ADR-0046 §⑤）。 (~1791 tok)
 - `admin_user_service.py` — ADMIN 用户管理的**写入层**（SPEC P9A-ADM-002，ADR-0046 §⑤）。 (~681 tok)
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
@@ -1361,7 +1363,7 @@
 - `exceptions.py` — PCS service 层统一异常。 (~1750 tok)
 - `import_service.py` — P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。 (~7743 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
-- `lineage_registry.py` — 血缘守卫的记录类型注册表（**派生**，不手抄）—— P9B-4 T0-D（TODO-136）。 (~594 tok)
+- `lineage_registry.py` — 血缘守卫的记录类型注册表（**派生**，不手抄）—— P9B-4 T0-D（TODO-136）。 (~780 tok)
 - `lineage.py` — 血缘追踪（Sprint 3）。 (~3101 tok)
 - `notification_query_service.py` — 通知读 / 标已读（ADR-0049 §① + §⑤ 约束 1）。 (~938 tok)
 - `notification_recipients.py` — 角色 → 收件人解析（通知接线 C1b 与待办实时计算 C4 的**共用** helper）。 (~808 tok)
@@ -1376,12 +1378,12 @@
 - `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
 - `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~5708 tok)
 - `stream_review_log_service.py` — 读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。 (~966 tok)
-- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~8001 tok)
+- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~8389 tok)
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1252 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
-- `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1986 tok)
+- `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~2413 tok)
 - `user_project_service.py` — UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。 (~3146 tok)
-- `user_status_service.py` — 用户**账号状态**判定（P9B-4 T0-B · TODO-132）。 (~448 tok)
+- `user_status_service.py` — 用户**账号状态**判定（P9B-4 T0-B · TODO-132 · 评审 #10）。 (~740 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
 
 ## pcs-backend/app/services/cool_tower/
@@ -1481,12 +1483,12 @@
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
-- `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~1889 tok)
+- `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~2231 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3389 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
-- `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~2166 tok)
+- `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~2889 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
 ## pcs-backend/tests/alembic/
@@ -1516,6 +1518,7 @@
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
 - `test_deliverables_current_version.py` — 交付物「当前版本 id」（P9B-1 Task T0）。 (~2829 tok)
 - `test_deliverables_progress_aggregate.py` — TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。 (~3941 tok)
+- `test_disabled_user_endpoints.py` — **停用覆盖面**：`current_user` 背后的 7 个端点（P9B-4 评审 #16）。 (~1044 tok)
 - `test_edit_acl_order.py` — 编辑端点的**鉴权顺序**守卫 —— P9A-4 D2 修的既有越权洞。 (~1157 tok)
 - `test_edit_conflict.py` — 编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。 (~2340 tok)
 - `test_edit_lock_api.py` — 编辑锁 API 测试 —— P9A-4 D1（ADR-0048 §①⑤ · SPEC §6.21）。 (~2367 tok)
@@ -1523,6 +1526,7 @@
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_lineage_by_source_ref.py` — 物流血缘的「按源引用查」+ 合成 root —— P9B-4 T0-D（TODO-136）。 (~5134 tok)
 - `test_lineage_guard.py` — 血缘端点的项目守卫 —— P9B-4 紧急批次 T5（TODO-114）。 (~1817 tok)
+- `test_lineage_review_fixes.py` — P9B-4 评审的**血缘面**修复（#3 / #4 / #9 / #11）。 (~3948 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
@@ -1548,6 +1552,7 @@
 - `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3795 tok)
 - `test_stream_source.py` — `streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。 (~2312 tok)
 - `test_stream_workspace_ownership.py` — 物流创建的 **workspace 归属** —— P9B-4 T0-C（TODO-133）。 (~2016 tok)
+- `test_streams_delete_reference_blocking.py` — P3.x SIM-35：DELETE /streams/{id} 被引用时不可删除。 (~2641 tok)
 - `test_strict_client_fixture.py` — `strict_client` fixture 本身的测试 —— P9B-4 紧急批次 T1。 (~1064 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
 - `test_system_settings.py` — 系统参数 CRUD（§7.20.1 · P9B-3 · T4）。 (~1728 tok)
@@ -1555,7 +1560,7 @@
 - `test_user_disabled_guard.py` — 禁用用户不得访问物流面 —— P9B-4 T0-B（TODO-132）。 (~2443 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
 - `test_workspace_type_guard.py` — **工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。 (~2293 tok)
-- `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~5415 tok)
+- `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
 - `test_zz_probe_cross_project.py` — 临时探针（**不提交**）：验证 TODO-113 / TODO-114 的越权是否**真实可达**。 (~885 tok)
 
 ## pcs-backend/tests/architecture/
@@ -1631,6 +1636,7 @@
 - `test_stream_batch_service.py` — 批次「提交校对」的地基能力（P9B-3b · T1）。 (~11179 tok)
 - `test_stream_reference_count.py` — 物流「被引用数」的口径（P9B-4 · TODO-108）。 (~2544 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
+- `test_user_status_service.py` — **账号停用判定**的单一判定点（P9B-4 评审 #10）。 (~1734 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1270 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
 - `test_zz_dryrun_probe.py` — 探针：dry_run 对「状态不允许提交」的物流是否给出**假绿**。 (~629 tok)
@@ -1734,6 +1740,7 @@
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~994 tok)
 - `changeImpact.ts` — 变更影响（CIA）客户端（P9B-1 · SPEC §6.7.1 · ADR-0048）。 (~717 tok)
 - `changeNotices.ts` — 变更单闭环 API 客户端（TODO-083 · P9A-DLV-011 T4 的前端面）。 (~714 tok)
+- `client.ts` — 401 里**表示会话结束**的错误码。 (~776 tok)
 - `deliverables.ts` — 交付物读面客户端 —— P9B-2 · SPEC §6.24 / §7.19。 (~1437 tok)
 - `errors.ts` — 统一错误信封的解析（P9B-1 · SPEC §6.21 P9A-LCK-006）。 (~1318 tok)
 - `health.ts` — 健康检查客户端（P9B-1 · SPEC §6.23 / P9A-NOT-006）。 (~189 tok)
@@ -1787,7 +1794,7 @@
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~322 tok)
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~16413 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~16489 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
@@ -1851,12 +1858,12 @@
 ## pcs-frontend/src/pages/sim/
 
 - `StreamDetailPage.tsx` — StreamDetailPage — SIM 物流详情（SPEC §7.7.2 · P9B-3 · T8）。 (~1514 tok)
-- `StreamListPage.tsx` — SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。 (~4315 tok)
+- `StreamListPage.tsx` — SIM 物流列表页（SPEC §7.7.1 · P9B-3 · T6）。 (~4983 tok)
 - `StreamManualWizardPage.tsx` — 物流手动创建向导（SPEC §7.7.3「手工」分支 · P9B-3 · T7）。 (~5750 tok)
 
 ## pcs-frontend/src/pages/sim/hooks/
 
-- `useStreamBatchSubmit.ts` — 批次「提交校对」的状态持有者（P9B-4 · TODO-116）。 (~910 tok)
+- `useStreamBatchSubmit.ts` — 批次「提交校对」的状态持有者（P9B-4 · TODO-116）。 (~1064 tok)
 
 ## pcs-frontend/src/pages/sim/tabs/
 
@@ -1891,6 +1898,7 @@
 - `errors.test.ts` — api/errors —— 共享错误格式化器（评审 #7：errorText 统一到 api 层后需直测）。 (~291 tok)
 - `record_actions_api.test.ts` — 记录级写面客户端的**请求契约**（P9B-2 · T3 · SPEC §6.3 / §7.19.1）。 (~1631 tok)
 - `records_api.test.ts` — 记录域 API 客户端的**请求契约**（P9B-1 Task T1）。 (~1821 tok)
+- `session_over_codes.test.ts` — 401「会话结束码」白名单（P9B-4 评审 #1）。 (~1244 tok)
 - `signature_matrices_api.test.ts` — 签署矩阵管理 API 客户端的**请求契约**（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1650 tok)
 
 ## pcs-frontend/tests/components/common/
@@ -1970,9 +1978,9 @@
 
 - `StreamDetailPage.test.tsx` — StreamDetailPage 测试（P45-3-1 / Task 28 下半）。 (~804 tok)
 - `streamDetailTabs.test.tsx` — 物流详情页 7 Tab 测试（SPEC §7.7.2 · P9B-3 · T8）。 (~1641 tok)
-- `StreamListPage.test.tsx` — SIM 物流列表页测试（SPEC §7.7.1 · P9B-3 · T6）。 (~1910 tok)
+- `StreamListPage.test.tsx` — SIM 物流列表页测试（SPEC §7.7.1 · P9B-3 · T6）。 (~7822 tok)
 - `streamManualWizard.test.tsx` — 物流手动创建向导测试（SPEC §7.7.3「手工」分支 · P9B-3 · T7）。 (~2214 tok)
-- `useStreamBatchSubmit.test.ts` — 批次「提交校对」hook 的失败清单语义（P9B-4 · TODO-116）。 (~2000 tok)
+- `useStreamBatchSubmit.test.ts` — 批次「提交校对」hook 的失败清单语义（P9B-4 · TODO-116）。 (~2399 tok)
 
 ## pcs-frontend/tests/pages/sim/tabs/
 

@@ -3302,3 +3302,69 @@
 | 18:04 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md | expanded (+9 lines) | ~116 |
 | 18:06 | Edited pcs-backend/tests/services/test_stream_reference_count.py | expanded (+7 lines) | ~111 |
 | 22:21 | Created docs/ce-code-review/20261111-181548-7b8a5dca/README.md | — | ~816 |
+| 22:37 | Edited docs/ce-code-review/20261111-181548-7b8a5dca/README.md | 2→3 lines | ~67 |
+| 07:15 | Created docs/ce-code-review/20261111-181548-7b8a5dca/ROUND-2-ADDENDUM.md | — | ~1782 |
+| 07:30 | Created pcs-frontend/tests/api/session_over_codes.test.ts | — | ~1170 |
+| 07:31 | Edited pcs-frontend/tests/api/session_over_codes.test.ts | 3→3 lines | ~46 |
+| 07:32 | Edited pcs-frontend/src/api/client.ts | expanded (+18 lines) | ~310 |
+| 07:32 | Edited pcs-frontend/tests/api/session_over_codes.test.ts | 3→4 lines | ~55 |
+| 07:33 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | modified test_delete_blocked_when_downstream_stream_references() | ~509 |
+| 07:33 | Edited pcs-backend/app/services/stream_service.py | added error handling | ~192 |
+| 07:33 | Edited pcs-backend/app/services/stream_service.py | expanded (+20 lines) | ~539 |
+| 07:35 | Created pcs-backend/tests/api/v1/test_lineage_review_fixes.py | — | ~3947 |
+| 07:36 | Edited pcs-backend/tests/api/v1/test_lineage_review_fixes.py | 2→2 lines | ~20 |
+| 07:36 | Edited pcs-backend/app/api/v1/lineage.py | 7→7 lines | ~111 |
+| 07:36 | Edited pcs-backend/app/api/v1/lineage.py | modified upstream() | ~539 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | 2→2 lines | ~25 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | modified downstream() | ~466 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | expanded (+10 lines) | ~441 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | modified _stream_graph() | ~280 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | modified _stream_graph() | ~28 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | 2→1 lines | ~11 |
+| 07:37 | Edited pcs-backend/app/api/v1/lineage.py | inline fix | ~21 |
+| 07:37 | Edited pcs-backend/app/services/lineage_registry.py | expanded (+15 lines) | ~238 |
+| 07:37 | Edited pcs-backend/app/services/lineage_registry.py | added 1 import(s) | ~58 |
+| 07:37 | Edited pcs-backend/tests/api/v1/test_lineage_review_fixes.py | inline fix | ~20 |
+| 08:01 | Edited pcs-backend/tests/test_mock_auth.py | modified test_development_passes_the_startup_assertion() | ~15 |
+| 08:01 | Edited pcs-backend/tests/test_mock_auth.py | modified test_production_with_mock_route_hidden_from_openapi_still_fails_startup() | ~262 |
+| 08:01 | Created pcs-backend/tests/services/test_user_status_service.py | — | ~1618 |
+| 08:01 | Edited pcs-backend/tests/services/test_user_status_service.py | modified _is_disabled_ref() | ~356 |
+| 08:02 | Edited pcs-backend/tests/services/test_user_status_service.py | modified _dotted_name() | ~177 |
+| 08:02 | Edited pcs-backend/app/services/user_status_service.py | modified is_disabled_status() | ~740 |
+| 08:02 | Edited pcs-backend/app/services/token_issuer.py | inline fix | ~17 |
+| 08:02 | Edited pcs-backend/app/services/token_issuer.py | added 1 import(s) | ~61 |
+| 08:02 | Edited pcs-backend/app/services/ad_sync.py | inline fix | ~18 |
+| 08:02 | Edited pcs-backend/app/services/ad_sync.py | added 1 import(s) | ~34 |
+| 08:03 | Edited pcs-backend/app/main.py | modified _iter_mounted_paths() | ~673 |
+| 08:03 | Edited pcs-backend/app/main.py | inline fix | ~15 |
+| 08:03 | Edited pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | expanded (+38 lines) | ~470 |
+| 08:04 | Edited pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | expanded (+6 lines) | ~105 |
+| 08:04 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | modified exportCsv() | ~227 |
+| 08:04 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | 2→3 lines | ~45 |
+| 08:04 | Edited pcs-frontend/tests/pages/sim/useStreamBatchSubmit.test.ts | added optional chaining | ~285 |
+| 08:04 | Edited pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts | modified useCallback() | ~275 |
+| 08:04 | Edited pcs-frontend/src/pages/sim/hooks/useStreamBatchSubmit.ts | 5→9 lines | ~81 |
+| 08:05 | Edited pcs-backend/tests/test_token_issuer.py | modified __init__() | ~643 |
+| 08:05 | Edited pcs-backend/tests/test_token_issuer.py | added 1 import(s) | ~20 |
+| 08:05 | Edited pcs-backend/tests/test_token_issuer.py | modified flush() | ~68 |
+| 08:05 | Edited pcs-backend/app/services/token_issuer.py | added error handling | ~626 |
+| 08:05 | Edited pcs-backend/app/services/token_issuer.py | added 1 import(s) | ~26 |
+| 08:05 | Edited pcs-backend/app/services/token_issuer.py | modified _create_user_row() | ~32 |
+| 08:05 | Edited pcs-backend/app/services/token_issuer.py | added 1 import(s) | ~20 |
+| 08:07 | Created pcs-backend/tests/api/v1/test_disabled_user_endpoints.py | — | ~1044 |
+| 08:07 | Edited pcs-backend/app/api/v1/auth.py | added error handling | ~511 |
+| 08:07 | Edited pcs-backend/app/api/v1/auth.py | added 1 import(s) | ~55 |
+| 08:07 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | modified test_ws_rejects_invalid_token() | ~1159 |
+| 08:07 | Edited pcs-backend/app/api/v1/ws.py | modified notifications_ws() | ~985 |
+| 08:07 | Edited pcs-backend/app/api/v1/ws.py | added 1 import(s) | ~36 |
+| 08:10 | Edited TODOS.md | expanded (+13 lines) | ~248 |
+| 08:10 | Edited pcs-backend/app/api/v1/admin_users.py | expanded (+7 lines) | ~113 |
+| 08:11 | Edited docs/PCS-UI-SPEC.md | expanded (+15 lines) | ~178 |
+| 08:11 | Edited docs/PCS-UI-SPEC.md | 1→6 lines | ~69 |
+| 08:34 | Edited docs/PCS-UI-SPEC.md | expanded (+8 lines) | ~119 |
+| 08:34 | Edited docs/PCS-UI-SPEC.md | 1→3 lines | ~176 |
+| 08:34 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+17 lines) | ~239 |
+| 08:53 | Edited pcs-frontend/src/mocks/handlers.ts | 1→4 lines | ~65 |
+| 08:53 | Edited pcs-frontend/src/mocks/handlers.ts | "2026-09-15T14:00:00+00:00" → "2026-09-15T14:00:00Z" | ~12 |
+| 08:54 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md | — | ~1275 |
+| 08:54 | Edited CLAUDE.md | 4→6 lines | ~101 |
