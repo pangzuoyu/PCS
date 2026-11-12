@@ -179,8 +179,15 @@ export interface paths {
          *     2. `token_version += 1` —— **已签发的 refresh 全部失效**（跨进程有效）
          *     3. 写 `USER_DISABLED` 审计（谁停的）
          *
-         *     ⚠️ 已知边界（不得表述为已解决）：`access` token 不带 `tv`，
-         *     在手 access 仍可用至过期（默认 30 分钟）。见 ADR-0046 §⑤。
+         *     ⚠️ 已知边界（**不得**表述为已解决）：
+         *     - **停用本身** ⇒ **下一次请求就生效**（actor 层每次查 `users.status`
+         *       ⇒ 401 `USER_DISABLED`）—— 这一点**已解决**（P9B-4 T0-B · 评审 #16
+         *       把 `current_user` 也纳入了判定面）。
+         *     - **仍然成立的边界** ⇒ **`access` token 不带 `tv`** ⇒ **角色变更**
+         *       （升/降级）**不会立即生效**（要等 refresh 重签）；
+         *       而 `refresh` token 带 `tv` ⇒ `token_version += 1` ⇒ **已签发的
+         *       refresh 全部作废**（跨进程有效）。
+         *     见 ADR-0046 §⑤。
          */
         put: operations["put_disable_user_api_v1_admin_users__user_id__disable_put"];
         post?: never;
