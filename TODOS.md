@@ -3233,6 +3233,81 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 
 ⇒ SPEC §7.7.1 已同步（V2.15）。
 
+## TODO-144: WS 握手拒绝的**原因**到不了客户端（accept 前 close ⇒ HTTP 403） 🟡
+
+**现状**（2026-11-12 · P9B-4 评审 **#24** 的**剩余一半** · 评审给的两个选项里
+选了**最小方案**，传输层那一半未做）：
+
+`app/api/v1/ws.py` 的握手失败路径调 `websocket.close(code=1008, reason=<code>)`
+**且是在 `accept()` 之前** ⇒ 按 ASGI 规则，服务端会把它当成 **HTTP 403 握手拒绝**
+⇒ close code（1008）与 reason（`USER_DISABLED` / `MISSING_TOKEN` /
+`INVALID_TOKEN` / `HANDSHAKE_FAILED`）**到不了客户端**
+⇒ **每一种拒绝在客户端看来完全一样**。
+
+⚠️ **更隐蔽的一半**：Starlette 的 `TestClient` 会把 accept 前的 close **还原成**
+`WebSocketDisconnect(1008)` ⇒ **测试观察到的是一个部署里并不存在的拒绝语义**
+⇒ 「绿灯的测试，nobody 能观测的通道」。
+⇒ 本批已做的（最小方案）：**原因写进日志**（`logger.warning`）
++ docstring **不再**承诺「客户端能区分拒绝原因」+ 契约测试旁加注。
+
+**证据**：`app/api/v1/ws.py::notifications_ws` 的 docstring（§「拒绝原因只对日志可见」）
++ `tests/api/v1/test_ws_notifications.py::test_ws_requires_a_token`（断言 1008）。
+
+**要真正做到「原因到达客户端」** ⇒ 必须 **先 `accept()` 再 `close(code, reason)`**
+⇒ 客户端会看到「**连上了又断**」⇒ 与本模块 docstring 原来的论证
+（「先 accept 再关会让前端把它记成『连上了但没消息』」）**直接冲突**
+⇒ **这是传输层的设计裁决**，不是 bug 修复 ⇒ 需要**产品/架构裁决**：
+- **选项 A**（本批现状）：拒绝原因**只对日志可见** ⇒ 客户端只能看到
+  「连不上」，**不能**区分「被停用」与「token 坏了」；
+- **选项 B**：先 accept 再 close ⇒ 原因到达客户端 ⇒ 客户端要能处理
+  「刚连上就断」这一状态（前端目前**没有** WS 消费者）。
+
+⚠️ **暴露面**：本仓**没有** `/api/v1/ws/notifications` 的前端调用方
+⇒ 选项 B 的前端配套成本目前是 **0** ⇒ 若将来接上前端，**趁那时**一起做。
+
+**触发条件**：前端开始消费通知 WebSocket，且需要区分拒绝原因
+⇒ 那时做选项 B（**含**前端「连上即断」的处理）。
+
+⇒ 归属：独立设计债（不进 P9B-4 评审修复批）。
+
+## TODO-145: 遗留账号行上，登录路径与每请求路径的停用判定**相反** 🟡
+
+**现状**（2026-11-12 · P9B-4 评审 **#10** 逼出来的**诚实边界**）：
+
+停用判定**两个入口**、**两个查表键**（**刻意的** —— 登录时只有用户名）：
+
+| 入口 | 查表键 | 停用的遗留账号 |
+|---|---|---|
+| 登录（`token_issuer.issue_tokens`） | `users.username` | **查到** ⇒ **拒** ✅ |
+| 每请求（`current_actor` / `current_user`） | `users.user_id` | **查不到** ⇒ **放行** ❌ |
+
+⇒ 一个 `user_id` ≠ 派生值、且 `status = DISABLED` 的**遗留账号**：
+**登录被拒，但手里已发出的 token 仍能访问** ⇒ 「停用即刻」在它身上**不成立**。
+
+**证据**：`app/services/user_status_service.py` 的模块 docstring（「查表键不同是
+刻意的」＋「两条路径在遗留行上会给出相反结论」）+ ADR-0046 §⑤ 同段
++ `tests/services/test_user_status_service.py::test_legacy_row_is_denied_at_login_but_allowed_by_the_actor_layer`
+（**钉住现状**，不是认可它 ⇒ 将来谁改成按 username 查 ⇒ 该测试会红
+⇒ 那时正好该把本条与 docstring 一起更新）。
+
+⚠️ **暴露面很小**：遗留行的 `user_id` 对不上 ⇒ `ensure_user_row` 与项目授权行
+都认不出他 ⇒ 物流面**处处 404**（TODO-137 的既有结论）⇒ 他能到达的只有
+**不按项目**的端点（`/auth/me`、6 个 `/meta/*`）。
+
+**建议改法**（**独立批** · 与 TODO-137 的迁移**同批做**最省事）：
+- **首选**：TODO-137 的**一次性迁移**把遗留行转成派生 id ⇒ **该形状不再存在**
+  ⇒ 本条随之消失（**不需要改代码**）；
+- **次选**（若迁移推迟）：每请求路径**按 `username` 兜底查一次**
+  （token 的 `sub` 就是用户名）⇒ 两条路径结论一致 ⇒ ⚠️ 代价 = **多一次查询**
+  + 与「无行 ⇒ 放行」的 mock 边界要一起想清楚（mock 的 `sub` 是 mock 用户名
+  ⇒ 查不到行 ⇒ 仍放行 ⇒ 边界不变）。
+
+⚠️ **不要**把 actor 层的查表键**直接**改成 username ⇒ 那会让「按 `user_id`
+授权」（`user_projects` 的 FK 是 `user_id`）与「按 username 判状态」**分叉**
+⇒ 反而多一处口径。
+
+⇒ 归属：独立技术债（**与 TODO-137 合并处理**最省事）。
+
 ---
 
 ## ✅ 2026-11-12：P9B-4 评审修复批 —— 19 条 finding 全部闭环
@@ -3285,8 +3360,9 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
    ⇒ **测试观察到的是部署里不存在的拒绝语义**。
    ⇒ 要让原因**真正**到达客户端必须**先 accept 再 close** ⇒ 那是**传输层变更**
    （客户端会看到「连上了又断」）⇒ **独立设计裁决**，不在本批顺手做。
+   ⇒ **已登记 TODO-144**（含两个选项与触发条件）。
 2. **遗留账号行**（`user_id` ≠ 派生值 · **TODO-137**）上，登录路径（按 username）
    与每请求路径（按 `user_id`）**会给出相反结论** ⇒ 停用的遗留账号
    **登录被拒、手里的 token 却还能用** ⇒ 已写进
    `app/services/user_status_service.py` 的模块 docstring + ADR-0046 §⑤
-   + 一条钉住的测试 ⇒ **并入 TODO-137 的迁移范围**（迁移后该形状不再存在）。
+   + 一条钉住的测试 ⇒ **已登记 TODO-145**（首选：随 TODO-137 的迁移一并消失）。
