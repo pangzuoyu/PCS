@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.ad_sync_tasks import sync_ad_users  # P9A-USR-002
+from app.workers.ai_audit_tasks import write_ai_audit_log  # P10-A · AI 审计写库
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
 from app.workers.edit_guard_tasks import scan_empty_record_hash  # P9A-4 D2
 from app.workers.notification_tasks import cleanup_old_notifications  # P9A-NOT-004
@@ -153,6 +154,10 @@ class WorkerSettings:
         # P9A-4 D2：并发令牌自检（ADR-0048 §⑥）。漏注册即静默失效 ——
         # 「某条写入路径漏了 finalize」的症状是「并发覆盖永远检测不到」。
         scan_empty_record_hash,
+        # P10-A：AI 审计写库。⚠️ **漏注册即静默失效** —— ARQ 对**未注册**的
+        # 函数名不报错 ⇒ job 静静躺在队列里 ⇒ AI 请求**永远没有审计行**
+        # （而审计表对「AI 探测」完全失明）。
+        write_ai_audit_log,
     ]
     # ⚠️ **必须是 `CronJob` 实例，不是 dict**（2026-10-13 修）。
     # arq 0.28 的 `Worker.__init__` 直接校验类型，dict 会让 worker
