@@ -1,0 +1,149 @@
+"""AI 路由骨架（P10-A · Task T9）。
+
+## 契约形状（SPEC §3.1.2 / §4.1.1 / §4.1.2）
+
+- 5 个端点全部 **501**（AI 已预留、未实现）：
+  `intent` · `knowledge/search` · `equipment/recommend` · `explain` ·
+  `document/extract`
+- **认证在 501 之前** ⇒ 无 token 是 **401**（不是 501）
+- 契约里带 `x-status: reserved`（**不是** `deprecated` —— deprecated 的
+  语义是「曾有、现已不推荐」，这里是「还没上线」）
+
+## 两条「静默失效」的坑（必须钉住）
+
+1. **`topK` 的别名** —— SPEC §4.1.2 的请求体字段名是 **`topK`**（驼峰）。
+   若 schema 只写 `top_k` ⇒ Pydantic **默认忽略**未知字段 ⇒ 前端传的值
+   **静默变成默认值**，而且**不报错**。
+2. **`context` 的驼峰别名** —— SPEC §4.1.1 的 `context` 用
+   `projectId` / `recordId` ⇒ 同样的静默失效（同型缺陷）。
+"""
+from __future__ import annotations
+
+import pytest
+from fastapi import FastAPI
+
+from app.core.security import create_access_token
+from app.schemas.ai import AiContext
+
+pytestmark = pytest.mark.asyncio
+
+#: SPEC §3.1.2 的 5 个 AI 端点（相对 `api_router` 的 `/api/v1` 前缀）。
+AI_PATHS = (
+    "/api/v1/ai/intent",
+    "/api/v1/ai/knowledge/search",
+    "/api/v1/ai/equipment/recommend",
+    "/api/v1/ai/explain",
+    "/api/v1/ai/document/extract",
+)
+
+
+@pytest.fixture
+def designer_headers() -> dict[str, str]:
+    token = create_access_token(subject="test-designer", role="DESIGNER")
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_ai_intent_returns_501(client, designer_headers) -> None:
+    """501 + 信封 {code:'AI_NOT_IMPLEMENTED', message:..., request_id:...}."""
+    resp = await client.post(
+        "/api/v1/ai/intent",
+        json={"text": "帮我把泵P-101的流量设为50 m3/h"},
+        headers=designer_headers,
+    )
+
+    assert resp.status_code == 501, resp.text
+    body = resp.json()
+    assert body["code"] == "AI_NOT_IMPLEMENTED"
+    assert body["message"]
+    assert body["request_id"]
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/api/v1/ai/knowledge/search", {"query": "API 520 火灾工况润湿面积修正系数"}),
+        ("/api/v1/ai/equipment/recommend", {"equipment_tag": "P-101"}),
+        ("/api/v1/ai/explain", {"text": "把泵的流量改成 50"}),
+        ("/api/v1/ai/document/extract", {"document_ref": "STD-API520-2014"}),
+    ],
+)
+async def test_ai_routes_return_501(client, designer_headers, path, payload) -> None:
+    """SPEC §3.1.2 的**全部** AI 端点都是 501（不只是 intent/search）。"""
+    resp = await client.post(path, json=payload, headers=designer_headers)
+
+    assert resp.status_code == 501, resp.text
+    assert resp.json()["code"] == "AI_NOT_IMPLEMENTED"
+
+
+async def test_ai_routes_require_auth(client) -> None:
+    """无 bearer ⇒ 401（**不是** 501）—— 认证在 501 之前。"""
+    resp = await client.post("/api/v1/ai/intent", json={"text": "x"})
+
+    assert resp.status_code == 401, resp.text
+
+
+async def test_ai_routes_have_x_status_reserved_in_openapi() -> None:
+    """契约里 5 个端点带 `x-status=reserved` 且**不是** deprecated。"""
+    from app.api.v1 import api_router
+
+    app = FastAPI()
+    app.include_router(api_router)
+    paths = app.openapi()["paths"]
+
+    for path in AI_PATHS:
+        assert path in paths, f"契约里没有 {path}：{sorted(paths)}"
+        operation = paths[path]["post"]
+        assert operation.get("x-status") == "reserved", operation
+        assert "deprecated" not in operation, operation
+
+
+async def test_ai_knowledge_search_accepts_topK_alias(client, designer_headers) -> None:
+    """⚠️ **契约里的字段名是 `topK`**（SPEC §4.1.2）⇒ 传 topK 能被收到
+    —— 否则前端传的值静默失效（且不报错）。
+    """
+    resp = await client.post(
+        "/api/v1/ai/knowledge/search",
+        json={"query": "q", "topK": 7},
+        headers=designer_headers,
+    )
+
+    # 501（不是 422）⇒ 说明 `topK` 被**接受**了（未知字段被忽略也不会 422，
+    # 但 422 说明它被**拒绝**了 ⇒ 两种都说明问题 ⇒ 这里断言不是 422）
+    assert resp.status_code == 501, resp.text
+
+
+async def test_ai_intent_context_is_a_named_schema() -> None:
+    """`context` 是具名 schema（`AiContext`）⇒ 字段名有编译期约束。
+
+    ⚠️ **契约里用的是别名**（`projectId` / `recordId`，= SPEC §4.1.1 的驼峰）
+    —— Pydantic 的 JSON Schema 默认按**别名**出属性名 ⇒ 契约与 SPEC 逐字一致。
+    """
+    schema = AiContext.model_json_schema()
+
+    assert schema["title"] == "AiContext"
+    assert "projectId" in schema["properties"]
+    assert "recordId" in schema["properties"]
+    assert "module" in schema["properties"]
+
+
+async def test_ai_intent_context_accepts_camelCase_aliases() -> None:
+    """⚠️ **SPEC §4.1.1 的 context 用驼峰**（`projectId` / `recordId`）
+    ⇒ 必须能收到 —— 否则前端传的值静默变 None（同 topK）。
+    """
+    context = AiContext.model_validate(
+        {"projectId": "p-1", "module": "PUMP", "recordId": "r-1"}
+    )
+
+    assert context.project_id == "p-1"
+    assert context.module == "PUMP"
+    assert context.record_id == "r-1"
+
+
+async def test_ai_intent_context_accepts_snake_case_too() -> None:
+    """⚠️ `populate_by_name=True` ⇒ 蛇形与驼峰**两种写法都能进**。"""
+    context = AiContext.model_validate(
+        {"project_id": "p-1", "module": "PUMP", "record_id": "r-1"}
+    )
+
+    assert context.project_id == "p-1"
+    assert context.record_id == "r-1"

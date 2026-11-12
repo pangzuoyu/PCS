@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.admin_users import router as admin_users_router  # P9A-ADM-001/002
+from app.api.v1.ai import router as ai_router  # P10-A · SPEC §3.1.2 AI 预留（5 端点，一律 501）
 from app.api.v1.audit import router as audit_router  # F-P2-009 Sprint 3 / Issue 7
 from app.api.v1.auth import router as auth_router
 from app.api.v1.change_impact import router as change_impact_router
@@ -58,6 +59,7 @@ from app.api.v1.ws import router as notifications_ws_router  # P9A-NOT-006 / ADR
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
+api_router.include_router(ai_router)  # P10-A：AI 预留（5 端点，一律 501）
 api_router.include_router(auth_router)
 api_router.include_router(admin_users_router)  # P9A：全环境挂载（见 admin_users.py 顶注）
 api_router.include_router(workspaces_router)
