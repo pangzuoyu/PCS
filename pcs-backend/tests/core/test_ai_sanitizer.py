@@ -122,3 +122,19 @@ def test_hash_sanitized_falls_back_to_raw_bytes_on_invalid_json() -> None:
 def test_hash_sanitized_handles_edge_bodies(body: bytes) -> None:
     """边界 body（空 / 数组 / null）⇒ 也能算出稳定哈希，不抛。"""
     assert hash_sanitized(body).startswith("sha256:")
+
+
+def test_hash_sanitized_ignores_the_sensitive_part() -> None:
+    """⚠️ **只差敏感字段的两个 body ⇒ 哈希相同**（M-1）。
+
+    ⇒ 该列才能用来判定「同一次脱敏调用」；且哈希不是**原文**的确定性函数。
+    """
+    a = b'{"text": "mail me at a@example.com"}'
+    b = b'{"text": "mail me at b@example.org"}'
+
+    assert hash_sanitized(a) == hash_sanitized(b)
+
+
+def test_hash_sanitized_still_distinguishes_different_payloads() -> None:
+    """脱敏后**内容不同** ⇒ 哈希仍不同（别把「同哈希」做成「全都同」）。"""
+    assert hash_sanitized(b'{"text": "x"}') != hash_sanitized(b'{"text": "y"}')

@@ -103,6 +103,15 @@ async def main():
     req_b = str(uuid.uuid4())
     await write_ai_audit_log(ctx, **fields(req_b))
 
+    # ⚠️ **超长字段**（客户端可控）：`X-Request-ID` 可以是任意长度 ⇒
+    #    PG 的 `varchar(128)` 超长 ⇒ `22001 string_data_right_truncation`
+    #    ⇒ 若不截断 ⇒ **这一行审计被静默丢弃**（调用方毫无感知）
+    #    ⇒ 审计表对「用超长头探测」的行为**完全失明**。
+    req_c = str(uuid.uuid4())
+    long_fields = fields(req_c)
+    long_fields["client_request_id"] = "x" * 200
+    await write_ai_audit_log(ctx, **long_fields)
+
     async with maker() as s:
         count_a = (
             await s.execute(
@@ -118,13 +127,34 @@ async def main():
                 )
             )
         ).scalar_one()
+        count_c = (
+            await s.execute(
+                select(func.count()).select_from(AiAuditLog).where(
+                    AiAuditLog.request_id == req_c
+                )
+            )
+        ).scalar_one()
+        stored = (
+            await s.execute(
+                select(AiAuditLog.client_request_id).where(
+                    AiAuditLog.request_id == req_c
+                )
+            )
+        ).scalar_one_or_none()
         total = (
             await s.execute(select(func.count()).select_from(AiAuditLog))
         ).scalar_one()
 
     assert count_a == 1, f"同一 request_id 写了 {count_a} 行（应恰好 1 行）"
     assert count_b == 1, f"另一个 request_id 写了 {count_b} 行"
-    assert total == 2, f"表里共 {total} 行（应恰好 2 行）"
+    assert count_c == 1, (
+        f"超长 client_request_id 让这一行审计**被丢弃**了（count={count_c}）"
+        " ⇒ 审计表对「用超长头探测」完全失明"
+    )
+    assert stored is not None and len(stored) <= 128, (
+        f"落库的 client_request_id 长度 {len(stored or '')} > 128 ⇒ 未截断"
+    )
+    assert total == 3, f"表里共 {total} 行（应恰好 3 行）"
 
     await engine.dispose()
     print("AI_AUDIT_PG_OK")

@@ -7095,6 +7095,42 @@ export interface components {
             topK: number;
         };
         /**
+         * AiNotImplementedResponse
+         * @description AI「已预留、未实现」的响应体（**501**）。
+         *
+         *     ⚠️ **契约里必须声明它**（2026-11-12 评审 M-2）：路由若只写 `-> None`，
+         *     FastAPI 生成的契约是 `200 + 空 schema` ⇒ **契约描述的是永远不发生的
+         *     行为**（运行时一律 501）⇒ 前端派生不出 501 信封的类型 ⇒
+         *     任何按契约生成的客户端会等一个不会来的 200。
+         *
+         *     字段与 `app/core/errors.py` 的 501 handler **逐字一致**。
+         */
+        AiNotImplementedResponse: {
+            /**
+             * Code
+             * @description 业务错误码
+             * @default AI_NOT_IMPLEMENTED
+             */
+            code: string;
+            /**
+             * Message
+             * @description 中文提示
+             * @default AI功能即将上线
+             */
+            message: string;
+            /**
+             * Status
+             * @description 固定值 not_implemented
+             * @default not_implemented
+             */
+            status: string;
+            /**
+             * Request Id
+             * @description 服务端生成的请求 id（审计幂等键）
+             */
+            request_id: string;
+        };
+        /**
          * AllowableStressResult
          * @description 材料许用应力（ASME B31.3 Table A-1 插值）。
          */
@@ -21806,6 +21842,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description AI 已预留、未实现（P10） */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
         };
     };
     ai_knowledge_search_api_v1_ai_knowledge_search_post: {
@@ -21839,6 +21884,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description AI 已预留、未实现（P10） */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiNotImplementedResponse"];
                 };
             };
         };
@@ -21876,6 +21930,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description AI 已预留、未实现（P10） */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
         };
     };
     ai_explain_api_v1_ai_explain_post: {
@@ -21911,6 +21974,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description AI 已预留、未实现（P10） */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
         };
     };
     ai_document_extract_api_v1_ai_document_extract_post: {
@@ -21944,6 +22016,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description AI 已预留、未实现（P10） */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiNotImplementedResponse"];
                 };
             };
         };

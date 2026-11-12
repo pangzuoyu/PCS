@@ -80,8 +80,14 @@ def ip_in_cidrs(ip: str, cidrs: list[str]) -> bool:
     return False
 
 
-def _host_of(endpoint: str) -> str:
-    """从 endpoint（可能是 URL 或裸 host:port）取出主机部分。"""
+def host_of(endpoint: str) -> str:
+    """从 endpoint（可能是 URL 或裸 host:port）取出主机部分。
+
+    ⚠️ **唯一的一份解析**（2026-11-12 评审 M-6）：`/health/ai` 曾内联复制
+    一份「去协议 / 去路径 / 去端口」的逻辑 ⇒ 与 `urlparse` 的口径不同
+    （大小写、`user:pass@host`）⇒ **两个安全相关判断可能给出相反结论**。
+    ⇒ 公开出来给调用方复用。
+    """
     raw = endpoint.strip()
     if "://" in raw:
         parsed = urlparse(raw)
@@ -101,7 +107,7 @@ def resolve_ai_endpoint_ips(endpoint: str) -> list[str]:
 
     ⚠️ 一个域名可能解析到**多个** IP ⇒ 返回列表（逐个判定）。
     """
-    host = _host_of(endpoint)
+    host = host_of(endpoint)
     if not host:
         raise RuntimeError(f"AI endpoint 为空或格式非法：{endpoint!r}")
     try:

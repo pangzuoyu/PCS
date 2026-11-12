@@ -6104,6 +6104,29 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-12"
+    },
+    {
+      "id": "bug-2160",
+      "timestamp": "2026-11-12",
+      "severity": "high",
+      "error_message": "客户端可控的字段（X-Request-ID 头 / 请求路径）超长 ⇒ PG varchar 超限 ⇒ **整行 AI 审计被静默丢弃**（请求照常返回 501，调用方毫无感知）⇒ 审计表对「用超长头探测」完全失明",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "root_cause": "`client_request_id`（客户端 `X-Request-ID` 原样入库，列宽 128）与 `endpoint`（请求路径，列宽 200）**都没有截断** ⇒ PG 的 varchar(n) **严格执行** ⇒ 超长 ⇒ `22001 string_data_right_truncation` ⇒ 落到写库任务兜底的 `except Exception` ⇒ 只记一条 warning ⇒ **这一行就没了**。\n⚠️ **单测抓不到**：单测跑内存 SQLite，**SQLite 不强制 VARCHAR 长度** ⇒ 超长值照写不误 ⇒ 全绿。\n⚠️ **探针无需认证**：只要能发请求就能让审计行消失。",
+      "fix": "在**写库那一层**（`ai_audit_tasks._row_values`）按列宽截断（`_MAX_LENGTHS`）⇒ 超长值被裁到列宽内 ⇒ 行照落。\n⇒ 防复发：**PG 车道**用例扩一条（传 200 字符的 `client_request_id` ⇒ 断言表里**有一行**且落库值 ≤128）。",
+      "fix_commit": "（本次修复批的 commit）",
+      "tags": [
+        "postgres",
+        "ai",
+        "audit",
+        "p10-a",
+        "pg-lane",
+        "review-h-1"
+      ],
+      "related_bugs": [
+        "bug-2159"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-12"
     }
   ]
 }

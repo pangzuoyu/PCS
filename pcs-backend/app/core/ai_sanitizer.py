@@ -100,20 +100,34 @@ def sanitize_for_ai(value: Any) -> Any:
 
 
 def hash_sanitized(body: bytes) -> str:
-    """对请求体算**规范化**哈希 ⇒ `"sha256:<hex>"`。
+    """对请求体算**脱敏后的规范化**哈希 ⇒ `"sha256:<hex>"`。
 
     ⚠️ **规范化**（JSON ⇒ `sort_keys=True` + `ensure_ascii=False` 再序列化）：
     同一个请求**键序不同**也要算出同一个哈希 —— 否则一次调用重试会得到
     两个哈希 ⇒ 审计表里「同一次调用」对不上。
-    ⚠️ 非 JSON ⇒ hash **原始 bytes**（不记录内容）。
+
+    ⚠️⚠️ **哈希的是「脱敏后」的载荷**（2026-11-12 评审 M-1）：列的语义是
+    「**脱敏后**请求体的规范化哈希 —— 不记录原文」⇒ 若哈希的是**原始**
+    body ⇒ ① 该列**无法**用来判定「同一次脱敏调用」（只差邮箱的两个请求
+    脱敏后本应同哈希，实际不同）；② 哈希成了**原文的确定性函数** ⇒
+    低熵字段可被候选字典比对反推。
+    ⇒ **先脱敏、再规范化、再哈希**。
+    ⚠️ 非 JSON ⇒ 按**文本**脱敏（脱不掉就退原文）；解码不了 ⇒ hash 原始 bytes。
     """
     try:
-        parsed = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        parsed = None
+        text = body.decode("utf-8")
+    except UnicodeDecodeError:
         canonical = body
     else:
-        canonical = json.dumps(
-            parsed, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-        ).encode("utf-8")
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            canonical = _sanitize_text(text).encode("utf-8")
+        else:
+            canonical = json.dumps(
+                sanitize_for_ai(parsed),
+                sort_keys=True,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
     return "sha256:" + hashlib.sha256(canonical).hexdigest()

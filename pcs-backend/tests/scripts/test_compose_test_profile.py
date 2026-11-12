@@ -109,3 +109,33 @@ def test_daily_dev_services_are_not_moved_into_a_profile(compose: dict) -> None:
             f"{name} 被移进 profile {services[name]['profiles']}"
             f" ⇒ `docker compose up` 不再起它 ⇒ 破坏日常开发"
         )
+
+
+def test_migrate_service_is_in_the_test_profile(compose: dict) -> None:
+    """⚠️ **迁移**也得在 test profile 里（评审 H-2）。
+
+    ⇒ 测试库（`pcs_pgtest`）的 schema 由它升到 head ⇒
+    `seed` 才有表可写（否则 `relation "workspaces" does not exist`）。
+    """
+    services = _services(compose)
+    assert "migrate" in services, "compose 里没有 `migrate` 服务"
+    assert "test" in (services["migrate"].get("profiles") or [])
+
+
+def test_seed_runs_after_migrate(compose: dict) -> None:
+    """⚠️ `seed` 必须**等迁移完成** ⇒ 空 schema 上灌种子必然炸。"""
+    services = _services(compose)
+    depends = services["seed"].get("depends_on") or {}
+    assert "migrate" in depends, depends
+    assert depends["migrate"].get("condition") == "service_completed_successfully", depends
+
+
+def test_migrate_points_at_the_pgtest_database(compose: dict) -> None:
+    """⚠️ 迁移连的必须是**测试库** `pcs_pgtest`（不是开发库 `pcs`）。
+
+    连错 ⇒ **污染开发库**。
+    """
+    env = _services(compose)["migrate"].get("environment") or {}
+    url = env.get("DATABASE_URL", "")
+    assert "postgres-pgtest" in url, url
+    assert "pcs_pgtest" in url, url

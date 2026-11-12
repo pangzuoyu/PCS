@@ -32,6 +32,7 @@ from app.schemas.ai import (
     AiExplainRequest,
     AiIntentRequest,
     AiKnowledgeSearchRequest,
+    AiNotImplementedResponse,
 )
 
 #: ⚠️ 前缀是 `/ai`（**不是** `/api/v1/ai`）—— `api_router` 已带
@@ -41,8 +42,18 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 #: 契约标记（见模块 docstring）。
 _RESERVED = {"x-status": "reserved"}
 
+#: **501** 的响应声明（评审 M-2：契约里不能只写 200 + 空 schema）。
+#: ⚠️ 运行时仍**抛** `AINotImplementedError`（由全局 handler 渲染成 501）
+#: ⇒ 这里只是让**契约**如实描述会发生什么。
+_AI_501 = {
+    501: {
+        "model": AiNotImplementedResponse,
+        "description": "AI 已预留、未实现（P10）",
+    }
+}
 
-@router.post("/intent", openapi_extra=_RESERVED)
+
+@router.post("/intent", openapi_extra=_RESERVED, responses=_AI_501)
 async def ai_intent(
     request: AiIntentRequest,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -51,7 +62,7 @@ async def ai_intent(
     raise AINotImplementedError()
 
 
-@router.post("/knowledge/search", openapi_extra=_RESERVED)
+@router.post("/knowledge/search", openapi_extra=_RESERVED, responses=_AI_501)
 async def ai_knowledge_search(
     request: AiKnowledgeSearchRequest,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -60,7 +71,7 @@ async def ai_knowledge_search(
     raise AINotImplementedError()
 
 
-@router.post("/equipment/recommend", openapi_extra=_RESERVED)
+@router.post("/equipment/recommend", openapi_extra=_RESERVED, responses=_AI_501)
 async def ai_equipment_recommend(
     request: AiEquipmentRecommendRequest,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -69,7 +80,7 @@ async def ai_equipment_recommend(
     raise AINotImplementedError()
 
 
-@router.post("/explain", openapi_extra=_RESERVED)
+@router.post("/explain", openapi_extra=_RESERVED, responses=_AI_501)
 async def ai_explain(
     request: AiExplainRequest,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -78,7 +89,7 @@ async def ai_explain(
     raise AINotImplementedError()
 
 
-@router.post("/document/extract", openapi_extra=_RESERVED)
+@router.post("/document/extract", openapi_extra=_RESERVED, responses=_AI_501)
 async def ai_document_extract(
     request: AiDocumentExtractRequest,
     user: Annotated[_Actor, Depends(current_actor)],

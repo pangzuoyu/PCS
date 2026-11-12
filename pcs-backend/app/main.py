@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import api_router
 from app.api.v1.mock_auth import router as mock_auth_router
+from app.core.ai_audit_middleware import AIAuditMiddleware
 from app.core.config import (
     Settings,
     assert_secret_key_configured,
@@ -21,7 +22,6 @@ from app.core.config import (
     parse_cors_origins,
     validate_cors_for_production,
 )
-from app.core.ai_audit_middleware import AIAuditMiddleware
 from app.core.errors import install_exception_handlers
 from app.core.logging import _trace_id_var, setup_logging
 from app.db.session import (

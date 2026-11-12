@@ -5,7 +5,7 @@ budget_tokens: 1200
 # STATUS — PCS
 
 > Read this FIRST when starting a session. Last updated: 2026-11-12（第 29 轮：**P10-A 批落地**
-> —— 前置与测试左移 + AI 预留接口；**未 push**）。
+> + **整批评审修复**；**未 push**）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -36,6 +36,11 @@ budget_tokens: 1200
 **真库才暴露的缺陷（已修）**：PG `ON CONFLICT (request_id)` 匹配不到 **partial** 唯一索引
 ⇒ **每次写 AI 审计都炸**，而单测（SQLite）全绿 ⇒ `index_where` 补齐 + **PG 车道新增用例**
 （`bug-2159` · fix_commit `5b608a1`）。
+
+**整批评审**（`ce-code-review` 派发，16 commit）：CRITICAL 0 · **HIGH 3**（审计行被
+超长字段静默丢弃 · compose 测试栈缺迁移步骤 · 真后端通道可静默跑成 mock）
+⇒ **全部已修**（每个都 RED→GREEN + 探针验过「守门真的在检测」）
++ MEDIUM 7 / LOW 6 一并修完。详见 `.gstack/qa-reports/…-2026-11-12-p10a.md` 末节。
 
 **SPEC 偏离登记 D1~D22 已回写**（`spec/P10 AI预留与测试部署开发规格说明书.md` 第五部分）
 ⇒ ⚠️ 该 SPEC 实际是 **V1.0**（计划引用的「V1.3.1」**在仓库里不存在** ⇒ D20）。
@@ -74,7 +79,10 @@ budget_tokens: 1200
   旧 server ⇒ 用旧配置 ⇒ 症状是「登录页渲染不出来」。
 - ⚠️ **ARQ 0.28 只对 `Retry` 异常重试**（其余当场判死）⇒ 「max_tries=5 ⇒ 重试必然
   发生」在本仓**不成立**。
-- ⚠️ **`.wolf/cerebrum.md` 已 ≈24 230 token**（目标 ≤24 000）⇒ **下次清退窗口已到**。
+- ⚠️ **`.wolf/cerebrum.md` 已 ≈24 590 token**（目标 ≤24 000）⇒ **下次清退窗口已到**。
+- ⚠️ **真后端 E2E 通道改成两个 server 各起各的**（`webServer` 数组 + 每 project 各自
+  `baseURL`）⇒ **5174 被占 ⇒ 硬失败**；`npm run e2e` = mock 通道（23 passed）·
+  `npm run e2e:real` = 真后端（1 passed）。
 - ⚠️ **子代理 Bash 会挂起** ⇒ 派发审阅/实现子代理**只给 Read/Grep**。
 
 ---

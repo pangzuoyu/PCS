@@ -229,7 +229,9 @@ async def seed(db: AsyncSession, *, reset: bool = False) -> dict[str, int]:
     """幂等灌种子数据。
 
     Args:
-        db: 调用方给 session（⚠️ 本函数**不 commit** —— 事务归调用方管）。
+        db: 调用方给 session（⚠️ 本函数**自己 commit** —— 幂等重灌要求
+            「查→插→提交」是一个整体；调用方若还要接着写数据，请**另开
+            一个 session** 或在调用后显式判断）。
         reset: True ⇒ 先删掉**种子集合**的行再重灌（不碰业务数据）。
 
     Returns:

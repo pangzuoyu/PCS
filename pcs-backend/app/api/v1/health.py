@@ -126,7 +126,7 @@ async def health_ai(
     ⇒ **不解析 DNS** 还有一条工程理由：健康检查**不该依赖外网**
     （被墙/超时 ⇒ 探针抖动 ⇒ 误报故障）。
     """
-    from app.core.ai_cidr import ip_in_cidrs, parse_cidrs
+    from app.core.ai_cidr import host_of, ip_in_cidrs, parse_cidrs
     from app.core.config import get_settings
     from app.services.system_setting_service import get_setting_value
 
@@ -174,11 +174,9 @@ async def health_ai(
             cidrs_configured=bool(cidrs),
         )
 
-    host = endpoint.split("://", 1)[-1].split("/", 1)[0]
-    if host.startswith("[") and "]" in host:
-        host = host[1 : host.index("]")]
-    else:
-        host = host.split(":", 1)[0]
+    # ⚠️ **复用 `ai_cidr.host_of`**（唯一的一份解析）—— 内联副本会让
+    #    「健康端点的判断」与「启动校验 / 调用时校验」口径分叉（评审 M-6）。
+    host = host_of(endpoint)
 
     if not _is_ip_literal(host):
         # ⚠️ 域名 ⇒ **不解析 DNS** ⇒ 恒 degraded（如实：没验证过）。

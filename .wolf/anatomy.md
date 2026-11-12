@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T03:55:51.169Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-12T05:15:26.969Z
 > Files: 1253 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1316,7 +1316,7 @@
 - `ai_audit_middleware.py` — AI 请求的**审计中间件**（P10-A · Task T11）—— 纯 ASGI。 (~1839 tok)
 - `ai_cidr.py` — AI 端点的**内网 CIDR 校验**（P10-A · Task T5）。 (~1260 tok)
 - `ai_errors.py` — AI 侧的异常类型（P10-A · Task T8）。 (~220 tok)
-- `ai_sanitizer.py` — AI 请求的**递归脱敏** + 规范化哈希（P10-A · Task T6）。 (~995 tok)
+- `ai_sanitizer.py` — AI 请求的**递归脱敏** + 规范化哈希（P10-A · Task T6）。 (~1116 tok)
 - `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~3183 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~3328 tok)
 - `outbound_ai_client.py` — **唯一**允许调 AI 端点的出口（P10-A · Task T8）。 (~716 tok)
@@ -1475,7 +1475,7 @@
 ## pcs-backend/app/workers/
 
 - `ad_sync_tasks.py` — AD 同步的 ARQ 任务（SPEC P9A-USR-002 的「定时任务」）。 (~282 tok)
-- `ai_audit_tasks.py` — AI 审计的**写库**任务（P10-A · Task T10）—— **幂等**。 (~1385 tok)
+- `ai_audit_tasks.py` — AI 审计的**写库**任务（P10-A · Task T10）—— **幂等**。 (~1646 tok)
 - `edit_guard_tasks.py` — 并发令牌自检（ADR-0048 §⑥ 的残留风险，ARQ cron）。 (~226 tok)
 - `notification_tasks.py` — 通知保留期清理（ADR-0049 §④ / SPEC P9A-NOT-004，ARQ cron）。 (~332 tok)
 - `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~2890 tok)
@@ -1752,7 +1752,7 @@
 
 ## pcs-frontend/
 
-- `playwright.config.ts` — Playwright E2E 配置 (P7-6B frontend / R1 §7 闭环). (~600 tok)
+- `playwright.config.ts` — Playwright E2E 配置 (P7-6B frontend / R1 §7 闭环). (~711 tok)
 - `tsconfig.json` — TypeScript configuration (~191 tok)
 - `vite.config.ts` — `/api` 代理目标 —— **可用 env 覆盖**（`VITE_API_PROXY_TARGET`）。 (~329 tok)
 

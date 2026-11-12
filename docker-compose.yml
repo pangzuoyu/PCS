@@ -96,6 +96,30 @@ services:
     # 它是渲染器的**首选候选** `./fonts/...`，靠上面的挂载带进来。
     # ⚠️ 没跑过那个脚本的机器上，本服务照样能启动，**只在渲染 PDF 时才失败**。
     # 起之前先跑：`cd pcs-backend && uv run python scripts/check_report_font.py`
+  migrate:
+    # 一次性任务：把**测试库**的 schema 升到 head（P10-A · 评审 H-2）。
+    #
+    # ⚠️ **为什么必须有它**：测试栈连的是 `postgres-pgtest` 的 `pcs_pgtest` 库
+    # ⇒ **全仓没有任何东西迁移它**（`scripts/pytest_pg.sh` 只跑 pytest；
+    # `tests/alembic/*` 的 PG 用例全走**隔离 schema**）⇒ 全新机器 /
+    # `docker compose down -v` 之后那个库是**空 schema** ⇒ `seed` 第一句
+    # `SELECT ... FROM workspaces` 就 `relation "workspaces" does not exist`
+    # ⇒ README 记的「怎么起测试栈」是**断的**。
+    #
+    # ⚠️ **绝不**用开发库（`pcs`）的 URL 去迁移它 —— 那是污染。
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    profiles: ["test"]
+    working_dir: /app
+    command: ["uv", "run", "--frozen", "alembic", "upgrade", "head"]
+    environment:
+      UV_PROJECT_ENVIRONMENT: /opt/venv
+      UV_CACHE_DIR: /opt/uvcache
+      PYTHONDONTWRITEBYTECODE: "1"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest
+    volumes:
+      - ./pcs-backend:/app:ro
+    depends_on:
+      postgres-pgtest: {condition: service_healthy}
   seed:
     # 一次性任务：灌 E2E 种子数据（P10-A · Task T2 的脚本）。
     # 与 worker 同款（uv 官方镜像 + 源码挂载 + `uv run --frozen`）——
@@ -117,7 +141,10 @@ services:
     volumes:
       - ./pcs-backend:/app:ro
     depends_on:
+      # ⚠️ **先迁移再灌种子** —— 否则空 schema 上 `seed` 第一句就炸
+      # （`relation "workspaces" does not exist`）。
       postgres-pgtest: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
   openldap:
     # 测试用 AD/LDAP 容器。生产环境替换为客户域 LDAP_URL（env 注入）。
     image: osixia/openldap:1.5.0

@@ -46,6 +46,11 @@ AI_PATH_PREFIX = "/api/v1/ai"
 #: 超过这个大小就**不哈希**（大 body 不进审计表的哈希列）。
 MAX_HASH_BYTES = 1024 * 1024
 
+#: **请求体的读取上限**（评审 M-5）—— 超过就截断 ⇒ 下游 422，
+#: 而不是把整个 body 读进内存（未认证路径也能触发 ⇒ 内存放大风险）。
+#: 取 10 MB（与本仓 `MAX_UPLOAD_BYTES` 同量级）。
+_MAX_BODY_BYTES = 10 * 1024 * 1024
+
 #: ASGI 作用域类型（http / websocket）。
 Scope = dict[str, Any]
 Receive = Callable[[], Awaitable[dict[str, Any]]]
@@ -78,15 +83,29 @@ def _extract_user_id(authorization: str | None) -> uuid.UUID | None:
 
 
 async def _read_body(receive: Receive) -> bytes:
-    """把整个请求体读出来（**下游要靠重放才能收到**）。"""
+    """把请求体读出来（**下游要靠重放才能收到**）。
+
+    ⚠️ **有上限**（2026-11-12 评审 M-5）：本中间件在**认证之前**就读 body
+    ⇒ 未认证的客户端 POST 一个超大 body ⇒ 服务端先把它**完整**读进内存
+    （峰值 ≈ 2× body：list 一份 + join 后一份）⇒ 内存放大 / OOM 风险。
+    ⇒ **超过 `_MAX_BODY_BYTES` 就停止累积** ⇒ 下游收到**被截断**的 body
+    ⇒ JSON 解析失败 ⇒ **422**（而不是把服务撑爆）。
+    ⇒ 真实业务 body（AI 请求是 JSON 小对象）远小于这个上限 ⇒ 行为不变。
+    """
     chunks: list[bytes] = []
+    total = 0
     while True:
         message = await receive()
         if message["type"] == "http.disconnect":
             break
         chunk = message.get("body", b"")
         if chunk:
+            if total + len(chunk) > _MAX_BODY_BYTES:
+                # ⚠️ **截断**（见 docstring）—— 不再累积，也不继续读。
+                chunks.append(chunk[: _MAX_BODY_BYTES - total])
+                break
             chunks.append(chunk)
+            total += len(chunk)
         if not message.get("more_body", False):
             break
     return b"".join(chunks)
@@ -137,10 +156,12 @@ class AIAuditMiddleware:
         headers = Headers(scope=scope)
         client_request_id = headers.get("x-request-id")
         user_id = _extract_user_id(headers.get("authorization"))
+        # ⚠️ `started` 必须在**读 body 之前**（评审 L-5）—— 否则
+        #    `duration_ms` 不含读 body 的时间（≈ 一个「假」的耗时）。
+        started = time.monotonic()
         body = await _read_body(receive)
 
         status_code: int | None = None
-        started = time.monotonic()
 
         async def send_wrapper(message: dict[str, Any]) -> None:
             nonlocal status_code

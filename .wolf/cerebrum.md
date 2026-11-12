@@ -3,8 +3,8 @@
 > OpenWolf 学习记忆。**只放「下次还会犯」的规则与速查表**。
 >
 > **本文件的目标体积：≤ 24 000 token**（2026-11-12 瘦身前是 **34 100** ⇒ 瘦身后 **23 218**
-> ⇒ **P10-A 又加 7 条 ⇒ ≈24 230**（估算口径见下：CJK 1.45 字符/token + 其余 3.6 字符/token，
-> 与瘦身那次实测比值 1.078 校准）⇒ **下次清退窗口已到** ⇒ 加新条目前先在**同一主题**里
+> ⇒ **P10-A 又加 9 条 ⇒ ≈24 590**（估算口径见下：CJK 1.45 字符/token + 其余 3.6 字符/token，
+> 与瘦身那次实测比值 1.078 校准）⇒ **已超目标** ⇒ **下次清退窗口已到** ⇒ 加新条目前先在**同一主题**里
 > 取代或归档一条旧的）。
 > ⚠️ **历史条款**：本文件 2026-11-12 之前写着「≤2000 token」而**实际 34k** ⇒
 > 契约是假的 ⇒ 现在改成**可核对的**（上面那个数 + 下面的清退规则）。
@@ -343,6 +343,13 @@ ValueError)` 完全接不住 ⇒ 必须**在 `int()` 之前**先 `isinstance(raw
 - **alembic 按**名字**匹配 CHECK 约束，不比对表达式**（bug-147 实测）。ORM 侧可以写可读表达式，不必抄 PG 的 cast 语法 —— 这解锁了全部 28 条 CHECK 的补齐。
 - **ORM 里写 `ForeignKey(..., use_alter=True)` 不会自己生成迁移**（bug-146）。`use_alter` 的语义是「由一条 `ALTER TABLE ADD CONSTRAINT` 迁移单独创建」。写了这行就必须有人补那条迁移，否则 DB 上压根没这个约束 —— `projects` 曾整表零外键。
 - **⚠️ 断言内存对象的假 DB 测试，结构上观察不到 DB 层约束**（bug-145，2026-10-07 用户纠正）。`_FakeSession` / `_FakeDeliverable` + `assert db.added` 只证明对象被构造出来，**NOT NULL / FK / CHECK 一个都测不到**。写「这个 service 能落库」的测试必须打真 session（内存 SQLite 也行）—— 那 5 个测试把 `create_change_notice` 写死 `matrix_id=None` 的 NOT NULL 违例全放过了。
+- **写入审计/日志的值要在**写入边界**截断**（2026-11-12 · P10-A 评审 H-1 · bug-2160）：
+  客户端可控的字段（`X-Request-ID` 头、请求路径…）**可以超长** ⇒ PG 的
+  `varchar(n)` **严格执行** ⇒ 超长 ⇒ `22001 string_data_right_truncation`
+  ⇒ 落到兜底的 `except Exception` ⇒ **整行被静默丢弃** ⇒ 请求照常返回，
+  调用方毫无感知 ⇒ **审计表对「用超长头探测」完全失明**。
+  ⇒ 在**写库那一层**（不是产生值那一层）按列宽截断。
+  ⚠️ **单测抓不到**：单测跑内存 SQLite，**SQLite 不强制 VARCHAR 长度**。
 - **判某个服务/组件「有没有测试」不要用顶层 `ls tests/`** —— 子目录（`tests/services/`、`tests/models/`）里可能有。bug-145 原记录就因为这个把「有 5 个测试」误记成「无任何测试」。
 
 - **手写 `op.create_table` 必查两件事**（bug-143/144，均为**静默**失败）：
@@ -1217,6 +1224,16 @@ antd 的 `Table` 里**所有行复选框**都带**同一个** `aria-label="Selec
 没有项目依赖 ⇒ 裸 `python` 立刻 ModuleNotFoundError）；② `depends_on` 的每个
 服务都要在**该 profile 下可达**（compose **不会**隐式启动不在启用 profile
 内的服务）。
+
+
+#### E2E 的「通道」要由 **project** 决定，不能靠 env 开关（2026-11-12 · P10-A 评审 H-3）
+
+通道（MSW 开/关）若由**进程环境变量**决定 ⇒ 它与 `--project=real-backend`
+**无关** ⇒ 只跑 `--project=real-backend`（不带 env）⇒ 起的是带 MSW 的
+server ⇒ 「真后端」用例**打到 MSW** ⇒ **假绿**（看着通过，实则从没碰过真后端）。
+⇒ **两个 server 各起各的**（`webServer` 数组）+ **每个 project 各自的 `baseURL`**
+⇒ 「真后端」在**结构上不可能**是 mock。
+⚠️ 同族：**通道相关的开关要能「结构性地」保证**，别指望操作者记得带 env。
 
 ### F 流程 · 断言 · 协作
 

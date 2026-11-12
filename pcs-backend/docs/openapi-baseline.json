@@ -94,6 +94,16 @@
               }
             }
           },
+          "501": {
+            "description": "AI 已预留、未实现（P10）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -150,6 +160,16 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "AI 已预留、未实现（P10）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
               }
             }
           },
@@ -212,6 +232,16 @@
               }
             }
           },
+          "501": {
+            "description": "AI 已预留、未实现（P10）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -271,6 +301,16 @@
               }
             }
           },
+          "501": {
+            "description": "AI 已预留、未实现（P10）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -327,6 +367,16 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "AI 已预留、未实现（P10）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
               }
             }
           },
@@ -21751,6 +21801,39 @@
         ],
         "title": "AiKnowledgeSearchRequest",
         "description": "知识库检索请求（SPEC §4.1.2）。"
+      },
+      "AiNotImplementedResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "业务错误码",
+            "default": "AI_NOT_IMPLEMENTED"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "中文提示",
+            "default": "AI功能即将上线"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "固定值 not_implemented",
+            "default": "not_implemented"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "服务端生成的请求 id（审计幂等键）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id"
+        ],
+        "title": "AiNotImplementedResponse",
+        "description": "AI「已预留、未实现」的响应体（**501**）。\n\n⚠️ **契约里必须声明它**（2026-11-12 评审 M-2）：路由若只写 `-> None`，\nFastAPI 生成的契约是 `200 + 空 schema` ⇒ **契约描述的是永远不发生的\n行为**（运行时一律 501）⇒ 前端派生不出 501 信封的类型 ⇒\n任何按契约生成的客户端会等一个不会来的 200。\n\n字段与 `app/core/errors.py` 的 501 handler **逐字一致**。"
       },
       "AllowableStressResult": {
         "properties": {

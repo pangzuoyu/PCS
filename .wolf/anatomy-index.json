@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T03:55:51.169Z",
+    "lastScanned": "2026-11-12T05:15:26.969Z",
     "fileCount": 1253,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "44523d8700fadda1cd3b5ecc53005ce89cd5b74ac368c2c08cc9d7e81af71ca5",
-    "storeUpdatedAt": "2026-11-12T03:55:51.181Z",
-    "rootHash": "d1bb9b27c9a84f04"
+    "renderedHash": "a88dd64f93821c08591e73b30dfa3227e126037c2d6a2719559c3ae7610e086e",
+    "storeUpdatedAt": "2026-11-12T05:15:26.980Z",
+    "rootHash": "642ff024d847e0bf"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -44972,11 +44972,11 @@
     },
     "pcs-frontend/playwright.config.ts": {
       "description": "Playwright E2E 配置 (P7-6B frontend / R1 §7 闭环).",
-      "tokens": 600,
-      "hash": "367d46375dcdbf0e",
-      "size": 2627,
-      "mtimeMs": 1794447989065.8257,
-      "updatedAt": "2026-11-12T01:46:29.122Z",
+      "tokens": 711,
+      "hash": "1b3bd1fe4aa27bbd",
+      "size": 3277,
+      "mtimeMs": 1794460526916.191,
+      "updatedAt": "2026-11-12T05:15:26.969Z",
       "source": "hook"
     },
     "pcs-backend/tests/services/test_ai_settings.py": {
@@ -45242,11 +45242,11 @@
     },
     "pcs-backend/app/core/ai_sanitizer.py": {
       "description": "AI 请求的**递归脱敏** + 规范化哈希（P10-A · Task T6）。",
-      "tokens": 995,
-      "hash": "43e22f7a0772bfb7",
-      "size": 4777,
-      "mtimeMs": 1794448900935.3684,
-      "updatedAt": "2026-11-12T02:01:40.982Z",
+      "tokens": 1116,
+      "hash": "83f63518eda6a016",
+      "size": 5521,
+      "mtimeMs": 1794460080178.974,
+      "updatedAt": "2026-11-12T05:08:00.224Z",
       "source": "hook",
       "symbols": [
         {
@@ -45274,8 +45274,8 @@
           "name": "hash_sanitized",
           "kind": "fn",
           "startLine": 102,
-          "endLine": 120,
-          "tokens": 183
+          "endLine": 134,
+          "tokens": 305
         }
       ]
     },
@@ -45641,10 +45641,10 @@
     "pcs-backend/app/api/v1/ai/__init__.py": {
       "description": "AI 预留路由组（P10-A · Task T9）。",
       "tokens": 84,
-      "hash": "72a5f6945d1dadcc",
-      "size": 429,
-      "mtimeMs": 1794449959335.8313,
-      "updatedAt": "2026-11-12T02:19:19.379Z",
+      "hash": "9efb4d4519a4f1a3",
+      "size": 424,
+      "mtimeMs": 1794460111794.912,
+      "updatedAt": "2026-11-12T05:08:31.846Z",
       "source": "hook"
     },
     "pcs-backend/tests/services/ai/test_ai_audit_task.py": {
@@ -45771,46 +45771,46 @@
     },
     "pcs-backend/app/workers/ai_audit_tasks.py": {
       "description": "AI 审计的**写库**任务（P10-A · Task T10）—— **幂等**。",
-      "tokens": 1385,
-      "hash": "059b92aed0be24ad",
-      "size": 6114,
-      "mtimeMs": 1794455702823.1729,
-      "updatedAt": "2026-11-12T03:55:02.873Z",
+      "tokens": 1646,
+      "hash": "4954e5c3356d5859",
+      "size": 7372,
+      "mtimeMs": 1794460031140.6277,
+      "updatedAt": "2026-11-12T05:07:11.197Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_row_values",
           "kind": "fn",
-          "startLine": 59,
-          "endLine": 75,
-          "tokens": 165
+          "startLine": 78,
+          "endLine": 100,
+          "tokens": 236
         },
         {
           "name": "_build_insert",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 103,
+          "startLine": 101,
+          "endLine": 128,
           "tokens": 283
         },
         {
           "name": "_find_existing",
           "kind": "fn",
-          "startLine": 104,
-          "endLine": 111,
+          "startLine": 129,
+          "endLine": 136,
           "tokens": 78
         },
         {
           "name": "_insert_row",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 121,
+          "startLine": 137,
+          "endLine": 146,
           "tokens": 79
         },
         {
           "name": "write_ai_audit_log",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 158,
+          "startLine": 147,
+          "endLine": 183,
           "tokens": 363
         }
       ]

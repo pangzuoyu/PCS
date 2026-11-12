@@ -245,3 +245,22 @@ async def test_audit_records_the_authenticated_user(
     assert recorded_audits[-1]["user_id"] == uuid.uuid5(
         uuid.NAMESPACE_DNS, "test-designer"
     )
+
+
+async def test_oversized_body_is_truncated_not_buffered(
+    ai_client, designer_headers, recorded_audits
+) -> None:
+    """⚠️ **超大 body ⇒ 截断 ⇒ 422**（评审 M-5），而不是把服务撑爆。
+
+    ⚠️ 中间件在**认证之前**就读 body ⇒ 未认证的客户端也能触发 ⇒
+    没有上限 ⇒ 内存放大 / OOM 风险。
+    ⇒ 上限之上：停止累积 ⇒ 下游收到**被截断**的 JSON ⇒ 422。
+    """
+    oversized = "x" * (10 * 1024 * 1024 + 1024)
+
+    resp = await ai_client.post(
+        "/api/v1/ai/intent", json={"text": oversized}, headers=designer_headers
+    )
+
+    assert resp.status_code == 422, resp.text
+    assert recorded_audits[-1]["sanitized_request_hash"] is None

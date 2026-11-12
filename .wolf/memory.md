@@ -3457,3 +3457,7 @@
 | 11:54 | Edited pcs-backend/tests/services/ai/test_ai_audit_task_pg.py | 3→6 lines | ~80 |
 | 11:55 | Edited pcs-backend/app/workers/ai_audit_tasks.py | modified _build_insert() | ~283 |
 | 11:55 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified recorded_audits() | ~227 |
+| 13:07 | Edited pcs-backend/app/workers/ai_audit_tasks.py | modified _row_values() | ~491 |
+| 13:08 | Edited pcs-backend/app/core/ai_sanitizer.py | modified hash_sanitized() | ~305 |
+| 13:08 | Created pcs-backend/app/api/v1/ai/__init__.py | — | ~84 |
+| 13:15 | Created pcs-frontend/playwright.config.ts | — | ~711 |

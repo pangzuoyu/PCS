@@ -126,28 +126,36 @@ npm run lint                        # eslint . --max-warnings 0，0 错为目标
 bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 ```
 
-#### 真后端 E2E（Playwright `real-backend` 项目）
+#### E2E 两条通道（Playwright）
 
-默认的 Playwright 通道跑在 **MSW mock** 上（前端 `vite dev` 时挂 MSW worker）。
-`real-backend` 项目**关掉 MSW** ⇒ 请求打到**真后端** ⇒ 需要「后端 + 库 + 种子数据」在跑：
+| 通道 | 脚本 | 前端端口 | MSW | 需要后端？ |
+|---|---|---|---|---|
+| **mock**（默认） | `npm run e2e` | 5173 | **开** | 否 |
+| **真后端** | `npm run e2e:real` | 5174 | **关** | **是**（+ 库 + 种子数据） |
+
+⚠️ **两个 server 各起各的**（`playwright.config.ts` 的 `webServer` 数组）⇒
+「真后端」通道在**结构上不可能**是 mock（之前靠 env 开关 ⇒ `--project=real-backend`
+不带 env 时会**打到 MSW** ⇒ 假绿 · 2026-11-12 评审 H-3）。
 
 ```bash
-# ① 测试栈（postgres-pgtest + seed 一次性任务；seed 连的是 pcs_pgtest 库）
+# ① 测试栈（postgres-pgtest + migrate + seed 三个一次性任务；连的是 pcs_pgtest 库）
+#    ⚠️ **migrate 不能省** —— 全仓没有别的东西迁移 pcs_pgtest ⇒ 全新机器上那个库
+#    是**空 schema** ⇒ seed 第一句就 `relation "workspaces" does not exist`。
 docker compose --profile test up -d
+docker compose --profile test run --rm migrate
 docker compose --profile test run --rm seed
 
 # ② 后端 ⚠️ mock 登录**默认关**（上面的「双闸」）⇒ 真后端 E2E 必须显式开
+#    ⚠️ **端口与 ③ 的 VITE_API_PROXY_TARGET 必须成对** —— 代理指错 ⇒ 打到别的服务
+#    ⇒ 症状是「登录失败」。
 cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000
 
-# ③ 跑真后端通道
-cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend
+# ③ 跑真后端通道（默认代理到 8000；后端在别的端口就带上 VITE_API_PROXY_TARGET）
+cd pcs-frontend && VITE_API_PROXY_TARGET=http://localhost:8000 npm run e2e:real
 ```
 
-⚠️ **第 ③ 步要求 5173 端口上的 vite 是「本次新起的」** —— `playwright.config.ts` 的
-`webServer.reuseExistingServer` 会**复用已在跑的 dev server** ⇒ 若那个 server 是
-不带 `VITE_ENABLE_MOCK=false` 起的，MSW 仍会拦截请求 ⇒ 表现为「登录失败」。
-⇒ 先停掉旧 dev server 再跑。
-
+⚠️ **真后端通道固定用 5174 且 `reuseExistingServer: false`** ⇒ 5174 上已有进程 ⇒
+**硬失败**（宁可失败，也不要复用错配置的 server）⇒ 先停掉旧 vite。
 ⚠️ **要连 `pcs_test` 跑迁移/测试时，别把口令写在命令行上**（会被权限分类器拦，
 且口令会进 shell 历史）⇒ 用 `CLAUDE.md`「测试前检查」里的**进程内派生 URL**
 配方（`dotenv_values('.env')` 读口令 ⇒ 只改 `os.environ`）。

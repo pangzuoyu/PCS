@@ -55,6 +55,25 @@ _AUDIT_COLUMNS = (
     "model_version",
 )
 
+#: **写入边界**的截断长度（与 `ai_audit_log` 的列宽逐字一致）。
+#:
+#: ⚠️⚠️ **为什么必须截断**（bug-2160 · 2026-11-12 评审 H-1）：
+#: `client_request_id` 来自**客户端可控**的 `X-Request-ID` 头、`endpoint` 来自
+#: 请求路径 ⇒ 两者都**可以超长** ⇒ PG 的 `varchar(n)` **严格执行** ⇒ 超长 ⇒
+#: `22001 string_data_right_truncation` ⇒ 落到下面的 `except Exception`
+#: ⇒ **这一行审计被静默丢弃** ⇒ 请求照常返回 501，调用方毫无感知
+#: ⇒ **审计表对「用超长头探测」的行为完全失明**（正是审计要防的事）。
+#:
+#: ⚠️ **单测抓不到**：单测跑内存 SQLite，**SQLite 不强制 VARCHAR 长度**。
+#: ⇒ 真 PG 用例：`tests/services/ai/test_ai_audit_task_pg.py`。
+_MAX_LENGTHS: dict[str, int] = {
+    "request_id": 64,
+    "client_request_id": 128,
+    "endpoint": 200,
+    "sanitized_request_hash": 80,
+    "model_version": 50,
+}
+
 
 def _row_values(fields: dict[str, Any]) -> dict[str, Any]:
     """把入参整理成**列 → 值**的映射（只留本表认得的列）。"""
@@ -63,8 +82,14 @@ def _row_values(fields: dict[str, Any]) -> dict[str, Any]:
         "operation": fields.get("operation") or DEFAULT_OPERATION,
     }
     for column in _AUDIT_COLUMNS:
-        if column in fields:
-            values[column] = fields[column]
+        if column not in fields:
+            continue
+        value = fields[column]
+        limit = _MAX_LENGTHS.get(column)
+        if limit is not None and isinstance(value, str) and len(value) > limit:
+            # ⚠️ **写入边界截断**（见 `_MAX_LENGTHS` 的说明）
+            value = value[:limit]
+        values[column] = value
     user_id = fields.get("user_id")
     if user_id is not None:
         values["user_id"] = (

@@ -85,3 +85,20 @@ class AiDocumentExtractRequest(BaseModel):
 
     document_ref: str | None = Field(None, description="文档引用（规范号 / 文件 id）")
     context: AiContext | None = Field(None, description="调用上下文")
+
+
+class AiNotImplementedResponse(BaseModel):
+    """AI「已预留、未实现」的响应体（**501**）。
+
+    ⚠️ **契约里必须声明它**（2026-11-12 评审 M-2）：路由若只写 `-> None`，
+    FastAPI 生成的契约是 `200 + 空 schema` ⇒ **契约描述的是永远不发生的
+    行为**（运行时一律 501）⇒ 前端派生不出 501 信封的类型 ⇒
+    任何按契约生成的客户端会等一个不会来的 200。
+
+    字段与 `app/core/errors.py` 的 501 handler **逐字一致**。
+    """
+
+    code: str = Field("AI_NOT_IMPLEMENTED", description="业务错误码")
+    message: str = Field("AI功能即将上线", description="中文提示")
+    status: str = Field("not_implemented", description="固定值 not_implemented")
+    request_id: str = Field(..., description="服务端生成的请求 id（审计幂等键）")

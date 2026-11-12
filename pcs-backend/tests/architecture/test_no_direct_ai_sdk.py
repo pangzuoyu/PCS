@@ -134,10 +134,13 @@ def test_only_outbound_client_calls_httpx_with_an_ai_endpoint() -> None:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for call in _httpx_calls(tree):
-            if not call.args:
-                continue
-            if _mentions_ai_endpoint(call.args[0]):
-                offenders.append(f"{rel}:{call.lineno}")
+            # ⚠️ **两种传法都要看**（评审 L-4）：`httpx.post(url, ...)` 的位置
+            # 参数，**以及** `httpx.post(url=..., ...)` 的关键字参数。
+            candidates = list(call.args[:1])
+            candidates += [kw.value for kw in call.keywords if kw.arg == "url"]
+            for candidate in candidates:
+                if _mentions_ai_endpoint(candidate):
+                    offenders.append(f"{rel}:{call.lineno}")
 
     assert not offenders, (
         "用 httpx 打 AI 端点只允许在 app/core/outbound_ai_client.py："

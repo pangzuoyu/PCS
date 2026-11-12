@@ -147,3 +147,29 @@ async def test_ai_intent_context_accepts_snake_case_too() -> None:
 
     assert context.project_id == "p-1"
     assert context.record_id == "r-1"
+
+
+async def test_ai_routes_declare_the_501_envelope_in_the_contract() -> None:
+    """⚠️ 契约里**必须声明 501**（评审 M-2）。
+
+    ⚠️ 路由若只写 `-> None` ⇒ FastAPI 生成 `200 + 空 schema`
+    ⇒ **契约描述的是永远不发生的行为**（运行时一律 501）⇒
+    前端派生不出 501 信封的类型。
+    """
+    from fastapi import FastAPI
+
+    from app.api.v1 import api_router
+
+    app = FastAPI()
+    app.include_router(api_router)
+    spec = app.openapi()
+
+    for path in AI_PATHS:
+        responses = spec["paths"][path]["post"]["responses"]
+        assert "501" in responses, f"{path} 的契约里没有 501：{list(responses)}"
+        ref = responses["501"]["content"]["application/json"]["schema"]["$ref"]
+        assert ref.endswith("/AiNotImplementedResponse"), ref
+
+    # 信封的字段与运行时逐字一致
+    envelope = spec["components"]["schemas"]["AiNotImplementedResponse"]["properties"]
+    assert set(envelope) == {"code", "message", "status", "request_id"}, envelope
