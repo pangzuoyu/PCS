@@ -194,6 +194,7 @@ async def _close_redis_connections() -> None:
     import logging
 
     from app.api.v1 import ws as ws_mod
+    from app.services.ai.arq_queue import close_ai_audit_pool
     from app.services.broadcaster import get_broadcaster
     from app.services.edit_lock import get_edit_lock
 
@@ -202,6 +203,9 @@ async def _close_redis_connections() -> None:
         ("broadcaster", get_broadcaster().aclose()),
         ("ws registry", ws_mod.get_registry().aclose()),
         ("edit lock", get_edit_lock().aclose()),
+        # ⚠️ AI 审计的 ARQ 连接池（评审 #20）—— 现在是**进程级单例**了
+        # ⇒ 每次优雅重启漏一条连接 ⇒ 必须在这里关。
+        ("ai audit pool", close_ai_audit_pool()),
     ):
         try:
             await closer

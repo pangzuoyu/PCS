@@ -48,7 +48,8 @@ from typing import Any
 #: 把整站钉死（单 worker ⇒ 所有端点一起卡）。
 #: ⇒ 量词按 **RFC 5321** 加界（local ≤ 64 / domain ≤ 255 / TLD ≤ 63）：
 #: 每个起始位置的回退量**有上限** ⇒ 扫描**线性**。
-#: 语义不变：合法地址（local ≤ 64）仍被遮蔽（`test_email_rule_still_masks_a_long_but_legal_address`）。
+#: 语义不变：合法地址（local ≤ 64）仍被遮蔽
+#: （`test_email_rule_still_masks_a_long_but_legal_address`）。
 SENSITIVE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b[A-Z]{2}-\d{3}\b"), "[LINE_NO]"),
     (re.compile(r"\b[A-Z]{2,4}-\d{3,5}[A-Z]?\b"), "[EQUIPMENT_TAG]"),

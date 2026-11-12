@@ -27,7 +27,7 @@ from typing import Any
 
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.system import AiAuditLog
@@ -144,6 +144,18 @@ async def _insert_row(session: AsyncSession, row: Any) -> None:
     await session.commit()
 
 
+def _is_schema_error(exc: BaseException) -> bool:
+    """这个异常是不是「**目标库还没迁移**」类的 schema 错误（评审 #21）。
+
+    ⚠️ asyncpg 的 `UndefinedColumnError` 被 SQLAlchemy 包成 `ProgrammingError`
+    ⇒ 判据是「消息里有没有 column ... does not exist」。
+    """
+    if isinstance(exc, ProgrammingError):
+        text = str(exc).lower()
+        return "does not exist" in text or "undefined column" in text
+    return type(exc).__name__ == "UndefinedColumnError"
+
+
 async def write_ai_audit_log(ctx: dict, **fields: Any) -> None:
     """写一条 AI 审计行（**幂等**：同一 `request_id` 只留一行）。
 
@@ -151,13 +163,24 @@ async def write_ai_audit_log(ctx: dict, **fields: Any) -> None:
         ctx: ARQ ctx（需含 `session_factory`，由 `worker.py::_on_startup` 注入）。
         **fields: 审计字段（`request_id` / `endpoint` / `status_code` …）。
 
-    ⚠️ **写失败不抛**（除幂等冲突外都吞掉）—— 审计是旁路。
+    ⚠️⚠️ **写失败抛 `Retry`（有界）**（评审 #6 · 2026-11-12）——
+    ARQ 0.28 **只对 `Retry` 异常重试**（其余当场判死）⇒ 吞掉异常
+    ⇒ ARQ 认为 job 成功 ⇒ job 被删除 ⇒ **那一次请求的审计行永久丢失**，
+    而请求早就返回 501 了 ⇒ 审计表对那次调用**完全失明**。
+    ⇒ 还有次数就 `raise Retry(defer=RETRY_DEFER_S)`；次数用完 ⇒ 记 ERROR 后返回。
+    ⚠️ `IntegrityError` 分支**仍不抛** —— 那是幂等命中，不是失败。
     """
+    from arq import Retry
+
+    from app.workers.worker import MAX_TRIES, RETRY_DEFER_S
+
     factory = ctx["session_factory"]
     request_id = fields.get("request_id")
     if not request_id:
         logger.warning("AI 审计缺 request_id ⇒ 跳过（无法保证幂等）")
         return
+
+    attempt_no = int(ctx.get("job_try") or 1)
 
     async with factory() as session:
         existing = await _find_existing(session, str(request_id))
@@ -173,9 +196,21 @@ async def write_ai_audit_log(ctx: dict, **fields: Any) -> None:
             # ⚠️ 并发下另一个 worker 已插入 ⇒ **幂等**，不算失败。
             await session.rollback()
             return
-        except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试
+        except Exception as exc:  # noqa: BLE001 — 写失败要**可恢复**，不是消失
             await session.rollback()
-            logger.warning("写 AI 审计行失败（已降级）", exc_info=True)
+            if _is_schema_error(exc):
+                # ⚠️ 「目标库没迁移」⇒ 说人话（评审 #21）—— 否则运维只看到
+                # 「审计失败」，而审计表**一直是空的**。
+                logger.error(
+                    "写 AI 审计行失败：目标库缺 p10_001 的列 —— "
+                    "请先对该库执行 alembic upgrade head",
+                    exc_info=True,
+                )
+            else:
+                logger.warning("写 AI 审计行失败（将重试）", exc_info=True)
+            if attempt_no < MAX_TRIES:
+                raise Retry(defer=RETRY_DEFER_S) from exc
+            logger.error("AI 审计行最终写入失败（已达重试上限）", exc_info=True)
             return
 
 
