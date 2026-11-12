@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T00:54:51.683Z",
+    "lastScanned": "2026-11-12T00:59:52.655Z",
     "fileCount": 1221,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3a5a3bf4d662b8daccb7402fc179e9cf57f636312e1ece793eff9afb03ccf4e1",
-    "storeUpdatedAt": "2026-11-12T00:54:51.695Z",
-    "rootHash": "31a3825c316428a0"
+    "renderedHash": "170ae24954041b419b9fca39bb7f94b7d98a40da305903a71932eda590d98354",
+    "storeUpdatedAt": "2026-11-12T00:59:52.667Z",
+    "rootHash": "5f87d4aadb0cfa93"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12360,11 +12360,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 30211,
-      "hash": "6873eddb1c2feab7",
-      "size": 202968,
-      "mtimeMs": 1794442239106.7395,
-      "updatedAt": "2026-11-12T00:10:39.194Z",
+      "tokens": 32014,
+      "hash": "259362ae4d13d063",
+      "size": 215119,
+      "mtimeMs": 1794445185744.435,
+      "updatedAt": "2026-11-12T00:59:45.798Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -42514,11 +42514,11 @@
     },
     "docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md": {
       "description": "P9B-4 实施计划：批量体验收口（TODO-116 只重试失败项 + TODO-108 引用 📎×N）",
-      "tokens": 10667,
-      "hash": "6d4bf02390b71143",
-      "size": 65116,
-      "mtimeMs": 1794301101775.2498,
-      "updatedAt": "2026-11-10T08:58:21.825Z",
+      "tokens": 14652,
+      "hash": "0cc6e5fbbd8d7752",
+      "size": 90125,
+      "mtimeMs": 1794445190876.3464,
+      "updatedAt": "2026-11-12T00:59:50.928Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md": {
@@ -44708,11 +44708,11 @@
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md": {
       "description": "QA 报告 —— P9B-4 评审修复批（2026-11-12）",
-      "tokens": 1196,
-      "hash": "6fd2112401ce85ee",
-      "size": 7269,
-      "mtimeMs": 1794444883747.7747,
-      "updatedAt": "2026-11-12T00:54:43.795Z",
+      "tokens": 1211,
+      "hash": "6a4eddbf34ed0996",
+      "size": 7374,
+      "mtimeMs": 1794445192603.3164,
+      "updatedAt": "2026-11-12T00:59:52.655Z",
       "source": "hook"
     }
   }
