@@ -21,6 +21,7 @@ from app.core.config import (
     parse_cors_origins,
     validate_cors_for_production,
 )
+from app.core.ai_audit_middleware import AIAuditMiddleware
 from app.core.errors import install_exception_handlers
 from app.core.logging import _trace_id_var, setup_logging
 from app.db.session import (
@@ -237,6 +238,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # ⚠️ **AI 审计中间件**（P10-A · SPEC §3.3.2「AI 审计日志：记录所有 AI
+    #    请求响应」）：只作用于 `/api/v1/ai/` 前缀 ⇒ 其它路径零开销。
+    #    ⇒ 必须在路由挂载**之前**注册（`add_middleware` 在 app 启动前生效）。
+    app.add_middleware(AIAuditMiddleware)
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):
