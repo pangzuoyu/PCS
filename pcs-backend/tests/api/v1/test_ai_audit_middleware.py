@@ -195,14 +195,22 @@ async def test_audit_records_500_when_no_response_is_sent(
 async def test_large_body_is_not_hashed(
     ai_client, designer_headers, recorded_audits
 ) -> None:
-    """⚠️ body > **1MB** ⇒ `sanitized_request_hash` 为 **None**（不哈希大 body）。"""
-    big = "x" * (MAX_HASH_BYTES + 1024)
+    """⚠️ body 超过**审计上限** ⇒ `sanitized_request_hash` 为 **None**（不哈希大 body）。
+
+    ⚠️ **评审 #3 后行为变了**：上限从「1 MB 哈希窗口」变成
+    `settings.ai_max_request_body_bytes`（256 KB）⇒ 超限直接 **413**，
+    且**不再进路由**（body 根本没被读进内存）⇒ 审计行照写、hash 留空。
+    """
+    from app.core.config import get_settings
+
+    cap = get_settings().ai_max_request_body_bytes
+    big = "x" * (cap + 1024)
 
     resp = await ai_client.post(
         "/api/v1/ai/intent", json={"text": big}, headers=designer_headers
     )
 
-    assert resp.status_code == 501, resp.text
+    assert resp.status_code == 413, resp.text
     assert recorded_audits[-1]["sanitized_request_hash"] is None
 
 
@@ -250,17 +258,127 @@ async def test_audit_records_the_authenticated_user(
 async def test_oversized_body_is_truncated_not_buffered(
     ai_client, designer_headers, recorded_audits
 ) -> None:
-    """⚠️ **超大 body ⇒ 截断 ⇒ 422**（评审 M-5），而不是把服务撑爆。
+    """⚠️ **超大 body ⇒ 413**（评审 #3），而不是把服务撑爆。
 
     ⚠️ 中间件在**认证之前**就读 body ⇒ 未认证的客户端也能触发 ⇒
     没有上限 ⇒ 内存放大 / OOM 风险。
-    ⇒ 上限之上：停止累积 ⇒ 下游收到**被截断**的 JSON ⇒ 422。
+    ⇒ 上限之上：**按 content-length 先拒**（body 根本不进内存）⇒ **413**；
+    且**审计行照写**（hash 留空）⇒ 契约 R2「失败也要留痕」不被破坏。
     """
-    oversized = "x" * (10 * 1024 * 1024 + 1024)
+    from app.core.config import get_settings
+
+    cap = get_settings().ai_max_request_body_bytes
+    oversized = "x" * (cap + 1024)
 
     resp = await ai_client.post(
         "/api/v1/ai/intent", json={"text": oversized}, headers=designer_headers
     )
 
-    assert resp.status_code == 422, resp.text
+    assert resp.status_code == 413, resp.text
     assert recorded_audits[-1]["sanitized_request_hash"] is None
+
+
+# === 评审 #3 / #29 / #17 / #18（2026-11-12 评审修复批） ===
+
+
+async def test_neighbour_path_under_api_v1_ai_is_not_audited(
+    ai_client, designer_headers, recorded_audits
+) -> None:
+    """⚠️ **评审 #29** —— 审计前缀必须**有路径边界**。
+
+    旧判定是 `path.startswith("/api/v1/ai")` ⇒ `/api/v1/ai-anything`
+    这类**邻居路径**也会被审计（body 被读、被哈希、被入队）⇒
+    未认证请求可以把它当**任意的哈希停顿入口**（见评审 #4）。
+    """
+    resp = await ai_client.post(
+        "/api/v1/ai-anything", json={"text": "x"}, headers=designer_headers
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert recorded_audits == [], "邻居路径不该进 AI 审计"
+
+
+async def test_oversized_body_is_rejected_with_413_and_still_audited(
+    ai_client, designer_headers, recorded_audits
+) -> None:
+    """⚠️ **评审 #3** —— 超上限的 body ⇒ **413**（不是 422），且**仍留审计行**。
+
+    旧行为：截断 body ⇒ 下游 JSON 解析失败 ⇒ 422 ⇒ 与「参数错」混在一起；
+    且 10 MB 的 body **先被完整读进内存**（未认证即可触发）。
+    新行为：**按 content-length 先拒**（413），**不读 body**，
+    但**审计行照写**（hash 留空）⇒ 契约 R2「失败也要留痕」不被破坏。
+    """
+    from app.core.config import get_settings
+
+    cap = get_settings().ai_max_request_body_bytes
+    big = "x" * (cap + 1024)
+
+    resp = await ai_client.post(
+        "/api/v1/ai/intent", json={"text": big}, headers=designer_headers
+    )
+
+    assert resp.status_code == 413, resp.text
+    assert recorded_audits, "超限请求也要留审计行"
+    assert recorded_audits[-1]["sanitized_request_hash"] is None
+
+
+async def test_deeply_nested_body_still_leaves_an_audit_row(
+    ai_client, designer_headers, recorded_audits
+) -> None:
+    """⚠️ **评审 #17** —— 深层嵌套 body ⇒ **审计行照写**（不被异常打断）。
+
+    ⚠️ 这里的响应码可能是 **500** —— 但**不是审计路径造成的**：
+    FastAPI 的 422 信封会把**整个非法输入**回显出来 ⇒ `jsonable_encoder`
+    对 ~1000 层嵌套**自己**就 `RecursionError` ⇒ 500。
+    那是**既有的**通用缺陷（任何端点收到深层 JSON 都一样），与本批无关
+    ⇒ 已登记 bug-2161 / TODO-151。
+
+    ⇒ 本用例只钉 #17 的契约：**审计行必须落**（异常不得逃出审计记录路径）。
+    """
+    payload = "[" * 1000 + "]" * 1000
+
+    try:
+        resp = await ai_client.post(
+            "/api/v1/ai/intent",
+            content=payload,
+            headers={**designer_headers, "Content-Type": "application/json"},
+        )
+        status = resp.status_code
+    except RecursionError:
+        # ⚠️ **既有的**通用缺陷（bug-2161）：FastAPI 的 422 信封会把**整个
+        # 非法输入**回显 ⇒ `jsonable_encoder` 对 ~1000 层嵌套自己就
+        # `RecursionError` ⇒ 异常**逃出 app**（任何端点收到深层 JSON 都一样，
+        # 与本批无关）。⇒ 这里只关心：**审计路径没被它打断**。
+        status = 500
+
+    assert recorded_audits, "深层 body 也必须留审计行"
+    assert recorded_audits[-1]["status_code"] in (422, 500), recorded_audits[-1]
+    assert status < 600
+
+
+async def test_audit_hash_is_computed_off_the_event_loop(
+    ai_client, designer_headers, recorded_audits, monkeypatch
+) -> None:
+    """⚠️ **评审 #18** —— 哈希必须**离开事件循环**。
+
+    `hash_sanitized` 是同步 CPU（解析 → 递归脱敏 → 再序列化 → sha256），
+    直接在 async 中间件里调 ⇒ 整个事件循环被占住。
+    ⇒ 必须走 `asyncio.to_thread`。
+    """
+    import asyncio
+
+    calls: list[object] = []
+    original = asyncio.to_thread
+
+    async def spy(fn, *args, **kwargs):
+        calls.append(fn)
+        return await original(fn, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", spy)
+
+    resp = await ai_client.post(
+        "/api/v1/ai/intent", json={"text": "x"}, headers=designer_headers
+    )
+
+    assert resp.status_code == 501, resp.text
+    assert calls, "哈希没有走 asyncio.to_thread ⇒ 仍在事件循环上"

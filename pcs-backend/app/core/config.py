@@ -140,6 +140,13 @@ class Settings(BaseSettings):
     # ⚠️ **人名遮蔽默认关** —— 开了会把几乎每个中文词都遮成 `[PERSON_NAME]`
     #    ⇒ 脱敏后的文本基本不可读。
     ai_mask_person_name: bool = False
+    # ⚠️ **AI 审计路径的请求体上限**（评审 #3 · 2026-11-12）——
+    #    旧值 10 MB：中间件在**认证之前**就把 body 完整读进内存
+    #    （chunks 一份 + join 后一份 ⇒ 峰值 ≈ 2×）⇒ 未认证客户端可放大内存。
+    #    AI 请求体是**小 JSON 对象** ⇒ 256 KB 绰绰有余。
+    #    超过上限 ⇒ **413**（不再截断成 422，语义不再与「参数错」混淆），
+    #    但**审计行照写**（hash 留空）⇒ 契约 R2「失败也要留痕」不被破坏。
+    ai_max_request_body_bytes: int = 256 * 1024
 
     @property
     def is_production(self) -> bool:

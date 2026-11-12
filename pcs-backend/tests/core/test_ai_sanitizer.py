@@ -138,3 +138,63 @@ def test_hash_sanitized_ignores_the_sensitive_part() -> None:
 def test_hash_sanitized_still_distinguishes_different_payloads() -> None:
     """脱敏后**内容不同** ⇒ 哈希仍不同（别把「同哈希」做成「全都同」）。"""
     assert hash_sanitized(b'{"text": "x"}') != hash_sanitized(b'{"text": "y"}')
+
+
+# === 评审 #4 / #17（2026-11-12 评审修复批） ===
+
+
+def test_email_rule_is_linear_on_large_at_free_input() -> None:
+    """⚠️ **评审 #4** —— EMAIL 规则**不得二次方**。
+
+    旧规则 `[A-Za-z0-9._%+-]+@…` 在**不含 `@`** 的输入上：每个起始位置都把
+    local part 吃到串尾、再逐字符回退找 `@` ⇒ **O(n²)**。
+    实测（生产函数 `hash_sanitized`）：80 KB ⇒ 4.2 s、320 KB ⇒ 68 s，
+    且全程**在事件循环上**（未认证请求即可触发）。
+
+    ⇒ 40 万字符的 `@`-free body 必须**秒级以内**完成。
+    """
+    import time
+
+    body = ("x" * 400_000).encode()
+    started = time.perf_counter()
+    digest = hash_sanitized(body)
+    elapsed = time.perf_counter() - started
+
+    assert digest.startswith("sha256:")
+    assert elapsed < 2.0, f"脱敏耗时 {elapsed:.2f}s ⇒ 正则仍是二次方"
+
+
+def test_email_rule_still_masks_a_long_but_legal_address() -> None:
+    """⚠️ **评审 #4** 的副作用护栏 —— 加界之后**仍要遮蔽**正常邮箱。
+
+    RFC 5321：local part ≤ 64 字符、domain ≤ 255 ⇒ 规则加界不应改变
+    合法地址的遮蔽结果。
+    """
+    local = "a" * 64
+    text = f"写信给 {local}@corp.com 谢谢"
+    assert "[EMAIL]" in sanitize_for_ai(text)
+    assert f"{local}@corp.com" not in sanitize_for_ai(text)
+
+
+def test_hash_sanitized_survives_deeply_nested_json() -> None:
+    """⚠️ **评审 #17** —— 深层嵌套 JSON ⇒ **不得抛 RecursionError**。
+
+    `json.loads` 自身在 ~1000 层嵌套就会 `RecursionError` ⇒ 旧实现让异常
+    逃出审计记录路径 ⇒ 审计行丢失 + 异常顶掉已在途的响应。
+    """
+    payload = ("[" * 1000) + ("]" * 1000)
+    digest = hash_sanitized(payload.encode())
+    assert digest.startswith("sha256:")
+
+
+def test_sanitize_for_ai_bounds_recursion_depth() -> None:
+    """⚠️ **评审 #17** —— 递归**有深度上限** ⇒ 超深部分换成占位符。"""
+    from app.core.ai_sanitizer import MAX_SANITIZE_DEPTH
+
+    deep: object = "leaf"
+    for _ in range(MAX_SANITIZE_DEPTH + 5):
+        deep = [deep]
+
+    out = sanitize_for_ai(deep)
+    flat = repr(out)
+    assert "[MAX_DEPTH]" in flat

@@ -39,13 +39,36 @@ import re
 from typing import Any
 
 #: 结构化脱敏规则（顺序即优先级，见模块 docstring 的 LINE_NO 说明）。
+#:
+#: ⚠️ **EMAIL 规则的量词必须**有界**（评审 #4 · 2026-11-12）：旧规则
+#: `[A-Za-z0-9._%+-]+@…` 的 local part 是**贪婪无界**的 ⇒ 在**不含 `@`** 的
+#: 输入上，每个起始位置都把 local part 吃到串尾、再逐字符回退找 `@`
+#: ⇒ **O(n²)**。实测（生产函数 `hash_sanitized`）：80 KB ⇒ 4.2 s、
+#: 320 KB ⇒ 68 s、400 KB ⇒ ~100 s，**全程在事件循环上** ⇒ 未认证请求即可
+#: 把整站钉死（单 worker ⇒ 所有端点一起卡）。
+#: ⇒ 量词按 **RFC 5321** 加界（local ≤ 64 / domain ≤ 255 / TLD ≤ 63）：
+#: 每个起始位置的回退量**有上限** ⇒ 扫描**线性**。
+#: 语义不变：合法地址（local ≤ 64）仍被遮蔽（`test_email_rule_still_masks_a_long_but_legal_address`）。
 SENSITIVE_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b[A-Z]{2}-\d{3}\b"), "[LINE_NO]"),
     (re.compile(r"\b[A-Z]{2,4}-\d{3,5}[A-Z]?\b"), "[EQUIPMENT_TAG]"),
     (re.compile(r"\b\d{4}\.\d{3}\.\d{3}\b"), "[PROJECT_NO]"),
-    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "[EMAIL]"),
+    (
+        re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,63}"),
+        "[EMAIL]",
+    ),
     (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[PHONE]"),
 )
+
+#: 递归脱敏的**深度上限**（评审 #17）—— 超过就换成占位符。
+#:
+#: ⚠️ 为什么要上限：`sanitize_for_ai` 是**递归**的 ⇒ 攻击者给一个
+#: ~1000 层的嵌套 body ⇒ `json.loads` 自身就 `RecursionError`
+#: ⇒ 旧实现让异常逃出审计记录路径 ⇒ **审计行丢失** + 异常顶掉已在途的响应。
+MAX_SANITIZE_DEPTH = 20
+
+#: 超过深度上限时的占位符。
+MAX_DEPTH_PLACEHOLDER = "[MAX_DEPTH]"
 
 #: 人名遮蔽：**标签锚定**（不在标签后的中文串一律不遮）。
 #: ⚠️ 用捕获组而不是 lookbehind —— Python 的 lookbehind 要求**固定宽度**，
@@ -78,24 +101,32 @@ def _sanitize_text(text: str) -> str:
     return text
 
 
-def sanitize_for_ai(value: Any) -> Any:
+def sanitize_for_ai(value: Any, _depth: int = 0) -> Any:
     """递归脱敏任意结构（dict / list / tuple / str）。
 
     - 字符串 ⇒ 逐条规则替换
     - dict / list / tuple ⇒ **递归**处理其元素（键也处理）
     - 其余类型（数字 / 布尔 / None）⇒ **原样返回**
+
+    ⚠️ **深度有上限**（评审 #17）—— 超过 `MAX_SANITIZE_DEPTH` 就换成
+    `[MAX_DEPTH]` 占位符 ⇒ 攻击者用 ~1000 层嵌套 body 也**不会**把
+    递归栈打爆（`json.loads` 自己就会 `RecursionError`）。
     """
+    if _depth > MAX_SANITIZE_DEPTH:
+        return MAX_DEPTH_PLACEHOLDER
     if isinstance(value, str):
         return _sanitize_text(value)
     if isinstance(value, dict):
         return {
-            _sanitize_text(key) if isinstance(key, str) else key: sanitize_for_ai(item)
+            _sanitize_text(key) if isinstance(key, str) else key: sanitize_for_ai(
+                item, _depth + 1
+            )
             for key, item in value.items()
         }
     if isinstance(value, list):
-        return [sanitize_for_ai(item) for item in value]
+        return [sanitize_for_ai(item, _depth + 1) for item in value]
     if isinstance(value, tuple):
-        return tuple(sanitize_for_ai(item) for item in value)
+        return tuple(sanitize_for_ai(item, _depth + 1) for item in value)
     return value
 
 
@@ -113,6 +144,9 @@ def hash_sanitized(body: bytes) -> str:
     低熵字段可被候选字典比对反推。
     ⇒ **先脱敏、再规范化、再哈希**。
     ⚠️ 非 JSON ⇒ 按**文本**脱敏（脱不掉就退原文）；解码不了 ⇒ hash 原始 bytes。
+    ⚠️⚠️ **`RecursionError` 一并接住**（评审 #17）：`json.loads` 对 ~1000 层
+    嵌套的 body 自己就会 `RecursionError` ⇒ 旧实现让异常逃出审计记录路径
+    ⇒ **审计行丢失** + 异常顶掉已在途的响应 ⇒ 现在退化为「按文本脱敏后哈希」。
     """
     try:
         text = body.decode("utf-8")
@@ -121,7 +155,7 @@ def hash_sanitized(body: bytes) -> str:
     else:
         try:
             parsed = json.loads(text)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, RecursionError):
             canonical = _sanitize_text(text).encode("utf-8")
         else:
             canonical = json.dumps(
