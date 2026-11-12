@@ -1,13 +1,17 @@
 """Health endpoint（async via check_database_async，Sprint 1）。
 
 P9A 扩 `realtime` / `realtime_reason`（ADR-0049 §⑥ / SPEC P9A-NOT-006）。
+P10-A 扩 `GET /health/ai`（AI 服务状态，SPEC §3.1.2 · §3.2.1(5)）。
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from typing import Annotated
 
-from app.db.session import check_database_async
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import check_database_async, get_db
 
 router = APIRouter(tags=["health"])
 
@@ -58,4 +62,147 @@ async def health() -> HealthResponse:
         database="up" if db_ok else "down",
         realtime=broadcaster.status,
         realtime_reason=broadcaster.reason,
+    )
+
+class HealthAIResponse(BaseModel):
+    """AI 健康状态（GET /health/ai）。
+
+    ⚠️ **恒 200** —— 健康端点的职责是**报告**，不是**拒绝**：
+    探针（K8s liveness）不该因为「AI 还没上线」而红。
+
+    字段：
+    - `status`：`not_configured`（没配 endpoint）/ `ok`（IP 字面量在内网）/
+      `degraded`（配了但验证不过 / CIDR 非法 / 是域名没法验证）
+    - `reason`：为什么是 degraded（`None` ⇒ 没毛病）
+    - `ai_enabled`：系统参数 `ai_enabled`（**单一真相源**）
+    - `endpoint_configured`：有没有 endpoint（系统参数优先，空则回退 env）
+    - `cidrs_configured`：**`parse_cidrs()` 之后**非空（不是原始串非空）
+    """
+
+    status: str
+    reason: str | None
+    ai_enabled: bool
+    endpoint_configured: bool
+    cidrs_configured: bool
+
+
+#: endpoint 是**域名**时的 reason（DNS **不解析** ⇒ 没法验证是否在内网）。
+_REASON_DOMAIN = "endpoint_is_domain_not_verified"
+#: endpoint 是 IP 但不在 CIDR 内。
+_REASON_NOT_IN_CIDRS = "endpoint_not_in_cidrs"
+#: `INTERNAL_CIDRS` 非法。
+_REASON_INVALID_CIDRS = "invalid_cidrs"
+#: 读不到系统参数。
+_REASON_SETTINGS_UNAVAILABLE = "settings_unavailable"
+
+
+def _is_ip_literal(host: str) -> bool:
+    """host 是不是 IP 字面量（不是域名）。"""
+    import ipaddress
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+@router.get("/health/ai", response_model=HealthAIResponse)
+async def health_ai(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> HealthAIResponse:
+    """GET /health/ai（AI 服务状态 · 预留）。
+
+    ## 判定口径（写清楚，否则「为什么不是 ok」没法解释）
+
+    | endpoint 形态 | 判定 | `status` |
+    |---|---|---|
+    | 未配置 | 不判 | `not_configured` |
+    | **IP 字面量** | 本地比对 CIDR（**不联网**） | 在内网 ⇒ `ok`；不在 ⇒ `degraded` |
+    | **域名** | **不解析 DNS** | 恒 `degraded` |
+
+    ⇒ **域名 endpoint 永远不会是 `ok`** —— 这是**如实**的：
+    没验证过就不能说它在内网。
+    ⇒ **不解析 DNS** 还有一条工程理由：健康检查**不该依赖外网**
+    （被墙/超时 ⇒ 探针抖动 ⇒ 误报故障）。
+    """
+    from app.core.ai_cidr import ip_in_cidrs, parse_cidrs
+    from app.core.config import get_settings
+    from app.services.system_setting_service import get_setting_value
+
+    settings = get_settings()
+
+    # ⚠️ **非法 CIDR 不许让健康端点崩** ⇒ 降级为「没配」+ 明确 reason。
+    invalid_cidrs = False
+    try:
+        cidrs = parse_cidrs(settings.internal_cidrs)
+    except RuntimeError:
+        cidrs = []
+        invalid_cidrs = True
+
+    ai_enabled = False
+    endpoint: str | None = None
+    try:
+        ai_enabled = bool(await get_setting_value(db, "ai_enabled", default=False))
+        endpoint = (await get_setting_value(db, "ai_endpoint", default=None)) or (
+            settings.ai_endpoint
+        )
+    except Exception:  # noqa: BLE001 — 读不到参数不该让健康端点崩
+        return HealthAIResponse(
+            status="degraded",
+            reason=_REASON_SETTINGS_UNAVAILABLE,
+            ai_enabled=False,
+            endpoint_configured=False,
+            cidrs_configured=bool(cidrs),
+        )
+
+    if invalid_cidrs:
+        return HealthAIResponse(
+            status="degraded",
+            reason=_REASON_INVALID_CIDRS,
+            ai_enabled=ai_enabled,
+            endpoint_configured=bool(endpoint),
+            cidrs_configured=False,
+        )
+
+    if not endpoint:
+        return HealthAIResponse(
+            status="not_configured",
+            reason=None,
+            ai_enabled=ai_enabled,
+            endpoint_configured=False,
+            cidrs_configured=bool(cidrs),
+        )
+
+    host = endpoint.split("://", 1)[-1].split("/", 1)[0]
+    if host.startswith("[") and "]" in host:
+        host = host[1 : host.index("]")]
+    else:
+        host = host.split(":", 1)[0]
+
+    if not _is_ip_literal(host):
+        # ⚠️ 域名 ⇒ **不解析 DNS** ⇒ 恒 degraded（如实：没验证过）。
+        return HealthAIResponse(
+            status="degraded",
+            reason=_REASON_DOMAIN,
+            ai_enabled=ai_enabled,
+            endpoint_configured=True,
+            cidrs_configured=bool(cidrs),
+        )
+
+    if ip_in_cidrs(host, cidrs):
+        return HealthAIResponse(
+            status="ok",
+            reason=None,
+            ai_enabled=ai_enabled,
+            endpoint_configured=True,
+            cidrs_configured=bool(cidrs),
+        )
+
+    return HealthAIResponse(
+        status="degraded",
+        reason=_REASON_NOT_IN_CIDRS,
+        ai_enabled=ai_enabled,
+        endpoint_configured=True,
+        cidrs_configured=bool(cidrs),
     )
