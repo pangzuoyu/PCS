@@ -7,8 +7,11 @@ import App from './App';
 import './styles/tokens.css';
 
 // Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除
+//
+// ⚠️ `VITE_ENABLE_MOCK=false` ⇒ **不挂 MSW** ⇒ 请求打到真后端
+// （真后端 E2E 用；vite proxy 已把 /api 代理到 `VITE_API_PROXY_TARGET`）。
 async function bootstrap() {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {
     const { worker } = await import('./mocks/browser');
     await worker.start({
       onUnhandledRequest: 'bypass',
