@@ -6083,6 +6083,27 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-11"
+    },
+    {
+      "id": "bug-2159",
+      "timestamp": "2026-11-12",
+      "severity": "high",
+      "error_message": "真 PG 上写 AI 审计行 ⇒ psycopg.errors.InvalidColumnReference: there is no unique or exclusion constraint matching the ON CONFLICT specification ⇒ **每次写 AI 审计都炸**（而单测全绿）",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "root_cause": "`request_id` 的唯一索引是 **partial** 的（`WHERE request_id IS NOT NULL` —— 既有 SUP-006 行的 request_id 为 NULL ⇒ 非 partial 会因重复 NULL 失败），而写库用 `ON CONFLICT (request_id) DO NOTHING` ⇒ **PG 匹配不到 partial 索引** ⇒ 报错。\n⚠️ 单测跑在**内存 SQLite** 上 ⇒ 走「先查后插 + catch IntegrityError」那条分支 ⇒ **完全碰不到**这条 SQL ⇒ 全绿。\n⚠️ 本仓最怕的形状：**单测照绿、真库会炸**（CLAUDE.md「漂移盲区」）。",
+      "fix": "`on_conflict_do_nothing(index_elements=[\"request_id\"], index_where=text(\"request_id IS NOT NULL\"))` ⇒ 冲突目标与 partial 索引的谓词**逐字一致** ⇒ PG 能对上。\n⚠️ 防复发：**PG 车道新增用例** `tests/services/ai/test_ai_audit_task_pg.py`（隔离 schema + `alembic upgrade head` ⇒ 真 PG 上写两次同一 request_id ⇒ 只有一行）⇒ 真 PG 才有的失败形状**从此有闸门**。\n⚠️ 顺带修掉一处**单测污染**：中间件测试里没用 `recorded_audits` 的两条会**真把 job 入进 Redis** ⇒ 该 fixture 改 autouse。",
+      "fix_commit": "5b608a1",
+      "tags": [
+        "postgres",
+        "ai",
+        "arq",
+        "audit",
+        "p10-a",
+        "pg-lane"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-12"
     }
   ]
 }

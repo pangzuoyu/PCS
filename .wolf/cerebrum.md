@@ -2,7 +2,10 @@
 
 > OpenWolf 学习记忆。**只放「下次还会犯」的规则与速查表**。
 >
-> **本文件的目标体积：≤ 24 000 token**（2026-11-12 瘦身前是 **34 100** ⇒ 现在 **23 218**）。
+> **本文件的目标体积：≤ 24 000 token**（2026-11-12 瘦身前是 **34 100** ⇒ 瘦身后 **23 218**
+> ⇒ **P10-A 又加 7 条 ⇒ ≈24 230**（估算口径见下：CJK 1.45 字符/token + 其余 3.6 字符/token，
+> 与瘦身那次实测比值 1.078 校准）⇒ **下次清退窗口已到** ⇒ 加新条目前先在**同一主题**里
+> 取代或归档一条旧的）。
 > ⚠️ **历史条款**：本文件 2026-11-12 之前写着「≤2000 token」而**实际 34k** ⇒
 > 契约是假的 ⇒ 现在改成**可核对的**（上面那个数 + 下面的清退规则）。
 >
@@ -33,11 +36,11 @@
 | 主题 | 条目数 | 关键词（grep 这些词就能定位） |
 |---|---|---|
 | **A 契约 · 权限 · 守卫** | 17 | 同形 / 枚举 / 守卫 / fail-closed / actor 层 / 覆盖 / 角色 / 归属 / 注册表 / 早于 / 鉴权 / 不可逆 |
-| **B 数据 · 迁移 · 事务** | 19 | savepoint / get-or-create / 加锁 / FOR UPDATE / populate_existing / 回滚 / expire / 迁移 / FK / 唯一约束 / 布尔 / 硬上限 / project_id |
-| **C 测试 · 守门 · 假绿** | 23 | 假绿 / 变异 / 观测 / 正向对照 / strict_client / SQLite / 注释骗人 / docstring / 守卫 / 断言 |
+| **B 数据 · 迁移 · 事务** | 22 | savepoint / get-or-create / 加锁 / FOR UPDATE / populate_existing / 回滚 / expire / 迁移 / FK / 唯一约束 / 布尔 / 硬上限 / project_id |
+| **C 测试 · 守门 · 假绿** | 25 | 假绿 / 变异 / 观测 / 正向对照 / strict_client / SQLite / 注释骗人 / docstring / 守卫 / 断言 |
 | **D 前端 · 契约派生 · 可空性** | 16 | 词表 / 契约派生 / mock / 可空性 / rowKey / 选中集 / 权威 / 类型检查 / 手写类型 / or 兜底 |
-| **E 工具 · 命令 · 浏览器** | 6 (+3 延伸) | 退出码 / 管道 / CI 步骤 / 基线 / page.goto / @eN / 空转 / 门禁 |
-| **F 流程 · 断言 · 协作** | 13 | 断言前先实测 / grep 既存 / 口径 / 评审结论 / 落点 / 逃生口 / 反向变更 / 真实可判定 |
+| **E 工具 · 命令 · 浏览器** | 8 (+3 延伸) | 退出码 / 管道 / CI 步骤 / 基线 / page.goto / @eN / 空转 / 门禁 |
+| **F 流程 · 断言 · 协作** | 14 | 断言前先实测 / grep 既存 / 口径 / 评审结论 / 落点 / 逃生口 / 反向变更 / 真实可判定 |
 | **G 领域 · 技术速查** | 10 (+1 指针) | Alias / chemicals / IAPWS / PropertyAutoCompleter / JSONB / mixin 必填 / API 520 / GB/T 12241 / Two-Point Omega / SIM 范围 |
 
 ⚠️ **每条都带日期与出处**（bug 号 / 评审号 / 裁决号）⇒ 判它是否仍适用时
@@ -331,7 +334,7 @@ ValueError)` 完全接不住 ⇒ 必须**在 `int()` 之前**先 `isinstance(raw
 
 - 真库测试第二个起需 `_reset_async_engine` autouse fixture（单例引擎跨 event loop 炸）。
 - 外科切割已提交代码后必复跑依赖测试；commit 自持性靠 worktree 验证。
-- **写 migration 前必跑 SQLAlchemy reflection** 校核实际 schema（`Model.__table__.columns/constraints` 是 ground truth）。
+- **写 migration 前必跑 SQLAlchemy reflection** 校核实际 schema（`Model.__table__.columns/constraints` 是 ground truth）。⚠️ **加列前先列一遍既有列名** —— `op.add_column` 撞名 ⇒ PG 直接 `column already exists`（2026-11-12 · P10-A：`ai_audit_log` 16 列 ⇒ 加 8 列不撞）。⚠️ 顺带看**有没有语义重叠的既有列**（那批发现既有 `occurred_at` + SPEC 想要的 `timestamp` ⇒ **复用**既有的，不新增 ⇒ 两个时间列以后没人知道该读哪个）。
 - ORM `__table_args__` 必须含 `CheckConstraint` 同步 DB 约束（跨 dialect 不丢）。
 - Pydantic schema 字段重复（Create+Update）→ Edit fail "Found 2 matches"，先 `grep -n` 再附上下文 unique。
 - **单测不读迁移，别把 `alembic upgrade head` 当测试前置**（2026-10-06 实测证伪）：`conftest.db_engine` 建 `sqlite+aiosqlite:///:memory:` 并用 `SA_Base.metadata.create_all` 从 ORM 建表，`.env` 指向 `pcs`、无 `pcs_test`、无 `.env.test`。CLAUDE.md「测试前检查」原「先对 pcs_test 跑 upgrade head」一条已于同日改写为三段式。
@@ -504,6 +507,22 @@ ValueError)` 完全接不住 ⇒ 必须**在 `int()` 之前**先 `isinstance(raw
 ⚠️ **推论（更普适）**：任何「按某列分组统计引用数」的查询，若该表**有**
 `project_id` ⇒ 一律**同时带 `project_id` 谓词**；项目守卫在本仓是**严口径**
 （跨项目 ⇒ 404 与「不存在」**逐字同形**）⇒ 计数/统计这里也要**同口径**。
+
+#### partial 唯一索引 ⇒ `ON CONFLICT` 必须带 `index_where`（2026-11-12 · P10-A · bug-2159）
+
+partial 唯一索引（`WHERE request_id IS NOT NULL`）配
+`ON CONFLICT (request_id) DO NOTHING` ⇒ **PG 匹配不到那个 partial 索引** ⇒
+`InvalidColumnReferenceError: there is no unique or exclusion constraint
+matching the ON CONFLICT specification` ⇒ **每次写都炸**。
+⇒ `on_conflict_do_nothing(index_elements=[...], index_where=text("<同一个谓词>"))`
+—— 冲突目标与 partial 索引的谓词要**逐字一致**。
+⚠️ 这条**只有真 PG 才暴露**（单测跑 SQLite ⇒ 走的是另一条分支）。
+
+#### 审计/日志类需求**先查既有表**（2026-11-12 · P10-A）
+
+SPEC 说「建 `ai_audit_log` 表」⇒ 仓里**已存在**（SUP-006 强制，16 列，语义是
+「AI 决策与提示词审计」）⇒ 照抄建表会**造出第二张同义表**。
+⇒ 先核既有列 ⇒ 给既有表**加列**（nullable）⇒ 既有语义一行不动。
 
 ### C 测试 · 守门 · 假绿
 
@@ -771,6 +790,22 @@ PG 车道脚本）⇒ 就是 cerebrum 那条「写 DB fixture 前必查 NOT NULL
 默认 1 步校对）。
 ⇒ 更快的一招：**走 API 创建**（`POST /projects/{id}/streams` ⇒ service 层补齐
 必填）⇒ 再 `UPDATE` 状态字段（ cerebrum 的「DB 测试 fixture 最简 pattern」）。
+
+#### 单测跑 SQLite ⇒ **碰不到 PG 的方言分支**（2026-11-12 · P10-A · bug-2159）
+
+`ON CONFLICT` / `FOR UPDATE` / `jsonb` 这些**方言特性**在内存 SQLite 上
+要么不可用、要么走另一条分支 ⇒ **单测全绿 ≠ 真库能跑**。
+⇒ PG 独有的失败形状必须有**PG 车道**用例（隔离 schema + 真 PG）⇒ 本仓入口
+只有 `scripts/pytest_pg.sh`（绿灯**证明不了**它们跑过）。
+
+#### 守门的**覆盖范围自己也要验**（2026-11-12 · P10-A）
+
+幂等守门的 `GLOBS` 只有 `("p7_*.py","p9_*.py")` ⇒ 新迁移 `p10_001` 不在覆盖内；
+而 `LEGACY_PREFIXES` 里的 `"p1"` 又把 `"p10_001..."` 一并吃掉 ⇒ 连棘轮
+（`startswith` 判定）都抓不到 ⇒ **新迁移被静默排除在守门之外**（报 OK，
+实则没检查）。
+⇒ 加新一波前缀时**必须**同时加进 `GLOBS`；
+⚠️ **字符串前缀会吃掉更新的前缀**（`"p10_x".startswith("p1")` ⇒ True）。
 
 ### D 前端 · 契约派生 · 可空性
 
@@ -1166,6 +1201,23 @@ antd 的 `Table` 里**所有行复选框**都带**同一个** `aria-label="Selec
 **批末**（SPEC 修订 + 债项登记之后）再 `cp openapi.json openapi-baseline.json`
 ⇒ 然后跑 `--check-baseline` 变绿。
 
+#### 纯 ASGI 中间件读 body ⇒ 必须**重放**（2026-11-12 · P10-A）
+
+中间件把 body 读完却不重放 ⇒ 下游 Pydantic **收不到** ⇒ 端点报 **422**
+（而不是本该报的 501）⇒ **症状与「参数错」无法区分** ⇒ 排查方向直接跑偏。
+⇒ 缓存后**重放**（`receive` 第一次返回缓存、之后返回 disconnect）。
+⚠️ `BaseHTTPMiddleware` 会把这件事变别扭 ⇒ 这类需求直接写**纯 ASGI**。
+
+#### compose 的 profile：**日常开发服务绝不加**（2026-11-12 · P10-A）
+
+给 `worker` / `openldap` / `postgres` / `redis` 加 `profiles:` ⇒
+`docker compose up` **不再起它们** ⇒ 破坏日常开发流程（而 compose 不报错）。
+⇒ profile 只给**一次性任务**（如 `seed`）。
+⚠️ 连带：① 一次性容器服务**必须挂源码卷** + `uv run --frozen`（uv 官方镜像
+没有项目依赖 ⇒ 裸 `python` 立刻 ModuleNotFoundError）；② `depends_on` 的每个
+服务都要在**该 profile 下可达**（compose **不会**隐式启动不在启用 profile
+内的服务）。
+
 ### F 流程 · 断言 · 协作
 
 #### 口径要钉死 + **与别的口径的差异要写明**（2026-11-11 · P9B-4）
@@ -1380,6 +1432,12 @@ P9B-2 的实例（两轮审查各抓到一次）：
 一次就能列全）⇒ 或者**在同一处**写「旧文已被推翻，见新裁决」，别留平行的旧句。
 
 ## G 领域 · 技术速查（查表，不是规则）
+
+#### ARQ **未注册的函数名不报错** ⇒ job 静静躺着（2026-11-12 · P10-A）
+
+入队成功、API 返 202、job **永远没人消费** ⇒ 全链路无一处报错。
+⇒ 新任务必须注册进 `WorkerSettings.functions`；守门两条互补：通用棘轮
+「入队 ⊆ 已注册」+ 具体断言「这个函数名在注册表里」。
 
 ### Alias/Registry
 

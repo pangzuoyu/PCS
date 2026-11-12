@@ -3372,3 +3372,88 @@
 | 08:59 | Edited TODOS.md | 14→15 lines | ~184 |
 | 08:59 | Edited docs/superpowers/plans/2026-11-04-p9b-4-ux-batch.md | 6→8 lines | ~101 |
 | 08:59 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md | 9→10 lines | ~138 |
+| 09:23 | Edited .claude/rules/openwolf.md | 1→2 lines | ~82 |
+| 09:26 | Session end: 165 writes across 48 files (TODOS.md, test_user_disabled_guard.py, user_status_service.py, config.py, ws.py) | 170 reads | ~401832 tok |
+
+## Session: 2026-11-12 09:26
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 09:33 | Created .superpowers/sdd/2026-11-04-p10-batch-a-preflight-ai-reserve/progress.md | — | ~1133 |
+| 09:33 | Created pcs-backend/tests/scripts/test_compose_test_profile.py | — | ~1124 |
+| 09:33 | Edited docker-compose.yml | 2→5 lines | ~71 |
+| 09:33 | Edited docker-compose.yml | expanded (+22 lines) | ~292 |
+| 09:39 | Edited README.md | expanded (+22 lines) | ~242 |
+| 09:40 | Created pcs-backend/tests/scripts/test_seed_e2e_data.py | — | ~1048 |
+| 09:40 | Edited pcs-backend/tests/scripts/test_seed_e2e_data.py | seed() → validate_username() | ~70 |
+| 09:40 | Edited pcs-backend/tests/scripts/test_seed_e2e_data.py | reduced (-7 lines) | ~35 |
+| 09:44 | Created pcs-backend/scripts/seed_e2e_data.py | — | ~2402 |
+| 09:44 | Edited pcs-backend/scripts/seed_e2e_data.py | 5→4 lines | ~31 |
+| 09:44 | Edited pcs-backend/tests/scripts/test_seed_e2e_data.py | 5→4 lines | ~14 |
+| 09:45 | Created pcs-frontend/e2e/real_backend_smoke.spec.ts | — | ~216 |
+| 09:46 | Edited pcs-frontend/src/main.tsx | modified bootstrap() | ~80 |
+| 09:46 | Created pcs-frontend/vite.config.ts | — | ~159 |
+| 09:46 | Created pcs-frontend/playwright.config.ts | — | ~600 |
+| 09:46 | Created pcs-frontend/e2e/fixtures.ts | — | ~562 |
+| 09:47 | Edited pcs-frontend/vite.config.ts | expanded (+13 lines) | ~226 |
+| 09:47 | Edited pcs-frontend/e2e/real_backend_smoke.spec.ts | 5→7 lines | ~80 |
+| 09:50 | Created pcs-backend/tests/services/test_ai_settings.py | — | ~893 |
+| 09:50 | Edited pcs-backend/app/core/config.py | expanded (+17 lines) | ~251 |
+| 09:50 | Edited pcs-backend/app/core/config.py | inline fix | ~12 |
+| 09:50 | Edited pcs-backend/app/services/system_setting_service.py | expanded (+39 lines) | ~334 |
+| 09:51 | Edited pcs-backend/tests/api/v1/test_system_settings.py | expanded (+7 lines) | ~73 |
+| 09:55 | Created pcs-backend/tests/core/test_ai_cidr.py | — | ~948 |
+| 09:55 | Edited pcs-backend/tests/core/test_ai_cidr.py | modified test_resolve_ai_endpoint_ips_raises_on_unresolvable_host() | ~168 |
+| 09:55 | Created pcs-backend/app/core/ai_cidr.py | — | ~1102 |
+| 09:56 | Edited pcs-backend/app/core/ai_cidr.py | modified validate_ai_endpoint() | ~308 |
+| 09:56 | Edited pcs-backend/tests/core/test_ai_cidr.py | 7→8 lines | ~44 |
+| 09:56 | Edited pcs-backend/app/main.py | expanded (+11 lines) | ~219 |
+| 09:56 | Edited pcs-backend/app/main.py | added error handling | ~329 |
+| 09:56 | Edited pcs-backend/app/main.py | added 1 import(s) | ~39 |
+| 09:59 | Created pcs-backend/tests/core/test_ai_sanitizer.py | — | ~979 |
+| 09:59 | Created pcs-backend/app/core/ai_sanitizer.py | — | ~1000 |
+| 09:59 | Edited pcs-backend/app/main.py | expanded (+7 lines) | ~105 |
+| 10:01 | Edited pcs-backend/app/core/ai_sanitizer.py | removed 3 lines | ~3 |
+| 10:03 | Created pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py | — | ~1351 |
+| 10:03 | Created pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py | — | ~931 |
+| 10:04 | Edited pcs-backend/app/models/system.py | modified AiAuditLog() | ~273 |
+| 10:04 | Edited pcs-backend/app/models/system.py | expanded (+21 lines) | ~363 |
+| 10:04 | Edited pcs-backend/app/models/system.py | 3→4 lines | ~7 |
+| 10:04 | Edited pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py | modified test_create_index_uses_if_not_exists() | ~132 |
+| 10:15 | Edited pcs-backend/scripts/check_migration_idempotency.py | 2→2 lines | ~13 |
+| 10:15 | Edited pcs-backend/scripts/check_migration_idempotency.py | expanded (+6 lines) | ~150 |
+| 10:17 | Created pcs-backend/tests/core/test_outbound_ai_client.py | — | ~1123 |
+| 10:17 | Created pcs-backend/app/core/ai_errors.py | — | ~220 |
+| 10:17 | Created pcs-backend/app/core/outbound_ai_client.py | — | ~716 |
+| 10:17 | Edited pcs-backend/app/core/errors.py | modified _unhandled() | ~383 |
+| 10:17 | Edited pcs-backend/app/core/errors.py | added 1 import(s) | ~37 |
+| 10:18 | Created pcs-backend/tests/api/v1/test_ai_routes.py | — | ~1302 |
+| 10:19 | Created pcs-backend/app/schemas/ai.py | — | ~686 |
+| 10:19 | Created pcs-backend/app/api/v1/ai/routes.py | — | ~637 |
+| 10:19 | Created pcs-backend/app/api/v1/ai/__init__.py | — | ~84 |
+| 10:19 | Edited pcs-backend/app/api/v1/__init__.py | 3→4 lines | ~42 |
+| 10:19 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~49 |
+| 10:20 | Edited pcs-backend/app/api/v1/ai/routes.py | 2→4 lines | ~48 |
+| 10:20 | Edited pcs-backend/tests/api/v1/test_ai_routes.py | modified test_ai_intent_context_is_a_named_schema() | ~135 |
+| 10:24 | Created pcs-backend/tests/services/ai/test_ai_audit_task.py | — | ~1279 |
+| 10:24 | Edited pcs-backend/tests/services/ai/test_ai_audit_task.py | modified test_audit_write_swallows_integrity_error_on_sqlite() | ~614 |
+| 10:25 | Created pcs-backend/app/services/ai/arq_queue.py | — | ~660 |
+| 10:25 | Created pcs-backend/app/services/ai/__init__.py | — | ~47 |
+| 10:25 | Created pcs-backend/app/workers/ai_audit_tasks.py | — | ~1227 |
+| 10:25 | Edited pcs-backend/app/workers/worker.py | added 1 import(s) | ~42 |
+| 10:25 | Edited pcs-backend/app/workers/worker.py | 5→9 lines | ~86 |
+| 10:27 | Created pcs-backend/tests/api/v1/test_ai_audit_middleware.py | — | ~2095 |
+| 10:27 | Created pcs-backend/app/core/ai_audit_middleware.py | — | ~1839 |
+| 10:27 | Edited pcs-backend/app/main.py | 8→13 lines | ~122 |
+| 10:27 | Edited pcs-backend/app/main.py | added 1 import(s) | ~33 |
+| 10:28 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified _boom() | ~95 |
+| 10:28 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified test_audit_records_500_when_no_response_is_sent() | ~129 |
+| 10:35 | Created pcs-backend/tests/api/v1/test_health_ai.py | — | ~1282 |
+| 10:42 | Edited pcs-backend/app/api/v1/health.py | 13→17 lines | ~136 |
+| 10:52 | Edited pcs-frontend/src/layouts/MainLayout.tsx | expanded (+18 lines) | ~233 |
+| 10:52 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 2→2 lines | ~25 |
+| 11:13 | Created pcs-backend/tests/architecture/test_no_direct_ai_sdk.py | — | ~1258 |
+| 11:52 | Created pcs-backend/tests/services/ai/test_ai_audit_task_pg.py | — | ~1828 |
+| 11:54 | Edited pcs-backend/tests/services/ai/test_ai_audit_task_pg.py | 3→6 lines | ~80 |
+| 11:55 | Edited pcs-backend/app/workers/ai_audit_tasks.py | modified _build_insert() | ~283 |
+| 11:55 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified recorded_audits() | ~227 |

@@ -1,5 +1,5 @@
 # PCS 紧凑对照表（ORM 版 · **生成物**）
-> 生成时间：2026-11-02 | 来源：app/models/*.py（**生成物，勿手改**）
+> 生成时间：2026-11-12 | 来源：app/models/*.py（**生成物，勿手改**）
 > 重新生成：`cd pcs-backend && uv run python scripts/gen_compact_orm.py`
 > 表数量：**107**（= ORM metadata 的全部表）
 
@@ -124,7 +124,7 @@
 ### document_chunks
   chunk_id|CHARPK!, source_type|str!, source_id|CHAR!, project_id|CHARFK, chunk_text|text!, embedding_vector|jsonb, token_count|int, created_at|dt!
 ### ai_audit_log
-  ai_log_id|CHARPK!, agent_id|CHAR!, session_id|CHAR, user_id|CHAR, operation|str!, prompt_text|text, response_text|text, prompt_tokens|int, response_tokens|int, model|str, cost_usd|float, decision_ref_type|str, decision_ref_id|CHAR, human_approved|bool, human_approver_id|CHAR, occurred_at|dt!
+  ai_log_id|CHARPK!, agent_id|CHAR!, session_id|CHAR, user_id|CHAR, operation|str!, prompt_text|text, response_text|text, prompt_tokens|int, response_tokens|int, model|str, cost_usd|float, decision_ref_type|str, decision_ref_id|CHAR, human_approved|bool, human_approver_id|CHAR, occurred_at|dt!, request_id|str, client_request_id|str, endpoint|str, status_code|int, duration_ms|int, sanitized_request_hash|str, response_summary|text, model_version|str
 
 ## 许可(1)
 ### license_configs

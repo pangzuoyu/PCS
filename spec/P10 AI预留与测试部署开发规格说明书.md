@@ -634,4 +634,33 @@ E2E测试	14个核心场景、状态机路径、权限验证	2-3人周
 用户文档	用户手册、管理员手册、FAQ	1-2人周
 知识转移	架构文档、代码注释整理	0.5-1人周
 合计		约6-10人周
+第五部分：与仓库现状的偏离登记（2026-11-12 · P10-A 落地时登记）
+
+说明：以下条目是**本 SPEC 字面与仓库实际落地形态不一致**的地方。每条都给出
+裁决与理由，留痕的目的是——下一个读本 SPEC 的人不会以为「SPEC 说的就是
+代码里的样子」。登记随批次增补（D1~D22，P10-A 批末）。
+
+D1	部署架构图写「PostgreSQL 16（主从复制）」	仓库是 **PG 18**（compose + CI 于 2026-10-07 对齐）	以 **18** 为准（架构图待修订）	§4.2 架构图
+D2	10.0(3)：新建 docker-compose.test（PG+pgvector/Redis/mock AD/backend/worker/frontend）	现有 docker-compose.yml 已含 postgres / postgres-pgtest / redis / worker / openldap+seed（= mock AD）	**不新建文件** ⇒ 用现有 compose 的 **profile**（`--profile test`）起测试组（新增一次性 `seed` 服务）	§3.2.0(3)(5)
+D3	10.1(2)：「P10 只执行 CREATE EXTENSION IF NOT EXISTS vector」	`postgres:18-alpine` **不带 vector 扩展**；且 `document_chunks.embedding_vector` 是 **JSONB**（不是 vector）⇒ 扩展建了**无处可用**	**本批不建** ⇒ 登记 TODO（待向量维度裁决后一并做）	§3.2.1(2)
+D4	10.1(2)：`ai_audit_log` 表（9 字段，request_id 唯一）	仓库 `ai_audit_log` **已存在**（SUP-006 强制，16 列，语义是「AI 决策与提示词审计」）	**给既有表加列**（8 列，全部 nullable）⇒ SUP-006 字段不动 ⇒ `request_id` 唯一索引用 **partial**（WHERE request_id IS NOT NULL）	§3.2.1(2) + §4.1.4
+D5	10.0(2)：CI 跑 alembic upgrade head 覆盖 pcs 与 pcs_test	现有 CI 在**全新 PG** 上跑 alembic（更强：验证迁移在没建过任何表的库上也能跑）	**已满足** ⇒ 不新建流水线；措辞改为「全新库 + 幂等闸门」	§3.2.0(2)
+D6	10.1(2)：`document_chunks` 表（document_id / content / source）	仓库 `document_chunks` **已存在**（source_type / source_id / project_id / chunk_text / embedding_vector JSONB / token_count）	**本批不动这张表** ⇒ 它不参与 P10 的 AI 预留路径 ⇒ 登记 TODO（与 D3 一并处理）	§3.2.1(2)
+D7	10.1(1)：`Depends(current_user)`	仓库是 `current_actor`（返回 `_Actor`：user_id / username / role）	用 `current_actor`	§3.2.1(1)
+D8	10.1(4)：中间件生成 `request_id`	仓库已有 `add_trace_id` 中间件，生成 `request.state.trace_id`（uuid4().hex，32 位无连字符）	AI 审计的 `request_id` **另生成**标准 UUID 串（36 位）⇒ 与 trace_id **并存但不同**（trace_id 走日志、request_id 走 AI 审计）	§3.2.1(4)
+D9	10.1(9)：`system_settings` 保存 6 个 AI 键	仓库 `system_settings` 已有 7 个键（DEFAULT_SETTINGS），且**前端参数页显示全部键**	**追加** 6 个 AI 键 ⇒ 前端**自动可见**（无需改前端）	§3.2.1(9)
+D10	10.1(3)：「CI 使用 import-linter + 自定义架构测试」	仓库已有 `tests/architecture/` 的**自定义扫描**做法	本批**只加自定义守卫**，**不引入 import-linter**（多一个依赖、多一套配置）	§3.2.1(3)
+D11	10.1(5)：「INTERNAL_CIDRS … Settings 解析为 list[str]」	本批 env 侧保留**原始串**	解析在 `app/core/ai_cidr.parse_cidrs`（**单一解析点** ⇒ 非法值能报清晰错误）	§3.2.1(5)
+D12	4.1.2：请求体用 `topK`	后端 schema 用 `top_k` + **alias `topK`**（populate_by_name=True）	**契约里的字段名仍是 `topK`** ⇒ 与本 SPEC 逐字一致（内部用蛇形，两种写法都能进）	§4.1.2
+D13	10.1(9)：env 有 `AI_ENABLED` / `AI_TIMEOUT`	本批把开关/参数**全部放 system_settings**（前端参数页可改）	env 侧**不设** AI 开关 ⇒ **单一真相源 = system_settings.ai_enabled**（避免「两个开关 + AND 语义 + admin 改了却没生效」）	§3.2.1(9)
+D14	10.1(3)：`OutboundAIClient.__init__(endpoint, timeout)`	本批加 **`cidrs`** 构造参数（调用时二次校验需要它）	构造签名多一个	§3.2.1(3)
+D15	10.1(8)：`[project.optional-dependencies] ai = [langchain, ollama, vllm]`	**本批未加**（见 D19）	**推迟** ⇒ 架构守卫改为**扫源码**（不依赖包是否安装）⇒ 目标照样达成	§3.2.1(8)
+D16	4.1.4：审计字段含 `timestamp`	仓库 `ai_audit_log` **已有 `occurred_at`**（16 列之一）	**复用 occurred_at，不新增第二个时间列**（两个语义重叠的时间列 ⇒ 以后没人知道该读哪个）⇒ 本批加 **8** 列（不是 9）	§4.1.4
+D17	§3.1.2：AI 端点共 5 个（intent / knowledge/search / equipment/recommend / explain / document/extract），但只有前两个详述了请求体	后三个端点的**请求体形状**在本 SPEC 未定义	由本仓定义最小形状（equipment/recommend：equipment_tag + context；explain：text + context；document/extract：document_ref + context）⇒ 全部用具名 schema	§3.1.2 + §4.1
+D18	§3.1.1：AI 助手入口是「**右下角悬浮图标** + 点击弹出对话面板」	`docs/PCS-UI-SPEC.md`（V1.0 冻结）§顶栏写的是「顶栏 `[AI]` · 打开 AI 助手抽屉（P10 预留，**先禁用并提示**）」	按项目 CLAUDE.md「前端所有 UI 以 PCS-UI-SPEC 为**唯一**编码依据」⇒ **UI-SPEC 赢** ⇒ 本批做**顶栏禁用按钮 + 提示**，不做悬浮图标、不做抽屉	§3.1.1
+D19	10.1(8) 同 D15：AI 可选依赖为何不加	`uv lock` 解析的是**一份版本集** ⇒ 加 vllm 会把**默认环境**的 numpy 一并升级（实测触发 15.8MiB 重装）⇒ 与「optional 组不影响默认环境」的意图相反；且批中重装会动到全仓测试**共用**的 venv	**推迟**到独立批次（并先验 numpy 不被连带升级）⇒ 登记 TODO	§3.2.1(8)
+D20	（文档治理）本 SPEC 的文件名与版本	仓库里的文件是 `spec/P10 AI预留与测试部署开发规格说明书.md`，**当前版本 V1.0**（2026-08-27）；开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**	以**仓库里这份 V1.0** 为准 ⇒ 计划中的版本号引用作废（后续若出 V1.4，需同步改引用）	全文
+D21	10.1：AI 路由骨架（5 个端点）	仓库此前**零** AI 代码（无 `app/api/v1/ai/`、无脱敏、无出站客户端、无 `/health/ai`）	**全量新做**（5 个端点一律 501）+ 既有 `ai_audit_log` 加列（见 D4）	§3.2.1
+D22	§3.1.2：健康检查 `/health/ai`「返回 not_configured」	未定义 endpoint 形态不同（IP 字面量 / 域名）时的判定	判定口径写死为：**未配置 ⇒ not_configured**；**IP 字面量** ⇒ 本地比对 CIDR（不联网）⇒ 内网 `ok` / 否则 `degraded`；**域名** ⇒ **不解析 DNS** ⇒ 恒 `degraded` + reason=endpoint_is_domain_not_verified ⇒ **域名永远不会是 ok**（没验证过就不能说它在内网）；**恒 200**（探针不该因「AI 未上线」而红）	§3.1.2
+
 P10 SPEC完。 本文档与SPEC-P0至SPEC-P9合并，构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系（共11份文档）。

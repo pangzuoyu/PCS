@@ -201,6 +201,18 @@ P10-A ──→ P10-B ──→ P10-F
 
 ---
 
+## 四之二、批次落地状态（2026-11-12 更新）
+
+| 批 | 状态 | 落地 commit | 证据 |
+|---|---|---|---|
+| **P10-A**（前置 + AI 预留） | ✅ **已闭环** | `2ef122d` ~ `5b608a1`（14 commit） | 后端 5751 passed（+89）· PG 车道 6 passed（+1）· 前端 1054 tests（+1）· Playwright mock 24 + 真后端 1 passed · 裸载荷 71 未涨 · G-08 4/4 · 两库 `p10_001 (head)` + `alembic check` exit 0 · 浏览器回归 **0C-0H-0M**（`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p10a.md`） |
+| P10-B（全流程 E2E） | ⏳ 未开工 | —— | ⚠️ 开工前先做 **TODO-149**（量种子数据规模）；⚠️ 权限矩阵要 per-user 项目内角色 ⇒ 改 `scripts/seed_e2e_data.py::SEED_PROJECT_ROLE` |
+| P10-C / D / E / F | ⏳ 未开工 | —— | 见本总纲 §二 的批次表 |
+
+⇒ **偏离登记 D1~D22 已回写进 SPEC**
+（`spec/P10 AI预留与测试部署开发规格说明书.md` 第五部分「与仓库现状的偏离登记」）
+⇒ ⚠️ **该 SPEC 实际是 V1.0**（本总纲引用的「V1.3.1」**在仓库里不存在** ⇒ D20）。
+
 ## 五、第一批（P10-A）的交付清单
 
 **明细见** `docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md`。

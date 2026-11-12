@@ -27,6 +27,323 @@
         }
       }
     },
+    "/api/v1/health/ai": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Ai",
+        "description": "GET /health/ai（AI 服务状态 · 预留）。\n\n## 判定口径（写清楚，否则「为什么不是 ok」没法解释）\n\n| endpoint 形态 | 判定 | `status` |\n|---|---|---|\n| 未配置 | 不判 | `not_configured` |\n| **IP 字面量** | 本地比对 CIDR（**不联网**） | 在内网 ⇒ `ok`；不在 ⇒ `degraded` |\n| **域名** | **不解析 DNS** | 恒 `degraded` |\n\n⇒ **域名 endpoint 永远不会是 `ok`** —— 这是**如实**的：\n没验证过就不能说它在内网。\n⇒ **不解析 DNS** 还有一条工程理由：健康检查**不该依赖外网**\n（被墙/超时 ⇒ 探针抖动 ⇒ 误报故障）。",
+        "operationId": "health_ai_api_v1_health_ai_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthAIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/intent": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Intent",
+        "description": "意图识别与指令分发（预留）⇒ **501**.",
+        "operationId": "ai_intent_api_v1_ai_intent_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiIntentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "reserved"
+      }
+    },
+    "/api/v1/ai/knowledge/search": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Knowledge Search",
+        "description": "知识库检索（RAG 语义检索，预留）⇒ **501**.",
+        "operationId": "ai_knowledge_search_api_v1_ai_knowledge_search_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiKnowledgeSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "reserved"
+      }
+    },
+    "/api/v1/ai/equipment/recommend": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Equipment Recommend",
+        "description": "相似设备推荐（预留）⇒ **501**.",
+        "operationId": "ai_equipment_recommend_api_v1_ai_equipment_recommend_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiEquipmentRecommendRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "reserved"
+      }
+    },
+    "/api/v1/ai/explain": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Explain",
+        "description": "自然语言解释（预留）⇒ **501**.",
+        "operationId": "ai_explain_api_v1_ai_explain_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiExplainRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "reserved"
+      }
+    },
+    "/api/v1/ai/document/extract": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Ai Document Extract",
+        "description": "文档解析（PDF/图片字段提取，预留）⇒ **501**.",
+        "operationId": "ai_document_extract_api_v1_ai_document_extract_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiDocumentExtractRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "reserved"
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -21259,6 +21576,182 @@
         "title": "AdminUserOut",
         "description": "用户列表条目（P9A-ADM-001）。\n\n业务：显式声明全部字段（零裸字段约束 P9A-DLV-010）——\n禁止 `response_model=dict`，那会让契约随 ORM 漂移。\n`token_version` 对外可见：它是「已吊销了几轮」的运营视角。"
       },
+      "AiContext": {
+        "properties": {
+          "projectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectid",
+            "description": "项目 id"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module",
+            "description": "模块名（如 PUMP）"
+          },
+          "recordId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recordid",
+            "description": "记录 id"
+          }
+        },
+        "type": "object",
+        "title": "AiContext",
+        "description": "AI 请求的上下文（SPEC §4.1.1）。\n\n⚠️ **驼峰别名**：`projectId` / `recordId`（SPEC 用驼峰）⇒ 不加别名\n的话 Pydantic 会**静默忽略**它们 ⇒ 前端传的上下文变 None。"
+      },
+      "AiDocumentExtractRequest": {
+        "properties": {
+          "document_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Ref",
+            "description": "文档引用（规范号 / 文件 id）"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "调用上下文"
+          }
+        },
+        "type": "object",
+        "title": "AiDocumentExtractRequest",
+        "description": "文档解析请求（SPEC §3.1.2「文档解析」）。"
+      },
+      "AiEquipmentRecommendRequest": {
+        "properties": {
+          "equipment_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Tag",
+            "description": "已知设备位号"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "调用上下文"
+          }
+        },
+        "type": "object",
+        "title": "AiEquipmentRecommendRequest",
+        "description": "相似设备推荐请求（SPEC §3.1.2「设备推荐」）。\n\n⚠️ SPEC 只给了端点与用途，**没给请求体** ⇒ 本仓定的最小形状\n（偏离登记 D17）。"
+      },
+      "AiExplainRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "待解释的内容 / 变更描述"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "调用上下文"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AiExplainRequest",
+        "description": "自然语言解释请求（SPEC §3.1.2「自然语言解释」）。"
+      },
+      "AiIntentRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "自然语言指令"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "调用上下文"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AiIntentRequest",
+        "description": "意图识别请求（SPEC §4.1.1）。"
+      },
+      "AiKnowledgeSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "检索串"
+          },
+          "topK": {
+            "type": "integer",
+            "title": "Topk",
+            "description": "返回条数",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "AiKnowledgeSearchRequest",
+        "description": "知识库检索请求（SPEC §4.1.2）。"
+      },
       "AllowableStressResult": {
         "properties": {
           "material": {
@@ -29865,6 +30358,47 @@
         ],
         "title": "HeaderSizingResponse",
         "description": "FLARE_SYS header_sizing 响应。\n\n字段（按 API 521 §5.15.4 反算输出）：\n\n- diameter_m: 总管直径 m\n- area_m2: 总管截面积 m²\n- actual_mach: 实际 Mach 数（应等于 target_mach）\n- mass_flux_kgs_m2: 质量流速 G kg/(s·m²)\n- velocity_m_s: 气流速度 m/s\n- sound_speed_m_s: 等温声速 m/s\n- gas_density_kg_m3: 管内气体密度 kg/m³（等温理想气体）\n- formula_ref: 公式溯源标记\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code"
+      },
+      "HealthAIResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "ai_enabled": {
+            "type": "boolean",
+            "title": "Ai Enabled"
+          },
+          "endpoint_configured": {
+            "type": "boolean",
+            "title": "Endpoint Configured"
+          },
+          "cidrs_configured": {
+            "type": "boolean",
+            "title": "Cidrs Configured"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reason",
+          "ai_enabled",
+          "endpoint_configured",
+          "cidrs_configured"
+        ],
+        "title": "HealthAIResponse",
+        "description": "AI 健康状态（GET /health/ai）。\n\n⚠️ **恒 200** —— 健康端点的职责是**报告**，不是**拒绝**：\n探针（K8s liveness）不该因为「AI 还没上线」而红。\n\n字段：\n- `status`：`not_configured`（没配 endpoint）/ `ok`（IP 字面量在内网）/\n  `degraded`（配了但验证不过 / CIDR 非法 / 是域名没法验证）\n- `reason`：为什么是 degraded（`None` ⇒ 没毛病）\n- `ai_enabled`：系统参数 `ai_enabled`（**单一真相源**）\n- `endpoint_configured`：有没有 endpoint（系统参数优先，空则回退 env）\n- `cidrs_configured`：**`parse_cidrs()` 之后**非空（不是原始串非空）"
       },
       "HealthResponse": {
         "properties": {

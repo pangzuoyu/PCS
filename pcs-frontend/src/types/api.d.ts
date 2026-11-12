@@ -37,6 +37,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/health/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health Ai
+         * @description GET /health/ai（AI 服务状态 · 预留）。
+         *
+         *     ## 判定口径（写清楚，否则「为什么不是 ok」没法解释）
+         *
+         *     | endpoint 形态 | 判定 | `status` |
+         *     |---|---|---|
+         *     | 未配置 | 不判 | `not_configured` |
+         *     | **IP 字面量** | 本地比对 CIDR（**不联网**） | 在内网 ⇒ `ok`；不在 ⇒ `degraded` |
+         *     | **域名** | **不解析 DNS** | 恒 `degraded` |
+         *
+         *     ⇒ **域名 endpoint 永远不会是 `ok`** —— 这是**如实**的：
+         *     没验证过就不能说它在内网。
+         *     ⇒ **不解析 DNS** 还有一条工程理由：健康检查**不该依赖外网**
+         *     （被墙/超时 ⇒ 探针抖动 ⇒ 误报故障）。
+         */
+        get: operations["health_ai_api_v1_health_ai_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Intent
+         * @description 意图识别与指令分发（预留）⇒ **501**.
+         */
+        post: operations["ai_intent_api_v1_ai_intent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/knowledge/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Knowledge Search
+         * @description 知识库检索（RAG 语义检索，预留）⇒ **501**.
+         */
+        post: operations["ai_knowledge_search_api_v1_ai_knowledge_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/equipment/recommend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Equipment Recommend
+         * @description 相似设备推荐（预留）⇒ **501**.
+         */
+        post: operations["ai_equipment_recommend_api_v1_ai_equipment_recommend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Explain
+         * @description 自然语言解释（预留）⇒ **501**.
+         */
+        post: operations["ai_explain_api_v1_ai_explain_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/document/extract": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ai Document Extract
+         * @description 文档解析（PDF/图片字段提取，预留）⇒ **501**.
+         */
+        post: operations["ai_document_extract_api_v1_ai_document_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -6866,6 +6999,102 @@ export interface components {
             last_login_at: string | null;
         };
         /**
+         * AiContext
+         * @description AI 请求的上下文（SPEC §4.1.1）。
+         *
+         *     ⚠️ **驼峰别名**：`projectId` / `recordId`（SPEC 用驼峰）⇒ 不加别名
+         *     的话 Pydantic 会**静默忽略**它们 ⇒ 前端传的上下文变 None。
+         */
+        AiContext: {
+            /**
+             * Projectid
+             * @description 项目 id
+             */
+            projectId?: string | null;
+            /**
+             * Module
+             * @description 模块名（如 PUMP）
+             */
+            module?: string | null;
+            /**
+             * Recordid
+             * @description 记录 id
+             */
+            recordId?: string | null;
+        };
+        /**
+         * AiDocumentExtractRequest
+         * @description 文档解析请求（SPEC §3.1.2「文档解析」）。
+         */
+        AiDocumentExtractRequest: {
+            /**
+             * Document Ref
+             * @description 文档引用（规范号 / 文件 id）
+             */
+            document_ref?: string | null;
+            /** @description 调用上下文 */
+            context?: components["schemas"]["AiContext"] | null;
+        };
+        /**
+         * AiEquipmentRecommendRequest
+         * @description 相似设备推荐请求（SPEC §3.1.2「设备推荐」）。
+         *
+         *     ⚠️ SPEC 只给了端点与用途，**没给请求体** ⇒ 本仓定的最小形状
+         *     （偏离登记 D17）。
+         */
+        AiEquipmentRecommendRequest: {
+            /**
+             * Equipment Tag
+             * @description 已知设备位号
+             */
+            equipment_tag?: string | null;
+            /** @description 调用上下文 */
+            context?: components["schemas"]["AiContext"] | null;
+        };
+        /**
+         * AiExplainRequest
+         * @description 自然语言解释请求（SPEC §3.1.2「自然语言解释」）。
+         */
+        AiExplainRequest: {
+            /**
+             * Text
+             * @description 待解释的内容 / 变更描述
+             */
+            text: string;
+            /** @description 调用上下文 */
+            context?: components["schemas"]["AiContext"] | null;
+        };
+        /**
+         * AiIntentRequest
+         * @description 意图识别请求（SPEC §4.1.1）。
+         */
+        AiIntentRequest: {
+            /**
+             * Text
+             * @description 自然语言指令
+             */
+            text: string;
+            /** @description 调用上下文 */
+            context?: components["schemas"]["AiContext"] | null;
+        };
+        /**
+         * AiKnowledgeSearchRequest
+         * @description 知识库检索请求（SPEC §4.1.2）。
+         */
+        AiKnowledgeSearchRequest: {
+            /**
+             * Query
+             * @description 检索串
+             */
+            query: string;
+            /**
+             * Topk
+             * @description 返回条数
+             * @default 5
+             */
+            topK: number;
+        };
+        /**
          * AllowableStressResult
          * @description 材料许用应力（ASME B31.3 Table A-1 插值）。
          */
@@ -11950,6 +12179,33 @@ export interface components {
              * @description 回显请求 standard_profile_code
              */
             standard_profile_code: string;
+        };
+        /**
+         * HealthAIResponse
+         * @description AI 健康状态（GET /health/ai）。
+         *
+         *     ⚠️ **恒 200** —— 健康端点的职责是**报告**，不是**拒绝**：
+         *     探针（K8s liveness）不该因为「AI 还没上线」而红。
+         *
+         *     字段：
+         *     - `status`：`not_configured`（没配 endpoint）/ `ok`（IP 字面量在内网）/
+         *       `degraded`（配了但验证不过 / CIDR 非法 / 是域名没法验证）
+         *     - `reason`：为什么是 degraded（`None` ⇒ 没毛病）
+         *     - `ai_enabled`：系统参数 `ai_enabled`（**单一真相源**）
+         *     - `endpoint_configured`：有没有 endpoint（系统参数优先，空则回退 env）
+         *     - `cidrs_configured`：**`parse_cidrs()` 之后**非空（不是原始串非空）
+         */
+        HealthAIResponse: {
+            /** Status */
+            status: string;
+            /** Reason */
+            reason: string | null;
+            /** Ai Enabled */
+            ai_enabled: boolean;
+            /** Endpoint Configured */
+            endpoint_configured: boolean;
+            /** Cidrs Configured */
+            cidrs_configured: boolean;
         };
         /**
          * HealthResponse
@@ -21493,6 +21749,201 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    health_ai_api_v1_health_ai_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthAIResponse"];
+                };
+            };
+        };
+    };
+    ai_intent_api_v1_ai_intent_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ai_knowledge_search_api_v1_ai_knowledge_search_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiKnowledgeSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ai_equipment_recommend_api_v1_ai_equipment_recommend_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiEquipmentRecommendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ai_explain_api_v1_ai_explain_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiExplainRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ai_document_extract_api_v1_ai_document_extract_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiDocumentExtractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
