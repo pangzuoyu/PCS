@@ -20,7 +20,10 @@ services:
     # 迁移 / 降级环 / 并发用例 ⇒ 绝不能污染开发数据（CLAUDE.md「漂移盲区」）。
     # 独立 database（pcs_pgtest）防「开发时 alembic upgrade head 误把
     # 测试数据升了」。裁决 4 修正 2 明确要求独立实例 + 独立 database。
-    profiles: ["pg"]
+    # ⚠️ **"test" 也在列表里** —— `seed` 依赖它，而 compose 的 `depends_on`
+    #    **不会**隐式启动不在启用 profile 内的服务 ⇒ 只有 postgres-pgtest 时，
+    #    `--profile test` 起不出 seed（报「service is not enabled」）。
+    profiles: ["pg", "test"]
     image: postgres:18-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pcs}
@@ -93,6 +96,28 @@ services:
     # 它是渲染器的**首选候选** `./fonts/...`，靠上面的挂载带进来。
     # ⚠️ 没跑过那个脚本的机器上，本服务照样能启动，**只在渲染 PDF 时才失败**。
     # 起之前先跑：`cd pcs-backend && uv run python scripts/check_report_font.py`
+  seed:
+    # 一次性任务：灌 E2E 种子数据（P10-A · Task T2 的脚本）。
+    # 与 worker 同款（uv 官方镜像 + 源码挂载 + `uv run --frozen`）——
+    # ⚠️ **不要**用裸 `python`：uv 官方镜像里没有项目依赖 ⇒ 立刻 ModuleNotFoundError。
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    # ⚠️ profile 只给**一次性任务** —— 加了它 `docker compose up` 就不再起它
+    #    （这是本仓的纪律：日常开发服务绝不进 profile）。
+    profiles: ["test"]
+    working_dir: /app
+    command: ["uv", "run", "--frozen", "python", "scripts/seed_e2e_data.py"]
+    environment:
+      UV_PROJECT_ENVIRONMENT: /opt/venv
+      UV_CACHE_DIR: /opt/uvcache
+      PYTHONDONTWRITEBYTECODE: "1"
+      # ⚠️ 连 **pcs_pgtest**（postgres-pgtest 的库名，硬编码）——
+      #    连 `pcs_test` 会报 database does not exist；
+      #    连开发库 `pcs` 会**污染开发数据**。
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest
+    volumes:
+      - ./pcs-backend:/app:ro
+    depends_on:
+      postgres-pgtest: {condition: service_healthy}
   openldap:
     # 测试用 AD/LDAP 容器。生产环境替换为客户域 LDAP_URL（env 注入）。
     image: osixia/openldap:1.5.0

@@ -126,6 +126,28 @@ npm run lint                        # eslint . --max-warnings 0，0 错为目标
 bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 ```
 
+#### 真后端 E2E（Playwright `real-backend` 项目）
+
+默认的 Playwright 通道跑在 **MSW mock** 上（前端 `vite dev` 时挂 MSW worker）。
+`real-backend` 项目**关掉 MSW** ⇒ 请求打到**真后端** ⇒ 需要「后端 + 库 + 种子数据」在跑：
+
+```bash
+# ① 测试栈（postgres-pgtest + seed 一次性任务；seed 连的是 pcs_pgtest 库）
+docker compose --profile test up -d
+docker compose --profile test run --rm seed
+
+# ② 后端 ⚠️ mock 登录**默认关**（上面的「双闸」）⇒ 真后端 E2E 必须显式开
+cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000
+
+# ③ 跑真后端通道
+cd pcs-frontend && VITE_ENABLE_MOCK=false npx playwright test --project=real-backend
+```
+
+⚠️ **第 ③ 步要求 5173 端口上的 vite 是「本次新起的」** —— `playwright.config.ts` 的
+`webServer.reuseExistingServer` 会**复用已在跑的 dev server** ⇒ 若那个 server 是
+不带 `VITE_ENABLE_MOCK=false` 起的，MSW 仍会拦截请求 ⇒ 表现为「登录失败」。
+⇒ 先停掉旧 dev server 再跑。
+
 ⚠️ **要连 `pcs_test` 跑迁移/测试时，别把口令写在命令行上**（会被权限分类器拦，
 且口令会进 shell 历史）⇒ 用 `CLAUDE.md`「测试前检查」里的**进程内派生 URL**
 配方（`dotenv_values('.env')` 读口令 ⇒ 只改 `os.environ`）。
