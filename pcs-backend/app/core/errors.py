@@ -19,6 +19,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.ai_errors import AINotImplementedError
+
 # ⚠️ **全仓只有一个 `PcsError`**（TODO-089）：`app/services/exceptions.py` 里的
 #    名字是**本类的别名** ⇒ 这里**不需要**（也不能）再 import service 变体
 #    ⇒ 只注册**一个** handler ⇒ core / service 两种抛出方都走同一条渲染路径。
@@ -297,4 +299,29 @@ def install_exception_handlers(app: FastAPI) -> None:
                 detail=None,
                 trace_id=getattr(request.state, "trace_id", ""),
             ).model_dump(),
+        )
+
+    @app.exception_handler(AINotImplementedError)
+    async def _ai_not_implemented(
+        request: Request, exc: AINotImplementedError
+    ) -> JSONResponse:
+        """AI「已预留、未实现」⇒ **501**（不是 404 —— 端点存在，只是没上线）。
+
+        ⚠️ **专用信封**（`{code, message, status, request_id}`）—— 刻意**不**
+        复用 `ErrorResponse`：
+        - 改 `ErrorResponse` 会改**所有**端点的错误响应体（契约 + 前端类型全动）；
+        - AI 端点要带 `request_id`（调用方拿它去对审计行）⇒ 与 `trace_id` 语义不同
+          （`trace_id` 走日志、`request_id` 走 AI 审计；偏离登记 D8）。
+
+        ⚠️ 前端错误解析只读 `code` / `message`（其余字段可选）⇒ 换信封安全。
+        """
+        request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+        return JSONResponse(
+            status_code=501,
+            content={
+                "code": exc.code,
+                "message": exc.message,
+                "status": "not_implemented",
+                "request_id": request_id,
+            },
         )
