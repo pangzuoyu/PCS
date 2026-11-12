@@ -111,3 +111,93 @@ async def test_seed_users_use_derived_user_ids(db_session) -> None:
     by_name = {r.username: r for r in rows}
     for username in SEED_USERNAMES:
         assert by_name[username].user_id == uuid.uuid5(uuid.NAMESPACE_DNS, username)
+
+
+# === 评审 #1 / #9（2026-11-12 评审修复批） ===
+
+
+async def test_reset_preserves_a_foreign_user_row(db_session) -> None:
+    """⚠️ **评审 #1** —— `--reset` 不得删掉/重建**不是自己造的** users 行。
+
+    `user_id` 是**派生值** `uuid5(NAMESPACE_DNS, username)` ⇒ 与真实 LDAP
+    登录算出的 id **完全相同** ⇒ 旧实现按派生 id 无条件 `delete(User)`
+    ⇒ 在开发库上跑一次 `--reset` = **真实账号被删**（roles / status /
+    token_version 全丢，且其 `user_projects` 授权行被 CASCADE 掉），
+    而下一次登录会把它**重建为 ACTIVE** ⇒ **被停用的账号被悄悄启用**。
+
+    ⇒ 契约：reset **不碰 users 表**；已存在的行连 `status`/`roles` 都不许改。
+    """
+    from app.models.project import User
+    from app.services.token_issuer import derive_user_id
+
+    alice_id = derive_user_id("alice")
+    db_session.add(
+        User(
+            user_id=alice_id,
+            username="alice",
+            display_name="Alice (LDAP)",
+            roles=["SYSTEM_ADMIN"],
+            ad_groups=["cn=admins"],
+            status="DISABLED",
+        )
+    )
+    await db_session.commit()
+
+    await seed(db_session, reset=True)
+
+    row = (
+        await db_session.execute(select(User).where(User.user_id == alice_id))
+    ).scalar_one_or_none()
+    assert row is not None, "--reset 把真实账号删了"
+    assert row.status == "DISABLED", "--reset 把停用账号重新启用了"
+    assert row.roles == ["SYSTEM_ADMIN"], "--reset 覆盖了真实账号的角色"
+
+
+async def test_seed_recovers_when_the_row_appears_between_select_and_insert(
+    db_session, monkeypatch
+) -> None:
+    """⚠️ **评审 #9** —— get-or-create 必须是**本仓的 house 形状**：
+    `db.add` 在 `begin_nested()` 之内 ⇒ 撞唯一约束时**回滚 savepoint**
+    （不是整笔事务）⇒ **重读赢家**（只读、不 update）⇒ 绝不炸。
+
+    ⚠️ 旧实现是「裸 SELECT ⇒ 空 ⇒ INSERT」：**没有 savepoint** ⇒ 撞约束后
+    整笔事务被污染 ⇒ 重读也读不到 ⇒ 脚本直接炸 ⇒ E2E 通道起不来。
+    """
+    from app.models.project import User
+    from app.services.token_issuer import derive_user_id
+    from scripts.seed_e2e_data import _ensure_users
+
+    # 「对手」先插好了赢家行
+    alice_id = derive_user_id("alice")
+    db_session.add(
+        User(
+            user_id=alice_id,
+            username="alice",
+            display_name="alice",
+            roles=[],
+            ad_groups=[],
+            status="ACTIVE",
+        )
+    )
+    await db_session.commit()
+
+    # 让**第一次** SELECT 谎报「没有」（= 对手在 SELECT 之后才插进去）
+    real_execute = db_session.execute
+    calls = {"n": 0}
+
+    class _EmptyResult:
+        def scalar_one_or_none(self):  # noqa: D102
+            return None
+
+    async def racing_execute(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _EmptyResult()
+        return await real_execute(*args, **kwargs)
+
+    monkeypatch.setattr(db_session, "execute", racing_execute)
+
+    users = await _ensure_users(db_session)  # 撞约束 ⇒ 必须被接住
+
+    assert len(users) == 4
+    assert users[0].user_id == alice_id
