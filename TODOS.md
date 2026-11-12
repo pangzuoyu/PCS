@@ -2943,12 +2943,25 @@ pcs-frontend/src/api/stream.ts` ⇒ **0 命中**；且 `StreamCreatePayload` 的
 ## ✅ TODO-134: 已闭环（2026-11-11 · P9B-4 体验批 T0-E）
 
 **本批修了什么**：`issue_tokens` 的**真实分支**在「行已存在」时把真实角色
-**合并**进 `users.roles`（只合并、不冲掉已有角色、不重复追加同一个角色）。
+**覆盖**进 `users.roles`（`roles=[role]` —— **不是合并**）。
 ⚠️ **mock 分支绝不碰 roles**（ADR-0046 §③b：mock 与真实 AD 同名 ⇒ 写真实角色
 ⇒ 污染同一行 ⇒ 权限污染且不报错）⇒ mock 路径仍在「一次 DB 往返都没有」的位置
 早返回 ⇒ 对照组用例钉住。
 
-**证据**：`tests/test_token_issuer.py` +4 例（含 **mock 不改 roles** 对照组）。
+⚠️⚠️ **口径更正（2026-11-12 · P9B-4 评审 #13）**：本条**曾经**写成「**合并**」
+⇒ 那是 `69b2327` 的实现 ⇒ **已被 `4a8e882` 推翻**（整批评审 Important #1）⇒
+**当前实现是「覆盖」**，理由：`users.roles` 的权威来源是**真实身份** ⇒
+AD 同步（`ad_sync._apply`）也是**覆盖**（`roles=[role] if role else None`）
+⇒ 两处口径必须一致 ⇒ **只增不减会让「角色降级」永不生效** ⇒ 按 `users.roles`
+圈人的通知逻辑会**继续找**已降级的人（「待办里有、点进去说你不是」）。
+
+⚠️ **覆盖的代价（此前无处可查）**：一个 `users` 行若带**多个**角色 ⇒ 真实登录
+**只保留最后一个角色** ⇒ `notification_recipients.resolve_role_recipients`
+**不再**为被丢掉的那些角色选中该用户 ⇒ 「通知只发最后一个角色」是**已知取舍**。
+
+**证据**：`tests/test_token_issuer.py` +4 例（含 **mock 不改 roles** 对照组、
+**覆盖**（`seeded2`）与**幂等**（`seeded3`）两条口径用例）。
+⚠️ `fix_commit` 指向**落地「覆盖」的那次提交** `4a8e882`（不是 `69b2327`）。
 
 **现状**（2026-11-10 · 同上报告 residual risk 第 3 条 · 委员会要求**升格为 TODO**）：
 
@@ -3219,3 +3232,61 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 约束）⇒ 过滤必须落在**查询**上，不能指望写入方。
 
 ⇒ SPEC §7.7.1 已同步（V2.15）。
+
+---
+
+## ✅ 2026-11-12：P9B-4 评审修复批 —— 19 条 finding 全部闭环
+
+**触发**：用户「开始按队列修复」⇒ 把 `ce-code-review` 报告
+（`docs/ce-code-review/20261111-181548-7b8a5dca/report.md`）+ `hermes`
+（GLM-5.2 跨模型对抗审查）的 **19 条** finding 全部落地。
+
+**用户裁决（4 条）**：血缘角色 = **沿用 streams 白名单**；停用覆盖面 =
+**全部补齐**（WS 投递路径复检 + `current_user` 也判）；CSV 导出 = **加「引用」列**；
+批末 = **重跑一次** gstack 浏览器回归。
+
+| # | 修了什么 | 怎么验的 |
+|---|---|---|
+| 1 | 前端不认 `USER_DISABLED` ⇒ 停用用户**带在手 token 卡在任意业务页**、永不回登录页 ⇒ 加进 `SESSION_OVER_CODES`（+ 同形状的 `REFRESH_REVOKED`） | 新增 `tests/api/session_over_codes.test.ts`（5 例，含**二次认证失败不许登出**的对照组）RED→GREEN |
+| 3 | 血缘三端点**绕过物流角色门** ⇒ `VIEWER`/`REVIEWER`/`CHECKER` 从 `GET /streams/{id}` 拿 403 却能从血缘端点读物流字段 ⇒ 统一 `require_roles`（**在项目守卫之前** ⇒ 不泄漏存在性） | `test_lineage_endpoints_use_the_streams_role_whitelist`（3 角色 × 3 端点）RED→GREEN |
+| 4 | 同一行血缘在兄弟端点**两种表示**（`Z` vs `+00:00`）⇒ 三端点统一 `LineageNode` 具名 schema | `test_same_lineage_row_has_one_representation_across_endpoints` RED→GREEN |
+| 6 | WS 长连接是「停用即刻」的**例外**（握手只查一次）⇒ **投递前复检**账号状态 ⇒ 停用 ⇒ 关连接 + 不投递 | 新增 `_make_sink()` + 两条用例（停用 ⇒ 不投递且关连接 / 正常 ⇒ 照常投递）RED→GREEN |
+| 7 | 握手期 DB 故障**不是** `PcsError` ⇒ 逃出处理器 ⇒ **裸 500 且无日志** ⇒ 加非 `PcsError` 兜底（记日志 + 同形关连接） | `test_ws_handshake_db_failure_closes_instead_of_500` RED→GREEN |
+| 8 | 部署期断言在 mock 路由**已挂载但对 OpenAPI 隐身**时**报绿** ⇒ 断言**另看路由表**（递归展开懒挂载 + 累加 prefix） | `test_production_with_mock_route_hidden_from_openapi_still_fails_startup` RED→GREEN |
+| 9 | fail-closed 守卫让 **PSV 血缘永久 404**（`PsvResult` 不在 `RECORD_TYPE_REGISTRY` —— 那张表是**表枚举**不是写入方清单）⇒ 显式登记 + 加**不依赖那张表**的契约测试 | `test_every_calc_result_model_is_registered_in_the_guard` + `test_psv_result_lineage_is_queryable` RED→GREEN |
+| 10 | 「判定只在一处」是**假的**（比较散在**三处**：每请求 / 登录 / AD 同步）⇒ 抽出共享谓词 `is_disabled_status()` + 源码扫描的**棘轮测试**（`== UserStatus.DISABLED` 在 `app/` 里只许出现一次） | `tests/services/test_user_status_service.py`（9 例）RED→GREEN |
+| 11 | 「未登记类型」与「记录不存在」的 404 **逐字同形**没被钉住 ⇒ 三端点各一条 | `test_unknown_record_type_404_*` RED→GREEN |
+| 13 | 账簿（`TODOS.md` + `buglog.json`）写「**合并**」而代码是「**覆盖**」⇒ 下一个读账簿的人会把合并恢复回去 ⇒ 两处改口径 + `fix_commit` 指向 `4a8e882` + 补**覆盖的代价** | 账簿复核（本条本身即文档） |
+| 14 | `admin_users` docstring 还写「在手 access 仍可用 30 分钟」⇒ 与 ADR-0046 §⑤ **矛盾** ⇒ 改成「停用即刻 / **角色变更**不即刻」 | 文档复核 |
+| 15 | 守卫的返回值被丢弃、行被重查 ⇒ 把守卫返回的行传下去（省一次查 + 删掉不可达的 404 分支） | 由 #4 的用例覆盖 |
+| 16 | `current_user` **不判账号状态** ⇒ `GET /auth/me` + 6 个 `GET /meta/*` 对停用用户**照样 200** ⇒ 前端会话自查返回「有效」⇒ **僵尸会话** ⇒ `current_user` 改 async + `Depends(get_db)` | 新增 `tests/api/v1/test_disabled_user_endpoints.py`（7 例，含**无行 ⇒ 放行**与**正常用户不受影响**两条对照组）RED→GREEN |
+| 20 | 刷新列表失败被报成「**批量提交失败**」（而那批其实已提交成功）⇒ **两个错误域**：提交失败仍抛，刷新失败吞掉（不清摘要、不 rethrow） | `useStreamBatchSubmit.test.ts` 新增一例 RED→GREEN |
+| 23 | 删除被**下游物流**引用的物流 ⇒ 撞 FK（无 `ondelete`）⇒ `IntegrityError` **不是** `PcsError` ⇒ **裸 500** ⇒ `_collect_references` 补第三张表 + `commit()` 兜 `IntegrityError`→409 | `test_delete_blocked_when_downstream_stream_references` RED→GREEN（SQLite 不强制 FK ⇒ 服务层缺口先显形） |
+| 24 | WS 拒绝原因在**真实传输**里**不可见**（accept 前 close ⇒ HTTP 403）⇒ 选**最小方案**：原因**写日志** + docstring **不再**承诺客户端可区分 | 文档复核（见下方「已知边界」） |
+| 25 | **并发首次登录** ⇒ 两个请求同时「SELECT 见空」⇒ 都 INSERT ⇒ 输家撞唯一约束 ⇒ **裸 500**（偶发 ⇒ 极难复现）⇒ 撞车 ⇒ 回滚 ⇒ 重读 ⇒ 照常签发 | `test_concurrent_first_login_race_does_not_become_a_500` RED→GREEN |
+| 26 | `StreamListPage` 模块 docstring 说「引用列本批不渲染」，而**同一文件里就渲染着** ⇒ 改成实况 | 文档复核 |
+| 27 | CSV 导出**漏「引用」列** ⇒ 导出件与屏幕所见不一致 ⇒ 表头 + 数据行补「引用」（导出用 **0**，不用表上的「—」⇒ Excel 能求和） | `StreamListPage.test.tsx` 新增一例（拦 `createObjectURL` 取 Blob）RED→GREEN + **浏览器实测**导出文本 |
+
+**批末回归**：`gstack` 浏览器回归**重跑**（评审 #2 指出的缺口：上一份报告跑在
+批末前两个提交上）⇒ **8 条路由全绿 · 控制台 0 error · 网络 0×404/0×500**
+⇒ 导出实测含「引用」列且**逐条与表里的 📎N 一致** ⇒ 血缘 Tab 时间戳已是 `Z`
+⇒ 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md`
+（批末 HEAD `4032617`）。
+
+**基线**：后端 **5662 passed**（+39）· 前端 **116 files / 1053 tests**（+7）·
+裸载荷 **71**（未涨）· **零迁移**。
+
+⚠️ **两条诚实边界**（**不是**缺陷 ⇒ 写进文档，不再假装已解决）：
+
+1. **WS 拒绝原因只对日志可见** —— ASGI 规定 accept 前的 close 被服务端当成
+   **HTTP 403 握手拒绝** ⇒ close code（1008）与 reason（`USER_DISABLED` 等）
+   **到不了客户端** ⇒ 每种拒绝在客户端看来**完全一样**。
+   ⚠️ Starlette 的 `TestClient` 却把它还原成 `WebSocketDisconnect(1008)`
+   ⇒ **测试观察到的是部署里不存在的拒绝语义**。
+   ⇒ 要让原因**真正**到达客户端必须**先 accept 再 close** ⇒ 那是**传输层变更**
+   （客户端会看到「连上了又断」）⇒ **独立设计裁决**，不在本批顺手做。
+2. **遗留账号行**（`user_id` ≠ 派生值 · **TODO-137**）上，登录路径（按 username）
+   与每请求路径（按 `user_id`）**会给出相反结论** ⇒ 停用的遗留账号
+   **登录被拒、手里的 token 却还能用** ⇒ 已写进
+   `app/services/user_status_service.py` 的模块 docstring + ADR-0046 §⑤
+   + 一条钉住的测试 ⇒ **并入 TODO-137 的迁移范围**（迁移后该形状不再存在）。

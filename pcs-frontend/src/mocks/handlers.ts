@@ -281,7 +281,10 @@ void _reviewLogConforms;
  *   `EXCEL` / `LAB`）—— ⚠️ **不是** `StreamSourceType`（13 值）的词表；
  * - `lineage_id` = **真 uuid 形状**（后端是确定性 uuid5）⇒ 免得哪天
  *   `ajv-formats` 接上就红；
- * - `occurred_at` = **ISO 8601**（带时区）。
+ * - `occurred_at` = **ISO 8601**（带时区）—— ⚠️ **格式与后端逐字一致**
+ *   （`2026-09-15T14:00:00Z`）：后端三个血缘端点现在**共用** `LineageNode`
+ *   具名 schema（P9B-4 评审 #4）⇒ pydantic 往返 ⇒ **UTC 序列化成 `Z`**
+ *   ⇒ mock 若写 `+00:00` ⇒ dev 与 prod 的显示**不一样**。
  *
  * ⚠️ **导出**是为了让 `tests/mocks/handlers.test.ts` 能拿 ajv 把它**对着契约
  * 校验**（ce-code-review P2 #5 的教训：mock 必须契约派生，不是手抄）。
@@ -301,7 +304,7 @@ export function buildLineageGraph(
       source_ref_id: null,
       actor_user_id: null,
       change_summary: "物流本身（合成根节点）",
-      occurred_at: "2026-09-15T14:00:00+00:00",
+      occurred_at: "2026-09-15T14:00:00Z",
     },
     upstream: [],
     downstream: [],

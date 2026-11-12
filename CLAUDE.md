@@ -173,5 +173,7 @@ uv run python scripts/seed_user_project_access.py --username <用户名> --proje
 
 ## 现有报告
 
+- `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p9b4-review-fixes.md`（最新 · P9B-4 评审修复批 · 批末 HEAD `4032617`）
+- `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-04-p9b4.md`（P9B-4 体验批 · ⚠️ 批末 HEAD 早于真实批末两个提交 ⇒ 已被上一份取代）
 - `.gstack/qa-reports/qa-report-pcs-frontend-per-batch-2026-09-16.md`
-- `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-02-sprint2-batch.md`（最新）
+- `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-02-sprint2-batch.md`
