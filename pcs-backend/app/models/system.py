@@ -19,6 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -180,9 +181,35 @@ class DocumentChunk(Base):
 
 
 class AiAuditLog(Base):
-    """AI 决策与提示词审计（SUP-006 强制）。"""
+    """AI 决策与提示词审计（SUP-006 强制）。
+
+    ## P10-A 加的 8 列（请求审计）
+
+    SUP-006 的语义是「AI **决策**与提示词审计」（谁、什么 agent、什么操作、
+    花了多少 token）⇒ 本迁移**加列**（不改既有列与语义）承载 P10 的
+    「每个 AI **请求**都留痕」。
+
+    ⚠️ **时间列复用既有 `occurred_at`**（偏离登记 D16）—— 不新增 `timestamp`
+    ⇒ 两个语义重叠的时间列会让「该读哪个」变成一个谁也答不上来的问题。
+    """
 
     __tablename__ = "ai_audit_log"
+    __table_args__ = (
+        # ⚠️ **partial** 唯一索引：既有 SUP-006 行的 `request_id` 为 NULL ⇒
+        #    非 partial 会在存量表上因重复 NULL 直接失败。
+        Index(
+            "ux_ai_audit_log_request_id",
+            "request_id",
+            unique=True,
+            postgresql_where=text("request_id IS NOT NULL"),
+        ),
+        # ⚠️ 复用既有 `occurred_at`（不新增时间列 · 偏离 D16）。
+        Index(
+            "ix_ai_audit_log_endpoint_occurred_at",
+            "endpoint",
+            "occurred_at",
+        ),
+    )
     ai_log_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
@@ -203,6 +230,27 @@ class AiAuditLog(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
+    # === P10-A · 请求审计 8 列（全部 nullable）===
+    #
+    # ⚠️ 全部 nullable：既有 SUP-006 行没有这些值 ⇒ NOT NULL 会让迁移失败。
+    # ⚠️ **没有 `timestamp`** —— 时间列复用既有 `occurred_at`（偏离登记 D16）。
+    #: 服务端生成的 UUID（标准 UUID 串）⇒ AI 审计行的**幂等键**
+    #: （同一请求重试 ⇒ 同一行 ⇒ 见 `app/workers/ai_audit_tasks.py`）。
+    request_id: Mapped[str | None] = mapped_column(String(64))
+    #: 客户端 `X-Request-ID`（**不生成、不信任**）—— 只是原样留痕。
+    client_request_id: Mapped[str | None] = mapped_column(String(128))
+    #: 被调端点（如 `/api/v1/ai/intent`）。
+    endpoint: Mapped[str | None] = mapped_column(String(200))
+    #: HTTP 状态码（含 501「未实现」）。
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    #: 处理耗时（毫秒）。
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    #: 脱敏后请求体的规范化哈希（`"sha256:<hex>"`）—— **不记录原文**。
+    sanitized_request_hash: Mapped[str | None] = mapped_column(String(80))
+    #: 结果摘要（如 `AI_NOT_IMPLEMENTED`）。
+    response_summary: Mapped[str | None] = mapped_column(Text)
+    #: 模型版本标识（来自 `system_settings.ai_model_version`）。
+    model_version: Mapped[str | None] = mapped_column(String(50))
 
 
 class LicenseConfig(Base):

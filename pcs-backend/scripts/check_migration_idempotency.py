@@ -141,7 +141,13 @@ def check_migration(path: Path) -> list[str]:
 #:    它的前缀加进这里（`tests/scripts/test_check_migration_idempotency.py::
 #:    test_covered_globs_include_every_migration_prefix` 会红），② 或把它写进
 #:    `LEGACY_PREFIXES` 并在 TODO-063 里记账。
-GLOBS = ("p7_*.py", "p9_*.py")
+#:
+#: ⚠️ **2026-11-12（P10-A）**：`p10_*` 本来落在 `LEGACY_PREFIXES` 的 `"p1"`
+#:    前缀里（`"p10_001".startswith("p1")` ⇒ True）⇒ **棘轮抓不到它**
+#:    ⇒ 新迁移会被**静默排除在守门之外**（守门报 OK，实则没检查）。
+#:    ⇒ 显式把 `p10_*.py` 加进 GLOBS。（这正是「守门没跑，却看着是绿的」
+#:    那一类：**白名单的字符串前缀会吃掉更新的前缀**。）
+GLOBS = ("p7_*.py", "p9_*.py", "p10_*.py")
 
 #: **有意留在覆盖外**的历史前缀（实测 93 个文件 / 350 处违规，含
 #: `dd47298c9c38` 全 schema 迁移）。一次补 350 处会淹没 diff、且要逐个确认
