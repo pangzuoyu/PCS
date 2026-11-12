@@ -11,8 +11,9 @@
  *
  * 名称（标识 · 首列）· 工况 · 相态 · 温度 · 压力 · 质量流量 · 状态 · 来源 · 操作
  *
- * ⚠️ **「引用 📎×N」列本批不渲染** —— 后端列表响应**不返回**该字段，口径也未定
- * （TODO-108）⇒ 画一列永远空着的东西比不画更糟。
+ * ⚠️ **「引用 📎×N」列已渲染**（P9B-4 · TODO-108 · SPEC §7.7.1）——
+ *   口径 = **下游物流数 + 闪蒸结果数**（**不含**状态点 —— 那是子表）；
+ *   后端按**同项目**聚合（Q7 裁决）；**CSV 导出也含这一列**（评审 #27）。
  * ⚠️ **「物流号」列不画** —— 契约里**没有**物流号（`tag_number` 已随「物流没有
  * 位号」的裁决删除）⇒ 沿用 2026-10-19 的裁决：**首列用「名称」当标识**。
  * ⚠️ **只显示 `source`（4 值 · 录入通道）**，**不显示 `source_type`（13 值 ·
@@ -165,7 +166,10 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
 
   /** 导出当前**筛选后**的行（CSV）。 */
   function exportCsv(): void {
-    const headers = ['名称', '工况', '相态', '温度(°C)', '压力(MPaG)', '质量流量(kg/h)', '状态', '来源'];
+    // ⚠️ **「引用」列必须导出**（评审 #27）：SPEC §7.7.1 把它定成**正式列**
+    //    ⇒ 表上渲染了 ⇒ 导出却不含它 ⇒ **导出件与屏幕所见不一致**
+    //    ⇒ 用户拿导出件做统计 ⇒ 漏掉「这条物流被引用」这个关键信息。
+    const headers = ['名称', '工况', '相态', '温度(°C)', '压力(MPaG)', '质量流量(kg/h)', '状态', '来源', '引用'];
     const rows = streams.map((s) => [
       s.stream_name,
       s.case_type ? STREAM_CASE_TYPE_LABEL[s.case_type] : '',
@@ -175,6 +179,9 @@ export function StreamListPage({ projectId = PROJECT_ID }: Props): JSX.Element {
       s.mass_flow ?? '',
       s.sign_status,
       s.source ? STREAM_SOURCE_LABEL[s.source] : '',
+      // ⚠️ 导出里用 **0**（不是表上的「—」）—— 导出是**给数据处理用**的
+      //    ⇒ 「—」在 Excel 里是文本 ⇒ 求和直接失效。
+      s.reference_count ?? 0,
     ]);
     downloadCsv('streams.csv', toCsv(headers, rows));
   }

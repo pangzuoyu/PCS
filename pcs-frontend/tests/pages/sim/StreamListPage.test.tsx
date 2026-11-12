@@ -717,4 +717,48 @@ describe('StreamListPage —— SPEC §7.7.1 物流列表（T6）', () => {
       '批次记录写入失败',
     );
   });
+
+  // -------------------------------------------------------------------------
+  // CSV 导出（评审 #27）
+  // -------------------------------------------------------------------------
+
+  it('⚠️ CSV 导出**含「引用」列**（评审 #27）—— 导出内容与屏幕所见一致', async () => {
+    // ⚠️ **导出的数据必须与用户看到的表一致** —— SPEC §7.7.1 把「引用」定成
+    //    一列**正式列**（表上渲染了）⇒ 导出却不含它 ⇒ 导出件**静默缺列**
+    //    ⇒ 用户拿导出件做统计 ⇒ 漏掉「这条物流被引用」这个关键信息。
+    rows = [makeStream({ reference_count: 3 })];
+
+    const blobs: Blob[] = [];
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = ((b: Blob) => {
+      blobs.push(b);
+      return 'blob:mock';
+    }) as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = (() => undefined) as unknown as typeof URL.revokeObjectURL;
+
+    try {
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('stream-row')).toBeTruthy());
+      fireEvent.click(screen.getByTestId('stream-export'));
+
+      await waitFor(() => expect(blobs.length).toBe(1));
+      // ⚠️ jsdom 的 `Blob` **没有** `.text()` ⇒ 用 `FileReader` 读
+      const csv = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(fr.error);
+        fr.readAsText(blobs[0]);
+      });
+      // ⚠️ BOM 在最前 ⇒ 断言用「包含」而不是「相等」
+      expect(csv).toContain('引用');
+      // ⚠️ 表头与数据行的列数必须一致 ⇒ 不一致 ⇒ 表格错位
+      const lines = csv.split('\r\n').filter((l) => l.length > 0);
+      expect(lines[0].split(',')).toContain('引用');
+      expect(lines[1].split(',')).toContain('3');
+    } finally {
+      URL.createObjectURL = origCreate;
+      URL.revokeObjectURL = origRevoke;
+    }
+  });
 });

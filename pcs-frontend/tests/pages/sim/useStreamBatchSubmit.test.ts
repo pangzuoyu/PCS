@@ -223,6 +223,28 @@ describe('useStreamBatchSubmit —— 失败清单 / 只重试失败项（TODO-1
     expect(result.current.failedIds).toEqual([]);
   });
 
+  it('⚠️ 刷新列表失败 ⇒ **不算「提交失败」**（评审 #20）', async () => {
+    // ⚠️ **提交已经成功了**（后端回了 207 + 摘要）⇒ 只是**随后的列表刷新**失败
+    //    ⇒ 旧实现把 `onDone()` 放在**提交请求的同一个 try** 里
+    //    ⇒ 刷新一失败 ⇒ catch 跑 `setResult(null)`（把刚收到的摘要关掉）
+    //    ⇒ **再 rethrow** ⇒ 页面显示「批量提交校对失败」
+    //    ⇒ 用户看到「失败」，实际那批**已经提交成功**（可能还提交了两次）。
+    const spy = vi.spyOn(streamApi, 'batchSubmitForReview');
+    spy.mockResolvedValue(mixed([OK_ID], []));
+    const onDone = vi.fn().mockRejectedValue(new Error('refresh boom'));
+    const { result } = renderHook(() => useStreamBatchSubmit({ onDone }));
+
+    await act(async () => {
+      // ⚠️ **不抛** —— 刷新失败不属于提交错误域
+      await expect(result.current.submit([OK_ID])).resolves.toBeUndefined();
+    });
+
+    // ⚠️ 摘要**仍在**（不能被一次刷新失败抹掉）
+    expect(result.current.result).not.toBeNull();
+    expect(result.current.result?.succeeded.map((s) => s.stream_id)).toEqual([OK_ID]);
+    expect(result.current.submitting).toBe(false);
+  });
+
   it('整批失败（网络/超限/403）⇒ 错误**抛给调用方**（页面负责显示）', async () => {
     const spy = vi.spyOn(streamApi, 'batchSubmitForReview');
     spy.mockRejectedValue(new Error('boom'));
