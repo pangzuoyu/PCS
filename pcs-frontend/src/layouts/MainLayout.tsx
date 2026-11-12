@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Layout, Menu, Space, Typography } from 'antd';
+import { Alert, Badge, Button, Layout, Menu, Space, Tooltip, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -219,6 +219,24 @@ export default function MainLayout() {
           <Typography.Text style={{ color: '#fff' }}>
             {username} ({role})
           </Typography.Text>
+          {/* ⚠️ **AI 占位**（P10-A · UI-SPEC §顶栏「[AI] · 打开 AI 助手抽屉
+              （P10 预留，先禁用并提示）」）⇒ 只做**禁用按钮 + 提示**，
+              **不做抽屉**（抽屉是后续批次的事）。
+              ⚠️ **禁用是硬要求** —— AI 端点现在一律 501 ⇒ 能点的按钮只会
+              让人点出「AI功能即将上线」。
+              ⚠️ Tooltip 包一层 `<span>`：antd 的 disabled 按钮不派发鼠标
+              事件 ⇒ 不包 span 则 tooltip 永远不出现。 */}
+          <Tooltip title="AI 助手（P10 预留，暂未开放）">
+            <span>
+              <Button
+                disabled
+                data-testid="ai-placeholder"
+                aria-label="AI 助手（P10 预留，暂未开放）"
+              >
+                AI
+              </Button>
+            </span>
+          </Tooltip>
           <Button onClick={onLogout}>登出</Button>
         </Space>
       </Header>

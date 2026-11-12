@@ -238,3 +238,41 @@ describe('MainLayout —— 「管理」菜单组（P9B-2 · T7）', () => {
     expect(screen.getByText('审计日志')).toBeTruthy();
   });
 });
+
+/**
+ * 顶栏 **AI 占位**（P10-A · Task T13 · UI-SPEC §顶栏）。
+ *
+ * ⚠️ **UI-SPEC 是前端 UI 的唯一编码依据**（项目 CLAUDE.md）⇒ UI-SPEC §顶栏
+ * 写的是「顶栏 `[AI]` · 打开 AI 助手抽屉（**P10 预留，先禁用并提示**）」
+ * ⇒ 本批只做**禁用按钮 + 提示**，**不做抽屉**
+ * （SPEC §3.1.1 写的是「右下角悬浮图标 + 对话面板」⇒ 与 UI-SPEC 冲突
+ * ⇒ 按 CLAUDE.md「以 UI-SPEC 为准并登记 SPEC 修订」处置）。
+ *
+ * ⚠️ **禁用是硬要求** —— AI 还没上线（端点一律 501）⇒ 一个能点的按钮
+ * 只会让人点出「AI功能即将上线」的 501。
+ */
+describe('MainLayout —— 顶栏 AI 占位（P10-A · UI-SPEC §顶栏）', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+  afterAll(() => server.close());
+  beforeEach(() => {
+    useDegradation.setState({ message: null });
+    useAuth.setState({ role: 'DESIGNER', accessToken: 'test-token' });
+  });
+
+  it('顶栏有 AI 按钮，但**禁用**并说明「预留」', async () => {
+    render(
+      <MemoryRouter>
+        <MainLayout />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('notif-badge')).toBeTruthy());
+    const btn = screen.getByTestId('ai-placeholder');
+    expect(btn).toBeTruthy();
+    // ⚠️ **禁用**（AI 未上线 ⇒ 点了只会拿到 501）
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(btn.textContent).toContain('AI');
+    // ⚠️ **说明了「预留」**（用户不该猜为什么点不动）
+    expect(btn.getAttribute('aria-label')).toContain('预留');
+  });
+});
