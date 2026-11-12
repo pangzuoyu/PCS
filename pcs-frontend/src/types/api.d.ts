@@ -977,16 +977,24 @@ export interface paths {
          * @description GET 上游血缘链（沿计算记录向上回溯）。
          *
          *     步骤：
-         *     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+         *     0. **角色门**（P9B-4 评审 #3 · 用户 2026-11-12 裁决「沿用 streams 白名单」）
+         *        —— 与 `app/api/v1/streams.py` 的每个端点**同一条**白名单
+         *        （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）⇒ 否则 VIEWER /
+         *        REVIEWER / CHECKER 从 `GET /streams/{id}` 拿 403、却能从血缘端点读到
+         *        物流自己的字段与下游计算血缘行。
+         *        ⚠️ **角色门在项目守卫之前**（与 `streams.py` 的既有顺序一致）：
+         *        角色判定**不看 id** ⇒ 任何 id 都得同一个 403 ⇒ 不泄漏存在性；
+         *        反过来（先查项目）则 403 会泄漏「这个 id 在你有权限的项目里」。
+         *     0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
          *     0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**
          *         ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`
          *         本来就是这个形状，只有本端点原先漏了）
          *     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
          *        （不走 latest()，因为上游追溯用最近一次就行）
          *     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
-         *     3. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/
-         *        record_id/parent_lineage_id/source/source_ref_*\/actor_user_id/
-         *        change_summary/occurred_at）
+         *     3. 返回 `list[LineageNode]`（**具名 schema** · P9B-4 评审 #4 ⇒ 与
+         *        `/graph` 的 `downstream` / `upstream` **逐字同形** —— 同一行不再
+         *        有「`Z` 与 `+00:00` 两种时间戳字符串」）
          *
          *     与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；
          *     downstream 需 latest() 解析（跨多次重算取最近一次）。
@@ -1012,14 +1020,19 @@ export interface paths {
          * @description GET 下游血缘链（沿计算记录向下传播）。
          *
          *     步骤：
+         *     0. **角色门**（P9B-4 评审 #3）—— 与 `streams.py` 同一条白名单
+         *        （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）；**在项目守卫之前**
+         *        （角色判定不看 id ⇒ 不泄漏存在性）。
+         *     0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权
+         *     0b. **记录不存在 / 未登记类型 ⇒ 同一个 404**（守卫抛，见 `_guard_record_access`）
          *     1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id
          *        （record 可能多次重算，latest 取最近一次）
          *     2. 不存在 → 404 no lineage for record
          *     3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播
          *        （max_depth 限 1..50，防止极深递归触发 N+1 风暴）
-         *     4. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/
-         *        record_id/parent_lineage_id/source/source_ref_*\/actor_user_id/
-         *        change_summary/occurred_at）
+         *     4. 返回 `list[LineageNode]`（**具名 schema** · P9B-4 评审 #4 ⇒ 与
+         *        `/graph` 的 `downstream` **逐字同形**，不再有「`Z` 与 `+00:00` 两种
+         *        时间戳字符串」）
          *
          *     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
          *     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
@@ -1054,12 +1067,18 @@ export interface paths {
          * @description 取记录的全谱系图（root + upstream + downstream）。
          *
          *     步骤：
-         *     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+         *     0. **角色门**（P9B-4 评审 #3）—— 与 `streams.py` 同一条白名单
+         *        （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）；**在项目守卫之前**
+         *        （角色判定不看 id ⇒ 不泄漏存在性）。
+         *     0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+         *     0b. **记录不存在 / 未登记类型 ⇒ 同一个 404**（守卫抛，见 `_guard_record_access`）
          *     1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
          *     2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
          *     3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
          *        （多版本分支以链式 children 形式返回）
-         *     4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
+         *     4. 返回 `LineageGraphResponse` { root, upstream, downstream }，
+         *        三项**共用同一个 `LineageNode` 具名 schema**（评审 #4）⇒ 与
+         *        `/upstream` / `/downstream` **逐字同形**
          *
          *     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
          *
@@ -22771,9 +22790,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["LineageNode"][];
                 };
             };
             /** @description Validation Error */
@@ -22809,9 +22826,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["LineageNode"][];
                 };
             };
             /** @description Validation Error */

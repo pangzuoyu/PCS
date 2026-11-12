@@ -34,6 +34,7 @@ from __future__ import annotations
 from sqlalchemy import inspect as _inspect
 
 import app.models  # noqa: F401  —— 导入即注册全部表（`inspect` 需要 mapper 就绪）
+from app.models.calc import PsvResult
 from app.models.project import Stream
 from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 
@@ -64,3 +65,18 @@ LINEAGE_GUARDED_RECORD_TYPES: dict[str, tuple[type, str]] = {
 #: 但物流在血缘行里**从不作为 `record_type`**（它是 `source_ref_type='Stream'`）
 #: ⇒ 不在上面的派生集合里 ⇒ **单独登记**。
 LINEAGE_GUARDED_RECORD_TYPES["streams"] = (Stream, "stream_id")
+
+#: ⚠️⚠️ `PsvResult` **也**要**单独登记**（P9B-4 评审 #9）。
+#:
+#: 为什么不靠上面的派生：`RECORD_TYPE_REGISTRY` 是**表枚举**（本模块 docstring
+#: 与 `calc_lineage.py` 的模块 docstring 都明写它**不是** `finalize_calc_record`
+#: 的支持清单）⇒ `PsvResult` **不在**那张表里 ⇒ 派生集合里没有它。
+#:
+#: 而它**确实**有活跃消费方：`psv_persist.py` 写它的血缘行、`psv.py:247`
+#: 读回同一批行 ⇒ 不登记 ⇒ T0-D 的 fail-closed 把它变成**永久 404**
+#: ⇒ 用户在 PSV 页点开血缘永远空白。
+#:
+#: ⚠️ 这张表是**手写**的 ⇒ 新增计算结果表时**必须**记得也登记一行；
+#: 契约测试 `tests/api/v1/test_lineage_review_fixes.py::
+#: test_every_calc_result_model_is_registered_in_the_guard` 会把漏掉的**揪出来**。
+LINEAGE_GUARDED_RECORD_TYPES["PsvResult"] = (PsvResult, _pk_col(PsvResult))

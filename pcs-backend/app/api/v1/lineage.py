@@ -18,10 +18,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.config import _Actor, current_actor
+from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.models.project import Stream
-from app.schemas.lineage import LineageGraphResponse
+from app.schemas.lineage import LineageGraphResponse, LineageNode
 from app.services.lineage import LineageTracker
 from app.services.lineage_registry import LINEAGE_GUARDED_RECORD_TYPES
 from app.services.user_project_service import has_project_access
@@ -42,7 +42,7 @@ router = APIRouter(prefix="/lineage", tags=["lineage"])
 
 
 
-@router.get("/{record_type}/{record_id}/upstream", response_model=list[dict])
+@router.get("/{record_type}/{record_id}/upstream", response_model=list[LineageNode])
 async def upstream(
     record_type: str,
     record_id: uuid.UUID,
@@ -53,20 +53,29 @@ async def upstream(
     """GET 上游血缘链（沿计算记录向上回溯）。
 
     步骤：
-    0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+    0. **角色门**（P9B-4 评审 #3 · 用户 2026-11-12 裁决「沿用 streams 白名单」）
+       —— 与 `app/api/v1/streams.py` 的每个端点**同一条**白名单
+       （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）⇒ 否则 VIEWER /
+       REVIEWER / CHECKER 从 `GET /streams/{id}` 拿 403、却能从血缘端点读到
+       物流自己的字段与下游计算血缘行。
+       ⚠️ **角色门在项目守卫之前**（与 `streams.py` 的既有顺序一致）：
+       角色判定**不看 id** ⇒ 任何 id 都得同一个 403 ⇒ 不泄漏存在性；
+       反过来（先查项目）则 403 会泄漏「这个 id 在你有权限的项目里」。
+    0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
     0b. **记录不存在 ⇒ 404**（`no lineage for record`）—— 与「无权」**逐字同形**
         ⇒ 枚举不出某个 UUID 是否存在（bug-2147；`/graph` 与 `/downstream`
         本来就是这个形状，只有本端点原先漏了）
     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
        （不走 latest()，因为上游追溯用最近一次就行）
     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
-    3. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/
-       record_id/parent_lineage_id/source/source_ref_*/actor_user_id/
-       change_summary/occurred_at）
+    3. 返回 `list[LineageNode]`（**具名 schema** · P9B-4 评审 #4 ⇒ 与
+       `/graph` 的 `downstream` / `upstream` **逐字同形** —— 同一行不再
+       有「`Z` 与 `+00:00` 两种时间戳字符串」）
 
     与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；
     downstream 需 latest() 解析（跨多次重算取最近一次）。
     """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await _guard_record_access(
         session, user, record_type, record_id
     )
@@ -81,7 +90,7 @@ async def upstream(
     return [_serialize(c) for c in chain]
 
 
-@router.get("/{record_type}/{record_id}/downstream", response_model=list[dict])
+@router.get("/{record_type}/{record_id}/downstream", response_model=list[LineageNode])
 async def downstream(
     record_type: str,
     record_id: uuid.UUID,
@@ -92,14 +101,19 @@ async def downstream(
     """GET 下游血缘链（沿计算记录向下传播）。
 
     步骤：
+    0. **角色门**（P9B-4 评审 #3）—— 与 `streams.py` 同一条白名单
+       （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）；**在项目守卫之前**
+       （角色判定不看 id ⇒ 不泄漏存在性）。
+    0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权
+    0b. **记录不存在 / 未登记类型 ⇒ 同一个 404**（守卫抛，见 `_guard_record_access`）
     1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id
        （record 可能多次重算，latest 取最近一次）
     2. 不存在 → 404 no lineage for record
     3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播
        （max_depth 限 1..50，防止极深递归触发 N+1 风暴）
-    4. 返回 [dict, ...]（按 _serialize 统一字段：lineage_id/record_type/
-       record_id/parent_lineage_id/source/source_ref_*/actor_user_id/
-       change_summary/occurred_at）
+    4. 返回 `list[LineageNode]`（**具名 schema** · P9B-4 评审 #4 ⇒ 与
+       `/graph` 的 `downstream` **逐字同形**，不再有「`Z` 与 `+00:00` 两种
+       时间戳字符串」）
 
     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
@@ -113,6 +127,7 @@ async def downstream(
     ⚠️ 与 `/graph` **同口径**（否则两个端点对同一份数据给出不同的上限 ⇒
     「两个端点互相打脸」）。
     """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await _guard_record_access(
         session, user, record_type, record_id
     )
@@ -141,12 +156,18 @@ async def graph(
     """取记录的全谱系图（root + upstream + downstream）。
 
     步骤：
-    0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+    0. **角色门**（P9B-4 评审 #3）—— 与 `streams.py` 同一条白名单
+       （DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN）；**在项目守卫之前**
+       （角色判定不看 id ⇒ 不泄漏存在性）。
+    0a. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
+    0b. **记录不存在 / 未登记类型 ⇒ 同一个 404**（守卫抛，见 `_guard_record_access`）
     1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
     2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
     3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
        （多版本分支以链式 children 形式返回）
-    4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
+    4. 返回 `LineageGraphResponse` { root, upstream, downstream }，
+       三项**共用同一个 `LineageNode` 具名 schema**（评审 #4）⇒ 与
+       `/upstream` / `/downstream` **逐字同形**
 
     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
 
@@ -159,11 +180,15 @@ async def graph(
     —— 本入口**没有遍历可限** ⇒ 用它当条数上限 ⇒ `data_lineage` 只增不删
     ⇒ 不限则响应随重算次数**无界增长**。**最新的在前**（`occurred_at DESC`）。
     """
-    await _guard_record_access(
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    stream = await _guard_record_access(
         session, user, record_type, record_id
     )
     if record_type == "streams":
-        return await _stream_graph(session, record_id, max_depth=max_depth)
+        # ⚠️ **守卫已经查过并放行** ⇒ 直接用它的返回值（评审 #15）⇒
+        #    不必再 `session.get` 一次（少一次查询），也不必在这里
+        #    重复判「不存在」（那条分支守卫已经抛了同一个 404）。
+        return await _stream_graph(session, stream, max_depth=max_depth)
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
@@ -270,7 +295,7 @@ async def _guard_record_access(
 
 
 async def _stream_graph(
-    session: AsyncSession, stream_id: uuid.UUID, *, max_depth: int
+    session: AsyncSession, stream: Stream, *, max_depth: int
 ) -> dict:
     """物流的血缘图 —— **「按源引用查」** + **合成 root**（T0-D · TODO-136）。
 
@@ -280,16 +305,16 @@ async def _stream_graph(
     - **downstream** = 以该物流为**源**的血缘行；
     - **upstream** = **空**（物流是源 ⇒ 没有上游血缘行）；
     - **root** = **合成**（下面 `_synthetic_stream_root`）。
+
+    ⚠️ **`stream` 由调用方的守卫传入**（P9B-4 评审 #15）—— 守卫已经查过
+    该行并放行 ⇒ 这里**不必再查一次**（省一次 `SELECT`）⇒ 也就不必再判
+    「不存在」（那条分支守卫已经抛了**同一个** 404）。
     """
-    stream = await session.get(Stream, stream_id)
-    if stream is None:
-        # 守卫已经查过并放行 ⇒ 这里不该发生 ⇒ 仍抛**同一个** 404（不换形状）
-        raise HTTPException(404, "no lineage for record")
     tracker = LineageTracker(session)
     # ⚠️ `max_depth` 在本入口**没有遍历可限** ⇒ 用作**下游条数上限**
     #    （1..50，默认 10）⇒ `data_lineage` 只增不删 ⇒ 不限则响应无界增长。
     rows = await tracker.by_source_ref(
-        source_ref_type="Stream", source_ref_id=stream_id, limit=max_depth
+        source_ref_type="Stream", source_ref_id=stream.stream_id, limit=max_depth
     )
     return {
         "root": _synthetic_stream_root(stream),
