@@ -124,6 +124,23 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("PCS_ENABLE_MOCK_LOGIN", "enable_mock_login"),
     )
 
+    # === P10-A · AI 预留（SPEC §3.2.1(5)）===
+    #
+    # ⚠️ **env 侧没有 `AI_ENABLED`**（偏离登记 D13）——
+    #    AI 开关的**单一真相源 = `system_settings.ai_enabled`**（管理员可在
+    #    前端参数页改）。env 再来一个开关 ⇒ 两个开关只能 AND ⇒ 管理员改了
+    #    页面却**没生效** ⇒ 「改了配置没用」是最难查的一类问题。
+    #    ⇒ 下面三项都是**部署级**配置（改了要重启），不是运行时开关。
+    #
+    # ⚠️ `internal_cidrs` 存**原始串**（逗号分隔）⇒ 解析在
+    #    `app/core/ai_cidr.parse_cidrs`（**单一解析点** ⇒ 非法值能报出
+    #    清晰错误，而不是散落在各处各解析一次）。
+    ai_endpoint: str | None = None
+    internal_cidrs: str = ""
+    # ⚠️ **人名遮蔽默认关** —— 开了会把几乎每个中文词都遮成 `[PERSON_NAME]`
+    #    ⇒ 脱敏后的文本基本不可读。
+    ai_mask_person_name: bool = False
+
     @property
     def is_production(self) -> bool:
         return self.env == "production"

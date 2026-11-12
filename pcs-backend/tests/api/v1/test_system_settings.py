@@ -39,6 +39,13 @@ SEED_KEYS = (
     "record.self_check_allowed",
     "equip_list.auto_sync_enabled",
     "stream.batch_submit_limit",
+    # P10-A：6 个 AI 键（SPEC §4.1.3）—— 参数页显示**全部**键 ⇒ AI 键自动可见。
+    "ai_enabled",
+    "ai_model_version",
+    "ai_endpoint",
+    "ai_timeout",
+    "ai_max_tokens",
+    "ai_temperature",
 )
 
 

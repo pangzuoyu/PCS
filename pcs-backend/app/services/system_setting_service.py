@@ -41,6 +41,45 @@ DEFAULT_SETTINGS: list[dict[str, Any]] = [
         "value": 100,
         "description": "物流批量提交上限（P9B-3b 用）",
     },
+    # === P10-A · AI 预留（SPEC §4.1.3）===
+    #
+    # ⚠️ **AI 的开关只有这一个**（`ai_enabled`）—— env 侧**故意不设**
+    #    `AI_ENABLED`（偏离登记 D13）：两个开关只能 AND ⇒ 管理员在页面上
+    #    翻了却没生效 ⇒ 「改了配置没用」是最难查的一类问题。
+    #    ⇒ **单一真相源 = `system_settings.ai_enabled`**。
+    #
+    # ⚠️ 这 6 个键**不需要**改前端 —— 参数页显示**全部**键
+    #    （`tests/services/test_ai_settings.py` 钉住这条）。
+    {
+        "key": "ai_enabled",
+        "value": False,
+        "description": "AI 功能全局开关（P10 预留，默认关）",
+    },
+    {
+        "key": "ai_model_version",
+        "value": None,
+        "description": "AI 模型版本标识（P10 预留）",
+    },
+    {
+        "key": "ai_endpoint",
+        "value": None,
+        "description": "AI 内网服务端点（P10 预留；为空则用 env 的 AI_ENDPOINT）",
+    },
+    {
+        "key": "ai_timeout",
+        "value": 30,
+        "description": "AI 推理超时秒数（P10 预留）",
+    },
+    {
+        "key": "ai_max_tokens",
+        "value": 4096,
+        "description": "AI 单次最大 token 数（P10 预留）",
+    },
+    {
+        "key": "ai_temperature",
+        "value": 0.1,
+        "description": "AI 采样温度（P10 预留）",
+    },
 ]
 
 
