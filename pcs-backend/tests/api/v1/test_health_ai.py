@@ -138,3 +138,55 @@ async def _set_setting(db: AsyncSession, key: str, value: object) -> None:
     else:
         row.setting_value_json = value
     await db.commit()
+
+
+# === 评审 #14 / #15（2026-11-12 评审修复批） ===
+
+
+async def test_health_ai_degrades_instead_of_500_on_a_malformed_endpoint(
+    client, seeded, monkeypatch
+) -> None:
+    """⚠️ **评审 #15** —— 畸形 endpoint ⇒ **200 + degraded**，不是 500。
+
+    `urlparse("http://[::1")` 抛 `ValueError("Invalid IPv6 URL")`
+    ⇒ 而 `host_of(endpoint)` 旧实现是在**所有 try 之外**被调的
+    ⇒ 健康端点直接 500 ⇒ 一个**管理员手滑的 typo** 变成 500，
+    探针指着它 ⇒ 重启循环。
+    """
+    _set_cidrs(monkeypatch, "10.0.0.0/8")
+    await _set_setting(seeded, "ai_endpoint", "http://[::1")
+
+    resp = await client.get("/api/v1/health/ai")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["reason"] == "endpoint_invalid"
+
+
+def test_classify_ai_endpoint_is_a_pure_function() -> None:
+    """⚠️ **评审 #14** —— 判定口径必须能**单独测**（纯函数）。
+
+    旧实现把七段分支（未配置 / 域名 / 在内网 / 不在内网 / 非法 CIDR /
+    读不到参数 / 畸形 endpoint）全塞进**一个 ~96 行的端点函数** ⇒
+    每加一种 endpoint 形态就只能再堆一个分支 ⇒ 且**没法逐支验证**。
+    ⇒ 抽成纯判定函数：`(endpoint, cidrs) -> (status, reason)`。
+    """
+    from app.api.v1.health import _classify_ai_endpoint
+
+    # 未配置
+    assert _classify_ai_endpoint(None, ["10.0.0.0/8"]) == ("not_configured", None)
+    # 域名 ⇒ 恒 degraded（不解析 DNS）
+    status, reason = _classify_ai_endpoint("llm.internal", ["10.0.0.0/8"])
+    assert status == "degraded"
+    assert reason == "endpoint_is_domain_not_verified"
+    # IP 字面量在内网 ⇒ ok
+    assert _classify_ai_endpoint("10.1.2.3", ["10.0.0.0/8"]) == ("ok", None)
+    # IP 字面量不在内网 ⇒ degraded
+    status, reason = _classify_ai_endpoint("8.8.8.8", ["10.0.0.0/8"])
+    assert status == "degraded"
+    assert reason == "endpoint_not_in_cidrs"
+    # ⚠️ 畸形 endpoint ⇒ degraded（**不是**抛异常）
+    status, reason = _classify_ai_endpoint("http://[::1", ["10.0.0.0/8"])
+    assert status == "degraded"
+    assert reason == "endpoint_invalid"

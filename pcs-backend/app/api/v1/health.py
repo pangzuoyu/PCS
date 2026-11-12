@@ -94,6 +94,8 @@ _REASON_NOT_IN_CIDRS = "endpoint_not_in_cidrs"
 _REASON_INVALID_CIDRS = "invalid_cidrs"
 #: 读不到系统参数。
 _REASON_SETTINGS_UNAVAILABLE = "settings_unavailable"
+#: endpoint **畸形**（评审 #15）—— 如 `"http://[::1"`（IPv6 括号没闭合）。
+_REASON_ENDPOINT_INVALID = "endpoint_invalid"
 
 
 def _is_ip_literal(host: str) -> bool:
@@ -105,6 +107,43 @@ def _is_ip_literal(host: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _classify_ai_endpoint(
+    endpoint: str | None, cidrs: list[str]
+) -> tuple[str, str | None]:
+    """判定 endpoint 的状态 —— **纯函数**（不读库、不读设置、不联网）。
+
+    ⚠️ **为什么抽出来**（评审 #14）：旧的判定阶梯七段分支
+    （未配置 / 域名 / 在内网 / 不在内网 / 非法 CIDR / 读不到参数 / 畸形 endpoint）
+    全塞在**一个 ~96 行的端点函数**里 ⇒ 每加一种 endpoint 形态就再堆一个分支
+    ⇒ 且**没法逐支验证**（只能走 HTTP 层间接覆盖）。
+
+    Returns:
+        `(status, reason)` —— `status` ∈ `ok` / `degraded` / `not_configured`。
+    """
+    from app.core.ai_cidr import host_of, ip_in_cidrs
+
+    if not endpoint:
+        return "not_configured", None
+
+    try:
+        host = host_of(endpoint)
+    except ValueError:
+        # ⚠️ **评审 #15** —— 畸形 endpoint（如 `"http://[::1"`）⇒ `urlparse`
+        # 抛 `ValueError("Invalid IPv6 URL")` ⇒ 旧实现是在**所有 try 之外**
+        # 调 `host_of` ⇒ 健康端点直接 **500** ⇒ 管理员的一个 typo 变成 500，
+        # 探针指着它 ⇒ 重启循环。⇒ 降级，**不抛**。
+        return "degraded", _REASON_ENDPOINT_INVALID
+
+    if not _is_ip_literal(host):
+        # ⚠️ 域名 ⇒ **不解析 DNS** ⇒ 恒 degraded（如实：没验证过）。
+        return "degraded", _REASON_DOMAIN
+
+    if ip_in_cidrs(host, cidrs):
+        return "ok", None
+
+    return "degraded", _REASON_NOT_IN_CIDRS
 
 
 @router.get("/health/ai", response_model=HealthAIResponse)
@@ -126,7 +165,7 @@ async def health_ai(
     ⇒ **不解析 DNS** 还有一条工程理由：健康检查**不该依赖外网**
     （被墙/超时 ⇒ 探针抖动 ⇒ 误报故障）。
     """
-    from app.core.ai_cidr import host_of, ip_in_cidrs, parse_cidrs
+    from app.core.ai_cidr import parse_cidrs
     from app.core.config import get_settings
     from app.services.system_setting_service import get_setting_value
 
@@ -174,33 +213,13 @@ async def health_ai(
             cidrs_configured=bool(cidrs),
         )
 
-    # ⚠️ **复用 `ai_cidr.host_of`**（唯一的一份解析）—— 内联副本会让
-    #    「健康端点的判断」与「启动校验 / 调用时校验」口径分叉（评审 M-6）。
-    host = host_of(endpoint)
-
-    if not _is_ip_literal(host):
-        # ⚠️ 域名 ⇒ **不解析 DNS** ⇒ 恒 degraded（如实：没验证过）。
-        return HealthAIResponse(
-            status="degraded",
-            reason=_REASON_DOMAIN,
-            ai_enabled=ai_enabled,
-            endpoint_configured=True,
-            cidrs_configured=bool(cidrs),
-        )
-
-    if ip_in_cidrs(host, cidrs):
-        return HealthAIResponse(
-            status="ok",
-            reason=None,
-            ai_enabled=ai_enabled,
-            endpoint_configured=True,
-            cidrs_configured=bool(cidrs),
-        )
+    # ⚠️ **判定口径在纯函数里**（评审 #14）—— 端点只负责「取设置 + 组装响应」。
+    status, reason = _classify_ai_endpoint(endpoint, cidrs)
 
     return HealthAIResponse(
-        status="degraded",
-        reason=_REASON_NOT_IN_CIDRS,
+        status=status,
+        reason=reason,
         ai_enabled=ai_enabled,
-        endpoint_configured=True,
+        endpoint_configured=bool(endpoint),
         cidrs_configured=bool(cidrs),
     )

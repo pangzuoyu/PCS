@@ -382,3 +382,28 @@ async def test_audit_hash_is_computed_off_the_event_loop(
 
     assert resp.status_code == 501, resp.text
     assert calls, "哈希没有走 asyncio.to_thread ⇒ 仍在事件循环上"
+
+
+async def test_audit_row_request_id_matches_the_response(
+    ai_client, designer_headers, recorded_audits
+) -> None:
+    """⚠️ **评审 #2** —— 审计行的 `request_id` 必须**钉住**。
+
+    ⚠️ `request_id` 是审计行的**幂等键**，也是 501 信封回给客户端的那个 id
+    ⇒ 而写库任务在 `request_id` 为空时**直接 return、不写行**
+    ⇒ 只要中间件哪天不再传它，**整张审计表会静默为空**，
+    而本文件所有断言**照样全绿**（它们从不断言 `request_id`）。
+
+    ⇒ 断言三处**同值**：响应头 `X-Request-ID` == 501 信封的 `request_id`
+    == 审计行的 `request_id`。
+    """
+    resp = await ai_client.post(
+        "/api/v1/ai/intent", json={"text": "x"}, headers=designer_headers
+    )
+
+    assert resp.status_code == 501, resp.text
+    header_id = resp.headers["X-Request-ID"]
+    envelope_id = resp.json()["request_id"]
+    assert header_id == envelope_id, (header_id, envelope_id)
+    assert recorded_audits, "审计没入队"
+    assert recorded_audits[-1]["request_id"] == header_id, recorded_audits[-1]
