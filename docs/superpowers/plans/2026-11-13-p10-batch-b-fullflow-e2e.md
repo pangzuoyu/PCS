@@ -852,3 +852,22 @@ git commit -F <msgfile>   # 首行: docs(P10-B): 偏离登记 + 账簿 + QA 收�
 | 6 | **E2E-018 的两库口径** | SPEC 写 `pcs` 与 `pcs_test`；本机 `pcs_test` 存在 | 本批直查两库 `alembic_version` ⇒ 不一致就**登记**（不修） |
 | 7 | **TODO-141（全量测试迁 `strict_client`）** | 本批只迁**新写的**用例 | 原 TODO **保留** ⇒ 迁完才是「关闭」 |
 | 8 | **计算链输入用合成数据（不取 `sample/`）** | `sample/` 不入 git ⇒ 别的机器没有 ⇒ 车道不可移植 | 本批用合成输入（已定）⇒ 真 PRO/II 回归另由 SIM 解析测试承担 |
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | **clean** | **16 issues**（架构 7 · 质量 2 · 测试 7 · 性能 0）· 0 critical gaps · 0 unresolved |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **UNRESOLVED:** 0（11 个决策全部当场定完：D2 批次体量 · D3 前端数据落点 · D4 lifespan 的两张表 ·
+  D5 车道闸门复用 · D6 审计两段式 · D7 隔离单位 · D8 载荷模板 · D9 角色→用户映射 · D10 串行 ·
+  D11 外部视角跳过 · 4 条 TODO）
+- **VERDICT:** ENG CLEARED — 计划可实施（**16 条发现已全部落进计划或入账 TODO**）
+- **外部视角:** 跳过（用户裁决 D11）⇒ **无跨模型张力可比对**
+- **计划改动:** 架构 5 条 + 代码质量 2 条 + 测试 7 条 + 笔误 2 处 ⇒ 全部已落进本文件并 commit
