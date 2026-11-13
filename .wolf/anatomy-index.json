@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-12T05:15:26.969Z",
-    "fileCount": 1253,
+    "lastScanned": "2026-11-13T03:16:22.763Z",
+    "fileCount": 1280,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a88dd64f93821c08591e73b30dfa3227e126037c2d6a2719559c3ae7610e086e",
-    "storeUpdatedAt": "2026-11-12T05:15:26.980Z",
-    "rootHash": "642ff024d847e0bf"
+    "renderedHash": "e7f5cce6a5c0aae3f9719bad64918c01d0360907624397c8cd2b35868abbb40e",
+    "storeUpdatedAt": "2026-11-13T03:16:22.775Z",
+    "rootHash": "140bdd3396410e44"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12351,11 +12351,11 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 5756,
-      "hash": "78134ae36c17ddc9",
-      "size": 33248,
-      "mtimeMs": 1794447543710.0127,
-      "updatedAt": "2026-11-12T01:39:03.756Z",
+      "tokens": 5971,
+      "hash": "f62a29cd534a3757",
+      "size": 34601,
+      "mtimeMs": 1794527866299.549,
+      "updatedAt": "2026-11-12T23:57:46.347Z",
       "source": "hook"
     },
     "TODOS.md": {
@@ -12456,46 +12456,46 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 3183,
-      "hash": "2e52c6caa7f408da",
-      "size": 15815,
-      "mtimeMs": 1794448243122.5781,
-      "updatedAt": "2026-11-12T01:50:43.174Z",
+      "tokens": 3280,
+      "hash": "a543939be7297775",
+      "size": 16410,
+      "mtimeMs": 1794493449499.0632,
+      "updatedAt": "2026-11-12T14:24:09.546Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Settings",
           "kind": "class",
           "startLine": 31,
-          "endLine": 154,
-          "tokens": 1460
+          "endLine": 161,
+          "tokens": 1558
         },
         {
           "name": "get_settings",
           "kind": "fn",
-          "startLine": 155,
-          "endLine": 257,
+          "startLine": 162,
+          "endLine": 264,
           "tokens": 1049
         },
         {
           "name": "assert_secret_key_configured",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 267,
+          "startLine": 265,
+          "endLine": 274,
           "tokens": 69
         },
         {
           "name": "parse_cors_origins",
           "kind": "fn",
-          "startLine": 268,
-          "endLine": 275,
+          "startLine": 275,
+          "endLine": 282,
           "tokens": 67
         },
         {
           "name": "validate_cors_for_production",
           "kind": "fn",
-          "startLine": 276,
-          "endLine": 303,
+          "startLine": 283,
+          "endLine": 310,
           "tokens": 246
         }
       ]
@@ -15868,11 +15868,11 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 6712,
-      "hash": "cf6f76b25170aa59",
-      "size": 27357,
-      "mtimeMs": 1794197600073.299,
-      "updatedAt": "2026-11-09T04:13:20.123Z",
+      "tokens": 6998,
+      "hash": "1ad7adb0900bef92",
+      "size": 28773,
+      "mtimeMs": 1794532821916.3262,
+      "updatedAt": "2026-11-13T01:20:21.972Z",
       "source": "hook",
       "symbols": [
         {
@@ -15984,105 +15984,105 @@
           "name": "_avoid_real_db_probe",
           "kind": "fn",
           "startLine": 380,
-          "endLine": 392,
-          "tokens": 116
+          "endLine": 416,
+          "tokens": 403
         },
         {
           "name": "_clear_rbac_rate_limits",
           "kind": "fn",
-          "startLine": 393,
-          "endLine": 407,
+          "startLine": 417,
+          "endLine": 431,
           "tokens": 129
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 408,
-          "endLine": 413,
+          "startLine": 432,
+          "endLine": 437,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 414,
-          "endLine": 419,
+          "startLine": 438,
+          "endLine": 443,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 420,
-          "endLine": 425,
+          "startLine": 444,
+          "endLine": 449,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 426,
-          "endLine": 431,
+          "startLine": 450,
+          "endLine": 455,
           "tokens": 32
         },
         {
           "name": "make_user",
           "kind": "fn",
-          "startLine": 432,
-          "endLine": 451,
+          "startLine": 456,
+          "endLine": 475,
           "tokens": 167
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 452,
-          "endLine": 498,
+          "startLine": 476,
+          "endLine": 522,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 499,
-          "endLine": 509,
+          "startLine": 523,
+          "endLine": 533,
           "tokens": 107
         },
         {
           "name": "sample_draft_asset",
           "kind": "fn",
-          "startLine": 510,
-          "endLine": 514,
+          "startLine": 534,
+          "endLine": 538,
           "tokens": 42
         },
         {
           "name": "sample_pending_asset",
           "kind": "fn",
-          "startLine": 515,
-          "endLine": 519,
+          "startLine": 539,
+          "endLine": 543,
           "tokens": 44
         },
         {
           "name": "sample_pending_asset_c3",
           "kind": "fn",
-          "startLine": 520,
-          "endLine": 524,
+          "startLine": 544,
+          "endLine": 548,
           "tokens": 51
         },
         {
           "name": "sample_approved_formula_asset",
           "kind": "fn",
-          "startLine": 525,
-          "endLine": 542,
+          "startLine": 549,
+          "endLine": 566,
           "tokens": 178
         },
         {
           "name": "sample_approved_formula_with_preconditions",
           "kind": "fn",
-          "startLine": 543,
-          "endLine": 565,
+          "startLine": 567,
+          "endLine": 589,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_failing_precondition",
           "kind": "fn",
-          "startLine": 566,
-          "endLine": 732,
+          "startLine": 590,
+          "endLine": 756,
           "tokens": 1547
         }
       ]
@@ -31585,11 +31585,11 @@
     },
     "pcs-backend/app/api/v1/health.py": {
       "description": "Health endpoint（async via check_database_async，Sprint 1）。",
-      "tokens": 580,
-      "hash": "b5d9459797408b60",
-      "size": 2695,
-      "mtimeMs": 1794451337344.8977,
-      "updatedAt": "2026-11-12T02:42:17.395Z",
+      "tokens": 1932,
+      "hash": "38822a4363136c94",
+      "size": 8638,
+      "mtimeMs": 1794526299607.912,
+      "updatedAt": "2026-11-12T23:31:39.655Z",
       "source": "hook",
       "symbols": [
         {
@@ -31603,8 +31603,36 @@
           "name": "health",
           "kind": "fn",
           "startLine": 40,
-          "endLine": 65,
-          "tokens": 265
+          "endLine": 66,
+          "tokens": 266
+        },
+        {
+          "name": "HealthAIResponse",
+          "kind": "class",
+          "startLine": 67,
+          "endLine": 100,
+          "tokens": 293
+        },
+        {
+          "name": "_is_ip_literal",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 111,
+          "tokens": 57
+        },
+        {
+          "name": "_classify_ai_endpoint",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 149,
+          "tokens": 341
+        },
+        {
+          "name": "health_ai",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 226,
+          "tokens": 661
         }
       ]
     },
@@ -32085,11 +32113,11 @@
     },
     "pcs-backend/app/main.py": {
       "description": "FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。",
-      "tokens": 2833,
-      "hash": "1f8b2f9a67eabf2f",
-      "size": 13071,
-      "mtimeMs": 1794450465183.1045,
-      "updatedAt": "2026-11-12T02:27:45.230Z",
+      "tokens": 2890,
+      "hash": "f3733894af4c66e5",
+      "size": 13355,
+      "mtimeMs": 1794525572913.9922,
+      "updatedAt": "2026-11-12T23:19:32.960Z",
       "source": "hook",
       "symbols": [
         {
@@ -32124,14 +32152,14 @@
           "name": "_close_redis_connections",
           "kind": "fn",
           "startLine": 188,
-          "endLine": 211,
-          "tokens": 215
+          "endLine": 215,
+          "tokens": 272
         },
         {
           "name": "create_app",
           "kind": "fn",
-          "startLine": 212,
-          "endLine": 272,
+          "startLine": 216,
+          "endLine": 276,
           "tokens": 600
         }
       ]
@@ -44864,92 +44892,99 @@
     },
     "pcs-backend/scripts/seed_e2e_data.py": {
       "description": "E2E 种子数据（P10-A · Task T2）—— **幂等**。",
-      "tokens": 2383,
-      "hash": "82094aa462040b50",
-      "size": 10200,
-      "mtimeMs": 1794447862771.162,
-      "updatedAt": "2026-11-12T01:44:22.818Z",
+      "tokens": 2797,
+      "hash": "155b252e246303dc",
+      "size": 12539,
+      "mtimeMs": 1794495048380.2205,
+      "updatedAt": "2026-11-12T14:50:48.442Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_stream_id",
           "kind": "fn",
-          "startLine": 68,
-          "endLine": 71,
+          "startLine": 76,
+          "endLine": 79,
           "tokens": 32
         },
         {
           "name": "_seed_user_ids",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 75,
+          "startLine": 80,
+          "endLine": 83,
           "tokens": 30
         },
         {
           "name": "_delete_own_rows",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 97,
-          "tokens": 238
+          "startLine": 84,
+          "endLine": 111,
+          "tokens": 313
+        },
+        {
+          "name": "_get_or_create",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 145,
+          "tokens": 304
         },
         {
           "name": "_ensure_workspace",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 121,
-          "tokens": 167
+          "startLine": 146,
+          "endLine": 163,
+          "tokens": 136
         },
         {
           "name": "_ensure_project",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 146,
-          "tokens": 202
+          "startLine": 164,
+          "endLine": 182,
+          "tokens": 174
         },
         {
           "name": "_ensure_users",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 174,
-          "tokens": 242
+          "startLine": 183,
+          "endLine": 213,
+          "tokens": 270
         },
         {
           "name": "_ensure_grants",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 198,
-          "tokens": 208
+          "startLine": 214,
+          "endLine": 232,
+          "tokens": 166
         },
         {
           "name": "_ensure_streams",
           "kind": "fn",
-          "startLine": 199,
-          "endLine": 227,
-          "tokens": 273
+          "startLine": 233,
+          "endLine": 257,
+          "tokens": 251
         },
         {
           "name": "seed",
           "kind": "fn",
-          "startLine": 228,
-          "endLine": 260,
-          "tokens": 243
+          "startLine": 258,
+          "endLine": 292,
+          "tokens": 265
         },
         {
           "name": "_main",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 284,
+          "startLine": 293,
+          "endLine": 316,
           "tokens": 196
         }
       ]
     },
     "pcs-frontend/e2e/real_backend_smoke.spec.ts": {
-      "description": "真后端通道的**冒烟**（P10-A · Task T3）。",
-      "tokens": 254,
-      "hash": "e4cd606bc6def232",
-      "size": 1207,
-      "mtimeMs": 1794448059926.7063,
-      "updatedAt": "2026-11-12T01:47:39.971Z",
+      "description": "真后端通道的**冒烟**（P10-A · Task T3 · 评审 #8 改过）。",
+      "tokens": 632,
+      "hash": "7a894dccecd03589",
+      "size": 3048,
+      "mtimeMs": 1794527861377.611,
+      "updatedAt": "2026-11-12T23:57:41.432Z",
       "source": "hook"
     },
     "pcs-frontend/src/main.tsx": {
@@ -45242,113 +45277,120 @@
     },
     "pcs-backend/app/core/ai_sanitizer.py": {
       "description": "AI 请求的**递归脱敏** + 规范化哈希（P10-A · Task T6）。",
-      "tokens": 1116,
-      "hash": "83f63518eda6a016",
-      "size": 5521,
-      "mtimeMs": 1794460080178.974,
-      "updatedAt": "2026-11-12T05:08:00.224Z",
+      "tokens": 1485,
+      "hash": "a855a37f2534ac24",
+      "size": 7548,
+      "mtimeMs": 1794493442262.1248,
+      "updatedAt": "2026-11-12T14:24:02.314Z",
       "source": "hook",
       "symbols": [
         {
           "name": "enable_person_name_mask",
           "kind": "fn",
-          "startLine": 62,
-          "endLine": 71,
+          "startLine": 85,
+          "endLine": 94,
           "tokens": 70
         },
         {
           "name": "_sanitize_text",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 80,
+          "startLine": 95,
+          "endLine": 103,
           "tokens": 80
         },
         {
           "name": "sanitize_for_ai",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 101,
-          "tokens": 188
+          "startLine": 104,
+          "endLine": 132,
+          "tokens": 277
         },
         {
           "name": "hash_sanitized",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 134,
-          "tokens": 305
+          "startLine": 133,
+          "endLine": 168,
+          "tokens": 357
         }
       ]
     },
     "pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py": {
       "description": "`p10_001`（ai_audit_log 加 P10 请求审计列）的迁移形状断言 —— P10-A Task T7。",
-      "tokens": 1389,
-      "hash": "1b59563e0f5395be",
-      "size": 5957,
-      "mtimeMs": 1794449075433.748,
-      "updatedAt": "2026-11-12T02:04:35.492Z",
+      "tokens": 1819,
+      "hash": "2a6cf4856b8dd3fe",
+      "size": 7895,
+      "mtimeMs": 1794495891999.2085,
+      "updatedAt": "2026-11-12T15:04:52.048Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_source",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 50,
+          "startLine": 48,
+          "endLine": 51,
           "tokens": 21
+        },
+        {
+          "name": "_create_index_calls",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 70,
+          "tokens": 165
         },
         {
           "name": "test_migration_exists_and_is_chained_to_p9_015",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 64,
+          "startLine": 71,
+          "endLine": 84,
           "tokens": 173
         },
         {
           "name": "test_migration_adds_the_eight_columns",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 81,
+          "startLine": 85,
+          "endLine": 101,
           "tokens": 156
         },
         {
           "name": "test_migration_columns_are_all_nullable",
           "kind": "fn",
-          "startLine": 82,
-          "endLine": 93,
+          "startLine": 102,
+          "endLine": 113,
           "tokens": 92
         },
         {
           "name": "test_request_id_unique_index_is_partial",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 104,
-          "tokens": 95
+          "startLine": 114,
+          "endLine": 146,
+          "tokens": 361
         },
         {
           "name": "test_create_index_uses_if_not_exists",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 117,
+          "startLine": 147,
+          "endLine": 159,
           "tokens": 132
         },
         {
           "name": "test_orm_matches_migration",
           "kind": "fn",
-          "startLine": 118,
-          "endLine": 133,
+          "startLine": 160,
+          "endLine": 175,
           "tokens": 153
         },
         {
           "name": "test_orm_declares_the_partial_unique_index",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 145,
-          "tokens": 164
+          "startLine": 176,
+          "endLine": 187,
+          "tokens": 160
         },
         {
           "name": "test_orm_does_not_declare_a_timestamp_column",
           "kind": "fn",
-          "startLine": 146,
-          "endLine": 150,
+          "startLine": 188,
+          "endLine": 192,
           "tokens": 62
         }
       ]
@@ -45467,11 +45509,11 @@
     },
     "pcs-backend/tests/api/v1/test_ai_routes.py": {
       "description": "AI 路由骨架（P10-A · Task T9）。",
-      "tokens": 1365,
-      "hash": "c73a56b7b8adc204",
-      "size": 5659,
-      "mtimeMs": 1794450029359.5684,
-      "updatedAt": "2026-11-12T02:20:29.402Z",
+      "tokens": 2285,
+      "hash": "e50ce272c6705cb5",
+      "size": 9696,
+      "mtimeMs": 1794531915404.957,
+      "updatedAt": "2026-11-13T01:05:15.456Z",
       "source": "hook",
       "symbols": [
         {
@@ -45534,8 +45576,29 @@
           "name": "test_ai_intent_context_accepts_snake_case_too",
           "kind": "fn",
           "startLine": 142,
-          "endLine": 150,
+          "endLine": 151,
           "tokens": 91
+        },
+        {
+          "name": "test_ai_routes_declare_the_501_envelope_in_the_contract",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 177,
+          "tokens": 252
+        },
+        {
+          "name": "test_ai_contract_declares_no_unreachable_200_and_declares_the_401",
+          "kind": "fn",
+          "startLine": 178,
+          "endLine": 212,
+          "tokens": 329
+        },
+        {
+          "name": "test_ai_egress_guard_rejects_a_public_endpoint",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 244,
+          "tokens": 339
         }
       ]
     },
@@ -45594,47 +45657,54 @@
     },
     "pcs-backend/app/api/v1/ai/routes.py": {
       "description": "AI 预留路由（P10-A · Task T9）—— **一律 501**。",
-      "tokens": 677,
-      "hash": "a9533ca4c14b4cbd",
-      "size": 2956,
-      "mtimeMs": 1794450010923.3943,
-      "updatedAt": "2026-11-12T02:20:10.969Z",
+      "tokens": 1619,
+      "hash": "41cdfe9f2e2f06b5",
+      "size": 7162,
+      "mtimeMs": 1794539782710.0564,
+      "updatedAt": "2026-11-13T03:16:22.762Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_ai_egress_guard",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 130,
+          "tokens": 503
+        },
+        {
           "name": "ai_intent",
           "kind": "fn",
-          "startLine": 46,
-          "endLine": 54,
-          "tokens": 70
+          "startLine": 131,
+          "endLine": 146,
+          "tokens": 114
         },
         {
           "name": "ai_knowledge_search",
           "kind": "fn",
-          "startLine": 55,
-          "endLine": 63,
-          "tokens": 78
+          "startLine": 147,
+          "endLine": 162,
+          "tokens": 122
         },
         {
           "name": "ai_equipment_recommend",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 72,
-          "tokens": 74
+          "startLine": 163,
+          "endLine": 178,
+          "tokens": 118
         },
         {
           "name": "ai_explain",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 81,
-          "tokens": 70
+          "startLine": 179,
+          "endLine": 194,
+          "tokens": 114
         },
         {
           "name": "ai_document_extract",
           "kind": "fn",
-          "startLine": 82,
-          "endLine": 91,
-          "tokens": 70
+          "startLine": 195,
+          "endLine": 205,
+          "tokens": 86
         }
       ]
     },
@@ -45649,11 +45719,11 @@
     },
     "pcs-backend/tests/services/ai/test_ai_audit_task.py": {
       "description": "AI 审计的**入队**与**幂等写库**（P10-A · Task T10 · Review Focus #3）。",
-      "tokens": 1557,
-      "hash": "78cac6ae6fa6e501",
-      "size": 6717,
-      "mtimeMs": 1794450295601.7783,
-      "updatedAt": "2026-11-12T02:24:55.651Z",
+      "tokens": 2154,
+      "hash": "963178f94ac6650f",
+      "size": 9353,
+      "mtimeMs": 1794516844134.0444,
+      "updatedAt": "2026-11-12T20:54:04.184Z",
       "source": "hook",
       "symbols": [
         {
@@ -45723,40 +45793,82 @@
           "name": "test_audit_write_falls_back_to_the_orm_insert_on_sqlite",
           "kind": "fn",
           "startLine": 167,
-          "endLine": 183,
-          "tokens": 144
+          "endLine": 187,
+          "tokens": 160
+        },
+        {
+          "name": "test_write_failure_raises_retry_instead_of_swallowing",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 212,
+          "tokens": 210
+        },
+        {
+          "name": "test_write_failure_stops_retrying_after_the_last_attempt",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 232,
+          "tokens": 149
+        },
+        {
+          "name": "test_schema_error_is_logged_with_an_upgrade_hint",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 256,
+          "tokens": 224
         }
       ]
     },
     "pcs-backend/app/services/ai/arq_queue.py": {
       "description": "AI 审计的**入队**（P10-A · Task T10）—— **失败降级，不抛**。",
-      "tokens": 660,
-      "hash": "02c0c1a07952cb77",
-      "size": 3078,
-      "mtimeMs": 1794450304310.514,
-      "updatedAt": "2026-11-12T02:25:04.359Z",
+      "tokens": 1011,
+      "hash": "82a1bc42ab4b1b54",
+      "size": 4851,
+      "mtimeMs": 1794525563911.558,
+      "updatedAt": "2026-11-12T23:19:23.959Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_create_pool",
           "kind": "fn",
-          "startLine": 27,
-          "endLine": 36,
-          "tokens": 81
+          "startLine": 39,
+          "endLine": 52,
+          "tokens": 124
+        },
+        {
+          "name": "_get_pool",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 62,
+          "tokens": 64
+        },
+        {
+          "name": "_reset_pool_cache",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 68,
+          "tokens": 31
+        },
+        {
+          "name": "close_ai_audit_pool",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 80,
+          "tokens": 94
         },
         {
           "name": "_jsonable",
           "kind": "fn",
-          "startLine": 37,
-          "endLine": 50,
+          "startLine": 81,
+          "endLine": 94,
           "tokens": 106
         },
         {
           "name": "enqueue_ai_audit_log",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 83,
-          "tokens": 295
+          "startLine": 95,
+          "endLine": 128,
+          "tokens": 314
         }
       ]
     },
@@ -45771,11 +45883,11 @@
     },
     "pcs-backend/app/workers/ai_audit_tasks.py": {
       "description": "AI 审计的**写库**任务（P10-A · Task T10）—— **幂等**。",
-      "tokens": 1646,
-      "hash": "4954e5c3356d5859",
-      "size": 7372,
-      "mtimeMs": 1794460031140.6277,
-      "updatedAt": "2026-11-12T05:07:11.197Z",
+      "tokens": 2029,
+      "hash": "4a19d511a13404b0",
+      "size": 9161,
+      "mtimeMs": 1794516820397.9343,
+      "updatedAt": "2026-11-12T20:53:40.449Z",
       "source": "hook",
       "symbols": [
         {
@@ -45807,21 +45919,28 @@
           "tokens": 79
         },
         {
-          "name": "write_ai_audit_log",
+          "name": "_is_schema_error",
           "kind": "fn",
           "startLine": 147,
-          "endLine": 183,
-          "tokens": 363
+          "endLine": 158,
+          "tokens": 123
+        },
+        {
+          "name": "write_ai_audit_log",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 218,
+          "tokens": 623
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_ai_audit_middleware.py": {
       "description": "AI 审计中间件（P10-A · Task T11 · Review Focus #1 #2）。",
-      "tokens": 2172,
-      "hash": "ddad8be6a5073ea1",
-      "size": 8986,
-      "mtimeMs": 1794455751121.6228,
-      "updatedAt": "2026-11-12T03:55:51.169Z",
+      "tokens": 3628,
+      "hash": "7e87479fdbd2872d",
+      "size": 15657,
+      "mtimeMs": 1794532816817.342,
+      "updatedAt": "2026-11-13T01:20:16.862Z",
       "source": "hook",
       "symbols": [
         {
@@ -45905,75 +46024,124 @@
           "name": "test_large_body_is_not_hashed",
           "kind": "fn",
           "startLine": 195,
-          "endLine": 208,
-          "tokens": 128
+          "endLine": 216,
+          "tokens": 197
         },
         {
           "name": "test_small_body_is_hashed",
           "kind": "fn",
-          "startLine": 209,
-          "endLine": 219,
+          "startLine": 217,
+          "endLine": 227,
           "tokens": 117
         },
         {
           "name": "test_audit_records_the_endpoint_and_duration",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 235,
+          "startLine": 228,
+          "endLine": 243,
           "tokens": 152
         },
         {
           "name": "test_audit_records_the_authenticated_user",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 248,
+          "startLine": 244,
+          "endLine": 257,
           "tokens": 122
+        },
+        {
+          "name": "test_oversized_body_is_truncated_not_buffered",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 283,
+          "tokens": 218
+        },
+        {
+          "name": "test_neighbour_path_under_api_v1_ai_is_not_audited",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 300,
+          "tokens": 150
+        },
+        {
+          "name": "test_oversized_body_is_rejected_with_413_and_still_audited",
+          "kind": "fn",
+          "startLine": 301,
+          "endLine": 324,
+          "tokens": 224
+        },
+        {
+          "name": "test_deeply_nested_body_still_leaves_an_audit_row",
+          "kind": "fn",
+          "startLine": 325,
+          "endLine": 358,
+          "tokens": 326
+        },
+        {
+          "name": "test_audit_hash_is_computed_off_the_event_loop",
+          "kind": "fn",
+          "startLine": 359,
+          "endLine": 386,
+          "tokens": 220
+        },
+        {
+          "name": "test_audit_row_request_id_matches_the_response",
+          "kind": "fn",
+          "startLine": 387,
+          "endLine": 410,
+          "tokens": 249
         }
       ]
     },
     "pcs-backend/app/core/ai_audit_middleware.py": {
       "description": "AI 请求的**审计中间件**（P10-A · Task T11）—— 纯 ASGI。",
-      "tokens": 1839,
-      "hash": "e5523f5227312824",
-      "size": 7591,
-      "mtimeMs": 1794450456363.3252,
-      "updatedAt": "2026-11-12T02:27:36.418Z",
+      "tokens": 2690,
+      "hash": "4808ec69f3782e3d",
+      "size": 11573,
+      "mtimeMs": 1794493479341.8123,
+      "updatedAt": "2026-11-12T14:24:39.392Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_extract_user_id",
           "kind": "fn",
-          "startLine": 55,
-          "endLine": 79,
+          "startLine": 62,
+          "endLine": 86,
           "tokens": 250
         },
         {
           "name": "_read_body",
           "kind": "fn",
-          "startLine": 80,
-          "endLine": 94,
-          "tokens": 120
+          "startLine": 87,
+          "endLine": 115,
+          "tokens": 266
+        },
+        {
+          "name": "_is_ai_path",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 126,
+          "tokens": 98
         },
         {
           "name": "_replay_receive",
           "kind": "fn",
-          "startLine": 95,
-          "endLine": 112,
+          "startLine": 127,
+          "endLine": 144,
           "tokens": 134
         },
         {
           "name": "_response_summary",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 119,
+          "startLine": 145,
+          "endLine": 151,
           "tokens": 54
         },
         {
           "name": "AIAuditMiddleware",
           "kind": "class",
-          "startLine": 120,
-          "endLine": 200,
-          "tokens": 841
+          "startLine": 152,
+          "endLine": 279,
+          "tokens": 1384
         }
       ]
     },
@@ -46045,79 +46213,107 @@
       ]
     },
     "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py": {
-      "description": "AI SDK 的**架构守卫**（P10-A · Task T14）。",
-      "tokens": 1258,
-      "hash": "765e7a25a1024083",
-      "size": 5294,
-      "mtimeMs": 1794453219105.4883,
-      "updatedAt": "2026-11-12T03:13:39.152Z",
+      "description": "AI SDK 的**架构守卫**（P10-A · Task T14 · 评审 #7 修过）。",
+      "tokens": 2063,
+      "hash": "774db24882149426",
+      "size": 9268,
+      "mtimeMs": 1794495869740.3855,
+      "updatedAt": "2026-11-12T15:04:29.793Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_python_files",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 56,
+          "startLine": 84,
+          "endLine": 87,
           "tokens": 26
         },
         {
           "name": "_rel",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 60,
+          "startLine": 88,
+          "endLine": 91,
           "tokens": 21
         },
         {
           "name": "_imported_roots",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 72,
-          "tokens": 118
+          "startLine": 92,
+          "endLine": 104,
+          "tokens": 133
+        },
+        {
+          "name": "_imported_modules",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 117,
+          "tokens": 125
         },
         {
           "name": "_httpx_calls",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 87,
+          "startLine": 118,
+          "endLine": 132,
           "tokens": 157
         },
         {
           "name": "_mentions_ai_endpoint",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 98,
+          "startLine": 133,
+          "endLine": 143,
           "tokens": 116
         },
         {
-          "name": "test_no_module_outside_outbound_client_imports_ai_sdks",
+          "name": "scan_offenders",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 121,
-          "tokens": 207
+          "startLine": 144,
+          "endLine": 174,
+          "tokens": 286
         },
         {
-          "name": "test_only_outbound_client_calls_httpx_with_an_ai_endpoint",
+          "name": "test_no_module_outside_outbound_client_uses_ai_sdks_or_network_clients",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 147,
-          "tokens": 247
+          "startLine": 175,
+          "endLine": 195,
+          "tokens": 175
         },
         {
-          "name": "test_the_allowed_file_is_the_only_ai_exit",
+          "name": "test_the_guard_detects_a_synthetic_ai_sdk_import",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 151,
-          "tokens": 50
+          "startLine": 196,
+          "endLine": 203,
+          "tokens": 86
+        },
+        {
+          "name": "test_the_guard_detects_the_natural_bypass",
+          "kind": "fn",
+          "startLine": 204,
+          "endLine": 222,
+          "tokens": 167
+        },
+        {
+          "name": "test_the_guard_allows_the_sanctioned_exit",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 228,
+          "tokens": 55
+        },
+        {
+          "name": "test_the_scanner_does_not_flag_plain_string_helpers",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 240,
+          "tokens": 110
         }
       ]
     },
     "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py": {
       "description": "AI 审计写库的**真 PG** 幂等（PG 车道 · P10-A · T10 的补充）。",
-      "tokens": 1876,
-      "hash": "ee3dc4cf408ccf9c",
-      "size": 7356,
-      "mtimeMs": 1794455662672.6455,
-      "updatedAt": "2026-11-12T03:54:22.760Z",
+      "tokens": 2295,
+      "hash": "df88b4dbde9d6dec",
+      "size": 9301,
+      "mtimeMs": 1794495652024.6804,
+      "updatedAt": "2026-11-12T15:00:52.075Z",
       "source": "hook",
       "symbols": [
         {
@@ -46138,24 +46334,276 @@
           "name": "main",
           "kind": "fn",
           "startLine": 80,
-          "endLine": 144,
-          "tokens": 550
+          "endLine": 174,
+          "tokens": 853
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 203,
-          "tokens": 513
+          "startLine": 175,
+          "endLine": 238,
+          "tokens": 586
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 218,
-          "tokens": 135
+          "startLine": 239,
+          "endLine": 258,
+          "tokens": 177
         }
       ]
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/intent.md": {
+      "description": "Stage 2 — Intent & Plan Discovery (P10-A)",
+      "tokens": 592,
+      "hash": "305961187365b2ef",
+      "size": 3878,
+      "mtimeMs": 1794478913346.4116,
+      "updatedAt": "2026-11-12T10:21:53.397Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/shared/reviewer-brief.md": {
+      "description": "Reviewer Brief — P10-A batch review (shared)",
+      "tokens": 1682,
+      "hash": "f23f71553bfd8215",
+      "size": 6806,
+      "mtimeMs": 1794478986685.7468,
+      "updatedAt": "2026-11-12T10:23:06.733Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/shared/standards-paths.md": {
+      "description": "Standards paths (Stage 3b) — criteria files that govern this diff",
+      "tokens": 1142,
+      "hash": "dc688da2c79dd555",
+      "size": 4739,
+      "mtimeMs": 1794479037191.625,
+      "updatedAt": "2026-11-12T10:23:57.250Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/adversarial.json": {
+      "description": "",
+      "tokens": 7119,
+      "hash": "5dcba01a325ae02f",
+      "size": 25554,
+      "mtimeMs": 1794479255659.962,
+      "updatedAt": "2026-11-12T10:27:35.708Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/security.json": {
+      "description": "Declares of",
+      "tokens": 3982,
+      "hash": "ca8dffeb9d13b0d2",
+      "size": 14144,
+      "mtimeMs": 1794479354081.94,
+      "updatedAt": "2026-11-12T10:29:14.125Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/correctness.json": {
+      "description": "of: database",
+      "tokens": 2310,
+      "hash": "29fa0f51e948e700",
+      "size": 8148,
+      "mtimeMs": 1794479379489.4243,
+      "updatedAt": "2026-11-12T10:29:39.532Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/testing.json": {
+      "description": "",
+      "tokens": 4362,
+      "hash": "76263c6d2ad07a29",
+      "size": 21686,
+      "mtimeMs": 1794483006741.5645,
+      "updatedAt": "2026-11-12T11:30:06.790Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/project-standards.json": {
+      "description": "",
+      "tokens": 2150,
+      "hash": "7e3420a9573c891a",
+      "size": 12049,
+      "mtimeMs": 1794483027205.6973,
+      "updatedAt": "2026-11-12T11:30:27.249Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/data-migration.json": {
+      "description": "",
+      "tokens": 1625,
+      "hash": "8a17ad70ef266b47",
+      "size": 8478,
+      "mtimeMs": 1794483225712.9224,
+      "updatedAt": "2026-11-12T11:33:45.764Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/maintainability.json": {
+      "description": "Declares takes",
+      "tokens": 5634,
+      "hash": "12b15350eebc9635",
+      "size": 20063,
+      "mtimeMs": 1794483272587.1975,
+      "updatedAt": "2026-11-12T11:34:32.648Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/api-contract.json": {
+      "description": "Declares therefore",
+      "tokens": 5892,
+      "hash": "daef88da0fdf1856",
+      "size": 20827,
+      "mtimeMs": 1794483469631.3103,
+      "updatedAt": "2026-11-12T11:37:49.681Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/reliability.json": {
+      "description": "",
+      "tokens": 3297,
+      "hash": "83ed80edf86e0558",
+      "size": 16856,
+      "mtimeMs": 1794483381272.8193,
+      "updatedAt": "2026-11-12T11:36:21.318Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/performance.json": {
+      "description": "Declares AiIntentRequest",
+      "tokens": 5090,
+      "hash": "1384a006fe22e910",
+      "size": 17874,
+      "mtimeMs": 1794483497249.4614,
+      "updatedAt": "2026-11-12T11:38:17.301Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/learnings-researcher.md": {
+      "description": "Institutional Learnings Search Results",
+      "tokens": 7300,
+      "hash": "9179757a2913e36e",
+      "size": 30990,
+      "mtimeMs": 1794483561853.2725,
+      "updatedAt": "2026-11-12T11:39:21.897Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/finish-input.json": {
+      "description": "Declares hit",
+      "tokens": 3090,
+      "hash": "f2ac6dc63fce7f73",
+      "size": 13356,
+      "mtimeMs": 1794483643375.1726,
+      "updatedAt": "2026-11-12T11:40:43.419Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/validator-verdicts.json": {
+      "description": "Declares of",
+      "tokens": 3817,
+      "hash": "ef0117c802a501d0",
+      "size": 13442,
+      "mtimeMs": 1794484923360.7695,
+      "updatedAt": "2026-11-12T12:02:03.406Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/metadata.json": {
+      "description": "",
+      "tokens": 47,
+      "hash": "9251307883ab715b",
+      "size": 163,
+      "mtimeMs": 1794492897045.6287,
+      "updatedAt": "2026-11-12T14:14:57.089Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/report.md": {
+      "description": "Code Review Results",
+      "tokens": 12362,
+      "hash": "c6bab531969babdf",
+      "size": 49476,
+      "mtimeMs": 1794485286874.98,
+      "updatedAt": "2026-11-12T12:08:06.922Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.md": {
+      "description": "跨模型第三视角对抗性审查 —— hermes（GLM-5.2 / Z.AI）",
+      "tokens": 1153,
+      "hash": "ba5891ff6678a9fc",
+      "size": 7468,
+      "mtimeMs": 1794487198944.3523,
+      "updatedAt": "2026-11-12T12:39:58.991Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/validator-verdicts.round2.json": {
+      "description": "Declares invoked",
+      "tokens": 1296,
+      "hash": "5af64faf2fff33a9",
+      "size": 4552,
+      "mtimeMs": 1794492300282.1494,
+      "updatedAt": "2026-11-12T14:05:00.332Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/.probe.txt": {
+      "description": "",
+      "tokens": 2,
+      "hash": "25be323556dad377",
+      "size": 6,
+      "mtimeMs": 1794492899914.5933,
+      "updatedAt": "2026-11-12T14:14:59.960Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/ce-final.md": {
+      "description": "Code Review Results",
+      "tokens": 15433,
+      "hash": "e1730b5000772d5f",
+      "size": 61808,
+      "mtimeMs": 1794492977646.6677,
+      "updatedAt": "2026-11-12T14:16:17.692Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261112-181851-76e48fc4/ROUND-2-ADDENDUM.md": {
+      "description": "ROUND-2-ADDENDUM — P10-A 评审的两轮叠加（2026-11-12）",
+      "tokens": 916,
+      "hash": "6134d64a42f01fa1",
+      "size": 5752,
+      "mtimeMs": 1794493087027.4646,
+      "updatedAt": "2026-11-12T14:18:07.077Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/vite-env.d.ts": {
+      "description": "是否挂 MSW（评审 #23 · 2026-11-12）。",
+      "tokens": 196,
+      "hash": "d5a279e2e9a182d6",
+      "size": 903,
+      "mtimeMs": 1794527177168.01,
+      "updatedAt": "2026-11-12T23:46:17.216Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/compose_test_stack.sh": {
+      "description": "**真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。",
+      "tokens": 922,
+      "hash": "56c094ec4337fd93",
+      "size": 4680,
+      "mtimeMs": 1794539556918.8896,
+      "updatedAt": "2026-11-13T03:12:36.972Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_compose_test_stack_pg.py": {
+      "description": "**执行级**的测试栈守卫（评审 #22 · 2026-11-12）。",
+      "tokens": 595,
+      "hash": "a3ea7e04c67926ba",
+      "size": 3073,
+      "mtimeMs": 1794539578505.8083,
+      "updatedAt": "2026-11-13T03:12:58.554Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_compose_test_stack_executes_migrate_and_seed",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 71,
+          "tokens": 327
+        }
+      ]
+    },
+    "docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md": {
+      "description": "守卫 patch 了「定义处」，而消费者是「按值导入」的 ⇒ 守卫是空壳",
+      "tokens": 981,
+      "hash": "a3dd4559133f07d5",
+      "size": 5826,
+      "mtimeMs": 1794539707242.331,
+      "updatedAt": "2026-11-13T03:15:07.298Z",
+      "source": "hook"
     }
   }
 }

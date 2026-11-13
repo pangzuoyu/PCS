@@ -6127,6 +6127,49 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-12"
+    },
+    {
+      "id": "bug-2161",
+      "timestamp": "2026-11-13",
+      "severity": "medium",
+      "error_message": "FastAPI 的 422 信封把**整个非法输入**回显 ⇒ `jsonable_encoder` 对 ~1000 层嵌套的 JSON 自己就 `RecursionError` ⇒ 异常**逃出 app** ⇒ 客户端拿到 **500**（而不是 422）",
+      "file": "pcs-backend/app/core/errors.py",
+      "root_cause": "FastAPI 在**请求体不合法**时构造 422 信封，会把**整个非法输入**（`input` 字段）回显进去 ⇒ `jsonable_encoder` **递归**遍历它 ⇒ 嵌套 ~1000 层时 Python 递归上限被打爆 ⇒ `RecursionError` 从异常处理器里抛出 ⇒ 逃出 app。\n⚠️ **与 AI 审计路径无关**：任何端点收到深层 JSON 都一样（既有通用缺陷，非本批引入）。\n⚠️ **单测抓不到**：单测的 `httpx` 传输层会把逃出的异常收成 500 ⇒ 只有「审计行仍落」这一条契约可断言。",
+      "fix": "本批**不修**（跨批的全局错误信封改动）⇒ 已登记 TODO-151（给 422 编码加递归上限 / 截断回显深度 + 加一条跨端点回归用例）。\n⇒ 本批的 #17 用例（`tests/api/v1/test_ai_audit_middleware.py::test_deeply_nested_body_still_leaves_an_audit_row`）**只钉审计契约**（审计行必须落），响应码放宽到 `422 / 500`。",
+      "fix_commit": "",
+      "tags": [
+        "fastapi",
+        "validation",
+        "recursion",
+        "p10-a",
+        "todo-151"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-13"
+    },
+    {
+      "id": "bug-2162",
+      "timestamp": "2026-11-13",
+      "severity": "high",
+      "error_message": "全量后端测试红一条且**与本批改动无关**：`tests/api/v1/test_ws_notifications.py::test_ws_accepts_a_valid_token` ⇒ `RuntimeError: Future attached to a different loop`（asyncpg）",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "**两层**：\n① `tests/conftest.py::_avoid_real_db_probe`（autouse）只 patch 了**定义处**（`app.db.session.check_database_async`）⇒ 而消费者 `app/api/v1/health.py` 是 `from ... import` **按值导入**的 ⇒ 补丁够不着它 ⇒ **守卫一直是空壳** ⇒ 单测真的连了**开发库**（`pcs`）。\n② 那次探测创建**模块级单例**的 async engine ⇒ 连接绑定在**当时那个 event loop** 上 ⇒ 用例结束、loop 关闭、引擎还在 ⇒ **下一个文件的下一个 loop** 从池里拿到它 ⇒ asyncpg 报「attached to a different loop」⇒ 受害者是**别的文件**的用例（症状离病因隔了一个文件）。\n⚠️ 同一个陷阱本仓已栽过（bug-041：工厂是模块级单例），既有形状是「用例前后 dispose 引擎」。",
+      "fix": "从**更上游**堵：让守卫**真的生效** —— `tests/conftest.py` 的 `_avoid_real_db_probe` **同时 patch 消费者侧的绑定**（`app.api.v1.health` / `app.workers.cia_tasks`）⇒ 单测车道根本不创建那个全局引擎 ⇒ 不再有跨 loop 的连接残留。\n⇒ 加**回归钉子**（`tests/test_health.py::test_unit_lane_health_probe_never_touches_the_real_db`）：打过 `/api/v1/health` 之后 `app.db.session._async_engine` 必须仍是 None ⇒ 将来新增消费者忘了补一行 ⇒ 钉子会红。",
+      "fix_commit": "980c358",
+      "tags": [
+        "pytest",
+        "event-loop",
+        "asyncpg",
+        "test-harness",
+        "p10-a",
+        "guard"
+      ],
+      "related_bugs": [
+        "bug-041"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-13"
     }
   ]
 }

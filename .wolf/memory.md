@@ -3461,3 +3461,78 @@
 | 13:08 | Edited pcs-backend/app/core/ai_sanitizer.py | modified hash_sanitized() | ~305 |
 | 13:08 | Created pcs-backend/app/api/v1/ai/__init__.py | — | ~84 |
 | 13:15 | Created pcs-frontend/playwright.config.ts | — | ~711 |
+| 18:21 | Created docs/ce-code-review/20261112-181851-76e48fc4/intent.md | — | ~631 |
+| 18:23 | Created docs/ce-code-review/20261112-181851-76e48fc4/shared/reviewer-brief.md | — | ~1795 |
+| 18:23 | Created docs/ce-code-review/20261112-181851-76e48fc4/shared/standards-paths.md | — | ~1218 |
+| 18:27 | Created docs/ce-code-review/20261112-181851-76e48fc4/adversarial.json | — | ~7119 |
+| 18:29 | Created docs/ce-code-review/20261112-181851-76e48fc4/security.json | — | ~3982 |
+| 18:29 | Created docs/ce-code-review/20261112-181851-76e48fc4/correctness.json | — | ~2310 |
+| 19:30 | Created docs/ce-code-review/20261112-181851-76e48fc4/testing.json | — | ~4362 |
+| 19:30 | Created docs/ce-code-review/20261112-181851-76e48fc4/project-standards.json | — | ~2150 |
+| 19:33 | Created docs/ce-code-review/20261112-181851-76e48fc4/data-migration.json | — | ~1625 |
+| 19:34 | Created docs/ce-code-review/20261112-181851-76e48fc4/maintainability.json | — | ~5634 |
+| 19:35 | Created docs/ce-code-review/20261112-181851-76e48fc4/api-contract.json | — | ~4222 |
+| 19:36 | Created docs/ce-code-review/20261112-181851-76e48fc4/reliability.json | — | ~3297 |
+| 19:37 | Created docs/ce-code-review/20261112-181851-76e48fc4/api-contract.json | — | ~5892 |
+| 19:38 | Created docs/ce-code-review/20261112-181851-76e48fc4/performance.json | — | ~5090 |
+| 19:39 | Created docs/ce-code-review/20261112-181851-76e48fc4/learnings-researcher.md | — | ~7787 |
+| 19:40 | Created docs/ce-code-review/20261112-181851-76e48fc4/finish-input.json | — | ~3090 |
+| 20:02 | Created docs/ce-code-review/20261112-181851-76e48fc4/validator-verdicts.json | — | ~3817 |
+| 20:06 | Created docs/ce-code-review/20261112-181851-76e48fc4/metadata.json | — | ~47 |
+| 20:08 | Edited docs/ce-code-review/20261112-181851-76e48fc4/metadata.json | inline fix | ~12 |
+| 20:08 | Edited docs/ce-code-review/20261112-181851-76e48fc4/report.md | inline fix | ~39 |
+| 20:11 | Created docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.md | — | ~1773 |
+| 20:39 | Created docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.md | — | ~1230 |
+| 22:05 | Created docs/ce-code-review/20261112-181851-76e48fc4/validator-verdicts.round2.json | — | ~1296 |
+| 22:14 | Created docs/ce-code-review/20261112-181851-76e48fc4/metadata.json | — | ~47 |
+| 22:14 | Created docs/ce-code-review/20261112-181851-76e48fc4/.probe.txt | — | ~2 |
+| 22:16 | Created docs/ce-code-review/20261112-181851-76e48fc4/ce-final.md | — | ~16462 |
+| 22:18 | Created docs/ce-code-review/20261112-181851-76e48fc4/ROUND-2-ADDENDUM.md | — | ~977 |
+| 22:23 | Edited pcs-backend/app/core/ai_sanitizer.py | expanded (+23 lines) | ~352 |
+| 22:23 | Edited pcs-backend/app/core/ai_sanitizer.py | modified sanitize_for_ai() | ~276 |
+| 22:24 | Edited pcs-backend/app/core/ai_sanitizer.py | modified except() | ~228 |
+| 22:24 | Edited pcs-backend/app/core/config.py | expanded (+7 lines) | ~108 |
+| 22:24 | Edited pcs-backend/app/core/ai_audit_middleware.py | expanded (+7 lines) | ~208 |
+| 22:24 | Edited pcs-backend/app/core/ai_audit_middleware.py | modified _read_body() | ~364 |
+| 22:24 | Edited pcs-backend/app/core/ai_audit_middleware.py | modified __call__() | ~853 |
+| 22:24 | Edited pcs-backend/app/core/ai_audit_middleware.py | hash_sanitized() → to_thread() | ~453 |
+| 22:24 | Edited pcs-backend/app/core/ai_audit_middleware.py | 9→4 lines | ~29 |
+| 22:24 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified test_large_body_is_not_hashed() | ~197 |
+| 22:24 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified test_oversized_body_is_truncated_not_buffered() | ~202 |
+| 22:28 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified test_deeply_nested_body_still_leaves_an_audit_row() | ~235 |
+| 22:29 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | added error handling | ~195 |
+| 22:48 | Edited pcs-backend/scripts/seed_e2e_data.py | expanded (+6 lines) | ~108 |
+| 22:48 | Edited pcs-backend/scripts/seed_e2e_data.py | _seed_user_ids() → uuid5() | ~312 |
+| 22:49 | Edited pcs-backend/scripts/seed_e2e_data.py | added 2 import(s) | ~114 |
+| 22:50 | Edited pcs-backend/scripts/seed_e2e_data.py | added error handling | ~1301 |
+| 23:00 | Edited pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py | modified test_request_id_unique_index_is_partial() | ~353 |
+| 23:00 | Edited pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py | modified _source() | ~185 |
+| 23:00 | Edited pcs-backend/tests/services/ai/test_ai_audit_task_pg.py | modified main() | ~314 |
+| 23:04 | Created pcs-backend/tests/architecture/test_no_direct_ai_sdk.py | — | ~2063 |
+| 23:04 | Edited pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py | 16→18 lines | ~198 |
+| 04:53 | Edited pcs-backend/app/workers/ai_audit_tasks.py | modified _is_schema_error() | ~732 |
+| 04:54 | Edited pcs-backend/tests/services/ai/test_ai_audit_task.py | modified at_level() | ~65 |
+| 07:19 | Edited pcs-backend/app/services/ai/arq_queue.py | added error handling | ~447 |
+| 07:19 | Edited pcs-backend/app/services/ai/arq_queue.py | 22→23 lines | ~230 |
+| 07:19 | Edited pcs-backend/app/main.py | 10→14 lines | ~166 |
+| 07:31 | Edited pcs-backend/app/api/v1/health.py | modified _is_ip_literal() | ~431 |
+| 07:31 | Edited pcs-backend/app/api/v1/health.py | reduced (-20 lines) | ~88 |
+| 07:33 | Edited pcs-backend/app/api/v1/ai/routes.py | added 2 import(s) | ~225 |
+| 07:46 | Edited pcs-frontend/src/vite-env.d.ts | expanded (+13 lines) | ~168 |
+| 07:57 | Created pcs-frontend/e2e/real_backend_smoke.spec.ts | — | ~632 |
+| 07:57 | Edited README.md | expanded (+8 lines) | ~179 |
+| 07:58 | Created pcs-backend/scripts/compose_test_stack.sh | — | ~718 |
+| 07:58 | Created pcs-backend/tests/scripts/test_compose_test_stack_pg.py | — | ~421 |
+| 09:01 | Edited pcs-backend/tests/scripts/test_compose_test_stack_pg.py | modified test_compose_test_stack_executes_migrate_and_seed() | ~280 |
+| 09:02 | Edited pcs-backend/tests/scripts/test_compose_test_stack_pg.py | added 1 import(s) | ~19 |
+| 09:03 | Edited pcs-backend/app/api/v1/ai/routes.py | expanded (+7 lines) | ~105 |
+| 09:03 | Edited pcs-backend/tests/api/v1/test_ai_routes.py | 2→6 lines | ~85 |
+| 09:05 | Edited pcs-backend/tests/api/v1/test_ai_routes.py | inline fix | ~25 |
+| 09:19 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | modified _reset_async_engine() | ~253 |
+| 09:20 | Edited pcs-backend/tests/api/v1/test_ai_audit_middleware.py | removed 25 lines | ~46 |
+| 09:20 | Edited pcs-backend/tests/conftest.py | modified _avoid_real_db_probe() | ~402 |
+| 09:34 | Created pcs-backend/scripts/compose_test_stack.sh | — | ~859 |
+| 11:12 | Edited pcs-backend/scripts/compose_test_stack.sh | modified run_svc() | ~117 |
+| 11:12 | Edited pcs-backend/tests/scripts/test_compose_test_stack_pg.py | 8→12 lines | ~103 |
+| 11:15 | Created docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md | — | ~1047 |
+| 11:16 | Edited pcs-backend/app/api/v1/ai/routes.py | 4→4 lines | ~41 |
