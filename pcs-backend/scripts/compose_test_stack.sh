@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 # **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。
 #
-# 为什么需要这个脚本（评审 #22 · 2026-11-12）：
+# ## 定位
+#
+# 本脚本 = **compose 路径**的执行器（README 里那条「怎么起测试栈」）。
+# ⚠️ 它**不是** PG 车道的守卫 —— 车道里的执行级守卫是
+# `tests/scripts/test_compose_test_stack_pg.py`，它跑的是**同样的两条命令**
+# （`alembic upgrade head` / `scripts/seed_e2e_data.py`）但**在宿主 venv 里**
+# ⇒ 秒级、不依赖网络 ⇒ 车道不会被「容器装依赖」拖死。
+#
+# ## 为什么需要这个脚本（评审 #22 · 2026-11-12）
+#
 # `tests/scripts/test_compose_test_profile.py` 只 **yaml.safe_load** 了
 # compose 文件 ⇒ 它断言的是「文件里**声明**了哪些字符串」
 # ⇒ 但「alembic upgrade 在 `pcs_pgtest` 上**真的**成功吗」
-# 「seed 脚本在**真 PG** 上**真的**能跑吗」**从来没被验证过**
+# 「seed 脚本在**真 PG** 上**真的**能跑吗」**从来没被执行过**
 # ⇒ 那个守门是**空壳**（跟本批的架构守卫是同一类病）。
 #
 # ⇒ 本脚本**执行**四步并**直查库**：
