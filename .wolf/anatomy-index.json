@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-13T03:16:22.763Z",
+    "lastScanned": "2026-11-13T04:09:54.632Z",
     "fileCount": 1280,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e7f5cce6a5c0aae3f9719bad64918c01d0360907624397c8cd2b35868abbb40e",
-    "storeUpdatedAt": "2026-11-13T03:16:22.775Z",
-    "rootHash": "140bdd3396410e44"
+    "renderedHash": "a80caa8cf7155f4fc73060fb9963fea830d875fb11a11d0f3e93c876f7f0ef42",
+    "storeUpdatedAt": "2026-11-13T04:09:54.645Z",
+    "rootHash": "bb3d5d5c577b05dd"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -46571,28 +46571,56 @@
     },
     "pcs-backend/scripts/compose_test_stack.sh": {
       "description": "**真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。",
-      "tokens": 922,
-      "hash": "56c094ec4337fd93",
-      "size": 4680,
-      "mtimeMs": 1794539556918.8896,
-      "updatedAt": "2026-11-13T03:12:36.972Z",
+      "tokens": 993,
+      "hash": "1158131047598c5d",
+      "size": 5126,
+      "mtimeMs": 1794542994575.483,
+      "updatedAt": "2026-11-13T04:09:54.631Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_compose_test_stack_pg.py": {
       "description": "**执行级**的测试栈守卫（评审 #22 · 2026-11-12）。",
-      "tokens": 595,
-      "hash": "a3ea7e04c67926ba",
-      "size": 3073,
-      "mtimeMs": 1794539578505.8083,
-      "updatedAt": "2026-11-13T03:12:58.554Z",
+      "tokens": 1330,
+      "hash": "ef5736434a133455",
+      "size": 6152,
+      "mtimeMs": 1794542902257.8752,
+      "updatedAt": "2026-11-13T04:08:22.307Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "test_compose_test_stack_executes_migrate_and_seed",
+          "name": "_lane_url",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 71,
-          "tokens": 327
+          "startLine": 65,
+          "endLine": 70,
+          "tokens": 51
+        },
+        {
+          "name": "_sync_url",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 77,
+          "tokens": 58
+        },
+        {
+          "name": "_run",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 88,
+          "tokens": 77
+        },
+        {
+          "name": "_count",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 94,
+          "tokens": 51
+        },
+        {
+          "name": "test_migrate_and_seed_really_run_on_the_test_database",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 156,
+          "tokens": 615
         }
       ]
     },
