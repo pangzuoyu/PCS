@@ -82,7 +82,7 @@ async def _ai_egress_guard(
     ⇒ 「打开 AI 并把 endpoint 指到公网」这件事**处处没校验**。
 
     ⇒ 每次 AI 请求都重新读开关与 endpoint 并校验：
-    - AI 关着 ⇒ **零开销**（今天的常态）；
+    - AI 关着 ⇒ 只多**一次单列查询**（不联网、不构造客户端）⇒ 今天的常态；
     - AI 开着而 endpoint 不在内网 ⇒ **503**（拒绝，而不是「先放行再说」）。
     """
     from app.core.ai_cidr import parse_cidrs, validate_ai_endpoint
