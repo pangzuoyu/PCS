@@ -68,7 +68,8 @@
 |---|---|
 | `pcs-backend/scripts/pytest_e2e.sh` | **新建** · E2E 车道的唯一入口（三道 fail-closed） |
 | `pcs-backend/scripts/seed_e2e_flows.py` | **新建** · 流程级种子（角色矩阵 + 起点态数据，幂等） |
-| `pcs-backend/tests/scripts/test_seed_e2e_flows.py` | **新建** · 种子的幂等 + 角色矩阵守卫 |
+| `pcs-backend/tests/scripts/test_seed_e2e_flows.py` | **新建** · 种子的幂等 + 角色矩阵 + reset 安全守卫 |
+| `pcs-backend/tests/scripts/test_pytest_e2e_gate.py` | **新建** · E2E 车道入口的守卫（不复制闸门 + 确实委派） |
 | `pcs-backend/tests/e2e/conftest.py` | **新建** · 隔离 schema + 种子 + `e2e_client` + 角色 token |
 | `pcs-backend/tests/e2e/helpers.py` | **新建** · 场景共用的调用helper（造记录 / 调计算端点 / 推状态机） |
 | `pcs-backend/tests/e2e/test_lane_smoke.py` | **新建** · 车道自检（schema 已迁移 + 种子在位 + 角色 token 对得上） |
@@ -106,6 +107,7 @@
 
 **Files:**
 - Create: `pcs-backend/scripts/pytest_e2e.sh`
+- Create: `pcs-backend/tests/scripts/test_pytest_e2e_gate.py`（照 `test_pytest_pg_gate.py` 的形状）
 - Create: `pcs-backend/tests/e2e/conftest.py`
 - Create: `pcs-backend/tests/e2e/test_lane_smoke.py`
 - Modify: `pcs-backend/pyproject.toml`（`markers` 加 `e2e`）
@@ -132,6 +134,7 @@
 - [ ] **Step 1: 写失败的测试**（`tests/e2e/test_lane_smoke.py`）
 
 ```python
+# tests/e2e/test_lane_smoke.py
 @pytest.mark.e2e
 async def test_lane_schema_is_migrated_and_seeded(e2e_client, e2e_seed):
     """隔离 schema 已 `alembic upgrade head` + 种子在位。
@@ -140,6 +143,24 @@ async def test_lane_schema_is_migrated_and_seeded(e2e_client, e2e_seed):
 @pytest.mark.e2e
 async def test_lane_role_headers_map_to_seeded_users(e2e_client, e2e_seed, role_headers):
     """每个全局角色都能用自己的 token 读到种子项目（200）⇒ 角色矩阵与种子对齐。"""
+
+@pytest.mark.e2e
+async def test_lane_never_writes_to_the_public_schema(e2e_client, e2e_seed):
+    """⚠️ **「隔离」这句话必须被验** —— E2E 的行**不能**出现在 public schema
+    ⇒ 否则「隔离 schema」是空话 ⇒ 开发库数据被 E2E 污染 ⇒ 且没人知道。"""
+
+def test_role_headers_rejects_an_unknown_role(role_headers):
+    """未知角色 ⇒ **报错**（不是给一个错的 token ⇒ 全场 404 ⇒ 症状离病因远）。"""
+```
+
+```python
+# tests/scripts/test_pytest_e2e_gate.py（照 tests/scripts/test_pytest_pg_gate.py 的形状）
+def test_script_exists_and_is_executable():
+def test_e2e_script_does_not_duplicate_the_fail_closed_gates():
+    """⚠️ **不复制闸门** —— 薄封装的 body 里**不得**出现 `uv run pytest`
+    ⇒ 闸门逻辑只有一份（`pytest_pg.sh`）⇒ 以后改一处两边生效。"""
+def test_e2e_script_delegates_to_the_pg_lane_script():
+    """薄封装确实 exec 到 `pytest_pg.sh` 且把 marker 设成 `e2e`。"""
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -228,6 +249,19 @@ async def test_seed_flows_grants_project_roles_except_the_outsider(db_session):
 async def test_seed_flows_only_creates_starting_states(db_session):
     """记录 = DRAFT、交付物 = DRAFT ⇒ **没有**预置 CHECKED/IN_APPROVAL 之类
     ⇒ 状态必须由场景**走**出来（否则 E2E 只是断言一个摆好的状态）。"""
+
+async def test_seed_flows_reset_only_deletes_its_own_rows(db_session):
+    """⚠️ **P10-A 的原罪（#1）不能重演** —— `--reset` 先塞一行**别人的**用户/项目
+    ⇒ reset 之后那行**还在** ⇒ 种子只删自己造的（按固定 UUID 列表筛）。"""
+
+async def test_seed_flows_reset_respects_foreign_key_order(db_session):
+    """`--reset` 的删序遵守外键：`UserProject` → `Deliverable` → `SignatureMatrix`
+    → `Record` → `Stream` → `Project` → `Workspace` → `User`
+    ⇒ 反了就撞 FK ⇒ reset 直接炸。"""
+
+async def test_record_payload_template_has_all_required_columns():
+    """`PIPING_RECORD_PAYLOAD`（~20 个必填列）**不缺列**
+    ⇒ 缺一个 ⇒ 9 个场景造记录全红（且错误信息在响应体里，不在模板里）。"""
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
