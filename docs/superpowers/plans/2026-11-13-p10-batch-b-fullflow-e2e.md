@@ -100,6 +100,38 @@
 
 ---
 
+## What already exists（复用清单 —— 不重建）
+
+| 子问题 | 仓里已有的 | 本计划怎么用 |
+|---|---|---|
+| 真 PG 上跑测试 | `scripts/pytest_pg.sh`（三道 fail-closed 闸门 · marker 已参数化） | **薄封装复用**（D5）⇒ 闸门**单一真相源**，不改原脚本 |
+| 隔离 schema | `tests/api/v1/test_stream_batch_concurrency_pg.py` 的形状（`options=-csearch_path=` + `DROP SCHEMA CASCADE`） | **照抄形状** ⇒ 不发明第四种隔离法 |
+| 幂等种子 + get-or-create | `scripts/seed_e2e_data.py` + `docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md` | **抽共享 helper** ⇒ 两个种子不各写一份（D8 的同款原则） |
+| 真后端 Playwright 通道 | `pcs-frontend/playwright.config.ts` 的 `real-backend` project（5174 · 不复用已有 server）+ `fixtures.ts::realPage` | **直接用** ⇒ T7 只写 spec |
+| SPA 导航 helper | `fixtures.ts::gotoViaMenu` | **直接用** ⇒ 整页刷新会清内存态 session ⇒ 弹回 `/login` |
+| 真后端通道的冒烟 | `pcs-frontend/e2e/real_backend_smoke.spec.ts`（读种子项目必须 200） | 保留 ⇒ T7 在它旁边加 5 条 |
+| 角色矩阵的**全局**角色 | `app/services/state_machine.py::TRANSITION_ROLES`（5 值） | 种子按它铺 ⇒ 状态机路径用得到真角色 |
+| 记录模块名 | `app/services/calc_lineage.py::RECORD_TYPE_REGISTRY`（**键即 `{module}`**） | 用 `PipingResult` ⇒ 不用自造模块名 |
+| 9 态记录 + 签署矩阵 | `RecordSignStatus9` + `app/api/v1/records_actions.py`（矩阵是项目绑定的） | 种子造**起点态** ⇒ 其余由场景走真实端点 |
+| 折标系数表 + 系统参数 | `app/main.py` lifespan 里 seed 的两张表 | E2E 车道**显式补**（D4）⇒ 不跑整个 lifespan |
+
+## NOT in scope（**想过但明确不做**）
+
+| 项 | 为什么不做 |
+|---|---|
+| **AUTH-E2E-11/12（`TEST_VIEWER`）** | 角色**不存在**（要新增第 7 个）+ 测试报告页属 **P10-C** ⇒ 提前建页会返工 ⇒ **TODO-153** |
+| **E2E 进 CI / PR-nightly 拆分** | 与「不新建 CI 流水线」的既有裁决冲突 ⇒ **TODO-152**（P10-F 裁决） |
+| **AI 审计的「真链路」（带 worker）** | 要起 Redis + worker ⇒ 车道变重 ⇒ 本批用**两段式**（D6）⇒ **TODO-155** |
+| **计算链的**数值**断言** | 算法由单测覆盖 ⇒ E2E 重复 = 两套断言漂移 ⇒ **薄壳**（D2） |
+| **`sample/` 的真实 PRO/II 工程做输入** | `sample/` **不入 git** ⇒ 别的机器没有 ⇒ 车道不可移植 ⇒ 用合成输入（与现有单测同源） |
+| **迁移 / 改 `alembic/versions/*`** | 本批只造数据不改 schema ⇒ 无漂移风险 ⇒ **不跑** `alembic check` |
+| **端点契约改动**（新增字段 / 改响应） | 本批只**读**已有端点 ⇒ 契约零变更 ⇒ 裸载荷基线 71 不动 |
+| **前端 `strict_client` 全量迁移**（TODO-141） | 那是**另一条**技术债（原 TODO 保留）⇒ 本批的 E2E 客户端走**真 app + 真守卫** ⇒ 本就比 strict_client 更严 |
+| **把 E2E 车道并进 PG 车道** | 两条车道的**库/schema/生命周期**不同 ⇒ 混在一起会让 PG 车道变慢、且两边的失败信号混在一起 ⇒ 独立入口 + 共享闸门（D5） |
+| **pytest-xdist 并行** | 零新依赖 + 零 DDL 锁竞争（D10）⇒ 场景变多时用 `-k` 分批 |
+
+---
+
 ## 文件结构
 
 | 文件 | 责任 |
@@ -749,6 +781,47 @@ Expected: 全绿；**裸载荷 ≤ 71**；E2E 车道 ≥ **18 passed**
 git add -A
 git commit -F <msgfile>   # 首行: docs(P10-B): 偏离登记 + 账簿 + QA 收口
 ```
+
+---
+
+## Failure modes（每个新增代码路径一条）
+
+| 新增代码路径 | 一个真实的失败方式 | 有测试吗 | 有错误处理吗 | 用户看到什么 |
+|---|---|---|---|---|
+| `scripts/pytest_e2e.sh`（薄封装） | marker 传错 ⇒ 跑成了 PG 车道（**看起来绿、其实没跑 E2E**） | ✅ `test_e2e_script_delegates_to_the_pg_lane_script` | ✅ 闸门②「收集到 0 个 ⇒ FAIL」 | 车道报「收集到 0 个测试」⇒ 红 |
+| `e2e_schema`（建 schema → upgrade → DROP） | `alembic upgrade` 失败 ⇒ 场景全在**没有表的库**上跑 | ✅ 迁移失败 ⇒ fixture 抛 ⇒ 用例红 | ✅ 不静默跳过 | 红（不是绿） |
+| `e2e_schema`（DROP） | DROP 失败 ⇒ 隔离 schema **残留**在库里 | ⚠️ 无（失败会打日志） | ✅ `DROP SCHEMA ... CASCADE` | 下次跑时「schema 已存在」⇒ 需先手清 |
+| `e2e_seed`（跑 flows 种子） | 种子抛错（外键/唯一约束）⇒ 场景全在**半套数据**上跑 | ✅ 种子失败 ⇒ fixture 抛 | ✅ 不静默 | 红 |
+| `e2e_seed`（补两张 lifespan 表） | 忘了补 ⇒ 折标煤恒为 0 | ✅ E2E-008 断言**汇总 = 明细之和** ⇒ 折标项对不上就红 | ⚠️ 无显式报错 | 红 |
+| `e2e_client`（`create_app()` + 覆盖 `get_db`） | 覆盖漏了某个端点用别的 session ⇒ 半条链路读开发库 | ✅ `test_lane_never_writes_to_the_public_schema` | ✅ 覆盖是全局的 | 红 |
+| `role_headers`（role → 用户） | 拿到**没授权**的那个用户 ⇒ 全场 404 | ✅ 角色矩阵用例 + 未知角色报错 | ✅ D9 的映射规则 | 红（但症状像「端点坏了」） |
+| `helpers.make_record`（用载荷模板） | 模板缺一个必填列 ⇒ 9 个场景造记录全红 | ✅ `test_record_payload_template_has_all_required_columns` | ✅ 模板被测 | 红（错在响应体里 ⇒ 难定位） |
+| `helpers.advance_record`（走一步状态机） | 状态机非法转移 ⇒ 403/422 ⇒ 场景看不懂 | ✅ 每条路径用例断言**期望的状态码** | ✅ 端点返回错误信封 | 红 |
+| `seed_e2e_flows._get_or_create` | 并发下撞唯一约束 | ✅ house 形状（savepoint + 重读赢家） | ✅ | 红 |
+| `seed_e2e_flows._delete_own_rows`（`--reset`） | 删序错 ⇒ 撞 FK；或删多了 ⇒ 删了别人的行 | ✅ 两条守卫（删序 + 只删自己造的） | ✅ | 红 |
+
+⚠️ **无「静默失败」缺口**：上表每一行的失败**都会让车道红**（不是绿）
+⇒ 符合本仓「fail-closed」纪律。
+
+---
+
+## 并行化策略
+
+**顺序实施，无并行化机会。** 理由：T1 的 fixture（`e2e_schema` / `e2e_seed` /
+`e2e_client` / `role_headers`）与 T2 的种子常量是 T3~T6 **每一个场景文件**的
+共同依赖 ⇒ 共享同一批模块（`tests/e2e/` + `scripts/`）⇒ 分叉必冲突
+⇒ 且本仓**明令不要建 worktree**（历史事故）。
+
+| Step | 模块 | 依赖 |
+|---|---|---|
+| T1 车道 + fixture | `scripts/` · `tests/e2e/` · `pyproject.toml` | — |
+| T2 种子 | `scripts/` · `tests/scripts/` | T1（车道要能跑） |
+| T3 计算链场景 | `tests/e2e/` | T1 · T2 |
+| T4 汇总/报告场景 | `tests/e2e/` | T3（造出来的记录） |
+| T5 状态机场景 | `tests/e2e/` | T1 · T2 |
+| T6 权限/AI/schema | `tests/e2e/` | T1 · T2 · T5（矩阵步骤） |
+| T7 前端 UI 流 | `pcs-frontend/e2e/` · `scripts/` | T2（public schema 的数据） |
+| T8 收口 | 文档 + 账簿 | 全部 |
 
 ---
 
