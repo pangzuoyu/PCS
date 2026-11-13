@@ -110,14 +110,19 @@
 
 **Interfaces:**
 - Produces:
-  - `scripts/pytest_e2e.sh` —— E2E 车道唯一入口：`pytest -m e2e`，**三道 fail-closed**
-    （① PG 没起 ⇒ FAIL；② 收集到 0 个 ⇒ FAIL；③ 全 skip ⇒ FAIL）⇒ 形状照抄
-    `scripts/pytest_pg.sh`（**不**新建第四种形状）
+  - `scripts/pytest_e2e.sh` —— E2E 车道唯一入口。
+    ⚠️ **薄封装**（2026-11-13 · /plan-eng-review D5）：**不复制** `scripts/pytest_pg.sh`
+    的三道 fail-closed 闸门（复制 = 两份真相源 ⇒ 漂移）⇒ 只做三件事：
+    ① `export PG_PYTEST_MARK=e2e`（`pytest_pg.sh` 的 marker **已经参数化**）
+    ② 导出 `DATABASE_URL` / `TEST_DATABASE_URL`（指向 `pcs_pgtest` · 宿主 5433）
+    ③ `exec bash scripts/pytest_pg.sh`
+    ⇒ 闸门逻辑**单一真相源** ⇒ 以后改闸门只改一处 ⇒ 两条车道同时生效。
+    ⚠️ **不**改 `pytest_pg.sh` 本身（它在 CI 与文档里已被引用 ⇒ 零回归风险）。
   - `tests/e2e/conftest.py` 的四个 fixture：
     | fixture | 作用域 | 产出 |
     |---|---|---|
     | `e2e_schema` | session | 隔离 schema 名（`e2e_<8hex>`）；建 schema → `alembic upgrade head`（`options=-csearch_path=`）→ 测完 `DROP SCHEMA ... CASCADE` |
-    | `e2e_seed` | session | 跑 `scripts/seed_e2e_flows.py` 后的**种子 id 字典**（`project_id` / `workspace_id` / `stream_ids` / `users` / `matrix_id` / `deliverable_id` / `report_def_id`）⇒ **id 来自 `seed_e2e_flows` 的模块级常量**（不另造真相源） |
+    | `e2e_seed` | session | 跑 `scripts/seed_e2e_flows.py` 后的**种子 id 字典**（`project_id` / `workspace_id` / `stream_ids` / `users` / `matrix_id` / `deliverable_id` / `report_def_id`）⇒ **id 来自 `seed_e2e_flows` 的模块级常量**（不另造真相源）<br>⚠️ **还要补两张「只有 lifespan 才会建」的表**（2026-11-13 · /plan-eng-review D4）：`e2e_client` 走 ASGITransport ⇒ **不跑 lifespan** ⇒ ① **折标系数表**（`CoefficientService.seed_default_tables` ⇒ 能耗汇总的「折标煤」要它）② **系统参数默认**（`seed_system_setting_defaults`）⇒ 缺了 ⇒ E2E-008 的折标煤**恒为 0** ⇒ 断言必飘 ⇒ fixture 里**显式**调这两个（**不**引 asgi-lifespan、**不**跑整个 lifespan ⇒ 不碰 Redis / 关连接） |
     | `e2e_client` | function | `httpx.AsyncClient`，**真 app**（`create_app()` ⇒ 真中间件链）+ `get_db` 覆盖到隔离 schema 的 engine ⇒ 支持 `await e2e_client.post(...)` |
     | `role_headers` | function | `role_headers("DESIGNER")` ⇒ `{"Authorization": "Bearer <token>"}`（`create_access_token(subject=<username>, role=<role>)` ⇒ `sub` 必须是 **username** ⇒ actor 的 `user_id` 派生才对得上） |
   - ⚠️ **`e2e_client` 不用 `strict_client` 那套最小 app** —— E2E 要**真中间件链**（审计 / trace / CORS）⇒ 用 `create_app()`（同 P10-A 的 `ai_client` 形状）
@@ -268,6 +273,10 @@ git commit -F <msgfile>   # 首行: feat(P10-B): 流程级种子（角色矩阵 
 - Produces: 5 个场景的可复用 helper（放 `tests/e2e/helpers.py`）：
   - `async def post_calc(client, url, body, *, headers) -> dict` —— 统一「调计算端点 → 断言 200 → 返回结果体」
   - `async def make_record(client, *, module, payload, headers) -> uuid.UUID` —— 造一条 DRAFT 记录并返回 id
+    ⚠️ **`module` 的值是 `RECORD_TYPE_REGISTRY` 的键** ⇒ 用 **`PipingResult`**
+    ⇒ **不是** `piping` 之类的小写（错值 ⇒ 422 `RECORD_MODULE_UNKNOWN`）
+    ⇒ 且 `CostEstResult` / `TwoPhaseResult` / `ProjectCalculationStandardProfile`
+    **不参与** 9 态工作流（缺 `RecordMixin` 列）⇒ 422 `RECORD_MODULE_UNSUPPORTED`
 
 - [ ] **Step 1: 写失败的测试**
 
@@ -314,7 +323,11 @@ Expected: FAIL（场景未写 / 端点返回非预期）
 - ⚠️ **每条断言都要能区分「通过」与「假绿」**：断言具体字段值，**不是**「200 就好」
   ⇒ ⚠️ **但计算链场景例外**（见上面的「薄壳」裁决）：那里断言**结构与落库**，
   **不重复**单测的数值断言
-- ⚠️ **跨场景隔离**：每个场景用**自己的**项目/物流 ⇒ **不要**共用种子那一个 ⇒ 否则场景之间互相污染（顺序一换就飘）
+- ⚠️ **跨场景隔离的单位是「记录」，不是「项目」**（2026-11-13 · /plan-eng-review D7）：
+  场景**共享**种子那一个项目；隔离靠**每个场景造自己的记录**（`make_record`）
+  ⇒ 状态机/计算链天然互不碰 ⇒ 不用每个场景重复「建项目 + 造授权行」
+  ⇒ ⚠️ **项目级的共享状态**（设备表汇总 / 能耗汇总）会被多个场景**叠加**
+  ⇒ 汇总类断言要比对**增量**（前后差），**不是**绝对值
 
 - [ ] **Step 4: 跑测试确认通过**
 
@@ -504,7 +517,13 @@ async def test_e2e_016_cross_project_access_is_404_not_403(...)
 # E2E-017（★ Review Focus #4）
 async def test_e2e_017_ai_endpoint_returns_501_and_the_audit_row_is_persisted(...)
     """POST /api/v1/ai/intent ⇒ 501 + code=AI_NOT_IMPLEMENTED
-    ⇒ **真 PG** 里 `ai_audit_log` 有一行（等 ARQ worker 落库 ⇒ 轮询 ≤10 s）"""
+    ⇒ **两段都断**（2026-11-13 · /plan-eng-review D6）：
+    ① **入队** —— spy `app.core.ai_audit_middleware.enqueue_ai_audit_log`
+       ⇒ 断言「被调了」且**参数对**（request_id / user_id / status_code）
+       ⇒ ⚠️ **只断落库会漏掉中间件那段**（压根没入队时照样绿）
+    ② **落库** —— 直调 `app.workers.ai_audit_tasks` 的写库任务
+       ⇒ **真 PG** 里 `ai_audit_log` 有一行
+    ⇒ **不起 ARQ worker**（车道不引 Redis / worker 进程）"""
 
 # E2E-018
 async def test_e2e_018_pcs_and_pcs_test_schema_versions_match(...)
@@ -528,8 +547,8 @@ Expected: FAIL（矩阵未跑 / 审计行未落）
   **角色不对**（同项目、有授权、但角色不够）⇒ **403**；
   **跨项目**（角色对、但**没授权行**）⇒ **404**（与「不存在」同形 ⇒ 不泄露存在性）
   ⇒ 这两件事**混成同一个码**就等于泄露了别人的资源存在性
-- ⚠️ **E2E-017 不起 ARQ worker** ⇒ 直接调写库任务（`app.workers.ai_audit_tasks`）
-  ⇒ 车道依赖更少（不引 Redis/worker）⇒ 断言「审计行**在真 PG 里**」而不是「入队了」
+- ⚠️ **E2E-017 拆两段**（D6）：① spy 入队（断「请求真的产生了审计」）
+  ② 直调写库任务（断「落库这一段是对的」）⇒ 合起来覆盖链路，**不起 worker**
 - ⚠️ **E2E-018** 直查两库 `alembic_version` ⇒ **不一致就登记**（本批不修）
 
 - [ ] **Step 4: 跑测试确认通过**
@@ -557,6 +576,12 @@ git commit -F <msgfile>   # 首行: test(P10-B): 权限矩阵 + E2E-016/017/018
 **Interfaces:**
 - Consumes: 现成的 `real-backend` Playwright project（`reuseExistingServer: false` · 5174）·
   `fixtures.ts::realPage` · 后端连 `pcs_pgtest`（**被 seed 的那个库**）
+- ⚠️ **数据在哪个房间**（2026-11-13 · /plan-eng-review D3）：
+  后端 E2E 车道的数据在**隔离 schema**（自己的小房间）里 ⇒
+  真后端通道的后端连的是 **public schema**（大房间）⇒ **两个房间不通**
+  ⇒ ⇒ **`scripts/seed_e2e_flows.py` 也要在 public schema 跑一遍**（脚本幂等 ✓）
+  ⇒ ⚠️ **PG 车道不受影响**：实测 5 个 PG 用例文件**全部**用隔离 schema ⇒ 不碰 public
+  ⇒ ⇒ 起真后端通道前（或本 Task 内）把 flows 种子跑到 public ⇒ T7 的 5 条流才有数据可断言
 - Produces: 无（纯场景）
 
 - [ ] **Step 1: 写失败的 spec**
