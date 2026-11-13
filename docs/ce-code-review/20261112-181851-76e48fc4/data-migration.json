@@ -1,0 +1,38 @@
+{
+  "reviewer": "data-migration",
+  "findings": [
+    {
+      "title": "未迁移的库上 AI 审计行被静默丢弃",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 176,
+      "why_it_matters": "P10-A 让 ARQ worker 第一次往 `ai_audit_log` 写这 8 个新列（此前仓里没有任何代码写这张表）。若目标库还没跑 `alembic upgrade head`，PG 插入会报 undefined column，而这个异常被 worker 的 `except Exception` 吞掉、只留一条 WARNING ⇒ 对外表现是「AI 端点照常返回 501，但 `ai_audit_log` 一行都没多」，审计对这段时间的调用**完全失明**且几乎无告警信号。compose 里唯一的 `migrate` 一次性服务只指向 `pcs_pgtest`，而真正跑审计任务的 `worker` 服务连的是开发库 `pcs` ⇒ 栈里没有任何东西保证 worker 的库已迁移（此前也没这个需求：没有代码写这张表）。修复方向：要么让部署流程把「先迁移、后起 worker」变成可执行的依赖（例如给连开发库的 worker 也加一个 `migrate` 一次性服务并 `depends_on: service_completed_successfully`），要么在 worker 里把「列不存在」这类 schema 错误与普通失败区分开，用 ERROR 级别 + 明确的『run alembic upgrade head』提示记下来（可参照 `scripts/seed_e2e_data.py` 失败时直接抛出的做法）。假设：部署仍按『先迁移再发版』执行时风险为零，本条针对的是漏执行该步时的**静默**失败面。",
+      "autofix_class": "manual",
+      "owner": "release",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:176 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试",
+        "pcs-backend/app/workers/ai_audit_tasks.py:178 -- logger.warning(\"写 AI 审计行失败（已降级）\", exc_info=True)",
+        "pcs-backend/app/workers/ai_audit_tasks.py:119 -- pg_insert(AiAuditLog)",
+        "docker-compose.yml:81 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres:5432/${POSTGRES_DB:-pcs}",
+        "docker-compose.yml:102 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 `write_ai_audit_log` 里把 schema 类错误（asyncpg `UndefinedColumnError` / SQLAlchemy `ProgrammingError`，消息里含 `request_id` / `client_request_id` 等新列名）与普通写入失败分开：前者 `logger.error(\"ai_audit_log 缺 p10_001 的列 —— 请先执行 alembic upgrade head\", exc_info=True)`，并且在 `docker-compose.yml` 里给连开发库 `pcs` 的 `worker` 服务补一个 `migrate` 一次性服务（DATABASE_URL 指向 `postgres:5432/pcs`）并 `depends_on: {migrate: {condition: service_completed_successfully}}`，使『先迁移后起 worker』成为栈内可执行的顺序。"
+    }
+  ],
+  "residual_risks": [
+    "发布后正确性验证（本次已在开发库 `pcs` 实跑、只读）：`SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_name='ai_audit_log'` —— 8 个新列齐备且长度逐字相符（request_id 64 / client_request_id 128 / endpoint 200 / status_code int / duration_ms int / sanitized_request_hash 80 / response_summary text / model_version 50，全部 is_nullable=YES）；`SELECT indexname, indexdef FROM pg_indexes WHERE tablename='ai_audit_log'` —— `ux_ai_audit_log_request_id` 为 `CREATE UNIQUE INDEX ... (request_id) WHERE (request_id IS NOT NULL)`（partial 形态正确，writer 的 `ON CONFLICT (request_id) WHERE request_id IS NOT NULL` 能对上），`ix_ai_audit_log_endpoint_occurred_at` 存在；`SELECT count(*) FROM ai_audit_log` —— 存量行 2 行（SUP-006 旧行 request_id 为 NULL，被 partial 索引排除，迁移未改动它们）。回滚路径：`alembic downgrade p9_015`（downgrade 先删两个索引再逆序删 8 列，顺序正确），代价是这 8 列上的 P10 审计数据不可恢复 ⇒ 回滚前需先 `SELECT count(*) FROM ai_audit_log WHERE request_id IS NOT NULL` 决定是否先导出。",
+    "迁移链与 head 已核对：`down_revision = \"p9_015\"` 对应真实文件 `alembic/versions/p9_015_stream_source.py`（其 down_revision 为 p9_014），全仓没有任何其它迁移以 p10_001 为 down_revision ⇒ `p10_001` 是唯一 head。`alembic current` 在开发库 `pcs` 打出 `p10_001 (head)`，`alembic check` 退出码 0 + 「No new upgrade operations detected」（ORM ↔ 迁移无漂移）；在 `pcs_test` 上用**独立进程 + 进程内派生 URL** 复跑同一条命令，同样是 `p10_001 (head)` + exit 0（CLAUDE.md 的 alembic settings 缓存陷阱已规避：两个库各跑各的进程，并先用 `current` 确认 revision 真的变了）。",
+    "未核查：compose 测试栈的 `pcs_pgtest` 实例本轮未连（本次未启动该容器）⇒ 新增的 `migrate` 一次性服务在 `pcs_pgtest` 上首次跑 `alembic upgrade head` 的实际结果未验证；该库若此前为空 schema，p10_001 是链条末端、理论无额外风险，但未实测。",
+    "两个新索引在迁移事务内以非 concurrent 方式创建（PG 上会取 SHARE 锁阻塞 ai_audit_log 的写）。该表当前仅 2 行、增长缓慢 ⇒ 实际风险很低；但若将来该表被高频写入（每次 AI 请求一行），届时应改为 `CREATE INDEX CONCURRENTLY`（需放到事务外）。",
+    "`pcs-backend/docs/schema_compact_orm.md` 已按生成器重跑，与 ORM 逐字一致（本次 diff 只改了 ai_audit_log 一行 + 生成日期），无漂移。但该文件的生成器只输出 `UniqueConstraint`、不输出 `Index` 对象 ⇒ 本批新增的 partial 唯一索引 `ux_ai_audit_log_request_id` 在这份「快速查字段」的文档里完全不可见 ⇒ 照它手写 SQL 的人不会知道 `request_id` 受唯一约束（这正是 `tests/alembic/test_p10_001_ai_audit_fields.py` 存在的原因）。",
+    "`model_version` 列在本批写入路径里恒为 NULL（`ai_audit_middleware.py:212` 传 `model_version=None`，其注释说来源是 `system_settings.ai_model_version`，而该系统参数在本仓尚未被读入）⇒ 该列在 AI 真正接通前是「占位列」。属预留设计、非迁移缺陷，但上线前需确认 SPEC §4.1.4 要求的模型版本留痕确实由后续批次补上。"
+  ],
+  "testing_gaps": [
+    "`p10_001` 的 **downgrade** 没有任何引擎级覆盖：`tests/alembic/test_p10_001_ai_audit_fields.py` 全部是 AST/文本断言（数 `op.add_column(` 个数、查 `if_not_exists=True` 字符串），`tests/services/ai/test_ai_audit_task_pg.py` 只跑 `alembic upgrade head`（正向）。仓里已有可照抄的样板：`tests/alembic/test_p9_013_bind_default_record_matrix.py::test_p9_013_p9_012_downgrade_upgrade_roundtrip` 在隔离 schema 上做 head → 上一版 → head 环。缺这一环意味着「downgrade 先删索引再删列」的顺序若被改坏（例如先删列留下依赖列的索引），只有真正回滚时才会炸。",
+    "迁移的 partial 索引谓词与写库路径的 `index_where` 谓词是**两个文件里的两处手写字符串**（`alembic/versions/p10_001_ai_audit_request_fields.py` 的 `postgresql_where=sa.text(\"request_id IS NOT NULL\")` 与 `app/workers/ai_audit_tasks.py` 的 `index_where=text(\"request_id IS NOT NULL\")`），两者不一致会让 PG 的 `ON CONFLICT` 匹配不到 partial 索引、每次写审计都炸，而**默认 pytest 车道抓不到**（SQLite 分支不走 ON CONFLICT；真 PG 用例带 `pg` marker，平时被 `pytest.skip` 静默跳过）。现状靠真 PG 用例兜底（该用例确实会在谓词漂移时红），但只有经 `scripts/pytest_pg.sh` 跑才生效 ⇒ 建议补一个零成本的常驻断言：从两个文件各正则抽出谓词字符串并断言相等。",
+    "没有一条测试断言「既有 SUP-006 行（request_id 为 NULL）在迁移后仍可共存于 partial 唯一索引下」这一关键存量场景的**真 PG** 行为；`tests/services/ai/test_ai_audit_task_pg.py` 里的隔离 schema 是从零 upgrade（表里没有旧行）⇒ 存量 NULL 行与 partial 索引的相容性目前只由迁移形状推理保证（PG 允许多个 NULL，且该索引的谓词本身已排除 NULL）。"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "Audit hash computed outside degrade try: nested JSON kills the audit row",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 202,
+      "why_it_matters": "Every AI request that reaches the middleware is supposed to leave exactly one audit row. The digest is computed *before* the try/except that is supposed to degrade audit failures, and `hash_sanitized` can raise: it calls `json.loads` and only catches `json.JSONDecodeError`, so a body with deep nesting (a few KB of nested arrays/dicts, e.g. ~1000 levels) raises `RecursionError`, which is not a `JSONDecodeError`. That exception escapes `_record_audit` entirely, so (a) the row is never enqueued — the audit table stays blind to exactly the kind of hostile/garbage payload an auditor wants to see — and (b) the exception escapes the middleware's `finally` block, replacing whatever exception was in flight and turning a handled request into an unhandled ASGI error after the response was already sent. The fix is two-part because only guarding the call site is not enough: if the digest is simply computed inside the try, the enqueue is skipped and the row is still lost. The digest must degrade to `None` (row still written) and the hashing itself must survive unbounded nesting.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:202 -- digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+        "pcs-backend/app/core/ai_audit_middleware.py:203-206 -- try: / await enqueue_ai_audit_log(...) / except Exception:  # the digest line sits OUTSIDE this try, so a hashing failure is not degraded",
+        "pcs-backend/app/core/ai_sanitizer.py:122-125 -- parsed = json.loads(text) / except json.JSONDecodeError:  # RecursionError is NOT a JSONDecodeError => it escapes hash_sanitized",
+        "pcs-backend/app/core/ai_sanitizer.py:90-98 -- sanitize_for_ai recurses once per nesting level with no depth bound (dict/list comprehensions), so the same body also blows the recursion limit in the sanitizer",
+        "pcs-backend/app/core/ai_audit_middleware.py:176-188 -- finally: / await self._record_audit(...)  # an exception raised here escapes __call__ and replaces any in-flight exception",
+        "pcs-backend/app/core/ai_sanitizer.py:117-133 -- hash_sanitized is the only caller of json.loads/sanitize_for_ai in the audit path"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Two coordinated edits. (1) In `app/core/ai_audit_middleware.py::_record_audit`, compute the digest defensively and always enqueue the row: `try: digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None / except Exception: logger.warning('AI 审计哈希失败（哈希留空，行照写）', exc_info=True); digest = None` — then keep the existing try around `enqueue_ai_audit_log`. The row must survive even when the hash cannot be computed (contract: audit rows must not be silently dropped). (2) In `app/core/ai_sanitizer.py::hash_sanitized`, treat unbounded nesting as a normal input: catch `RecursionError` alongside `json.JSONDecodeError` (fall back to hashing the sanitized raw text) and add a `depth` argument to `sanitize_for_ai` with a bounded maximum (e.g. 20) beyond which the value is replaced by a placeholder such as `\"[DEEP]\"`. Add a regression test that POSTs a body of ~1000 nested arrays to `/api/v1/ai/intent` and asserts the audit enqueue still happened (and that the response is not a 5xx from an escaped exception)."
+    }
+  ],
+  "residual_risks": [
+    "Sanitizer rule order: the EMAIL rule is applied AFTER the LINE_NO / EQUIPMENT_TAG / PROJECT_NO rules. Those rules replace their match with a bracketed placeholder (e.g. 'AB-123' -> '[LINE_NO]'), and the EMAIL pattern's local-part class `[A-Za-z0-9._%+-]+` does not include '[' or ']' — so an address whose local part contains a tag-shaped token (e.g. 'AB-123@corp.com') or a project-number-shaped token ('2024.001.001@corp.com') is NOT redacted; the address (and its domain) survives into the payload that would be sent to the model. Narrow trigger, but the ordering is the same class of trap the module docstring already documents for LINE_NO vs EQUIPMENT_TAG; moving EMAIL to the front of SENSITIVE_PATTERNS would close it.",
+    "Audit enqueue is inline on the request path: `enqueue_ai_audit_log` opens a fresh ARQ/Redis pool per request and is awaited inside the middleware's `finally`, i.e. before the ASGI app returns. The response body is already sent, but uvicorn will not release the keep-alive connection until the app returns — so when Redis is unreachable each AI request holds its connection for the whole Redis connect timeout. The audit failure is caught (no 5xx), but connection reuse stalls.",
+    "Seed script `--reset` deletes `User` rows keyed by `derive_user_id(name)` for alice/bob/carol/dan — the same ids the real login path derives (`uuid5(NAMESPACE_DNS, username)`), and the module docstring states this explicitly. If those usernames are real accounts in the target database (e.g. a dev DB where 'alice' was provisioned by LDAP), `--reset` deletes them and cascades their `user_projects` grants away. The script has no marker distinguishing 'rows I created' from 'rows that happen to share the derived id'.",
+    "Seed script `--reset` deletes the whole seed `Project` row but only clears `user_projects` and `streams` first. Any other row that references the project (equipment, records, `document_chunks`, `project_input_checklist`, ...) blocks the delete with an FK violation; the script does not catch it, so the reset aborts with a traceback instead of a clear message. This becomes reachable as soon as P10-B creates business rows under the E2E project.",
+    "Unauthenticated AI probes are subject to the pre-existing global RBAC rate limiter (>5 denied requests per minute per IP -> 429). A burst of invalid-token probes therefore returns 429 rather than 401, and the audit rows for those probes record status_code=429, not 401 — worth knowing when reading the audit table to investigate probing activity.",
+    "Not verified by execution in this review (read-only, no runtime): the `docker compose --profile test` `migrate`/`seed` one-shot services against `pcs_pgtest`, the `real-backend` Playwright channel end-to-end, and the PG-lane audit test (`scripts/pytest_pg.sh`) were read but not run."
+  ],
+  "testing_gaps": [
+    "No case pins the `_MAX_BODY_BYTES` boundary: the truncation path is exercised only at 10 MiB + 1 KiB (`test_oversized_body_is_truncated_not_buffered`). A body of exactly 10 MiB (must be accepted whole) and of 10 MiB + 1 byte (must truncate) are untested, so an off-by-one in the cap (`total + len(chunk) > _MAX_BODY_BYTES` / `chunk[: _MAX_BODY_BYTES - total]`) would stay green. The manual trace of that arithmetic looks correct today.",
+    "No case posts a deeply nested JSON body (e.g. ~1000 nested arrays) to an AI endpoint, so the `RecursionError` path in the audit hashing is invisible to the suite (see the finding).",
+    "The middleware's captured status is asserted for 501 / 401 / 500 but not for 422 (validation error) — the request that produced the '参数错是 422' contract does not assert that the audit row records status_code=422.",
+    "The 'auth before validation' ordering is never exercised in the failing combination: the AI route tests cover unauthenticated-with-valid-body (401) and authenticated-with-invalid-body (422), but not unauthenticated-AND-invalid-body. FastAPI resolves the `current_actor` sub-dependency before `request_body_to_args`, so the expected answer is 401 — but the ordering contract ('认证先于 501') is only half-pinned.",
+    "The seed script's `--reset` scoping is tested against a foreign *workspace* only (`test_reset_only_deletes_our_own_rows`); there is no case proving that a non-seed *user* row (or a non-seed grant on the seed project) survives the reset."
+  ]
+}

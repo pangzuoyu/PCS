@@ -1,0 +1,142 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "seed_e2e_data.py:94 deletes User rows by derived id (uuid5(NAMESPACE_DNS, username), the same derivation token_issuer.py:57-63/83 uses for real LDAP logins) with no marker restricting it to script-created rows, so --reset on a database holding a real alice/bob/carol/dan account wipes that row's status/roles/token_version and cascades away its user_projects grants (models/project.py:199-201, ondelete=\"CASCADE\"); the next login recreates it ACTIVE (token_issuer.py:108-111,147) and thereby re-enables a DISABLED account, and test_seed_e2e_data.py:51-76 only plants an external Workspace so it cannot catch this."
+    },
+    {
+      "#": 2,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/api/v1/test_ai_audit_middleware.py asserts client_request_id, user_id, status_code, endpoint, duration_ms, response_summary and sanitized_request_hash on recorded_audits but never request_id (e.g. line 140), while app/workers/ai_audit_tasks.py:157-160 returns without writing any row when request_id is falsy, so the middleware could stop passing request_id and the whole audit table would go silently empty with every middleware test still green."
+    },
+    {
+      "#": 3,
+      "status": "confirmed",
+      "protected_subject": "memory-safety",
+      "reason": "app/core/ai_audit_middleware.py:52,95-111 accumulates the request body in a chunk list and then joins it (≈2× body resident) with a 10 MB per-request cap, and the body is read at line 162 before the app is called, i.e. before any route-level auth (main.py:245 registers the middleware outside the router), so an unauthenticated client can hold ~10 MB per in-flight request with no aggregate cap; the number of concurrent requests needed to exhaust a worker was not measured."
+    },
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/core/ai_sanitizer.py:46 is an unanchored greedy `[A-Za-z0-9._%+-]+@…` rule, so on a body with no '@' the engine re-tries the tail at every start offset (quadratic) and it is reached for any body ≤ 1 MB through hash_sanitized (ai_audit_middleware.py:202, MAX_HASH_BYTES at line 47), either as raw text or as a long JSON string value; the quadratic cost was derived from the pattern shape and not measured (no shell available in this environment)."
+    },
+    {
+      "#": 5,
+      "status": "rejected",
+      "protected_subject": null,
+      "reason": "The cited code does not show a silent failure: app/services/ai/arq_queue.py:67-69 logs a warning per failed enqueue and the degradation is the module's documented design (\"失败降级，不抛\"), and the suggested fix (a process-local counter plus an audit_pipeline field on HealthAIResponse) adds new observability rather than repairing anything the cited code contradicts — the cited must-not-regress rule concerns rows dropped by an over-long client-controlled field, not a Redis outage."
+    },
+    {
+      "#": 6,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "app/workers/ai_audit_tasks.py:176-179 swallows every write exception and returns normally, and arq 0.28 retries only `Retry` (the repo's own app/workers/report_tasks.py:204-214 documents this and raises Retry(defer=RETRY_DEFER_S) there), so the audit row for that request is permanently never written while the request already returned 501; worker.py:237's max_tries=MAX_TRIES(3) is unreachable because the exception never escapes the task."
+    },
+    {
+      "#": 7,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/architecture/test_no_direct_ai_sdk.py only flags httpx calls whose receiver is literally named httpx (lines 79-84) and whose URL literal contains one of four markers (line 50, checked at 88-97/141-143), so the natural bypass httpx.post(\"http://llm.internal:8000/v1/chat/completions\") matches neither rule and the guard stays green — the batch's must-not-regress rule 7 (guard must go red on a bypass) is not met, and there is no negative control (the SDK half is vacuous today, as the docstring at line 103 states); D15/D19 adjudicate only the scan-source approach, not this blind spot."
+    },
+    {
+      "#": 8,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "README.md:141-151 seeds the compose database pcs_pgtest (docker-compose.yml:118,140) but starts the backend with no DATABASE_URL, so the backend reads .env (the dev `pcs` database) instead of the seeded one, and e2e/real_backend_smoke.spec.ts:13-24 asserts only login → dashboard heading → no console errors, so the channel can pass green without any seeded data or project-scoped 200; the mock half of the concern is partly mitigated (playwright.config.ts:70 starts 5174 with VITE_ENABLE_MOCK=false and reuseExistingServer:false), so the confirmed defect is the missing data-level assertion plus the documented DB mismatch."
+    },
+    {
+      "#": 9,
+      "status": "confirmed",
+      "protected_subject": "concurrency",
+      "reason": "All five helpers in scripts/seed_e2e_data.py (:104-119, :123-144, :147-172, :175-196, :199-225) do a lock-free SELECT-then-INSERT with db.add/flush outside any savepoint, so two overlapping seed invocations both insert and the loser dies on the unique constraint before the commit at :252, whereas the repo's own solution note docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md prescribes db.add inside begin_nested() with an IntegrityError re-read of the winner; the precondition is concurrent invocations, which I did not attempt to reproduce (no shell)."
+    },
+    {
+      "#": 10,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/alembic/test_p10_001_ai_audit_fields.py:103 asserts the bare substring \"request_id IS NOT NULL\" against the whole migration text, and that same phrase appears in the migration's own docstring (alembic/versions/p10_001_ai_audit_request_fields.py:20), so deleting postgresql_where=sa.text(...) at line 87 leaves the test green, while the neighbouring if_not_exists check is done per create_index block (lines 113-116); the PG lane that would catch the real breakage is skipped unless run via scripts/pytest_pg.sh."
+    },
+    {
+      "#": 11,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/services/ai/test_ai_audit_task_pg.py:225-247 runs the DROP SCHEMA subprocess in the finally block and never inspects its returncode, whereas the CREATE SCHEMA step does assert created.returncode == 0 at line 189, so a failed cleanup leaves an orphan schema with the migration already applied and the failure is swallowed."
+    },
+    {
+      "#": 12,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "pcs-backend/docs/openapi.json:88-96 publishes \"200\" with an empty schema for /api/v1/ai/* while every one of those routes unconditionally raises AINotImplementedError (app/api/v1/ai/routes.py:62 etc.), and the contract test tests/api/v1/test_ai_routes.py:167-171 only asserts \"501\" in responses so the phantom 200 is unguarded — exactly the defect the module's own M-2 rationale (app/schemas/ai.py:93-96) says must be removed."
+    },
+    {
+      "#": 13,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "pcs-backend/docs/openapi.json:60-76 renders the authorization header parameter with \"required\": false and the responses contain only 200/501/422 (no 401), while the runtime returns 401 for a token-less call (app/api/v1/ai/routes.py:9-13 and tests/api/v1/test_ai_routes.py:78-82) — a contract-only reader therefore has no branch for the 401 the endpoint actually produces."
+    },
+    {
+      "#": 14,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/api/v1/health.py:110-206 is a single health_ai function of roughly 96 lines with five sequential early-return branches (invalid CIDR, settings unavailable, not configured, domain, in-CIDR, not-in-CIDR), exceeding the repository coding standard that functions stay under 50 lines (the finding's cited standards mapping could not be located in the tree, but the rule is in force via the global coding-style rules); the D22 decision criteria could be pinned by extracting a pure classifier."
+    },
+    {
+      "#": 15,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "app/api/v1/health.py:179 calls host_of(endpoint) outside every try/except, and app/core/ai_cidr.py:91-94 passes the raw value to urlparse, which raises ValueError(\"Invalid IPv6 URL\") for an unterminated IPv6 bracket (e.g. an admin-entered \"http://[::1\" stored in system_settings.ai_endpoint), so /health/ai returns 500 instead of the degraded 200 that deviation registry D22 and the response model's own docstring promise."
+    },
+    {
+      "#": 16,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/services/ai/arq_queue.py:34 builds RedisSettings.from_dsn(...) whose arq 0.28 defaults are conn_timeout=1, conn_retries=5, conn_retry_delay=1 (arq/connections.py:44-46) and create_pool retries the ping in that loop (arq/connections.py:271-295), so with Redis down one enqueue blocks roughly 10 s — and it is awaited inside the middleware's finally (app/core/ai_audit_middleware.py:176-188), so the ASGI task/connection is not released until the retry loop finishes."
+    },
+    {
+      "#": 17,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "app/core/ai_audit_middleware.py:202 computes hash_sanitized(body) outside the try at :203, and app/core/ai_sanitizer.py:122-125 catches only json.JSONDecodeError, so a body with roughly 1000 nested arrays (a few KB, far below the 1 MB hash limit) raises RecursionError which escapes _record_audit — no audit row is enqueued and the exception also escapes __call__'s finally block, replacing any in-flight exception."
+    },
+    {
+      "#": 18,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "hash_sanitized (app/core/ai_sanitizer.py:102-133: json.loads → recursive sanitize → json.dumps → sha256) is a plain synchronous function invoked directly from the async middleware at app/core/ai_audit_middleware.py:202, so the whole CPU cost lands on the event-loop thread with no await point; the magnitude per request was not measured."
+    },
+    {
+      "#": 19,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/core/ai_cidr.py:158-159 returns immediately when ai_enabled is false, so the startup validation (app/main.py:112-123) is a no-op whenever AI is off at boot, the switch is a runtime system_settings row, and the request path never reaches OutboundAIClient (app/api/v1/ai/routes.py:62 raises before constructing it), leaving the call-time validate_ai_endpoint (app/core/outbound_ai_client.py:66-67) off the request path — a runtime flip to ai_enabled with a public endpoint is validated nowhere; no traffic reaches a model today, so the leak only materialises once a route actually calls one."
+    },
+    {
+      "#": 20,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/services/ai/arq_queue.py:62-75 creates a brand-new ARQ/Redis pool per enqueue and closes it in the finally block, and the middleware enqueues on every /api/v1/ai/* request (app/core/ai_audit_middleware.py:204), so each request pays a fresh TCP connect + AUTH instead of reusing a connection — while the repo's own pattern keeps process-level Redis connections closed from the lifespan hook (app/main.py:185-209)."
+    },
+    {
+      "#": 22,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/scripts/test_compose_test_profile.py only yaml.safe_load's docker-compose.yml (line 32) and asserts declared strings (profiles, volumes, command, DATABASE_URL at lines 39-141), never executing docker compose --profile test run --rm migrate/seed, so a broken alembic upgrade on pcs_pgtest or a seed script that fails on PG leaves the guard green; the only execution evidence is the manual run recorded in the ledger, which does not ship with the repo."
+    },
+    {
+      "#": 23,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "pcs-frontend/src/vite-env.d.ts:3-6 augments ImportMetaEnv with only VITE_PROJECT_ID and VITE_DEV_TOKEN while vite's own ImportMetaEnv carries `[key: string]: any` (node_modules/vite/types/importMeta.d.ts:6), so import.meta.env.VITE_ENABLE_MOCK in src/main.tsx:14 is typed any and a wrong literal such as 'FALSE' or '0' type-checks cleanly while silently leaving MSW mounted."
+    },
+    {
+      "#": 24,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/services/ai/test_ai_audit_task.py:5 (and the parenthetical at :63) still asserts \"ARQ 默认 max_tries=5（本批不显式改）⇒ 重试必然发生\", whereas the repository sets MAX_TRIES = 3 (app/workers/worker.py:48, :237) and arq 0.28 retries only `Retry` (app/workers/ai_audit_tasks.py:12-14 and app/workers/report_tasks.py:204-208) — the production docstring was already corrected to that wording in this batch, leaving this copy stale."
+    }
+  ]
+}

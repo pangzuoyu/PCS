@@ -1,0 +1,186 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "审计入队载荷的 request_id 从未被断言",
+      "severity": "P1",
+      "file": "pcs-backend/tests/api/v1/test_ai_audit_middleware.py",
+      "line": 140,
+      "why_it_matters": "中间件测试用 fake_enqueue 记录入队参数，断言了 client_request_id / user_id / status_code / endpoint / duration_ms / response_summary / sanitized_request_hash，**唯独没有断言 request_id** —— 而 request_id 正是审计行的幂等键，也是 501 信封里回给客户端的那个「审计幂等键」（app/schemas/ai.py:104）。写库任务在 request_id 为空时**直接 return、不写行**（app/workers/ai_audit_tasks.py:158-160），也就是说：只要中间件哪天不再传 request_id（或传的值与响应里的 X-Request-ID 不一致），**整张审计表会静默为空**，而本批所有中间件断言依然全绿 —— 因为 fake_enqueue 收什么就记什么。这一条正是本批「必须不回归」契约里第 2/4/5 条（认证失败也要留痕、写入幂等、行不得被静默丢弃）的唯一防线，却恰好漏在最关键的那一列上。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:158 --     if not request_id:",
+        "pcs-backend/app/workers/ai_audit_tasks.py:159 --         logger.warning(\"AI 审计缺 request_id ⇒ 跳过（无法保证幂等）\")",
+        "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:140 --     assert recorded_audits[-1][\"client_request_id\"] == \"client-abc-123\"   ← 该文件里对入队载荷的全部断言集合，没有一处断言 request_id",
+        "pcs-backend/app/core/ai_audit_middleware.py:204 --         await enqueue_ai_audit_log("
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 tests/api/v1/test_ai_audit_middleware.py 里加一条用例，断言三处同源：响应头 X-Request-ID == 501 信封 body[\"request_id\"] == recorded_audits[-1][\"request_id\"]（并断言它是合法 UUID 串）。同一处再补一条「request_id 缺失 ⇒ 写库任务不写行且不抛」的用例，直接对 write_ai_audit_log 传缺 request_id 的字段（对齐 app/workers/ai_audit_tasks.py:157-160 的早退分支）。"
+    },
+    {
+      "title": "topK 别名用例无法检测它声称要防的回归",
+      "severity": "P2",
+      "file": "pcs-backend/tests/api/v1/test_ai_routes.py",
+      "line": 112,
+      "why_it_matters": "这条用例的 docstring 明确说它要钉住「前端传 topK 不会被静默忽略」，但断言只有 `status_code == 501`。Pydantic v2 默认**忽略**未知字段，所以 schema 里哪怕把字段名从 top_k 改成别的、alias 整个删掉，`{\"query\":\"q\",\"topK\":7}` 一样不报错、一样回 501 ⇒ **这条用例在回归发生时依然绿**。而这正是该文件开头列为「两条静默失效的坑（必须钉住）」的第一条：SPEC 的字段名是驼峰 `topK`，schema 用 `top_k` + alias，一旦 alias 丢失，前端传的条数静默变成默认值 5 且不报错。对比同文件的 `test_ai_intent_context_accepts_camelCase_aliases`（直接对模型 model_validate 并断言字段值）—— 那才是能真正区分「收到」与「忽略」的写法。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/api/v1/test_ai_routes.py:112 --     assert resp.status_code == 501, resp.text",
+        "pcs-backend/tests/api/v1/test_ai_routes.py:110 --     # 501（不是 422）⇒ 说明 `topK` 被**接受**了（未知字段被忽略也不会 422，",
+        "pcs-backend/app/schemas/ai.py:56 --     top_k: int = Field(5, alias=\"topK\", description=\"返回条数\")"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "照抄同文件 AiContext 的模型级写法：新增 `assert AiKnowledgeSearchRequest.model_validate({\"query\": \"q\", \"topK\": 7}).top_k == 7`（并补一条蛇形 `top_k` 也进的用例），把 HTTP 那条降级为「端点回 501」的冒烟断言；这样删掉 alias 就会红。"
+    },
+    {
+      "title": "AI 架构守卫没有负控：从未证明扫描器会红",
+      "severity": "P2",
+      "file": "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py",
+      "line": 103,
+      "why_it_matters": "本批的「必须不回归」契约第 7 条是「架构守卫真的会红：绕过唯一出口直连 AI 端点 ⇒ 守卫必须报」。但这两条守卫用例都是**在干净仓库上恒绿**：SDK 名单里的包一个都没装、全仓也没有一处 httpx 打 AI 端点 ⇒ 扫描器究竟能不能识别违规，**从未被观测过一次**。守卫是纯 AST 扫描（路径根、禁用包名集合、URL 特征串、httpx 调用形态四处都可能悄悄失效），一旦其中一处坏了（例如 APP_ROOT 指错、特征串漏了新的端点写法），守卫会一直绿着，而它恰恰是「AI SDK 只能从唯一出口出去」的唯一执行机制。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:103 --     ⚠️ 本批**还没装**这些包 ⇒ 全仓零命中 ⇒ 本条现在**恒绿**。",
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:116 --     assert not offenders, (",
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:99 -- def test_no_module_outside_outbound_client_imports_ai_sdks() -> None:",
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:151 -- def test_the_allowed_file_is_the_only_ai_exit() -> None:"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "给扫描器加负控（self-test）：在 tmp_path 造两个违规文件（一个 `import openai`，一个 `httpx.post(\"https://ai.internal/api/v1/ai/intent\", ...)`），把扫描入口从「扫 APP_ROOT」抽成接受「文件列表」的纯函数，用它断言两个违规都被检出、且干净文件不误报；同时加一条断言 `_python_files()` 非空（守住路径根被改坏的情况）。"
+    },
+    {
+      "title": "启动期 AI 校验的两个错误分支没有测试",
+      "severity": "P2",
+      "file": "pcs-backend/app/main.py",
+      "line": 110,
+      "why_it_matters": "新加的 `_validate_ai_startup_config` 把三条语义不同的分支叠在一起：(a) `parse_cidrs(settings.internal_cidrs)` 故意放在 try **外面** ⇒ 非法 CIDR 必须让服务**启动即失败**；(b) try 里的读库失败必须**降级为 warning + 跳过**（不能因 AI 配置挡住整个服务启动）；(c) endpoint 优先取系统参数、为空才回退 env。只有纯函数 `validate_ai_startup_config` 被测了，这层接线一条用例都没有 ⇒ 把 (a) 那行挪进 try（或把 (b) 的 except 删掉）都不会有任何测试变红：前者让写错的 CIDR 悄悄放行启动，后者让数据库抖动直接起不来服务。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/main.py:110 --     cidrs = parse_cidrs(settings.internal_cidrs)",
+        "pcs-backend/app/main.py:117 --     except Exception as exc:  # noqa: BLE001 — 读不到库不该挡住启动",
+        "pcs-backend/app/main.py:118 --         log.warning(\"读取 AI 配置失败，跳过 AI 启动校验：%s\", exc)",
+        "pcs-backend/app/main.py:114 --         endpoint = (await get_setting_value(session, \"ai_endpoint\", default=None)) or ("
+      ],
+      "pre_existing": false,
+      "suggested_fix": "新增 tests/api/v1/test_main_ai_startup.py，直接对 app.main._validate_ai_startup_config 打三条：① internal_cidrs 非法 ⇒ 抛 RuntimeError（且**不**降级）；② monkeypatch app.services.system_setting_service.get_setting_value 抛异常 ⇒ 不抛、只记 warning；③ 系统参数 ai_enabled=True + ai_endpoint 为空但 env 有 endpoint ⇒ 用 env 那个（回退口径）。"
+    },
+    {
+      "title": "种子 --reset 的「只删自己的」只覆盖了 5 张表中的 1 张",
+      "severity": "P2",
+      "file": "pcs-backend/tests/scripts/test_seed_e2e_data.py",
+      "line": 57,
+      "why_it_matters": "脚本 docstring 把「--reset 只删自己造的」列为三条硬约束之一，理由写得很清楚：「不筛的话，在开发库里跑一次脚本 = 业务数据被删」。但 `_delete_own_rows` 一共删 5 类行（UserProject / Stream / Project / Workspace / User），这条用例只造了一条**外部 Workspace** 当「别人的数据」，其余 4 张表一个外部样本都没有 ⇒ 只要有人把 `delete(User).where(User.user_id.in_(user_ids))` 的过滤条件写漏成 `delete(User)`，这条用例照样绿，而开发库的用户行会被整表清空（`users` 里的角色/停用状态也一起没了）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/scripts/test_seed_e2e_data.py:57 --     other_ws = Workspace(",
+        "pcs-backend/scripts/seed_e2e_data.py:94 --     await db.execute(delete(User).where(User.user_id.in_(user_ids)))",
+        "pcs-backend/scripts/seed_e2e_data.py:92 --     await db.execute(delete(Stream).where(Stream.project_id.in_(project_ids)))",
+        "pcs-backend/scripts/seed_e2e_data.py:14 -- 3. **只删自己造的** —— `--reset` 按固定 UUID 列表筛，不碰业务数据。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把这条用例改成表驱动：在 User / Stream / Project / UserProject 各造一条**不属于种子集合**的行（User 用非 SEED_USERNAMES 的用户名 + 非派生 user_id，Stream/Project 用随机 project_id），seed(reset=True) 之后逐张断言这些行仍在（Workspace 的现有断言保留），再断言种子集合自身仍只有 1 行。"
+    },
+    {
+      "title": "cidr 闸门的「部分在内 ⇒ 拒」与 host_of 形态没有测试",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/ai_cidr.py",
+      "line": 137,
+      "why_it_matters": "「私有化强制」是 SPEC §2.5 的硬要求，闸门有两个实现细节靠测试才稳：(1) `validate_ai_endpoint` 的文档写明「一个 IP 都不在 ⇒ 拒；**部分在内、部分在外 ⇒ 拒**」（部分在内意味着有流量会打到公网），但测试里只有单 IP 场景（8.8.8.8 拒 / 10.1.2.3 放行），**多 IP 混合的场景一次都没有**；(2) `host_of` 是本批为消除「两份 endpoint 解析」而新抽出来的公共函数（M-6），它同时被启动校验、调用时校验和 /health/ai 三处安全判断使用，可测试文件里对它的 URL 形态（http://host:port/path）、裸 host:port、IPv6 字面量 [::1]:8000、user:pass@host 四种分支一个都没测（只被 health/ai 间接用到最朴素的两种）。这两处一旦写错，方向都是「把外网 endpoint 判成内网」或「把内网 endpoint 判成外网」。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_cidr.py:137 --     outside = [ip for ip in ips if not ip_in_cidrs(ip, cidrs)]",
+        "pcs-backend/app/core/ai_cidr.py:133 --     ⚠️ **一个 IP 都不在 ⇒ 拒**；**部分在内、部分在外 ⇒ 拒**",
+        "pcs-backend/app/core/ai_cidr.py:96 --     if raw.startswith(\"[\") and \"]\" in raw:  # IPv6 字面量 [::1]:8000",
+        "pcs-backend/tests/core/test_ai_cidr.py:81 -- def test_validate_ai_endpoint_rejects_dns_resolving_outside("
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 tests/core/test_ai_cidr.py 补：(a) monkeypatch socket.getaddrinfo 返回两个地址（一内一外，10.1.2.3 + 8.8.8.8）⇒ validate_ai_endpoint 抛 RuntimeError；(b) 直接对 host_of 建表测四种形态（'http://ai.internal:8000/v1' → 'ai.internal'、'ai.internal:8000' → 'ai.internal'、'[::1]:8000' → '::1'、'http://u:p@ai.internal/v1' → 'ai.internal'）；(c) resolve_ai_endpoint_ips('') ⇒ RuntimeError。"
+    },
+    {
+      "title": "真后端 E2E 冒烟用例没有证明请求打到了真后端",
+      "severity": "P2",
+      "file": "pcs-frontend/e2e/real_backend_smoke.spec.ts",
+      "line": 24,
+      "why_it_matters": "本批「必须不回归」契约第 8 条是「真后端 E2E 通道不得静默跑成 mock」。当前让通道保持「真」的**唯一**支点是 main.tsx 里那句 `import.meta.env.VITE_ENABLE_MOCK !== 'false'`（生产代码，无测试），而冒烟用例本身只断言「登录 → 仪表盘渲染 → 无控制台错误」—— 这三件事在 MSW 拦截下**同样全部成立**。也就是说，只要 MSW 又被挂上（或 5173 那台的 service worker 被注册到 5174），这条用例照样绿，而 P10-B 那 18 个业务场景会全部对着 MSW 跑一遍再「通过」，正是本批要消灭的那种假绿。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_smoke.spec.ts:24 --   expect(errors).toEqual([]);",
+        "pcs-frontend/src/main.tsx:14 --   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {",
+        "pcs-frontend/playwright.config.ts:52 --       grepInvert: /@real-backend/,"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 real_backend_smoke.spec.ts 里加「通道是真的」断言：① 用 page.waitForResponse 抓 mock-login 的响应，断言它由服务器返回且响应体里带后端真实签发的字段（而不是 MSW 的 seed 数据）；② 断言 `await page.evaluate(() => navigator.serviceWorker.controller === null)`（MSW 未接管页面）；③ 代理目标不可达时显式失败（连不上就 assert 失败并打印 VITE_API_PROXY_TARGET，而不是让登录超时含糊过去）。"
+    },
+    {
+      "title": "PG 冲突目标的 index_where 没有快速回归护栏",
+      "severity": "P2",
+      "file": "pcs-backend/tests/services/ai/test_ai_audit_task.py",
+      "line": 162,
+      "why_it_matters": "PG 方言那条分支的断言只查了三个子串：「ON CONFLICT」「request_id」「DO NOTHING」。而本批真正的坑在冲突**目标**上：`ON CONFLICT (request_id)` 匹配不到 partial 唯一索引（`WHERE request_id IS NOT NULL`）⇒ PG 抛 InvalidColumnReferenceError ⇒ 每次写审计都炸、而 SQLite 单测照绿（提交 5b608a1 修的就是这个）。删掉 `index_where=text(\"request_id IS NOT NULL\")` 之后，生成出来的 SQL 仍然是「ON CONFLICT (request_id) DO NOTHING」⇒ **这条用例照样绿**。目前该缺陷的唯一防线在 pg marker 用例里，而 pyproject.toml 明确写着 pg marker「只能经 scripts/pytest_pg.sh 跑 —— 平时被 skipif 静默跳过」⇒ 默认的 pytest 绿灯并不能证明它被守住。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/services/ai/test_ai_audit_task.py:162 --     assert \"ON CONFLICT\" in text",
+        "pcs-backend/tests/services/ai/test_ai_audit_task.py:163 --     assert \"request_id\" in text",
+        "pcs-backend/app/workers/ai_audit_tasks.py:123 --                 index_where=text(\"request_id IS NOT NULL\"),",
+        "pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py:87 --         postgresql_where=sa.text(\"request_id IS NOT NULL\"),"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 test_audit_write_uses_the_pg_conflict_clause_on_postgres 里补两条断言：冲突目标必须是 `request_id`（断言 \"(request_id)\" 出现在 ON CONFLICT 之后），且冲突谓词必须与迁移里的 partial 索引谓词逐字一致 —— 最稳的写法是不要再写一份字面量，而是从 ORM 的索引对象取（`AiAuditLog.__table__.indexes[\"ux_ai_audit_log_request_id\"].dialect_options[\"postgresql\"][\"where\"]`，与 tests/alembic/test_p10_001_ai_audit_fields.py:142 的取法一致），断言生成 SQL 里含该谓词，这样两处漂移会直接红。"
+    },
+    {
+      "title": "/health/ai 的「读不到系统参数」分支没有测试",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/health.py",
+      "line": 150,
+      "why_it_matters": "健康端点里有一条明确写出的降级分支：读系统参数抛异常 ⇒ 返回 degraded + reason=\"settings_unavailable\" + 恒 200。测试文件覆盖了 not_configured / ok / 不在网段 / 域名 / 非法 CIDR 五种判定，却没有任何一条用例能让读库失败 ⇒ 这条分支的「恒 200 不崩」承诺（探针不该因 AI 配置读不到而红）没有测试保护，将来有人把 except 去掉或改成抛 500，测试不会红。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/health.py:150 --     except Exception:  # noqa: BLE001 — 读不到参数不该让健康端点崩",
+        "pcs-backend/app/api/v1/health.py:151 --         return HealthAIResponse(",
+        "pcs-backend/app/api/v1/health.py:96 -- _REASON_SETTINGS_UNAVAILABLE = \"settings_unavailable\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 tests/api/v1/test_health_ai.py 加一条：monkeypatch app.services.system_setting_service.get_setting_value 抛 RuntimeError ⇒ 断言 200 + status=='degraded' + reason=='settings_unavailable' + cidrs_configured 仍按 parse_cidrs 结果给出。"
+    }
+  ],
+  "residual_risks": [
+    "PG 车道用例（tests/services/ai/test_ai_audit_task_pg.py）的 `_pg_url()` 会回退读 .env 的 DATABASE_URL ⇒ 在带 .env 的开发机上，一次普通 `pytest` 就会在**开发库**里建隔离 schema、跑 alembic upgrade head、再 DROP SCHEMA（沿用 tests/api/v1/test_stream_batch_concurrency_pg.py 的既有写法，不是本批引入），但它与 pyproject.toml 声明的「pg marker 平时被静默跳过」不一致 ⇒ 「这次跑没跑过 PG 用例」在默认 pytest 里判不出来。",
+    "本批没有跑过测试（本评审为只读），所有判断均来自读代码；我未核对 tests/ 目录下是否存在与本次新增文件重名的旧用例，也未核对 pcs-frontend/e2e/ 下既有 spec 是否与新的 real-backend 通道的 grep 分组互相影响（chromium 用 grepInvert 排除 @real-backend）。",
+    "真后端 E2E 通道依赖「前端代理到的后端连的是 pcs_pgtest（种子所在库）」这一外部约定；compose 只把 migrate/seed 指向 pcs_pgtest，compose 里并没有跑 API 的服务，README/脚本如何把后端指到该库不在本批测试覆盖内 ⇒ 若后端连的是开发库 pcs，E2E 会看到「用户存在但无项目授权 ⇒ 全站 404」，而冒烟用例只测仪表盘 ⇒ 可能漏过。",
+    "app/core/outbound_ai_client.py 的 OutboundAIClient 在 P10 阶段没有任何生产调用方（端点一律 501），其全部行为只由单元测试覆盖；等真正接线时，「校验→脱敏→审计→抛 501」的顺序需要重新接线验证，本批的测试不构成对那时的保证。",
+    "tests/api/v1/test_outbound_ai_client.py:97 的 `seen[0] == sanitize_for_ai({...})` 用被测helper算期望值（self-referential），该断言无法发现 sanitize_for_ai 自身的缺陷；不过同一条用例里另有「原文邮箱不出现在载荷中」的独立断言兜底 ⇒ 实际防护尚可。"
+  ],
+  "testing_gaps": [
+    "app/core/ai_audit_middleware.py 的 _read_body 截断分支（超过 _MAX_BODY_BYTES 后停止累积）虽有 test_oversized_body_is_truncated_not_buffered 覆盖 422 结果，但没有任何用例断言「下游收到的 body 恰好被截断到上限长度」这一语义（当前只断言 422 与 hash 为 None）⇒ 截断算法（ai_audit_middleware.py:105 的 chunk[: _MAX_BODY_BYTES - total]）若改成丢弃整块而非截断，测试仍绿。",
+    "app/core/ai_sanitizer.py 的 enable_person_name_mask 是**全局状态**，测试用 try/finally 复位；但没有任何用例断言「main.py lifespan 按 settings.ai_mask_person_name 打开它」这条接线 ⇒ 部署级开关（AI_MASK_PERSON_NAME）在真实启动路径上失效不会被发现。",
+    "pcs-backend/tests/api/v1/test_ai_routes.py 用的是 conftest 的最小 client（不挂中间件、不挂 lifespan），因此「5 个端点在真实 create_app() 链路上同样返回 501 且带 X-Request-ID」只由 test_ai_audit_middleware.py 覆盖 intent 一个端点；其余 4 个端点在真实中间件链上的 501 信封（含 X-Request-ID 头）没有用例。",
+    "docker-compose 的 test profile 守卫（tests/scripts/test_compose_test_profile.py）逐条断言了 seed/migrate 的 profile、库名、depends_on，但没有断言 `postgres-pgtest` 自身含 \"test\" profile（目前是被 seed 的 depends_on 间接覆盖），也没有断言 seed 容器里的 DATABASE_URL 与 migrate 容器里的完全一致（同库不同 URL 会让迁移与种子落在两个库上）。"
+  ]
+}

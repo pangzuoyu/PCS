@@ -1,0 +1,110 @@
+{
+  "run_id": "20261112-181851-76e48fc4",
+  "run_dir": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4",
+  "round": 2,
+  "batch": {
+    "index": 1,
+    "count": 1,
+    "template": "references/validator-batch-template.md",
+    "note": "Round-2 batch: only the findings whose validity changed in round 2 (the external cross-family review). The 26 untouched findings keep their round-1 verdicts, whose input numbering is unchanged because #28/#29 were appended rather than inserted."
+  },
+  "scope_context": {
+    "scope_mode": "local-aligned",
+    "base": "3fae3f6",
+    "head_sha": "55239ff",
+    "branch": "main",
+    "tree_is_reviewed_head": true,
+    "diff": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/full.diff",
+    "files": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/files.txt",
+    "instruction": "The working tree IS the reviewed head: inspect the cited files, callers, guards and project contracts directly with read-only tools. Do not mutate the checkout; the only permitted write is <run_dir>/validator-verdicts.round2.json.",
+    "round2_context": [
+      "An external cross-family adversarial review by hermes (glm-5.2, Z.AI/GLM) was folded in and re-graded three items. #4 was re-graded P1 -> P0 on the strength of a measurement the orchestrator reproduced independently through the production function hash_sanitized. #28 and #29 are hermes's two new findings, both carried at anchor 50 (unreachable today) pending this batch's verdict.",
+      "The batch's deviation registry D1-D22 (spec/P10 AI预留与测试部署开发规格说明书.md part 5) and the ledger's Ruling lines record adjudicated decisions - a divergence registered there is not a defect.",
+      "Must-not-regress contracts R1-R9 are listed in <run_dir>/intent.md."
+    ]
+  },
+  "skip_count": 0,
+  "skip_evidence_basis": "",
+  "selected_count": 3,
+  "selected": [
+    {
+      "#": 4,
+      "title": "The EMAIL sanitizer pattern backtracks quadratically over the raw request body on the event loop",
+      "severity": "P0",
+      "confidence": 75,
+      "file": "pcs-backend/app/core/ai_sanitizer.py",
+      "line": 46,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": [
+        "performance",
+        "hermes-third-perspective"
+      ],
+      "first_evidence": "pcs-backend/app/core/ai_sanitizer.py:46 --     (re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\"), \"[EMAIL]\"),",
+      "evidence": [
+        "pcs-backend/app/core/ai_sanitizer.py:46 --     (re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\"), \"[EMAIL]\"),",
+        "pcs-backend/app/core/ai_sanitizer.py:74 --     for pattern, replacement in SENSITIVE_PATTERNS:",
+        "pcs-backend/app/core/ai_sanitizer.py:75 --         text = pattern.sub(replacement, text)",
+        "pcs-backend/app/core/ai_sanitizer.py:125 --             canonical = _sanitize_text(text).encode(\"utf-8\")",
+        "pcs-backend/app/core/ai_sanitizer.py:92 --             _sanitize_text(key) if isinstance(key, str) else key: sanitize_for_ai(item)",
+        "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+        "pcs-backend/app/core/ai_audit_middleware.py:47 -- MAX_HASH_BYTES = 1024 * 1024  # the quadratic window is exactly the bodies that DO get hashed",
+        "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:199 --     big = \"x\" * (MAX_HASH_BYTES + 1024)  # the only large-body test sits above the hashing window",
+        "round-2 measurement (production fn hash_sanitized, this host): n=40000 -> 1106.6 ms; n=80000 -> 4245.4 ms; n=160000 -> 17.0 s; n=320000 -> 68.1 s",
+        "round-2 measurement (production fn hash_sanitized, JSON body with an 80000-char value) -> 4245.9 ms; control (body contains '@') -> 1.5 ms",
+        "MAX_HASH_BYTES = 1048576 (pcs-backend/app/core/ai_audit_middleware.py:47) -- every measured size stays inside the hashing window",
+        "hermes third-perspective verdict #4: confirmed, '269 ms @20k, 1078 ms @40k, 4297 ms @80k chars - clean O(n^2), on the event loop, pre-auth'"
+      ],
+      "why_it_matters": "`_sanitize_text` runs five regexes over the *entire* request body, and the EMAIL rule is an unanchored `X+@…` pattern: the greedy `[A-Za-z0-9._%+-]+` consumes the rest of the string, the following literal `@` never matches, and the engine then retries the tail once per consumed character **at every start offset** — i.e. O(n²) backtracking on a string that contains no `@`. The body is sanitized either as raw text (when JSON parsing fails) or per string value (when it succeeds), so a single request whose payload is a long run of `x`/`a` characters — inside `{\"text\": \"…\"}` or as a non-JSON body — drives the sanitizer into the quadratic regime. The audit hash is computed for every body up to 1 MB (`MAX_HASH_BYTES`), which is exactly the window where this bites: the existing tests sit just *outside* it (1 MB + 1024 and 10 MB + 1024 are both “too big to hash”). Because `_sanitize_text` is a plain synchronous call inside the async middleware, the cost lands on the single event-loop thread, so one such request stalls every other request handled by that worker — no `await` point is reached while the regex runs. The other four patterns are linear and unaffected.\n\n⚠️ **round 2：已实测，级别 P1 → P0**。hermes（GLM-5.2）在本机独立测得二次方，本机复核**走生产函数 `hash_sanitized`** 复现：40 KB ⇒ 1 107 ms，80 KB ⇒ 4 245 ms，160 KB ⇒ 17.0 s，320 KB ⇒ 68.1 s；对照组（body 含 `@`，走线性快路）80 KB ⇒ 1.5 ms。尺寸 ×2 ⇒ 时间 ×4，干净 O(n²)，且**全部落在 `MAX_HASH_BYTES = 1 MiB` 之内**。⇒ **一个未认证的 320 KB POST 到 `/api/v1/ai/*` 就能把事件循环钉住 68 秒**（80 KB ⇒ 4.2 s），期间**整个服务的所有端点一起卡住**：`_record_audit` 在中间件的 `finally` 里、**认证之前**执行，`hash_sanitized` 是同步 CPU 且无 await 点 ⇒ 不是「一个请求慢」，是**整站不可用**。⇒ 这不再是「perf regression」（P2 口径），而是**未认证的可用性缺陷** ⇒ P0。修复顺序应与 #3 同批（同一条请求路径 ⇒ 一次改动同治）。",
+      "suggested_fix": "Bound the greedy quantifiers in the EMAIL rule so a single start offset can only do a constant amount of work, e.g. `re.compile(r\"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,24}\")` — with bounded repeats the scan becomes linear in the body length instead of quadratic, and 64/255 are the RFC 5321 limits so no realistic address is lost. Independently, cap the number of characters `_sanitize_text` scans per string (truncate the scanned prefix, e.g. first 64 KB per string) so the audit hash cost is bounded regardless of pattern shape. Note: I could not execute a benchmark in this review environment (no shell), so the quadratic claim is derived from the pattern shape (unanchored search + greedy `+` followed by a literal that cannot match) rather than measured — the bounded-quantifier change is safe to apply either way.",
+      "protected_subject": null
+    },
+    {
+      "#": 28,
+      "title": "The 501 envelope's request_id fallback can mint an id that matches no audit row",
+      "severity": "P3",
+      "confidence": 50,
+      "file": "pcs-backend/app/core/errors.py",
+      "line": 318,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": [
+        "hermes-third-perspective"
+      ],
+      "first_evidence": "pcs-backend/app/core/errors.py:318 --         request_id = getattr(request.state, \"request_id\", None) or str(uuid.uuid4())",
+      "evidence": [
+        "pcs-backend/app/core/errors.py:318 --         request_id = getattr(request.state, \"request_id\", None) or str(uuid.uuid4())",
+        "pcs-backend/app/core/ai_audit_middleware.py:153 -- scope.setdefault(\"state\", {})[\"request_id\"] = request_id"
+      ],
+      "why_it_matters": "501 信封的 request_id 兜底是 `getattr(request.state, \"request_id\", None) or str(uuid.uuid4())` ⇒ **中间件没写 state.request_id 时**（非 `/api/v1/ai` 前缀的路径、或中间件未挂载的部署形态），调用方拿到的 request_id **永远查不到任何审计行** —— 而 SPEC 的整条链路（契约 D8）就是「调用方拿 request_id 去对审计行」。⚠️ 今天**不可达**：`AINotImplementedError` 只由 `/api/v1/ai/*` 的 5 个路由抛出，那条路径上中间件必然写过 state.request_id ⇒ 属**潜伏陷阱**（下一个在中间件之外抛 501 的端点会踩到）⇒ anchor 50，不进主 finding。",
+      "suggested_fix": "兜底改为 `or \"\"`（空串）并在信封里标注 request_id 缺失；或让 501 handler 在拿不到 state.request_id 时不返回 request_id 字段。"
+    },
+    {
+      "#": 29,
+      "title": "The AI audit prefix match has no path boundary — over-captures /api/v1/ai* neighbours",
+      "severity": "P3",
+      "confidence": 50,
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 44,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": [
+        "hermes-third-perspective"
+      ],
+      "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:44 -- AI_PATH_PREFIX = \"/api/v1/ai\"",
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:44 -- AI_PATH_PREFIX = \"/api/v1/ai\"",
+        "pcs-backend/app/core/ai_audit_middleware.py:149 -- if scope.get(\"type\") != \"http\" or not str(scope.get(\"path\", \"\")).startswith("
+      ],
+      "why_it_matters": "审计中间件用 `startswith(\"/api/v1/ai\")` 判定是否审计 ⇒ **没有路径边界** ⇒ `/api/v1/ai-anything`、`/api/v1/aiary` 这类邻居路径会被**一并纳入审计**（多出审计行、且其 body 也会被脱敏+哈希）。⚠️ 今天**不可达**：AI 路由全部挂在 `/ai` 前缀下（`/api/v1/ai/intent` 等），仓库里没有第二个 `/api/v1/ai*` 路径 ⇒ anchor 50，不进主 finding。",
+      "suggested_fix": "把前缀改成 `\"/api/v1/ai/\"`（带尾斜杠）或用 `path == prefix or path.startswith(prefix + \"/\")` 判定。"
+    }
+  ],
+  "not_selected_report_only": []
+}

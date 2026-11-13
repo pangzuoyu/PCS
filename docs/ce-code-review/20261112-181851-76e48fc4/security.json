@@ -1,0 +1,82 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "title": "`--reset` deletes users rows the script never created",
+      "severity": "P1",
+      "file": "pcs-backend/scripts/seed_e2e_data.py",
+      "line": 94,
+      "why_it_matters": "Running `seed_e2e_data.py --reset` on a dev/test database deletes the `users` rows for alice/bob/carol/dan even when those rows were created by a real LDAP login, not by this script — the script creates them only when missing (`if existing is None:` at line 163) but deletes them unconditionally by derived id. Because `user_id` is `uuid5(NAMESPACE_DNS, username)`, the seed id and the real-account id are the same value, so a real account's `roles`, `status` and `token_version` (the revocation counter) are wiped, and any `user_projects` grant for those users in other projects is removed as well (`user_projects.user_id` is `ForeignKey(\"users.user_id\", ondelete=\"CASCADE\")`). Worst case: a DISABLED account is silently re-enabled — the login path rejects a disabled user only because the row says DISABLED (`if row is not None and is_disabled_status(row.status)`), and once the row is gone the next login recreates it with `status=UserStatus.ACTIVE.value`. This directly contradicts the script's own stated contract (\"只删自己造的 —— `--reset` 按固定 UUID 列表筛，不碰业务数据\") and the batch's must-not-regress rule 6.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_data.py:94 --     await db.execute(delete(User).where(User.user_id.in_(user_ids)))",
+        "pcs-backend/scripts/seed_e2e_data.py:163 --         if existing is None:",
+        "pcs-backend/scripts/seed_e2e_data.py:16 -- 3. **只删自己造的** —— `--reset` 按固定 UUID 列表筛，不碰业务数据。",
+        "pcs-backend/app/services/token_issuer.py:83 --     user_id = derive_user_id(username)",
+        "pcs-backend/app/services/token_issuer.py:100 --     if row is not None and is_disabled_status(row.status):",
+        "pcs-backend/app/services/token_issuer.py:147 --             status=UserStatus.ACTIVE.value,",
+        "pcs-backend/app/models/project.py:200 --         ForeignKey(\"users.user_id\", ondelete=\"CASCADE\"), nullable=False,",
+        "pcs-backend/tests/scripts/test_seed_e2e_data.py:51 -- async def test_reset_only_deletes_our_own_rows(db_session) -> None: (only checks an external Workspace survives — no coverage for an externally created `users` row with the same derived id)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Drop the `delete(User)` statement from `_delete_own_rows` — `_ensure_users` is already idempotent (it skips an existing row), so deleting the users rows is unnecessary for idempotency and is the only destructive part of `--reset`. If user rows must be reset too, restrict the delete to rows this script actually created (e.g. `roles == []` AND `token_version == MOCK_TV_SENTINEL`, the mock sentinel) instead of the bare derived ids. Add a regression test that creates a `users` row with the alice derived id but a non-empty `roles`/DISABLED status, runs `seed(db, reset=True)`, and asserts the row survives unchanged (mirroring the existing `test_reset_only_deletes_our_own_rows` shape, which currently only covers `Workspace`)."
+    },
+    {
+      "title": "Audit digest bypasses the sanitizer on non-UTF-8 bodies",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/ai_sanitizer.py",
+      "line": 120,
+      "why_it_matters": "`hash_sanitized` is documented as the hash of the *sanitized* body so the audit column never becomes a deterministic function of the raw payload (the M-1 fix). But when the body is not valid UTF-8 the code falls back to `canonical = body` — the raw bytes — so the sanitizer is skipped entirely for that input class. Any client (the audit middleware reads the body before authentication) can push a request down this branch by appending a single invalid byte, which turns the stored digest back into a hash of the unsanitized payload and breaks the \"same sanitized content ⇒ same digest\" invariant for those rows. The fallback is deliberate in the docstring, so this is filed as advisory rather than as a blocking defect: the practical impact is limited to audit-table readers who already hold privileged DB access.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/core/ai_sanitizer.py:120 --         canonical = body",
+        "pcs-backend/app/core/ai_sanitizer.py:118 --         text = body.decode(\"utf-8\")",
+        "pcs-backend/app/core/ai_sanitizer.py:109 --     ⚠️ **哈希的是「脱敏后」的载荷**（2026-11-12 评审 M-1）：列的语义是"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Replace the raw-bytes fallback with a lossy decode so the text sanitizer always runs: `text = body.decode(\"utf-8\", errors=\"replace\")` (drop the `except UnicodeDecodeError` branch entirely) — replacement characters then flow through `_sanitize_text`/`sanitize_for_ai` exactly like any other non-UTF-8 byte, and the digest stays a function of the sanitized content. Add a test that hashes a body containing an invalid UTF-8 byte and asserts it equals the digest of the same body with the byte replaced by U+FFFD (i.e. that the raw bytes are not hashed verbatim)."
+    },
+    {
+      "title": "Anonymous `/health/ai` exposes AI deployment state",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/health.py",
+      "line": 110,
+      "why_it_matters": "`GET /api/v1/health/ai` has no `current_actor` dependency, so any anonymous caller can read the deployment's AI configuration state: whether the AI feature is enabled, whether an internal endpoint and internal CIDRs are configured, and — via the `reason` enum — whether the configured endpoint is a domain or an IP literal that falls outside the allowed internal ranges (`endpoint_is_domain_not_verified` vs `endpoint_not_in_cidrs`). That is reconnaissance about internal AI infrastructure to an unauthenticated party, and it contradicts SPEC §3.1.1, which places the service-status surface with administrators (\"系统状态页 …（管理员使用）\"). The leak is limited to booleans and a status enum — the endpoint value, the CIDR list and the IP itself are never returned — and the repo convention is that health endpoints are anonymous for probes, so this is filed as advisory rather than as a blocking gap. The decision (probe-friendly anonymous status vs. admin-gated) belongs to the owners of the health contract.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/api/v1/health.py:110 -- @router.get(\"/health/ai\", response_model=HealthAIResponse)",
+        "pcs-backend/app/api/v1/health.py:112 --     db: Annotated[AsyncSession, Depends(get_db)],",
+        "pcs-backend/app/api/v1/health.py:146 --         ai_enabled = bool(await get_setting_value(db, \"ai_enabled\", default=False))",
+        "pcs-backend/app/api/v1/health.py:147 --         endpoint = (await get_setting_value(db, \"ai_endpoint\", default=None)) or (",
+        "pcs-backend/app/api/v1/health.py:90 -- _REASON_DOMAIN = \"endpoint_is_domain_not_verified\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "If `/health/ai` must stay probe-friendly, drop the configuration booleans from the response body and keep only a coarse `status` (e.g. `ok` / `not_configured` / `degraded`), moving `ai_enabled` / `endpoint_configured` / `cidrs_configured` / `reason` to the admin-only surface (`/api/v1/system-settings`, already gated by `require_roles(actor, \"SYSTEM_ADMIN\")` in `app/api/v1/system_settings.py:37`). If the endpoint is meant to be an admin status page rather than a probe, add `actor: Annotated[_Actor, Depends(current_actor)]` plus `require_roles(actor, \"SYSTEM_ADMIN\")` and keep the body as-is. Either way, pin the chosen posture in a test so the decision is not silently reversed."
+    }
+  ],
+  "residual_risks": [
+    "Pre-auth body read (accepted tradeoff, not filed): `app/core/ai_audit_middleware.py:162` (`body = await _read_body(receive)`) reads the request body before any authentication runs, so an anonymous client can force the server to hold up to 10 MB (the M-5 cap) per in-flight request. The cap bounds the app-side copy only; uvicorn buffers the request body itself, so peak memory is still body-size + ~2x10 MB, and concurrency on /api/v1/ai/* is unbounded with no rate limit. The cap is an explicit adjudicated fix (M-5) and uvicorn-level buffering is pre-existing for every endpoint, so this is recorded rather than reported.",
+    "Audit amplification (by design, worth a rate-limit decision): every request whose path starts with /api/v1/ai produces one ARQ job plus one `ai_audit_log` row — including unauthenticated probes (contract 2 demands auth failures be recorded) and CORS preflights, since `AIAuditMiddleware` is registered outside `CORSMiddleware` and therefore sees preflight OPTIONS requests. An anonymous client can therefore grow both the Redis queue and the audit table without holding any credential. This follows from an explicit requirement, so it is a residual risk rather than a defect.",
+    "SSRF gate is sound today but time-of-check-to-time-of-use: `app/core/ai_cidr.py:130` resolves the endpoint hostname at call time, while a future HTTP client would resolve it again at connect time, so a hostname that answers with an internal IP during validation and a public IP at connect would pass the gate. Not exploitable in P10 (`OutboundAIClient.call` raises `AINotImplementedError` before any request is made), but the gate must be re-checked or the resolved IP pinned when the real call is implemented. Parsing itself was checked and is fail-closed: `host_of` uses `urlparse(...).hostname` (userinfo stripped, IPv6 literals handled), literal IPs skip DNS, address-family mismatches are skipped rather than raising, and any resolved IP outside the CIDRs causes rejection.",
+    "Unsanitized client-controlled text in the audit trail: `app/core/ai_audit_middleware.py:207` stores the request path verbatim (`endpoint=str(scope.get(\"path\", \"\"))`, truncated to 200 chars by the writer) with no sanitization. Uvicorn percent-decodes the path, so an anonymous client can place arbitrary text — including `%0A` newlines — into the `endpoint` column of the audit table. Bounded to 200 characters and never used in a query, but it is unsanitized attacker-controlled text inside an audit table, and the sanitizer is not applied to it.",
+    "Token-type divergence between the audit middleware and the app: the middleware derives the audit `user_id` via `decode_token` directly (`app/core/ai_audit_middleware.py:73`) and therefore accepts a refresh token, while the application's own `_decode_bearer` rejects any token whose `type` is not `access` (`app/api/v1/auth.py:143`). The resulting audit row (401) is still attributed to the refresh token's legitimate owner, so this is not a forged attribution, but the two layers disagree on what a bearer token is. Forged/garbage tokens cannot produce a false attribution: `decode_token` verifies the HS256 signature (`app/core/security.py:135`), so an invalid token raises and the middleware records `user_id=None`.",
+    "The internal-only AI gate is currently unreachable from the request path: the five AI routes raise `AINotImplementedError` directly and never construct `OutboundAIClient`, so the CIDR validation in `outbound_ai_client.call` never runs in production traffic — the gate is defense-in-depth for a later batch. `ai_endpoint` is admin-writable only (`require_roles(actor, \"SYSTEM_ADMIN\")` in `app/api/v1/system_settings.py:52`), so a normal user cannot steer it.",
+    "Seed UUIDs are publicly derivable: `SEED_PROJECT_ID`, the workspace id and the four user ids are `uuid5(NAMESPACE_DNS, <well-known string>)` and therefore computable from the source tree. No credential is embedded and every seeded route still requires an authenticated, authorized user, so this does not grant access on its own; it only matters where mock login is enabled, which is already a dev-only opt-in gated by `PCS_ENABLE_MOCK_LOGIN` plus a production start-up assertion."
+  ],
+  "testing_gaps": [
+    "No test asserts that `--reset` leaves an externally created `users` row (same derived id, non-empty roles or DISABLED status) intact. `tests/scripts/test_seed_e2e_data.py::test_reset_only_deletes_our_own_rows` only checks that an unrelated `Workspace` survives, so the users-deletion half of the \"只删自己造的\" contract is unverified.",
+    "No test covers the non-UTF-8 branch of `hash_sanitized` (`except UnicodeDecodeError: canonical = body`); `tests/core/test_ai_sanitizer.py` only exercises UTF-8 JSON and text, so the raw-bytes fallback that bypasses the sanitizer is invisible to the suite.",
+    "No test pins the authentication posture of the new `GET /api/v1/health/ai` endpoint (anonymous probe vs. admin-only). `tests/api/v1/test_health_ai.py` asserts the response shape only, so the decision can be flipped silently in either direction.",
+    "No test asserts that a forged or garbage `Authorization` header yields `user_id=None` in the AI audit row (the `_extract_user_id` failure path in `app/core/ai_audit_middleware.py:60`). The behaviour is currently correct because `decode_token` verifies the signature, but nothing pins it — a future change that relaxes token decoding would silently make audit attribution forgeable.",
+    "No test exercises the audit path with a client-supplied path longer than the 200-char `endpoint` column together with a body over `MAX_HASH_BYTES` (1 MB), i.e. the combination where the writer truncates one column and skips the hash column; the PG lane covers the long `X-Request-ID` case only."
+  ]
+}

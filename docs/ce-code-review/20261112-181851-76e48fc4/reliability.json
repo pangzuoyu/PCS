@@ -1,0 +1,121 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "AI 审计写库失败被吞掉，ARQ 从不重试 ⇒ 审计行永久丢失",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 176,
+      "why_it_matters": "当 ARQ worker 写 `ai_audit_log` 时数据库瞬时失败（死锁、连接被重置、PG 主备切换、语句超时），任务会记录一条 WARNING 然后 `return` —— 对 ARQ 而言这是**成功完成**，job 被标记为 done 并从队列移除，**没有任何重试**。结果是这一条 AI 审计行**永久消失**，而调用方（探测者、客户端、甚至一次认证失败的请求）完全无感：请求早已返回 501/401，审计表却对它完全失明 —— 而「审计表在系统出问题时恰好失明」正是审计要防的事。本仓自己写明「arq 0.28 只对 `Retry` 异常重试」（见 `report_tasks.py:204-208` 的注释与 `worker.py:48` 的 `MAX_TRIES = 3`），并且在报表任务里给出了标准处置：`report_tasks.py:212-214` 的 `if attempt_no < MAX_TRIES: raise Retry(defer=RETRY_DEFER_S) from e`。任务里的注释「审计失败不该让 job 反复重试」把「不要拖死业务请求」和「不要重试」混成了一件事：到这个阶段**业务请求早已结束**，重试不会影响任何请求；而审计写入本身按 `request_id` 幂等（PG 走 `ON CONFLICT ... DO NOTHING`），重试不会产生重复行。改成有界重试既符合本仓既有模式，也不会带来重试风暴。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:176 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试",
+        "pcs-backend/app/workers/ai_audit_tasks.py:179 -- return",
+        "pcs-backend/app/workers/ai_audit_tasks.py:178 -- logger.warning(\"写 AI 审计行失败（已降级）\", exc_info=True)",
+        "pcs-backend/app/workers/report_tasks.py:204 -- # ⚠️ **ARQ 0.28 不会因为普通异常重试**（`arq/worker.py:612-637`",
+        "pcs-backend/app/workers/report_tasks.py:212 -- if attempt_no < MAX_TRIES:",
+        "pcs-backend/app/workers/report_tasks.py:213 -- raise Retry(defer=RETRY_DEFER_S) from e",
+        "pcs-backend/app/workers/worker.py:237 -- max_tries = MAX_TRIES      # 见模块顶部 MAX_TRIES"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 `write_ai_audit_log` 里复刻 `report_tasks.generate_report_task` 的有界重试：读 `attempt_no = int(ctx.get(\"job_try\") or 1)`（ARQ 注入，与 report_tasks 同口径）；把 `except Exception` 分支改为 `await session.rollback()` → `logger.warning(...)` → `if attempt_no < MAX_TRIES: raise Retry(defer=RETRY_DEFER_S) from exc` → 否则 `return`。`MAX_TRIES` / `RETRY_DEFER_S` 必须**在函数体内**从 `app.workers.worker` import（`worker.py` 在模块级 import 本模块，直接顶层 import 会成环 —— 与 `report_tasks.py:141` 的写法一致）。同时保留现有的 `except IntegrityError` 分支（并发下另一个 worker 已插入 = 幂等，不重试）。补一条用例：注入一次写失败，断言 job 抛 `Retry` 且重试后行落库（真 PG 车道 `tests/services/ai/test_ai_audit_task_pg.py` 更合适）。"
+    },
+    {
+      "title": "真后端 E2E 通道连的库与 compose 迁移/播种的库不是同一个",
+      "severity": "P1",
+      "file": "README.md",
+      "line": 151,
+      "why_it_matters": "README 教人起真后端 E2E 时，先跑 compose 测试栈（`migrate` + `seed`，两者都连 `postgres-pgtest` 的 `pcs_pgtest` 库），再起后端 —— 但起后端的那条命令**没有设 `DATABASE_URL`**，于是后端读宿主机的 `pcs-backend/.env`（指向开发库 `pcs`，见 CLAUDE.md「`.env` 的 `DATABASE_URL` 指向 `pcs`」与 `config.py:43` 的默认值），**不是**刚刚迁移并播种过的那个库。后果是这条「真后端」通道可以在**完全没有用到被 seed 的数据**的情况下变绿：冒烟用例只断言「登录成功 + 仪表盘标题可见 + 控制台无 error」，从不断言任何一条种子数据 ⇒ 一个坏掉的 `migrate` 服务、一个在 PG 上炸掉的 seed 脚本、或 pgtest 库里缺失的 `UserProject` 授权行（授权行缺失时项目守卫返回的 404 与「资源不存在」逐字同形，极难定位）都不会让通道变红。P10-B 的 18 个场景要断言种子项目/物流，届时按 README 跑会连到**没播种过的开发库**（数据 404），排查方向会被引向业务代码，而真正的根因是「测试栈和被测对象不是同一个库」；更糟的「修法」是往开发库里灌种子数据 —— 那正是 CLAUDE.md 里明令禁止的污染。",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "README.md:151 -- cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000",
+        "README.md:141 -- # ① 测试栈（postgres-pgtest + migrate + seed 三个一次性任务；连的是 pcs_pgtest 库）",
+        "README.md:134 -- | **真后端** | `npm run e2e:real` | 5174 | **关** | **是**（+ 库 + 种子数据） |",
+        "docker-compose.yml:118 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest",
+        "pcs-frontend/e2e/real_backend_smoke.spec.ts:23 -- await expect(realPage.getByRole('heading', { name: '仪表盘' })).toBeVisible();",
+        "pcs-backend/app/core/config.py:43 -- database_url: str = \"postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs\""
+      ],
+      "pre_existing": false,
+      "suggested_fix": "两处对齐，缺一不可：(a) README 第 ② 步让后端连**与 compose 同一个库** —— `cd pcs-backend && DATABASE_URL=\"postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@localhost:5433/pcs_pgtest\" PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000`（`postgres-pgtest` 对宿主发布 5433，见 docker-compose.yml:32；口令用 shell 变量插值，勿写死在命令里）；(b) 给 `e2e/real_backend_smoke.spec.ts` 加一条**种子数据断言**（例如进入物流列表后能读到种子管段 `E2E-S-001`，或断言种子项目 `E2E Seed Project` 可见），使通道在没有播种数据时必然变红。若运维上更希望后端跑在 compose 里，则改为给 compose test profile 加一个 `backend` 服务并把 `VITE_API_PROXY_TARGET` 指向它 —— 但要保证它与 `migrate`/`seed` 用同一个 `DATABASE_URL`。"
+    },
+    {
+      "title": "审计入队在请求的 finally 里 await ⇒ Redis 故障时每个 AI 请求钉住连接约 10 秒",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 180,
+      "why_it_matters": "中间件在 `finally` 块里 `await self._record_audit(...)`，而 `_record_audit` 会走到 `arq.create_pool` —— ARQ 0.28 的 `create_pool` 在连不上时会**重试 `conn_retries`（默认 5）次、每次间隔 `conn_retry_delay`（1 秒）、单次连接超时 `conn_timeout`（1 秒）**，最坏约 6×(1s 连接 + 1s 间隔) ≈ 10 秒。而 ASGI 应用在 `finally` 结束前不会返回 ⇒ uvicorn 无法回收/复用这条 HTTP 连接（响应字节虽已写出，但连接要等 10 秒才归还）。也就是说 Redis 一挂，**每一个 `/api/v1/ai/*` 请求都会把连接钉住约 10 秒**，吞吐被旁路审计拖垮；P10-B 接上真实 AI 端点后这条路径的 QPS 会比现在的 501 占位高一个量级。审计是旁路，本不该有能力占住业务请求的连接 —— 这里缺的是一个显式的超时/快速失败边界（bulkhead）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:180 -- await self._record_audit(",
+        "pcs-backend/app/core/ai_audit_middleware.py:176 -- finally:",
+        "pcs-backend/app/services/ai/arq_queue.py:64 -- pool = await _create_pool()",
+        "pcs-backend/app/services/ai/arq_queue.py:34 -- return await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+        "arq/connections.py:283 -- if retry < settings.conn_retries:",
+        "arq/connections.py:257 -- socket_connect_timeout=settings.conn_timeout,",
+        "arq/connections.py:44 -- conn_timeout: int = 1"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "给这条旁路加两道边界：(1) 在 `_record_audit` 里用 `asyncio.wait_for(enqueue_ai_audit_log(...), timeout=2)`（超时按「审计失败」降级并记 warning，与现有 `except Exception` 语义一致）；(2) 在 `arq_queue._create_pool` 里用 `RedisSettings.from_dsn(url)` 后显式设 `conn_retries=0`（快速失败，一次 1 秒连接超时即可），避免 ARQ 默认的 5 次重试把单次请求拖成 10 秒。若要彻底解耦，可把入队动作 `asyncio.create_task` 到请求之外，但那样会改变「请求结束前一定已入队」的语义，需先裁决。"
+    },
+    {
+      "title": "compose test profile 的守卫只解析 YAML，从不真跑 migrate/seed",
+      "severity": "P2",
+      "file": "pcs-backend/tests/scripts/test_compose_test_profile.py",
+      "line": 32,
+      "why_it_matters": "这个守卫的唯一手段是 `yaml.safe_load` 后断言 compose 文件**写了什么**（profile 名、卷、命令字符串、depends_on 条件、DATABASE_URL 字符串），它**从不执行** `docker compose --profile test run --rm migrate` / `seed`。于是它可以在真实栈完全坏掉的情况下保持全绿：`alembic upgrade head` 在 pgtest 库上失败、seed 脚本在 PG 上抛异常、容器里 `uv run --frozen` 建 venv 失败（首次运行要联网）—— 这些都只发生在 `docker compose` 里，测试一个也看不见。这就是「守门跑在跟被保护对象不同的上下文里」造成的静默放行：绿灯并不代表被保护的那条命令还能跑。账簿里记录的是**人工**实跑过一次（`同一条命令对 pcs_pgtest 实测 ⇒ p10_001 (head)`），但那是手工证据，不会随仓库分发，也不会在下次改动后重跑。",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/scripts/test_compose_test_profile.py:32 -- return yaml.safe_load(COMPOSE_FILE.read_text(encoding=\"utf-8\"))",
+        "docker-compose.yml:113 -- command: [\"uv\", \"run\", \"--frozen\", \"alembic\", \"upgrade\", \"head\"]",
+        "docker-compose.yml:132 -- command: [\"uv\", \"run\", \"--frozen\", \"python\", \"scripts/seed_e2e_data.py\"]",
+        ".superpowers/sdd/2026-11-04-p10-batch-a-preflight-ai-reserve/progress.md:254 -- ⇒ **同一条命令**对 `pcs_pgtest` 实测 ⇒ `p10_001 (head)`。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "给这条守门补一个**执行级**的同源用例：新增 `scripts/compose_test_stack.sh`（幂等），按 README 的顺序跑 `docker compose --profile test up -d postgres-pgtest` → `run --rm migrate` → `run --rm seed`，并在脚本末尾**直查库**断言 `alembic_version == p10_001` 与种子行存在（项目/物流/`user_projects` 各 ≥1），任一步非零退出即失败。再在 `tests/alembic/` 或新的 `tests/scripts/test_compose_test_profile_pg.py` 里以 `pg` marker 断言该脚本的退出码（pg marker 只能经 `scripts/pytest_pg.sh` 跑，符合仓内既有入口约定），并把这条命令写进发布前检查清单。"
+    },
+    {
+      "title": "/api/v1/health/ai 的 host 解析在 try 之外 ⇒ 畸形 endpoint 会 500 而不是降级",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/health.py",
+      "line": 179,
+      "why_it_matters": "健康端点自己承诺「**恒 200** —— 健康端点的职责是**报告**，不是**拒绝**」，并且对 CIDR 非法、读不到系统参数两种依赖失效都做了降级。但 `host_of(endpoint)` 这一步被留在了所有 `try` 之外：`urllib.parse.urlparse` 对带方括号但没闭合的 IPv6 主机名（如管理员在参数页里手输 `http://[::1`）会抛 `ValueError(\"Invalid IPv6 URL\")`，`ai_cidr.host_of` 不捕获 ⇒ `/api/v1/health/ai` 返回 500 而不是 `degraded`。一旦有探针（或 K8s liveness）指向这个端点，一个手滑的配置值就能变成重启循环/告警风暴，而且症状（500）与「AI 还没上线」长得完全不一样。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/health.py:179 -- host = host_of(endpoint)",
+        "pcs-backend/app/core/ai_cidr.py:93 -- parsed = urlparse(raw)",
+        "pcs-backend/app/api/v1/health.py:139 -- except RuntimeError:",
+        "pcs-backend/app/api/v1/health.py:150 -- except Exception:  # noqa: BLE001 — 读不到参数不该让健康端点崩"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 host 提取纳入降级路径：在 `health_ai` 里用 `try: host = host_of(endpoint) except ValueError: host = \"\"`（`urlparse` 对畸形 IPv6 抛的是 `ValueError`），并按现有 reason 常量的写法新增 `_REASON_ENDPOINT_INVALID = \"endpoint_invalid\"`，返回 `status=\"degraded\"`；或者更彻底一点 —— 让 `ai_cidr.host_of` 自己在畸形输入时返回 `\"\"`（`resolve_ai_endpoint_ips` 已有「host 为空 ⇒ RuntimeError」的处置口径，`host_of` 返回空串与它一致）。补一条用例：把 `ai_endpoint` 设成 `http://[::1` ⇒ 断言 200 且 `status == \"degraded\"`。"
+    }
+  ],
+  "residual_risks": [
+    "Redis 整体不可用时，整条 AI 审计链静默失效：中间件入队失败只记一条 WARNING（无计数器、无告警），且 `enqueue_ai_audit_log` 的 False 返回值被 `_record_audit` 直接丢弃 ⇒ 运维无法从指标判断「审计表正在失明」。这是已裁决的「审计是旁路」设计（`arq_queue.py` 模块 docstring），但失败可观测性为零，是本次未发现可低成本补上的缺口。",
+    "AI 审计 job 与报表渲染 job 共用 ARQ 默认队列和同一组 4 个 worker 槽位（`worker.py`：`max_jobs = 4`、`job_timeout = 300`）⇒ 4 个长报表渲染占满槽位时，审计行会被压后数分钟；当前仓里没有独立 worker 的部署形态可利用（`worker.py:238-243` 的注释明确说部署形态未定），故未列为 finding。",
+    "启动期 AI 校验会对 endpoint 做 DNS 解析（`ai_cidr.resolve_ai_endpoint_ips`）⇒ DNS 抖动会让本可启动的服务 fail-closed 起不来（SPEC §2.5「私有化强制」的取舍），运维需知道这条启动期依赖；本次确认 `INTERNAL_CIDRS` 非法 ⇒ 启动即失败、`ai_enabled=true` 且 endpoint 不在内网 ⇒ 启动即失败，行为与意图一致。",
+    "未覆盖：`pcs-backend/app/core/outbound_ai_client.py` 的调用时二次校验、HTTP 超时与重试语义未逐行审（预算所限）；只确认了「启动时 + 调用时」两个校验点在代码中存在（`ai_cidr` 模块 docstring）。",
+    "未实跑：AI 审计写库在真 PG 上的 `ON CONFLICT ... index_where` 路径依赖 `tests/services/ai/test_ai_audit_task_pg.py`（pg 车道），本次未执行该车道；结论均来自读码与 ARQ 0.28 已安装源码（`pcs-backend/.venv/.../arq/connections.py`）。"
+  ],
+  "testing_gaps": [
+    "AI 审计写库失败路径无用例：没有测试断言「DB 写失败时 job 会重试、行最终仍能落库」——`tests/services/ai/test_ai_audit_task.py` 只覆盖幂等与超长截断，「吞掉即永久丢行」这条路径无人看守。",
+    "中间件的 Redis 故障路径无用例：没有测试断言「Redis 不可达时请求仍在可接受时间内返回」或「入队被显式超时切断」——`tests/api/v1/test_ai_audit_middleware.py` 只把入队函数替换成可控替身，成功/失败两种返回值都没有时间维度的断言。",
+    "compose test profile 无执行级用例：`tests/scripts/test_compose_test_profile.py` 只解析 YAML ⇒ migrate/seed 从未被真正执行过（无 `alembic_version` 断言、无种子行断言）。",
+    "真后端 E2E 无种子数据断言：`e2e/real_backend_smoke.spec.ts` 只断言登录 + 仪表盘标题 + 控制台无 error ⇒ 无法发现「后端连的不是被 seed 的那个库」，通道可在被测库完全没数据时变绿。"
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "reviewer": "performance",
+  "findings": [
+    {
+      "title": "AI audit middleware buffers up to 10 MB of request body per *unauthenticated* request (≈20 MB peak, no aggregate bound)",
+      "severity": "P1",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 95,
+      "why_it_matters": "The audit middleware sits outside routing and therefore outside authentication, so any anonymous client can make the server hold its body in RAM before a single credential is checked. Per in-flight request the memory cost is roughly **2× the body**: the accumulating `chunks` list (~10 MB at the cap) plus the `b\"\".join(chunks)` copy (~10 MB) at the moment of the join, after which the joined copy stays alive for the whole downstream call (the replay closure and the `_record_audit(..., body=body)` argument both keep a reference). The `_MAX_BODY_BYTES` cap is a *per-request* cap, not an aggregate one, so N concurrent max-size uploads cost ~10·N MB resident (~20·N MB transient at the join): on a 512 MB worker roughly 25 concurrent 10 MB uploads to `/api/v1/ai/*` exhaust the process, and on a 1 GB worker roughly 50 do. The cap is also 3–4 orders of magnitude above any legitimate payload: the AI request schemas (`app/schemas/ai.py`) are small JSON objects (a free-text `text`, a `query`, a few optional strings), so nothing legitimate ever approaches 10 MB. Buffering the body before the 501 stub does its work is the wrong trade: the same information is already available from `Content-Length`.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:95 --     chunks: list[bytes] = []",
+        "pcs-backend/app/core/ai_audit_middleware.py:111 --     return b\"\".join(chunks)",
+        "pcs-backend/app/core/ai_audit_middleware.py:52 -- _MAX_BODY_BYTES = 10 * 1024 * 1024",
+        "pcs-backend/app/core/ai_audit_middleware.py:103 --             if total + len(chunk) > _MAX_BODY_BYTES:",
+        "pcs-backend/app/core/ai_audit_middleware.py:162 --         body = await _read_body(receive)",
+        "pcs-backend/app/core/ai_audit_middleware.py:175 --             await self.app(scope, _replay_receive(body), send_wrapper)",
+        "pcs-backend/app/core/ai_audit_middleware.py:175 -- the replay closure captures `body`, so the joined 10 MB copy stays resident for the whole downstream request",
+        "pcs-backend/app/main.py:245 --     app.add_middleware(AIAuditMiddleware)  # registered outside the router ⇒ outside the auth dependency `current_actor`",
+        "pcs-backend/app/schemas/ai.py:41 -- class AiIntentRequest(BaseModel):  # the AI request bodies are small JSON objects (text / query / optional context)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "In `pcs-backend/app/core/ai_audit_middleware.py`: (1) lower `_MAX_BODY_BYTES` from 10 MB to a size that matches the AI schemas — assume 256 KB is generous for a `text`/`query` payload and make it a settings-backed value so operators can raise it; (2) accumulate into a single `bytearray` (`buf.extend(chunk)`) and return `bytes(buf)` instead of a list + `b\"\".join(...)`, which removes the second full copy and halves peak memory; (3) before reading, inspect the `content-length` header and return 413 immediately when it exceeds the cap, so an oversized body is never buffered at all. Assumption: no legitimate AI request exceeds 256 KB — the schemas have no unbounded fields today, and `max_length` can be added to `AiIntentRequest.text` / `AiKnowledgeSearchRequest.query` in `app/schemas/ai.py` to make that guarantee explicit."
+    },
+    {
+      "title": "The EMAIL sanitizer pattern backtracks quadratically over the raw request body, on the event loop",
+      "severity": "P1",
+      "file": "pcs-backend/app/core/ai_sanitizer.py",
+      "line": 46,
+      "why_it_matters": "`_sanitize_text` runs five regexes over the *entire* request body, and the EMAIL rule is an unanchored `X+@…` pattern: the greedy `[A-Za-z0-9._%+-]+` consumes the rest of the string, the following literal `@` never matches, and the engine then retries the tail once per consumed character **at every start offset** — i.e. O(n²) backtracking on a string that contains no `@`. The body is sanitized either as raw text (when JSON parsing fails) or per string value (when it succeeds), so a single request whose payload is a long run of `x`/`a` characters — inside `{\"text\": \"…\"}` or as a non-JSON body — drives the sanitizer into the quadratic regime. The audit hash is computed for every body up to 1 MB (`MAX_HASH_BYTES`), which is exactly the window where this bites: the existing tests sit just *outside* it (1 MB + 1024 and 10 MB + 1024 are both “too big to hash”). Because `_sanitize_text` is a plain synchronous call inside the async middleware, the cost lands on the single event-loop thread, so one such request stalls every other request handled by that worker — no `await` point is reached while the regex runs. The other four patterns are linear and unaffected.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_sanitizer.py:46 --     (re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\"), \"[EMAIL]\"),",
+        "pcs-backend/app/core/ai_sanitizer.py:74 --     for pattern, replacement in SENSITIVE_PATTERNS:",
+        "pcs-backend/app/core/ai_sanitizer.py:75 --         text = pattern.sub(replacement, text)",
+        "pcs-backend/app/core/ai_sanitizer.py:125 --             canonical = _sanitize_text(text).encode(\"utf-8\")",
+        "pcs-backend/app/core/ai_sanitizer.py:92 --             _sanitize_text(key) if isinstance(key, str) else key: sanitize_for_ai(item)",
+        "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+        "pcs-backend/app/core/ai_audit_middleware.py:47 -- MAX_HASH_BYTES = 1024 * 1024  # the quadratic window is exactly the bodies that DO get hashed",
+        "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:199 --     big = \"x\" * (MAX_HASH_BYTES + 1024)  # the only large-body test sits above the hashing window"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Bound the greedy quantifiers in the EMAIL rule so a single start offset can only do a constant amount of work, e.g. `re.compile(r\"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,24}\")` — with bounded repeats the scan becomes linear in the body length instead of quadratic, and 64/255 are the RFC 5321 limits so no realistic address is lost. Independently, cap the number of characters `_sanitize_text` scans per string (truncate the scanned prefix, e.g. first 64 KB per string) so the audit hash cost is bounded regardless of pattern shape. Note: I could not execute a benchmark in this review environment (no shell), so the quadratic claim is derived from the pattern shape (unanchored search + greedy `+` followed by a literal that cannot match) rather than measured — the bounded-quantifier change is safe to apply either way."
+    },
+    {
+      "title": "Audit hash (JSON parse → recursive sanitize → re-serialize → sha256) is computed synchronously on the event loop for every AI request",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 202,
+      "why_it_matters": "The audit middleware is pure ASGI and runs on the event loop; `hash_sanitized` is a plain synchronous function, so its whole cost is paid by the loop thread with no `await` in between. For a 1 MB body that is a `json.loads` (building a Python object graph several times larger than the payload), a recursive walk applying five regexes to every string, a canonical `json.dumps` re-serialization and a sha256 — tens of milliseconds of pure CPU per request, all of it head-of-line blocking for every other request that worker is concurrently serving. The cost is paid even though the AI endpoints are 501 stubs, i.e. the hash is the most expensive part of handling a request that does no work at all. This is also the code path the second finding's pathological input lands on.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+        "pcs-backend/app/core/ai_sanitizer.py:123 --             parsed = json.loads(text)",
+        "pcs-backend/app/core/ai_sanitizer.py:127 --             canonical = json.dumps(",
+        "pcs-backend/app/core/ai_sanitizer.py:133 --     return \"sha256:\" + hashlib.sha256(canonical).hexdigest()",
+        "pcs-backend/app/core/ai_audit_middleware.py:180 --             await self._record_audit(  # runs in the middleware's `finally`, i.e. inside the request's event-loop task"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Move the hash off the event loop with `await asyncio.to_thread(hash_sanitized, body)` in `AIAuditMiddleware._record_audit` (`pcs-backend/app/core/ai_audit_middleware.py:202`), so the CPU work runs in the default threadpool instead of blocking the loop. Keep the `len(body) <= MAX_HASH_BYTES` guard as-is. If the threadpool is a concern under load, lower `MAX_HASH_BYTES` in the same change."
+    },
+    {
+      "title": "Every AI request opens and tears down a fresh ARQ/Redis connection pool on the request path",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/ai/arq_queue.py",
+      "line": 64,
+      "why_it_matters": "`enqueue_ai_audit_log` builds a brand-new ARQ pool (TCP connect + AUTH against Redis) for every single audited request and closes it again in the `finally` block, so request N leaves behind N Redis connections' worth of handshake churn instead of reusing one pooled connection. The middleware calls this on every request to `/api/v1/ai/*` — including the 501 probes and the unauthorized probes — and it is awaited inside the request's `finally`, so the ASGI task (and with it the HTTP connection, for keep-alive clients) is not released until the Redis round-trip completes, even though the client has already received its response. The same create/close-per-call shape exists in `app/services/report/arq_queue.py`, but that path fires once per user-initiated long-running report job; here it is per request, on a path that is intended to become the hot AI path. The repo already has the process-level pattern this should follow: `app/services/broadcaster.py` and the WS registry keep a long-lived Redis connection and close it from the lifespan shutdown hook (`_close_redis_connections` in `app/main.py`).",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/ai/arq_queue.py:64 --         pool = await _create_pool()",
+        "pcs-backend/app/services/ai/arq_queue.py:34 --     return await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+        "pcs-backend/app/services/ai/arq_queue.py:72 --                 await pool.aclose()",
+        "pcs-backend/app/core/ai_audit_middleware.py:204 --             await enqueue_ai_audit_log(",
+        "pcs-backend/app/main.py:188 -- async def _close_redis_connections() -> None:  # the repo's existing process-level Redis-connection teardown hook"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Hold one lazily-created ARQ pool at module level in `pcs-backend/app/services/ai/arq_queue.py` (e.g. `_pool: ArqRedis | None` guarded by an `asyncio.Lock`), reuse it in `enqueue_ai_audit_log`, and close it from the existing lifespan shutdown hook `_close_redis_connections()` in `pcs-backend/app/main.py` (mirroring how the broadcaster and WS registry connections are closed). Keep the per-call fallback path so that a Redis outage at first use degrades to the current warning-and-return-False behaviour instead of raising at import/startup time."
+    },
+    {
+      "title": "Audit write issues a redundant SELECT before an already-idempotent INSERT (two DB round trips per audit row)",
+      "severity": "P3",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 163,
+      "why_it_matters": "Every audit row costs two database round trips: a SELECT by `request_id` to test existence, then the INSERT. On PostgreSQL the INSERT is already idempotent — `on_conflict_do_nothing(index_elements=[\"request_id\"], index_where=...)` against the partial unique index makes the duplicate case a no-op without raising — so the SELECT adds nothing but latency and load. The SELECT is only needed for the SQLite branch used by the unit tests, where `ON CONFLICT` is unavailable. The audit table grows by one row per AI request, so this is a per-request tax on the database rather than a one-off.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:163 --         existing = await _find_existing(session, str(request_id))",
+        "pcs-backend/app/workers/ai_audit_tasks.py:121 --             .on_conflict_do_nothing(",
+        "pcs-backend/app/workers/ai_audit_tasks.py:123 --                 index_where=text(\"request_id IS NOT NULL\"),",
+        "pcs-backend/app/workers/ai_audit_tasks.py:129 -- async def _find_existing(session: AsyncSession, request_id: str) -> Any:"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "In `pcs-backend/app/workers/ai_audit_tasks.py`, only run the existence SELECT on the non-PostgreSQL path: compute `is_postgres` (already done at line 167) before the lookup and skip `_find_existing` when it is true, letting `ON CONFLICT ... DO NOTHING` absorb the duplicate. Keep the SELECT for SQLite so the unit tests keep their current semantics. Verify with the existing real-PG suite `pcs-backend/tests/services/ai/test_ai_audit_task_pg.py` (the SQLite-only path must still be idempotent)."
+    }
+  ],
+  "residual_risks": [
+    "The read side of `ai_audit_log` does not exist in this batch, so the new indexes cannot be validated against real queries. The composite index `ix_ai_audit_log_endpoint_occurred_at (endpoint, occurred_at)` only pays off for queries that combine an endpoint with a time range, and `endpoint` has ~5 distinct values in P10; `user_id`, `client_request_id` and `status_code` have no index at all, so a future read endpoint filtering on them (e.g. \"my AI requests\", \"all 401 probes\") would seq-scan a table that grows by one row per AI request. Worth pinning the read query shape when the read API lands.",
+    "Verified in the installed uvicorn (`pcs-backend/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py:313-319`): `on_body` appends to `self.cycle.body` and calls `self.flow.pause_reading()` once the buffer exceeds `HIGH_WATER_LIMIT`, so the *unread remainder* of an oversized upload is not buffered by the server. That limits the blast radius of the truncation path, but it does not limit the 10 MB the middleware has already read and is holding.",
+    "The per-request body cap bounds per-request memory only. There is no aggregate bound on the AI path: no `limit_concurrency` for it, and no shared/worker-level body budget, so the number of concurrent max-size uploads is the only thing standing between an anonymous client and an OOM.",
+    "Reviewed and found no measurable performance issue: `pcs-backend/scripts/seed_e2e_data.py` (one-shot dev tool — fixed UUIDs, 4 users / 1 project / 2 streams, FK-ordered bulk deletes in a single commit); `pcs-frontend/src/main.tsx` (the mock gate is a static `import.meta.env` check executed once at bootstrap, outside the render path, and the MSW import is dynamic so it is tree-shaken from prod builds); `pcs-frontend/src/layouts/MainLayout.tsx` (the AI placeholder is one static disabled antd `Button` inside a `Tooltip` in the header — no per-render allocation beyond the usual antd elements).",
+    "Not reached within the review budget: the docker-compose `migrate`/`seed` one-shot services, `pcs-frontend/playwright.config.ts`, `pcs-backend/app/workers/worker.py` (ARQ `session_factory` injection and worker concurrency settings) and the generated OpenAPI/TypeScript diffs were not inspected for performance relevance."
+  ],
+  "testing_gaps": [
+    "No test exercises the sanitizer on adversarial content inside the hashing window. The two large-body tests (`test_large_body_is_not_hashed` uses 1 MB + 1024, `test_oversized_body_is_truncated_not_buffered` uses 10 MB + 1024) both sit *above* `MAX_HASH_BYTES`, so the ≤ 1 MB hashing path is never fed a body large enough to expose the regex cost. A test that posts a ~1 MB body of repeated characters and asserts the request completes within a small time budget would pin the behaviour that the second finding describes.",
+    "No test pins the middleware's aggregate memory behaviour — nothing posts N concurrent large bodies to `/api/v1/ai/*` to check that the per-request cap translates into a bounded total footprint.",
+    "No test observes the ARQ pool lifecycle: every middleware test monkeypatches `enqueue_ai_audit_log` outright (`pcs-backend/tests/api/v1/test_ai_audit_middleware.py`), so the per-request pool create/close churn in `app/services/ai/arq_queue.py` is invisible to the suite — a test asserting that N enqueues reuse a single pool (or a single Redis connection) would catch a regression here."
+  ]
+}

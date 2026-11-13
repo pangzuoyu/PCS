@@ -1,0 +1,239 @@
+{
+  "run_id": "20261112-181851-76e48fc4",
+  "run_dir": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4",
+  "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+  "docs_root": "docs",
+  "mode": {
+    "agent": false,
+    "apply_local": false,
+    "grouping": "auto",
+    "depth": "full"
+  },
+  "invocation": {
+    "arguments": "审查 P10-A 批次（3fae3f6..55239ff），报告落 docs/ce-code-review/；agent 分批派出以省 token 配额 → 追加：把报告发给 hermes 作第三视角对抗性审查，并把其产出折入报告（走第二轮独立验证）",
+    "constraints": [
+      "为防止token配额不够，agent分批派出（dispatch reviewers in batches rather than all at once）",
+      "报告放到项目目录（report must be written under the project directory, i.e. docs/ce-code-review/20261112-181851-76e48fc4/）",
+      "报告为 report-only：本次调用不含 apply:local，也不含任何「修复/应用这些 findings」的请求 ⇒ 不得修改任何项目文件"
+    ]
+  },
+  "scope": {
+    "mode": "local-aligned",
+    "base": "3fae3f6",
+    "diff_a": "3fae3f6",
+    "diff_b": null,
+    "pr": {
+      "number": null,
+      "url": null,
+      "title": null,
+      "body": null,
+      "base_ref_name": null,
+      "head_ref_oid": null,
+      "head_ref": null,
+      "base_ref": null,
+      "has_prior_comments": false
+    },
+    "branch": "main",
+    "head_sha": "55239ff",
+    "files": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/files.txt",
+    "diff": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/full.diff",
+    "tree_is_reviewed_head": true,
+    "untracked_excluded": [
+      "docs/ce-code-review/20261112-181851-76e48fc4/ — this review run's own artifacts (created by the orchestrator during this run; not part of the reviewed batch)"
+    ]
+  },
+  "intent": {
+    "summary": "P10-A 落地两段。段一（10.0 前置与测试左移）：compose 新增 test profile 下的一次性 migrate/seed 服务；幂等种子脚本（固定 UUID、--reset 只删自己、必须造 UserProject 授权行）；真后端 E2E 通道（VITE_ENABLE_MOCK=false 关 MSW + Playwright real-backend 项目 + gotoViaMenu SPA 导航 + 代理目标 env 可配 + mock-login 路径改写）。段二（10.1 AI 预留）：5 个一律 501 的 AI 端点；唯一出站出口 OutboundAIClient（内网 CIDR 二次校验 + 脱敏 + 审计）；纯 ASGI AI 审计中间件（认证失败也留痕、body 读后重放）；ARQ 异步审计任务（幂等、partial 唯一索引、ON CONFLICT index_where）；ai_audit_log 加 8 列 + 迁移 p10_001；/api/v1/health/ai；前端顶栏禁用的 AI 占位；架构守卫「AI SDK 只能从唯一出口出去」。\n\n必须不回归的契约（任何指向这些的 finding 若成立即是真实缺陷）：① 认证先于 501（无 token ⇒ 401）；② 认证失败也要有审计行（user_id=None）；③ body 重放（参数错是 422、不是 501）；④ 审计写入幂等且 partial 唯一索引必须与 ON CONFLICT 的 index_where 匹配（PG 方言专属，SQLite 单测照绿）；⑤ 审计行不得被客户端可控的超长字段静默丢弃；⑥ 种子脚本幂等、--reset 只删自己造的、必须建 UserProject 授权行（否则前端全站 404）；⑦ 架构守卫真的会红（绕过唯一出口 ⇒ 必须报）；⑧ 真后端 E2E 通道不得静默跑成 mock；⑨ 分层约束 core ⊄ api/models、services ⊄ api，op.create_index 必须带 if_not_exists=True。\n\n完整版（计划/规范指针、偏离登记说明、规模数据）：/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/intent.md",
+    "confidence": "explicit"
+  },
+  "plan": {
+    "path": "docs/superpowers/plans/2026-11-04-p10-batch-a-preflight-ai-reserve.md",
+    "source": "explicit",
+    "requirements": [
+      "10.0 前置与测试左移：compose test profile 的一次性 migrate/seed 服务；幂等种子脚本（固定 UUID、--reset 只删自己、必造 UserProject 授权行）；真后端 E2E 通道（MSW 可关、代理目标可配、mock-login 路径改写、SPA 菜单导航）",
+      "10.1 AI 预留：6 个 AI 配置键；internal_cidrs + 启动时校验；递归脱敏 + 规范化哈希（人名遮蔽默认关）；ai_audit_log 加 8 列 + 迁移 p10_001（partial 唯一索引、时间列复用 occurred_at）；AINotImplementedError + 501 专用信封；OutboundAIClient 唯一出口；5 个 AI 端点一律 501；ARQ 审计任务幂等；纯 ASGI 审计中间件（认证失败也留痕 + body 重放）；/api/v1/health/ai；顶栏 AI 占位（禁用 + 提示）；架构守卫",
+      "契约 R1 认证先于 501",
+      "契约 R2 认证失败也要落审计行",
+      "契约 R3 body 重放（422 vs 501 可区分）",
+      "契约 R4 审计写入幂等 + partial 索引与 ON CONFLICT index_where 匹配",
+      "契约 R5 审计行不得被超长客户端字段静默丢弃",
+      "契约 R6 种子幂等 + --reset 只删自己 + 必造 UserProject 授权行",
+      "契约 R7 架构守卫真的会红",
+      "契约 R8 真后端 E2E 通道不得静默跑成 mock",
+      "契约 R9 分层约束 + create_index(if_not_exists=True)",
+      "发布前检查口径：alembic check 两库各跑一次独立进程（pcs / pcs_test，exit 255 非 1）+ 直查库；scripts/pytest_pg.sh 唯一 PG 车道入口；裸载荷基线不涨；无遗留账号行"
+    ],
+    "implementation_units": [
+      "T1 前置扫描与契约固化",
+      "T2-T4 compose test profile 与 migrate/seed 服务",
+      "T5 内网 CIDR 校验（ai_cidr.py）",
+      "T6 递归脱敏与规范化哈希（ai_sanitizer.py）",
+      "T7 AI 配置键与启动时校验（config.py / main.py）",
+      "T8 唯一出站出口（outbound_ai_client.py）",
+      "T9 501 专用信封与错误处理（ai_errors.py / errors.py）",
+      "T10 ARQ 审计任务与幂等写入（arq_queue.py / ai_audit_tasks.py / worker.py）",
+      "T11 纯 ASGI 审计中间件（ai_audit_middleware.py）",
+      "T12 5 个 AI 端点与 schemas（api/v1/ai/routes.py / schemas/ai.py）",
+      "T13 /api/v1/health/ai 与前端 AI 占位",
+      "T14 架构守卫（tests/architecture/test_no_direct_ai_sdk.py）",
+      "T15 种子脚本与 E2E 通道收尾、契约滚动、账簿同步"
+    ],
+    "settled_decisions": [
+      "SPEC 版本：计划引用的「P10 SPEC V1.3.1」在仓库里不存在；仓库内的 P10 SPEC 实为 V1.0（= 偏离登记 D20）⇒ 以仓库实际文件为准",
+      "AI 端点数：SPEC 5 个 vs 计划 2 个 ⇒ 裁决取 5 个",
+      "501 专用信封：刻意不并入 ErrorResponse（独立信封，含 code/message/status/request_id），已由 D8 登记",
+      "AI 路由前缀：router prefix = /ai，挂在 api_router 的 /api/v1 之下 ⇒ 完整路径 /api/v1/ai/*",
+      "审计时间列：复用既有 occurred_at，不新增时间列",
+      "partial 唯一索引：ORM 与迁移都声明 postgresql_where；写入端必须同时给 ON CONFLICT 的 index_where（bug-2159 的根因修复）",
+      "中间件：纯 ASGI 而非 BaseHTTPMiddleware；body 必须重放",
+      "脱敏规则顺序：LINE_NO 必须先于 EQUIPMENT_TAG（否则 LINE_NO 是死规则）",
+      "人名遮蔽默认关，用标签锚定启发式而非「所有 2~4 字中文词」",
+      "vite proxy：mock-login 的真实路径是 /auth/mock-login（不在 /api/v1 下 · ADR-0046）⇒ proxy 里有一层改写",
+      "真后端 E2E：两个 webServer 各起各的（5173 mock / 5174 real，reuseExistingServer=false），代理目标不对时必须失败而不是假绿",
+      "AI 可选依赖（langchain/ollama/vllm）本批不加：uv lock 会连带升级默认环境的 numpy ⇒ 推迟到独立批次（D19 / TODO-146）",
+      "偏离登记 D1~D22 已回写 spec/P10 AI预留与测试部署开发规格说明书.md 第五部分 —— 登记在案的偏离是裁决，不是缺陷"
+    ]
+  },
+  "roster": {
+    "selected": [
+      {
+        "reviewer": "correctness",
+        "tier": "session",
+        "reason": "always-on"
+      },
+      {
+        "reviewer": "security",
+        "tier": "session",
+        "reason": "auth on 5 new AI endpoints, PII sanitization, internal-only AI egress, audit-trail attribution"
+      },
+      {
+        "reviewer": "adversarial",
+        "tier": "session",
+        "reason": "persistence writes + background job + silent-pass verification mechanisms (architecture guard, real-backend E2E channel, migration ratchet)"
+      },
+      {
+        "reviewer": "api-contract",
+        "tier": "mid",
+        "reason": "5 new routes/schemas, dedicated 501 envelope, regenerated OpenAPI + frontend snapshot/types"
+      },
+      {
+        "reviewer": "project-standards",
+        "tier": "mid",
+        "reason": "applicable criteria files found (repo CLAUDE.md, docs/PCS-UI-SPEC.md, P10 SPEC, .claude/rules/openwolf.md)"
+      },
+      {
+        "reviewer": "testing",
+        "tier": "mid",
+        "reason": "heavy test/infra change: compose test profile, seed script, PG lane, Playwright channels, architecture guard"
+      },
+      {
+        "reviewer": "maintainability",
+        "tier": "mid",
+        "reason": "2567 executable non-test lines; new modules across core/services/api/workers; duplicated facts across files"
+      },
+      {
+        "reviewer": "data-migration",
+        "tier": "mid",
+        "reason": "alembic/versions/p10_001_* + ORM column change (hard-block class hit)"
+      },
+      {
+        "reviewer": "reliability",
+        "tier": "mid",
+        "reason": "ARQ background job, error/degrade paths, timeouts, health endpoint, stand-in guard fidelity"
+      },
+      {
+        "reviewer": "performance",
+        "tier": "mid",
+        "reason": "unauthenticated pre-auth body buffering, sanitizer regex over arbitrary payloads, per-request Redis pool churn"
+      },
+      {
+        "reviewer": "learnings-researcher",
+        "tier": "mid",
+        "reason": "docs/solutions/ corpus exists with direct matches (ARQ silent failures, SQLite-vs-PG dialect, narrow VARCHAR declaration, one-shot guard defeat, migration test skipif-pg)"
+      }
+    ],
+    "standards": {
+      "criteria": [
+        "/home/pangzy/code_project/PCS/CLAUDE.md",
+        "/home/pangzy/code_project/PCS/docs/PCS-UI-SPEC.md",
+        "/home/pangzy/code_project/PCS/spec/P10 AI预留与测试部署开发规格说明书.md",
+        "/home/pangzy/code_project/PCS/.claude/rules/openwolf.md"
+      ],
+      "fallback_named": false,
+      "not_run_reason": null
+    },
+    "packs": {
+      "roots": [],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "collection": {
+    "returns": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/raw-returns.json",
+    "unstructured_returns": [
+      {
+        "reviewer": "learnings-researcher",
+        "path": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/learnings-researcher.md"
+      },
+      {
+        "reviewer": "hermes-third-perspective",
+        "path": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.md"
+      }
+    ],
+    "failed_reviewers": [],
+    "bound_exceeded": [],
+    "fast_pass": {
+      "emitted_preliminary": false,
+      "candidates": [
+        {
+          "title": "Unauthenticated pre-auth body buffering on the AI path",
+          "severity": "P2",
+          "file": "pcs-backend/app/core/ai_audit_middleware.py",
+          "line": 162,
+          "confidence": 50,
+          "autofix_class": "advisory",
+          "owner": "human",
+          "requires_verification": false,
+          "pre_existing": false,
+          "suggested_fix": "Cap the buffered body far below 10 MB (AI request bodies are small JSON) or reject on content-length before reading.",
+          "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:162 -- body = await _read_body(receive)"
+        }
+      ]
+    }
+  },
+  "peer": {
+    "selected": true,
+    "target": "hermes",
+    "route": "hermes-cli (local CLI; not the skill's sanctioned peer route)",
+    "preference_source": "user",
+    "outcome": "folded",
+    "artifact": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.json",
+    "coverage": "cross-model pass: folded in from an external cross-family review - hermes (model glm-5.2, provider Z.AI/GLM), driven through the local CLI because the skill's own cross-model worker recognises only codex/claude/grok/cursor/composer/opencode and none of them is installed on this host. It is NOT a peer receipt: no independence_verified flag exists for it, so its findings are attributed evidence and grant no cross-reviewer promotion. Its verdicts covered all 27 round-1 findings (26 confirmed, 1 rejected) and it contributed two new findings (#28, #29), one proposed severity re-grade (#4 P1->P0, which the round-2 independent validator refused, leaving #4 at P1) and two demotions (#2, #14); the three items whose status changed (#4, #28, #29) went through a second, independent validation batch, which confirmed all three and corrected two claims."
+  },
+  "coverage_notes": [
+    "scope: local-aligned — the working tree is the reviewed head (main @ 55239ff); reviewers read workspace paths directly. BASE 3fae3f6, 18 commits, 9059 changed lines / 2567 executable non-test lines, size_band=large, depth=full (migrations hard-block class hit).",
+    "untracked files excluded: docs/ce-code-review/20261112-181851-76e48fc4/ — this run's own artifacts, created during the run, not part of the reviewed batch.",
+    "project standards: run — criteria = repo CLAUDE.md, docs/PCS-UI-SPEC.md, spec/P10 AI预留与测试部署开发规格说明书.md, .claude/rules/openwolf.md (mapping in shared/standards-paths.md).",
+    "learnings corpus: docs/solutions/ (10 files) — no Compound Packs declared (packs-resolve.py returned an empty root list).",
+    "cross-model pass (round 1): not run — the skill's own worker recognises only codex/claude/grok/cursor/composer/opencode and none is installed on this host, so the adversarial lens ran in-process. Round 2 added an external cross-family adversarial review by hermes (glm-5.2, Z.AI/GLM) driven through the local CLI at the user's request.",
+    "no PR was associated with this batch; scope was a local commit range on main, so there are no prior review comments to fold in.",
+    "the batch's own deviation registry D1–D22 (spec/P10 …说明书.md 第五部分) and the execution ledger's Ruling lines record deliberate, already-adjudicated deviations — treat a divergence registered there as a decision, not a defect.",
+    "reviewers were dispatched in four batches (3 + 3 + 3 + 2) at the user's request to conserve token quota; every reviewer returned a terminal outcome and a schema-valid artifact, so failed_reviewers is empty.",
+    "round 2 (2026-11-12): an external cross-family adversarial review by hermes (glm-5.2, Z.AI/GLM) was folded in after the user asked for a third perspective. The working tree was byte-identical before and after the hermes run (git status --porcelain snapshot).",
+    "round 2: the report's round-1 wording for #7 ('has never been seen red') was corrected - the batch ledger records a manual negative control, so what is true is that no negative control ships with the repository.",
+    "round 2: #4 was re-measured through the production function hash_sanitized (80 KB -> 4.2 s, 320 KB -> 68 s of event-loop CPU, all inside the 1 MiB hashing window) and the 'cost was not measured' caveat was withdrawn. A P0 re-grade was then PROPOSED and the round-2 independent validator REFUSED it, grading #4 P1: the impact is availability-only (CVSS AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H = 7.5), and the sibling pre-auth resource findings on the identical request path (#3, #18) are already P1. #4 therefore stays P1 but keeps the first position in the fix queue.",
+    "round 2: #2 demoted P1 -> P2 and #14 demoted P2 -> P3; both demotions were challenged by the external reviewer and accepted after re-reading the code.",
+    "round 2: numbering is stable - the two new findings are appended as #28 and #29, nothing was renumbered, and the round-1 verdicts for the untouched findings remain valid.",
+    "round 2 validation: the validator also corrected two reachability claims in the reviewer's favour — #4's hashing surface is wider than stated (the prefix test runs BEFORE routing, so any /api/v1/ai/<anything>, even unrouted, has its body read and hashed), and #29's missing path boundary is exercisable today against unrouted neighbour paths, which raised #29 from anchor 50 to 75 (actionable P3)."
+  ],
+  "round2": {
+    "reason": "external cross-family adversarial review folded in (hermes)",
+    "validator_input": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/validator-input.round2.json",
+    "validator_verdicts": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/validator-verdicts.round2.json",
+    "validator_outcome": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/validator-outcome.round2.json",
+    "hermes_review": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.md",
+    "hermes_raw": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.raw.md",
+    "hermes_json": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/hermes-third-perspective.json",
+    "round1_report": "round-1 report text is preserved in report.round1.md (this run's report.md is the round-2 render)"
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "Audit column widths restated in three places",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 69,
+      "why_it_matters": "The write-boundary truncation limits are a hand-copy of the `ai_audit_log` column widths, which are themselves written out a second time in the ORM and a third time in the migration. If someone widens `client_request_id` (or `endpoint`) in the migration and the ORM, the worker's stale table keeps clipping the value before it reaches PostgreSQL: the audit row then stores a truncated request id with no error anywhere, and an incident reconstructed from that row points at the wrong identifier. The table is missing one entry in the opposite direction too - `operation` is `String(50)`/NOT NULL but has no entry, so an over-long operation value is passed to PostgreSQL un-truncated, hits `varchar(50)`, and the whole audit row is silently discarded - which is exactly the bug-2160 failure mode the table above was written to prevent.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Stop hand-copying the widths: read the limit from the ORM metadata at write time, e.g. `limit = getattr(AiAuditLog.__table__.c[column].type, \"length\", None)` inside `_row_values`, and apply the same truncation to `operation`. Keep `_MAX_LENGTHS` only if a column's write limit is intentionally narrower than its column width (in which case name it so the difference is explicit).",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:69 -- _MAX_LENGTHS: dict[str, int] = {",
+        "pcs-backend/app/workers/ai_audit_tasks.py:71 --     \"request_id\": 64,",
+        "pcs-backend/app/workers/ai_audit_tasks.py:58 -- #: **写入边界**的截断长度（与 `ai_audit_log` 的列宽逐字一致）。",
+        "pcs-backend/app/models/system.py:241 --     client_request_id: Mapped[str | None] = mapped_column(String(128))",
+        "pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py:50 --         sa.Column(\"client_request_id\", sa.String(128), nullable=True),"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Audit field names restated in four places, unknowns dropped",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 85,
+      "why_it_matters": "The middleware names the audit fields as keyword arguments, the worker accepts them as an untyped `**fields` bag and silently skips anything not in its own `_AUDIT_COLUMNS` tuple, and the same column set is written out again in the ORM and the migration. A rename or typo on either side therefore produces a NULL column and no error of any kind - the affected request simply leaves no trace of that field, and the audit table is precisely the artifact an operator reads when investigating what happened. Adding a new audit field needs four coordinated edits, and the failure mode of missing one is silence, not a failed test.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Introduce one shared typed shape for the audit record - e.g. a `TypedDict` `AiAuditFields` in `app/schemas/ai.py` (or `app/services/ai/`) listing request_id / client_request_id / endpoint / status_code / duration_ms / sanitized_request_hash / response_summary / model_version / user_id / operation - and annotate the worker as `write_ai_audit_log(ctx, **fields: Unpack[AiAuditFields])` so both ends are checked. In `_row_values`, replace the silent `continue` with an explicit warning (or raise) for keys outside the known set so a renamed field is loud instead of blank.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:85 --         if column not in fields:",
+        "pcs-backend/app/workers/ai_audit_tasks.py:47 -- _AUDIT_COLUMNS = (",
+        "pcs-backend/app/workers/ai_audit_tasks.py:147 -- async def write_ai_audit_log(ctx: dict, **fields: Any) -> None:",
+        "pcs-backend/app/core/ai_audit_middleware.py:214 --             operation=\"AI_REQUEST\",",
+        "pcs-backend/app/models/system.py:243 --     endpoint: Mapped[str | None] = mapped_column(String(200))"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "501 envelope literals restated across five modules",
+      "severity": "P2",
+      "file": "pcs-backend/app/schemas/ai.py",
+      "line": 101,
+      "why_it_matters": "The error code, the Chinese message, the `status` discriminator and the audit `operation` value are typed out as bare string literals in the exception class, in the OpenAPI response schema, in the global 501 handler, in the audit middleware's response summary and in the worker. The schema's own docstring admits the coupling (\"字段与 `app/core/errors.py` 的 501 handler **逐字一致**\") but nothing enforces it: the runtime literals are pinned by tests, yet no test compares the OpenAPI schema's declared defaults or the middleware's `response_summary` against `AINotImplementedError.code`. Renaming the code therefore updates the runtime while the published contract keeps advertising the old default, and the audit rows - the summary operators grep for - keep the old code as well. `operation` is not validated anywhere at all.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Declare the envelope constants once and reference them: keep `AINotImplementedError.code` / `.message` as the source, add a module-level `AI_STATUS = \"not_implemented\"` and `AI_OPERATION = \"AI_REQUEST\"` next to them, then use those in `app/schemas/ai.py` (`code: str = Field(AINotImplementedError.code, ...)`), in `app/core/errors.py`'s handler and in `app/core/ai_audit_middleware.py::_response_summary` instead of re-typing the literals. Add one test asserting the schema defaults equal the runtime envelope.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/schemas/ai.py:101 --     code: str = Field(\"AI_NOT_IMPLEMENTED\", description=\"业务错误码\")",
+        "pcs-backend/app/core/ai_errors.py:26 --     code: str = \"AI_NOT_IMPLEMENTED\"",
+        "pcs-backend/app/core/ai_audit_middleware.py:135 --         return \"AI_NOT_IMPLEMENTED\"",
+        "pcs-backend/app/core/errors.py:324 --                 \"status\": \"not_implemented\",",
+        "pcs-backend/app/workers/ai_audit_tasks.py:44 -- DEFAULT_OPERATION = \"AI_REQUEST\"",
+        "pcs-backend/app/schemas/ai.py:98 --     字段与 `app/core/errors.py` 的 501 handler **逐字一致**。"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "ARQ pool setup duplicated instead of shared helper",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/ai/arq_queue.py",
+      "line": 34,
+      "why_it_matters": "The report queue helper exists for one stated reason: to stop `create_pool(RedisSettings.from_dsn(...))` from being written in two places, because the second copy silently misses a parameter change and the symptom is a job that is queued but never consumed. This diff adds the third copy for the AI audit queue. When the Redis connection details change (TLS, password, or a dedicated queue Redis), the AI copy is the one that gets missed, and the result is that the AI audit table quietly stops receiving rows with no error anywhere - the audit table goes blind exactly while it is being put into service. The divergence in error policy (report raises 503, AI degrades to a warning) is a deliberate ruling and should be preserved; only the pool-construction half needs sharing.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Extract the pool construction into one module - `app/services/arq_pool.py::create_redis_pool()` wrapping `create_pool(RedisSettings.from_dsn(get_settings().redis_url))` - and call it from both `app/services/report/arq_queue.py` and `app/services/ai/arq_queue.py`, leaving each module's own failure policy (raise 503 vs. warn and return False) where it is today.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/ai/arq_queue.py:34 --     return await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+        "pcs-backend/app/services/report/arq_queue.py:45 --     pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+        "pcs-backend/app/services/report/arq_queue.py:3-4 -- `app/api/v1/report.py` 与 `report_builder.py` 都要入队。**两处各写一遍 / `create_pool(RedisSettings.from_dsn(...))`** 时，第二个改参数就会漏掉第一个"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "IP-literal check duplicated outside the single parser",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/health.py",
+      "line": 99,
+      "why_it_matters": "`/health/ai` claims to reuse the one canonical host parser, and it does reuse `host_of` - but the second half of that parsing, \"is this host an IP literal or a domain\", is implemented a second time inside `_is_ip_literal`, using the same `ipaddress.ip_address` probe that `ai_cidr.resolve_ai_endpoint_ips` already performs. Two copies of one discriminator mean the health verdict and the acceptance check that actually gates traffic can disagree: once the literal rule is touched (bracketed IPv6, another literal form), `/health/ai` keeps reporting `ok` while the startup or call-time validator rejects the same endpoint - and the operator chasing \"why is AI degraded\" is handed the wrong reason.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Export `is_ip_literal(host: str) -> bool` from `app/core/ai_cidr.py` (reusing it inside `resolve_ai_endpoint_ips`) and have `app/api/v1/health.py` import it instead of defining `_is_ip_literal` locally.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/health.py:99 -- def _is_ip_literal(host: str) -> bool:",
+        "pcs-backend/app/api/v1/health.py:104 --         ipaddress.ip_address(host)",
+        "pcs-backend/app/core/ai_cidr.py:114 --         ipaddress.ip_address(host)",
+        "pcs-backend/app/api/v1/health.py:177 --     # ⚠️ **复用 `ai_cidr.host_of`**（唯一的一份解析）—— 内联副本会让"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Mock-toggle env var untyped; wrong literal re-enables MSW",
+      "severity": "P2",
+      "file": "pcs-frontend/src/main.tsx",
+      "line": 14,
+      "why_it_matters": "`src/vite-env.d.ts` augments `ImportMetaEnv` with only `VITE_PROJECT_ID` and `VITE_DEV_TOKEN`; Vite's own `ImportMetaEnv` carries a `[key: string]: any` index signature, so `import.meta.env.VITE_ENABLE_MOCK` is typed `any`. The real-backend E2E channel is selected by nothing but that comparison, so a wrong literal (`'FALSE'`, `'0'`, `'no'`) type-checks cleanly and silently leaves MSW mounted on port 5174 - the \"真后端\" suite then reports green without ever reaching the backend, which is the exact false-green this diff set out to eliminate. The `any` also removes the signal that this switch is a two-valued string rather than a boolean.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Declare the variable in `src/vite-env.d.ts` as `readonly VITE_ENABLE_MOCK?: 'true' | 'false';` so the explicit member type takes precedence over the index signature and the comparison in `src/main.tsx` is type-checked against the two legal values (a mistyped literal becomes a compile error). Keep the runtime semantics unchanged (\"mock on unless explicitly 'false'\").",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/main.tsx:14 --   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {",
+        "pcs-frontend/src/vite-env.d.ts:3 -- interface ImportMetaEnv {",
+        "pcs-frontend/src/vite-env.d.ts:4 --   readonly VITE_PROJECT_ID?: string;",
+        "pcs-frontend/playwright.config.ts:70 --       command: `VITE_ENABLE_MOCK=false npm run dev -- --port ${REAL_PORT}`,"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "realPage fixture is a pass-through with a misleading claim",
+      "severity": "P3",
+      "file": "pcs-frontend/e2e/fixtures.ts",
+      "line": 46,
+      "why_it_matters": "The fixture body is exactly the default `page` fixture. The \"no MSW\" property comes from the Playwright project's webServer command, not from this wrapper, yet the comment claims the fixture supplies \"没挂 MSW 的那个浏览器上下文\". A reader who later edits the fixture expecting the MSW-off behaviour to be enforced there will find it is enforced nowhere in the fixture - the one place that could fail loudly about a wrong channel is the one place that asserts nothing.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Delete `realPage` and use the built-in `page` fixture in `e2e/real_backend_smoke.spec.ts`. If keeping the alias is preferred for readability, give the fixture a real job (e.g. own the console-error collector the spec currently wires by hand) so the wrapper earns its indirection.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/fixtures.ts:46 --   realPage: async ({ page }, use) => {",
+        "pcs-frontend/e2e/fixtures.ts:47 --     await use(page);",
+        "pcs-frontend/e2e/fixtures.ts:44 --   // ⚠️ 真后端通道的页面：**登录由各 spec 自己做**（走 UI，见上），",
+        "pcs-frontend/e2e/real_backend_smoke.spec.ts:13 -- test('@real-backend 真后端通道：登录 ⇒ 仪表盘渲染 ⇒ 无控制台错误', async ({ realPage }) => {"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Dialect branch erased by Any, dispatched by isinstance",
+      "severity": "P3",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 101,
+      "why_it_matters": "`_build_insert` returns either an ORM entity or a PostgreSQL `INSERT` construct, but its return type is unannotated and the value travels through `_insert_row` as `Any` (`_find_existing` is `Any` too). The two write strategies are consequently chosen by a runtime `isinstance` check instead of by types, so a future third strategy has nowhere in the signature to declare itself and the compiler cannot catch the branch going wrong. The repository rule is explicit that every function signature carries type annotations.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "suggested_fix": "Annotate the union (`def _build_insert(...) -> AiAuditLog | Insert:`) and split the runtime dispatch into two named functions - `_insert_orm(session, entity)` and `_insert_pg(session, stmt)` - so the dialect decision is made once, where the dialect is known, instead of being re-detected downstream.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:101 -- def _build_insert(values: dict[str, Any], *, is_postgres: bool):",
+        "pcs-backend/app/workers/ai_audit_tasks.py:139 --     if isinstance(row, AiAuditLog):",
+        "pcs-backend/app/workers/ai_audit_tasks.py:129 -- async def _find_existing(session: AsyncSession, request_id: str) -> Any:"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Second 10 MB body limit declared outside the canonical one",
+      "severity": "P3",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 52,
+      "why_it_matters": "The middleware re-declares the same 10 MB number that `app/core/upload_size_limit.py` already publishes as `MAX_UPLOAD_BYTES`, and its comment ties the two together (\"与本仓 `MAX_UPLOAD_BYTES` 同量级\") without any mechanism keeping them in step - \"同量级\" in fact admits they may differ. When the upload cap is raised for larger imports, the AI request-body cap silently stays at 10 MB, an oversized AI body is truncated, and the request surfaces as a 422 with nothing pointing at the limit that actually applied.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "suggested_fix": "Keep the two limits in one module with two named constants (e.g. `app/core/size_limits.py` exposing `MAX_UPLOAD_BYTES` and `MAX_REQUEST_BODY_BYTES`), or import `MAX_UPLOAD_BYTES` from `app/core/upload_size_limit.py` and drop the \"同量级\" wording; either way the number is stated in exactly one place.",
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:52 -- _MAX_BODY_BYTES = 10 * 1024 * 1024",
+        "pcs-backend/app/core/upload_size_limit.py:16 -- MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB",
+        "pcs-backend/app/core/ai_audit_middleware.py:51 -- #: 取 10 MB（与本仓 `MAX_UPLOAD_BYTES` 同量级）。"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "`app/core/ai_sanitizer.py` keeps the person-name mask in a module-level mutable flag (`_PERSON_NAME_MASK_ENABLED`) that is toggled only from the lifespan startup. The module's own docstring notes that callers (notably tests) must reset it manually; any future runtime reconfiguration or second consumer of `sanitize_for_ai` in the same process inherits whichever value was last set, with no way to scope the setting per request.",
+    "`OutboundAIClient` currently has no production consumer - only `tests/core/test_outbound_ai_client.py` instantiates it - yet it carries its own injectable audit callback, i.e. a second, unimplemented audit path alongside the middleware's `enqueue_ai_audit_log`. Its existence is spec-mandated (D14), so this is not a defect in this diff, but when the AI routes are wired to it in a later batch the two audit paths must be reconciled or requests will be counted twice.",
+    "`MAX_HASH_BYTES` (1 MiB, no hashing above it) and `_MAX_BODY_BYTES` (10 MiB, truncation above it) are independent thresholds in the same middleware: between 1 MiB and 10 MiB the body is buffered in full but not hashed. That is intentional, but it is expressed only as two constants with no comment tying them, so the gap between \"buffered\" and \"hashed\" is easy to misread as a bug.",
+    "The generated artefacts (`pcs-backend/docs/openapi.json`, `pcs-frontend/openapi.snapshot.json`, `pcs-frontend/src/types/api.d.ts`) were skimmed for the new AI paths only; the remainder of those diffs was not reviewed line by line, so an unrelated drift introduced by regeneration cannot be ruled out from this analysis."
+  ],
+  "testing_gaps": [
+    "No test asserts that the OpenAPI schema's `AiNotImplementedResponse` defaults equal the runtime 501 envelope (`AINotImplementedError.code` / `.message` / `status`), so the published contract can drift from what the server returns without any test failing.",
+    "No test asserts that the worker's `_MAX_LENGTHS` matches the ORM column widths, so widening a column in the migration would leave the write-boundary truncation stale with a green test suite.",
+    "No test feeds the worker an unknown or renamed audit field (e.g. `client_requestid`), so the silent-drop branch in `_row_values` is exercised only by the happy path.",
+    "No test covers `import.meta.env.VITE_ENABLE_MOCK` values other than the exact string `'false'`, so the mock/real channel selection has no behavioural guard for the value domain it actually accepts.",
+    "The `realPage` Playwright fixture has no test of its own and its single consumer (`real_backend_smoke.spec.ts`) is the only thing that would notice if the fixture stopped providing the context it claims."
+  ]
+}

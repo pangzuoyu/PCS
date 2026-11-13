@@ -1,0 +1,616 @@
+{
+ "run_id": "20261112-181851-76e48fc4",
+ "run_dir": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4",
+ "batch": {
+  "index": 1,
+  "count": 1,
+  "template": "references/validator-batch-template.md",
+  "note": "One batch, ordered by severity then stable #. The batch exceeds the normal cap of eight because all 8 surviving P1 findings plus every actionable P2/P3 must be validated; the work is never split into another batch."
+ },
+ "scope_context": {
+  "scope_mode": "local-aligned",
+  "base": "3fae3f6",
+  "head_sha": "55239ff",
+  "branch": "main",
+  "tree_is_reviewed_head": true,
+  "diff": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/full.diff",
+  "files": "/home/pangzy/code_project/PCS/docs/ce-code-review/20261112-181851-76e48fc4/files.txt",
+  "instruction": "The working tree IS the reviewed head: inspect the cited files, callers, guards, project contracts and targeted history directly with read-only tools. Do not mutate the checkout; the only permitted write is <run_dir>/validator-verdicts.json.",
+  "batch_contracts_must_not_regress": [
+   "R1 authentication precedes 501 (no token => 401, not 501)",
+   "R2 an authentication failure must still leave an audit row (user_id=None)",
+   "R3 request-body replay: bad parameters => 422, distinguishable from 501",
+   "R4 audit writes are idempotent and the partial unique index must match ON CONFLICT's index_where (PostgreSQL-only; SQLite unit tests stay green)",
+   "R5 an audit row must not be silently dropped because a client-controlled field is too long",
+   "R6 the seed script is idempotent, --reset deletes only its own rows, and it must create the UserProject grant rows (otherwise the frontend is 404 everywhere)",
+   "R7 the architecture guard must actually go red when the single sanctioned AI exit is bypassed",
+   "R8 the real-backend E2E channel must not silently run against mocks",
+   "R9 layering (core not in api/models, services not in api) and op.create_index must carry if_not_exists=True"
+  ],
+  "adjudicated_deviations": "The batch's deviation registry D1-D22 (spec/P10 AI预留与测试部署开发规格说明书.md 第五部分) records deliberate, already-adjudicated deviations - treat a divergence registered there as a decision, not a defect."
+ },
+ "skip_count": 0,
+ "skip_evidence_basis": "Stage 5b step 1 permits a validator shortcut only when the finding has first_evidence AND both an ordinary reviewer plus an adversarial-<provider> reviewer whose artifact records independence_verified: true. peer.outcome is `not-run` (no different-provider CLI is installed on this host), so no such artifact exists and no finding can be skipped; same-model corroboration never licenses the shortcut. Every selected finding therefore goes to the validator.",
+ "selected_count": 23,
+ "selected": [
+  {
+   "#": 1,
+   "title": "`--reset` deletes user rows the script never created (and re-enables disabled accounts)",
+   "severity": "P1",
+   "confidence": 100,
+   "file": "pcs-backend/scripts/seed_e2e_data.py",
+   "line": 94,
+   "first_evidence": "pcs-backend/scripts/seed_e2e_data.py:94 --     await db.execute(delete(User).where(User.user_id.in_(user_ids)))",
+   "why_it_matters": "Running `seed_e2e_data.py --reset` on a dev/test database deletes the `users` rows for alice/bob/carol/dan even when those rows were created by a real LDAP login, not by this script — the script creates them only when missing (`if existing is None:` at line 163) but deletes them unconditionally by derived id. Because `user_id` is `uuid5(NAMESPACE_DNS, username)`, the seed id and the real-account id are the same value, so a real account's `roles`, `status` and `token_version` (the revocation counter) are wiped, and any `user_projects` grant for those users in other projects is removed as well (`user_projects.user_id` is `ForeignKey(\"users.user_id\", ondelete=\"CASCADE\")`). Worst case: a DISABLED account is silently re-enabled — the login path rejects a disabled user only because the row says DISABLED (`if row is not None and is_disabled_status(row.status)`), and once the row is gone the next login recreates it with `status=UserStatus.ACTIVE.value`. This directly contradicts the script's own stated contract (\"只删自己造的 —— `--reset` 按固定 UUID 列表筛，不碰业务数据\") and the batch's must-not-regress rule 6.\n\n脚本 docstring 把「--reset 只删自己造的」列为三条硬约束之一，理由写得很清楚：「不筛的话，在开发库里跑一次脚本 = 业务数据被删」。但 `_delete_own_rows` 一共删 5 类行（UserProject / Stream / Project / Workspace / User），这条用例只造了一条**外部 Workspace** 当「别人的数据」，其余 4 张表一个外部样本都没有 ⇒ 只要有人把 `delete(User).where(User.user_id.in_(user_ids))` 的过滤条件写漏成 `delete(User)`，这条用例照样绿，而开发库的用户行会被整表清空（`users` 里的角色/停用状态也一起没了）。",
+   "evidence": [
+    "pcs-backend/scripts/seed_e2e_data.py:94 --     await db.execute(delete(User).where(User.user_id.in_(user_ids)))",
+    "pcs-backend/scripts/seed_e2e_data.py:163 --         if existing is None:",
+    "pcs-backend/scripts/seed_e2e_data.py:16 -- 3. **只删自己造的** —— `--reset` 按固定 UUID 列表筛，不碰业务数据。",
+    "pcs-backend/app/services/token_issuer.py:83 --     user_id = derive_user_id(username)",
+    "pcs-backend/app/services/token_issuer.py:100 --     if row is not None and is_disabled_status(row.status):",
+    "pcs-backend/app/services/token_issuer.py:147 --             status=UserStatus.ACTIVE.value,",
+    "pcs-backend/app/models/project.py:200 --         ForeignKey(\"users.user_id\", ondelete=\"CASCADE\"), nullable=False,",
+    "pcs-backend/tests/scripts/test_seed_e2e_data.py:51 -- async def test_reset_only_deletes_our_own_rows(db_session) -> None: (only checks an external Workspace survives — no coverage for an externally created `users` row with the same derived id)",
+    "pcs-backend/tests/scripts/test_seed_e2e_data.py:57 --     other_ws = Workspace(",
+    "pcs-backend/scripts/seed_e2e_data.py:92 --     await db.execute(delete(Stream).where(Stream.project_id.in_(project_ids)))",
+    "pcs-backend/scripts/seed_e2e_data.py:14 -- 3. **只删自己造的** —— `--reset` 按固定 UUID 列表筛，不碰业务数据。"
+   ],
+   "suggested_fix": "Restrict the reset delete to rows this script actually created: tag seeded users with a seed-specific marker and filter `delete(User)` on that marker instead of the name-derived ids; if no marker is adopted, drop the `delete(User)` statement entirely (`_ensure_users` is already idempotent - it skips an existing row - so the user delete is not needed for idempotency) and preserve an existing row's `status`/`roles` instead of recreating the user with `status=\"ACTIVE\"`. Extend `tests/scripts/test_seed_e2e_data.py::test_reset_only_deletes_our_own_rows` to be table-driven (a foreign row in User / Stream / Project / UserProject each) and assert the foreign user row survives a reset unchanged.",
+   "reviewers": [
+    "security",
+    "adversarial",
+    "testing"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 2,
+   "title": "The audit row's request_id is never asserted against the response header and the 501 envelope",
+   "severity": "P1",
+   "confidence": 100,
+   "file": "pcs-backend/tests/api/v1/test_ai_audit_middleware.py",
+   "line": 140,
+   "first_evidence": "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:140 --     assert recorded_audits[-1][\"client_request_id\"] == \"client-abc-123\"",
+   "why_it_matters": "中间件测试用 fake_enqueue 记录入队参数，断言了 client_request_id / user_id / status_code / endpoint / duration_ms / response_summary / sanitized_request_hash，**唯独没有断言 request_id** —— 而 request_id 正是审计行的幂等键，也是 501 信封里回给客户端的那个「审计幂等键」（app/schemas/ai.py:104）。写库任务在 request_id 为空时**直接 return、不写行**（app/workers/ai_audit_tasks.py:158-160），也就是说：只要中间件哪天不再传 request_id（或传的值与响应里的 X-Request-ID 不一致），**整张审计表会静默为空**，而本批所有中间件断言依然全绿 —— 因为 fake_enqueue 收什么就记什么。这一条正是本批「必须不回归」契约里第 2/4/5 条（认证失败也要留痕、写入幂等、行不得被静默丢弃）的唯一防线，却恰好漏在最关键的那一列上。",
+   "evidence": [
+    "pcs-backend/app/workers/ai_audit_tasks.py:158 --     if not request_id:",
+    "pcs-backend/app/workers/ai_audit_tasks.py:159 --         logger.warning(\"AI 审计缺 request_id ⇒ 跳过（无法保证幂等）\")",
+    "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:140 --     assert recorded_audits[-1][\"client_request_id\"] == \"client-abc-123\"   ← 该文件里对入队载荷的全部断言集合，没有一处断言 request_id",
+    "pcs-backend/app/core/ai_audit_middleware.py:204 --         await enqueue_ai_audit_log("
+   ],
+   "suggested_fix": "在 tests/api/v1/test_ai_audit_middleware.py 里加一条用例，断言三处同源：响应头 X-Request-ID == 501 信封 body[\"request_id\"] == recorded_audits[-1][\"request_id\"]（并断言它是合法 UUID 串）。同一处再补一条「request_id 缺失 ⇒ 写库任务不写行且不抛」的用例，直接对 write_ai_audit_log 传缺 request_id 的字段（对齐 app/workers/ai_audit_tasks.py:157-160 的早退分支）。",
+   "reviewers": [
+    "testing"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 3,
+   "title": "AI audit middleware buffers up to 10 MB of request body per unauthenticated request",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/ai_audit_middleware.py",
+   "line": 95,
+   "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:95 --     chunks: list[bytes] = []",
+   "why_it_matters": "The audit middleware sits outside routing and therefore outside authentication, so any anonymous client can make the server hold its body in RAM before a single credential is checked. Per in-flight request the memory cost is roughly **2× the body**: the accumulating `chunks` list (~10 MB at the cap) plus the `b\"\".join(chunks)` copy (~10 MB) at the moment of the join, after which the joined copy stays alive for the whole downstream call (the replay closure and the `_record_audit(..., body=body)` argument both keep a reference). The `_MAX_BODY_BYTES` cap is a *per-request* cap, not an aggregate one, so N concurrent max-size uploads cost ~10·N MB resident (~20·N MB transient at the join): on a 512 MB worker roughly 25 concurrent 10 MB uploads to `/api/v1/ai/*` exhaust the process, and on a 1 GB worker roughly 50 do. The cap is also 3–4 orders of magnitude above any legitimate payload: the AI request schemas (`app/schemas/ai.py`) are small JSON objects (a free-text `text`, a `query`, a few optional strings), so nothing legitimate ever approaches 10 MB. Buffering the body before the 501 stub does its work is the wrong trade: the same information is already available from `Content-Length`.",
+   "evidence": [
+    "pcs-backend/app/core/ai_audit_middleware.py:95 --     chunks: list[bytes] = []",
+    "pcs-backend/app/core/ai_audit_middleware.py:111 --     return b\"\".join(chunks)",
+    "pcs-backend/app/core/ai_audit_middleware.py:52 -- _MAX_BODY_BYTES = 10 * 1024 * 1024",
+    "pcs-backend/app/core/ai_audit_middleware.py:103 --             if total + len(chunk) > _MAX_BODY_BYTES:",
+    "pcs-backend/app/core/ai_audit_middleware.py:162 --         body = await _read_body(receive)",
+    "pcs-backend/app/core/ai_audit_middleware.py:175 --             await self.app(scope, _replay_receive(body), send_wrapper)",
+    "pcs-backend/app/core/ai_audit_middleware.py:175 -- the replay closure captures `body`, so the joined 10 MB copy stays resident for the whole downstream request",
+    "pcs-backend/app/main.py:245 --     app.add_middleware(AIAuditMiddleware)  # registered outside the router ⇒ outside the auth dependency `current_actor`",
+    "pcs-backend/app/schemas/ai.py:41 -- class AiIntentRequest(BaseModel):  # the AI request bodies are small JSON objects (text / query / optional context)"
+   ],
+   "suggested_fix": "In `pcs-backend/app/core/ai_audit_middleware.py`: (1) lower `_MAX_BODY_BYTES` from 10 MB to a size that matches the AI schemas — assume 256 KB is generous for a `text`/`query` payload and make it a settings-backed value so operators can raise it; (2) accumulate into a single `bytearray` (`buf.extend(chunk)`) and return `bytes(buf)` instead of a list + `b\"\".join(...)`, which removes the second full copy and halves peak memory; (3) before reading, inspect the `content-length` header and return 413 immediately when it exceeds the cap, so an oversized body is never buffered at all. Assumption: no legitimate AI request exceeds 256 KB — the schemas have no unbounded fields today, and `max_length` can be added to `AiIntentRequest.text` / `AiKnowledgeSearchRequest.query` in `app/schemas/ai.py` to make that guarantee explicit.",
+   "reviewers": [
+    "performance"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 4,
+   "title": "The EMAIL sanitizer pattern backtracks quadratically over the raw request body on the event loop",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/ai_sanitizer.py",
+   "line": 46,
+   "first_evidence": "pcs-backend/app/core/ai_sanitizer.py:46 --     (re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\"), \"[EMAIL]\"),",
+   "why_it_matters": "`_sanitize_text` runs five regexes over the *entire* request body, and the EMAIL rule is an unanchored `X+@…` pattern: the greedy `[A-Za-z0-9._%+-]+` consumes the rest of the string, the following literal `@` never matches, and the engine then retries the tail once per consumed character **at every start offset** — i.e. O(n²) backtracking on a string that contains no `@`. The body is sanitized either as raw text (when JSON parsing fails) or per string value (when it succeeds), so a single request whose payload is a long run of `x`/`a` characters — inside `{\"text\": \"…\"}` or as a non-JSON body — drives the sanitizer into the quadratic regime. The audit hash is computed for every body up to 1 MB (`MAX_HASH_BYTES`), which is exactly the window where this bites: the existing tests sit just *outside* it (1 MB + 1024 and 10 MB + 1024 are both “too big to hash”). Because `_sanitize_text` is a plain synchronous call inside the async middleware, the cost lands on the single event-loop thread, so one such request stalls every other request handled by that worker — no `await` point is reached while the regex runs. The other four patterns are linear and unaffected.",
+   "evidence": [
+    "pcs-backend/app/core/ai_sanitizer.py:46 --     (re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\"), \"[EMAIL]\"),",
+    "pcs-backend/app/core/ai_sanitizer.py:74 --     for pattern, replacement in SENSITIVE_PATTERNS:",
+    "pcs-backend/app/core/ai_sanitizer.py:75 --         text = pattern.sub(replacement, text)",
+    "pcs-backend/app/core/ai_sanitizer.py:125 --             canonical = _sanitize_text(text).encode(\"utf-8\")",
+    "pcs-backend/app/core/ai_sanitizer.py:92 --             _sanitize_text(key) if isinstance(key, str) else key: sanitize_for_ai(item)",
+    "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+    "pcs-backend/app/core/ai_audit_middleware.py:47 -- MAX_HASH_BYTES = 1024 * 1024  # the quadratic window is exactly the bodies that DO get hashed",
+    "pcs-backend/tests/api/v1/test_ai_audit_middleware.py:199 --     big = \"x\" * (MAX_HASH_BYTES + 1024)  # the only large-body test sits above the hashing window"
+   ],
+   "suggested_fix": "Bound the greedy quantifiers in the EMAIL rule so a single start offset can only do a constant amount of work, e.g. `re.compile(r\"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\\.[A-Za-z]{2,24}\")` — with bounded repeats the scan becomes linear in the body length instead of quadratic, and 64/255 are the RFC 5321 limits so no realistic address is lost. Independently, cap the number of characters `_sanitize_text` scans per string (truncate the scanned prefix, e.g. first 64 KB per string) so the audit hash cost is bounded regardless of pattern shape. Note: I could not execute a benchmark in this review environment (no shell), so the quadratic claim is derived from the pattern shape (unanchored search + greedy `+` followed by a literal that cannot match) rather than measured — the bounded-quantifier change is safe to apply either way.",
+   "reviewers": [
+    "performance"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 5,
+   "title": "Redis down silently blinds the AI audit trail (no counter, no health signal)",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/services/ai/arq_queue.py",
+   "line": 67,
+   "first_evidence": "pcs-backend/app/services/ai/arq_queue.py:67 --     except Exception as exc:  # noqa: BLE001 — Redis 各种连接异常",
+   "why_it_matters": "Redis unreachable ⇒ enqueue raises ⇒ the exception is caught ⇒ False is returned ⇒ the middleware logs one warning line and the request proceeds to return 501 as usual. The audit table stops recording entirely for the duration of the outage — which is exactly the window in which probing or a misconfiguration is most likely — and nothing in the product surface reports it: `/api/v1/health/ai` exposes only endpoint/CIDR configuration, never the state of the audit pipeline. An operator sees a healthy AI status, an empty audit table, and no way to distinguish \"no AI traffic\" from \"audit blind\". The batch's own must-not-regress list requires that the audit table not be blind to probing behaviour, and this is the one path where it goes blind without a single failed request.",
+   "evidence": [
+    "pcs-backend/app/services/ai/arq_queue.py:67-69 -- except Exception as exc:  # noqa: BLE001 — Redis 各种连接异常 / logger.warning(\"AI 审计入队失败（已降级，不影响请求）: %s: %s\", type(exc).__name__, exc) / return False",
+    "pcs-backend/app/core/ai_audit_middleware.py:216-217 -- except Exception:  # noqa: BLE001 — 审计失败不该影响请求 / logger.warning(\"AI 审计入队失败（已降级）\", exc_info=True)",
+    "pcs-backend/app/api/v1/health.py:110-112 -- @router.get(\"/health/ai\", response_model=HealthAIResponse)   ⇒ the AI health surface reports status/reason/ai_enabled/endpoint_configured/cidrs_configured only — nothing about the audit pipeline"
+   ],
+   "suggested_fix": "Expose the audit pipeline's health on the endpoint operators already poll: add an `audit_pipeline: \"ok\" | \"degraded\"` field to HealthAIResponse, fed by a process-local counter of failed enqueues (incremented in the `except` branch of enqueue_ai_audit_log and exposed through a small accessor) and/or by a heartbeat row the worker writes. Assumption: a process-local counter is acceptable as a first cut; a DB heartbeat written by the worker is the stronger version and would also cover the \"worker down\" case.",
+   "reviewers": [
+    "adversarial"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 6,
+   "title": "AI audit row is permanently lost on a DB write error (ARQ never retries ordinary exceptions)",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+   "line": 176,
+   "first_evidence": "pcs-backend/app/workers/ai_audit_tasks.py:176 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试",
+   "why_it_matters": "If the insert fails — p10_001 not applied on the target database (UndefinedColumn on `request_id`), a transient DB error, a lock timeout — the task swallows the exception and returns normally. ARQ therefore records the job as *successful* and deletes it: no retry (the module's own docstring states arq 0.28 only retries on `Retry`), no dead-letter, and the row never appears in `ai_audit_log`. The AI request already returned 501, so the caller sees nothing wrong, and the audit table — whose entire purpose is to make AI probing visible — silently omits precisely the requests an attacker would want hidden. The worker configures `max_tries = 3`, but a swallowed exception never consumes a try, so that budget is unreachable for this task.\n\n当 ARQ worker 写 `ai_audit_log` 时数据库瞬时失败（死锁、连接被重置、PG 主备切换、语句超时），任务会记录一条 WARNING 然后 `return` —— 对 ARQ 而言这是**成功完成**，job 被标记为 done 并从队列移除，**没有任何重试**。结果是这一条 AI 审计行**永久消失**，而调用方（探测者、客户端、甚至一次认证失败的请求）完全无感：请求早已返回 501/401，审计表却对它完全失明 —— 而「审计表在系统出问题时恰好失明」正是审计要防的事。本仓自己写明「arq 0.28 只对 `Retry` 异常重试」（见 `report_tasks.py:204-208` 的注释与 `worker.py:48` 的 `MAX_TRIES = 3`），并且在报表任务里给出了标准处置：`report_tasks.py:212-214` 的 `if attempt_no < MAX_TRIES: raise Retry(defer=RETRY_DEFER_S) from e`。任务里的注释「审计失败不该让 job 反复重试」把「不要拖死业务请求」和「不要重试」混成了一件事：到这个阶段**业务请求早已结束**，重试不会影响任何请求；而审计写入本身按 `request_id` 幂等（PG 走 `ON CONFLICT ... DO NOTHING`），重试不会产生重复行。改成有界重试既符合本仓既有模式，也不会带来重试风暴。",
+   "evidence": [
+    "pcs-backend/app/workers/ai_audit_tasks.py:176-179 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试 / await session.rollback() / logger.warning(\"写 AI 审计行失败（已降级）\", exc_info=True) / return",
+    "pcs-backend/app/workers/ai_audit_tasks.py:14 -- ⚠️ **arq 0.28 只对 `Retry` 异常重试**（其余异常当场判死）",
+    "pcs-backend/app/workers/worker.py:237 -- max_tries = MAX_TRIES      # 见模块顶部 MAX_TRIES   (3 — unreachable here because the exception never escapes the task)",
+    "pcs-backend/app/workers/ai_audit_tasks.py:147-155 -- async def write_ai_audit_log(ctx, **fields) … ⚠️ **写失败不抛**（除幂等冲突外都吞掉）—— 审计是旁路。",
+    "pcs-backend/app/workers/ai_audit_tasks.py:176 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试",
+    "pcs-backend/app/workers/ai_audit_tasks.py:179 -- return",
+    "pcs-backend/app/workers/ai_audit_tasks.py:178 -- logger.warning(\"写 AI 审计行失败（已降级）\", exc_info=True)",
+    "pcs-backend/app/workers/report_tasks.py:204 -- # ⚠️ **ARQ 0.28 不会因为普通异常重试**（`arq/worker.py:612-637`",
+    "pcs-backend/app/workers/report_tasks.py:212 -- if attempt_no < MAX_TRIES:",
+    "pcs-backend/app/workers/report_tasks.py:213 -- raise Retry(defer=RETRY_DEFER_S) from e",
+    "pcs-backend/app/workers/worker.py:237 -- max_tries = MAX_TRIES      # 见模块顶部 MAX_TRIES"
+   ],
+   "suggested_fix": "In `write_ai_audit_log`, replicate the bounded retry already used by `report_tasks.generate_report_task`: read `attempt_no = int(ctx.get(\"job_try\") or 1)` (ARQ-injected, same convention as report_tasks); change the `except Exception` branch to `await session.rollback()` -> `logger.warning(...)` -> `if attempt_no < MAX_TRIES: raise Retry(defer=RETRY_DEFER_S) from exc` -> otherwise `return`. `MAX_TRIES` / `RETRY_DEFER_S` must be imported **inside** the function body from `app.workers.worker` (worker.py imports this module at module level, so a top-level import would be a cycle - same as `report_tasks.py:141`). Keep the existing `except IntegrityError` branch (a concurrent insert already landed = idempotent success, do not retry). Add a test that injects one write failure and asserts the job raises `Retry` and the row lands after the retry.",
+   "reviewers": [
+    "adversarial",
+    "reliability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 7,
+   "title": "AI architecture guard misses the natural bypass and has never been proven to go red",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py",
+   "line": 50,
+   "first_evidence": "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:50 -- AI_ENDPOINT_MARKERS = (\"ai_endpoint\", \"/api/v1/ai\", \"ai.intent\", \"ai/knowledge\")",
+   "why_it_matters": "This guard is the only thing pinning \"AI traffic may only leave through core/outbound_ai_client.py\", and it detects two shapes: imports of a fixed list of SDK package names, and `httpx.<method>(...)` calls whose URL argument literally contains one of four marker strings. The natural bypass — calling the model service directly, e.g. `await httpx.post(\"http://llm.internal:8000/v1/chat/completions\", json=...)` — matches neither rule: that URL contains none of `ai_endpoint` / `/api/v1/ai` / `ai.intent` / `ai/knowledge`, so the guard stays green while the developer has silently bypassed the call-time CIDR re-check, the sanitizer and the audit callback. The same holds for `requests.post(url)` (not httpx at all) and for `client = httpx.AsyncClient(); await client.post(url)` (the receiver is named `client`, so `_httpx_calls` never sees it). The docstring admits the URL-variable hole; the model-service-URL hole is broader and undocumented. The SDK-import half is currently vacuous as well — the packages are not installed, as the docstring itself states.\n\n本批的「必须不回归」契约第 7 条是「架构守卫真的会红：绕过唯一出口直连 AI 端点 ⇒ 守卫必须报」。但这两条守卫用例都是**在干净仓库上恒绿**：SDK 名单里的包一个都没装、全仓也没有一处 httpx 打 AI 端点 ⇒ 扫描器究竟能不能识别违规，**从未被观测过一次**。守卫是纯 AST 扫描（路径根、禁用包名集合、URL 特征串、httpx 调用形态四处都可能悄悄失效），一旦其中一处坏了（例如 APP_ROOT 指错、特征串漏了新的端点写法），守卫会一直绿着，而它恰恰是「AI SDK 只能从唯一出口出去」的唯一执行机制。",
+   "evidence": [
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:50 -- AI_ENDPOINT_MARKERS = (\"ai_endpoint\", \"/api/v1/ai\", \"ai.intent\", \"ai/knowledge\")",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:79-82 -- if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name): / if func.value.id == \"httpx\": / calls.append(node)   ⇒ only calls whose receiver is literally named `httpx` are inspected",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:141-143 -- if _mentions_ai_endpoint(candidate): / offenders.append(f\"{rel}:{call.lineno}\")   ⇒ the URL must contain a marker string; \"http://llm.internal:8000/v1/chat/completions\" contains none",
+    "pcs-backend/app/core/outbound_ai_client.py:67 -- validate_ai_endpoint(self.endpoint, self.cidrs)   ⇒ the call-time CIDR re-check that such a bypass skips",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:103 --     ⚠️ 本批**还没装**这些包 ⇒ 全仓零命中 ⇒ 本条现在**恒绿**。",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:116 --     assert not offenders, (",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:99 -- def test_no_module_outside_outbound_client_imports_ai_sdks() -> None:",
+    "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:151 -- def test_the_allowed_file_is_the_only_ai_exit() -> None:"
+   ],
+   "suggested_fix": "Invert the rule from \"detect known shapes\" to \"deny network clients outside the sanctioned exit\": flag any import of httpx / requests / aiohttp / urllib.request anywhere under app/ except core/outbound_ai_client.py, and flag httpx.Client() / httpx.AsyncClient() constructions outside it (that also catches the `client.post(url)` form); keep the existing URL-marker rule as an additional signal. Add a negative control - extract the scanner entry point into a pure function taking a file list and feed it two synthetic offending files (one `import openai`, one `httpx.post(\"https://llm.internal:8000/v1/chat/completions\", ...)`) plus one clean file, asserting the two are detected and the clean one is not; also assert `_python_files()` is non-empty so a broken path root cannot make the guard vacuously green.",
+   "reviewers": [
+    "adversarial",
+    "testing"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 8,
+   "title": "Real-backend E2E channel can pass green without the seeded backend (false green)",
+   "severity": "P1",
+   "confidence": 75,
+   "file": "pcs-frontend/e2e/real_backend_smoke.spec.ts",
+   "line": 23,
+   "first_evidence": "pcs-frontend/e2e/real_backend_smoke.spec.ts:23 --   await expect(realPage.getByRole('heading', { name: '仪表盘' })).toBeVisible();",
+   "why_it_matters": "The only test of the new \"real backend\" channel asserts three things: the login button navigates home, a dashboard heading is visible, and no console error was emitted. None of them require the seeded project. mock-login issues a token without touching `users` (persist_user=False), `/auth/me` explicitly allows a missing user row (\"无行 ⇒ 放行\"), and the axios interceptor only reacts to 401 — every 4xx is a bare `Promise.reject`, so a backend whose project-scoped endpoints all answer 404 produces no console error at all. The dashboard shell still renders and the smoke passes green. Worse, the seed writes to `pcs_pgtest` (a separate PG instance) while the documented backend start-up reads the dev `pcs` database, so the seeded `UserProject` grants never reach the database under test. The one mechanism this batch was built to catch (\"dev frontend is 404 everywhere\" — CLAUDE.md's project guard) is therefore never exercised, and the seed script (T2) has no verification at all.\n\nREADME 教人起真后端 E2E 时，先跑 compose 测试栈（`migrate` + `seed`，两者都连 `postgres-pgtest` 的 `pcs_pgtest` 库），再起后端 —— 但起后端的那条命令**没有设 `DATABASE_URL`**，于是后端读宿主机的 `pcs-backend/.env`（指向开发库 `pcs`，见 CLAUDE.md「`.env` 的 `DATABASE_URL` 指向 `pcs`」与 `config.py:43` 的默认值），**不是**刚刚迁移并播种过的那个库。后果是这条「真后端」通道可以在**完全没有用到被 seed 的数据**的情况下变绿：冒烟用例只断言「登录成功 + 仪表盘标题可见 + 控制台无 error」，从不断言任何一条种子数据 ⇒ 一个坏掉的 `migrate` 服务、一个在 PG 上炸掉的 seed 脚本、或 pgtest 库里缺失的 `UserProject` 授权行（授权行缺失时项目守卫返回的 404 与「资源不存在」逐字同形，极难定位）都不会让通道变红。P10-B 的 18 个场景要断言种子项目/物流，届时按 README 跑会连到**没播种过的开发库**（数据 404），排查方向会被引向业务代码，而真正的根因是「测试栈和被测对象不是同一个库」；更糟的「修法」是往开发库里灌种子数据 —— 那正是 CLAUDE.md 里明令禁止的污染。\n\n本批「必须不回归」契约第 8 条是「真后端 E2E 通道不得静默跑成 mock」。当前让通道保持「真」的**唯一**支点是 main.tsx 里那句 `import.meta.env.VITE_ENABLE_MOCK !== 'false'`（生产代码，无测试），而冒烟用例本身只断言「登录 → 仪表盘渲染 → 无控制台错误」—— 这三件事在 MSW 拦截下**同样全部成立**。也就是说，只要 MSW 又被挂上（或 5173 那台的 service worker 被注册到 5174），这条用例照样绿，而 P10-B 那 18 个业务场景会全部对着 MSW 跑一遍再「通过」，正是本批要消灭的那种假绿。",
+   "evidence": [
+    "pcs-frontend/e2e/real_backend_smoke.spec.ts:23 -- await expect(realPage.getByRole('heading', { name: '仪表盘' })).toBeVisible();",
+    "pcs-frontend/e2e/real_backend_smoke.spec.ts:24 -- expect(errors).toEqual([]);   // only console messages are collected; nothing asserts a project-scoped response",
+    "pcs-frontend/src/api/client.ts:51-65 -- api.interceptors.response.use((r) => r, (err: AxiosError) => { if (err.response?.status === 401) { ... } return Promise.reject(err); })   ⇒ a 404 storm never reaches the console ⇒ `errors` stays empty",
+    "pcs-backend/app/api/v1/auth.py:178 -- 「无行 ⇒ 放行」的边界**不变**（mock 登录不落库）   ⇒ /auth/me succeeds even with no `users` row at all",
+    "pcs-backend/app/api/v1/mock_auth.py:74 -- pair = await issue_tokens(username=body.username, role=role, persist_user=False)   ⇒ mock login never creates the user row the seed creates",
+    "docker-compose.yml:140 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest   (seed/migrate write here)",
+    "README.md:151 -- cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000   (no DATABASE_URL override ⇒ the backend reads .env ⇒ the dev `pcs` database, a different database from the seed's)",
+    "pcs-backend/scripts/seed_e2e_data.py:18-24 -- 授权行（`user_projects`）不是可选项 … 没有授权行 ⇒ **一律 404**   ⇒ the seed's stated purpose is exactly what the channel never proves",
+    "README.md:151 -- cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000",
+    "README.md:141 -- # ① 测试栈（postgres-pgtest + migrate + seed 三个一次性任务；连的是 pcs_pgtest 库）",
+    "README.md:134 -- | **真后端** | `npm run e2e:real` | 5174 | **关** | **是**（+ 库 + 种子数据） |",
+    "docker-compose.yml:118 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest",
+    "pcs-backend/app/core/config.py:43 -- database_url: str = \"postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs\"",
+    "pcs-frontend/e2e/real_backend_smoke.spec.ts:24 --   expect(errors).toEqual([]);",
+    "pcs-frontend/src/main.tsx:14 --   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {",
+    "pcs-frontend/playwright.config.ts:52 --       grepInvert: /@real-backend/,"
+   ],
+   "suggested_fix": "Two coordinated changes. (a) Make the database under test the database the seed writes: add the pcs_pgtest DATABASE_URL (host port 5433) to the documented backend start-up in README.md's E2E step, and add a compose-guard assertion that the E2E backend and the seed service point at the same database name. (b) Replace the shell-level assertion with a data-level one: after login, assert that a project-scoped request the seeded grant enables (e.g. GET /api/v1/sim/streams) returns 200 and that the seeded stream names appear, instead of only asserting the dashboard heading; also assert the login response came from the server (page.waitForResponse) and that the service worker did not take the page.",
+   "reviewers": [
+    "adversarial",
+    "testing",
+    "reliability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 9,
+   "title": "The seed script's get-or-create uses a lock-free SELECT-then-INSERT with no savepoint and no IntegrityError recovery",
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/scripts/seed_e2e_data.py",
+   "line": 104,
+   "first_evidence": "pcs-backend/scripts/seed_e2e_data.py:104 --     existing = (",
+   "why_it_matters": "The five seed helpers all use a lock-free SELECT-then-INSERT: they look for the row, see it missing, and insert it. Two overlapping `seed` invocations (the compose `seed` service plus a manual run, or a restarted container whose previous `seed` is still alive) therefore both decide to insert and one of them dies on the unique constraint. The failure is loud rather than silent - the `IntegrityError` aborts the script before the `commit()` at `seed_e2e_data.py:252`, so no data is corrupted - but the E2E channel then starts with missing rows, and missing `UserProject` grants make every project-guarded endpoint answer 404, which is verbatim what 'does not exist' returns. The repository's own get-or-create pattern is `db.add` inside `begin_nested()` plus an `except IntegrityError` branch that re-reads the winner read-only (`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`); a bare `db.rollback()` is explicitly called out there as wrong.",
+   "evidence": [
+    "pcs-backend/scripts/seed_e2e_data.py:104 -- existing = (  (bare SELECT-then-INSERT, no savepoint)",
+    "docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md -- \"**`db.add` 在 `begin_nested()` 之内** … 撞约束后**重读赢家** … **别用裸 `db.rollback()`**\"",
+    "pcs-backend/scripts/seed_e2e_data.py:123-144,147-172,175-196,199-225 -- same shape repeated in the other four helpers",
+    "pcs-backend/tests/scripts/test_seed_e2e_data.py:3-5 -- the batch's own test docstring names the constraints that would be hit (\"第二次跑要么撞唯一约束\")"
+   ],
+   "suggested_fix": "Adopt the house get-or-create shape in all five helpers (`_ensure_workspace` :104-119, `_ensure_project` :123-144, `_ensure_users` :147-172, `_ensure_grants` :175-196, `_ensure_streams` :199-225): wrap each `db.add` + `flush` in `async with db.begin_nested():` and add an `except IntegrityError:` branch that re-reads the winner read-only (never `update`, never a bare `rollback()`).",
+   "reviewers": [
+    "learnings"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 10,
+   "title": "The partial-index predicate <-> ON CONFLICT index_where match is pinned by no fast test (batch contract R4)",
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py",
+   "line": 103,
+   "first_evidence": "pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py:103 -- assert \"request_id IS NOT NULL\" in src",
+   "why_it_matters": "PG 方言那条分支的断言只查了三个子串：「ON CONFLICT」「request_id」「DO NOTHING」。而本批真正的坑在冲突**目标**上：`ON CONFLICT (request_id)` 匹配不到 partial 唯一索引（`WHERE request_id IS NOT NULL`）⇒ PG 抛 InvalidColumnReferenceError ⇒ 每次写审计都炸、而 SQLite 单测照绿（提交 5b608a1 修的就是这个）。删掉 `index_where=text(\"request_id IS NOT NULL\")` 之后，生成出来的 SQL 仍然是「ON CONFLICT (request_id) DO NOTHING」⇒ **这条用例照样绿**。目前该缺陷的唯一防线在 pg marker 用例里，而 pyproject.toml 明确写着 pg marker「只能经 scripts/pytest_pg.sh 跑 —— 平时被 skipif 静默跳过」⇒ 默认的 pytest 绿灯并不能证明它被守住。",
+   "evidence": [
+    "pcs-backend/tests/services/ai/test_ai_audit_task.py:162 --     assert \"ON CONFLICT\" in text",
+    "pcs-backend/tests/services/ai/test_ai_audit_task.py:163 --     assert \"request_id\" in text",
+    "pcs-backend/app/workers/ai_audit_tasks.py:123 --                 index_where=text(\"request_id IS NOT NULL\"),",
+    "pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py:87 --         postgresql_where=sa.text(\"request_id IS NOT NULL\"),",
+    "pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py:103 -- assert \"request_id IS NOT NULL\" in src",
+    "docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md -- \"凡是「证明 A 引用了 B」的断言，都不该用文本匹配。\"",
+    "pcs-backend/alembic/versions/p10_001_ai_audit_request_fields.py:20 -- \"`WHERE request_id IS NOT NULL` 显式声明 partial：\" (the docstring already contains the asserted substring)",
+    "pcs-backend/tests/alembic/test_p10_001_ai_audit_fields.py:110-116 -- neighbouring `if_not_exists` assertion is already applied per call block, the partial-index assertion is not"
+   ],
+   "suggested_fix": "Derive the predicate from one place and assert it in both guards. (1) In `tests/alembic/test_p10_001_ai_audit_fields.py`, replace the substring assertion with a structural one: parse the migration with `ast`, locate the `op.create_index(...)` call, and assert the `postgresql_where` keyword's value equals `request_id IS NOT NULL` (the same per-call-block technique the neighbouring `if_not_exists` assertion already uses at :113-116), so the migration's own docstring can no longer satisfy the assertion. (2) In `tests/services/ai/test_ai_audit_task.py`, assert the rendered PostgreSQL statement carries the predicate read from the ORM index object (`AiAuditLog.__table__.indexes[\"ux_ai_audit_log_request_id\"].dialect_options[\"postgresql\"][\"where\"]`, the same access used at `tests/alembic/test_p10_001_ai_audit_fields.py:142`) rather than a second hand-written literal.",
+   "reviewers": [
+    "testing",
+    "learnings"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 11,
+   "title": "The PG test's DROP SCHEMA cleanup never checks the subprocess returncode, so a failed cleanup is swallowed",
+   "severity": "P2",
+   "confidence": 100,
+   "file": "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py",
+   "line": 226,
+   "first_evidence": "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py:226 --         subprocess.run(",
+   "why_it_matters": "The PG lane creates an isolated schema, runs `alembic upgrade head` against it, and drops the schema again in a `finally` block. The `CREATE SCHEMA` step asserts `returncode == 0`; the `DROP SCHEMA` step never inspects its `returncode`, so a failed cleanup (an open connection in the isolated schema, a permission error) is swallowed and the orphan schema survives in the developer's own database with the DDL already applied. The corpus rule for this exact shape is that cleanup is part of the test, not aftercare, and that a failed cleanup must be loud (`docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md`). The assertion belongs after the `try/finally`, not inside it, so it cannot mask the real failure.",
+   "evidence": [
+    "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py:226 -- subprocess.run(  (DROP SCHEMA ... CASCADE; returncode never inspected)",
+    "docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md -- \"隔离 schema 的**清理**是测试的一部分，不是善后 —— 清理失败要**响亮**\"; symptom list names \"隔离 schema 的 `DROP SCHEMA` 清理失败被静默吞掉 ⇒ 孤儿 schema 留在开发库里，而 DDL 已经落地\"",
+    "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py:189 -- assert created.returncode == 0, f\"CREATE SCHEMA 失败:\\n{created.stderr}\"  (the create step does check; the cleanup step does not)"
+   ],
+   "suggested_fix": "Capture the `DROP SCHEMA` subprocess result in the `finally` block and assert on it **after** the try/finally (not inside it, which would mask a real failure), mirroring the `CREATE SCHEMA` assertion at `pcs-backend/tests/services/ai/test_ai_audit_task_pg.py:189`.",
+   "reviewers": [
+    "learnings"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 12,
+   "title": "The AI endpoints' OpenAPI still advertises a 200 response the implementation can never return",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/ai/routes.py",
+   "line": 48,
+   "first_evidence": "pcs-backend/app/api/v1/ai/routes.py:48 -- _AI_501 = {",
+   "why_it_matters": "All five AI endpoints unconditionally raise `AINotImplementedError`, so the runtime answer is always 501 -- yet the published contract still lists `200` with an empty body for every one of them, and the generated frontend type therefore carries a dead success branch (`200: {content: {\"application/json\": unknown}}`). This is exactly the defect the M-2 fix set out to remove: the module's own docstring says a contract that describes a response that never happens makes a client 'wait for a 200 that never comes', but the fix only *added* the 501 entry and left the phantom 200 in place. Any consumer that derives its error handling from the spec (SDK generator, contract test, a future P10-B drawer) will code a 200 path that is dead, and the diff's own test only asserts `'501' in responses`, so the phantom cannot regress visibly. Declaring the operation's success status as 501 removes the branch and makes the contract finally describe what the server does.",
+   "evidence": [
+    "pcs-backend/docs/openapi.json:89 -- \"200\": {",
+    "pcs-backend/docs/openapi.json:93 -- \"schema\": {}",
+    "pcs-backend/app/api/v1/ai/routes.py:62 --     raise AINotImplementedError()",
+    "pcs-frontend/src/types/api.d.ts:21833 --                     \"application/json\": unknown;",
+    "pcs-backend/app/schemas/ai.py:95 --     ⚠️ **契约里必须声明它**（2026-11-12 评审 M-2）：路由若只写 `-> None`，"
+   ],
+   "suggested_fix": "Declare the endpoints' success status as 501 instead of letting FastAPI auto-generate the 200 entry. In `pcs-backend/app/api/v1/ai/routes.py`, change the decorator to `@router.post(\"/intent\", status_code=501, response_model=AiNotImplementedResponse, openapi_extra=_RESERVED)` (same for the other four) and drop the hand-written `_AI_501` responses dict; if FastAPI's merge order does not attach the model to the auto-generated 501 entry, keep `responses={501: {\"model\": AiNotImplementedResponse, ...}}` alongside `status_code=501` and verify the emitted schema in `pcs-backend/docs/openapi.json`. Then regenerate the contract artifacts (`cd pcs-backend && uv run python scripts/export_openapi.py`, `cd pcs-frontend && npm run api:gen`) and extend `tests/api/v1/test_ai_routes.py::test_ai_routes_declare_the_501_envelope_in_the_contract` with `assert \"200\" not in responses`.",
+   "reviewers": [
+    "api-contract"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 13,
+   "title": "The AI endpoints' contract omits the 401 that authentication-before-501 guarantees",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/ai/routes.py",
+   "line": 56,
+   "first_evidence": "pcs-backend/app/api/v1/ai/routes.py:56 -- @router.post(\"/intent\", openapi_extra=_RESERVED, responses=_AI_501)",
+   "why_it_matters": "The whole design of these five endpoints is that a request without a valid token gets 401 and only an authenticated one gets 501 -- the module docstring states it explicitly and `tests/api/v1/test_ai_routes.py::test_ai_routes_require_auth` pins the runtime behaviour. But the published contract for the same endpoints declares only 200/501/422, and it renders the `authorization` header parameter with `\"required\": false`, so a client that trusts the contract believes an unauthenticated call is a valid call and has no branch for the 401 it will actually receive. The failure mode the code itself warns about ('no login looks like the feature is not shipped, so the triage goes in the wrong direction') is exactly what a contract-only reader reproduces. The repo already has the precedent of declaring an auth failure in the contract (`/api/v1/streams/batch-submit` declares a `403`), so adding a `401` entry here is consistent with existing practice rather than a new convention.",
+   "evidence": [
+    "pcs-backend/app/api/v1/ai/routes.py:12 -- ⇒ 无 token ⇒ **401**（不是 501）。",
+    "pcs-backend/app/api/v1/config.py:520 --             status=401,",
+    "pcs-backend/docs/openapi.json:88 --         \"responses\": {",
+    "pcs-backend/docs/openapi.json:116 --           }",
+    "pcs-backend/docs/openapi.json:8588 --           \"403\": {",
+    "pcs-backend/docs/openapi.json:64 --             \"required\": false,"
+   ],
+   "suggested_fix": "Add a 401 entry to the AI endpoints' declared responses so the contract describes the auth-first behaviour: in `pcs-backend/app/api/v1/ai/routes.py`, extend the shared responses dict with `401: {\"model\": ErrorResponse, \"description\": \"未认证（认证先于 501）\"}` (`ErrorResponse` is the repo's unified envelope from `app/core/errors.py`; note it is not currently a component schema, so it must be registered as one for the reference to resolve). Apply the same dict to all five routes, then regenerate `docs/openapi.json` / `openapi.snapshot.json` / `src/types/api.d.ts` and assert the 401 entry in the existing contract test.",
+   "reviewers": [
+    "api-contract"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 14,
+   "title": "health_ai is ~97 lines, over the repo's 50-line function limit",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/health.py",
+   "line": 110,
+   "first_evidence": "pcs-backend/app/api/v1/health.py:110 -- @router.get(\"/health/ai\", response_model=HealthAIResponse)",
+   "why_it_matters": "GET /health/ai 的判定逻辑全部塞在一个函数里（110-206 行，约 60 行有效代码、5 段提前返回）：读设置 → 处理非法 CIDR → 未配置 → 域名 → IP 字面量在/不在内网。口径要求写明「函数 <50 行」，而这条函数是本批新增端点里最长的一处分支阶梯；再加一种 endpoint 形态（比如 IPv6 字面量）就只能继续往同一个函数里堆分支，改动时无法单独验证某一支。把它拆成一个纯判定函数（输入 endpoint + cidrs，输出 status/reason），端点只负责取设置与组装响应，既满足行数口径，也让 D22 登记的判定口径能被单测直接钉住（当前这五种判定只能在 HTTP 层间接覆盖）。",
+   "evidence": [
+    "pcs-backend/app/api/v1/health.py:110 -- async def health_ai(",
+    "pcs-backend/app/api/v1/health.py:206 --     )",
+    "standards-paths.md §1「口径要求 — … immutable patterns; functions <50 lines; files <800 lines; no deep nesting; no mutation; 80% coverage expectation for new functionality」（该映射声明这条口径出自 PCS/CLAUDE.md；注意 PCS/CLAUDE.md 正文当前并没有「口径要求」小节，规则以本映射为准）"
+   ],
+   "suggested_fix": "在 app/api/v1/health.py 内抽出纯函数 `_classify_ai_endpoint(endpoint: str | None, cidrs: list[str]) -> tuple[str, str | None]`（返回 (status, reason)，把「未配置 / 域名 / IP 字面量在内网 / 不在内网」四支搬进去，非法 CIDR 与读不到设置两支留在端点里），端点只保留取设置 + 组装 HealthAIResponse；假设 D22 登记的判定口径逐字不变。",
+   "reviewers": [
+    "project-standards"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 15,
+   "title": "/api/v1/health/ai resolves the host outside the try block: a malformed endpoint returns 500 instead of degraded",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/api/v1/health.py",
+   "line": 179,
+   "first_evidence": "pcs-backend/app/api/v1/health.py:179 --     host = host_of(endpoint)",
+   "why_it_matters": "健康端点自己承诺「**恒 200** —— 健康端点的职责是**报告**，不是**拒绝**」，并且对 CIDR 非法、读不到系统参数两种依赖失效都做了降级。但 `host_of(endpoint)` 这一步被留在了所有 `try` 之外：`urllib.parse.urlparse` 对带方括号但没闭合的 IPv6 主机名（如管理员在参数页里手输 `http://[::1`）会抛 `ValueError(\"Invalid IPv6 URL\")`，`ai_cidr.host_of` 不捕获 ⇒ `/api/v1/health/ai` 返回 500 而不是 `degraded`。一旦有探针（或 K8s liveness）指向这个端点，一个手滑的配置值就能变成重启循环/告警风暴，而且症状（500）与「AI 还没上线」长得完全不一样。",
+   "evidence": [
+    "pcs-backend/app/api/v1/health.py:179 -- host = host_of(endpoint)",
+    "pcs-backend/app/core/ai_cidr.py:93 -- parsed = urlparse(raw)",
+    "pcs-backend/app/api/v1/health.py:139 -- except RuntimeError:",
+    "pcs-backend/app/api/v1/health.py:150 -- except Exception:  # noqa: BLE001 — 读不到参数不该让健康端点崩"
+   ],
+   "suggested_fix": "把 host 提取纳入降级路径：在 `health_ai` 里用 `try: host = host_of(endpoint) except ValueError: host = \"\"`（`urlparse` 对畸形 IPv6 抛的是 `ValueError`），并按现有 reason 常量的写法新增 `_REASON_ENDPOINT_INVALID = \"endpoint_invalid\"`，返回 `status=\"degraded\"`；或者更彻底一点 —— 让 `ai_cidr.host_of` 自己在畸形输入时返回 `\"\"`（`resolve_ai_endpoint_ips` 已有「host 为空 ⇒ RuntimeError」的处置口径，`host_of` 返回空串与它一致）。补一条用例：把 `ai_endpoint` 设成 `http://[::1` ⇒ 断言 200 且 `status == \"degraded\"`。",
+   "reviewers": [
+    "reliability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 16,
+   "title": "The audit enqueue is awaited in the request's finally block: with Redis down each AI request pins its connection ~10s",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/ai_audit_middleware.py",
+   "line": 180,
+   "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:180 --             await self._record_audit(",
+   "why_it_matters": "中间件在 `finally` 块里 `await self._record_audit(...)`，而 `_record_audit` 会走到 `arq.create_pool` —— ARQ 0.28 的 `create_pool` 在连不上时会**重试 `conn_retries`（默认 5）次、每次间隔 `conn_retry_delay`（1 秒）、单次连接超时 `conn_timeout`（1 秒）**，最坏约 6×(1s 连接 + 1s 间隔) ≈ 10 秒。而 ASGI 应用在 `finally` 结束前不会返回 ⇒ uvicorn 无法回收/复用这条 HTTP 连接（响应字节虽已写出，但连接要等 10 秒才归还）。也就是说 Redis 一挂，**每一个 `/api/v1/ai/*` 请求都会把连接钉住约 10 秒**，吞吐被旁路审计拖垮；P10-B 接上真实 AI 端点后这条路径的 QPS 会比现在的 501 占位高一个量级。审计是旁路，本不该有能力占住业务请求的连接 —— 这里缺的是一个显式的超时/快速失败边界（bulkhead）。",
+   "evidence": [
+    "pcs-backend/app/core/ai_audit_middleware.py:180 -- await self._record_audit(",
+    "pcs-backend/app/core/ai_audit_middleware.py:176 -- finally:",
+    "pcs-backend/app/services/ai/arq_queue.py:64 -- pool = await _create_pool()",
+    "pcs-backend/app/services/ai/arq_queue.py:34 -- return await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+    "arq/connections.py:283 -- if retry < settings.conn_retries:",
+    "arq/connections.py:257 -- socket_connect_timeout=settings.conn_timeout,",
+    "arq/connections.py:44 -- conn_timeout: int = 1"
+   ],
+   "suggested_fix": "给这条旁路加两道边界：(1) 在 `_record_audit` 里用 `asyncio.wait_for(enqueue_ai_audit_log(...), timeout=2)`（超时按「审计失败」降级并记 warning，与现有 `except Exception` 语义一致）；(2) 在 `arq_queue._create_pool` 里用 `RedisSettings.from_dsn(url)` 后显式设 `conn_retries=0`（快速失败，一次 1 秒连接超时即可），避免 ARQ 默认的 5 次重试把单次请求拖成 10 秒。若要彻底解耦，可把入队动作 `asyncio.create_task` 到请求之外，但那样会改变「请求结束前一定已入队」的语义，需先裁决。",
+   "reviewers": [
+    "reliability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 17,
+   "title": "Audit hash is computed outside the degrade guard: nested JSON kills the audit row and escapes the middleware",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/ai_audit_middleware.py",
+   "line": 202,
+   "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+   "why_it_matters": "Every AI request that reaches the middleware is supposed to leave exactly one audit row. The digest is computed *before* the try/except that is supposed to degrade audit failures, and `hash_sanitized` can raise: it calls `json.loads` and only catches `json.JSONDecodeError`, so a body with deep nesting (a few KB of nested arrays/dicts, e.g. ~1000 levels) raises `RecursionError`, which is not a `JSONDecodeError`. That exception escapes `_record_audit` entirely, so (a) the row is never enqueued — the audit table stays blind to exactly the kind of hostile/garbage payload an auditor wants to see — and (b) the exception escapes the middleware's `finally` block, replacing whatever exception was in flight and turning a handled request into an unhandled ASGI error after the response was already sent. The fix is two-part because only guarding the call site is not enough: if the digest is simply computed inside the try, the enqueue is skipped and the row is still lost. The digest must degrade to `None` (row still written) and the hashing itself must survive unbounded nesting.",
+   "evidence": [
+    "pcs-backend/app/core/ai_audit_middleware.py:202 -- digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+    "pcs-backend/app/core/ai_audit_middleware.py:203-206 -- try: / await enqueue_ai_audit_log(...) / except Exception:  # the digest line sits OUTSIDE this try, so a hashing failure is not degraded",
+    "pcs-backend/app/core/ai_sanitizer.py:122-125 -- parsed = json.loads(text) / except json.JSONDecodeError:  # RecursionError is NOT a JSONDecodeError => it escapes hash_sanitized",
+    "pcs-backend/app/core/ai_sanitizer.py:90-98 -- sanitize_for_ai recurses once per nesting level with no depth bound (dict/list comprehensions), so the same body also blows the recursion limit in the sanitizer",
+    "pcs-backend/app/core/ai_audit_middleware.py:176-188 -- finally: / await self._record_audit(...)  # an exception raised here escapes __call__ and replaces any in-flight exception",
+    "pcs-backend/app/core/ai_sanitizer.py:117-133 -- hash_sanitized is the only caller of json.loads/sanitize_for_ai in the audit path"
+   ],
+   "suggested_fix": "Two coordinated edits. (1) In `app/core/ai_audit_middleware.py::_record_audit`, compute the digest defensively and always enqueue the row: `try: digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None / except Exception: logger.warning('AI 审计哈希失败（哈希留空，行照写）', exc_info=True); digest = None` — then keep the existing try around `enqueue_ai_audit_log`. The row must survive even when the hash cannot be computed (contract: audit rows must not be silently dropped). (2) In `app/core/ai_sanitizer.py::hash_sanitized`, treat unbounded nesting as a normal input: catch `RecursionError` alongside `json.JSONDecodeError` (fall back to hashing the sanitized raw text) and add a `depth` argument to `sanitize_for_ai` with a bounded maximum (e.g. 20) beyond which the value is replaced by a placeholder such as `\"[DEEP]\"`. Add a regression test that POSTs a body of ~1000 nested arrays to `/api/v1/ai/intent` and asserts the audit enqueue still happened (and that the response is not a 5xx from an escaped exception).",
+   "reviewers": [
+    "correctness"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 18,
+   "title": "The audit hash (parse -> recursive sanitize -> re-serialize -> sha256) runs synchronously on the event loop",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/ai_audit_middleware.py",
+   "line": 202,
+   "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+   "why_it_matters": "The audit middleware is pure ASGI and runs on the event loop; `hash_sanitized` is a plain synchronous function, so its whole cost is paid by the loop thread with no `await` in between. For a 1 MB body that is a `json.loads` (building a Python object graph several times larger than the payload), a recursive walk applying five regexes to every string, a canonical `json.dumps` re-serialization and a sha256 — tens of milliseconds of pure CPU per request, all of it head-of-line blocking for every other request that worker is concurrently serving. The cost is paid even though the AI endpoints are 501 stubs, i.e. the hash is the most expensive part of handling a request that does no work at all. This is also the code path the second finding's pathological input lands on.",
+   "evidence": [
+    "pcs-backend/app/core/ai_audit_middleware.py:202 --         digest = hash_sanitized(body) if len(body) <= MAX_HASH_BYTES else None",
+    "pcs-backend/app/core/ai_sanitizer.py:123 --             parsed = json.loads(text)",
+    "pcs-backend/app/core/ai_sanitizer.py:127 --             canonical = json.dumps(",
+    "pcs-backend/app/core/ai_sanitizer.py:133 --     return \"sha256:\" + hashlib.sha256(canonical).hexdigest()",
+    "pcs-backend/app/core/ai_audit_middleware.py:180 --             await self._record_audit(  # runs in the middleware's `finally`, i.e. inside the request's event-loop task"
+   ],
+   "suggested_fix": "Move the hash off the event loop with `await asyncio.to_thread(hash_sanitized, body)` in `AIAuditMiddleware._record_audit` (`pcs-backend/app/core/ai_audit_middleware.py:202`), so the CPU work runs in the default threadpool instead of blocking the loop. Keep the `len(body) <= MAX_HASH_BYTES` guard as-is. If the threadpool is a concern under load, lower `MAX_HASH_BYTES` in the same change.",
+   "reviewers": [
+    "performance"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 19,
+   "title": "A runtime ai_enabled flip bypasses every CIDR check (startup validation is a no-op when AI is off at boot)",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/core/outbound_ai_client.py",
+   "line": 67,
+   "first_evidence": "pcs-backend/app/core/outbound_ai_client.py:67 --         validate_ai_endpoint(self.endpoint, self.cidrs)",
+   "why_it_matters": "The SPEC's private-deployment rule (SPEC §2.5「私有化强制」) is enforced in exactly two places: the startup check in main.py's lifespan and the call-time re-check inside OutboundAIClient.call(). The startup check reads `ai_enabled` from system_settings once, at boot; when AI is off then, `validate_ai_startup_config` returns immediately without validating anything. The switch is a database row an administrator can flip at runtime through the parameters page, with no restart. And the call-time check is currently unreachable, because the five AI endpoints raise AINotImplementedError directly and never construct OutboundAIClient. So the sequence \"admin enables ai_enabled and points ai_endpoint at a public URL\" is blocked nowhere: the startup guard already ran, the request path never re-validates, and /health/ai merely reports degraded. Nothing calls a model today so there is no leak yet, but the invariant this batch was built to enforce is enforced by nothing at the moment it starts to matter, and the P10-B implementer inherits a guard that only fires once at boot.",
+   "evidence": [
+    "pcs-backend/app/core/ai_cidr.py:158-159 -- if not ai_enabled: / return      ⇒ startup validation is a no-op whenever AI is off at boot",
+    "pcs-backend/app/main.py:113 -- ai_enabled = bool(await get_setting_value(session, \"ai_enabled\", default=False))      ⇒ read once, in the lifespan",
+    "pcs-backend/app/services/system_setting_service.py:174-176 -- for key in keys: / found[key].setting_value_json = values[key]      ⇒ the switch is a runtime DB write (admin parameters page); no restart, no re-validation",
+    "pcs-backend/app/api/v1/ai/routes.py:62 -- raise AINotImplementedError()      ⇒ the five endpoints never reach OutboundAIClient, so its call-time validate_ai_endpoint is not on the request path",
+    "pcs-backend/app/core/outbound_ai_client.py:66-67 -- # ① **调用时二次校验**（DNS 会漂移 ⇒ 启动时过了不代表此刻还成立） / validate_ai_endpoint(self.endpoint, self.cidrs)"
+   ],
+   "suggested_fix": "Move the check onto the request path: add a FastAPI dependency to the AI router that re-reads `ai_enabled` / `ai_endpoint` from system_settings on every AI request and calls `validate_ai_endpoint(endpoint, parse_cidrs(settings.internal_cidrs))`, rejecting with 503 when AI is enabled but the endpoint resolves outside the internal CIDRs. That way a runtime flip is validated by the same code path that serves the request, and P10-B cannot wire a route that skips it. Assumption: per-request re-validation is acceptable overhead for the five reserved endpoints.",
+   "reviewers": [
+    "adversarial"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 20,
+   "title": "Every AI request opens and tears down a fresh ARQ/Redis connection pool on the request path",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/app/services/ai/arq_queue.py",
+   "line": 64,
+   "first_evidence": "pcs-backend/app/services/ai/arq_queue.py:64 --         pool = await _create_pool()",
+   "why_it_matters": "`enqueue_ai_audit_log` builds a brand-new ARQ pool (TCP connect + AUTH against Redis) for every single audited request and closes it again in the `finally` block, so request N leaves behind N Redis connections' worth of handshake churn instead of reusing one pooled connection. The middleware calls this on every request to `/api/v1/ai/*` — including the 501 probes and the unauthorized probes — and it is awaited inside the request's `finally`, so the ASGI task (and with it the HTTP connection, for keep-alive clients) is not released until the Redis round-trip completes, even though the client has already received its response. The same create/close-per-call shape exists in `app/services/report/arq_queue.py`, but that path fires once per user-initiated long-running report job; here it is per request, on a path that is intended to become the hot AI path. The repo already has the process-level pattern this should follow: `app/services/broadcaster.py` and the WS registry keep a long-lived Redis connection and close it from the lifespan shutdown hook (`_close_redis_connections` in `app/main.py`).",
+   "evidence": [
+    "pcs-backend/app/services/ai/arq_queue.py:64 --         pool = await _create_pool()",
+    "pcs-backend/app/services/ai/arq_queue.py:34 --     return await create_pool(RedisSettings.from_dsn(get_settings().redis_url))",
+    "pcs-backend/app/services/ai/arq_queue.py:72 --                 await pool.aclose()",
+    "pcs-backend/app/core/ai_audit_middleware.py:204 --             await enqueue_ai_audit_log(",
+    "pcs-backend/app/main.py:188 -- async def _close_redis_connections() -> None:  # the repo's existing process-level Redis-connection teardown hook"
+   ],
+   "suggested_fix": "Hold one lazily-created ARQ pool at module level in `pcs-backend/app/services/ai/arq_queue.py` (e.g. `_pool: ArqRedis | None` guarded by an `asyncio.Lock`), reuse it in `enqueue_ai_audit_log`, and close it from the existing lifespan shutdown hook `_close_redis_connections()` in `pcs-backend/app/main.py` (mirroring how the broadcaster and WS registry connections are closed). Keep the per-call fallback path so that a Redis outage at first use degrades to the current warning-and-return-False behaviour instead of raising at import/startup time.",
+   "reviewers": [
+    "performance"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 22,
+   "title": "The compose test-profile guard only parses YAML: migrate/seed are never actually executed",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-backend/tests/scripts/test_compose_test_profile.py",
+   "line": 32,
+   "first_evidence": "pcs-backend/tests/scripts/test_compose_test_profile.py:32 --     return yaml.safe_load(COMPOSE_FILE.read_text(encoding=\"utf-8\"))",
+   "why_it_matters": "这个守卫的唯一手段是 `yaml.safe_load` 后断言 compose 文件**写了什么**（profile 名、卷、命令字符串、depends_on 条件、DATABASE_URL 字符串），它**从不执行** `docker compose --profile test run --rm migrate` / `seed`。于是它可以在真实栈完全坏掉的情况下保持全绿：`alembic upgrade head` 在 pgtest 库上失败、seed 脚本在 PG 上抛异常、容器里 `uv run --frozen` 建 venv 失败（首次运行要联网）—— 这些都只发生在 `docker compose` 里，测试一个也看不见。这就是「守门跑在跟被保护对象不同的上下文里」造成的静默放行：绿灯并不代表被保护的那条命令还能跑。账簿里记录的是**人工**实跑过一次（`同一条命令对 pcs_pgtest 实测 ⇒ p10_001 (head)`），但那是手工证据，不会随仓库分发，也不会在下次改动后重跑。",
+   "evidence": [
+    "pcs-backend/tests/scripts/test_compose_test_profile.py:32 -- return yaml.safe_load(COMPOSE_FILE.read_text(encoding=\"utf-8\"))",
+    "docker-compose.yml:113 -- command: [\"uv\", \"run\", \"--frozen\", \"alembic\", \"upgrade\", \"head\"]",
+    "docker-compose.yml:132 -- command: [\"uv\", \"run\", \"--frozen\", \"python\", \"scripts/seed_e2e_data.py\"]",
+    ".superpowers/sdd/2026-11-04-p10-batch-a-preflight-ai-reserve/progress.md:254 -- ⇒ **同一条命令**对 `pcs_pgtest` 实测 ⇒ `p10_001 (head)`。"
+   ],
+   "suggested_fix": "给这条守门补一个**执行级**的同源用例：新增 `scripts/compose_test_stack.sh`（幂等），按 README 的顺序跑 `docker compose --profile test up -d postgres-pgtest` → `run --rm migrate` → `run --rm seed`，并在脚本末尾**直查库**断言 `alembic_version == p10_001` 与种子行存在（项目/物流/`user_projects` 各 ≥1），任一步非零退出即失败。再在 `tests/alembic/` 或新的 `tests/scripts/test_compose_test_profile_pg.py` 里以 `pg` marker 断言该脚本的退出码（pg marker 只能经 `scripts/pytest_pg.sh` 跑，符合仓内既有入口约定），并把这条命令写进发布前检查清单。",
+   "reviewers": [
+    "reliability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 23,
+   "title": "The mock-toggle env var is untyped, so a wrong literal silently re-enables MSW on the real-backend channel",
+   "severity": "P2",
+   "confidence": 75,
+   "file": "pcs-frontend/src/main.tsx",
+   "line": 14,
+   "first_evidence": "pcs-frontend/src/main.tsx:14 --   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {",
+   "why_it_matters": "`src/vite-env.d.ts` augments `ImportMetaEnv` with only `VITE_PROJECT_ID` and `VITE_DEV_TOKEN`; Vite's own `ImportMetaEnv` carries a `[key: string]: any` index signature, so `import.meta.env.VITE_ENABLE_MOCK` is typed `any`. The real-backend E2E channel is selected by nothing but that comparison, so a wrong literal (`'FALSE'`, `'0'`, `'no'`) type-checks cleanly and silently leaves MSW mounted on port 5174 - the \"真后端\" suite then reports green without ever reaching the backend, which is the exact false-green this diff set out to eliminate. The `any` also removes the signal that this switch is a two-valued string rather than a boolean.",
+   "evidence": [
+    "pcs-frontend/src/main.tsx:14 --   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {",
+    "pcs-frontend/src/vite-env.d.ts:3 -- interface ImportMetaEnv {",
+    "pcs-frontend/src/vite-env.d.ts:4 --   readonly VITE_PROJECT_ID?: string;",
+    "pcs-frontend/playwright.config.ts:70 --       command: `VITE_ENABLE_MOCK=false npm run dev -- --port ${REAL_PORT}`,"
+   ],
+   "suggested_fix": "Declare the variable in `src/vite-env.d.ts` as `readonly VITE_ENABLE_MOCK?: 'true' | 'false';` so the explicit member type takes precedence over the index signature and the comparison in `src/main.tsx` is type-checked against the two legal values (a mistyped literal becomes a compile error). Keep the runtime semantics unchanged (\"mock on unless explicitly 'false'\").",
+   "reviewers": [
+    "maintainability"
+   ],
+   "requires_verification": true
+  },
+  {
+   "#": 24,
+   "title": "The AI audit test module's docstring still asserts the disproven premise 'ARQ max_tries=5 => retries必然发生'",
+   "severity": "P3",
+   "confidence": 100,
+   "file": "pcs-backend/tests/services/ai/test_ai_audit_task.py",
+   "line": 5,
+   "first_evidence": "pcs-backend/tests/services/ai/test_ai_audit_task.py:5 -- ARQ 默认 `max_tries=5`（本批不显式改）⇒ **重试必然发生** ⇒",
+   "why_it_matters": "The test module's own docstring - the first thing a maintainer reads - states that ARQ's default `max_tries=5` means \"retries必然发生\", and the idempotency test is justified by that premise. Two facts are wrong: arq 0.28 only retries on `Retry` (the repository's own `app/workers/ai_audit_tasks.py:12-14` and `docs/solutions/framework-integration-issues/arq-028-worker-silent-failure-modes.md` both say so, and the batch's ledger ruled the premise false), and the repository sets `MAX_TRIES = 3` (`app/workers/worker.py:48,237`), not 5. The production docstring was corrected in this batch; this test-module copy was left behind, which is the corpus's `guard-test-fooled-by-lying-comment` shape recurring inside the very batch that fixed it elsewhere.",
+   "evidence": [
+    "pcs-backend/tests/services/ai/test_ai_audit_task.py:5 -- ARQ 默认 `max_tries=5`（本批不显式改）⇒ **重试必然发生** ⇒",
+    "docs/solutions/framework-integration-issues/arq-028-worker-silent-failure-modes.md §1 -- \"So `WorkerSettings.max_tries = 3` guarantees nothing by itself: it bounds how many times a `Retry` **may** recur; it does not trigger retries. A task body raising `PcsError`/`RuntimeError` runs once, full stop.\"",
+    "pcs-backend/app/workers/worker.py:48 -- MAX_TRIES = 3 (repo value is 3, not 5)",
+    "pcs-backend/app/workers/ai_audit_tasks.py:12-14 -- production docstring already corrected to \"arq 0.28 只对 `Retry` 异常重试\""
+   ],
+   "suggested_fix": "Replace `pcs-backend/tests/services/ai/test_ai_audit_task.py:5-7` with the wording already used in `pcs-backend/app/workers/ai_audit_tasks.py:12-14` (\"job 可能被重投 / 将来加退避重试\") and drop the wrong `max_tries=5` (the repo sets `MAX_TRIES = 3` at `pcs-backend/app/workers/worker.py:48,237`). One-line docstring edit.",
+   "reviewers": [
+    "learnings"
+   ],
+   "requires_verification": false
+  }
+ ],
+ "not_selected_report_only": [
+  {
+   "#": 21,
+   "title": "On an unmigrated database the AI audit row is silently dropped (schema error swallowed as a generic write failure)",
+   "severity": "P2",
+   "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+   "line": 176,
+   "owner": "release",
+   "reason": "owner is `human` or `release` - report-only, outside the actionable queue"
+  },
+  {
+   "#": 25,
+   "title": "cerebrum 加 9 条未按清退规则退役旧条目，文件已超自设体积上限",
+   "severity": "P3",
+   "file": ".wolf/cerebrum.md",
+   "line": 7,
+   "owner": "human",
+   "reason": "owner is `human` or `release` - report-only, outside the actionable queue"
+  },
+  {
+   "#": 26,
+   "title": "AI request bodies mix camelCase and snake_case within the same endpoint",
+   "severity": "P3",
+   "file": "pcs-backend/app/schemas/ai.py",
+   "line": 68,
+   "owner": "human",
+   "reason": "owner is `human` or `release` - report-only, outside the actionable queue"
+  },
+  {
+   "#": 27,
+   "title": "The generated frontend type makes topK required although the contract and the server treat it as optional with default 5",
+   "severity": "P3",
+   "file": "pcs-frontend/src/types/api.d.ts",
+   "line": 7095,
+   "owner": "human",
+   "reason": "owner is `human` or `release` - report-only, outside the actionable queue"
+  }
+ ]
+}

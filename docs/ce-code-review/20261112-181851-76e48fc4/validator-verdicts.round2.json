@@ -1,0 +1,22 @@
+{
+  "verdicts": [
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Mechanism confirmed from the code: ai_sanitizer.py:46 is an unanchored greedy `[A-Za-z0-9._%+-]+@…` rule whose tail literal cannot match a body without '@', so the engine re-scans the run at every start offset, and hash_sanitized is a plain synchronous function invoked with no await point from the async _record_audit at ai_audit_middleware.py:202, putting the whole CPU cost on the event-loop thread; reachability is broader than the finding states, because the middleware matches scope['path'] by prefix at lines 147-149 before routing, so an anonymous POST to /api/v1/ai/<anything> (even an unrouted path) has its body read at line 162 and hashed in the finally block regardless of the 401/429 outcome, and every body <= MAX_HASH_BYTES=1 MiB (line 47) is hashed, so the supplied figures (40 KB 1.1 s, 80 KB 4.2 s, 160 KB 17 s, 320 KB 68 s, '@'-control 1.5 ms) all sit inside the vulnerable window (I did not re-run the timing, only the code path), with one correction to the finding's wording: the hash is NOT computed 'before authentication' — it runs in the middleware's finally after the response — but the exploitability conclusion is unchanged because the audit row is written on every outcome, and the 5/min per-IP RBAC limiter at errors.py:231-241 does not mitigate it since it only changes the response code, not the hashing. Honest grade: P1 (High), not P0 — the impact is availability-only with no data loss, corruption or privilege-boundary crossing (CVSS AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H = 7.5), and this same review already grades the sibling pre-auth resource findings on this identical request path P1 (#3 pre-auth 10 MB body buffering, #18 the same synchronous hash on the event loop); it is nonetheless an unauthenticated single-request whole-service stall (single-worker uvicorn per README.md:68) and belongs at the front of the fix queue, ideally in one edit with #3."
+    },
+    {
+      "#": 28,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Both halves of the finding check out: the fallback at errors.py:318 really does mint a fresh uuid4 whenever scope['state']['request_id'] is absent (Starlette's Request.state, starlette/requests.py:189-196, exposes exactly the dict the middleware mutates at ai_audit_middleware.py:154), and the stated 'unreachable today' is correct because the only HTTP-reachable raisers of AINotImplementedError are the five /api/v1/ai route handlers (app/api/v1/ai/routes.py:62,71,80,89,98) — OutboundAIClient.call's raise at app/core/outbound_ai_client.py:73 is instantiated nowhere under app/ (only in tests/core/test_outbound_ai_client.py) — and every one of them sits under the prefix the middleware matches, while main.py:245 always mounts AIAuditMiddleware; the precondition for the defect is a raiser of AINotImplementedError outside /api/v1/ai (e.g. wiring OutboundAIClient into a non-AI-prefixed route in a later batch) or an app instance built without the middleware, and until one of those exists no caller can receive a request_id that matches no audit row, so P3/latent (anchor 50) is the honest grade and reporting it as a live defect today would be wrong."
+    },
+    {
+      "#": 29,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "The code shape is confirmed — AI_PATH_PREFIX='/api/v1/ai' at ai_audit_middleware.py:44 is tested with str.startswith at lines 147-149 with no path boundary — but the finding's stated reachability is wrong in the direction of 'it IS reachable' and that matters: the prefix test runs before routing, so a request to a non-routed neighbour such as POST /api/v1/ai-anything is audited today (body read at line 162, hashed at line 202, audit row enqueued with endpoint='/api/v1/ai-anything', status 404), which is exactly the over-capture and the body-hashing surface the finding describes; what is genuinely unreachable today is only over-capturing a real sibling route, since the complete set of mounted paths starting with '/api/v1/ai' is the five AI endpoints (app/api/v1/ai/routes.py:56-98, cross-checked against docs/openapi.json) and the apparent neighbours /api/v1/audit*, /api/v1/admin*, /api/v1/auth* diverge at the 9th character and do not match the prefix; the precondition for the harmful form is a future non-AI route mounted under /api/v1/ai, and the suggested fix (path == prefix or path.startswith(prefix + '/')) is unchanged."
+    }
+  ]
+}

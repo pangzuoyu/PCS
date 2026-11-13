@@ -1,0 +1,157 @@
+│ cache/scratch/probe_p10_review.py
+│ @@ -0,0 +1,39 @@
+│ +import re, time, json
+│ +
+│ +# Probe 1: EMAIL regex cost (finding #4)
+│ +pat = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+│ +for n in (20_000, 40_000, 80_000):
+│ +    s = "x" * n
+│ +    t0 = time.perf_counter()
+│ +    pat.sub("[EMAIL]", s)
+│ +    dt = time.perf_counter() - t0
+│ +    print(f"no-@ body n={n}: {dt*1000:.1f} ms")
+│ +s2 = "x" * 80_000 + "@corp.com"
+│ +t0 = time.perf_counter(); pat.sub("[EMAIL]", s2)
+│ +print("with @ at end n=80k: %.1f ms" % ((time.perf_counter() - t0) * 1000))
+│ +
+│ +# Probe 2: RecursionError on nested arrays (finding #17)
+│ +for depth in (500, 1000, 2000):
+│ +    try:
+│ +        json.loads("[" * depth + "]" * depth)
+│ +        print(f"json.loads nested-{depth}: OK (no error)")
+│ +    except RecursionError:
+│ +        print(f"json.loads nested-{depth}: RecursionError")
+│ +    except Exception as e:
+│ +        print(f"json.loads nested-{depth}: {type(e).__name__}")
+│ +
+│ +# also test sanitize-like recursion cost at depth 200 (valid but deep)
+│ +try:
+│ +    v = json.loads("[" * 200 + "]" * 200)
+│ +    print("nested-200 parsed fine -> would recurse in sanitize_for_ai")
+│ +except Exception as e:
+│ +    print("nested-200:", type(e).__name__)
+│ +
+│ +# Probe 3: urlparse ValueError on malformed IPv6 (finding #15)
+│ +from urllib.parse import urlparse
+│ +for u in ("http://[::1", "http://[::1]:8000/x", "http://10.1.2.3:8000/v1"):
+│ +    try:
+│ +        h = urlparse(u).hostname
+│ +        print(f"urlparse({u!r}).hostname = {h!r}")
+│ +    except ValueError as e:
+│ +        print(f"urlparse({u!r}): ValueError: {e}")
+│ cache/scratch/probe2_p10_review.py
+│ @@ -0,0 +1,32 @@
+│ +import json, sys
+│ +
+│ +print("python:", sys.version)
+│ +print("recursionlimit:", sys.getrecursionlimit())
+│ +
+│ +# emulate sanitize_for_ai's recursion shape (pure Python)
+│ +def rec(value):
+│ +    if isinstance(value, str):
+│ +        return value
+│ +    if isinstance(value, list):
+│ +        return [rec(item) for item in value]
+│ +    return value
+│ +
+│ +for depth in (500, 900, 1000, 1500, 2000):
+│ +    body = ("[" * depth) + ("]" * depth)
+│ +    try:
+│ +        parsed = json.loads(body)          # does json.loads raise?
+│ +        loads_err = None
+│ +    except Exception as e:
+│ +        parsed = None
+│ +        loads_err = type(e).__name__
+│ +    if parsed is not None:
+│ +        try:
+│ +            rec(parsed)                     # does the sanitize-style walk raise?
+│ +            walk_err = None
+│ +        except Exception as e:
+│ +            walk_err = type(e).__name__
+│ +    else:
+│ +        walk_err = "-"
+│ +    print(f"depth={depth}: json.loads -> {loads_err or 'OK'}, recursive walk -> {walk_err or 'OK'}")
+│ +
+│ +# What does a ~4KB body weigh in nesting terms? 2000 levels = 4000 bytes -> well under 1MB.
+All evidence gathered. Composing the final verdict:
+
+```json
+{
+  "reviewer": "hermes-third-perspective",
+  "model": "glm-5.2 (zai) — Hermes Agent CLI, Linux",
+  "scope_read": "report.md, synthesized-findings.json (full), validator outcomes via report, raw-returns.json (all lens finding titles + learnings-researcher.md in full), intent.md, files.txt; source verified at HEAD 55239ff (git status: only .wolf bookkeeping dirty): scripts/seed_e2e_data.py, app/core/ai_audit_middleware.py, ai_sanitizer.py, ai_cidr.py, ai_errors.py, outbound_ai_client.py, app/workers/ai_audit_tasks.py, worker.py (grep), app/services/ai/arq_queue.py, app/api/v1/ai/routes.py, app/schemas/ai.py, app/api/v1/health.py, app/core/errors.py (501 handler), app/main.py, app/models/system.py (AiAuditLog), app/models/project.py (UserProject FK), app/services/token_issuer.py, alembic/versions/p10_001_*.py, docker-compose.yml, README.md (E2E section), pcs-frontend: real_backend_smoke.spec.ts, playwright.config.ts, fixtures.ts, main.tsx, vite-env.d.ts, vite.config.ts, client.ts, package.json, src/types/api.d.ts:7080-7109; tests: test_ai_audit_middleware.py (full), test_ai_routes.py (full), test_seed_e2e_data.py (full), test_p10_001_ai_audit_fields.py (full), test_ai_audit_task_pg.py (full), test_compose_test_profile.py (full), test_ai_audit_task.py (head), test_health_ai.py (grep), test_no_direct_ai_sdk.py (full); docs/openapi.json (AI paths + AiKnowledgeSearchRequest); .venv arq/connections.py (RedisSettings defaults); ledger progress.md (T1/T14/H-2 sections); .wolf/cerebrum.md not re-opened (took #25's self-quote plus files.txt absence of the archive file). Runtime probes (scratch, no repo mutation): EMAIL-regex timing, nested-JSON recursion, urlparse('http://[::1'), sha256 of the three contract artifacts.",
+  "verdicts": [
+    { "#": 1, "status": "confirmed", "reason": "seed_e2e_data.py:94 deletes User rows by derive_user_id (uuid5(NAMESPACE_DNS, username), token_issuer.py:57-63) — the identical id real LDAP logins read/create (token_issuer.py:147 recreates missing rows ACTIVE), and user_projects FK cascades (models/project.py:200). The reset test only plants a foreign Workspace (test_seed_e2e_data.py:57-76), so none of this is guarded." },
+    { "#": 2, "status": "confirmed", "reason": "Read test_ai_audit_middleware.py end to end: assertions cover client_request_id/user_id/status_code/endpoint/duration_ms/response_summary/sanitized_request_hash but never 'request_id', and the writer returns without a row on empty request_id (ai_audit_tasks.py:158-160). Overclaimed as P1 though — the middleware always passes request_id today; this is a missing guard on contracts 2/4/5, not a live defect." },
+    { "#": 3, "status": "confirmed", "reason": "_MAX_BODY_BYTES = 10 MiB (ai_audit_middleware.py:52), chunks list + b''.join ≈ 2x body (:95-111), read before any auth on every /api/v1/ai request (:162), no content-length pre-check, no aggregate bound. P1 unauthenticated memory exposure stands." },
+    { "#": 4, "status": "confirmed", "reason": "Measured on this host: EMAIL regex on '@'-free class-char input takes 269 ms @20k, 1078 ms @40k, 4297 ms @80k chars — clean O(n^2), on the event loop, pre-auth, inside the <=1 MiB hashing window (ai_sanitizer.py:46, ai_audit_middleware.py:47,202). The report's 'not measured' caveat can be dropped; if anything the severity is understated." },
+    { "#": 5, "status": "rejected", "reason": "Agree with the validator: arq_queue.py:67-69 logs a warning per failed enqueue and the module docstring declares the degrade policy, so 'silently blinds' is contradicted by the code; the proposed health counter is an observability enhancement correctly routed to residual risks." },
+    { "#": 6, "status": "confirmed", "reason": "ai_audit_tasks.py:176-179 swallows every write exception and returns; arq 0.28 retries only Retry (repo's own documented precedent report_tasks.py:212-213), so worker.py:48 MAX_TRIES=3 is unreachable for this task and the row is gone while the request already 501'd." },
+    { "#": 7, "status": "confirmed", "reason": "Verified the bypass mechanics: _httpx_calls only sees receivers literally named httpx (test_no_direct_ai_sdk.py:79-84) and _mentions_ai_endpoint requires one of four markers (:50, :141-143) — httpx.post('http://llm.internal:8000/v1/chat/completions') and client.post(url) both stay green. One accuracy caveat: 'never been seen red' overstates — ledger progress.md:215-216 records a manual negative control (import openai + httpx-to-/api/v1/ai probe went red then green); no shipped negative control exists and the marker bypass is real, so the finding stands." },
+    { "#": 8, "status": "confirmed", "reason": "The smoke asserts only login/heading/empty-console (real_backend_smoke.spec.ts:18-24); axios rejects non-401 errors without console output (client.ts:51-65); /auth/me allows a missing users row (auth.py:178); README:151 starts the backend with no DATABASE_URL (=> dev pcs via .env) while compose seed writes pcs_pgtest (docker-compose.yml:140). The channel is structurally MSW-off (playwright.config.ts:70-73), so the confirmed defect is the DB mismatch plus no data-level assertion — as the report itself narrows it." },
+    { "#": 9, "status": "confirmed", "reason": "All five helpers are bare SELECT-then-INSERT + flush with no begin_nested and no IntegrityError recovery (seed_e2e_data.py:104-225); an overlapping run dies loudly before the commit at :252 and leaves the E2E channel without grants." },
+    { "#": 10, "status": "confirmed", "reason": "test_p10_001_ai_audit_fields.py:103 asserts the substring 'request_id IS NOT NULL' over the raw migration text, and the migration's own docstring line 20 contains that substring — deleting postgresql_where=sa.text(...) at :87 keeps it green, while the neighbouring if_not_exists test (:110-116) already does per-call-block matching." },
+    { "#": 11, "status": "confirmed", "reason": "test_ai_audit_task_pg.py:226-247 runs DROP SCHEMA in the finally with no returncode inspection, while CREATE SCHEMA asserts returncode==0 at :189 — a failed cleanup leaves an orphan schema silently." },
+    { "#": 12, "status": "confirmed", "reason": "openapi.json:89-95 declares a 200 with empty schema for /api/v1/ai/intent (and the family) while every handler unconditionally raises AINotImplementedError (routes.py:62); the contract test only asserts '501' in responses (test_ai_routes.py:169), so the phantom 200 cannot regress visibly." },
+    { "#": 13, "status": "confirmed", "reason": "Declared responses are only 200/501/422 (openapi.json:88-116) with authorization 'required': false (:64), while the runtime answers 401 token-less (test_ai_routes.py:78-82) — a contract reader has no branch for the auth-first behaviour the module docstring itself calls load-bearing." },
+    { "#": 14, "status": "confirmed", "reason": "health_ai spans health.py:110-206 (~96 lines) — the length fact is true. Overclaimed: the 'repo's 50-line function limit' traces to standards-paths.md's mapping to a PCS/CLAUDE.md section the coverage notes themselves admit does not exist in the file, so P2 rests on an unverified norm; style-only, no behavioural consequence." },
+    { "#": 15, "status": "confirmed", "reason": "host_of(endpoint) at health.py:179 sits outside every try, and urlparse('http://[::1') raises ValueError('Invalid IPv6 URL') (probe-verified) which host_of does not catch (ai_cidr.py:91-94) — the endpoint promising 恒 200 returns 500; test_health_ai.py's five cases include no malformed-endpoint shape." },
+    { "#": 16, "status": "confirmed", "reason": "_record_audit is awaited in the middleware finally (ai_audit_middleware.py:180-188) and enqueue reaches create_pool, whose RedisSettings default conn_retries=5 / conn_retry_delay=1 / conn_timeout=1 (verified in the installed arq connections.py:44-46,282-295) pins each AI request ~10 s when Redis is down." },
+    { "#": 17, "status": "confirmed", "reason": "The digest at ai_audit_middleware.py:202 precedes the try at :203 and hash_sanitized catches only JSONDecodeError (ai_sanitizer.py:124) — a ~4 KB body of ~1000 nested arrays raises RecursionError that escapes the finally, losing the row after the response was sent. Mechanism nuance: probes show json.loads itself survives depth 2000 on this CPython; the guaranteed trigger is sanitize_for_ai's pure-Python recursion (RecursionError at depth >= 1000). Same consequence, slightly misattributed trigger." },
+    { "#": 18, "status": "confirmed", "reason": "hash_sanitized (parse + recursive walk + dumps + sha256, ai_sanitizer.py:117-133) is plain sync code invoked at ai_audit_middleware.py:202 inside the async finally — the whole cost lands on the loop thread with no await; the #4 measurement shows this same path is worse than the report assumed." },
+    { "#": 19, "status": "confirmed", "reason": "validate_ai_startup_config returns immediately when ai_enabled is false at boot (ai_cidr.py:158-159), the flag is read once in lifespan (main.py:113) from a runtime-admin-writable system_settings row, and the five routes raise 501 without ever constructing OutboundAIClient (routes.py:62) — the flip-and-point-at-public-URL sequence is validated nowhere. P2 with the report's own no-traffic-today caveat is right." },
+    { "#": 20, "status": "confirmed", "reason": "enqueue_ai_audit_log builds and closes a fresh ARQ pool per audited request (arq_queue.py:64,70-75) on the request path; the repo's process-level teardown pattern exists at main.py:188-209 and is not used here." },
+    { "#": 21, "status": "confirmed", "reason": "The compose worker writes ai_audit_log against the dev pcs DB (docker-compose.yml:81) while the only migrate one-shot points at pcs_pgtest (:118); on an unmigrated target the UndefinedColumn lands in the same swallowed except (ai_audit_tasks.py:176-179) as any transient failure. Report-only/release routing is a defensible disposition." },
+    { "#": 22, "status": "confirmed", "reason": "The guard's only instrument is yaml.safe_load plus assertions on the parsed dict (test_compose_test_profile.py:32); nothing ever executes compose migrate/seed — the ledger records only a manual migrate run (progress.md:254) and, notably, no recorded execution of the compose seed service at all." },
+    { "#": 23, "status": "confirmed", "reason": "src/vite-env.d.ts declares only VITE_PROJECT_ID/VITE_DEV_TOKEN, so VITE_ENABLE_MOCK resolves through Vite's [key: string]: any index signature — 'FALSE'/'0' type-checks and silently keeps MSW mounted on 5174 while every shell-level assertion still passes. P2 is defensible under R8." },
+    { "#": 24, "status": "confirmed", "reason": "test_ai_audit_task.py:5 verbatim asserts the disproven 'max_tries=5 ⇒ 重试必然发生'; repo sets MAX_TRIES=3 (worker.py:48) and the production docstring was already corrected (ai_audit_tasks.py:12-14)." },
+    { "#": 25, "status": "confirmed", "reason": ".wolf/cerebrum.md:7-8 self-reports '已超目标 ⇒ 下次清退窗口已到', the retirement rule is at :19, and .wolf/cerebrum.archive.md is absent from the 61-file change list — nine added, zero retired. P3/human is right." },
+    { "#": 26, "status": "confirmed", "reason": "schemas/ai.py:68/86 use snake_case equipment_tag/document_ref beside the SPEC-frozen camelCase aliases projectId/recordId/topK (:36,:56) in the same request family — a real per-field convention split, correctly left as a human decision." },
+    { "#": 27, "status": "confirmed", "reason": "openapi.json:21791-21801 marks topK optional with default 5 while api.d.ts:7095 emits 'topK: number;' with no '?' — the two published artifacts disagree and the drift gate compares only the JSON specs." }
+  ],
+  "missed_findings": [
+    {
+      "title": "The 501 handler's request_id fallback can mint an id that exists in no audit row",
+      "severity": "P3",
+      "file": "pcs-backend/app/core/errors.py",
+      "line": 318,
+      "why_it_matters": "The envelope's documented contract is that a caller can quote request_id to correlate with the audit row (schemas/ai.py:104). When AINotImplementedError is raised on a path not wrapped by AIAuditMiddleware, the handler falls back to a fresh uuid4 — an id that matches no audit row, silently breaking that correlation. Today every raiser sits under /api/v1/ai so it is unreachable, but OutboundAIClient.call() also raises AINotImplementedError (outbound_ai_client.py:73) and P10-B is expected to wire that client into service code; the first non-AI-prefixed raise produces orphaned ids with no test to catch it.",
+      "first_evidence": "pcs-backend/app/core/errors.py:318 --         request_id = getattr(request.state, \"request_id\", None) or str(uuid.uuid4())",
+      "suggested_fix": "Distinguish the fallback (e.g. omit request_id, or log a warning when state.request_id is absent) or assert in a test that the only raisers of AINotImplementedError are inside the AI middleware's prefix.",
+      "confidence": 50
+    },
+    {
+      "title": "AI audit prefix match has no path boundary — over-captures /api/v1/ai* neighbours",
+      "severity": "P3",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 44,
+      "why_it_matters": "AI_PATH_PREFIX = '/api/v1/ai' is matched with plain startswith (:147-149), so any future route whose path merely begins with those 11 characters (e.g. a hypothetical /api/v1/air-quality) gets unauthenticated body buffering, an audit row with a bogus endpoint value, and an X-Request-ID — none of which belong to it. No such route exists today (the audit router at /api/v1/audit does not collide), so this is a latent trap rather than a live defect.",
+      "first_evidence": "pcs-backend/app/core/ai_audit_middleware.py:44 -- AI_PATH_PREFIX = \"/api/v1/ai\"",
+      "suggested_fix": "Match `path == prefix or path.startswith(prefix + '/')` so the guarded set is exactly the AI subtree.",
+      "confidence": 50
+    }
+  ],
+  "overclaimed": [
+    { "#": 2, "suggested_severity": "P2", "reason": "A missing test assertion, not a live defect: the middleware passes request_id on every path today (ai_audit_middleware.py:153,182) and the writer's empty-request_id branch is unreachable from production traffic; the finding protects contracts 2/4/5 but 'the whole audit table would go silently empty' requires a second, hypothetical regression to happen first." },
+    { "#": 14, "suggested_severity": "P3", "reason": "The ~96-line fact is true (health.py:110-206) but the 'repo's 50-line function limit' rests on standards-paths.md pointing at a PCS/CLAUDE.md section the report's own coverage note admits does not exist in the file — the norm is unverified and the consequence is stylistic only." }
+  ],
+  "merge_issues": [
+    "No dropped multi-lens finding found: all 56 raw claims reconcile to the 27 primary + 1 pre-existing + 15 soft-bucket demotions + 6 anchor-50 suppressions; adversarial's 'reset re-enables disabled accounts' folded into #1 and reliability's README-DB-mismatch P1 folded into #8 rather than vanishing.",
+    "Evidence-accuracy issue inside a retained finding, not a merge drop: #7's 'has never been seen red / 从未被观测过一次' contradicts the batch ledger's recorded manual negative control (progress.md:215-216: probe file with import openai + httpx→/api/v1/ai made both rules red, then green after deletion) — the shipped-test gap and the marker/receiver bypasses stand, the absolute 'never red' claim does not.",
+    "Learnings filed #24 as P2; the report publishes P3 — defensible for a docstring-only edit, but it is the only lens-proposed severity that moved downward without a stated reason.",
+    "Minor: the report's P1 count ('Seven open P1 findings') counts only the actionable table; #5 stays in the numbered primary set as validator-rejected — handled honestly in Coverage, but a reader matching numbers 1-27 against the tables will notice the gap."
+  ],
+  "verdict_agreement": "agree — 'Ready with fixes' is justified: I independently confirmed the runtime behaviours the batch claims (auth-before-501, audit rows on auth failure, body replay, idempotent insert, migration↔ORM parity, byte-identical contract artifacts) and found no P0; the confirmed P1s are real but are hardening and false-green fixes, not broken shipped behaviour. Two calibrations: #4 should be treated as a measured live DoS (4.3 s event-loop stall from an anonymous 80 KB body — lift it to the front of the fix order), and #2/#14 are one notch high.",
+  "residual_notes": [
+    "#4 measurement (this host, CPython): 269/1078/4297 ms for 20k/40k/80k '@'-free chars — exact O(n^2); inside the 1 MiB hash window an anonymous body extrapolates to minutes of loop stall.",
+    "#17 mechanism correction: json.loads survived depth 2000 here; the deterministic RecursionError trigger is sanitize_for_ai's Python recursion at depth >= 1000 (~4 KB body) — the fix shape (catch RecursionError + bound depth + guard the digest line) is unchanged.",
+    "Verified sha256-equal: docs/openapi.json == docs/openapi-baseline.json == pcs-frontend/openapi.snapshot.json (28a8d856…); working tree == HEAD 55239ff for every reviewed source file (only .wolf bookkeeping dirty).",
+    "Ledger cross-check strengthens #8/#22: it records 'postgres-pgtest healthy', a manual migrate run, and '真后端 1 passed' — but no execution of the compose seed service anywhere; the channel's single green pass is fully consistent with running against the unseeded dev pcs DB.",
+    "Migration p10_001 vs ORM AiAuditLog compared column-by-column (types, 64/128/200/80/50 widths, all-nullable, both indexes, identical postgresql_where, if_not_exists) — no drift; downgrade drops indexes before columns in the correct order.",
+    "Middleware order re-derived from Starlette add_middleware prepend semantics: trace_id → AIAudit → CORS → router, confirming the preflight-OPTIONS-audit residual is real, not hypothetical.",
+    "Checked and found clean (for the record): arq job payload never carries the raw body (hash only, 71 chars < 80); sanitized dict-key collisions are by-design hash semantics (M-1); seed script importable in the compose container (hatchling installs packages=['app']); vite proxy rewrite order is correct.",
+    "The report's own residual #1090 (operation String(50) untruncated in _MAX_LENGTHS) is the one silent-row-loss path still without a finding number — worth promoting when the write path is next touched.",
+    "PCS/CLAUDE.md's pre-release checklist still names only pcs/pcs_test for alembic check; pcs_pgtest remains uncovered (residual + testing gap already record this — it should block the #22 execution-level guard, not just be noted)."
+  ]
+}
+```

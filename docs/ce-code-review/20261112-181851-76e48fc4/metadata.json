@@ -1,0 +1,76 @@
+{
+  "branch": "main",
+  "completed_at": "2026-11-12T14:20:00Z",
+  "cost": {
+    "host": "claude",
+    "scope": {
+      "changed_lines": 9059,
+      "depth": "full",
+      "exec_nontest_lines": 2567,
+      "size_band": "large",
+      "unclassified_lines": ".json=3750,.md=529,.yml=54"
+    },
+    "stages": [
+      {
+        "elapsed_seconds": 0.03,
+        "ended_at": "2026-11-12T10:19:25.910071+00:00",
+        "facts": {
+          "changed_lines": 9059,
+          "depth": "full",
+          "exec_nontest_lines": 2567,
+          "size_band": "large",
+          "unclassified_lines": ".json=3750,.md=529,.yml=54"
+        },
+        "stage": "scope",
+        "started_at": "2026-11-12T10:19:11.242604+00:00"
+      },
+      {
+        "elapsed_seconds": 155.135,
+        "ended_at": "2026-11-12T10:22:01.045371+00:00",
+        "note": "roster=correctness,project-standards,testing,maintainability,learnings-researcher,security,performance,api-contract,data-migration,reliability,adversarial; cross-model peer skipped (no different-provider CLI installed)",
+        "reviewers": 11,
+        "stage": "select",
+        "started_at": "2026-11-12T10:19:25.910071+00:00"
+      },
+      {
+        "candidates": 50,
+        "elapsed_seconds": 4702.61,
+        "ended_at": "2026-11-12T11:40:23.654933+00:00",
+        "stage": "dispatch",
+        "started_at": "2026-11-12T10:22:01.045371+00:00"
+      },
+      {
+        "candidates": 27,
+        "elapsed_seconds": 891.331,
+        "ended_at": "2026-11-12T11:57:51.270526+00:00",
+        "note": "merge leaf dispatched",
+        "stage": "merge",
+        "started_at": "2026-11-12T11:42:59.939064+00:00"
+      },
+      {
+        "elapsed_seconds": 4938.183,
+        "ended_at": "2026-11-12T14:11:10.621730+00:00",
+        "note": "round 2: 3 verdicts (3 confirmed, 0 rejected) - P0 re-grade refused, #29 raised to anchor 75",
+        "stage": "validate",
+        "started_at": "2026-11-12T12:48:52.439033+00:00"
+      },
+      {
+        "elapsed_seconds": 255.462,
+        "ended_at": "2026-11-12T14:16:24.714276+00:00",
+        "stage": "report",
+        "started_at": "2026-11-12T14:12:09.252166+00:00"
+      }
+    ],
+    "status": "complete",
+    "totals": {
+      "artifact_bytes": 1353420,
+      "candidates": 50,
+      "elapsed_seconds": 10942.751,
+      "reviewers": 11
+    },
+    "truncated_events": 0
+  },
+  "head_sha": "55239ff",
+  "run_id": "20261112-181851-76e48fc4",
+  "verdict": "Ready with fixes"
+}

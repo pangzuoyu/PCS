@@ -1,0 +1,174 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Real-backend E2E smoke passes on an unseeded backend",
+      "severity": "P1",
+      "file": "pcs-frontend/e2e/real_backend_smoke.spec.ts",
+      "line": 23,
+      "why_it_matters": "The only test of the new \"real backend\" channel asserts three things: the login button navigates home, a dashboard heading is visible, and no console error was emitted. None of them require the seeded project. mock-login issues a token without touching `users` (persist_user=False), `/auth/me` explicitly allows a missing user row (\"无行 ⇒ 放行\"), and the axios interceptor only reacts to 401 — every 4xx is a bare `Promise.reject`, so a backend whose project-scoped endpoints all answer 404 produces no console error at all. The dashboard shell still renders and the smoke passes green. Worse, the seed writes to `pcs_pgtest` (a separate PG instance) while the documented backend start-up reads the dev `pcs` database, so the seeded `UserProject` grants never reach the database under test. The one mechanism this batch was built to catch (\"dev frontend is 404 everywhere\" — CLAUDE.md's project guard) is therefore never exercised, and the seed script (T2) has no verification at all.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_smoke.spec.ts:23 -- await expect(realPage.getByRole('heading', { name: '仪表盘' })).toBeVisible();",
+        "pcs-frontend/e2e/real_backend_smoke.spec.ts:24 -- expect(errors).toEqual([]);   // only console messages are collected; nothing asserts a project-scoped response",
+        "pcs-frontend/src/api/client.ts:51-65 -- api.interceptors.response.use((r) => r, (err: AxiosError) => { if (err.response?.status === 401) { ... } return Promise.reject(err); })   ⇒ a 404 storm never reaches the console ⇒ `errors` stays empty",
+        "pcs-backend/app/api/v1/auth.py:178 -- 「无行 ⇒ 放行」的边界**不变**（mock 登录不落库）   ⇒ /auth/me succeeds even with no `users` row at all",
+        "pcs-backend/app/api/v1/mock_auth.py:74 -- pair = await issue_tokens(username=body.username, role=role, persist_user=False)   ⇒ mock login never creates the user row the seed creates",
+        "docker-compose.yml:140 -- DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest   (seed/migrate write here)",
+        "README.md:151 -- cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000   (no DATABASE_URL override ⇒ the backend reads .env ⇒ the dev `pcs` database, a different database from the seed's)",
+        "pcs-backend/scripts/seed_e2e_data.py:18-24 -- 授权行（`user_projects`）不是可选项 … 没有授权行 ⇒ **一律 404**   ⇒ the seed's stated purpose is exactly what the channel never proves"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Two coordinated changes. (a) Make the database under test the database the seed writes: add the pcs_pgtest DATABASE_URL (host port 5433) to the documented backend start-up in README.md's E2E section, and add a compose-guard assertion that the E2E backend and the seed service point at the same database name. (b) Replace the shell-level assertion with a data-level one: after login, assert that a project-scoped request the seeded grant enables (e.g. GET /api/v1/sim/streams) returns 200 and that the seeded stream names appear, instead of only asserting the dashboard heading. Assumption: the backend under test is started by the operator following README, so the fix is a doc + guard + test change rather than a change in the seed script itself."
+    },
+    {
+      "title": "AI audit row dropped forever on DB write error",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/ai_audit_tasks.py",
+      "line": 176,
+      "why_it_matters": "If the insert fails — p10_001 not applied on the target database (UndefinedColumn on `request_id`), a transient DB error, a lock timeout — the task swallows the exception and returns normally. ARQ therefore records the job as *successful* and deletes it: no retry (the module's own docstring states arq 0.28 only retries on `Retry`), no dead-letter, and the row never appears in `ai_audit_log`. The AI request already returned 501, so the caller sees nothing wrong, and the audit table — whose entire purpose is to make AI probing visible — silently omits precisely the requests an attacker would want hidden. The worker configures `max_tries = 3`, but a swallowed exception never consumes a try, so that budget is unreachable for this task.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/ai_audit_tasks.py:176-179 -- except Exception:  # noqa: BLE001 — 审计失败不该让 job 反复重试 / await session.rollback() / logger.warning(\"写 AI 审计行失败（已降级）\", exc_info=True) / return",
+        "pcs-backend/app/workers/ai_audit_tasks.py:14 -- ⚠️ **arq 0.28 只对 `Retry` 异常重试**（其余异常当场判死）",
+        "pcs-backend/app/workers/worker.py:237 -- max_tries = MAX_TRIES      # 见模块顶部 MAX_TRIES   (3 — unreachable here because the exception never escapes the task)",
+        "pcs-backend/app/workers/ai_audit_tasks.py:147-155 -- async def write_ai_audit_log(ctx, **fields) … ⚠️ **写失败不抛**（除幂等冲突外都吞掉）—— 审计是旁路。"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Let ARQ's own retry machinery apply instead of swallowing the error: import `Retry` from arq.worker and `raise Retry(...)` for transient database failures (keep the idempotent IntegrityError swallow, which is the only case that is genuinely a success), or write the failed payload to a dead-letter table plus a counter. Minimal version: re-raise the exception so arq retries up to the configured max_tries=3 and logs the final failure; the audit path is a sidecar and a failing job must not be silently deleted."
+    },
+    {
+      "title": "Redis down silently blinds the AI audit trail",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/ai/arq_queue.py",
+      "line": 67,
+      "why_it_matters": "Redis unreachable ⇒ enqueue raises ⇒ the exception is caught ⇒ False is returned ⇒ the middleware logs one warning line and the request proceeds to return 501 as usual. The audit table stops recording entirely for the duration of the outage — which is exactly the window in which probing or a misconfiguration is most likely — and nothing in the product surface reports it: `/api/v1/health/ai` exposes only endpoint/CIDR configuration, never the state of the audit pipeline. An operator sees a healthy AI status, an empty audit table, and no way to distinguish \"no AI traffic\" from \"audit blind\". The batch's own must-not-regress list requires that the audit table not be blind to probing behaviour, and this is the one path where it goes blind without a single failed request.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/ai/arq_queue.py:67-69 -- except Exception as exc:  # noqa: BLE001 — Redis 各种连接异常 / logger.warning(\"AI 审计入队失败（已降级，不影响请求）: %s: %s\", type(exc).__name__, exc) / return False",
+        "pcs-backend/app/core/ai_audit_middleware.py:216-217 -- except Exception:  # noqa: BLE001 — 审计失败不该影响请求 / logger.warning(\"AI 审计入队失败（已降级）\", exc_info=True)",
+        "pcs-backend/app/api/v1/health.py:110-112 -- @router.get(\"/health/ai\", response_model=HealthAIResponse)   ⇒ the AI health surface reports status/reason/ai_enabled/endpoint_configured/cidrs_configured only — nothing about the audit pipeline"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Expose the audit pipeline's health on the endpoint operators already poll: add an `audit_pipeline: \"ok\" | \"degraded\"` field to HealthAIResponse, fed by a process-local counter of failed enqueues (incremented in the `except` branch of enqueue_ai_audit_log and exposed through a small accessor) and/or by a heartbeat row the worker writes. Assumption: a process-local counter is acceptable as a first cut; a DB heartbeat written by the worker is the stronger version and would also cover the \"worker down\" case."
+    },
+    {
+      "title": "AI architecture guard misses the natural bypass",
+      "severity": "P1",
+      "file": "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py",
+      "line": 50,
+      "why_it_matters": "This guard is the only thing pinning \"AI traffic may only leave through core/outbound_ai_client.py\", and it detects two shapes: imports of a fixed list of SDK package names, and `httpx.<method>(...)` calls whose URL argument literally contains one of four marker strings. The natural bypass — calling the model service directly, e.g. `await httpx.post(\"http://llm.internal:8000/v1/chat/completions\", json=...)` — matches neither rule: that URL contains none of `ai_endpoint` / `/api/v1/ai` / `ai.intent` / `ai/knowledge`, so the guard stays green while the developer has silently bypassed the call-time CIDR re-check, the sanitizer and the audit callback. The same holds for `requests.post(url)` (not httpx at all) and for `client = httpx.AsyncClient(); await client.post(url)` (the receiver is named `client`, so `_httpx_calls` never sees it). The docstring admits the URL-variable hole; the model-service-URL hole is broader and undocumented. The SDK-import half is currently vacuous as well — the packages are not installed, as the docstring itself states.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:50 -- AI_ENDPOINT_MARKERS = (\"ai_endpoint\", \"/api/v1/ai\", \"ai.intent\", \"ai/knowledge\")",
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:79-82 -- if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name): / if func.value.id == \"httpx\": / calls.append(node)   ⇒ only calls whose receiver is literally named `httpx` are inspected",
+        "pcs-backend/tests/architecture/test_no_direct_ai_sdk.py:141-143 -- if _mentions_ai_endpoint(candidate): / offenders.append(f\"{rel}:{call.lineno}\")   ⇒ the URL must contain a marker string; \"http://llm.internal:8000/v1/chat/completions\" contains none",
+        "pcs-backend/app/core/outbound_ai_client.py:67 -- validate_ai_endpoint(self.endpoint, self.cidrs)   ⇒ the call-time CIDR re-check that such a bypass skips"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Invert the rule from \"detect known shapes\" to \"deny network clients outside the sanctioned exit\": flag any import of httpx / requests / aiohttp / urllib.request anywhere under app/ except core/outbound_ai_client.py, and flag httpx.Client() / httpx.AsyncClient() constructions outside it (that also catches the `client.post(url)` form); keep the existing URL-marker rule as an additional signal. Add a negative control — a synthetic offending file written to tmp_path — so the scanner's own sensitivity is tested rather than assumed."
+    },
+    {
+      "title": "Runtime ai_enabled flip bypasses every CIDR check",
+      "severity": "P2",
+      "file": "pcs-backend/app/core/outbound_ai_client.py",
+      "line": 67,
+      "why_it_matters": "The SPEC's private-deployment rule (SPEC §2.5「私有化强制」) is enforced in exactly two places: the startup check in main.py's lifespan and the call-time re-check inside OutboundAIClient.call(). The startup check reads `ai_enabled` from system_settings once, at boot; when AI is off then, `validate_ai_startup_config` returns immediately without validating anything. The switch is a database row an administrator can flip at runtime through the parameters page, with no restart. And the call-time check is currently unreachable, because the five AI endpoints raise AINotImplementedError directly and never construct OutboundAIClient. So the sequence \"admin enables ai_enabled and points ai_endpoint at a public URL\" is blocked nowhere: the startup guard already ran, the request path never re-validates, and /health/ai merely reports degraded. Nothing calls a model today so there is no leak yet, but the invariant this batch was built to enforce is enforced by nothing at the moment it starts to matter, and the P10-B implementer inherits a guard that only fires once at boot.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/ai_cidr.py:158-159 -- if not ai_enabled: / return      ⇒ startup validation is a no-op whenever AI is off at boot",
+        "pcs-backend/app/main.py:113 -- ai_enabled = bool(await get_setting_value(session, \"ai_enabled\", default=False))      ⇒ read once, in the lifespan",
+        "pcs-backend/app/services/system_setting_service.py:174-176 -- for key in keys: / found[key].setting_value_json = values[key]      ⇒ the switch is a runtime DB write (admin parameters page); no restart, no re-validation",
+        "pcs-backend/app/api/v1/ai/routes.py:62 -- raise AINotImplementedError()      ⇒ the five endpoints never reach OutboundAIClient, so its call-time validate_ai_endpoint is not on the request path",
+        "pcs-backend/app/core/outbound_ai_client.py:66-67 -- # ① **调用时二次校验**（DNS 会漂移 ⇒ 启动时过了不代表此刻还成立） / validate_ai_endpoint(self.endpoint, self.cidrs)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Move the check onto the request path: add a FastAPI dependency to the AI router that re-reads `ai_enabled` / `ai_endpoint` from system_settings on every AI request and calls `validate_ai_endpoint(endpoint, parse_cidrs(settings.internal_cidrs))`, rejecting with 503 when AI is enabled but the endpoint resolves outside the internal CIDRs. That way a runtime flip is validated by the same code path that serves the request, and P10-B cannot wire a route that skips it. Assumption: per-request re-validation is acceptable overhead for the five reserved endpoints."
+    },
+    {
+      "title": "seed --reset re-enables disabled accounts",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/seed_e2e_data.py",
+      "line": 94,
+      "why_it_matters": "`--reset` is documented as \"只删自己造的\" and its test only proves that a foreign *workspace* survives. But the delete set also includes the four `users` rows identified by the name-derived id — the same ids real logins use for alice / bob / carol / dan (ensure_user_row creates exactly those rows). Running `--reset` against a database where an administrator has disabled one of those accounts deletes the row, and `_ensure_users` recreates it with status=\"ACTIVE\": a disabled account is silently re-enabled by an E2E preparation step. The seed's test suite stays green throughout because it never asserts that a foreign user row (let alone a disabled one) survives a reset.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_data.py:94 -- await db.execute(delete(User).where(User.user_id.in_(user_ids)))      ⇒ deletes the four name-derived user rows, whoever created them",
+        "pcs-backend/scripts/seed_e2e_data.py:161-167 -- existing = User(user_id=user_id, username=username, display_name=username, roles=[], ad_groups=[], status=\"ACTIVE\",)      ⇒ the recreated row is always ACTIVE",
+        "pcs-backend/scripts/seed_e2e_data.py:15 -- 3. **只删自己造的** —— `--reset` 按固定 UUID 列表筛，不碰业务数据。      (the invariant the reset delete violates for `users`)",
+        "pcs-backend/tests/scripts/test_seed_e2e_data.py:51-76 -- test_reset_only_deletes_our_own_rows inserts a foreign Workspace and asserts it survives; no foreign User row is exercised"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the reset delete only rows the seed itself created: tag seeded users with a marker (e.g. a seed-specific entry in `ad_groups`, or a dedicated seed-marker table/column) and filter the `delete(User)` on that marker instead of on the name-derived ids. At minimum, on reset, preserve an existing row's `status` (and `roles`) rather than recreating the user with status=\"ACTIVE\". Extend the reset test with a foreign, disabled user row and assert it is still DISABLED after `seed(db, reset=True)`."
+    },
+    {
+      "title": "Mock E2E channel now boots the real-backend server",
+      "severity": "P2",
+      "file": "pcs-frontend/playwright.config.ts",
+      "line": 61,
+      "why_it_matters": "Playwright starts every entry of the top-level `webServer` array regardless of which project is selected, so `npm run e2e` — documented in the README table as the mock channel that needs no backend — now also boots a second vite dev server on port 5174 with MSW disabled, and that entry is deliberately configured `reuseExistingServer: false` so a misconfigured server is never reused. The consequence is that the mock channel hard-fails whenever something already occupies 5174 (a leftover real-backend run, a colleague's dev server), and every mock run pays for a second vite instance it never uses. The two-server split is the right call for guaranteeing the real channel is never a mock; the cost is that the mock channel is now hostage to a port it does not use.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/playwright.config.ts:61-76 -- webServer: [ { command: `npm run dev -- --port ${MOCK_PORT}` ... }, { command: `VITE_ENABLE_MOCK=false npm run dev -- --port ${REAL_PORT}` ... } ]      ⇒ a top-level array; Playwright starts all of it for any selected project",
+        "pcs-frontend/playwright.config.ts:72-73 -- // ⚠️ **不复用** ⇒ 复用别人起的 server = 复用错配置（评审 H-3 的根因）。 / reuseExistingServer: false,",
+        "pcs-frontend/package.json:18 -- \"e2e\": \"playwright test --project=chromium\"      ⇒ the mock script selects only the chromium project, yet both webServer entries still start",
+        "README.md:131-134 -- | **mock**（默认） | `npm run e2e` | 5173 | **开** | 否 |      ⇒ documented as requiring no backend, yet it now also needs a free 5174"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make the second webServer conditional on the channel being exercised: build the `webServer` array from an env flag (e.g. `E2E_CHANNEL=real` adds the 5174 entry) and have `e2e:real` set it, or split the config into `playwright.config.ts` (mock) and `playwright.real.config.ts` (real) with `npm run e2e:real` pointing at the latter via `--config`. Keep `reuseExistingServer: false` on the real entry in both variants so the real channel can never reuse a misconfigured server."
+    },
+    {
+      "title": "Migration ratchet only sees bare `op.` receivers",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/check_migration_idempotency.py",
+      "line": 114,
+      "why_it_matters": "The migration-idempotency ratchet detects `op.create_index(...)` only when the call's receiver is a bare Name called `op`. A migration written as `alembic.op.create_index(\"ix_x\", \"t\", [\"c\"])` (import alembic) or with an aliased import (`from alembic import op as o`) yields a receiver that is an Attribute or a different Name, so the call is skipped entirely — the missing `if_not_exists=True` guard is never reported and the script still prints \"OK: 0 violations in N migrations\". That is the classic green-while-red shape this repository has already been bitten by twice (the docstring itself records the earlier \"84 条漂移低估\" incident caused by guessing structure from strings). The batch's new p10_001 migration is checked correctly for the canonical spelling, and the new-prefix coverage added in this diff (GLOBS plus `test_covered_globs_include_every_migration_prefix`) does correctly red-light a future `p11_*` prefix, so the remaining hole is the receiver-name dependency. This defect sits in unchanged code of the ratchet that this diff extended, so it is reported as pre-existing.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/check_migration_idempotency.py:112-115 -- func = node.func / if not isinstance(func, ast.Attribute) or not isinstance(func.value, ast.Name): / continue / op_name = f\"op.{func.attr}\"      ⇒ only `op.<method>` with a bare `op` receiver is inspected",
+        "pcs-backend/scripts/check_migration_idempotency.py:173-178 -- paths = sorted({p for g in GLOBS for p in MIGRATIONS_DIR.glob(g)}) … if not violations: print(f\"OK: 0 violations in {len(paths)} migrations ({' '.join(GLOBS)})\")      ⇒ a skipped file is invisible in the report",
+        "pcs-backend/tests/scripts/test_check_migration_idempotency.py:64-83 -- test_check_detects_missing_if_not_exists writes a file using the canonical `op.create_index(` spelling      ⇒ the negative control never exercises an aliased receiver"
+      ],
+      "pre_existing": true,
+      "suggested_fix": "Resolve the receiver by alias instead of by literal name: per file, collect the module-level names bound to alembic's operations object (`op`, `alembic.op`, `operations`, any `as` alias) and treat calls on those receivers as op calls; additionally flag an `op.<method>`-shaped call whose receiver is not a recognised alias so the aliasing cannot silently disable the check. Add a negative-control test that writes a migration using `alembic.op.create_index(...)` and asserts it is reported."
+    }
+  ],
+  "residual_risks": [
+    "The AI audit middleware sits outside CORS in the built stack (Starlette's add_middleware inserts at position 0, so the last-added middleware is outermost: trace_id → AIAudit → CORS → router). A cross-origin deployment therefore records CORS preflight OPTIONS requests to /api/v1/ai/* as status_code=200 rows with response_summary=\"HTTP_200\" — rows that read as successful AI requests in an audit trail. Same-origin (vite-proxy) deployments are unaffected. Not raised as a finding because the trigger (cross-origin deployment) could not be confirmed from the repository.",
+    "The audit middleware reads up to 10 MB of request body before authentication (MAX_BODY_BYTES) on every /api/v1/ai path. Memory is bounded per request, but concurrent unauthenticated POSTs still amplify it. Left to the security reviewer.",
+    "enqueue_ai_audit_log opens and closes an ARQ Redis pool per AI request, and a failing aclose() is swallowed with a warning. A persistent close failure could leak connections until Redis maxclients is exhausted — which would then silently disable auditing via the same chain as the Redis-down finding. Anchor 50: the leak path is plausible but not confirmed.",
+    "The migration ratchet is safe against a new prefix (GLOBS plus test_covered_globs_include_every_migration_prefix red-lights any uncovered file), but LEGACY_PREFIXES still swallows any future migration literally named `p1_…` or `p3s_…`: a developer following the old batch naming would be silently excluded from the guard.",
+    "Not inspected within the review budget: app/core/ai_sanitizer.py, app/schemas/ai.py, app/core/errors.py (the 501 handler), app/api/v1/health.py beyond the read portion, the frontend MainLayout AI placeholder and its test, the generated OpenAPI / api.d.ts artifacts, and the diff hunks for app/core/config.py, app/models/system.py and app/services/system_setting_service.py beyond the read portions. Findings in those areas may exist."
+  ],
+  "testing_gaps": [
+    "No test asserts the real-backend channel actually sees the seeded data: the smoke test asserts only that the dashboard heading renders, so nothing fails if the seed never reaches the database under test.",
+    "The architecture guard has no negative control — no test feeds the scanner a synthetic offending file to prove it detects a violation, so its sensitivity can regress silently (and its SDK-import half is currently vacuous because no AI SDK is installed).",
+    "No test covers the AI audit task's write-failure path (DB error ⇒ row lost). test_ai_audit_task_pg.py covers the PG conflict / partial-index path, not the failure path, so the 'row silently dropped' behaviour is untested.",
+    "No test asserts that the compose test-profile stack (migrate + seed on pcs_pgtest) and the database the E2E backend uses are the same one; test_compose_test_profile.py asserts URL strings and profile structure only, never that the seeded rows are reachable by the backend under test.",
+    "No test asserts the seed's --reset preserves a foreign or disabled user row; the reset test only covers a foreign workspace."
+  ]
+}

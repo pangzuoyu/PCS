@@ -1,0 +1,139 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "AI endpoints' OpenAPI still advertises a 200 response that the implementation can never return",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/ai/routes.py",
+      "line": 48,
+      "why_it_matters": "All five AI endpoints unconditionally raise `AINotImplementedError`, so the runtime answer is always 501 -- yet the published contract still lists `200` with an empty body for every one of them, and the generated frontend type therefore carries a dead success branch (`200: {content: {\"application/json\": unknown}}`). This is exactly the defect the M-2 fix set out to remove: the module's own docstring says a contract that describes a response that never happens makes a client 'wait for a 200 that never comes', but the fix only *added* the 501 entry and left the phantom 200 in place. Any consumer that derives its error handling from the spec (SDK generator, contract test, a future P10-B drawer) will code a 200 path that is dead, and the diff's own test only asserts `'501' in responses`, so the phantom cannot regress visibly. Declaring the operation's success status as 501 removes the branch and makes the contract finally describe what the server does.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "suggested_fix": "Declare the endpoints' success status as 501 instead of letting FastAPI auto-generate the 200 entry. In `pcs-backend/app/api/v1/ai/routes.py`, change the decorator to `@router.post(\"/intent\", status_code=501, response_model=AiNotImplementedResponse, openapi_extra=_RESERVED)` (same for the other four) and drop the hand-written `_AI_501` responses dict; if FastAPI's merge order does not attach the model to the auto-generated 501 entry, keep `responses={501: {\"model\": AiNotImplementedResponse, ...}}` alongside `status_code=501` and verify the emitted schema in `pcs-backend/docs/openapi.json`. Then regenerate the contract artifacts (`cd pcs-backend && uv run python scripts/export_openapi.py`, `cd pcs-frontend && npm run api:gen`) and extend `tests/api/v1/test_ai_routes.py::test_ai_routes_declare_the_501_envelope_in_the_contract` with `assert \"200\" not in responses`.",
+      "evidence": [
+        "pcs-backend/docs/openapi.json:89 -- \"200\": {",
+        "pcs-backend/docs/openapi.json:93 -- \"schema\": {}",
+        "pcs-backend/app/api/v1/ai/routes.py:62 --     raise AINotImplementedError()",
+        "pcs-frontend/src/types/api.d.ts:21833 --                     \"application/json\": unknown;",
+        "pcs-backend/app/schemas/ai.py:95 --     ⚠️ **契约里必须声明它**（2026-11-12 评审 M-2）：路由若只写 `-> None`，"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "AI endpoints' contract omits the 401 that authentication-before-501 guarantees",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/ai/routes.py",
+      "line": 56,
+      "why_it_matters": "The whole design of these five endpoints is that a request without a valid token gets 401 and only an authenticated one gets 501 -- the module docstring states it explicitly and `tests/api/v1/test_ai_routes.py::test_ai_routes_require_auth` pins the runtime behaviour. But the published contract for the same endpoints declares only 200/501/422, and it renders the `authorization` header parameter with `\"required\": false`, so a client that trusts the contract believes an unauthenticated call is a valid call and has no branch for the 401 it will actually receive. The failure mode the code itself warns about ('no login looks like the feature is not shipped, so the triage goes in the wrong direction') is exactly what a contract-only reader reproduces. The repo already has the precedent of declaring an auth failure in the contract (`/api/v1/streams/batch-submit` declares a `403`), so adding a `401` entry here is consistent with existing practice rather than a new convention.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "suggested_fix": "Add a 401 entry to the AI endpoints' declared responses so the contract describes the auth-first behaviour: in `pcs-backend/app/api/v1/ai/routes.py`, extend the shared responses dict with `401: {\"model\": ErrorResponse, \"description\": \"未认证（认证先于 501）\"}` (`ErrorResponse` is the repo's unified envelope from `app/core/errors.py`; note it is not currently a component schema, so it must be registered as one for the reference to resolve). Apply the same dict to all five routes, then regenerate `docs/openapi.json` / `openapi.snapshot.json` / `src/types/api.d.ts` and assert the 401 entry in the existing contract test.",
+      "evidence": [
+        "pcs-backend/app/api/v1/ai/routes.py:12 -- ⇒ 无 token ⇒ **401**（不是 501）。",
+        "pcs-backend/app/api/v1/config.py:520 --             status=401,",
+        "pcs-backend/docs/openapi.json:88 --         \"responses\": {",
+        "pcs-backend/docs/openapi.json:116 --           }",
+        "pcs-backend/docs/openapi.json:8588 --           \"403\": {",
+        "pcs-backend/docs/openapi.json:64 --             \"required\": false,"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Shared frontend error type does not model the AI 501 envelope's request_id/status (second error shape, accepted by R4)",
+      "severity": "P3",
+      "file": "pcs-frontend/src/api/errors.ts",
+      "line": 25,
+      "why_it_matters": "The dedicated 501 envelope `{code, message, status, request_id}` is a deliberate, adjudicated deviation (ledger R4 / deviation D8: the shared `ErrorResponse` envelope was left untouched so that every other endpoint's error body stays unchanged -- verified: `ErrorResponse` has zero removed lines in the diff). The frontend's shared parser `extractPcsError` reads `code` / `message` only, so message-level rendering is safe today and no per-endpoint error parsing is needed. The gap is type-level: `PcsErrorEnvelope` has no `status` or `request_id`, and `extractPcsError` returns the raw body cast to that interface (`data as PcsErrorEnvelope`), so the moment P10-B wires an AI drawer and wants to show the caller the `request_id` it can quote to the audit team, the value is present at runtime but absent from the type, and TypeScript will not catch a consumer that reads `envelope.request_id`. The generated `AiNotImplementedResponse` type models it correctly, so the fix is a one-line widening of the shared optional interface.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 50,
+      "suggested_fix": "Widen the shared envelope type so the AI 501 body is representable without a cast: in `pcs-frontend/src/api/errors.ts`, add `status?: string;` and `request_id?: string;` to `PcsErrorEnvelope` (both optional, so every existing producer is unaffected). AI-specific consumers can then use the generated `components['schemas']['AiNotImplementedResponse']` for the strict shape while the shared helper keeps working for `code`/`message`.",
+      "evidence": [
+        "pcs-frontend/src/api/errors.ts:29 --   trace_id?: string;",
+        "pcs-frontend/src/api/errors.ts:47 --   return data as PcsErrorEnvelope;",
+        "pcs-backend/app/core/errors.py:325 --                 \"request_id\": request_id,",
+        "pcs-backend/app/core/errors.py:324 --                 \"status\": \"not_implemented\","
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "X-Request-ID response header added by the AI audit middleware is not declared in the contract",
+      "severity": "P3",
+      "file": "pcs-backend/app/core/ai_audit_middleware.py",
+      "line": 171,
+      "why_it_matters": "The AI audit middleware appends an `X-Request-ID` header to every `/api/v1/ai` response, and it is the only correlation handle a caller gets on the non-501 outcomes: the 401 and 422 bodies carry the standard `ErrorResponse` envelope, which has `trace_id` (log-side) but not the AI audit's `request_id`. So an operator debugging 'why is there no audit row for my failed call' has an id the contract never mentions, and the generated TypeScript types every response's headers as `{[name: string]: unknown}` because no response declares headers. Declaring the header on the AI responses keeps the contract honest about what the server actually returns and makes the correlation id discoverable from the spec.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 50,
+      "suggested_fix": "Declare the header in the shared AI responses dict in `pcs-backend/app/api/v1/ai/routes.py`, e.g. `501: {\"model\": AiNotImplementedResponse, \"description\": \"...\", \"headers\": {\"X-Request-ID\": {\"schema\": {\"type\": \"string\", \"format\": \"uuid\"}}}}` (and the same for the 401/422 entries if they are declared), so `docs/openapi.json` and the regenerated `src/types/api.d.ts` expose the correlation id that `AIAuditMiddleware` actually sets.",
+      "evidence": [
+        "pcs-backend/app/core/ai_audit_middleware.py:171 --                 response_headers.append(\"X-Request-ID\", request_id)",
+        "pcs-backend/docs/openapi.json:97 --           \"501\": {",
+        "pcs-backend/docs/openapi.json:99 --             \"content\": {",
+        "pcs-frontend/src/types/api.d.ts:21847 --                 headers: {"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "Generated frontend type makes topK required although the contract and the server treat it as optional with default 5",
+      "severity": "P3",
+      "file": "pcs-frontend/src/types/api.d.ts",
+      "line": 7095,
+      "why_it_matters": "The OpenAPI marks `AiKnowledgeSearchRequest.required` as `[\"query\"]` only -- `topK` carries `\"default\": 5` and is optional -- and the server agrees (`top_k: int = Field(5, ...)`). But the generated TypeScript emits `topK: number;` with no `?`, so a TypeScript caller of `/api/v1/ai/knowledge/search` is forced by the type checker to send `topK` even though the contract says it may be omitted. This is the one place where the two published artifacts disagree about the same field, and it is invisible to the repo's own drift gate (`pcs-frontend/scripts/check-api-drift.sh` compares the two JSON specs, not the generated `.d.ts` against them). SPEC 4.1.2's own example always sends `topK`, so the strictness is harmless in practice, but the type should not overstate the contract.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "suggested_fix": "Make the request field's optionality visible in the contract text and accept the generator's strictness, or remove the `default` from the schema and apply it server-side. Minimal option: extend the field description in `pcs-backend/app/schemas/ai.py` to `\"返回条数（可省略，默认 5）\"` so the generated doc comment states the default, and note in the request schema that `topK` may be omitted. Server-side option (keeps the OpenAPI free of `default`): declare `top_k: int = Field(alias=\"topK\")` and apply the 5 in the route/service layer -- assumption: the P10-B implementation is the one that will read `top_k`, so the default moves there.",
+      "evidence": [
+        "pcs-backend/docs/openapi.json:21800 --           \"query\"",
+        "pcs-backend/docs/openapi.json:21795 --             \"default\": 5",
+        "pcs-backend/app/schemas/ai.py:56 --     top_k: int = Field(5, alias=\"topK\", description=\"返回条数\")",
+        "pcs-frontend/src/types/api.d.ts:7095 --             topK: number;"
+      ],
+      "pre_existing": false
+    },
+    {
+      "title": "AI request bodies mix camelCase and snake_case within the same endpoint (context.projectId vs equipment_tag)",
+      "severity": "P3",
+      "file": "pcs-backend/app/schemas/ai.py",
+      "line": 68,
+      "why_it_matters": "The AI request family uses two conventions side by side: the fields SPEC defines are camelCase (`context.projectId`, `context.recordId`, `topK`), while the two bodies this repo defined on its own (D17) are snake_case (`equipment_tag`, `document_ref`). A single request body therefore mixes both -- `/api/v1/ai/equipment/recommend` takes `{equipment_tag, context: {projectId}}` -- so a frontend caller has to remember which convention applies per field rather than per API. The camelCase half is frozen by SPEC (D12 keeps `topK` verbatim), but the snake_case half was a free choice this batch made, so the inconsistency is avoidable: giving `equipment_tag` / `document_ref` the same camelCase aliases the SPEC fields use (with `populate_by_name=True`, so both spellings still enter) makes the whole AI request family read one way and leaves the server's internal snake_case names untouched.",
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "suggested_fix": "Give the two repo-defined AI request fields the same camelCase aliases the SPEC-defined ones use: in `pcs-backend/app/schemas/ai.py`, change `equipment_tag: str | None = Field(None, description=\"已知设备位号\")` to `equipment_tag: str | None = Field(None, alias=\"equipmentTag\", description=\"已知设备位号\")` and likewise `document_ref` -> `alias=\"documentRef\"` (the models already set `populate_by_name=True`, so `equipment_tag` continues to be accepted). Then regenerate `docs/openapi.json`, `openapi.snapshot.json` and `src/types/api.d.ts`, and extend `tests/api/v1/test_ai_routes.py` with an alias-acceptance assertion for the two new aliases (the pattern already exists for `topK`).",
+      "evidence": [
+        "pcs-backend/docs/openapi.json:21631 --           \"projectId\": {",
+        "pcs-backend/docs/openapi.json:21704 --           \"equipment_tag\": {",
+        "pcs-backend/app/schemas/ai.py:68 --     equipment_tag: str | None = Field(None, description=\"已知设备位号\")",
+        "pcs-backend/app/schemas/ai.py:86 --     document_ref: str | None = Field(None, description=\"文档引用（规范号 / 文件 id）\")"
+      ],
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "The 422 branch declared for the five AI endpoints points at FastAPI's `HTTPValidationError` (`{detail: [{loc,msg,type}]}`), but the repo's global `RequestValidationError` handler actually renders the unified `ErrorResponse` envelope (`{code, message, detail, trace_id}`) -- see `pcs-backend/app/core/errors.py:278-290`. `ErrorResponse` is not a component schema at all (`grep` over `docs/openapi.json`: zero occurrences of a `\"ErrorResponse\"` schema key), so no endpoint's contract can name the body the server actually sends. This is repo-wide and pre-existing (every endpoint inherits it), so it is not attributed to this diff, but it does mean the AI contract's 'bad parameters' branch does not describe the real body -- relevant to the batch's must-not-regress rule 3 ('wrong parameters => 422, not 501'), which constrains the status code, not the body shape.",
+    "The dedicated 501 envelope `{code, message, status, request_id}` is a second, parallel error shape alongside `ErrorResponse`. This is adjudicated (ledger R4, deviation D8: 'AI 端点的错误体与其它端点不同形（有意为之）') and the frontend's shared parser only reads `code`/`message`, so no per-endpoint error parsing is needed today. It does mean a future AI consumer must not assume `detail`/`trace_id` are present -- captured as the P3 advisory finding above rather than a defect.",
+    "`GET /api/v1/health/ai` returns `status` / `reason` as free-form strings (values enumerated only in prose and in the `_REASON_*` constants in `pcs-backend/app/api/v1/health.py:89-96`), so the generated frontend type is `status: string`. This mirrors the pre-existing sibling contract (`HealthResponse.realtime_reason` is likewise a free string, deliberately, per its own docstring at `pcs-backend/app/api/v1/health.py:34-36`), so it was not raised as a finding. If the frontend ever consumes `/health/ai`, a `Literal[...]` would be needed to make the value set checkable. The endpoint is otherwise correctly additive: a new path, a single declared `200`, all five response fields marked required, and always-200 semantics pinned by `tests/api/v1/test_health_ai.py`.",
+    "The `X-Request-ID` header the AI audit middleware sets is not written into the audit row's own identifier field; the row's idempotency key is the server-generated `request_id` (a body field, present only on the 501). A client that quotes the `X-Request-ID` it sent will find it only in `client_request_id`, not `request_id` -- a correlation subtlety for the next batch, not a defect in this one.",
+    "On the payload-coverage baseline: `pcs-backend/docs/openapi-baseline.json` is NOT the bare-payload baseline -- it is a frozen full copy of the OpenAPI spec, byte-compared against `docs/openapi.json` by `pcs-backend/scripts/gate_08_openapi_contract.sh` stage 4 (`--check-baseline`). It was rolled forward at batch end to include the new AI paths (the intended direction). The actual bare-payload baseline is the constant `BASELINE_BARE_FIELDS = 71` in `pcs-backend/scripts/check_openapi_payload_coverage.py`; that script has no hunk in this diff (confirmed against the staged diff), so the baseline did not move, and the five new AI schemas add no bare `object`/`array` fields (all scalars or `$ref`s) -- consistent with the ledger's 'bare payload 71, not increased'.",
+    "Generated-artifact consistency was verified directly rather than by running the generator: `pcs-backend/docs/openapi.json`, `pcs-backend/docs/openapi-baseline.json` and `pcs-frontend/openapi.snapshot.json` are byte-identical (same md5, 46689 lines, 259 paths, 377 schemas, identical path and schema key sets, and identical per-path blocks for all six AI/health paths), and `pcs-frontend/src/types/api.d.ts` carries all five AI paths, `/api/v1/health/ai`, `AiNotImplementedResponse`, `AiContext` (camelCase `projectId`/`recordId`), `AiKnowledgeSearchRequest` (camelCase `topK`) and `HealthAIResponse` -- i.e. the frontend types match the code, with the single `topK` optionality divergence recorded above.",
+    "Schema/ORM artifact: `pcs-backend/docs/schema_compact_orm.md` was regenerated (header: 2026-11-12, 107 tables) and its `ai_audit_log` entry lists all eight new columns (`request_id`, `client_request_id`, `endpoint`, `status_code`, `duration_ms`, `sanitized_request_hash`, `response_summary`, `model_version`) -- consistent with `pcs-backend/app/models/system.py` and migration `p10_001`.",
+    "Not reached in this pass: the OpenAPI `security`/`securitySchemes` story (the spec has neither, and auth is modelled as an optional `authorization` header parameter on every protected operation -- a repo-wide modelling gap that this diff inherits but did not introduce); and whether any non-OpenAPI consumer (e.g. a script in `pcs-backend/scripts/`) parses the AI 501 envelope by field rather than by `code`/`message`."
+  ],
+  "testing_gaps": [
+    "No contract test asserts that the AI endpoints' OpenAPI does NOT contain the unreachable `200`. `tests/api/v1/test_ai_routes.py::test_ai_routes_declare_the_501_envelope_in_the_contract` only asserts `'501' in responses`, so a future edit that drops the 501 declaration, or the phantom 200 reappearing, is not caught.",
+    "No test asserts that the AI endpoints declare the `401` branch, even though 'authentication precedes 501' is a batch must-not-regress contract that is currently only verified at runtime (`test_ai_routes_require_auth`).",
+    "No test asserts the declared AI 501 envelope body shape equals the runtime body (the runtime keys `{code, message, status, request_id}` are asserted in the route test, and the schema's key set is asserted in the contract test, but the two are never compared against each other) -- a divergence between `AiNotImplementedResponse` and `app/core/errors.py`'s handler would pass both tests.",
+    "No OpenAPI-level test for `GET /api/v1/health/ai` (only runtime assertions on status values in `tests/api/v1/test_health_ai.py`); nothing pins that the endpoint declares a single `200` response or that the declared schema's field set matches what the handler returns.",
+    "Nothing checks that the generated `src/types/api.d.ts` faithfully represents `openapi.snapshot.json` -- `pcs-frontend/scripts/check-api-drift.sh` compares the two JSON specs only, which is how the `topK` optionality divergence (OpenAPI `required: [\"query\"]` vs generated `topK: number;`) went unnoticed."
+  ]
+}

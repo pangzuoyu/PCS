@@ -1,0 +1,77 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "health_ai 函数 ~97 行，超口径要求 50 行上限",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/health.py",
+      "line": 110,
+      "why_it_matters": "GET /health/ai 的判定逻辑全部塞在一个函数里（110-206 行，约 60 行有效代码、5 段提前返回）：读设置 → 处理非法 CIDR → 未配置 → 域名 → IP 字面量在/不在内网。口径要求写明「函数 <50 行」，而这条函数是本批新增端点里最长的一处分支阶梯；再加一种 endpoint 形态（比如 IPv6 字面量）就只能继续往同一个函数里堆分支，改动时无法单独验证某一支。把它拆成一个纯判定函数（输入 endpoint + cidrs，输出 status/reason），端点只负责取设置与组装响应，既满足行数口径，也让 D22 登记的判定口径能被单测直接钉住（当前这五种判定只能在 HTTP 层间接覆盖）。",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/health.py:110 -- async def health_ai(",
+        "pcs-backend/app/api/v1/health.py:206 --     )",
+        "standards-paths.md §1「口径要求 — … immutable patterns; functions <50 lines; files <800 lines; no deep nesting; no mutation; 80% coverage expectation for new functionality」（该映射声明这条口径出自 PCS/CLAUDE.md；注意 PCS/CLAUDE.md 正文当前并没有「口径要求」小节，规则以本映射为准）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 app/api/v1/health.py 内抽出纯函数 `_classify_ai_endpoint(endpoint: str | None, cidrs: list[str]) -> tuple[str, str | None]`（返回 (status, reason)，把「未配置 / 域名 / IP 字面量在内网 / 不在内网」四支搬进去，非法 CIDR 与读不到设置两支留在端点里），端点只保留取设置 + 组装 HealthAIResponse；假设 D22 登记的判定口径逐字不变。"
+    },
+    {
+      "title": "cerebrum 加 9 条未按清退规则退役旧条目，文件已超自设体积上限",
+      "severity": "P3",
+      "file": ".wolf/cerebrum.md",
+      "line": 7,
+      "why_it_matters": "cerebrum.md 是每次会话的热路径（openwolf 规则要求「先查索引 → 只读命中的那一条」⇒ 别通读），而本批自己写明了「P10-A 又加 9 条 ⇒ ≈24 590 ⇒ 已超目标 ⇒ 下次清退窗口已到」。同文件的清退规则 ① 要求「新条目进来 ⇒ 同一主题里最旧的一条要么被它取代、要么被移进归档」，而本次改动的 61 个文件里没有 .wolf/cerebrum.archive.md ⇒ 旧条目一条也没退役。结果是：文件在被同一次瘦身（34 100 → 23 218 token）拉回预算之后，又被新条目推回超标，而「别通读」这条协议正是在超标时最先失效。把本批新增条目所在主题（B 迁移/事务、C 测试/假绿）里最旧的几条移进 .wolf/cerebrum.archive.md 即可回到预算内，不损失任何仍生效的判据。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        ".wolf/cerebrum.md:7 -- > ⇒ **P10-A 又加 9 条 ⇒ ≈24 590**（估算口径见下：CJK 1.45 字符/token + 其余 3.6 字符/token，",
+        ".wolf/cerebrum.md:8 -- > 与瘦身那次实测比值 1.078 校准）⇒ **已超目标** ⇒ **下次清退窗口已到** ⇒ 加新条目前先在**同一主题**里",
+        ".wolf/cerebrum.md:19 -- ① 新条目进来 ⇒ 同一主题里**最旧**的一条要么被它取代、要么被移进归档；",
+        "docs/ce-code-review/20261112-181851-76e48fc4/files.txt:1-60 — .wolf/cerebrum.archive.md 不在本次改动的 61 个文件清单里 ⇒ 本批没有把任何旧条目移进归档"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把本批新增 9 条所处主题（B 数据·迁移·事务、C 测试·守门·假绿）里最旧的条目正文整段移入 .wolf/cerebrum.archive.md，并在 .wolf/cerebrum.md 顶部把「本文件的目标体积：≤ 24 000 token」那行的现状估算改回 ≤24 000；索引表里对应的关键词行同步保留（索引是定位入口，正文才是体积）。"
+    },
+    {
+      "title": "本批的 PG 方言陷阱未回写 docs/solutions/",
+      "severity": "P3",
+      "file": "docs/solutions/",
+      "line": 1,
+      "why_it_matters": "本批踩到并修掉了两个「单测永远抓不到」的真 PG 陷阱：① partial 唯一索引必须与 ON CONFLICT 的 index_where 逐字匹配，否则每次写 AI 审计都炸（SQLite 上 ON CONFLICT 不可用 ⇒ 走的是另一条分支 ⇒ 照绿）；② SQLite 不强制 VARCHAR 长度 ⇒ 客户端可控的 X-Request-ID 必须在写入边界截断，否则 PG 报 22001 把审计行静默丢掉（bug-2160）。这两条目前只存在于 docstring、SPEC 的偏离登记与 buglog 里；CLAUDE.md §知识库 要求「新增解法后回写一份，别只留在提交信息里」。按 problem_type 分目录补两份带 YAML frontmatter 的解法文档，下次有人改这张表或换方言时不必重新发现一遍。",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "CLAUDE.md:9 -- 在已记录领域做实现或排障时相关；新增解法后回写一份，别只留在提交信息里。",
+        "pcs-backend/app/workers/ai_audit_tasks.py:67 --     # ⚠️ **单测抓不到**：单测跑内存 SQLite，**SQLite 不强制 VARCHAR 长度**。",
+        "pcs-backend/app/workers/ai_audit_tasks.py:108 --     ⚠️⚠️ **`index_where` 必须与 partial 唯一索引的谓词**逐字一致** ——",
+        "docs/ce-code-review/20261112-181851-76e48fc4/files.txt:1-60 — docs/solutions/ 下无任何本次新增条目"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 docs/solutions/ 下按 problem_type 分两目录补写：① 「PG partial 唯一索引 + ON CONFLICT index_where 与 SQLite 单测盲区」（bug-2160 / p10_001），② 「写入边界截断：SQLite 不强制 VARCHAR 长度 ⇒ 客户端可控字段必须截断」，两份都带 module/tags/problem_type/severity frontmatter，并互相链接到 .wolf/buglog.json 的 bug-2160。"
+    }
+  ],
+  "residual_risks": [
+    "分层约束检查结论：**未发现违规**。app/core/{ai_cidr,ai_sanitizer,ai_errors,outbound_ai_client,ai_audit_middleware}.py 均未 import app.api / app.models；app/services/ai/arq_queue.py 未 import app.api；app/api/v1/ai/routes.py、app/api/v1/health.py 只向下依赖 core/schemas/services；app/workers/ai_audit_tasks.py import app.models.system 属 worker→models，与既有分层一致。",
+    "但 app/core/ai_audit_middleware.py:39 是**模块级** `from app.services.ai.arq_queue import enqueue_ai_audit_log`，而同仓的 app/core/errors.py:40 明确写着「懒导入避免 core → services/models 循环依赖」、:54 写着「core 层禁止 import models (architecture test)」⇒ 新 core 模块把 service 模块拉进了 app.main 的导入图（无环，但形成了新的耦合面）。引用到的分层规则本身（core ⊄ api/models）并未被违反，故未列为 finding；我在 tests/architecture/ 下只找到本批新增的 test_no_direct_ai_sdk.py，未找到覆盖「core → services」的既有守卫，故按风险登记。",
+    "AI 审计中间件注册在 CORSMiddleware **之外**（app/main.py:234-245；Starlette 的 add_middleware 后加者更外层 ⇒ 实际顺序 trace_id → AI 审计 → CORS）⇒ 分域部署时每次 CORS 预检（OPTIONS /api/v1/ai/*）都会被记成一行 status_code=200、response_summary=\"HTTP_200\" 的审计行，与真实 AI 调用不可区分。SPEC 4.2 的部署形态（Nginx 同源反代）不触发 ⇒ 影响面依赖实际部署，未验证。",
+    "app/core/errors.py:304-327 的 501 信封刻意不含 trace_id（只有 code/message/status/request_id）⇒ AI 端点的错误无法按 trace_id 与日志关联，只能用 request_id；而 request_id 只写进审计表、不进日志上下文（trace_id 才是日志侧的唯一关联键）。这是 errors.py:310-314 写下的有意取舍（D8 只区分 request_id 与 trace_id 的用途），但运维排障时「拿 501 响应的 request_id 去 grep 日志」会落空。",
+    "app/services/ai/arq_queue.py:27-34,62-75 每次入队都新建并关闭一个 ARQ Redis 连接池 ⇒ 每个 AI 请求付一次 Redis 连接/拆除开销（并发突发时连接数放大）；且 Redis 不可用时审计行只留一条 warning 即被丢弃 ⇒ 队列故障期正是审计表最盲的时候。此为「审计是旁路」的既定取舍，但与 intent 的「审计表对探测行为不失明」之间存在张力。",
+    "发布前检查口径的两处未覆盖：① compose 新增的 test profile 造出**第三个库** pcs_pgtest，migrate 服务只做 upgrade head，仓内没有任何流程对它跑 `alembic check`（CLAUDE.md 的发布前检查只点名 pcs / pcs_test）⇒ 该 schema 可能漂移而无人发现；② p10_001 的 `down_revision = \"p9_015\"` 只被 tests/alembic/test_p10_001_ai_audit_fields.py 以**字面量**断言（该测试不验证 p9_015 文件存在）⇒ 若真实 head 不是 p9_015，compose 的 migrate 服务会在运行时失败，而全部单测与守卫测试仍然绿。本环境无 shell/Grep，未能列出 alembic/versions 目录核实，未能确认。",
+    "未读到的部分（预算所限，未下结论）：full.diff 中 .wolf/buglog.json / .wolf/STATUS.md / README.md / TODOS.md 的具体 hunks；pcs-backend/docs/openapi.json 与 openapi-baseline.json（1.4 MB 生成物，基线是否因 5 个 200 空 schema 的 AI 端点被抬高、check_openapi_payload_coverage 的「裸字段 ≤ 基线」是否仍成立，未核实）；pcs-frontend/src/types/api.d.ts 与 openapi.snapshot.json（生成物）；pcs-frontend/package.json；以及本批的单元测试 test_ai_routes.py / test_ai_audit_middleware.py / test_ai_audit_task.py（故不主张任何覆盖率缺口结论）。",
+    "criteria 映射本身与文件不一致：standards-paths.md §1 称 PCS/CLAUDE.md 含「分层约束」「口径要求」两节，但 PCS/CLAUDE.md（139 行）当前**没有**这两节（分层约束只在 intent.md 的「必须不回归的既有契约」第 9 条里以 core ⊄ api/models、services ⊄ api 的形式出现）⇒ 本次涉及「函数 <50 行」等口径的判定依据只能引用 standards-paths.md 本身，而非 PCS/CLAUDE.md 原文。"
+  ],
+  "testing_gaps": [
+    "真后端通道缺少「代理目标配错 ⇒ 必须硬失败」的负向用例：pcs-frontend/e2e/real_backend_smoke.spec.ts 只断言「登录成功 + 仪表盘可见 + 无控制台错误」⇒ 若 VITE_API_PROXY_TARGET 被指向另一个同样能返回 200 的服务，用例会**假绿**；建议加一条用例：把代理目标指向一个未监听端口，断言真后端通道失败。",
+    "p10_001 在 compose test profile 的第三个库（pcs_pgtest）上没有任何真库验证：tests/alembic/test_p10_001_ai_audit_fields.py 只做 AST 形状断言（不跑真库升级），而 release 口径里也没有对 pcs_pgtest 跑 `alembic check` ⇒ 该库的 ORM↔迁移漂移无自动化能抓。",
+    "AI 审计中间件在 CORS 预检（OPTIONS）请求下是否落审计行没有用例钉住；审计行也不记录 HTTP method ⇒ 预检行与真实 AI 调用行在库里不可区分。",
+    "501 信封里的 request_id 与审计行 request_id 的**同值**关联没有跨层用例（信封由 errors.py 生成、审计行由中间件 + ARQ 任务写入，两处共用 scope['state']['request_id']）⇒ 该关联一旦在重构中断掉，调用方拿 request_id 查不到审计行，而当前没有任何测试会发现。"
+  ]
+}

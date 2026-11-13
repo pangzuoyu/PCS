@@ -1,0 +1,18 @@
+{"phase": "start", "stage": "scope", "ts": "2026-11-12T10:19:11.242604+00:00"}
+{"facts": {"changed_lines": 9059, "depth": "full", "exec_nontest_lines": 2567, "size_band": "large", "unclassified_lines": ".json=3750,.md=529,.yml=54"}, "phase": "end", "stage": "scope", "ts": "2026-11-12T10:19:11.272759+00:00"}
+{"facts": {"changed_lines": 9059, "depth": "full", "exec_nontest_lines": 2567, "size_band": "large", "unclassified_lines": ".json=3750,.md=529,.yml=54"}, "phase": "end", "stage": "scope", "ts": "2026-11-12T10:19:25.910071+00:00"}
+{"phase": "start", "stage": "select", "ts": "2026-11-12T10:19:25.910071+00:00"}
+{"note": "roster=correctness,project-standards,testing,maintainability,learnings-researcher,security,performance,api-contract,data-migration,reliability,adversarial; cross-model peer skipped (no different-provider CLI installed)", "phase": "end", "reviewers": 11, "stage": "select", "ts": "2026-11-12T10:22:01.045371+00:00"}
+{"phase": "start", "stage": "dispatch", "ts": "2026-11-12T10:22:01.045371+00:00"}
+{"candidates": 50, "phase": "end", "stage": "dispatch", "ts": "2026-11-12T11:40:23.654933+00:00"}
+{"note": "merge leaf dispatched", "phase": "start", "stage": "merge", "ts": "2026-11-12T11:42:31.584311+00:00"}
+{"phase": "start", "stage": "merge", "ts": "2026-11-12T11:42:59.939064+00:00"}
+{"candidates": 27, "phase": "end", "stage": "merge", "ts": "2026-11-12T11:57:51.270526+00:00"}
+{"note": "validator batch 1/1 (23 findings)", "phase": "start", "stage": "validate", "ts": "2026-11-12T11:58:43.419799+00:00"}
+{"note": "23 verdicts (22 confirmed, 1 rejected)", "phase": "end", "stage": "validate", "ts": "2026-11-12T12:03:11.449847+00:00"}
+{"phase": "start", "stage": "report", "ts": "2026-11-12T12:04:36.370743+00:00"}
+{"phase": "end", "stage": "report", "ts": "2026-11-12T12:07:58.501418+00:00"}
+{"note": "round 2: batch 1/1 (3 findings: #4 re-graded, #28, #29 new)", "phase": "start", "stage": "validate", "ts": "2026-11-12T12:48:52.439033+00:00"}
+{"note": "round 2: 3 verdicts (3 confirmed, 0 rejected) - P0 re-grade refused, #29 raised to anchor 75", "phase": "end", "stage": "validate", "ts": "2026-11-12T14:11:10.621730+00:00"}
+{"phase": "start", "stage": "report", "ts": "2026-11-12T14:12:09.252166+00:00"}
+{"phase": "end", "stage": "report", "ts": "2026-11-12T14:16:24.714276+00:00"}
