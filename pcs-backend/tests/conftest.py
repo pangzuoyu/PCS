@@ -378,7 +378,22 @@ async def grant_project(db_session: AsyncSession):
 
 @pytest.fixture(autouse=True)
 def _avoid_real_db_probe(monkeypatch):
-    """patch 同步 health check 为 True，避免 lifespan 触发真实连接。"""
+    """patch 同步 health check 为 True，避免 lifespan 触发真实连接。
+
+    ⚠️ **必须同时 patch「消费者模块上的绑定」**（bug-2162 · 2026-11-13）：
+    消费者是 `from app.db.session import check_database_async` **按值导入**的
+    ⇒ 只 patch `app.db.session.check_database_async`（定义处）对它们**无效**
+    ⇒ 这个守卫**曾经是个空壳** ⇒ 单测真的连了**开发库**（`pcs`）
+    ⇒ 而 `/api/v1/health` 的探测会创建**模块级单例**的 async engine
+    ⇒ 那条连接绑定在**当时那个 event loop** 上 ⇒ loop 关了引擎还在
+    ⇒ **下一个文件的下一个 loop** 从池里拿到它 ⇒ asyncpg 报
+    「Future attached to a different loop」⇒ **别人的用例红**
+    （实测：`tests/api/v1/test_ws_notifications.py::test_ws_accepts_a_valid_token`）。
+
+    ⇒ 现在把**已知的消费者**一起 patch：
+    `app.api.v1.health`（`/health` 端点）与 `app.workers.cia_tasks`。
+    ⚠️ 新增消费者时**必须**在这里补一行 —— 否则守卫又变空壳。
+    """
     import app.db.session as db_session
 
     async def fake_async() -> bool:
@@ -386,6 +401,15 @@ def _avoid_real_db_probe(monkeypatch):
 
     monkeypatch.setattr(db_session, "check_database", lambda: True, raising=True)
     monkeypatch.setattr(db_session, "check_database_async", fake_async, raising=True)
+
+    # ⚠️ 消费者侧（按值导入的那一份）—— 见上面 docstring 的「空壳」说明。
+    import app.api.v1.health as health_module
+    import app.workers.cia_tasks as cia_tasks_module
+
+    monkeypatch.setattr(health_module, "check_database_async", fake_async, raising=True)
+    monkeypatch.setattr(
+        cia_tasks_module, "check_database_async", fake_async, raising=True
+    )
     yield
 
 
