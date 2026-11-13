@@ -173,3 +173,71 @@ async def test_ai_routes_declare_the_501_envelope_in_the_contract() -> None:
     # 信封的字段与运行时逐字一致
     envelope = spec["components"]["schemas"]["AiNotImplementedResponse"]["properties"]
     assert set(envelope) == {"code", "message", "status", "request_id"}, envelope
+
+
+async def test_ai_contract_declares_no_unreachable_200_and_declares_the_401() -> None:
+    """⚠️ **评审 #12 / #13** —— 契约必须**如实描述**会发生什么。
+
+    ① **不得有 200**：五个端点**无条件**抛 `AINotImplementedError`
+    ⇒ 契约里的 `200 + 空 schema` 描述的是**永远不发生**的行为
+    ⇒ 前端派生出的类型里有一条**死分支**。
+
+    ② **必须有 401**：端点是**认证先于 501**（无 token ⇒ 401）
+    ⇒ 只看契约的人**没有 401 这条分支** ⇒ 他按契约写的客户端
+    会把「没登录」当成「功能没上线」⇒ 排查方向直接跑偏。
+    """
+    from fastapi import FastAPI
+
+    from app.api.v1 import api_router
+
+    app = FastAPI()
+    app.include_router(api_router)
+    spec = app.openapi()
+
+    for path in AI_PATHS:
+        responses = spec["paths"][path]["post"]["responses"]
+        assert "200" not in responses, (
+            f"{path} 的契约里还有永远不会发生的 200：{list(responses)}"
+        )
+        assert "401" in responses, (
+            f"{path} 的契约里没有 401（认证先于 501）：{list(responses)}"
+        )
+        ref401 = responses["401"]["content"]["application/json"]["schema"]["$ref"]
+        assert ref401.endswith("/ErrorResponse"), ref401
+        # ⚠️ **503 也要在契约里**（评审 #19）—— 出口守卫会真的抛它
+        assert "503" in responses, (
+            f"{path} 的契约里没有 503（出口守卫会真的抛它）：{list(responses)}"
+        )
+
+
+async def test_ai_egress_guard_rejects_a_public_endpoint(
+    client, designer_headers, db_session, monkeypatch
+) -> None:
+    """⚠️ **评审 #19** —— 运行时把 `ai_enabled` 翻开 + endpoint 指到**公网** ⇒ **503**。
+
+    ⚠️ 旧的校验只有两处：**启动时**（只在 `ai_enabled` 为真时才跑 ⇒ AI 默认关
+    ⇒ 启动校验是空转）与**调用时**（在 `OutboundAIClient.call` 里 ⇒
+    而路由**直接抛 501、从不构造那个 client** ⇒ 那次校验**根本不在请求路径上**）
+    ⇒ 「打开 AI 并把 endpoint 指到公网」这件事**处处没校验**。
+    ⇒ 现在：每次 AI 请求都重新读开关与 endpoint 并校验。
+    """
+    from app.core.config import get_settings
+    from app.models.system import SystemSetting
+
+    monkeypatch.setattr(get_settings(), "internal_cidrs", "10.0.0.0/8")
+
+    for key, value in (("ai_enabled", True), ("ai_endpoint", "8.8.8.8")):
+        row = await db_session.get(SystemSetting, key)
+        if row is None:
+            row = SystemSetting(setting_key=key, setting_value_json=value)
+            db_session.add(row)
+        else:
+            row.setting_value_json = value
+    await db_session.commit()
+
+    resp = await client.post(
+        "/api/v1/ai/intent", json={"text": "x"}, headers=designer_headers
+    )
+
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["code"] == "AI_ENDPOINT_NOT_INTERNAL"

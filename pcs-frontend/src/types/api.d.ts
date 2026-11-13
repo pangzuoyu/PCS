@@ -10758,6 +10758,23 @@ export interface components {
             ui_behavior: string;
         };
         /**
+         * ErrorResponse
+         * @description 统一错误响应外壳（FastAPI exception handler 序列化输出）。
+         *
+         *     业务：code 业务错误码 + message 中文消息 + detail 可选详情 +
+         *     trace_id 链路追踪 ID（X-Trace-ID header 同值，跨服务日志关联）。
+         */
+        ErrorResponse: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Detail */
+            detail?: unknown;
+            /** Trace Id */
+            trace_id: string;
+        };
+        /**
          * EstimatePropertiesRequest
          * @description POST /streams/{id}/properties/estimate 请求：CAS 列表（必填，可空）。
          */
@@ -21824,13 +21841,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description 未认证（认证先于 501） */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21849,6 +21866,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
+            /** @description AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR） */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -21868,13 +21894,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description 未认证（认证先于 501） */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21893,6 +21919,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
+            /** @description AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR） */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -21912,13 +21947,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description 未认证（认证先于 501） */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21937,6 +21972,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
+            /** @description AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR） */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -21956,13 +22000,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description 未认证（认证先于 501） */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -21981,6 +22025,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
+            /** @description AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR） */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -22000,13 +22053,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description 未认证（认证先于 501） */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -22025,6 +22078,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiNotImplementedResponse"];
+                };
+            };
+            /** @description AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR） */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
