@@ -148,6 +148,14 @@ docker compose --profile test run --rm seed
 # ② 后端 ⚠️ mock 登录**默认关**（上面的「双闸」）⇒ 真后端 E2E 必须显式开
 #    ⚠️ **端口与 ③ 的 VITE_API_PROXY_TARGET 必须成对** —— 代理指错 ⇒ 打到别的服务
 #    ⇒ 症状是「登录失败」。
+#    ⚠️⚠️ **必须连「被 seed 的那个库」**（`pcs_pgtest` · **宿主端口 5433**）——
+#    不设 `DATABASE_URL` ⇒ 后端读 `.env` ⇒ 连的是**开发库 `pcs`**
+#    ⇒ 种子在 `pcs_pgtest`、后端在 `pcs` ⇒ **两边不是同一个库**
+#    ⇒ 项目守卫的端点全 404 ⇒ 而冒烟用例现在有**数据级断言**
+#    （读种子项目 ⇒ 必须 200）⇒ **通道会红**，不再是假绿。
+#    ⚠️ 口令**走环境变量**（不写进命令行 ⇒ 不进 shell 历史）：默认值是
+#    compose 里那个**仅限开发**的口令，生产由 env 注入。
+export DATABASE_URL="postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@localhost:5433/pcs_pgtest"
 cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000
 
 # ③ 跑真后端通道（默认代理到 8000；后端在别的端口就带上 VITE_API_PROXY_TARGET）
