@@ -22,6 +22,8 @@
 - ⚠️ **PG 车道唯一入口仍是 `scripts/pytest_pg.sh`** ⇒ E2E 是**另一条车道**（`scripts/pytest_e2e.sh`）⇒ 不许把 `-m e2e` 混进 PG 车道。
   ⇒ ⚠️ **两条车道不要同时跑**：它们在**同一个库**（`pcs_pgtest`）里各自建**隔离 schema**
   ⇒ 并发 DDL 会互相等锁 ⇒ 表现是「偶发卡住」而不是报错 ⇒ **串行跑**。
+  ⇒ ⚠️ **E2E 车道内部也串行**（2026-11-13 · /plan-eng-review D10）：**不装 pytest-xdist**
+  ⇒ 零新依赖 + 零 DDL 锁竞争；场景变多时用 `pytest -m e2e -k <域>` 分批（零依赖）。
 - 契约改动 ⇒ 批末滚 OpenAPI baseline + G-08 `--check-baseline`；**裸载荷数不得上涨**。
 - 前端类型**契约派生** ⇒ 后端加字段后重跑 `npm run api:gen` + 同步 MSW mock。
 - ⚠️ **每批落地后必须跑 gstack-qa 浏览器回归**（`CLAUDE.md`），报告落 `.gstack/qa-reports/`（gitignored）。
@@ -59,6 +61,42 @@
 | 隔离 schema 的现成形状 | `tests/api/v1/test_stream_batch_concurrency_pg.py`：`CREATE SCHEMA` → `alembic upgrade head`（`options=-csearch_path=`）→ 测完 `DROP SCHEMA ... CASCADE` |
 | `strict_client` 已存在（守卫测试入口） | `tests/conftest.py::strict_client` ⇒ TODO-141「全量迁 strict_client」**本批只迁新写的用例**（总纲 §四之二 8e） |
 | 后端**没有**任何全流程 API 测试 | `tests/` 只有单点 API 测试 ⇒ P10-B 是**新建**这条能力 |
+
+---
+
+## 车道架构（一张图看懂两条腿）
+
+```
+                      ┌─────────────────────────────┐
+                      │  pcs_pgtest（同一个库）        │
+                      └──────────────┬──────────────┘
+                                     │
+        ┌────────────────────────────┴────────────────────────────┐
+        │                                                          │
+   隔离 schema A                                            隔离 schema B
+   （E2E 车道 · session 级）                                  （PG 车道 · 每文件一个）
+        │                                                          │
+   ┌────┴─────┐   alembic upgrade head                    ┌─────┴─────┐
+   │ 种子数据  │   （每次跑一次 · 末尾 DROP CASCADE）        │ 隔离 schema│
+   │ flows 种子│                                            │  自己的    │
+   │ + 系数表  │                                            │  迁移产物  │
+   └────┬─────┘                                            └───────────┘
+        │
+   ┌────┴──────────────────────┐
+   │ tests/e2e/（18 场景）      │
+   │  conftest: e2e_client      │
+   │   = create_app()          │  ← 真中间件链（审计/trace/CORS）
+   │   + get_db 覆盖 → schema A │
+   └───────────┬───────────────┘
+               │
+        ┌──────┴───────┐
+        │ 真 PG 真调用  │  ← 角色矩阵：6 用户 × 全局角色 × 项目内角色
+        └──────────────┘
+
+  ⚠️ public schema：**E2E 车道不写**（有测试钉着）
+     ⇒ 但**真后端 Playwright 通道连的就是 public**
+     ⇒ 所以 flows 种子**也要在 public 跑一遍**（D3）⇒ UI 流才有数据
+```
 
 ---
 
@@ -231,8 +269,10 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
     （ACL 权威 = JWT 的 role claim）
   - **起点态数据**（**只造起点** ⇒ 其余状态由场景走真实端点推进）：
     1 工作区（FORMAL）+ 1 项目（绑 `module='RECORD'` 签署矩阵）+ 6 用户 + 5 条 `UserProject`
-    + 2 条物流（含组成/物性）+ 1 个 **DRAFT 记录**（`piping` 模块）+ 1 个 **DRAFT 交付物**
+    + 2 条物流（含组成/物性）+ 1 个 **DRAFT 记录**（`PipingResult` 模块）+ 1 个 **DRAFT 交付物**
     + 1 个签署矩阵（3 级：CHECKER→REVIEWER→APPROVER）+ 1 个自定义报表定义
+    ⚠️ **那个 DRAFT 记录是给「前端真后端通道」看的**（UI 流要打开一条记录的详情页）
+    ⇒ **后端场景不用它**（D7：后端场景各自造记录）⇒ 别以为「种子造了记录场景就该复用它」。
 
 - [ ] **Step 1: 写失败的测试**（`tests/scripts/test_seed_e2e_flows.py`）
 
