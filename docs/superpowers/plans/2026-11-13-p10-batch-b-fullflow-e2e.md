@@ -117,7 +117,7 @@
     | fixture | 作用域 | 产出 |
     |---|---|---|
     | `e2e_schema` | session | 隔离 schema 名（`e2e_<8hex>`）；建 schema → `alembic upgrade head`（`options=-csearch_path=`）→ 测完 `DROP SCHEMA ... CASCADE` |
-    | `e2e_seed` | session | 跑 `scripts/seed_e2e_flows.py` 后的**种子 id 字典**（`project_id` / `workspace_id` / `stream_ids` / `users` / `matrix_id` / `deliverable_id` / `report_def_id`） |
+    | `e2e_seed` | session | 跑 `scripts/seed_e2e_flows.py` 后的**种子 id 字典**（`project_id` / `workspace_id` / `stream_ids` / `users` / `matrix_id` / `deliverable_id` / `report_def_id`）⇒ **id 来自 `seed_e2e_flows` 的模块级常量**（不另造真相源） |
     | `e2e_client` | function | `httpx.AsyncClient`，**真 app**（`create_app()` ⇒ 真中间件链）+ `get_db` 覆盖到隔离 schema 的 engine ⇒ 支持 `await e2e_client.post(...)` |
     | `role_headers` | function | `role_headers("DESIGNER")` ⇒ `{"Authorization": "Bearer <token>"}`（`create_access_token(subject=<username>, role=<role>)` ⇒ `sub` 必须是 **username** ⇒ actor 的 `user_id` 派生才对得上） |
   - ⚠️ **`e2e_client` 不用 `strict_client` 那套最小 app** —— E2E 要**真中间件链**（审计 / trace / CORS）⇒ 用 `create_app()`（同 P10-A 的 `ai_client` 形状）
@@ -182,6 +182,10 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
   - `scripts/seed_e2e_flows.py` 暴露 **`async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]`**
     ⇒ ⚠️ 必须有**可调用入口**（同 `seed_e2e_data.py::seed`）⇒ 单测能传 `db_session`
   - 返回值 = 各造了多少行（`users` / `user_projects` / `streams` / `deliverables` / `signature_matrices` / `report_definitions`）
+  - ⚠️ **id 不走返回值** ⇒ **模块级常量导出**（`FLOW_WORKSPACE_ID` / `FLOW_PROJECT_ID` /
+    `FLOW_USERNAMES` / `FLOW_MATRIX_ID` / `FLOW_DELIVERABLE_ID` / `FLOW_REPORT_DEF_ID`）
+    ⇒ `tests/e2e/conftest.py` **直接 import 这些常量**拿 id
+    ⇒ 不另造一份「id 从哪来」的真相源
   - **角色矩阵**（本 Task 的核心）：6 个用户，**全局角色**各不相同
     | username | 全局角色（JWT claim） | 项目内角色（`user_projects.role_in_project`） |
     |---|---|---|
@@ -636,7 +640,7 @@ git commit -F <msgfile>   # 首行: docs(P10-B): 偏离登记 + 账簿 + QA 收�
 
 | 门 | 判据 |
 |---|---|
-| **E2E-001~018** | 18 条后端 E2E **全部通过**（`bash scripts/pytest_e2e.sh` ⇒ **≥ 18 passed**） |
+| **E2E-001~018** | 18 条场景**全部通过**（`bash scripts/pytest_e2e.sh` ⇒ 用例数 **≥ 18**；参数化的权限矩阵会再多几条） |
 | **WF-PATH** | 五类路径（01A~01E / 02 / 03 / 04）**全覆盖** ⇒ 01A~01E/02/03 在 T5；**04（权限一致性）** 在 T6（矩阵 × 签署矩阵一致性） |
 | **权限矩阵** | AUTH-E2E-01~10 全过；**AUTH-E2E-11/12 延到 P10-C**（D24） |
 | **前端** | 真后端通道 **6 passed**（5 新 + 1 冒烟）· mock 通道 **23 passed**（不许回归） |
