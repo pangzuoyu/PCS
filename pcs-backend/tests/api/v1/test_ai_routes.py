@@ -241,3 +241,38 @@ async def test_ai_egress_guard_rejects_a_public_endpoint(
 
     assert resp.status_code == 503, resp.text
     assert resp.json()["code"] == "AI_ENDPOINT_NOT_INTERNAL"
+
+
+async def test_ai_egress_guard_passes_an_internal_endpoint(
+    client, designer_headers, db_session, monkeypatch
+) -> None:
+    """⚠️ **评审 #19 的另一半** —— 守卫**只拦公网**，不误伤内网。
+
+    ⚠️ 没有这条，守卫可能变成「**一律 503**」（比如把 CIDR 判反了、
+    或者把 `parse_cidrs` 的失败当成「不在内网」）⇒ 那时候
+    `test_ai_egress_guard_rejects_a_public_endpoint` **照样绿**
+    ⇒ 守卫变成「AI 永远不可用」而没人发现。
+
+    ⇒ AI 开着 + endpoint 在内网 ⇒ 请求**照常走到路由** ⇒ 仍然是 **501**
+    （本批不实现 AI ⇒ 501 才是「正确结果」）。
+    """
+    from app.core.config import get_settings
+    from app.models.system import SystemSetting
+
+    monkeypatch.setattr(get_settings(), "internal_cidrs", "10.0.0.0/8")
+
+    for key, value in (("ai_enabled", True), ("ai_endpoint", "http://10.1.2.3:8000")):
+        row = await db_session.get(SystemSetting, key)
+        if row is None:
+            row = SystemSetting(setting_key=key, setting_value_json=value)
+            db_session.add(row)
+        else:
+            row.setting_value_json = value
+    await db_session.commit()
+
+    resp = await client.post(
+        "/api/v1/ai/intent", json={"text": "x"}, headers=designer_headers
+    )
+
+    assert resp.status_code == 501, resp.text
+    assert resp.json()["code"] == "AI_NOT_IMPLEMENTED"
