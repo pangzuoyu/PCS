@@ -20,6 +20,8 @@
 - ⚠️ **本批不改 `alembic/versions/*`**（种子只造数据，不改 schema）⇒ 无迁移漂移风险 ⇒ 不跑 `alembic check`。
 - ⚠️ **E2E 跑在隔离 schema**（沿用 `tests/api/v1/test_stream_batch_concurrency_pg.py` 的形状）⇒ **开发库 public schema 一个字节不动** ⇒ **不许**直接往 `pcs` / `pcs_test` 写 E2E 数据。
 - ⚠️ **PG 车道唯一入口仍是 `scripts/pytest_pg.sh`** ⇒ E2E 是**另一条车道**（`scripts/pytest_e2e.sh`）⇒ 不许把 `-m e2e` 混进 PG 车道。
+  ⇒ ⚠️ **两条车道不要同时跑**：它们在**同一个库**（`pcs_pgtest`）里各自建**隔离 schema**
+  ⇒ 并发 DDL 会互相等锁 ⇒ 表现是「偶发卡住」而不是报错 ⇒ **串行跑**。
 - 契约改动 ⇒ 批末滚 OpenAPI baseline + G-08 `--check-baseline`；**裸载荷数不得上涨**。
 - 前端类型**契约派生** ⇒ 后端加字段后重跑 `npm run api:gen` + 同步 MSW mock。
 - ⚠️ **每批落地后必须跑 gstack-qa 浏览器回归**（`CLAUDE.md`），报告落 `.gstack/qa-reports/`（gitignored）。
@@ -124,7 +126,7 @@
     | `e2e_schema` | session | 隔离 schema 名（`e2e_<8hex>`）；建 schema → `alembic upgrade head`（`options=-csearch_path=`）→ 测完 `DROP SCHEMA ... CASCADE` |
     | `e2e_seed` | session | 跑 `scripts/seed_e2e_flows.py` 后的**种子 id 字典**（`project_id` / `workspace_id` / `stream_ids` / `users` / `matrix_id` / `deliverable_id` / `report_def_id`）⇒ **id 来自 `seed_e2e_flows` 的模块级常量**（不另造真相源）<br>⚠️ **还要补两张「只有 lifespan 才会建」的表**（2026-11-13 · /plan-eng-review D4）：`e2e_client` 走 ASGITransport ⇒ **不跑 lifespan** ⇒ ① **折标系数表**（`CoefficientService.seed_default_tables` ⇒ 能耗汇总的「折标煤」要它）② **系统参数默认**（`seed_system_setting_defaults`）⇒ 缺了 ⇒ E2E-008 的折标煤**恒为 0** ⇒ 断言必飘 ⇒ fixture 里**显式**调这两个（**不**引 asgi-lifespan、**不**跑整个 lifespan ⇒ 不碰 Redis / 关连接） |
     | `e2e_client` | function | `httpx.AsyncClient`，**真 app**（`create_app()` ⇒ 真中间件链）+ `get_db` 覆盖到隔离 schema 的 engine ⇒ 支持 `await e2e_client.post(...)` |
-    | `role_headers` | function | `role_headers("DESIGNER")` ⇒ `{"Authorization": "Bearer <token>"}`（`create_access_token(subject=<username>, role=<role>)` ⇒ `sub` 必须是 **username** ⇒ actor 的 `user_id` 派生才对得上） |
+    | `role_headers` | function | `role_headers("DESIGNER")` ⇒ `{"Authorization": "Bearer <token>"}`（`create_access_token(subject=<username>, role=<role>)` ⇒ `sub` 必须是 **username** ⇒ actor 的 `user_id` 派生才对得上）<br>⚠️ **映射规则必须唯一**（2026-11-13 · /plan-eng-review D9）：种子里有**两个**全局角色是 `DESIGNER` 的用户（`e2e-designer` 有授权 / `e2e-outsider` **故意没授权**）⇒ `role_headers(<role>)` 一律解析到**有授权的**那个人；**局外人必须显式点名**：`role_headers(username="e2e-outsider")` ⇒ 否则正常场景会拿到局外人的 token ⇒ **全部变 404**（看起来像「端点坏了」） |
   - ⚠️ **`e2e_client` 不用 `strict_client` 那套最小 app** —— E2E 要**真中间件链**（审计 / trace / CORS）⇒ 用 `create_app()`（同 P10-A 的 `ai_client` 形状）
 
 - [ ] **Step 1: 写失败的测试**（`tests/e2e/test_lane_smoke.py`）
@@ -185,6 +187,8 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
 - Consumes: `app.models.*`（`Workspace` / `Project` / `User` / `UserProject` / `Stream` / `Deliverable` / `SignatureMatrix` / `ReportDefinition`）
 - Produces:
   - `scripts/seed_e2e_flows.py` 暴露 **`async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]`**
+  - ⚠️ **同时导出载荷模板** `PIPING_RECORD_PAYLOAD`（D8）⇒ 造 DRAFT 记录的那个字典
+    ⇒ `make_record` 用它 ⇒ 9 个场景不各写一份
     ⇒ ⚠️ 必须有**可调用入口**（同 `seed_e2e_data.py::seed`）⇒ 单测能传 `db_session`
   - 返回值 = 各造了多少行（`users` / `user_projects` / `streams` / `deliverables` / `signature_matrices` / `report_definitions`）
   - ⚠️ **id 不走返回值** ⇒ **模块级常量导出**（`FLOW_WORKSPACE_ID` / `FLOW_PROJECT_ID` /
@@ -272,7 +276,11 @@ git commit -F <msgfile>   # 首行: feat(P10-B): 流程级种子（角色矩阵 
 - Consumes: T1 的 `e2e_client` / `e2e_seed` / `role_headers`；T2 的种子 id
 - Produces: 5 个场景的可复用 helper（放 `tests/e2e/helpers.py`）：
   - `async def post_calc(client, url, body, *, headers) -> dict` —— 统一「调计算端点 → 断言 200 → 返回结果体」
-  - `async def make_record(client, *, module, payload, headers) -> uuid.UUID` —— 造一条 DRAFT 记录并返回 id
+  - `async def make_record(client, *, module, headers) -> uuid.UUID` —— 造一条 DRAFT 记录并返回 id
+    ⚠️ **载荷不逐场景传**（2026-11-13 · /plan-eng-review D8）：`PipingResult` 有 **~20 个必填列**
+    ⇒ 逐场景传 payload = 同一个 20 字段字典抄 **9 遍** ⇒ 改一处要改九处
+    ⇒ **种子导出模块级常量 `PIPING_RECORD_PAYLOAD`**（造 DRAFT 记录时用的那个字典）
+    ⇒ `make_record` 直接用它（只换 id）⇒ **一处真相源**；模板本身也被单测引用 ⇒ 模板也被测
     ⚠️ **`module` 的值是 `RECORD_TYPE_REGISTRY` 的键** ⇒ 用 **`PipingResult`**
     ⇒ **不是** `piping` 之类的小写（错值 ⇒ 422 `RECORD_MODULE_UNKNOWN`）
     ⇒ 且 `CostEstResult` / `TwoPhaseResult` / `ProjectCalculationStandardProfile`
