@@ -40973,8 +40973,15 @@
             "description": "管段物流号"
           },
           "case_type": {
-            "$ref": "#/components/schemas/StreamCaseType",
-            "description": "物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreamCaseType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（DB 可空）"
           },
           "data_mode": {
             "$ref": "#/components/schemas/StreamDataMode",
@@ -41978,7 +41985,6 @@
         "type": "object",
         "required": [
           "stream_name",
-          "case_type",
           "data_mode",
           "source_type",
           "stream_id",

@@ -915,7 +915,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): 权限矩阵 + E2E-016/017/018
   `scripts/compose_test_stack.sh` 的启动序列 ⇒ README 同步 ⇒ **不留手动步骤**。
 - Produces: 无（纯场景）
 
-- [ ] **Step 1: 写失败的 spec**
+- [x] **Step 1: 写失败的 spec**
 
 ```ts
 test('@real-backend 物流列表：种子物流可见', async ({ realPage }) => { ... });
@@ -929,19 +929,19 @@ test('@real-backend 权限：越权用户看不到别人的项目', async ({ rea
 ⚠️ **每个用例自己走 UI 登录**（token 只在 zustand 内存里 ⇒ 塞不进去）
 ⚠️ **真后端通道的后端必须带 `PCS_ENABLE_MOCK_LOGIN=true`** 且连 **`pcs_pgtest`**
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-frontend && npx playwright test --project=real-backend`
 Expected: FAIL（spec 未写 / 数据未 seed）
 
-- [ ] **Step 3: 实现 spec**（5 条，断言**具体行内容**，不是「页面没报错」）
+- [x] **Step 3: 实现 spec**（5 条，断言**具体行内容**，不是「页面没报错」）
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-frontend && npx playwright test --project=real-backend`
 Expected: PASS（6 passed —— 5 条新 + P10-A 的冒烟 1 条）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-frontend/e2e/real_backend_flows.spec.ts pcs-backend/scripts/seed_e2e_flows.py
@@ -957,7 +957,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 - Modify: `TODOS.md` · `.wolf/STATUS.md` · `.wolf/buglog.json`
 - Create: `.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-p10b.md`（gitignored）
 
-- [ ] **Step 1: 回写 SPEC 偏离登记**（新增 D23~D26）
+- [x] **Step 1: 回写 SPEC 偏离登记**（新增 D23~D26）
 
 | # | SPEC 原文 | 仓里实际 | 裁决 |
 |---|---|---|---|
@@ -974,8 +974,11 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 | **D33** | E2E-018「两库 schema 版本一致」 | alembic 的 `settings` 是 **pydantic 缓存实例** ⇒ **同一进程内**第二次改 `DATABASE_URL` **不生效** ⇒ 两库实际只查了一个（CLAUDE.md 2026-11-01 的打脸记录） | **一库一个进程**（两个独立子进程各读一次 `alembic_version`）⇒ SPEC 的「两库一致性检查」口径订正为「**一库一进程**」⇒ **口令只在环境变量里** |
 | **D34** | 01C 断「`marked_stale >= 1`」 | 响应里**两个计数器**：`marked_stale` = `scan_stale()`（**自己**哈希对不上基线）· `propagated` = **链式传播**（上游变了 ⇒ 下游 STALE）⇒ 断前者 ⇒ 「上游改了」这个场景**压根没被验到** | **断 `propagated >= 1`** + **直查下游状态 = `STALE`** ⇒ 走的是传播那条路 |
 | **D35** | AUTH-E2E-05「APPROVER 批 ⇒ 200」 | 矩阵链是 **CHECKER → REVIEWER → APPROVER** ⇒ 第一步的「待批角色」是 CHECKER ⇒ APPROVER/REVIEWER 现在批 = **插队** ⇒ 403 `APPROVAL_ROLE_MISMATCH` | **拆两行**：① 「插队 ⇒ 403 `APPROVAL_ROLE_MISMATCH`」· ② 「**轮到你时**你批得动 ⇒ 200」（前两步先由 CHECKER、REVIEWER 批完） |
+| **D36** | T7 的 5 条 UI 流（物流列表 · 记录详情 · 交付物 Rev 列表 · 设备表 · 权限） | 前端**没有** PipingResult 详情页（`/results/*` 只有 6 类结果表）· **也没有**设备清单页（`/equipment-list` 只有生成的类型、无页面） | **改成前端实有的 5 条**：物流一览 · 物流详情 · 签署进度 · 签署矩阵 · 越权可见性 ⇒ 后端 18 场景**仍是权威覆盖**，UI 是抽样复验 |
+| **D37** | 「权限：越权用户看不到别人的项目」⇒ 断某个具体错误码 | 具体码取决于**闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ **403**；而**项目端点**是 404） | **断「同形」**：「存在但没授权」与「压根不存在」**状态码相等** ⇒ 不钉死实现细节，又抓住「泄露存在性」 |
+| **D38** | 「两库一致」用同一进程依次查 | alembic `settings` 是 pydantic **缓存实例** ⇒ 第二库**根本没查** | **一库一个进程**（两个独立子进程各读一次 `alembic_version`）（⇒ 同 D33） |
 
-- [ ] **Step 2: 跑批末闸门**
+- [x] **Step 2: 跑批末闸门**
 
 ```bash
 cd pcs-backend && uv run pytest                    # 全量（e2e 用例被「默认车道 skip 闸门」跳过 ⇒ 不碰开发库）
@@ -987,21 +990,28 @@ cd pcs-frontend && npm run typecheck && npm run lint && npm run test
 cd pcs-frontend && npx playwright test --project=chromium   # mock 通道不许回归
 ```
 Expected: 全绿；**裸载荷 ≤ 71**；E2E 车道 ≥ **18 passed**
+Actual: 全绿；裸载荷 **71**；E2E 车道 **28 passed + 1 xfailed**；
+  PG 车道 7 passed · 默认车道 **5805 passed** · 真后端通道 **7 passed**（5 UI 流 + 冒烟 + 路由扫描）·
+  mock 通道 23 passed · 前端 typecheck/lint clean + vitest 1054 passed ·
+  `alembic check` 两库**各一进程** exit 0（`pcs` / `pcs_test` 均 `p10_001 (head)`）·
+  G-08 baseline **已滚动**（漂移主体是 P10-A 的 AI 端点契约）⇒ 门禁绿。
+  ⇒ 报告：`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md`（⚠️ 计划里写的
+  `2026-11-13-p10b.md` ⇒ 实际跑批跨到 17 号 ⇒ 按 CLAUDE.md 的「报告日期」口径改名）。
 
-- [ ] **Step 3: 写账簿**
+- [x] **Step 3: 写账簿**
 
 - `TODOS.md`：新增条目（**AUTH-E2E-11/12 延到 P10-C** · **E2E 进 CI 延到 P10-F** ·
   **TODO-141 strict_client 迁移进度**（本批只迁新写的用例 ⇒ 原 TODO 保留））
 - `.wolf/STATUS.md`：续写新一轮（**保持 < 2k token**）
 - `.wolf/buglog.json`：本批修的 bug 各补一条（**`fix_commit` 必填**）
 
-- [ ] **Step 4: 浏览器回归（gstack-qa）**
+- [x] **Step 4: 浏览器回归（gstack-qa）**
 
 - vite dev :5173 · 36 条路由可达 · 0 console error · 0×404/500
 - 报告落 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-13-p10b.md`
 - **CRITICAL / HIGH 必修完**才能开下一批
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A

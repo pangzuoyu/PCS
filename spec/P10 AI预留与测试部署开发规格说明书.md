@@ -638,7 +638,7 @@ E2E测试	14个核心场景、状态机路径、权限验证	2-3人周
 
 说明：以下条目是**本 SPEC 字面与仓库实际落地形态不一致**的地方。每条都给出
 裁决与理由，留痕的目的是——下一个读本 SPEC 的人不会以为「SPEC 说的就是
-代码里的样子」。登记随批次增补（D1~D22，P10-A 批末）。
+代码里的样子」。登记随批次增补（D1~D22，P10-A 批末；**D23~D38 为 P10-B 批末增补**）。
 
 D1	部署架构图写「PostgreSQL 16（主从复制）」	仓库是 **PG 18**（compose + CI 于 2026-10-07 对齐）	以 **18** 为准（架构图待修订）	§4.2 架构图
 D2	10.0(3)：新建 docker-compose.test（PG+pgvector/Redis/mock AD/backend/worker/frontend）	现有 docker-compose.yml 已含 postgres / postgres-pgtest / redis / worker / openldap+seed（= mock AD）	**不新建文件** ⇒ 用现有 compose 的 **profile**（`--profile test`）起测试组（新增一次性 `seed` 服务）	§3.2.0(3)(5)
@@ -662,5 +662,22 @@ D19	10.1(8) 同 D15：AI 可选依赖为何不加	`uv lock` 解析的是**一份
 D20	（文档治理）本 SPEC 的文件名与版本	仓库里的文件是 `spec/P10 AI预留与测试部署开发规格说明书.md`，**当前版本 V1.0**（2026-08-27）；开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**	以**仓库里这份 V1.0** 为准 ⇒ 计划中的版本号引用作废（后续若出 V1.4，需同步改引用）	全文
 D21	10.1：AI 路由骨架（5 个端点）	仓库此前**零** AI 代码（无 `app/api/v1/ai/`、无脱敏、无出站客户端、无 `/health/ai`）	**全量新做**（5 个端点一律 501）+ 既有 `ai_audit_log` 加列（见 D4）	§3.2.1
 D22	§3.1.2：健康检查 `/health/ai`「返回 not_configured」	未定义 endpoint 形态不同（IP 字面量 / 域名）时的判定	判定口径写死为：**未配置 ⇒ not_configured**；**IP 字面量** ⇒ 本地比对 CIDR（不联网）⇒ 内网 `ok` / 否则 `degraded`；**域名** ⇒ **不解析 DNS** ⇒ 恒 `degraded` + reason=endpoint_is_domain_not_verified ⇒ **域名永远不会是 ok**（没验证过就不能说它在内网）；**恒 200**（探针不该因「AI 未上线」而红）	§3.1.2
+
+D23	权限矩阵用 `SYSADMIN`	代码词表是 `SYSTEM_ADMIN`（`state_machine.TRANSITION_ROLES`）	**以代码为准** ⇒ SPEC 词表订正	§3.2.2
+D24	AUTH-E2E-11/12（`TEST_VIEWER` 看测试报告页）	`TEST_VIEWER` **不存在**（项目内角色 6 值里没有）· 测试报告页属 **P10-C**	**本批不做** ⇒ 角色登记随 P10-C 一并做	§3.2.2
+D25	「E2E 在 CI 中可自动执行」+「PR 跑关键 E2E；nightly 跑全量 E2E」	既有裁决「**不新建 CI 流水线**」	**本批只给本地车道脚本**（`scripts/pytest_e2e.sh` 跑全量）⇒ 「进 CI」与「PR/nightly 拆分」**一并延到 P10-F** ⇒ **本批不假装满足**	§3.2.0(2)
+D26	18 场景「全部通过」	本批：后端 18 条（车道 28 passed + 1 xfailed）+ 前端 5 条 UI 流（UI 不重复覆盖 18 条）	**后端为权威覆盖**，前端是**抽样 UI 复验**	§3.2.2
+D27	项目创建后输入清单**自动生成**	仓里**没有**任何建项目时碰清单的代码 ⇒ 真实流程是 `POST /api/v1/checklist/projects/{id}/seed` **显式** seed	**以代码为准** ⇒ E2E-001 断「显式 seed 后清单非空」⇒ SPEC 措辞修订	§3.2.2
+D28	AUTH-E2E-02「CHECKER 送审被拒（角色不够）」	代码里 `CHECKER` **过得了**粗闸（`SUBMIT_FOR_CHECK` 含 CHECKER）⇒ 403 的真因是**自审闸**（提交人角色出现在批准链里）⇒ 错误码 `APPROVAL_SELF_REVIEW_FORBIDDEN`	**以代码为准** ⇒ 矩阵断**错误码**而非只断状态码 ⇒ SPEC 的「角色不够」措辞修订	§3.2.2
+D29	报表生成是**异步**的（HTTP 202 + 轮询）	入队依赖 **Redis + ARQ worker** ⇒ 本批**不引 Redis/worker** ⇒ 队列不可达时端点**当场 503** ⇒ 轮询到 `SUCCESS` **不可达**	**本批用三段式**（HTTP 503 fail-closed + 直调 worker 任务体 + 产物断言）⇒ 「真过 Redis + worker」延到 **TODO-155**	§3.2.2
+D30	批准链走完后的状态词（若 SPEC 写 `APPROVED`）	9 态里**没有 `APPROVED`** ⇒ 链尾是 **`CHECKED`**（`IN_APPROVAL` 只在链中途）	**以代码为准** ⇒ 断言精确断 `CHECKED`	§3.2.2
+D31	导入 ⇒ 物性补全（E2E-002 一气呵成）	**PRO/II 解析器不抽组成**（`app/services/import_service.py`）⇒ 导入的物流 `composition_json is None` ⇒ **进不了计算链**	**E2E-002 拆两段** ⇒ 「导入的物流进不了计算链」是**产品缺口** ⇒ **TODO-156**	§3.2.2
+D32	容器计算返回**尺寸**（E2E-006）	尺寸要 `sizing_spec`（C-08 **V1.2** 的两相分离器尺寸，Souders-Brown）⇒ 那是 **P6-4 的遗留债**	**本批断「结果里有 `sizing` + `hydraulics` 两块」**，**不断尺寸数值** ⇒ 尺寸留给 P6-4 的 V1.2	§3.2.2
+D33	E2E-018「两库 schema 版本一致」	alembic 的 `settings` 是 **pydantic 缓存实例** ⇒ **同一进程内**第二次改 `DATABASE_URL` **不生效** ⇒ 两库实际只查了一个	**一库一个进程**（两个独立子进程各读一次 `alembic_version`）⇒ 「两库一致性检查」口径订正为「**一库一进程**」	§3.2.2
+D34	01C 断「`marked_stale >= 1`」	响应里**两个计数器**：`marked_stale` = `scan_stale()`（**自己**哈希对不上基线）· `propagated` = **链式传播**（上游变了 ⇒ 下游 STALE）	**断 `propagated >= 1`** + **直查下游状态 = `STALE`** ⇒ 走的是传播那条路	§3.2.2
+D35	AUTH-E2E-05「APPROVER 批 ⇒ 200」	矩阵链是 **CHECKER → REVIEWER → APPROVER** ⇒ 第一步的「待批角色」是 CHECKER ⇒ APPROVER/REVIEWER 现在批 = **插队** ⇒ 403 `APPROVAL_ROLE_MISMATCH`	**拆两行**：① 插队 ⇒ 403 · ② **轮到你时**你批得动 ⇒ 200	§3.2.2
+D36	T7 的 5 条 UI 流（物流列表 · 记录详情 · 交付物 Rev 列表 · 设备表 · 权限）	前端**没有** PipingResult 详情页（`/results/*` 只有 6 类结果表）· **也没有**设备清单页（`/equipment-list` 只有生成的类型、无页面）	**改成前端实有的 5 条**：物流一览 · 物流详情 · 签署进度 · 签署矩阵 · 越权可见性 ⇒ 后端 18 场景**仍是权威覆盖**	§3.2.2
+D37	「权限：越权用户看不到别人的项目」⇒ 断某个具体错误码	具体码取决于**闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ **403**；而**项目端点**是 404）	**断「同形」**：「存在但没授权」与「压根不存在」**状态码相等** ⇒ 不钉死实现细节，又抓住「泄露存在性」	§3.2.2
+D38	「两库一致」用同一进程依次查	同 D33（pydantic 缓存 ⇒ 第二库没查）	**一库一个进程**	§3.2.2
 
 P10 SPEC完。 本文档与SPEC-P0至SPEC-P9合并，构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系（共11份文档）。

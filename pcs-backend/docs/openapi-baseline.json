@@ -86,20 +86,32 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
           "501": {
             "description": "AI 已预留、未实现（P10）",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证（认证先于 501）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -155,20 +167,32 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
           "501": {
             "description": "AI 已预留、未实现（P10）",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证（认证先于 501）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -224,20 +248,32 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
           "501": {
             "description": "AI 已预留、未实现（P10）",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证（认证先于 501）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -293,20 +329,32 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
           "501": {
             "description": "AI 已预留、未实现（P10）",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证（认证先于 501）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -362,20 +410,32 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
           "501": {
             "description": "AI 已预留、未实现（P10）",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiNotImplementedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证（认证先于 501）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 已启用但出口不合法（endpoint 缺失 / 不在内网 CIDR）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -28152,6 +28212,33 @@
         "title": "ErrorCodeItem",
         "description": "错误码字典单项（meta/errors 端点）。\n\n业务：code 错误码 + http 状态码 + message 默认消息 + ui_behavior 前端响应\n策略（block_toast/inline_field_error/redirect_to_login/modal_confirm 等）。"
       },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "detail": {
+            "title": "Detail"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "trace_id"
+        ],
+        "title": "ErrorResponse",
+        "description": "统一错误响应外壳（FastAPI exception handler 序列化输出）。\n\n业务：code 业务错误码 + message 中文消息 + detail 可选详情 +\ntrace_id 链路追踪 ID（X-Trace-ID header 同值，跨服务日志关联）。"
+      },
       "EstimatePropertiesRequest": {
         "properties": {
           "cas_list": {
@@ -40886,8 +40973,15 @@
             "description": "管段物流号"
           },
           "case_type": {
-            "$ref": "#/components/schemas/StreamCaseType",
-            "description": "物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreamCaseType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（DB 可空）"
           },
           "data_mode": {
             "$ref": "#/components/schemas/StreamDataMode",
@@ -41891,7 +41985,6 @@
         "type": "object",
         "required": [
           "stream_name",
-          "case_type",
           "data_mode",
           "source_type",
           "stream_id",

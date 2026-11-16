@@ -18583,8 +18583,8 @@ export interface components {
              * @description 管段物流号
              */
             stream_name: string;
-            /** @description 物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN */
-            case_type: components["schemas"]["StreamCaseType"];
+            /** @description 物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（DB 可空） */
+            case_type?: components["schemas"]["StreamCaseType"] | null;
             /** @description 数据模式：CHEMICAL（化学组成）/ PETROLEUM（石油特征）/ SOLID（固体物料） */
             data_mode: components["schemas"]["StreamDataMode"];
             /**

@@ -6231,6 +6231,105 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2166",
+      "timestamp": "2026-11-16",
+      "severity": "medium",
+      "error_message": "`scripts/seed_e2e_flows.py` 灌流程级种子时 **500**：`asyncpg.exceptions.DataError: invalid input for query argument $9: 1 (expected str, got int)`（`report_definitions.version`）",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "root_cause": "种子把 `version=1`（**int**）塞进 `report_definitions.version` —— 而该列是 **VARCHAR**（`app/models/report.py`：`version: Mapped[str] = mapped_column(String(32), default='0.1.0')`）⇒ ⇒ **psycopg 让 PG 自己转**（绿）⇒ **asyncpg 直接报错**（生产用的驱动 —— `app/db/session.py::_build_async_url` 把 `postgresql+psycopg://` 换成 `postgresql+asyncpg://`）⇒ ⇒ **生产上必炸**。\n⚠️ **为什么一直没人发现**：E2E 车道的异步引擎用的是 **psycopg**（与生产驱动**不一致**）⇒ ⇒ 这一整类「类型不匹配」缺陷在车道里**隐形**。",
+      "fix": "① 种子改 `version=\"1\"`（对齐列类型）；② **E2E 车道的异步引擎改用 asyncpg**（= 生产驱动）⇒ ⇒ 以后这类缺陷**当场红**。\n⇒ 变更实测：换驱动后（未修种子）车道立刻红在 `DataError` ⇒ 修完 ⇒ 28 passed + 1 xfailed。",
+      "fix_commit": "ca836db",
+      "tags": [
+        "P10-B",
+        "E2E",
+        "seed",
+        "asyncpg",
+        "类型"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2167",
+      "timestamp": "2026-11-16",
+      "severity": "high",
+      "error_message": "`GET /api/v1/projects/{project_id}/streams` **500**（`ResponseValidationError`：enum 校验失败）—— 只要项目里有**任何一条 `case_type IS NULL` 的物流**，整个物流列表端点就挂 ⇒ 物流一览页打不开",
+      "file": "pcs-backend/app/schemas/stream.py",
+      "root_cause": "DB 列 `streams.case_type` **可空**（`app/models/project.py`：`case_type: Mapped[str | None]`）⇒ P3.2 SIM-10 **之前**建的物流 / 手建没填工况的物流都是 NULL ⇒ 而响应模型 `StreamResponse`（继承 `StreamBase`）把 `case_type` 声明成**必填枚举** ⇒ ⇒ FastAPI 序列化时抛 `ResponseValidationError` ⇒ **500**。\n⚠️ 实测：`pcs_pgtest` 里 **4/4 条**物流的 `case_type` 都是 NULL ⇒ 两个种子脚本都没填 ⇒ ⇒ **每个项目都复现**。\n⚠️ 旁证：轻量子集 `StreamListItem.case_type` **本来就是可空的** ⇒ 同一个字段两套口径。",
+      "fix": "**只改响应**：`StreamResponse` 覆写 `case_type: StreamCaseType | None = Field(None, ...)` ⇒ 请求侧 `StreamBase` 仍要求 `case_type` ⇒ 建物流的入参校验**不变** ⇒ ⇒ 契约与 DB 的可空性对齐。",
+      "fix_commit": "ca836db",
+      "tags": [
+        "P10-B",
+        "T7",
+        "SIM",
+        "契约",
+        "500"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2168",
+      "timestamp": "2026-11-16",
+      "severity": "medium",
+      "error_message": "每次打开仪表盘 ⇒ 控制台 **2 条 404 error**（`GET /api/v1/checklist/projects/00000000-0000-0000-0000-000000000001` 与 `/completeness`）⇒ 真后端通道的「控制台无 error」断言直接红",
+      "file": "pcs-frontend/src/pages/DashboardPage.tsx",
+      "root_cause": "仪表盘**没选工作区**时 `projectId` 落到**占位 id** `00000000-0000-0000-0000-000000000001`（不存在）⇒ 但 `InputChecklistPanel` **无条件渲染** ⇒ 面板挂载即取数 ⇒ ⇒ 两个请求必然 404。\n⚠️ 卡片标题本来就写着「选择工作区后查看清单」⇒ 未选时**没有内容**本来就符合文案 ⇒ 只差把面板一起藏起来。",
+      "fix": "`DashboardPage`：只在 `selected` 有值时渲染 `<InputChecklistPanel>` ⇒ ⇒ 404 消失 ⇒ 卡片文案与实际行为一致。",
+      "fix_commit": "dd00d93",
+      "tags": [
+        "P10-B",
+        "T7",
+        "frontend",
+        "仪表盘",
+        "404"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2169",
+      "timestamp": "2026-11-16",
+      "severity": "high",
+      "error_message": "真后端通道下**物流详情页永远停在「加载中…」**（`GET /api/v1/streams/{id}` **401**）⇒ 设备一览页同理",
+      "file": "pcs-frontend/src/pages/routeWrappers.tsx",
+      "root_cause": "`useFetch` 走**裸 `fetch`**（不是 axios）⇒ ⇒ 绕开了 axios 的请求拦截器（那里才注入会话 token）⇒ ⇒ 它发的是 `Authorization: DEV_BEARER` —— 一个**写死的假 token**（`Bearer mock-jwt-token`）⇒ ⇒ 真后端 **401** ⇒ `useFetch` 收到 `r.ok === false` ⇒ 静默保持初值（`null`）⇒ ⇒ 页面永远「加载中…」。\n⚠️ **mock 通道里 MSW 不校验 token** ⇒ 这条缺陷一直**隐形** ⇒ 只有真后端通道能抓到。",
+      "fix": "`useFetch` 改用**会话里的真 token**（`useAuth.getState().accessToken`）⇒ 没会话时才回退 `DEV_BEARER`（保持既有开发流程不变）。",
+      "fix_commit": "dd00d93",
+      "tags": [
+        "P10-B",
+        "T7",
+        "frontend",
+        "auth",
+        "真后端通道"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2170",
+      "timestamp": "2026-11-16",
+      "severity": "low",
+      "error_message": "`tests/scripts/test_pytest_pg_gate.py` 的两条守门测试在**真车道正在跑**时红（报的是「另一条车道正在跑」而不是它们声称要测的那条闸门）",
+      "file": "pcs-backend/tests/scripts/test_pytest_pg_gate.py",
+      "root_cause": "P10-B · T1 给 `scripts/pytest_pg.sh` 加了**车道互斥锁**（PG 车道与 E2E 车道共用同一个库）⇒ ⇒ 守门测试调 `pytest_pg.sh` 时**也会去抢那把锁** ⇒ ⇒ 车道在跑 ⇒ 守门测试被挡 ⇒ 报「另一条车道正在跑」⇒ ⇒ **测的根本不是它们声称的东西**（`guard-test-fooled-by-lying-comment` 同形）。",
+      "fix": "守门测试用**自己的锁文件**（脚本已支持 `PCS_PGTEST_LANE_LOCK` 覆盖）⇒ ⇒ 与真车道**互不干扰**。",
+      "fix_commit": "ca836db",
+      "tags": [
+        "P10-B",
+        "T7",
+        "测试隔离",
+        "车道锁"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
     }
   ]
 }
