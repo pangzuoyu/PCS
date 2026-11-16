@@ -209,7 +209,7 @@
 
 # 段一：地基
 
-## Task T1：E2E 车道 + 隔离 schema + `e2e_client`
+## Task 1（T1）：E2E 车道 + 隔离 schema + `e2e_client`
 
 **Files:**
 - Create: `pcs-backend/scripts/pytest_e2e.sh`
@@ -343,7 +343,7 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
 
 ---
 
-## Task T2：流程级种子（角色矩阵 · 起点态 · 幂等）
+## Task 2（T2）：流程级种子（角色矩阵 · 起点态 · 幂等）
 
 **Files:**
 - Create: `pcs-backend/scripts/seed_e2e_flows.py`
@@ -461,7 +461,7 @@ git commit -F <msgfile>   # 首行: feat(P10-B): 流程级种子（角色矩阵 
 
 # 段二：场景
 
-## Task T3：录入与计算链（E2E-001~006）
+## Task 3（T3）：录入与计算链（E2E-001~006）
 
 **Files:**
 - Create: `pcs-backend/tests/e2e_flows/test_e2e_project_config.py`
@@ -560,7 +560,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): E2E-001~006 录入与计算链
 
 ---
 
-## Task T4：汇总 · 报告 · 供应商（E2E-007/008/009/014/015）
+## Task 4（T4）：汇总 · 报告 · 供应商（E2E-007/008/009/014/015）
 
 **Files:**
 - Create: `pcs-backend/tests/e2e_flows/test_e2e_equipment_util.py`
@@ -672,7 +672,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): E2E-007/008/009/014/015 汇总�
 
 ---
 
-## Task T5：记录层状态机 + 交付物 Rev（E2E-010~013 + WF-PATH）
+## Task 5（T5）：记录层状态机 + 交付物 Rev（E2E-010~013 + WF-PATH）
 
 **Files:**
 - Create: `pcs-backend/tests/e2e_flows/test_e2e_record_workflow.py`
@@ -772,7 +772,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): WF-PATH 五类路径 + E2E-010~
 
 ---
 
-## Task T6：权限矩阵 + AI 审计 + schema 一致（E2E-016/017/018 + AUTH-E2E）
+## Task 6（T6）：权限矩阵 + AI 审计 + schema 一致（E2E-016/017/018 + AUTH-E2E）
 
 **Files:**
 - Create: `pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py`
@@ -886,7 +886,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): 权限矩阵 + E2E-016/017/018
 
 # 段三：前端与收口
 
-## Task T7：真后端通道的 UI 流（5 条）
+## Task 7（T7）：真后端通道的 UI 流（5 条）
 
 **Files:**
 - Create: `pcs-frontend/e2e/real_backend_flows.spec.ts`
@@ -947,7 +947,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 
 ---
 
-## Task T8：契约 / SPEC 偏离回写 / 账簿 / QA 收口
+## Task 8（T8）：契约 / SPEC 偏离回写 / 账簿 / QA 收口
 
 **Files:**
 - Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（第五部分「偏离登记」）
