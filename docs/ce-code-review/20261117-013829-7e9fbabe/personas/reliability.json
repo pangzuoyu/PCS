@@ -1,0 +1,158 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "data_version 写在会被删掉的分支上，审计哈希仍恒空",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 118,
+      "why_it_matters": "回答「为什么赋值执行了、库里仍是 NULL」：**对象没有与被 flush 的行脱钩** —— 是这行赋值**根本走不到**。`_finalize` 的 `dup` 守卫在 107-111 行就 `return` 了，而 `dup` **必然存在**：`report_service.generate` → `store_rendered` → `_upsert_report_file` 已经在库里有了一行 `content_hash == digest` 且 `report_file_id` **不同于**占位行（report_service.py:612-618，新 uuid4）。于是 dup 分支命中 ⇒ 占位行被 `delete` ⇒ 活下来的那行是 `_upsert_report_file` 构造的、**从头到尾没有 `data_version` 字段** ⇒ 落库仍是 NULL ⇒ `GET /api/v1/report/{id}/hash` 的 `_expected_digest(row)`（report.py:308）继续返回 `\"\"` ⇒ E2E-009 只能继续 `pytest.xfail`。⇒ 本批声称修好的「审计要完整哈希」实际没修好，而且 buglog 给 bug-2165 记的根因（对象与被 flush 的行脱钩）是错的，会把后来的人引到错误的方向。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:107-111 — `    if dup is not None:` / `        # 同内容已存在（bug-155 修好后的复用语义）：删掉自己的占位行，返回已有行。` / `        await db.delete(row)` / `        await db.flush()` / `        return str(dup.report_file_id)`",
+        "pcs-backend/app/workers/report_tasks.py:118 — `    row.data_version = digest`（本批新增的 `+` 行，位于上面那个 `return` 之后 ⇒ 不可达）",
+        "pcs-backend/app/services/report/report_service.py:612-618 — 活下来的那行是这么造的、**没有 data_version**：`    row = ReportFile(` / `        report_file_id=kw[\"report_file_id\"],` / `        project_id=kw[\"project_id\"], content_hash=kw[\"content_hash\"],` / `        file_path=kw[\"relpath\"], file_format=kw[\"fmt\"],` / `        size_bytes=kw[\"size\"], status=\"SUCCEEDED\",` / `        has_assumption_page=kw[\"has_assumption\"],` / `    )`",
+        "pcs-backend/app/workers/report_tasks.py:167-173 — `            out = await report_service.generate(` … `            file_id = await _finalize(` ⇒ `store_rendered` 的 upsert **先于** `_finalize` ⇒ dup 必然命中",
+        "pcs-backend/app/services/report/report_service.py:606-610 — `    existing = (await db.execute(select(ReportFile).where(ReportFile.content_hash == kw[\"content_hash\"]))).scalar_one_or_none()` ⇒ 即使命中旧行，`content_hash == digest` 的行照样存在 ⇒ dup 照样命中",
+        "pcs-backend/app/api/v1/report.py:308 — `        record_hash_digest=_expected_digest(row),` ⇒ 审计端点读的是 `row.data_version or \"\"`",
+        "pcs-backend/tests/e2e_flows/test_e2e_report.py — E2E-009 仍是 `pytest.xfail`（条件是 `record_hash_digest` 为空）⇒ 车道自己记录着这条需求仍未满足"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 `data_version` 写到**活下来的那一行**上，而不是写占位行：`report_service._upsert_report_file`（report_service.py:612-618）构造 `ReportFile(...)` 时补 `data_version=kw[\"content_hash\"]`（同一处也修好 `report_builder_tasks.py:227` 那条路径）；同时在 `_finalize` 的 dup 分支里，于 `return str(dup.report_file_id)` 之前补 `dup.data_version = digest` 以覆盖「命中旧行」的情形。假设：`data_version` 的语义就是内容指纹（依 report.py:487-494 的 docstring）。验证：把 E2E-009 的 `pytest.xfail` 去掉并断言 `record_hash_digest == content_hash`。"
+    },
+    {
+      "title": "占位管级先查后插无 savepoint，并发撞主键让整条计算 500",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 112,
+      "why_it_matters": "运行时兜底建占位管级用的是「先查后插」，**没有** `begin_nested()` + `IntegrityError` 兜底 —— 与本仓自己的 house pattern（`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`，以及 `report_service._upsert_report_file` 的写法）相反。两个并发的 `POST /api/v1/pipe/calc-chain` 请求同时看到「CS-STD 不存在」⇒ 都 INSERT ⇒ 输家撞 `pipe_classes.class_id` 主键唯一约束 ⇒ IntegrityError。而 `calc_pipe_chain` 只 catch `PcsError`（pipe.py:213-216）⇒ IntegrityError 直接逃出去 ⇒ **整个端点 500**，且该事务已被 abort ⇒ 同请求后续语句一并失败。窗口虽窄（占位行一旦提交就长期存在），但正是「首次并发」或「上次事务回滚后」会命中，而那恰好是 E2E 车道首跑/重跑的时刻。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:105-111 — `    exists = (await db.execute(select(PipeClass.class_id).where(PipeClass.class_id == class_id))).scalar_one_or_none()` / `    if exists is not None:` / `        return`",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:112-138 — `    db.add(` / `        PipeClass(` / `            class_id=class_id,` … `    )` / `    await db.flush()` ⇒ **裸 INSERT，没有 savepoint、没有 IntegrityError 分支**",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)`（在 `db.add(row)` + flush 之前）",
+        "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` ⇒ 撞主键即唯一约束违例",
+        "pcs-backend/app/api/v1/pipe.py:213-216 — `    try:` / `        row, outlet = await persist_pipe_chain_result(db, chain_inp, chain_res)` / `    except PcsError as e:` / `        raise _to_http(e) from e` ⇒ IntegrityError 不在 catch 范围 ⇒ 500"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "照 house pattern 改成 savepoint + 重读赢家：`try: async with db.begin_nested(): db.add(PipeClass(...)); await db.flush() except IntegrityError: pass`（冲突时复用并发方刚插的那一行即可，不必报错）。假设：`class_id` 相同即视为同一占位管级，复用赢家行是安全的。"
+    },
+    {
+      "title": "useFetch 静默吞错，token 过期后永久停在「加载中…」",
+      "severity": "P1",
+      "file": "pcs-frontend/src/pages/routeWrappers.tsx",
+      "line": 92,
+      "why_it_matters": "报错链路**不可靠**：非 2xx 被折叠成 `null`（`r.ok ? r.json() : null`），网络异常被 `.catch(() => {})` 吞掉 ⇒ `data` 永远停在 `initial` ⇒ `StreamDetailRoute` 永久渲染「加载中…」（routeWrappers.tsx:160），列表页则渲染成「空列表」—— 两者都与「加载中」/「真的没有数据」长得一样，用户没有任何提示。本批把假 token 换成真 token 后引入了一个**新的**静默失败窗口：access token 30 分钟过期（app/core/config.py:46 `access_token_expire_minutes: int = 30`）⇒ `useFetch` 的请求全部 401 ⇒ 而 `useFetch` 用的是裸 `fetch`，**绕过了 axios 的 401 拦截器**（client.ts:54-60：clearSession + 跳 /login）⇒ 用户既不会被踢回登录页、也看不到任何报错，只能手动刷新（刷新后 token 仍过期 ⇒ 还是坏的）。裸 `fetch` 还没有 timeout ⇒ 后端挂住时页面同样永远「加载中…」。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/routeWrappers.tsx:87-92 — `    void fetch(path, { headers: { Authorization: authorization } })` / `      .then((r) => (r.ok ? r.json() : null))` / `      .then((j: T | null) => {` / `        if (!cancelled && j !== null) setData(j);` / `      })` / `      .catch(() => {/* offline / unhandled: keep empty fixtures */});` ⇒ 非 2xx 与网络异常都变成「什么都不发生」",
+        "pcs-frontend/src/pages/routeWrappers.tsx:159-160 — `  const stream = useFetch<Stream | null>(`/api/v1/streams/${streamId}`, null);` / `  if (!stream) return <Typography.Text>加载中…</Typography.Text>;` ⇒ 失败态与加载态同形",
+        "pcs-frontend/src/api/client.ts:54-60 — `    if (err.response?.status === 401) {` … `        useAuth.getState().clearSession();` … `          window.location.href = '/login';` ⇒ 只有走 axios 的请求才有「401 ⇒ 回登录页」，`useFetch` 完全绕过",
+        "pcs-backend/app/core/config.py:46 — `    access_token_expire_minutes: int = 30` ⇒ 过期是必然事件，不是边缘情况",
+        "pcs-frontend/src/pages/routeWrappers.tsx:85-86 — `    const token = useAuth.getState().accessToken;` / `    const authorization = token ? `Bearer ${token}` : DEV_BEARER;` ⇒ 过期 token 仍被当作有效 token 发出"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "给 `useFetch` 一个显式的失败态而不是静默：`fetch` 用 `AbortController` + 超时（如 15s，cleanup 里 `clearTimeout` + `abort`），`!r.ok` 与 `catch` 都写入 `error` state；`StreamDetailRoute` 在 `error` 时渲染错误+重试，而不是「加载中…」。401 建议直接复用 `src/api/client.ts` 的 axios 实例（或调用同一套 clearSession + 跳 /login），让 token 过期与用户停用都回到登录页而不是卡死。注意：`.catch` 那行本身是本批未改的上下文行，但本批重写了这个 fetch 调用（同一条表达式链），因此失败路径落在本次改动的作用域内。"
+    },
+    {
+      "title": "E2E 车道不跑 lifespan，且注释谎称种子已补启动 seed",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/conftest.py",
+      "line": 272,
+      "why_it_matters": "stand-in guard fidelity 破了：本批的规格是「真 app + 真库」「驱动必须与生产一致」，而生产 app 在 **lifespan** 里 seed 两样东西（`CoefficientService.seed_default_tables` 的 6 张 CATEGORY_3 默认系数表 + `seed_system_setting_defaults` 的 7 个系统参数，app/main.py:159-160）—— 车道刻意不跑 lifespan（httpx.ASGITransport 本来就不跑），而注释说「由 `e2e_seed` 显式补」；实测**两个种子脚本与 conftest 里都没有任何一处调用这两个 seed**（grep `coefficient|system_setting|Coefficient|SystemSetting|seed_default` 在 scripts/seed_e2e_flows.py、scripts/seed_e2e_data.py、tests/e2e_flows/conftest.py 上 0 命中）⇒ 隔离 schema 里没有系数表、也没有系统参数 ⇒ 任何碰到这两处默认值的场景看到的是「空的生产默认集」⇒ 车道可以在生产形状不同的上下文上绿过去。注释还主动掩盖了这个缺口（后来的人会以为已经补了）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/conftest.py:271-272 — `    ⚠️ **不走 lifespan** ⇒ `httpx.ASGITransport` 本来就不跑 lifespan ⇒` / `    「只有 lifespan 才会做的那两处 seed」由 `e2e_seed` 显式补（T2 起）。` ⇒ 注释里的承诺",
+        "pcs-backend/app/main.py:157-160 — `    factory = get_async_session_factory()` / `    async with factory() as session:` / `        await CoefficientService.seed_default_tables(session)` / `        await seed_system_setting_defaults(session)` ⇒ 这两处 seed **只在 lifespan 里**",
+        "grep 结果：`coefficient|system_setting|Coefficient|SystemSetting|seed_default` 在 scripts/seed_e2e_flows.py、scripts/seed_e2e_data.py、tests/e2e_flows/conftest.py 上 **0 命中** ⇒ 「由 `e2e_seed` 显式补」不成立",
+        "pcs-backend/tests/e2e_flows/conftest.py:271 — `⚠️ **不走 lifespan**`（车道确实不跑生产启动流程 ⇒ 上下文与生产不一致）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "二选一，别让注释与代码脱节：(a) 让车道跑 lifespan（`async with app.router.lifespan_context(app):` 或 `LifespanManager`），生产启动 seed 就自然落到隔离 schema；(b) 在 `seed_flows` 里显式调用 `CoefficientService.seed_default_tables(session)` 与 `seed_system_setting_defaults(session)`，并把 conftest:272 的注释改成事实描述。无论选哪个，补一条断言：隔离 schema 里 coefficient 表 6 行、system_settings 7 行。"
+    },
+    {
+      "title": "flock 互斥只覆盖两条 pytest 车道，compose 迁移/种子裸奔",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/pytest_pg.sh",
+      "line": 56,
+      "why_it_matters": "锁本身是对的（放在共享脚本里 ⇒ 两条车道都生效；`flock -n` 快速失败而不是排队；fd 9 被子进程继承 ⇒ 锁一直持有到 pytest 真正退出；进程退出即释放）。但覆盖面有缺口：**同一个 `pcs_pgtest` 库还有别的写者没进锁** —— compose 的 `migrate` 服务（`alembic upgrade head`，docker-compose.yml:113，写 public schema）与 `seed` 服务（两个种子脚本，:153）都在这个库上跑 DDL/DML，却完全不受 flock 约束 ⇒ 开发者在车道运行时 `docker compose --profile test up` ⇒ 隔离 schema 里的 `CREATE SCHEMA`/`alembic upgrade head` 与 public schema 里的 DDL 并发 ⇒ 表现是 catalog 锁互相等待（脚本注释自己写的「偶发卡住」），排查成本极高。另有两处保真度问题：锁文件是固定的 `/tmp/pcs-pgtest-lane.lock`（被 tmp 清理删掉后新进程会拿到新 inode ⇒ 互斥静默失效；非本用户拥有时 `exec 9>` 直接报错而不是那句清晰的 FAIL），以及守卫测试用 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件 ⇒ **默认路径从未被测过**。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/pytest_pg.sh:56-61 — `LOCK_FILE=\"${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}\"` / `exec 9>\"$LOCK_FILE\"` / `if ! flock -n 9; then` / `  echo \"FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema\" >&2` / `  exit 1` / `fi` ⇒ 只约束走进这个脚本的进程",
+        "docker-compose.yml:113 — `    command: [\"uv\", \"run\", \"--frozen\", \"alembic\", \"upgrade\", \"head\"]`（migrate 服务，对 `pcs_pgtest` public schema 做 DDL，无锁）",
+        "docker-compose.yml:140-145 — seed 服务 `uv run --frozen python scripts/seed_e2e_data.py && uv run --frozen python scripts/seed_e2e_flows.py`（同一库，无锁）",
+        "pcs-backend/scripts/pytest_pg.sh:49-51 — `⚠️ **PG 车道与 E2E 车道共用同一个库**（`pcs_pgtest`）… ⇒ 并发跑 ⇒ DDL 互相等锁 ⇒ 表现是「**偶发卡住**」而不是报错` ⇒ 同样的症状对 compose 侧依然成立",
+        "pcs-backend/tests/scripts/test_pytest_pg_gate.py — 守卫测试把 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件（bug-2170 的绕法）⇒ 默认的 `/tmp/pcs-pgtest-lane.lock` 路径没有被任何测试走到"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把互斥从「脚本内的 flock」提升到「库级别的互斥」：① 让 compose 的 `migrate`/`seed` 服务也走同一个锁文件（在容器里 `flock` 同一个路径，或改成由 `scripts/pytest_pg.sh` 负责迁移）；② 锁文件移到不会被 tmp 清理的位置（如 `${TMPDIR:-/tmp}/pcs-pgtest-lane.lock` 之外的项目内路径 `.tmp/`），并在 `exec 9>` 失败时给出明确的 FAIL 而不是 shell 重定向错误；③ 守卫测试补一条「默认路径下的两条 lane 互斥」用例（用子进程实测），而不是只测覆盖后的临时路径。"
+    },
+    {
+      "title": "隔离 schema 清理只在 finally，进程被杀就永久留垃圾",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/conftest.py",
+      "line": 191,
+      "why_it_matters": "schema 生命周期是「建 → 迁移 → DROP CASCADE」，但**清理只挂在 fixture 的 `finally` 上**：SIGKILL / 容器被强杀 / DB 断连 / 机器重启 ⇒ `finally` 不跑 ⇒ 隔离 schema（含一整套被迁移过的表）永久留在共享的 `pcs_pgtest` 库里，而**没有任何 janitor/reaper**；下一轮跑的「起手 DROP」只针对**本轮那个随机名**（`e2e_<8hex>`，conftest.py:164）⇒ 旧残留一个都清不掉 ⇒ 垃圾无声累积（每轮一份全量 schema）。另外 `finally` 里的 `DROP SCHEMA ... CASCADE` 自己也可能抛（连接已断）⇒ 会**顶替掉真正的失败原因**，让排障看到的是一个无关的连接错误而不是真正的失败。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/conftest.py:189-192 — `    finally:` / `        with engine.begin() as conn:` / `            conn.execute(text(f'DROP SCHEMA IF EXISTS \"{schema}\" CASCADE'))` / `        engine.dispose()` ⇒ 清理只在正常/异常退出路径上跑，进程被杀时不会跑",
+        "pcs-backend/tests/e2e_flows/conftest.py:164 — `    schema = f\"e2e_{uuid.uuid4().hex[:8]}\"` ⇒ 每轮随机名 ⇒ 上轮的残留不会被这一轮的「起手 DROP」覆盖",
+        "pcs-backend/tests/e2e_flows/conftest.py:158-159 — `⚠️ **起手先 `DROP SCHEMA IF EXISTS … CASCADE`** ⇒ 上次 DROP 失败留下的残留不会让这次「schema 已存在」直接炸。` ⇒ 注释只解决了「同名残留」，没有解决「随机名残留」"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "在 lane 的 setup 里加一次「扫尾」：枚举该库中所有 `e2e_%` 前缀的 schema，把**不是本轮**的那些 DROP CASCADE（等价于一个 janitor，跑之前先清历史残留）；或把 schema 名改成固定名（如 `e2e_lane`）以便起手 DROP 覆盖。另外把 `finally` 里的 DROP 包一层 `try/except Exception: pass` 并把原异常保留为 `__context__`，避免清理失败顶替掉真正的失败原因。"
+    },
+    {
+      "title": "种子脚本没有「不是开发库」的护栏，可直接写进 pcs",
+      "severity": "P3",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 763,
+      "why_it_matters": "幂等与并发这两点做得对：`_get_or_create` 就是本仓的 house pattern（savepoint + 撞唯一约束后重读赢家 + 绝不 update 既有行），逐行并发安全；`_delete_own_rows` 只删自己造的行、绝不碰 `users`。但脚本**没有任何数据库目标护栏** —— 它完全跟着 `DATABASE_URL`/`.env` 走，而 `.env` 的 `DATABASE_URL` 指向**开发库 `pcs`**。开发者在开发机上随手 `uv run python scripts/seed_e2e_flows.py` ⇒ 就会往开发库 `pcs` 里写进 E2E 流程项目、`alice` 的用户行与授权行（`user_id` 是派生值 ⇒ 与真实账号同一 id 空间）。这正是本批规格反复强调要避免的「打到开发库 pcs」；车道侧有 `PCS_E2E_LANE` 门 + `_lane_url()` 检查，脚本侧却完全裸奔。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:763 — `    parser = argparse.ArgumentParser(description=\"灌流程级 E2E 种子数据（幂等）\")` ⇒ 参数里没有任何数据库目标约束",
+        "grep 结果：`DATABASE_URL|pcs_pgtest|pcs_test|current_database` 在 scripts/seed_e2e_flows.py 上 0 命中 ⇒ 脚本不检查自己连的是哪个库",
+        "pcs-backend/scripts/seed_e2e_flows.py:257-269 — `_get_or_create` 的 savepoint + 重读赢家写法（幂等/并发正确的部分）",
+        "pcs-backend/scripts/seed_e2e_flows.py:293 — `    project_ids = [FLOW_PROJECT_ID]` ⇒ `--reset` 只删自己那个项目，但**新写**的行照写不误"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "脚本启动时读一次 `current_database()`，若不是 `pcs_pgtest`（或以 `_test`/`_pgtest` 结尾）就 fail-closed 退出并说明「本脚本只允许写测试库」；若确实需要临时写别的库，加一个显式的 `--allow-db <name>` 逃生口。"
+    }
+  ],
+  "residual_risks": [
+    "E2E 车道的 `alembic upgrade head` 在共享库 `pcs_pgtest` 里执行 `CREATE EXTENSION IF NOT EXISTS btree_gist` —— 这是**库级** DDL，发生在号称「隔离」的车道里。目前靠 compose 的 `migrate` 服务先把扩展装进 public 而侥幸无事；若扩展落在隔离 schema 内，teardown 的 `DROP SCHEMA ... CASCADE` 会连带删掉该扩展并级联到依赖它的 public 对象（project_calculation_standard_profiles 上的 gist EXCLUDE 约束）。",
+    "E2E-009 用 `pytest.xfail` 记录「审计哈希端点恒返回空串」⇒ 车道保持绿，而「审计要完整哈希」这条需求实际未满足；绿色的车道会掩盖一个已登记的未满足需求。",
+    "真后端 UI 车道依赖四个环境变量（DATABASE_URL→pcs_pgtest public、PCS_ENABLE_MOCK_LOGIN=true、VITE_PROJECT_ID、VITE_API_PROXY_TARGET），仓库里没有任何脚本把它们设齐 ⇒ 从干净克隆无法复现这条车道。",
+    "flock 是**协作式**互斥：只约束经过 `scripts/pytest_pg.sh` 的进程；直接 `uv run pytest -m pg` + 指向 pcs_pgtest 的 DATABASE_URL 可以完全绕过（脚本自己的注释禁止在文档里教这条路，但没有任何机制拦住）。",
+    "`useFetch` 在 `useEffect`（依赖只有 `[path]`）里读一次 `useAuth.getState().accessToken` ⇒ 之后 token 刷新或补登录都不会重新取数；组件在 token 尚不存在时挂载会静默退回 `DEV_BEARER`。"
+  ],
+  "testing_gaps": [
+    "没有断言「活下来的 report_files 行带非空 data_version」的用例（E2E-009 被 xfail 掉了 ⇒ 就算有人把 data_version 整段删掉，车道仍然绿）。",
+    "没有并发用例证明两个并发的 `POST /api/v1/pipe/calc-chain`（DB 里尚无 CS-STD 时）不会撞主键 500 ⇒ 占位管级的竞态完全没被守住。",
+    "没有断言 E2E 隔离 schema 里存在 lifespan 播种的 6 张系数表与 7 条系统参数 ⇒ 车道与生产上下文的保真度缺口不可见。",
+    "没有「种子脚本连到开发库 pcs 时应当拒绝」的用例 ⇒ 护栏缺失不会被发现。",
+    "没有针对车道 teardown 被中断（进程被杀 ⇒ 残留 schema）的清理/回收用例，也没有断言历史 `e2e_%` 残留会被扫掉。",
+    "flock 守卫测试只跑被 `PCS_PGTEST_LANE_LOCK` 覆盖过的临时路径 ⇒ 默认锁路径与「两条车道真的互斥」这一行为本身没有被测到。"
+  ]
+}
