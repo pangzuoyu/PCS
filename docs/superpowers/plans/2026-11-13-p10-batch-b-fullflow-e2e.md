@@ -94,6 +94,8 @@
 | `tests/e2e/` **已被占用** | `tests/e2e/test_sim_three_entry_consistency.py`（18.7 KB · 12 条 `@pytest.mark.asyncio` · **无 skip**）⇒ 新车道放那儿会改到既有用例 ⇒ 搬 `tests/e2e_flows/` |
 | mock 登录只有 **4 个**用户名 | `app/api/v1/mock_auth.py::MOCK_USERS` = alice(DESIGNER)/bob(CHECKER)/carol(APPROVER)/dan(SYSTEM_ADMIN) ⇒ T7 的 UI 流**只能**用这 4 个登录 ⇒ 种子里的 `e2e-*` 用户**登不进去** |
 | 三库都在 **`p10_001`** | 2026-11-16 直查：`pcs`(5432) / `pcs_test`(5432) / `pcs_pgtest`(5433) 三者 `alembic_version` **都是 `p10_001`** ⇒ E2E-018 的「两库一致」今天成立 ⇒ 它防的是**漂移**不是现状 |
+| **计算链的输入物流必须 `CHECKED`** | `app/services/calc_entry.py::check_calc_inputs` ⇒ 输入物流 `sign_status != CHECKED` ⇒ **403 `STREAM_NOT_CHECKED`** ⇒ ⇒ 种子里的源物流必须是 **CHECKED**（**不是** DRAFT）⇒ ⚠️ 「只造起点态」不冲突：物流是计算链的**输入**，**CHECKED 就是它的起点**；要「走」状态的是**记录**（T5 各自造 DRAFT 记录） |
+| **SQLite 不强制 FK** ⇒ 外键目标缺失**只在真 PG 上炸** | `piping_results.material_class` → `pipe_classes.class_id` ⇒ 种子漏造那条管级 ⇒ 单测（内存 SQLite）**全绿** ⇒ 真 PG 插记录撞 FK ⇒ ⇒ 这条必须由 **PG 车道**兜住，且**快车道里也要钉一条**（「那个 FK 目标存在」） |
 
 ---
 
@@ -384,7 +386,8 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
     （ACL 权威 = JWT 的 role claim）
   - **起点态数据**（**只造起点** ⇒ 其余状态由场景走真实端点推进）：
     1 工作区（FORMAL）+ 1 项目（绑 `module='RECORD'` 签署矩阵）+ 6 用户 + 5 条 `UserProject`
-    + 2 条物流（含组成/物性）+ 1 个 **DRAFT 记录**（`PipingResult` 模块）+ 1 个 **DRAFT 交付物**
+    + 2 条物流（含组成/物性）⚠️ **必须是 `CHECKED`**（计算链的入口守卫 ⇒
+      DRAFT ⇒ 403 `STREAM_NOT_CHECKED` ⇒ 见事实基础）+ 1 个 **DRAFT 记录**（`PipingResult` 模块）+ 1 个 **DRAFT 交付物**
     + 1 个签署矩阵（3 级：CHECKER→REVIEWER→APPROVER）+ 1 个自定义报表定义
     ⚠️ **那个 DRAFT 记录是给「前端真后端通道」看的**（UI 流要打开一条记录的详情页）
     ⇒ **后端场景不用它**（D7：后端场景各自造记录）⇒ 别以为「种子造了记录场景就该复用它」。
