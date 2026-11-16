@@ -254,7 +254,7 @@
     ⇒ **误伤开发库** ⇒ 而症状是「跑得挺快、全绿」⇒ **没人发现**。
     ⇒ 闸门放**新目录**（`tests/e2e_flows/`）⇒ `tests/e2e/` 那 12 条既有用例**不受影响**。
 
-- [ ] **Step 1: 写失败的测试**（`tests/e2e_flows/test_lane_smoke.py`）
+- [x] **Step 1: 写失败的测试**（`tests/e2e_flows/test_lane_smoke.py`）
 
 ```python
 # tests/e2e_flows/test_lane_smoke.py
@@ -304,12 +304,12 @@ def test_e2e_script_delegates_to_the_pg_lane_script():
     """薄封装确实 exec 到 `pytest_pg.sh` 且把 marker 设成 `e2e`。"""
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: FAIL —— 车道脚本 / conftest 不存在
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 - `pytest_e2e.sh`：**薄封装**（不复制闸门）⇒ `export PG_PYTEST_MARK=e2e` +
   `export PCS_E2E_LANE=1` + `exec bash scripts/pytest_pg.sh`（库/端口由 `pytest_pg.sh` 自己导）
@@ -331,12 +331,12 @@ Expected: FAIL —— 车道脚本 / conftest 不存在
   - `role_headers`：工厂 fixture ⇒ `role_headers("APPROVER")` ⇒ 找种子里的对应用户 ⇒ 造 token
 - `pyproject.toml::markers` 加 `e2e: 全流程 E2E（隔离 schema · 真 PG）`
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（2 passed）· **耗时 < 60 s**
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/scripts/pytest_e2e.sh pcs-backend/tests/e2e_flows/ pcs-backend/pyproject.toml
@@ -392,7 +392,7 @@ git commit -F <msgfile>   # 首行: feat(P10-B): E2E 车道（隔离 schema · �
     ⚠️ **那个 DRAFT 记录是给「前端真后端通道」看的**（UI 流要打开一条记录的详情页）
     ⇒ **后端场景不用它**（D7：后端场景各自造记录）⇒ 别以为「种子造了记录场景就该复用它」。
 
-- [ ] **Step 1: 写失败的测试**（`tests/scripts/test_seed_e2e_flows.py`）
+- [x] **Step 1: 写失败的测试**（`tests/scripts/test_seed_e2e_flows.py`）
 
 ```python
 async def test_seed_flows_is_idempotent(db_session):
@@ -429,12 +429,12 @@ async def test_record_payload_template_has_all_required_columns():
     ⇒ 缺一个 ⇒ 9 个场景造记录全红（且错误信息在响应体里，不在模板里）。"""
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_seed_e2e_flows.py -q`
 Expected: FAIL —— 脚本不存在
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 - **照抄 `scripts/seed_e2e_data.py` 的 house 形状**：固定 UUID（`uuid5(NAMESPACE_DNS, ...)`）·
   `_get_or_create`（savepoint + 重读赢家）· `--reset` **只删自己造的**（按固定 UUID 列表）
@@ -443,17 +443,17 @@ Expected: FAIL —— 脚本不存在
 - ⚠️ **`UserProject.role_in_project` 只接受 6 个值** ⇒ 别写 `TEST_VIEWER`
 - ⚠️ **删序遵守外键**：`UserProject` → `Deliverable` → `SignatureMatrix` → `Record` → `Stream` → `Project` → `Workspace` → `User`
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_seed_e2e_flows.py -q`
 Expected: PASS（4 passed）
 
-- [ ] **Step 5: 跑真 PG 幂等（一次）**
+- [x] **Step 5: 跑真 PG 幂等（一次）**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（车道冒烟 + 种子在真 PG 上幂等）
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add pcs-backend/scripts/seed_e2e_flows.py pcs-backend/tests/scripts/test_seed_e2e_flows.py
@@ -485,7 +485,7 @@ git commit -F <msgfile>   # 首行: feat(P10-B): 流程级种子（角色矩阵 
     ⇒ 且 `CostEstResult` / `TwoPhaseResult` / `ProjectCalculationStandardProfile`
     **不参与** 9 态工作流（缺 `RecordMixin` 列）⇒ 422 `RECORD_MODULE_UNSUPPORTED`
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```python
 # E2E-001
@@ -532,12 +532,12 @@ E2E 测的是**编排**（端点契约 · 结果落库 · 下游可见），
 ⇒ **不要**从 `sample/`（不入 git ⇒ 别的机器没有）取 ⇒ **不要**从种子灌输入
 ⇒ 种子只给项目 / 物流 / 角色。
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: FAIL（场景未写 / 端点返回非预期）
 
-- [ ] **Step 3: 实现场景**
+- [x] **Step 3: 实现场景**
 
 - 每个场景 = **一串真实 API 调用**（不是直接写库）⇒ 断言落在**响应体**与**随后的 GET**
 - ⚠️ **每条断言都要能区分「通过」与「假绿」**：断言具体字段值，**不是**「200 就好」
@@ -549,12 +549,12 @@ Expected: FAIL（场景未写 / 端点返回非预期）
   ⇒ ⚠️ **项目级的共享状态**（设备表汇总 / 能耗汇总）会被多个场景**叠加**
   ⇒ 汇总类断言要比对**增量**（前后差），**不是**绝对值
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（E2E-001~006 全绿）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/tests/e2e_flows/
@@ -574,7 +574,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): E2E-001~006 录入与计算链
 - Consumes: T3 的 `helpers.py`（造出来的记录 / 物流继续用）
 - Produces: 无（纯场景）
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```python
 # E2E-007
@@ -638,12 +638,12 @@ async def test_e2e_015_custom_report_definition_executes_and_returns_data(...)
        ⇒ 状态成功 ⇒ **数据行数 > 0** ⇒ 且**不是**「有个列表就算」。"""
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: FAIL（场景未写 / 汇总值对不上）
 
-- [ ] **Step 3: 实现场景**
+- [x] **Step 3: 实现场景**
 
 - 汇总类场景（008/015）⇒ 断言**数值关系**（汇总 = 明细之和；报表数据行数 > 0）
   ⇒ **不是**「> 0」—— 那挡不住「算错但非零」
@@ -661,12 +661,12 @@ Expected: FAIL（场景未写 / 汇总值对不上）
   ⇒ ⚠️ 任务函数的**签名以源码为准**（`report_tasks.py:124` /
   `report_builder_tasks.py:37` ⇒ 都收 `ctx` + 关键字参数）
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（E2E-007/008/009/014/015 全绿）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/tests/e2e_flows/
