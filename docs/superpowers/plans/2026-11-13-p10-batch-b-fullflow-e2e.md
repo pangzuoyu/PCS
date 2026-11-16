@@ -690,7 +690,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): E2E-007/008/009/014/015 汇总�
   需要**多条**交付物（改 Rev 要有 Rev 1、代录客户批准要另一条）⇒ 共用种子那一条
   ⇒ 场景之间互相踩 ⇒ ⇒ **helper 造**（`PIPING_RECORD_PAYLOAD` 的同款原则 ⇒ 一处真相源）
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```python
 # WF-PATH-01A 正向 + E2E-010
@@ -746,12 +746,12 @@ async def test_wf_path_03_proxy_customer_approval_records_who_recorded_it(...)
 async def test_e2e_013_change_impact_lists_downstream_records(...)
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: FAIL（状态机路径未走通）
 
-- [ ] **Step 3: 实现场景**
+- [x] **Step 3: 实现场景**
 
 - ⚠️ **每条路径都必须用「对的那一步的角色」** ⇒ 状态机的粗闸（`TRANSITION_ROLES`）
   **和**签署矩阵的细判据（`actor.role == record.approval_role`）**都要满足**
@@ -761,12 +761,12 @@ Expected: FAIL（状态机路径未走通）
   （`initiate-change` / `apply-change`）⇒ 不是直接改库
 - ⚠️ **交付物 Rev（02）**⇒ `issue` 之后 `versions` 里 **rev + 1** ⇒ 且旧 rev 的 snapshot 仍可读
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（WF-PATH-01A~01E / 02 / 03 + E2E-010~013 全绿）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/tests/e2e_flows/

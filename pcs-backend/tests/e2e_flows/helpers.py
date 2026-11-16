@@ -198,6 +198,158 @@ async def advance_stream_to_checked(
     return approved.json()
 
 
+#: 记录批准链的 3 级角色（**与种子的签署矩阵一致** ⇒ CHECKER→REVIEWER→APPROVER）。
+#:
+#: ⚠️ **提交人（DESIGNER）不在链里** —— `submit-approval` 的自审闸
+#: （`APPROVAL_SELF_REVIEW_FORBIDDEN`）在「提交人的角色出现在链里」时 403
+#: ⇒ 链里有 DESIGNER ⇒ 整条链走不通。
+CHAIN_ROLES: tuple[str, ...] = ("CHECKER", "REVIEWER", "APPROVER")
+
+
+async def make_record(
+    e2e_client,
+    *,
+    project_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    tag_number: str,
+) -> uuid.UUID:
+    """造一条 **DRAFT** 记录（`PipingResult`）⇒ 返回它的 id。
+
+    ⚠️ **为什么直接写库**：仓里**没有**建记录的端点（只有状态转移端点）
+    ⇒ ⇒ 「起点态」只能由 fixture/种子造 ⇒ 而**状态必须由场景走真实端点推进**
+    （否则 E2E 只是断言一个摆好的状态 ⇒ 状态机坏了 E2E 也绿）。
+
+    ⚠️ **载荷用模板**（D8：一处真相源）⇒ 场景不各写一份 21 字段字典。
+    ⚠️ **`record_hash` 要算** —— CIA（变更影响）按哈希判定「结果变了没」
+    ⇒ ⇒ 空哈希 ⇒ 永远判定「没变」。
+    """
+    from app.models.calc import PipingResult
+    from app.services.calc_lineage import compute_record_hash
+    from scripts.seed_e2e_flows import PIPING_RECORD_PAYLOAD
+
+    async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+        record = PipingResult(
+            **{**PIPING_RECORD_PAYLOAD},
+            project_id=project_id,
+            workspace_id=workspace_id,
+            tag_number=tag_number,
+        )
+        session.add(record)
+        await session.flush()
+        # ⚠️ 必须在 flush 之后算（`compute_record_hash` 读的是**已落库**的行）
+        record.record_hash = compute_record_hash(record)
+        await session.commit()
+        return record.pipe_id
+
+
+async def submit_for_approval(
+    client, *, module: str, record_id: uuid.UUID, headers: dict[str, str]
+) -> dict[str, Any]:
+    """`POST /records/{module}/{id}/submit-approval` ⇒ DRAFT → IN_APPROVAL。"""
+    resp = await client.post(
+        f"/api/v1/records/{module}/{record_id}/submit-approval",
+        json={"reason": "E2E 场景送审"},
+        headers=headers,
+    )
+    assert resp.status_code == 200, (
+        f"送审失败：{resp.status_code} {resp.text[:300]}"
+    )
+    return resp.json()
+
+
+async def approval_step(
+    client,
+    *,
+    module: str,
+    record_id: uuid.UUID,
+    headers: dict[str, str],
+    decision: str = "PASS",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """`POST /records/{module}/{id}/approval-step` ⇒ 批当前这一步。
+
+    ⚠️ **`decision` 的词表是 `PASS` / `REJECT`**（不是 APPROVE/REJECT）
+    ⇒ 写错 ⇒ 422 `literal_error` ⇒ 「端点坏了」的假象。
+    """
+    body: dict[str, Any] = {"decision": decision}
+    if reason is not None:
+        body["reason"] = reason
+    resp = await client.post(
+        f"/api/v1/records/{module}/{record_id}/approval-step",
+        json=body,
+        headers=headers,
+    )
+    assert resp.status_code == 200, (
+        f"approval-step 失败（decision={decision}）：{resp.status_code} {resp.text[:300]}"
+    )
+    return resp.json()
+
+
+async def approve_record_chain(
+    client,
+    *,
+    module: str,
+    record_id: uuid.UUID,
+    role_headers,
+    decision: str = "PASS",
+    until_role: str | None = None,
+) -> list[dict[str, Any]]:
+    """送审 + 走完（或走完到）批准链 ⇒ 每一步**换角色**。
+
+    ⚠️ **每一步都要用对的那一步的角色** —— 端点要求
+    `actor.role == record.approval_role`（= 矩阵这一步该谁签）
+    ⇒ 用错角色 ⇒ 403 `APPROVAL_ROLE_MISMATCH` ⇒ 链条卡死。
+
+    ⚠️ `until_role` ⇒ 只走到**那个角色那一步**（含）⇒ 用来测「驳回后重交」。
+    """
+    steps: list[dict[str, Any]] = []
+    # ⚠️ **两处都要 await** —— 漏一个 ⇒ 请求根本没发出去 ⇒ 记录停在 DRAFT
+    # ⇒ 症状是「409 APPROVAL_NOT_ACTIVE / 记录还是 DRAFT」⇒ 看着像端点坏了。
+    await submit_for_approval(
+        client, module=module, record_id=record_id, headers=role_headers("DESIGNER")
+    )
+    return await approve_record_steps(
+        client,
+        module=module,
+        record_id=record_id,
+        role_headers=role_headers,
+        decision=decision,
+        until_role=until_role,
+    )
+
+
+async def approve_record_steps(
+    client,
+    *,
+    module: str,
+    record_id: uuid.UUID,
+    role_headers,
+    decision: str = "PASS",
+    until_role: str | None = None,
+) -> list[dict[str, Any]]:
+    """**只走链**（不送审）⇒ 每一步换角色。
+
+    ⚠️ 与 `approve_record_chain` 分开，是因为有些场景**已经送审过**
+    （例如「先用错的角色试一次」）⇒ 再送审一次 ⇒
+    **409 `RECORD_INVALID_TRANSITION`（IN_APPROVAL 不能执行 SUBMIT_FOR_CHECK）**。
+    """
+    steps: list[dict[str, Any]] = []
+    for role in CHAIN_ROLES:
+        steps.append(
+            await approval_step(
+                client,
+                module=module,
+                record_id=record_id,
+                headers=role_headers(role),
+                decision=decision,
+                reason="E2E 场景批注" if decision != "PASS" else None,
+            )
+        )
+        if until_role is not None and role == until_role:
+            break
+    return steps
+
+
 async def run_report_task(
     e2e_client,
     *,
@@ -249,8 +401,14 @@ async def post_calc(
 
 
 __all__ = [
+    "CHAIN_ROLES",
     "PIPE_SEGMENT",
     "advance_stream_to_checked",
+    "approval_step",
+    "approve_record_chain",
+    "approve_record_steps",
+    "make_record",
+    "submit_for_approval",
     "run_report_task",
     "PUMP_CURVE_POINTS",
     "flash_body",
