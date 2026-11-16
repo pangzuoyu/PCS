@@ -129,7 +129,20 @@ services:
     #    （这是本仓的纪律：日常开发服务绝不进 profile）。
     profiles: ["test"]
     working_dir: /app
-    command: ["uv", "run", "--frozen", "python", "scripts/seed_e2e_data.py"]
+    # ⚠️ **两个种子脚本都跑**（P10-B · T7）：
+    #   ① `seed_e2e_data.py`  —— P10-A 的项目/用户/物流种子
+    #   ② `seed_e2e_flows.py` —— P10-B 的**流程级**种子（物流 · 矩阵 · 交付物 ·
+    #      记录 · 设备 · 报表定义 · `alice` 的授权行）
+    # ⇒ 真后端通道（`--project=real-backend`）的后端连的是 **public schema**
+    # ⇒ ⇒ **两个房间不通**（后端 E2E 车道的数据在隔离 schema 里）
+    # ⇒ ⇒ flows 种子**必须也在 public 跑一遍** ⇒ UI 流才有数据可断言。
+    # ⇒ ⚠️ 用 `sh -c` 串起来（`&&` ⇒ 第一个失败就不跑第二个 ⇒ fail-closed）。
+    command:
+      - sh
+      - -c
+      - >-
+        uv run --frozen python scripts/seed_e2e_data.py &&
+        uv run --frozen python scripts/seed_e2e_flows.py
     environment:
       UV_PROJECT_ENVIRONMENT: /opt/venv
       UV_CACHE_DIR: /opt/uvcache

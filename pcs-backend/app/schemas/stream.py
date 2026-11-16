@@ -307,6 +307,17 @@ class StreamUpdate(BaseModel):
 class StreamResponse(StreamBase):
     """完整响应：含 sign_status + 审计字段。"""
 
+    # ⚠️ **`case_type` 允许 NULL**（bug-2167 · 2026-11-16）：
+    # DB 列 `streams.case_type` **可空**（`Mapped[str | None]`）⇒
+    # P3.2 SIM-10 **之前**建的物流 / 手建没填工况的物流都是 NULL
+    # ⇒ ⇒ 响应 schema 若要求非空 ⇒ **`GET /projects/{id}/streams` 整个端点
+    # 500**（`ResponseValidationError`：enum 校验失败）⇒ **物流一览页整个打不开**。
+    # ⇒ ⇒ **只改响应**（请求侧 `StreamBase` 仍要求 case_type ⇒ 建物流的入参
+    # 校验不变）⇒ ⇒ 契约与 DB 的可空性对齐。
+    # ⇒ 旁证：轻量子集 `StreamListItem.case_type` **本来就是可空的**。
+    case_type: StreamCaseType | None = Field(
+        None, description="物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（DB 可空）"
+    )
     stream_id: uuid.UUID = Field(..., description="物流 ID")
     # DB 侧是 PG enum `streamsignstatus`，9 值；description 此前写 4 个。
     sign_status: StreamSignStatus = Field(

@@ -680,7 +680,11 @@ async def _ensure_report_definition(
             },
             output_format="XLSX",
             max_rows=1000,
-            version=1,
+            # ⚠️ **`version` 是 VARCHAR**（`app/models/report.py`：`Mapped[str]`）
+            # ⇒ 塞 `int` ⇒ psycopg 让 PG 自己转（**绿**）⇒ asyncpg 直接报
+            # `invalid input for query argument $9: 1 (expected str, got int)`
+            # ⇒ ⇒ **生产上必炸**（app 的异步引擎是 asyncpg）⇒ **bug-2166**
+            version="1",
             status="PUBLISHED",
         ),
     )

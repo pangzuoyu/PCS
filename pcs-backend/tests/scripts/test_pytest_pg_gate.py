@@ -12,16 +12,26 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_pg.sh"
 
 
 def _run(env_extra: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    # ⚠️ **车道锁用独立文件**（P10-B · T7 · bug-2170）：
+    # `pytest_pg.sh` 有「车道互斥锁」（PG 车道与 E2E 车道共用同一个库）
+    # ⇒ ⇒ **真车道在跑时**，这些守门测试会被锁挡住 ⇒ 报的是
+    # 「另一条车道正在跑」⇒ ⇒ **测的根本不是它们声称的那条闸门**
+    # ⇒ ⇒ 守门测试必须用**自己的**锁文件（脚本支持 `PCS_PGTEST_LANE_LOCK` 覆盖）。
+    lock_file = env_extra.get(
+        "PCS_PGTEST_LANE_LOCK",
+        str(Path(tempfile.gettempdir()) / f"pcs-pgtest-gate-{os.getpid()}.lock"),
+    )
     return subprocess.run(
         ["bash", str(SCRIPT)],
         cwd=SCRIPT.parents[1],
-        env={**os.environ, **env_extra},
+        env={**os.environ, "PCS_PGTEST_LANE_LOCK": lock_file, **env_extra},
         capture_output=True,
         text=True,
         timeout=120,

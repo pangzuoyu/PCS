@@ -110,6 +110,42 @@ def _scoped_url(url: str, schema: str) -> str:
     return url + ("&" if "?" in url else "?") + f"options=-csearch_path={schema}"
 
 
+def _async_url(url: str) -> str:
+    """**异步**引擎的 URL = 换成 **asyncpg**（= 生产用的驱动）。
+
+    ⚠️ **为什么必须换**（2026-11-16 · T7 实测）：车道的 `DATABASE_URL` 是
+    `postgresql+psycopg://` ⇒ async 部分若也用 psycopg ⇒ ⇒ **驱动与生产
+    不一致** ⇒ ⇒ **asyncpg 的类型严格性看不到** ⇒ ⇒ 例如
+    `report_definitions.version` 是 **VARCHAR** 而种子塞了 `int` ⇒
+    psycopg 让 PG 自己转（**绿**）⇒ asyncpg 直接报错
+    （`invalid input for query argument $9: 1 (expected str, got int)`）
+    ⇒ ⇒ **生产上必炸、车道里却绿** ⇒ ⇒ 一整类「类型不匹配」缺陷隐形。
+
+    ⇒ 同步部分（建 schema / 跑 alembic）**仍用 psycopg**（asyncpg 没有同步 API）。
+    """
+    if url.startswith("postgresql+psycopg://"):
+        return url.replace("postgresql+psycopg://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+def _async_engine(url: str, schema: str):
+    """asyncpg 引擎（= 生产驱动）+ **隔离 schema**。
+
+    ⚠️ **asyncpg 不认 `options=-csearch_path=`**（那是 libpq/psycopg 的参数）
+    ⇒ `TypeError: connect() got an unexpected keyword argument 'options'`
+    ⇒ ⇒ 隔离 schema 走 **启动参数 `server_settings={'search_path': …}`**
+    （`search_path` 是 PGC_USERSET ⇒ 允许在启动包里设）。
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    return create_async_engine(
+        _async_url(url),
+        connect_args={"server_settings": {"search_path": schema}},
+    )
+
+
 # ---------------------------------------------------------------------------
 # fixture：隔离 schema
 # ---------------------------------------------------------------------------
@@ -175,7 +211,7 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
     ⇒ ⚠️ **id 来自 `scripts/seed_e2e_flows.py` 的模块级常量**
     ⇒ 不另造一份「id 从哪来」的真相源。
     """
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.services.token_issuer import derive_user_id
     from scripts.seed_e2e_flows import (
@@ -195,7 +231,7 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
     # 与 function 级测试**不在同一个事件循环** ⇒ 共用引擎 ⇒ 连接跨循环 ⇒
     # asyncpg 报「attached to a different loop」（bug-2162 同形）。
     # ⇒ 种子提交完就把引擎销毁 ⇒ 客户端用自己的引擎读**已提交**的行。
-    engine = create_async_engine(_scoped_url(_lane_url(), e2e_schema))
+    engine = _async_engine(_lane_url(), e2e_schema)
     try:
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as session:
@@ -235,13 +271,13 @@ async def e2e_client(e2e_schema):
     ⚠️ **不走 lifespan** ⇒ `httpx.ASGITransport` 本来就不跑 lifespan ⇒
     「只有 lifespan 才会做的那两处 seed」由 `e2e_seed` 显式补（T2 起）。
     """
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.db.session import get_db
     from app.main import create_app
 
     # ⚠️ 引擎是**function 级**的（与本测试同一个事件循环）⇒ 不跨作用域复用
-    engine = create_async_engine(_scoped_url(_lane_url(), e2e_schema))
+    engine = _async_engine(_lane_url(), e2e_schema)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     app = create_app()
