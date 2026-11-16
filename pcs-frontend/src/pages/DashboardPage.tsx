@@ -30,7 +30,14 @@ export default function DashboardPage() {
         </Col>
         <Col span={16}>
           <Card title={selected ? `项目 ${projectId.slice(0, 8)}…` : '选择工作区后查看清单'}>
-            <InputChecklistPanel projectId={projectId} />
+            {/* ⚠️ **没选工作区就不渲染面板**（P10-B · T7 · bug-2168）：
+                面板挂载即取数（list + completeness）⇒ 而此时 `projectId` 是
+                **占位 id** `00000000-0000-0000-0000-000000000001`（不存在）
+                ⇒ ⇒ 每次开仪表盘都 **2 个 404** ⇒ 控制台两条 error
+                ⇒ ⇒ 真后端通道的「控制台无 error」断言直接红。
+                ⇒ 卡片标题本来就写着「选择工作区后查看清单」⇒ 未选时**没有内容**
+                本来就符合文案 ⇒ 只差把面板一起藏起来。 */}
+            {selected ? <InputChecklistPanel projectId={projectId} /> : null}
           </Card>
         </Col>
       </Row>

@@ -69,6 +69,7 @@ import { SepEquipComputePage } from './sep_equip/SepEquipComputePage';
 import { ImportWizardPage } from './sim/ImportWizardPage';
 import { StreamDetailPage } from './sim/StreamDetailPage';
 import { StreamListPage } from './sim/StreamListPage';
+import { useAuth } from '../store/auth';
 import { VesselComputePage } from './vessel/VesselComputePage';
 import { ProjectWizardPage } from './wizard/ProjectWizardPage';
 
@@ -76,7 +77,14 @@ function useFetch<T>(path: string, initial: T): T {
   const [data, setData] = useState<T>(initial);
   useEffect(() => {
     let cancelled = false;
-    void fetch(path, { headers: { Authorization: DEV_BEARER } })
+    // ⚠️ **用会话里的真 token**（P10-B · T7 · bug-2169）——
+    // `DEV_BEARER` 是**写死的假 token**（`Bearer mock-jwt-token`）
+    // ⇒ ⇒ 真后端通道下 **401** ⇒ 物流详情页 / 设备一览页**永远停在「加载中…」**
+    // ⇒ ⇒ mock 通道里 MSW **不校验 token** ⇒ 这条缺陷一直隐形。
+    // ⇒ 没会话时（未登录）才回退 `DEV_BEARER`（保持既有开发流程不变）。
+    const token = useAuth.getState().accessToken;
+    const authorization = token ? `Bearer ${token}` : DEV_BEARER;
+    void fetch(path, { headers: { Authorization: authorization } })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: T | null) => {
         if (!cancelled && j !== null) setData(j);
