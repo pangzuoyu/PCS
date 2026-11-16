@@ -44,6 +44,22 @@ if ! docker compose -f "$COMPOSE_FILE" "${COMPOSE_PROJECT_ARGS[@]}" --profile pg
   exit 1
 fi
 
+# ⓛ 车道互斥锁（**不是** fail-closed 闸门，是并发保护）
+#
+# ⚠️ **PG 车道与 E2E 车道共用同一个库**（`pcs_pgtest`）⇒ 各自建隔离 schema
+#    ⇒ 并发跑 ⇒ DDL 互相等锁 ⇒ 表现是「**偶发卡住**」而不是报错
+#    ⇒ 排查成本极高 ⇒ 「别同时跑」必须是**机制**，不能只是一句叮嘱。
+#
+# ⚠️ **锁放在这个共享脚本里**（不是各自的薄封装里）⇒
+#    ① 一次加锁 ⇒ 两条车道都生效（E2E 车道 exec 进这里 ⇒ 一样被锁）
+#    ② 薄封装**不会**自己再抢一次 ⇒ 不会自己锁死自己。
+LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema" >&2
+  exit 1
+fi
+
 # 口令**只在环境变量里**（不上命令行 —— 会被权限分类器拦，且进 shell 历史）
 PG_USER="${POSTGRES_USER:-pcs}"
 PG_PASS="${POSTGRES_PASSWORD:-pcs_dev}"
