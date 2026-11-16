@@ -161,27 +161,51 @@ def e2e_schema() -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="session")
-def e2e_seed(e2e_schema) -> dict[str, object]:
-    """种子 id 字典。
+# ⚠️ `loop_scope="session"` 是**必须**的 —— `asyncio_default_fixture_loop_scope`
+# 是 `function` ⇒ session 级异步 fixture 若不显式声明自己的 loop scope ⇒
+# pytest-asyncio 报 `ScopeMismatch`（session 请求了 function 级的 runner）。
+# ⇒ 种子在**会话循环**里跑 ⇒ 客户端在**函数循环**里跑 ⇒ 两个引擎各活各的
+# ⇒ 不跨循环 ⇒ 没有 bug-2162 那类「attached to a different loop」。
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def e2e_seed(e2e_schema) -> dict[str, object]:
+    """把**流程级种子灌进隔离 schema**，返回种子 id 字典。
 
-    ⚠️ **T1 阶段只给常量**（`scripts/seed_e2e_flows.py` 的**行为**部分在 T2）
-    ⇒ 这里返回的是**固定 id**，不是「库里真的有的行」。
-    ⇒ T2 落地后本 fixture 改成真跑种子并返回真实 id。
+    ⚠️ **必须灌在隔离 schema 里** —— 灌到 public ⇒ 开发库被测试数据污染
+    ⇒ 而症状是「跑得挺快、全绿」⇒ 没人发现（守卫已钉住 public 不变）。
+    ⇒ ⚠️ **id 来自 `scripts/seed_e2e_flows.py` 的模块级常量**
+    ⇒ 不另造一份「id 从哪来」的真相源。
     """
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     from scripts.seed_e2e_flows import (
         FLOW_DELIVERABLE_ID,
         FLOW_MATRIX_ID,
         FLOW_PROJECT_ID,
+        FLOW_RECORD_ID,
         FLOW_REPORT_DEF_ID,
         FLOW_WORKSPACE_ID,
+        seed_flows,
     )
+
+    # ⚠️ **自己建引擎、用完就 dispose** —— 不与 `e2e_client` 共用：
+    # `asyncio_default_fixture_loop_scope = "function"` ⇒ session 级 fixture
+    # 与 function 级测试**不在同一个事件循环** ⇒ 共用引擎 ⇒ 连接跨循环 ⇒
+    # asyncpg 报「attached to a different loop」（bug-2162 同形）。
+    # ⇒ 种子提交完就把引擎销毁 ⇒ 客户端用自己的引擎读**已提交**的行。
+    engine = create_async_engine(_scoped_url(_lane_url(), e2e_schema))
+    try:
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            await seed_flows(session)
+    finally:
+        await engine.dispose()
 
     return {
         "project_id": FLOW_PROJECT_ID,
         "workspace_id": FLOW_WORKSPACE_ID,
         "matrix_id": FLOW_MATRIX_ID,
         "deliverable_id": FLOW_DELIVERABLE_ID,
+        "record_id": FLOW_RECORD_ID,
         "report_def_id": FLOW_REPORT_DEF_ID,
     }
 
@@ -205,6 +229,7 @@ async def e2e_client(e2e_schema):
     from app.db.session import get_db
     from app.main import create_app
 
+    # ⚠️ 引擎是**function 级**的（与本测试同一个事件循环）⇒ 不跨作用域复用
     engine = create_async_engine(_scoped_url(_lane_url(), e2e_schema))
     factory = async_sessionmaker(engine, expire_on_commit=False)
 

@@ -39,8 +39,8 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 async def test_lane_schema_is_migrated(e2e_client, e2e_schema):
     """隔离 schema 已 `alembic upgrade head` ⇒ 迁移产物在位。
 
-    ⚠️ **T1 阶段只断「迁移到位」**（种子在 T2）⇒ 断的是**迁移产物**
-    （`alembic_version` + 核心业务表），不是「有没有种子行」。
+    ⚠️ 断的是**迁移产物**（`alembic_version` + 核心业务表），
+    「种子在不在」由下面那条断。
     """
     from sqlalchemy import text
 
@@ -58,6 +58,28 @@ async def test_lane_schema_is_migrated(e2e_client, e2e_schema):
     assert "alembic_version" in rows, f"隔离 schema {e2e_schema} 没有迁移产物"
     for table in ("users", "projects", "user_projects"):
         assert table in rows, f"隔离 schema {e2e_schema} 缺表 {table} ⇒ 迁移没跑全"
+
+
+@pytest.mark.e2e
+async def test_lane_seed_is_in_place(e2e_client, e2e_seed, role_headers):
+    """⚠️ **种子在位** —— 隔离 schema 里真有那个项目。
+
+    ⇒ `GET /api/v1/projects/{project_id}` 返回 **200** 且项目名是种子那个。
+
+    ⚠️ **用 `e2e-designer` 的 token**（不是 SYSTEM_ADMIN）⇒ 顺带验了
+    **授权行真的生效** —— 种子只造项目不造 `UserProject` ⇒ 这一条会 **404**
+    （与「不存在」逐字同形）⇒ 而 404 在这个系统里**长得和「资源不存在」一样**
+    ⇒ 极难定位。
+    """
+    resp = await e2e_client.get(
+        f"/api/v1/projects/{e2e_seed['project_id']}",
+        headers=role_headers("DESIGNER"),
+    )
+    assert resp.status_code == 200, (
+        f"读种子项目返回 {resp.status_code}（body={resp.text[:200]}）"
+        "⇒ 种子没在位，或授权行没生效（404 = 与「不存在」同形）"
+    )
+    assert resp.json()["project_name"] == "E2E Flows Project"
 
 
 @pytest.mark.e2e
