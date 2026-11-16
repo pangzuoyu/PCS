@@ -54,6 +54,7 @@ from app.models.deliverable import (
     ProjectSignatureMatrixBinding,
     SignatureMatrix,
 )
+from app.models.equipment import EquipmentList, EquipmentTypeCode
 from app.models.project import (
     Project,
     Stream,
@@ -62,6 +63,7 @@ from app.models.project import (
     Workspace,
 )
 from app.models.report import ReportDefinition
+from app.services.equip_list.pump_design_data import PUMP_DESIGN
 from app.services.token_issuer import derive_user_id
 
 
@@ -86,6 +88,13 @@ FLOW_DELIVERABLE_ID = _uid("pcs-e2e-flows-deliverable")
 FLOW_RECORD_ID = _uid("pcs-e2e-flows-piping-result")
 #: 自定义报表定义。
 FLOW_REPORT_DEF_ID = _uid("pcs-e2e-flows-report-def")
+#: 设备（`equipment_list`）—— E2E-007（设备表可见）与 E2E-014（偏差报告）用。
+FLOW_EQUIPMENT_ID = _uid("pcs-e2e-flows-equipment")
+#: 设备型号码（`equipment_type_codes.type_code` ⇒ **VARCHAR(5)**）。
+FLOW_EQUIPMENT_TYPE_CODE = "PUMP"
+#: 设备的位号 —— ⚠️ **必须是 `PUMP_DESIGN` 里的那 17 个位号之一**
+#: ⇒ 否则偏差报告「缺设计值（不可判）」⇒ `can_confirm` 恒 False ⇒ E2E-014 断不了。
+FLOW_EQUIPMENT_TAG = "132-P-101A/B"
 #: 管级（`pipe_classes`）—— `piping_results.material_class` 是指向它的外键
 #: ⇒ 记录必须挂一个**真实存在**的管级 ⇒ 种子得先造它。
 #: ⚠️ `class_id` 是 **VARCHAR(50)**（不是 UUID）⇒ 值是字符串。
@@ -291,6 +300,12 @@ async def _delete_own_rows(db: AsyncSession) -> None:
     await db.execute(
         delete(ProjectSignatureMatrixBinding).where(
             ProjectSignatureMatrixBinding.project_id.in_(project_ids)
+        )
+    )
+    await db.execute(delete(EquipmentList).where(EquipmentList.project_id.in_(project_ids)))
+    await db.execute(
+        delete(EquipmentTypeCode).where(
+            EquipmentTypeCode.project_id.in_(project_ids)
         )
     )
     await db.execute(delete(Stream).where(Stream.project_id.in_(project_ids)))
@@ -507,6 +522,57 @@ async def _ensure_pipe_class(db: AsyncSession) -> PipeClass:
     )
 
 
+async def _ensure_equipment_type_code(
+    db: AsyncSession, project: Project
+) -> EquipmentTypeCode:
+    """建/取设备**型号码**。
+
+    ⚠️ `equipment_list` 对 `equipment_type_codes(project_id, type_code)` 有
+    **复合外键** ⇒ 没有这一行 ⇒ 插设备撞 FK。
+    """
+    return await _get_or_create(
+        db,
+        select(EquipmentTypeCode).where(
+            EquipmentTypeCode.project_id == project.project_id,
+            EquipmentTypeCode.type_code == FLOW_EQUIPMENT_TYPE_CODE,
+        ),
+        lambda: EquipmentTypeCode(
+            project_id=project.project_id,
+            type_code=FLOW_EQUIPMENT_TYPE_CODE,
+            equipment_description="离心泵",
+            description_cn="离心泵",
+            category="PUMP",
+            source="E2E_SEED",
+        ),
+    )
+
+
+async def _ensure_equipment(
+    db: AsyncSession, project: Project, workspace: Workspace
+) -> EquipmentList:
+    """建/取种子设备（带**设计值** ⇒ 偏差报告能算）。
+
+    ⚠️ **设计值来自 `PUMP_DESIGN`**（设备自己的 `design_parameters_json`）
+    ⇒ 直接 import 那份数据 ⇒ **一处真相源** ⇒ 不在本仓再抄一份。
+    """
+    return await _get_or_create(
+        db,
+        select(EquipmentList).where(EquipmentList.equipment_id == FLOW_EQUIPMENT_ID),
+        lambda: EquipmentList(
+            equipment_id=FLOW_EQUIPMENT_ID,
+            equipment_type_project_id=project.project_id,
+            type_code=FLOW_EQUIPMENT_TYPE_CODE,
+            equipment_name="E2E 种子泵",
+            tag_number=FLOW_EQUIPMENT_TAG,
+            project_id=project.project_id,
+            workspace_id=workspace.workspace_id,
+            design_parameters_json=dict(PUMP_DESIGN[FLOW_EQUIPMENT_TAG]),
+            equipment_status="A",
+            approval_depth=1,
+        ),
+    )
+
+
 async def _ensure_matrix(db: AsyncSession) -> SignatureMatrix:
     """建/取记录级签署矩阵（3 级）。"""
     return await _get_or_create(
@@ -649,6 +715,8 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
     await _ensure_grants(db, users, project)
     streams = await _ensure_streams(db, project, workspace)
     await _ensure_pipe_class(db)
+    await _ensure_equipment_type_code(db, project)
+    await _ensure_equipment(db, project, workspace)
     matrix = await _ensure_matrix(db)
     await _ensure_matrix_binding(db, project, matrix)
     await _ensure_deliverable(db, project, matrix)
@@ -668,6 +736,8 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
         "deliverables": 1,
         "records": 1,
         "report_definitions": 1,
+        "equipment": 1,
+        "equipment_type_codes": 1,
     }
 
 
@@ -700,6 +770,9 @@ __all__ = [
     "AUTHORIZED_USERNAMES",
     "FLOW_DELIVERABLE_ID",
     "FLOW_MATRIX_ID",
+    "FLOW_EQUIPMENT_ID",
+    "FLOW_EQUIPMENT_TAG",
+    "FLOW_EQUIPMENT_TYPE_CODE",
     "FLOW_MATRIX_STEPS",
     "FLOW_PIPE_CLASS_ID",
     "FLOW_PROJECT_ID",

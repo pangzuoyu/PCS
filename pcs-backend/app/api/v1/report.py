@@ -484,7 +484,13 @@ def _file_intact(row: ReportFile) -> bool:
 
 
 def _expected_digest(row: ReportFile) -> str:
-    """登记时冻结的数据版本（`data_version`），供审计端点查。"""
+    """登记时冻结的数据版本（`data_version`），供审计端点查。
+
+    ⚠️ ⚠️ **任务体必须写 `data_version`** —— 原来**只写 `content_hash`**
+    ⇒ ⇒ 这个「取完整哈希」的审计端点**恒返回空串**
+    （P10-B 的 E2E-009 撞出来的：报表生成成功、但审计拿不到哈希）。
+    ⇒ ⇒ 修在**任务侧**（`report_tasks._finalize`）⇒ 端点语义不变。
+    """
     return row.data_version or ""
 
 

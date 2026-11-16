@@ -177,8 +177,10 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
     """
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+    from app.services.token_issuer import derive_user_id
     from scripts.seed_e2e_flows import (
         FLOW_DELIVERABLE_ID,
+        FLOW_EQUIPMENT_ID,
         FLOW_MATRIX_ID,
         FLOW_PROJECT_ID,
         FLOW_RECORD_ID,
@@ -208,8 +210,14 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
         "deliverable_id": FLOW_DELIVERABLE_ID,
         "record_id": FLOW_RECORD_ID,
         "report_def_id": FLOW_REPORT_DEF_ID,
+        "equipment_id": FLOW_EQUIPMENT_ID,
         # ⚠️ **源物流的 id**（有序）⇒ 计算链场景拿它当输入
         "stream_ids": list(FLOW_STREAM_IDS),
+        # ⚠️ **用户 id**（用户名 → 派生 id）⇒ 任务体需要 `user_id`
+        "users": {
+            name: derive_user_id(name)
+            for name in ("e2e-designer", "e2e-checker", "e2e-reviewer", "e2e-approver", "e2e-admin")
+        },
     }
 
 

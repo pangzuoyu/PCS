@@ -111,6 +111,11 @@ async def _finalize(db: AsyncSession, row: ReportFile, *, digest: str,
         return str(dup.report_file_id)
 
     row.content_hash = digest
+    # ⚠️ **必须冻结 `data_version`** —— 审计端点
+    # （`GET /report/{id}/hash` ⇒ `_expected_digest`）读的是**它**
+    # ⇒ 原来只写 `content_hash` ⇒ ⇒ 那个端点**恒返回空串**
+    # ⇒ ⇒ 「审计要完整哈希」这条需求实际是空的（P10-B 的 E2E-009 撞出来的）。
+    row.data_version = digest
     row.file_path = relpath
     row.file_format = fmt
     row.size_bytes = size

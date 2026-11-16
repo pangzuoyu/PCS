@@ -198,7 +198,44 @@ async def advance_stream_to_checked(
     return approved.json()
 
 
-async def post_calc(client, url: str, body: dict[str, Any], *, headers: dict[str, str]) -> dict[str, Any]:
+async def run_report_task(
+    e2e_client,
+    *,
+    report_type: str,
+    project_id: uuid.UUID,
+    record_ids: list[uuid.UUID],
+    output_format: str = "XLSX",
+) -> str:
+    """**直调** ARQ 任务体（`generate_report_task`）⇒ 返回 `report_file_id`。
+
+    ⚠️ **为什么直调**：任务入队走 **Redis** ⇒ 车道**没有 worker**
+    ⇒ 只入队不消费 ⇒ 行永远停在 `PENDING` ⇒ 「轮询到 SUCCESS」不可达
+    ⇒ ⇒ 把 worker 的那段代码**在测试里跑一次**（同 D6 对 AI 审计的做法）。
+    ⚠️ **`ctx` 里必须放 `session_factory`** —— worker 从不注入 `ctx["db"]`
+    （实测过 `KeyError` ⇒ bug-166 的教训）⇒ 且 factory 要绑**隔离 schema**。
+    """
+    from app.workers.report_tasks import generate_report_task
+
+    factory = e2e_client._e2e_session_factory  # type: ignore[attr-defined]
+    ctx = {
+        "session_factory": factory,
+        "job_id": str(uuid.uuid4()),
+        "job_try": 1,
+    }
+    return await generate_report_task(
+        ctx,
+        report_type=report_type,
+        project_id=str(project_id),
+        record_ids=[str(r) for r in record_ids],
+        output_format=output_format,
+        style_json={},
+        ctx_vars={"project_no": "", "doc_no": "", "rev": ""},
+    )
+
+
+async def post_calc(
+    client, url: str, body: dict[str, Any], *, headers: dict[str, str]
+) -> dict[str, Any]:
     """调一个计算端点 ⇒ 断言 **201** ⇒ 返回响应体。
 
     ⚠️ **只断状态码 + 形状**，**不**断数值 ⇒ 算法由单测负责（薄壳）。
@@ -214,6 +251,7 @@ async def post_calc(client, url: str, body: dict[str, Any], *, headers: dict[str
 __all__ = [
     "PIPE_SEGMENT",
     "advance_stream_to_checked",
+    "run_report_task",
     "PUMP_CURVE_POINTS",
     "flash_body",
     "pipe_chain_body",
