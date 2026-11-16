@@ -1,0 +1,193 @@
+{
+  "reviewer": "learnings",
+  "search_context": {
+    "feature_task": "P10-B: 真 PG 隔离 schema 的端到端车道 + 真后端通道的前端 UI 流（5 条）+ 权限矩阵（跨项目 404 / 角色不够 403）+ 8 处产品代码修补",
+    "corpus": "pcs/docs/solutions/{testing-issues,security-issues,database-issues,framework-integration-issues} + .wolf/cerebrum.md Do-Not-Repeat（仓库内机构知识索引）",
+    "learnings_read": [
+      "docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md",
+      "docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md",
+      "docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md",
+      "docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md",
+      "docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md",
+      "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md"
+    ],
+    "note": "本批大量代码在注释里**显式引用**了上述文档（例如 pipe_chain_persist.py 的注释直接写出「这正是本仓最怕的「单测照绿、真库会炸」的形状」，conftest.py 引用 engine-level-migration-tests 的子进程 alembic 形状）⇒ 说明教训已被读到；下面的 finding 只报**读到了但没落到断言/形状上**的地方，以及**本批新引入**的同族缺陷。"
+  },
+  "findings": [
+    {
+      "title": "UI 越权断言被角色闸短路，跨项目 404 分支从未执行",
+      "severity": "P2",
+      "file": "pcs-frontend/e2e/real_backend_flows.spec.ts",
+      "line": 136,
+      "why_it_matters": "本批规格明确要求「跨项目 ⇒ 404（与「不存在」同形）；角色不够 ⇒ 403」。这条 UI 断言用的是「两个码相等」而不是「跨项目必须是 404」，而它选的观测点（物流列表端点）先过角色闸：`GET /projects/{project_id}/streams` 要求 (DESIGNER, PROCESS_CONTROLLOR, SYSTEM_ADMIN)，`bob` 是 CHECKER ⇒ **两个请求都在角色闸上返回 403**，`check_project_access_or_404` 从未被调用。⇒ 断言恒成立 ⇒ 即使把项目级授权守卫整个删掉，这条用例仍然绿。它正是 sqlite-staticpool-hides-uncommitted.md 记录的那族病：「把『测试通过』读成『守卫生效了』，实际是『守卫从未被触发』」——短路发生在断言之前。注释里甚至写明了「具体码取决于闸门顺序 ⇒ CHECKER ⇒ 403」，即作者已经观察到短路却仍把它当成合格断言。后端车道 test_e2e_016_cross_project_access_is_404_not_403 用的是无角色闸的 `GET /projects/{id}`，那条才真的走到 404 分支 ⇒ 同一语义在 UI 车道上没有等价覆盖。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_flows.spec.ts:133-134 — `// ⚠️ **具体码取决于闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ 403）` / `// ⇒ ⇒ 断「两个码相等」` ⇒ 短路被观察到但被接受为合格断言",
+        "pcs-backend/app/api/v1/streams.py:407 — `    require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\")` ⇒ CHECKER 在项目守卫之前被 403 拦下",
+        "pcs-backend/app/api/v1/config.py:96-98 — `        raise HTTPException(` / `            status_code=403,` ⇒ 角色闸的确抛 403",
+        "pcs-backend/app/api/v1/mock_auth.py:15-18 — `    \"alice\": \"DESIGNER\",` / `    \"bob\": \"CHECKER\",` ⇒ 被测身份是 CHECKER",
+        "pcs-backend/app/api/v1/streams.py:410-413 — `    await check_project_access_or_404(` ⇒ 该分支在这条用例里从未执行"
+      ],
+      "suggested_fix": "把观测点换成**没有角色闸**的端点并断**具体码**：`GET /api/v1/projects/${FLOW_PROJECT_ID}`（app/api/v1/projects.py:206 无 require_roles ⇒ bob 无授权行 ⇒ 走 `check_project_access_or_404` ⇒ 404），断言 `expect(resp.status()).toBe(404)`；再单独用 `GET /api/v1/projects/${FLOW_PROJECT_ID}/streams` 断言 403（角色不够）。这样「跨项目 404」与「角色不够 403」两个语义各自被钉住，而不是被折叠成「两个码相等」。",
+      "pre_existing": false
+    },
+    {
+      "title": "同形断言只比状态码与 code，不比 message 模板",
+      "severity": "P3",
+      "file": "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py",
+      "line": 147,
+      "why_it_matters": "仓库已记录的死法是「无权」与「不存在」必须**逐字同形**（含 code 与 message），否则攻击者靠响应差异枚举 UUID；同一条记录还写了「同形测试必须用同一个 uuid 测两次……消息里本来就带着请求的 id ⇒ 拿两个不同的 uuid 比测不出同形性」。本批的两条同形断言都停在「状态码 + code」：后端比 `missing.json().get(\"code\") == resp.json().get(\"code\")`（uuid 还不一样：一个是种子项目 id，一个是 `uuid.uuid4()`），前端只比状态码。⇒ 只要有人把无权分支的 message 改成不同措辞（例如「无权访问项目 X」而「不存在」是「Project not found: X」），两条用例都仍绿，而枚举向量已经打开。守卫断的是**动作的投影**（两个字段相等），不是**逐字同形**这个后果。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:147-148 — `    assert missing.json().get(\"code\") == resp.json().get(\"code\"), (` ⇒ 只比 code，不比 message",
+        "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:141-143 — `    missing = await e2e_client.get(` / `        f\"/api/v1/projects/{uuid.uuid4()}\", headers=headers` ⇒ 两个请求用**不同** uuid（与仓库记录的判据相反）",
+        "pcs-frontend/e2e/real_backend_flows.spec.ts:144-148 — `  expect(` / `    unauthorized.status(),` ⇒ 前端只比状态码",
+        ".wolf/cerebrum.md（Do-Not-Repeat · A 契约 · 权限 · 守卫）— 「『无权』与『不存在』必须**逐字同形**，否则可枚举 UUID」「⚠️ **同形测试必须用同一个 uuid 测两次**」",
+        "pcs-backend/app/api/v1/_guard.py:47-49 — `        raise HTTPException(` / `            status_code=404,` / `            detail=f\"Project not found: {project_id}\",` ⇒ message 内嵌请求 id"
+      ],
+      "suggested_fix": "把同形断言改成**归一化后的整段比较**：把两个响应体里的 uuid 换成占位符后逐字比较（`normalize = lambda t, u: t.replace(str(u), \"<id>\")`），并用**同一个** uuid 做「不存在」与「存在但跨项目」两次请求；前端那条若要保留跨项目用例，改断 `toBe(404)` 并同时比 body 归一化结果。",
+      "pre_existing": false
+    },
+    {
+      "title": "种子管级行的字段违反 PipeClassResponse 契约",
+      "severity": "P3",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 516,
+      "why_it_matters": "本批在产品代码里非常小心地满足了响应契约（pipe_chain_persist 的占位管级注释专门写了「必须含 {min,max} 且 0<min<=max ⇒ 否则列表端点整条 500」），但同一批新增的种子行把同一套契约全违反了：`source=\"E2E_SEED\"` 不在 `Literal[\"COMPANY_STD\", \"PROJECT\"]` 内、`dn_series_json={\"DN150\": 1.0}` 缺 {min,max}、`sch_series_json` 的值是 float 而契约是 `dict[str, str]`。⇒ 任何把这一行序列化出来的端点（`GET /pipe-classes/{class_id}` 直接按 id 取）都会 ResponseValidationError ⇒ 500。已记录的教训正是这一条：mock/fixture 与契约一致是**正确性的一部分**，不是开发体验问题；fixture 用一份契约外的类型构造 ⇒ 测试再多也是零信号。这里没有测试覆盖「按 id 取这个种子行」，所以它是一颗待引爆的地雷（且因「public 不变」守卫只快照 4 张表，pipe_classes 也不在快照里）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `            dn_series_json={\"DN150\": 1.0},` / `            sch_series_json={\"DN150\": 40.0},` / `            source=\"E2E_SEED\",`",
+        "pcs-backend/app/schemas/pipe_class.py:77-78 — `    source: Literal[\"COMPANY_STD\", \"PROJECT\"] = Field(` ⇒ `E2E_SEED` 不在词表内",
+        "pcs-backend/app/schemas/pipe_class.py:84-93 — `    @model_validator(mode=\"after\")` / `    def _check_dn(self)` / `        if mn is None or mx is None or not (0 < mn <= max):` ⇒ 缺 {min,max} ⇒ ValueError",
+        "pcs-backend/app/schemas/pipe_class.py:65-66 — `    sch_series_json: dict[str, str] = Field(` ⇒ 值必须是字符串",
+        "pcs-backend/app/api/v1/pipe_classes.py:168 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)` ⇒ 按 id 取即序列化该行",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py（diff）— `dn_series_json={\"min\": 15.0, \"max\": 600.0},` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"},` ⇒ 产品代码那一侧刻意守住了契约，种子这一侧没有"
+      ],
+      "suggested_fix": "把 `_ensure_pipe_class` 的三处字段改成契约内的形状：`source=\"COMPANY_STD\"`（或若不希望它出现在公司清单里，则不要让它走 `PipeClassResponse` 序列化路径，并确认没有端点按 id 取它）、`dn_series_json={\"min\": 15.0, \"max\": 600.0}`、`sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`；并在 `tests/scripts/test_seed_e2e_flows.py` 里加一条断言：对种子行做一次 `PipeClassResponse.model_validate(...)` 不抛错（用契约构造 fixture，而不是用一份手写副本比对）。",
+      "pre_existing": false
+    },
+    {
+      "title": "默认车道 skip 闸门只有「假 item」的动作断言",
+      "severity": "P3",
+      "file": "pcs-backend/tests/e2e_flows/test_lane_smoke.py",
+      "line": 194,
+      "why_it_matters": "conftest 自己写明「这是本批最危险的一条：不加它，批末那句 `uv run pytest` 会把 E2E 场景跑到开发库 `pcs` 上」。守卫却只用一个 `_FakeItem` 断言 `add_marker` 被调过——断的是**动作**，不是**后果**（已记录的通则：守卫要断言后果，不要断言动作；动作可以空转，后果不会）。真正的后果是「默认车道里一个 e2e 用例都没被执行」：只要有人给 tests/e2e_flows/ 加一条忘了 `@pytest.mark.e2e` 的用例（或把 marker 改名），它就会在默认车道**真的连上开发库**跑隔离 schema + alembic + 种子，而当前守卫仍然绿（它只测闸门函数本身，对新用例零感知）。今天 13 个文件里 marker 是齐的（lane_smoke 的 7 条里有 2 条是故意不标 marker 的默认车道守卫），但没有任何东西**保持**它齐。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:194 — `def test_e2e_items_are_skipped_without_the_lane_flag():` ⇒ 唯一守卫",
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:215 — `    _skip_e2e_items_unless_in_lane(None, None, [item])` ⇒ 传入自造假 item，只断 add_marker 被调过",
+        "pcs-backend/tests/e2e_flows/conftest.py（diff）— `# ⚠️ **这是本批最危险的一条**：不加它，批末那句 `uv run pytest` 会把 E2E 场景**跑到开发库 `pcs` 上**`",
+        "pcs-backend/pyproject.toml（diff）— `addopts = \"-m 'not visual'\"` ⇒ 仓里没有任何东西排除 `e2e` marker"
+      ],
+      "suggested_fix": "加一条**后果级**守卫：在默认车道（无 PCS_E2E_LANE）下断言「收集到的 e2e 用例全部带 skip 标记」，例如 `uv run pytest tests/e2e_flows --collect-only -q` 后断言非 e2e 用例集合等于那两条明确的白名单守卫（或用 AST 扫 tests/e2e_flows/*.py，断言每个 `def test_*` 都带 `pytest.mark.e2e`，白名单除外）。这样新增一条漏标 marker 的用例会直接让默认车道红。",
+      "pre_existing": false
+    },
+    {
+      "title": "flock 守卫用原文子串匹配（含注释）且不校验 -n",
+      "severity": "P3",
+      "file": "pcs-backend/tests/scripts/test_pytest_e2e_gate.py",
+      "line": 95,
+      "why_it_matters": "同一文件里的另一个守卫专门写了 `_body()` 来剥掉注释，理由是「注释里提到 `uv run pytest` 是说明 ⇒ 断『脚本有没有做这件事』必须断可执行部分 ⇒ 否则注释就足以让守卫误红」——这正是 docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md 的教训。但同一个文件里的 flock 守卫却直接读**含注释的原文**做子串判断，且只断 `flock` 这个词存在，不断 `-n`（非阻塞）：`flock 9`（阻塞版）也能过，删掉 flock 代码而把这个词留在注释里也能过。⇒ 守卫证明的是「文件里出现过 flock 这个词」，不是「两条车道真的被互斥」。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95-96 — `    assert \"flock\" in pg_body, (` ⇒ 对**原文**（含注释）做子串判断",
+        "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:93 — `    pg_body = PG_SCRIPT.read_text(encoding=\"utf-8\")` ⇒ 未剥注释（与同文件 `_body()` 的做法相反）",
+        "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:49-50 — `    ⚠️ 注释里提到 `uv run pytest` / `DATABASE_URL` 是**说明** ⇒ 断「脚本有没有做这件事」必须断**可执行部分**` ⇒ 同族教训已在本文件内",
+        "pcs-backend/scripts/pytest_pg.sh（diff）— `if ! flock -n 9; then` ⇒ 真正被依赖的是 `-n`（抢不到就退出），守卫并不验证这一点"
+      ],
+      "suggested_fix": "给 pytest_pg.sh 也写一个剥注释的 `_body()`，把断言改成 `assert \"flock -n\" in body`（并在同一条里断言 `exec 9>` 存在，即锁确实落在 fd 9 上）。",
+      "pre_existing": false
+    },
+    {
+      "title": "路由扫描把 console error 与 4xx 降级为打印",
+      "severity": "P3",
+      "file": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts",
+      "line": 70,
+      "why_it_matters": "这份 spec 的存在理由就是「扫出每个路由的控制台 error 与 4xx/5xx」（本批正是靠它抓到 bug-2168「仪表盘每次开都 404」）。落地形态却只把这两类信号 `console.log` 出来，不断言 ⇒ 文件对这一整类缺陷**永远绿**。注释把理由写清楚了（仓里有 3 个页面调用不存在端点 ⇒ 断言成红会被既有缺口噪声淹没 ⇒ 登记 TODO-159）——这是诚实的取舍，但取舍的代价是：只要缺陷不落在这 3 个已知页面（例如本批刚修的仪表盘 404、或任何新增页面的 404），扫描都发现不了，而「再把断言加回来」目前只存在于注释里、没有钉子。这与本仓已记录的「断言被降级成打印 ⇒ 假绿」同族。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 — `// ⚠️ **只断「路由可达」**` … `// ⇒ ⇒ 改成**打印出来**（进 QA 报告）⇒` / `// ⇒ ⇒ 等那些端点补齐后，**再把断言加回来**。`",
+        "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-73 — `  expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true);` ⇒ 控制台 error / 4xx 只被收集、未被断言",
+        "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:38-43 — `  const consoleErrors: string[] = [];` / `  const badResponses: string[] = [];` ⇒ 收集了却不用",
+        "TODOS.md（diff）— `## TODO-159: 前端调用了**不存在的端点**的 3 个页面（真后端下打不开数据） 🟠` ⇒ 「再断言」目前只登记在 TODO，无钉子"
+      ],
+      "suggested_fix": "不要全量断「无 4xx」，改成**白名单式**断：维护一个已知缺口路由集合（TODO-159 的 3 个），断言「console error / 4xx 只出现在白名单路由上」——这样既有缺口的噪声被隔离，本批修过的仪表盘 404 若复发（或任何新页面 404）仍会红；同时把白名单集合做成一个具名常量并由 TODO-159 关联，便于端点补齐时删条目。",
+      "pre_existing": false
+    }
+  ],
+  "learnings": [
+    {
+      "title": "「真后端通道」作为第二个 Playwright project：mock 不校验 token ⇒ 假 token 类缺陷隐形",
+      "extends": "docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md §4（mock 漂移会遮住生产缺陷）",
+      "anchor": "pcs-frontend/e2e/real_backend_flows.spec.ts:1-30、pcs-frontend/src/pages/routeWrappers.tsx:8305-8307",
+      "insight": "本批最有价值的可复用形状：**给前端建第二个 Playwright project（`--project=real-backend`，端口 5174，VITE_PROJECT_ID 指向种子项目），用标题 tag `@real-backend` 做隔离**（mock project 用 `grepInvert` 排除）。它一次性暴露了两类 mock 通道永远看不见的缺陷：① 写死的 `DEV_BEARER` 假 token（mock 的 MSW 不校验 token ⇒ 401 ⇒ 页面停在「加载中…」；真后端下必炸）；② 面板在占位 projectId 上取数 ⇒ 每次开仪表盘两个 404。配套断言纪律：**必须断具体行内容，不能断「页面渲染了」**——因为 mock 登录不落 users 表、axios 只对 401 报错 ⇒ 后端回 404 不产生任何控制台 error ⇒ 「页面正常」证明不了连的是被 seed 的库。",
+      "applicability": "任何「前端有一条从未真正连过后端的通道」的仓：先建第二 project + tag 隔离，再把断言从「不报错」升级到「具体内容」。"
+    },
+    {
+      "title": "车道的守卫测试必须与真实车道用不同的锁",
+      "extends": "docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md §6（守卫要断言后果，不要断言动作）",
+      "anchor": "pcs-backend/tests/scripts/test_pytest_pg_gate.py:8-22、pcs-backend/scripts/pytest_pg.sh:56-62",
+      "insight": "PG 车道的 flock 互斥锁会把**守卫测试自己**挡住 ⇒ 守卫报的是「另一条车道正在跑」⇒ 它测的根本不是它声称的那三条 fail-closed 闸门。这是「守卫失效」的第四种形态：**共享资源把守卫挡在门外**（前三种是：patch 定义处 vs 消费者、观测方法被 fixture 击败、注释骗过断言）。修法可复用：被测脚本支持一个锁路径环境变量（`PCS_PGTEST_LANE_LOCK`）⇒ 守卫用独立锁文件 ⇒ 真车道在跑时守卫仍测真闸门。",
+      "applicability": "任何带互斥锁/单例资源/独占端口的测试车道：守卫必须自带一份资源实例，且要在提交信息里说明为什么。"
+    },
+    {
+      "title": "隔离 schema 车道的四个必做校准（驱动 · search_path · 子进程 · 互斥）",
+      "extends": "docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md（隔离 schema + 子进程 alembic + 清理要响亮）",
+      "anchor": "pcs-backend/tests/e2e_flows/conftest.py:80-140、pcs-backend/scripts/pytest_pg.sh:56-62",
+      "insight": "本批把「隔离 schema」这条既有形状补齐了四个此前没写下来的校准点：① **async 引擎必须换成生产驱动**（asyncpg）——车道的 DATABASE_URL 是 postgresql+psycopg，若 async 也用 psycopg，psycopg 会替 PG 做类型转换（VARCHAR 列塞 int ⇒ 绿），生产上的 asyncpg 却会报 `invalid input for query argument` ⇒ 一整类「类型不匹配」缺陷隐形；② **asyncpg 不认 `options=-csearch_path=`**（那是 libpq 参数）⇒ 隔离改走 `connect_args={\"server_settings\": {\"search_path\": …}}`；③ **alembic 必须在子进程跑**（pydantic-settings 的 settings 是缓存实例，同进程改 env 不生效）——这条与仓库 CLAUDE.md 里「alembic settings 缓存 ⇒ 一库一进程」是同一条，本批把它用在了 schema 隔离上；④ **两条车道共用一个库 ⇒ 锁放在共享脚本里**（一次加锁 ⇒ 两条车道都生效；薄封装 exec 进它 ⇒ 不会自己锁死自己）。",
+      "applicability": "新建任何「隔离 schema + 真 PG」车道时按这四条逐条校准，并把它们写进 conftest 的 docstring（下一个维护者会照抄注释）。"
+    },
+    {
+      "title": "把「隔离」从注释变成可断的事实：public schema 前后快照",
+      "extends": "docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md（守卫要断言后果）+ guard-patched-…md §5（断言后果而非动作）",
+      "anchor": "pcs-backend/tests/e2e_flows/test_lane_smoke.py:196-247",
+      "insight": "「E2E 只写隔离 schema」如果只写在 conftest 的注释里，就和「守卫是空壳」是同一类空话。本批在车道里跑完一条**写路径**后，对 public schema 的行数做前后快照比对 ⇒ 隔离从注释变成可断的后果。局限已被记录：快照只覆盖 4 张表、且只比 count(*)（不覆盖 max(id)/updated_at），所以它只证明了「一部分表没被写」。⇒ 可复用形态：**隔离类守卫必须枚举车道会写的全部表，且同时断 count 与 max(id)/updated_at**，否则「隔离」只是部分成立。",
+      "applicability": "任何带隔离/只读承诺的测试车道：写下「我会写哪些表」的清单，再让守卫照单全收。"
+    },
+    {
+      "title": "权限矩阵断言用四元组（角色 × 操作 × 状态码 × 错误码）",
+      "extends": "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md（守卫判据要具体）+ docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md（只断形状会被换原因骗过）",
+      "anchor": "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:30-50",
+      "insight": "403 在这个系统里有多个真因（自审闸 APPROVAL_SELF_REVIEW_FORBIDDEN / 角色不够 HTTP_403 / 插队 APPROVAL_ROLE_MISMATCH）⇒ 只断状态码 ⇒ 换个原因照样绿。本批把矩阵写成四元组并逐条断**错误码**（含 `APPROVAL_ROLE_MISMATCH` 这种「不是角色不够，是轮不到你」的区分），是本批最扎实的一条断言纪律。⚠️ 但要注意四元组的**前提是每条用例真的走到了目标分支**：本批前端那条（跨项目 ⇒ 404）被角色闸短路 ⇒ 四元组退化成了「两个码相等」（见 findings）。⇒ 推论：**四元组要配一条「分支可达」的钉子**——例如先断一次该身份单独走这条端点会得到什么码。",
+      "applicability": "任何权限/状态矩阵测试：四元组之外再加一条「我这次测的分支确实被执行了」的对照。"
+    },
+    {
+      "title": "目录级东西（conftest / marker 注册 / addopts）落笔前先 ls 住客",
+      "extends": ".wolf/cerebrum.md Do-Not-Repeat（hermes P1-5）+ docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md（静默改掉既有用例的形状）",
+      "anchor": "pcs-backend/tests/e2e_flows/conftest.py:1-30",
+      "insight": "本批照这条已记录的规则办：`tests/e2e/` 已被 `test_sim_three_entry_consistency.py`（12 条无 skip 用例）占用 ⇒ 新 conftest 会静默改掉它们的行为 ⇒ 换到兄弟目录 `tests/e2e_flows/`，既有用例一个字节不动。并把它**泛化**写进了 conftest 的 docstring：「凡『目录级』的东西（conftest / pytest.ini / marker 注册 / addopts），它的作用范围是整个目录树 ⇒ 落笔前先 `ls` 那个目录」——这条泛化本身值得沉淀。",
+      "applicability": "新增任何 pytest 配置/钩子文件前，先列目录住客并确认作用范围。"
+    }
+  ],
+  "residual_risks": [
+    "本批的 E2E 车道**没有任何自动化作业会跑**（既有裁决「不新建 CI 流水线」，已登记为 D25 / TODO-152）⇒ 与 docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md 记载的「CI 不跑 ⇒ 绿灯证明不了它们跑过」是同一种空转：车道的绿只在有人手动跑 scripts/pytest_e2e.sh 时成立。文档层已诚实登记（没有写「CI 会跑」），但**下一个维护者仍可能把「E2E 用例存在」读成「E2E 被验过」**。",
+    "docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md 记载的单测车道空壳守卫（patch 定义处、消费者按值导入）**本批未触碰**：E2E 车道的隔离靠 URL/search_path 与 get_db 覆盖，但 app 内仍有按值导入的 DB 消费者（如 app/api/v1/ws.py、_compound_config_cache.py 走全局工厂）⇒ 在车道里它们连的是 pcs_pgtest 的 **public** schema，而「public 不变」守卫只快照 4 张表 ⇒ 这条路径的写入本批既没堵住也没被快照到。",
+    "docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md 要求的「submit 时冻结判据」在本批的权限矩阵场景里被间接依赖（种子把矩阵/绑定写死，场景内不改配置）⇒ 本批**没有**任何「中途重绑」的用例 ⇒ 快照类回归仍不可见（该文档已有单测钉住，但那是单测车道、非 E2E 车道）。",
+    "本批新增的 8 处产品代码修补里，有 5 处是「响应 schema 与 DB 实际形状对齐」（case_type 可空、preview_streams list→dict、data_version 冻结、占位管级）。这类修补的共同形状是**契约比实现宽**（docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md 讲的是反方向）⇒ 本批的做法是放宽响应而非放宽请求，是对的；但放宽后的契约**没有对应的负向用例**（例如 case_type 为 NULL 的物流仍能创建？请求侧 StreamBase 仍要求 case_type —— 这一点只写在注释里，没有断言钉住）。"
+  ],
+  "testing_gaps": [
+    "没有用例断言「本批新增的 E2E 用例全部带 @pytest.mark.e2e」⇒ 新增一条漏标的用例就会在默认车道连开发库跑隔离 schema + alembic（当前守卫只测闸门函数本身，对新用例零感知）。",
+    "没有用例断言「跨项目 ⇒ 404」在**前端 UI 通道**成立 —— 前端那条被角色闸短路（bob 是 CHECKER，物流列表端点先过角色闸 ⇒ 403），跨项目 404 分支在 UI 车道从未被执行。",
+    "没有用例断言**种子行满足响应契约**（PipeClassResponse 的 source 词表 / dn_series {min,max} / sch_series 值类型）⇒ 种子造出的管级行一旦被按 id 取到就会 500，而这类 fixture 漂移正是 docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md §4 记过的形态。",
+    "没有用例断言**同形性到 message 粒度**（含 message 模板与同一个 uuid）⇒ 无权分支改措辞仍绿。",
+    "没有用例断言「flock 是非阻塞的（`-n`）且锁落在 fd 9」⇒ 守卫只断 `flock` 这个词出现在文件里。"
+  ]
+}

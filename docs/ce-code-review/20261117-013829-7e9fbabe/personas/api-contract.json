@@ -1,0 +1,152 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "data_version 被塞进文件摘要，审计端点两字段语义塌陷",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 118,
+      "why_it_matters": "report_tasks._finalize 把生成文件的 sha256 写进 report_files.data_version（该列原义是「登记时冻结的数据版本」）⇒ GET /report/{id}/hash 的 record_hash_digest 与 data_version 现在返回同一个值，也就是 content_hash（ReportFile 上根本没有「记录哈希」列）⇒ 审计方无法区分「源数据版本」与「文件内容摘要」，两个字段从此是同一个值的两个名字；而 data_version 这个名字一旦被摘要占用，将来想真填数据版本时旧语义已被占死。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:118 — row.data_version = digest",
+        "pcs-backend/app/api/v1/report.py:307-310 — return ReportHashResponse(report_file_id=row.report_file_id, record_hash_digest=_expected_digest(row), data_version=row.data_version) ⇒ 两个字段同源",
+        "pcs-backend/app/api/v1/report.py:487-494 — 「登记时冻结的数据版本（`data_version`），供审计端点查」⇒ 字段语义是「数据版本」，不是文件摘要",
+        "pcs-backend/app/models/report.py:155,166 — content_hash: Mapped[str]（NOT NULL，文件哈希）vs data_version: Mapped[str | None] ⇒ 摘要本来已有专门的列"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "不要复用 data_version 装文件摘要：_expected_digest 改读 row.content_hash（PENDING 占位以 report_tasks.PENDING_HASH_PREFIX 开头则返回空串），删掉 report_tasks.py:118 的 row.data_version = digest，把 data_version 留给真正的数据版本；若审计确实需要「文件摘要 + 数据版本」两个值，则在 ReportHashResponse 上新增明确命名的字段（如 file_content_hash），而不是复用 data_version。"
+    },
+    {
+      "title": "审计哈希端点返回值随行龄不同（老行与复用行恒空串）",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 494,
+      "why_it_matters": "_expected_digest 只读 data_version ⇒ 本批之前登记的 report_files 行 data_version 恒 NULL ⇒ record_hash_digest 恒 \"\"；本批之后的新行是 64 位 hex ⇒ 同一个端点、同一个字段，返回值形态取决于「这行是什么时候登记的」，审计方无法区分「老数据没有摘要」与「摘要缺失/生成失败」。而且 _finalize 的「同内容复用」分支（dup）直接 return，根本不给被复用的行写 data_version ⇒ 走复用路径拿到的文件仍然返回空串。E2E-009 里这条断言至今仍是 xfail（注释写「根因未完全隔离」），等于本批的修复没有被任何真断言钉住。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:494 — return row.data_version or \"\"",
+        "pcs-backend/app/workers/report_tasks.py:107-111 — if dup is not None: await db.delete(row); await db.flush(); return str(dup.report_file_id) ⇒ 被复用的行永远没写过 data_version",
+        "pcs-backend/tests/e2e_flows/test_e2e_report.py:6784-6788 — if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "让摘要有单一真源：_expected_digest 改为 `return row.data_version or (row.content_hash if not row.content_hash.startswith(PENDING_HASH_PREFIX) else \"\")`（content_hash 已是文件 sha256），或在 _finalize 的 dup 分支把 dup 的摘要一并补齐；同时把 E2E-009 的 xfail 分支改成硬断言（record_hash_digest 为 64 位 hex），并补一条「同内容复用后仍非空」的用例。"
+    },
+    {
+      "title": "preview-streams 端点无 response_model，契约未记录本批统一的形状",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/sim_imports_query.py",
+      "line": 325,
+      "why_it_matters": "本批把 list 归一成 {\"streams\": [...]}，但端点只有 `-> dict` 注解、没有 response_model ⇒ OpenAPI 里 200 仍是 {\"type\": \"object\"}（前端生成类型是 {[key: string]: unknown}）⇒ 消费者无法从契约得知必须读 .streams，只能靠试。另外新增的代码注释说「SIM/Excel 导入存 dict」，与事实相反 —— 两个写入点（import_service.py:496 PRO/II、:612 EXCEL）存的都存成 list ⇒ 归一的影响面比注释写的大（EXCEL 导入以前同样是 500）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/sim_imports_query.py:325-330 — @router.get(\"/{import_id}/preview-streams\") … ) -> dict:  （无 response_model ⇒ OpenAPI 200 = {\"type\": \"object\"}）",
+        "pcs-backend/app/api/v1/sim_imports_query.py:362-363 — 「**PRO/II 导入**把 preview 存成 **list**（`preview_streams_json = [...]`），而 SIM/Excel 导入存 **dict**（`{\"streams\": [...]}`）」⇒ 与下面两个写入点相反",
+        "pcs-backend/app/services/import_service.py:496 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （PRO/II ⇒ list）",
+        "pcs-backend/app/services/import_service.py:612 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （EXCEL ⇒ 也是 list）",
+        "pcs-frontend/src/types/api.d.ts:32814-32822 — preview-streams 的 200 content 类型是 `{[key: string]: unknown}` ⇒ 生成客户端拿不到键名"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "加 response_model 把形状写进契约（新增 schemas.SimImportPreviewStreamsResponse：streams: list[dict[str, Any]] = []），并把注释改成「PRO/II 与 EXCEL 两个写入点都存 list ⇒ 读侧统一归一成 {streams: [...]}」；加 response_model 后必须重跑 scripts/gate_08_openapi_contract.sh，让 openapi.json / 前端 snapshot / api.d.ts 一起滚动。"
+    },
+    {
+      "title": "运行时占位管级写进公司级列表，与真实标准不可区分",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 134,
+      "why_it_matters": "管道链计算会在运行时兜底建一条 pipe_classes 行（CS-STD / source=COMPANY_STD / status 默认 DRAFT）⇒ 公司级管级列表端点（只按 source=='COMPANY_STD' 过滤）从此多出一行「碳钢标准（链计算占位）」，与用户自建的真实公司标准在契约上完全同形（schema 的 source 只有 Literal['COMPANY_STD','PROJECT']，没有「系统占位」这一态）⇒ 客户端无法把它和真标准区分，且该列表的内容变成「有没有人跑过链计算」的函数。附带：E2E-003 的「管级表多了一行」断言量的正是这个占位副作用（计算结果落的是 piping_results，不是 pipe_classes）。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — source=\"COMPANY_STD\",",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 — PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"",
+        "pcs-backend/app/services/pipe_class_service.py:149 — stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")  ⇒ 占位行进公司列表",
+        "pcs-backend/app/schemas/pipe_class.py:77 — source: Literal[\"COMPANY_STD\", \"PROJECT\"] ⇒ 契约里没有「占位」这一态",
+        "pcs-backend/tests/e2e_flows/test_e2e_calc_chains.py:54-59 — assert after_count == before_count + 1（「管级表多了一行」）而计算结果落在 piping_results ⇒ 这条断言实际断的是占位行副作用"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "给占位行一个契约里可区分的标记：PipeClass.source 增 Literal 值 'SYSTEM_PLACEHOLDER'（同步 schemas/pipe_class.py）且 list_company 默认排除它；或把占位行改为随迁移种一次、运行时只做缺失兜底。若改列表可见性，E2E-003 的 before/after 计数必须改成断 piping_results 的落库行数，否则那条用例会跟着假绿。"
+    },
+    {
+      "title": "契约基线只是「与当前一致」的锁，没有已发布契约锚点",
+      "severity": "P2",
+      "file": "pcs-backend/docs/openapi-baseline.json",
+      "line": 1,
+      "why_it_matters": "核实结论：基线漂移的主体确实是上一批的 AI 端点契约 —— openapi.json 在 6292ca2（AI 契约去掉死分支 200 + 补 401/503）时更新而基线没跟，本批把基线滚到与 openapi.json 逐字相同（三个文件 blob 哈希同为 6663086）。但 gate_08 的第 4 阶段只是 `diff -q baseline openapi.json` ⇒ 基线必须永远等于当前规格 ⇒ 它不是「已发布/对外承诺过」的契约锚点 ⇒ 任何破坏性变更（如本批 StreamResponse.case_type 由必填改为可空）都能无版本、无弃用期、无迁移说明地进契约，客户端只能事后发现。",
+      "autofix_class": "advisory",
+      "owner": "release",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/gate_08_openapi_contract.sh:71-80 — if diff -q pcs-backend/docs/openapi-baseline.json pcs-backend/docs/openapi.json > /dev/null; then echo \"OK baseline 与当前一致（无漂移）\" ⇒ 基线是同步锁，不是发布锚点",
+        "pcs-backend/docs/openapi.json:41978-41985 — \"required\": [ \"stream_name\", -\"case_type\", \"data_mode\", … ] ⇒ 响应字段由必填变可空（对 1.0 契约是破坏性变更），全仓无版本号/弃用标记",
+        "git 6292ca2 fix(P10-A): 评审 #12/#13/#19 —— AI 契约去掉死分支 200 + 补 401/503 + 运行时出口守卫 ⇒ openapi.json 变了而 openapi-baseline.json 未变（基线漂移主体 = 上一批的 AI 契约）"
+      ],
+      "pre_existing": true,
+      "suggested_fix": "若要真正的契约稳定性闸门，另存一份「上次发布/对外承诺」的契约（例如 docs/openapi-released.json）并在批末用 openapi-diff 跑出 breaking 清单；当前 openapi-baseline.json 只能证明「后端规格 / 前端 snapshot / 前端类型三份同步」，不能证明「对外契约没破」。本批的 case_type 破坏性变更至少应在批末账簿里显式登记一条「响应字段放宽为可空」的对外说明。"
+    },
+    {
+      "title": "本批偏离登记写进了非权威 SPEC 文件",
+      "severity": "P2",
+      "file": "spec/P10 AI预留与测试部署开发规格说明书.md",
+      "line": 666,
+      "why_it_matters": "本批按 PCS-SPEC-P10 V1.3.1 的编号与口径实现（E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响 / E2E-015 自定义报表 / E2E-017 AI / E2E-018 schema 一致），却把 D23~D38 这批 §3.2.2 口径修订登记在 V1.0 那份文件里 —— 而计划自己的文件清单写的是 Modify: spec/PCS-SPEC-P10 V1.3.1 …（第五部分「偏离登记」）。同时仓库里对「哪份 SPEC 是准」有两条互相矛盾的裁决：V1.0 文件的 D20 说「PCS-SPEC-P10 V1.3.1 在仓库中不存在 ⇒ 以 V1.0 为准」，本批计划说「两个文件都在 ⇒ 本批以 V1.3.1 为准」。结果：权威那份的 §3.2.2 一条都没被修订（D26/D29/D33/D34/D35/D37/D38 都在另一份文件里），下一个按权威文件读 SPEC 的人拿到的是过期口径。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "spec/P10 AI预留与测试部署开发规格说明书.md:666-681 — D23…D38（P10-B 批末增补）全部登记在这份 V1.0 文件里",
+        "spec/P10 AI预留与测试部署开发规格说明书.md:662 — D20（文档治理）…「开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**」…「以**仓库里这份 V1.0** 为准」",
+        "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:956 — \"Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（第五部分「偏离登记」）\" ⇒ 计划要求改的是 V1.3.1 那份",
+        "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:11 — \"**Spec:** `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md` §3.2.2\"",
+        "spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md:718-725 — E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响分析 / E2E-015 自定义报表执行 / E2E-016 用户权限验证 / E2E-017 AI 占位与审计 / E2E-018 Schema 一致性 ⇒ 实现口径来自这份"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 D23~D38 同步到权威文件 spec/PCS-SPEC-P10 V1.3.1 …md 的第五部分（或把两份合并成一份并把 D20 的裁决改掉），并在两份文件顶部互相标注「本批以 V1.3.1 为准」，避免下批继续按 V1.0 口径写。"
+    },
+    {
+      "title": "响应可空但请求仍必填：case_type 读写不对称",
+      "severity": "P3",
+      "file": "pcs-backend/app/schemas/stream.py",
+      "line": 318,
+      "why_it_matters": "StreamResponse.case_type 改成可空（对齐 DB 的 Mapped[str | None]），但请求侧 StreamBase.case_type 仍必填 ⇒ 读到的 null 值无法原样写回（GET→POST 回写会 422），「拿响应当入参」的客户端会踩空。前端既有消费点（StreamBasicTab / StreamListPage）已全部加空值保护，本批不破坏任何现有消费者，契约侧只是同一字段的读写要求不一致。",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/schemas/stream.py:318-320 — case_type: StreamCaseType | None = Field(None, description=\"物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（DB 可空）\")",
+        "pcs-backend/app/schemas/stream.py:58-61 — class StreamBase: case_type: StreamCaseType = Field(..., description=…) ⇒ 请求侧仍必填",
+        "pcs-frontend/src/pages/sim/StreamListPage.tsx:175 — s.case_type ? STREAM_CASE_TYPE_LABEL[s.case_type] : '' ⇒ 前端消费点已空值安全（无破坏）",
+        "pcs-frontend/src/pages/sim/tabs/StreamBasicTab.tsx:71 — stream.case_type ? STREAM_CASE_TYPE_LABEL[stream.case_type] : '—' ⇒ 同上"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "若 DB 可空是事实，请求侧也应允许省略（StreamBase.case_type 改 Optional，service 层决定补 NORMAL 或存 NULL）；否则在契约文档里明确登记「响应可空 ⇒ 入参必填，读-改-写不走 POST/create」，避免客户端拿响应当入参。"
+    }
+  ],
+  "residual_risks": [
+    "report_files.data_version 的列注释仍停在「生成时冻结的数据版本」，而写入方现在塞的是 64 位 hex —— 列义与实际值脱节，未来读方可能照名字当版本号用（建议同步改列注释或另立一列）。",
+    "SimImport.preview_streams_json 的 ORM 声明是 Mapped[dict]，但两个写入点都存 list ⇒ ORM 类型与实际值不符（JSONB 不校验，读侧现在靠 isinstance 兜底）；若将来给这列加 JSONB 结构约束或用 pydantic 校验，会炸。",
+    "AI 端点对外承诺过的 200 响应在上一批被删除（6292ca2「去掉死分支 200」并补 401/503），本批把它并进基线；因该端点从未实现（恒 501）无现存客户端受影响，但这桩「对外承诺被静默收回」只以基线差异的形式留痕。",
+    "前端 mock 通道（src/mocks/handlers.ts、src/mocks/seed/streams.ts）仍总是返回 case_type: 'NORMAL'，与真库可返回 null 的契约不一致 ⇒ 只在真后端通道暴露的 null 分支在 mock 通道测不到。",
+    "本批前端只跑 5 条抽样 UI 流（D36），后端车道是 18 场景的权威覆盖；但前端类型由 openapi 生成，case_type 变可空后，「读-改-写」与 case_type 筛选的交互在真通道上仍无覆盖。"
+  ],
+  "testing_gaps": [
+    "缺少「case_type 为 NULL 的物流」在真 PG 车道上的端到端覆盖：现有 E2E 种子物流都带 case_type ⇒ StreamResponse 可空这条修复本身（bug-2167）没有被真实断言钉住。",
+    "缺少「同内容复用」路径（report_tasks._finalize 的 dup 分支）下审计哈希端点仍返回非空摘要的用例 —— 该分支直接 return，被复用的行永远没写 data_version。",
+    "缺少 preview-streams 端点对 EXCEL 导入路径的用例（代码注释声称只有 PRO/II 存 list，实际两个写入点都存 list）；现有 E2E 只覆盖了 PRO/II。",
+    "缺少「占位管级行不应出现在用户可见的公司管级列表」的断言 —— 现状反而是 E2E-003 依赖它出现（若按建议把它从列表排除，该用例必须同步改写）。"
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "title": "Calc endpoint writes fabricated company standard into global table",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 260,
+      "why_it_matters": "A project-scoped calculation endpoint now inserts a row into `pipe_classes`, a GLOBAL reference table (no project_id, governed by a config state machine / ConfigAsset registry), and does so with `source=\"COMPANY_STD\"` so it deliberately appears in the company-standard list that every user sees (`pipe_class_service.list_company` filters `source == 'COMPANY_STD'`). The row is created with `asset_id=None`, bypassing the asset registry, approval workflow and any admin-only management path, i.e. an ordinary DESIGNER-class request mutates shared company configuration and injects a fabricated 'standard' into the catalog that other engineers will treat as authoritative. The batch's own docstring justifies this by convenience ('migration is history, runtime fallback is closer') rather than by authorization.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` (call site inside the request-path persist function)",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — `            source=\"COMPANY_STD\",` (the injected row is deliberately a company-level standard)",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:95 — `async def _ensure_placeholder_pipe_class(db: AsyncSession, class_id: str) -> None:` (runtime insert of the shared row)",
+        "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` / `:238 asset_id ... ForeignKey(\"config_assets.asset_id\")` ⇒ `pipe_classes` is global, not project-scoped",
+        "pcs-backend/app/services/pipe_class_service.py:149 — `        stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ the row is listed to every company-standard reader",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:3022-3024 (diff) — \"⚠️ 为什么不能靠「迁移里种一行」… 而这里是**运行时占位**\" ⇒ the choice of a request-time insert is deliberate"
+      ],
+      "suggested_fix": "Move the placeholder to a migration (one seeded `pipe_classes` row with `source='COMPANY_STD'`, `status='PUBLISHED'`, `asset_id` bound to the CATEGORY_5 config asset) and delete `_ensure_placeholder_pipe_class`; if a runtime fallback must stay, make it project-scoped (`source='PROJECT'`) and only insert when the endpoint's actor holds the pipe-class-admin role, so a project calculation can never mutate the company catalogue. Verify with a test that `POST /pipe/calc-chain` creates no `pipe_classes` row when one already exists and that the company list only contains admin-published rows."
+    },
+    {
+      "title": "E2E seed script has no target-database allowlist",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 751,
+      "why_it_matters": "The script's own documented usage (`uv run python scripts/seed_e2e_flows.py`) resolves the target database from `settings.database_url`, i.e. the environment variable or, when unset, `.env` — which in this repo points at the DEVELOPMENT database `pcs`. The script then creates 7 user rows with `status=\"ACTIVE\"`, a project, `user_projects` authorization rows (including an `alice` grant, `alice` being a mock-login identity) plus deliverables/records, and `--reset` deletes rows from that same database. The compose `seed` service pins the URL to `pcs_pgtest`, but nothing in the script prevents a run against any other reachable database: a stray `DATABASE_URL` in the shell (dev, staging or production) turns a documented command into account creation + project authorization in that database, with the only trace being a printed row-count summary. Nothing is written to a log or refused, so the mistake is silent.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:751 — `    factory = get_async_session_factory()` (no database-name check before writing)",
+        "pcs-backend/scripts/seed_e2e_flows.py:748 — `async def _main(reset: bool) -> None:` / docstring usage lines 3729-3730 — `    uv run python scripts/seed_e2e_flows.py            # 幂等灌种子` (the documented invocation)",
+        "pcs-backend/scripts/seed_e2e_flows.py:342 / 361 / 390 — `            status=\"ACTIVE\",` (seeded accounts are ACTIVE)",
+        "pcs-backend/scripts/seed_e2e_flows.py:388-392 — `AUTHORIZED_USERNAMES` / `USERNAME_TO_PROJECT_ROLE` incl. `\"alice\": \"DESIGNER\"` ⇒ the seed writes project authorization rows",
+        "pcs-backend/app/db/session.py:66 — `            get_settings().database_url,` ⇒ the factory resolves the env var, falling back to `.env` (the dev database `pcs` per repo CLAUDE.md)",
+        "docker-compose.yml:765 — `       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest` ⇒ the URL is pinned only for the compose service, not inside the script"
+      ],
+      "suggested_fix": "Add a fail-closed guard at the top of `_main` (and in `seed_flows`): parse `get_settings().database_url` and refuse unless the database name is in an explicit test allowlist (e.g. `pcs_pgtest`, `pcs_test`, `*_e2e`), exiting non-zero with a message naming the database it refused. Mirror the same guard in `scripts/seed_e2e_data.py` so both seeds share one rule, and add a test that seeds against a disallowed URL raise/exit."
+    },
+    {
+      "title": "E2E lane guards target DB by one env var only",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/conftest.py",
+      "line": 93,
+      "why_it_matters": "The spec constraint for this batch is 'the default lane must skip e2e cases (otherwise it hits the development database pcs)'. The skip gate is implemented, but the lane's target database is validated only by 'the URL starts with postgres'. There is no assertion that the database is a test database, so the invariant 'E2E never touches a non-test DB' rests on a single environment variable: if `PCS_E2E_LANE=1` is present in a shell/CI environment together with a `DATABASE_URL` that points somewhere else, the lane will CREATE SCHEMA, run `alembic upgrade head` in a subprocess against that database, and seed users/projects/grants into it. The failure mode is silent (the schema is created and dropped again; the symptom is 'it ran fine'), which is exactly the failure shape the batch set out to prevent.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/conftest.py:93-101 — `def _lane_url() -> str:` … `    if not url.startswith(\"postgres\"):` / `        raise RuntimeError(` ⇒ only the URL scheme is checked; the database name is never inspected",
+        "pcs-backend/tests/e2e_flows/conftest.py:76 — `    if os.environ.get(LANE_ENV_VAR) == \"1\":` ⇒ the whole 'don't touch a non-test DB' property is delegated to one env var (`PCS_E2E_LANE`)",
+        "pcs-backend/tests/e2e_flows/conftest.py:4719-4738 (diff) — the fixture runs `CREATE SCHEMA` and `subprocess.run([sys.executable, \"-m\", \"alembic\", \"upgrade\", \"head\"], … env={**os.environ, \"DATABASE_URL\": _scoped_url(url, schema)})` ⇒ DDL is executed against whatever database the URL names",
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:7399-7421 — `def test_e2e_items_are_skipped_without_the_lane_flag():` ⇒ the only guard test asserts a skip marker is added; nothing asserts the lane refuses a non-test database"
+      ],
+      "suggested_fix": "In `_lane_url()`, parse the URL and fail closed unless the database name matches an allowlist (`pcs_pgtest`, `pcs_test`, or a name containing `e2e`): `name = urlparse(url).path.lstrip('/'); if name not in ALLOWED_E2E_DATABASES: raise RuntimeError(...)`. Add a test that `_lane_url()` raises for a `.../pcs` URL and returns for `.../pcs_pgtest`."
+    },
+    {
+      "title": "Public-schema isolation guard covers only 4 tables",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/test_lane_smoke.py",
+      "line": 240,
+      "why_it_matters": "The whole lane's isolation claim ('E2E rows never land in public') rests on this one guard, and the guard snapshots only `users`, `projects`, `streams`, `user_projects` with `count(*)`. The lane writes far more tables: `piping_results`, `deliverables`, `workspaces`, `signature_matrices`, `project_signature_matrix_bindings`, `equipment_list`, `equipment_type_codes`, `pipe_classes`, `report_definitions` — and `ai_audit_log` (the batch's own plan required it in the snapshot list, plus `max(id)`; the implementation dropped both). A write that reaches public through any table outside those four is invisible to the guard, so 'E2E never writes public' is only proven for a fraction of the data. This matters concretely in this batch: the lane runs with `settings.database_url` pointing at `pcs_pgtest` PUBLIC (pytest_pg.sh exports a URL without a search_path), while the app's global session factory resolves to that same public schema, so any code path that bypasses the `get_db` override lands in public — including the new `pipe_classes` insert.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:240 — `        for table in (\"users\", \"projects\", \"streams\", \"user_projects\"):` ⇒ only 4 tables are snapshotted",
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:245-247 — `            out[table] = int(conn.execute(text(f\"SELECT count(*) FROM public.{table}\")).scalar_one())` ⇒ count(*) only, no `max(id)` (the plan required both)",
+        "pcs-backend/scripts/pytest_pg.sh:66 — `  export DATABASE_URL=\"postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}\"` ⇒ during the lane the app's global engine resolves to `pcs_pgtest` PUBLIC (no search_path), while only the `get_db` override is schema-scoped",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` ⇒ a `pipe_classes` row is inserted on a request path, and `pipe_classes` is not in the guard's table list"
+      ],
+      "suggested_fix": "Extend `_public_snapshot` to every table the lane writes (`piping_results`, `deliverables`, `workspaces`, `signature_matrices`, `project_signature_matrix_bindings`, `equipment_list`, `equipment_type_codes`, `pipe_classes`, `report_definitions`, `ai_audit_log`) and snapshot `count(*)` **and** `max(id)`/`max(updated_at)` so inserts and updates are both caught; run the snapshot comparison after a write path that exercises a global-engine code path, not only after `POST /projects`."
+    },
+    {
+      "title": "Predictable /tmp lock path opened with truncation",
+      "severity": "P3",
+      "file": "pcs-backend/scripts/pytest_pg.sh",
+      "line": 57,
+      "why_it_matters": "`exec 9>\"$LOCK_FILE\"` truncates the target path. The default is a fixed, world-writable-directory name (`/tmp/pcs-pgtest-lane.lock`), so on a shared host another local user can pre-create that path as a symlink to any file the developer can write; the next lane run then truncates that file (shell redirection follows symlinks) — silent destruction of e.g. a source file or a shell rc, with the lane continuing as if the lock had been acquired. `PCS_PGTEST_LANE_LOCK` also lets the caller point the truncation at an arbitrary path. Impact is limited to developer workstations and requires a local unprivileged user, but the fix is one line.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/scripts/pytest_pg.sh:56 — `LOCK_FILE=\"${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}\"` ⇒ fixed, predictable path in a world-writable directory",
+        "pcs-backend/scripts/pytest_pg.sh:57 — `exec 9>\"$LOCK_FILE\"` ⇒ `>` truncates and follows symlinks (CWE-59 / CWE-732)",
+        "pcs-backend/scripts/pytest_pg.sh:58 — `if ! flock -n 9; then` ⇒ flock is applied to the (possibly attacker-controlled) inode"
+      ],
+      "suggested_fix": "Create the lock file with `install -m 600 /dev/null \"$LOCK_FILE\"` (or open it with `exec 9>>\"$LOCK_FILE\"` and reject a symlink via `[ -L \"$LOCK_FILE\" ] && exit 1`), and default the path to a per-user private location such as `${XDG_RUNTIME_DIR:-/tmp}/pcs-pgtest-lane-$UID.lock`."
+    }
+  ],
+  "residual_risks": [
+    "Authorization in this system is driven by the JWT `role` claim with only a vocabulary whitelist (`app/api/v1/config.py:527-546` → `_ALLOWED_ROLES`), never by a DB entitlement. The new E2E lane mints tokens with `create_access_token(subject=username, role=role)` (`tests/e2e_flows/conftest.py:4893`) and never goes through a login/issuance path, so every scenario in this batch silently assumes a self-declared role is authoritative. That assumption is pre-existing (P10-A), but the new lane institutionalises it and will not catch a regression where token issuance, expiry, `token_version` revocation or the role-claim trust boundary is wrong.",
+    "During the E2E lane the app's global session factory resolves to `pcs_pgtest` PUBLIC (pytest_pg.sh exports DATABASE_URL without a search_path) while only the `get_db` dependency is schema-scoped; any request-path code that uses the global factory (e.g. `app/api/v1/ws.py:77`, `app/services/_compound_config_cache.py:53`) reads or writes the public schema of the shared test database rather than the isolated one. The isolation guard does not cover most tables (see finding on `test_lane_smoke.py:240`).",
+    "The frontend still falls back to a hardcoded fake credential when there is no session: `const authorization = token ? `Bearer ${token}` : DEV_BEARER;` (`pcs-frontend/src/pages/routeWrappers.tsx:8306`). This is pre-existing and harmless only as long as the backend rejects `Bearer mock-jwt-token`; the new lane's 401-coverage does not assert that the fallback is rejected, so a future change that accepts the dev bearer would turn it into an unauthenticated read path.",
+    "`test_e2e_018_pcs_and_pcs_test_schema_versions_match` (`pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:65-71`) reads the development database's `.env` DATABASE_URL and derives the `pcs_test` URL, then connects to both from the E2E lane. It is read-only and the password travels via the environment rather than the command line, but it makes the E2E lane dependent on the developer databases being reachable, and any future change that upgrades this to a write would put it straight into the dev database."
+  ],
+  "testing_gaps": [
+    "No test asserts that the E2E lane or the seed scripts REFUSE a non-test database name (only that the skip marker is added when `PCS_E2E_LANE` is absent). A db-name allowlist should be pinned by a test, otherwise the 'never touch the dev DB' property is one env var away from regressing silently.",
+    "The 403-vs-404 permission distinction is only asserted for one project endpoint (`test_e2e_016_cross_project_access_is_404_not_403`). No scenario asserts 'role insufficient but authorized ⇒ 403' on a project-scoped endpoint, so a future change that collapses both into 404 (or 403) would not be caught by the permission matrix, which only exercises approval/audit endpoints.",
+    "No scenario covers a caller whose token role is valid but whose `user_projects` grant row was revoked after the token was issued (grant checked per request vs. cached in the token); the seed grants are static for the whole run.",
+    "The lane never exercises the real authentication path (login / token issuance / expiry / `token_version` invalidation): `role_headers` fabricates tokens directly, so a broken or overly permissive login/refresh endpoint stays invisible to this batch.",
+    "The seed script's `--reset` is only tested against its own fixed-UUID rows; there is no test that a business row which happens to share a project id (or a `users` row with a derived id) survives the reset, even though the script's own docstring calls that the reason `users` is never deleted."
+  ]
+}

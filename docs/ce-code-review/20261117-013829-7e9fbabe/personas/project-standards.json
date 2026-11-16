@@ -1,0 +1,92 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "QA 闸门判据被降级为只打印，6 个坏页面无分类",
+      "severity": "P2",
+      "file": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts",
+      "line": 63,
+      "why_it_matters": "CLAUDE.md 的 Per-Batch QA Gate 要求浏览器回归必须证明「各 Page 路由可达 / 控制台无 error / 网络无 404」，并要求「CRITICAL / HIGH 必修完才能开下一批；MEDIUM / LOW 登记到 TODOS.md 延后」。本批自己新写的路由扫描已经跑出 6 个不满足该判据的页面（TODO-159：/pipe/line-list、/pms、/bedd 三个 404；TODO-160：/common/properties、/common/stress、/common/toxicity 三个 422），却把「控制台无 error / 无 4xx-5xx」从断言降级为 console.log 输出，且没有任何地方按闸门要求做 CRITICAL/HIGH 与 MEDIUM/LOW 分类。后果：闸门的三项浏览器判据在本批之后没有任何自动化在把关，页面级坏链会以「已登记 TODO」的形式静默过闸。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "CLAUDE.md《Per-Batch QA Gate》流程步骤 2：「浏览器：login 200 + dashboard 渲染 + 各 Page 路由可达」「控制台：无 antd / React / TypeScript error」「网络：核心 mock 端点（mock-login、meta 5 端点）无 404」；步骤 4：「CRITICAL / HIGH 必修完才能开下一批；MEDIUM / LOW 登记到 TODOS.md 延后」",
+        "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:63-69（新增）——「⚠️ **只断「路由可达」**（渲染了 + 没被弹回 /login）—— ⚠️ 「控制台无 error / 无 4xx-5xx」**不作为断言** ⇒ 因为仓里有一批 **前端调用了不存在端点**的页面（`/pipe/line-list` · `/pms` · `/bedd`）… ⇒ 改成**打印出来**（进 QA 报告）⇒ 等那些端点补齐后，**再把断言加回来**。」，其后仅剩 `expect(results.every((r) => r.root)).toBe(true)` 与「没被弹回 /login」两条断言",
+        "TODOS.md（新增）TODO-159：「真后端通道（`--project=real-backend`）逐条走完 **44 条路由** ⇒ 三处请求 **404**」· TODO-160：「`/common/properties` · `/common/stress` · `/common/toxicity` 三个页面**首屏**就发一个**空查询** ⇒ 后端 **422**」——两者均标注「归属：P10-C」延后，未按闸门做严重度分类"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "两件事分开做：(a) 在 TODO-159/160 里按闸门口径补一条显式分类（哪些算 CRITICAL/HIGH 必修、哪些算 MEDIUM/LOW 延后），CRITICAL/HIGH 的在开下一批前修完；(b) 把 route sweep 恢复成「按分类断言」——例如对已登记豁免的 6 条路由维护一个显式白名单常量，断言「4xx/5xx 只出现在白名单里」，白名单外的任何 4xx 即红。这样豁免是显式的、可审计的，而不是把判据整体关掉。"
+    },
+    {
+      "title": "偏离登记写进非权威 SPEC，且 D20 与本批自述矛盾",
+      "severity": "P2",
+      "file": "spec/P10 AI预留与测试部署开发规格说明书.md",
+      "line": 666,
+      "why_it_matters": "本批的 master-plan 新写明权威 SPEC 是 `spec/PCS-SPEC-P10 V1.3.1 …md`（§3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条），并明写「另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）⇒ **别拿 V1.0 那份当准**」。但本批的 D23~D38 全部追加进了 V1.0 那份文件（每条引用 §3.2.2 的 18 场景 / AUTH-E2E-12 / TEST_VIEWER 口径，而该文件 §3.2.2 只有 14 场景），权威 V1.3.1 里查不到任何一条修订；该文件的 D20 仍写着「开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**」，与本批 master-plan 的新结论直接冲突。后果：读者按 master-plan 找到 V1.3.1 看不到本批的偏离登记，读到的仍是已被推翻的 D20；按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」的要求，这次修订事实上没有登记在生效的那份 SPEC 上。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "CLAUDE.md《前端 UI 规范》：「字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。」",
+        "docs/superpowers/plans/2026-11-04-p10-master-plan.md:216-220（新增）——「⇒ ⚠️ **D20 的事实前提已变（2026-11-13 实测）**：**`spec/PCS-SPEC-P10 V1.3.1 …md` 在仓库里存在**（59.3K · §3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条）⇒ ⇒ 「V1.3.1 不存在」**不成立** ⇒ ⇒ **以 V1.3.1 为准**… ⇒ 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）⇒ ⇒ **别拿 V1.0 那份当准**。」",
+        "spec/P10 AI预留与测试部署开发规格说明书.md:662（未改动的上下文行）——「D20 （文档治理）本 SPEC 的文件名与版本 … 开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在** …」",
+        "spec/P10 AI预留与测试部署开发规格说明书.md:666-681（新增 D23~D38，每条末列引用 §3.2.2 / §3.2.0(2)，如 D26「18 场景「全部通过」」、D24「AUTH-E2E-11/12（`TEST_VIEWER` …）」）",
+        ".wolf/STATUS.md:41（新增）——「**SPEC 偏离登记 D23~D38 已回写**（该 SPEC 实际是 **V1.0** ⇒ D20）。」（与 master-plan 新写的「以 V1.3.1 为准」互相打架）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 D23~D38 原样搬到 `spec/PCS-SPEC-P10 V1.3.1 …md` 的偏离登记章节（权威那份），并在 V1.0 那份把 D20 改为「本文件为 V1.0（14 场景）；P10-B 起以 V1.3.1 为准，D23~D38 见 V1.3.1」；同时把 STATUS.md:41 改成「D23~D38 已回写进 V1.3.1（权威那份）」，消除三处口径打架。"
+    },
+    {
+      "title": "9 个新缺陷的解法没有回写 docs/solutions/",
+      "severity": "P2",
+      "file": ".wolf/STATUS.md",
+      "line": 88,
+      "why_it_matters": "CLAUDE.md 的知识库条明确要求「新增解法后回写一份，别只留在提交信息里」——解法要落到 `docs/solutions/`（按 problem_type 分目录、带 YAML frontmatter）。本批修了 9 个真缺陷，其中至少 4 条是**可复用的新解法域**：车道驱动必须与生产一致（asyncpg vs psycopg 的类型严格性）、契约与 DB 可空性对齐（响应枚举必填 → DB 可空 ⇒ 500）、前端两条取数通道（axios 拦截器 vs 裸 fetch）、守门测试必须与被守卫机制隔离（车道锁）。STATUS.md 自己宣称这三条教训「已进 cerebrum / docs/solutions」，但本批的改动文件清单里没有任何 `docs/solutions/**` 文件 ⇒ 那句断言不成立。后果：这些坑下一次仍会被踩（仓内既有先例：bug-2162 的修法写成了 `docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md`，bug-2170 与既有 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` 同形）。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "CLAUDE.md《知识库》：「`docs/solutions/` — 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type` 分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。在已记录领域做实现或排障时相关；**新增解法后回写一份，别只留在提交信息里**。」",
+        ".wolf/STATUS.md:86-92（新增）——「## 教训（**已进 cerebrum / docs/solutions**，此处只留最新三条）」「- **车道的驱动必须与生产一致** ⇒ 否则「int 塞进 VARCHAR」这类缺陷**隐形**（bug-2166）。」「- **前端有两条取数通道**（axios 拦截器 vs 裸 `fetch`）⇒ 后者**默认没有 token** ⇒ 真后端通道才抓到（bug-2169）。」「- **守卫测试必须与被守卫的机制隔离** ⇒ 车道锁 ⇒ 守门测试抢同一把锁 ⇒ 测的不是它声称的东西（bug-2170）。」",
+        "本批改动文件清单（files.txt）不含任何 `docs/solutions/**` 条目；对应内容只出现在 .wolf/buglog.json（新增 bug-2163~2170）与代码注释里",
+        "pcs-backend/tests/e2e_flows/conftest.py:113-124（新增 `_async_url`）——「⚠️ **为什么必须换**（2026-11-16 · T7 实测）：车道的 `DATABASE_URL` 是 `postgresql+psycopg://` ⇒ async 部分若也用 psycopg ⇒ ⇒ **驱动与生产不一致** ⇒ ⇒ **asyncpg 的类型严格性看不到**」（同款可复用解法）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "按 problem_type 各回写一份：① `docs/solutions/testing-issues/test-lane-driver-must-match-production-driver.md`（asyncpg vs psycopg 的类型严格性差异 + 「单测照绿、真库炸」）；② `docs/solutions/database-issues/response-enum-nullable-must-match-db-nullability.md`（bug-2167：DB 可空列 ⇒ 响应枚举必填 ⇒ ResponseValidationError 500）；③ `docs/solutions/frontend-issues/raw-fetch-bypasses-axios-token-interceptor.md`（bug-2169）；④ `docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md`（bug-2170）。每份带 module / tags / problem_type / severity frontmatter，并让 STATUS.md 的「已进 docs/solutions」变成事实。"
+    },
+    {
+      "title": "批末浏览器回归与 QA 报告尚未产出",
+      "severity": "P2",
+      "file": ".wolf/STATUS.md",
+      "line": 51,
+      "why_it_matters": "CLAUDE.md 把 Per-Batch QA Gate 定成「每批 sprint 的最后一个 commit 落地后，开下一批之前」的强制闸门，流程包含浏览器回归（login 200 + dashboard 渲染 + 各 Page 路由可达 + 控制台无 error + 网络无 404）与报告落 `.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-<batch>.md`。本批动了前端（`DashboardPage.tsx`、`routeWrappers.tsx`）并新增两条真后端 Playwright 规格，却连报告都没生成（STATUS 自认「本轮还没跑」）。后果：本批不能被当作已闭环，也不能据此开 P10-C/D/E/F；同时 QA 报告缺失意味着上面那条「6 个页面不达标」的分类与豁免没有落纸证据（`.gstack/` 已 gitignore ⇒ 报告不会进仓库，结论必须同步进 TODOS.md 或提交信息）。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "CLAUDE.md《Per-Batch QA Gate》「## 何时跑：每批 sprint 的**最后一个 commit 落地后**，开下一批之前」；流程 2「浏览器：login 200 + dashboard 渲染 + 各 Page 路由可达 / 控制台：无 antd / React / TypeScript error / 网络：核心 mock 端点…无 404」；流程 3「**报告**：`.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-<batch>.md`」",
+        ".wolf/STATUS.md:47-51（新增）——「1. **T8 收口**：批末闸门（`alembic check` 两库各一进程 · `scripts/pytest_pg.sh` · `check_openapi_payload_coverage.py` · `check_migration_idempotency.py` · 前后端全量 · Playwright 两条通道）· **gstack-qa 浏览器回归报告**（`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-16-p10b.md`）⇒ ⇒ **本轮还没跑**（T8 Step 2~5）。」",
+        "本批含前端改动：pcs-frontend/src/pages/DashboardPage.tsx（新增「{selected ? <InputChecklistPanel projectId={projectId} /> : null}」）、pcs-frontend/src/pages/routeWrappers.tsx（`useFetch` 改用会话 token）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "开下一批之前把 T8 跑完并把报告写到 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-16-p10b.md`；因为 `.gstack/` 已 gitignore，报告里的关键结论（尤其是 TODO-159/160 那 6 个页面的严重度分类与豁免清单）必须同步进 `TODOS.md` 或提交信息，否则报告无法随仓库分发给同事与后续会话。"
+    }
+  ],
+  "residual_risks": [
+    "计划文件 `docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md` 的 Global Constraints 明写「⚠️ **本批不改 `alembic/versions/*`**（种子只造数据，不改 schema）⇒ 无迁移漂移风险 ⇒ **不跑 `alembic check`**」，与 CLAUDE.md《发布前检查（必做）》第 1 条「`alembic check` 在两库（pcs / pcs_test）各 exit 0 —— ⚠️ 必须**独立进程**跑，且**直查库**确认 revision 与目标列」冲突（.wolf/STATUS.md:47 又把该项列进 T8 收口 ⇒ 三处口径不一致）⇒ 批末必须独立进程各跑一次并直查库的 `alembic_version` + 目标列，不能只信命令输出。",
+    "PCS-UI-SPEC §0 写明「本文档与 OpenAPI 冲突时，以 OpenAPI 为准，并在本文档修订记录中登记」。本批把 `StreamResponse.case_type` 由必填枚举改为可空（openapi.json / openapi-baseline.json / 前端 api.d.ts 三处都改了），但 `docs/PCS-UI-SPEC.md` 不在本次改动中 ⇒ 若 UI-SPEC 规定了工况字段的必填性/枚举口径，需要按该条补一次修订登记。",
+    "`pcs_pgtest` 的 public schema 现在留有 e2e-* 流程级种子残料（compose 的 `seed` 服务已串上两个种子脚本），而 CLAUDE.md《发布前检查》的清单只列 pcs / pcs_test 两个库 ⇒ 这份残料不会在发布前被例行清理/登记（TODO-154 已登记该风险，但清单本身未加项）。",
+    "bug-2165 根因未闭环（任务侧 `row.data_version = digest` 执行了但库里仍为 NULL）⇒ 「E2E 车道 28 passed + 1 xfailed」里的报表审计哈希断言是 xfail ⇒ 报表审计链的哈希今天实际仍是空的，批末的全绿数字不代表该能力可用（已登记 TODO-158）。",
+    "`.wolf/cerebrum.md` 顶部自定「本文件的目标体积：≤ 24 000 token」，本批新增两条 Do-Not-Repeat 后按其自述口径已 ≈27 000 token，且新写明「**本次未清退**」⇒ 违反该文件自己写的清退规则「加新条目前先在**同一主题**里取代或归档一条旧的」（该规则写在 cerebrum.md 自身，不在 CLAUDE.md，故只作残余风险登记）。"
+  ],
+  "testing_gaps": [
+    "跨项目「与不存在同形」的断言只覆盖了单对象端点（`GET /api/v1/projects/{id}`、物流列表）；CLAUDE.md《物流面项目守卫》明确批量端点形状不同（`POST /streams/batch-submit` ⇒ **207** + 失败项 `reason=SIM_STREAM_NOT_FOUND`）⇒ 批量端点上的跨项目「同形」未被 E2E 覆盖（枚举向量只守住了单对象族）。",
+    "E2E-018（`tests/e2e_flows/test_e2e_schema_parity.py`）只直查两库的 `alembic_version`，未按 CLAUDE.md《测试前检查》要求「**直查库**确认 revision **与目标列存在性**」补列级检查 ⇒ 列级漂移（正是历史 bug-137 的形状）在该用例里仍看不见。",
+    "契约改动 `StreamResponse.case_type` 由必填枚举改为可空（bug-2167 的修法）没有一条显式用例断言「`case_type` 为 NULL 的物流在响应里出现、且非空时枚举值仍受控」——目前只是被种子（`_ensure_streams` 不填 `case_type` ⇒ NULL）隐式覆盖 ⇒ 将来有人把 `case_type` 又改回必填，E2E 会以「整个端点 500」的形式红，而不是以一条语义清晰的断言红。"
+  ]
+}

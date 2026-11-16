@@ -1,0 +1,242 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "计算端点在运行时写配置主表（pipe_classes）",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 95,
+      "why_it_matters": "「算一次管道压降」现在会往**配置主表** `pipe_classes` 插一行。三个具体代价：(1) 落库层从「只写业务结果」变成「写业务结果 + 写主数据」，主数据的生命周期被计算请求隐式创建；(2) 这行 `source=\"COMPANY_STD\"` ⇒ 它会出现在**公司管级列表 UI** 里，用户看到一条叫「碳钢标准（链计算占位）」的公司标准，而它没有 ConfigAsset / 版本 / 5 态审批 ⇒ 与 `PipeClassService.create`（`app/services/pipe_class_service.py:173`）造出来的行形态不同 ⇒ 公司管级列表里出现两种来源的、状态语义不同的行；(3) 手写 ORM 构造绕过了 canonical 的创建路径（`PipeClassService.create` / `create_with_config_asset`）⇒ 这条占位行永远不在配置资产的审批/版本链里。配置数据的正确落点是数据迁移（仓里已有先例：`alembic/versions/p9_013_bind_default_record_matrix.py` 就是插一条矩阵行），不是运行时兜底。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138 — 新增 `_ensure_placeholder_pipe_class`：手写 `PipeClass(...)` + `db.add` + `await db.flush()`，并写死 `source=\"COMPANY_STD\"` / `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` 位于 `persist_pipe_chain_result` 主路径（每次链计算都走）",
+        "pcs-backend/app/services/pipe_class_service.py:173-187 — canonical 创建路径 `PipeClassService.create`（走 `PipeClassCreate` + `ConfigAsset` 版本链 + status=DRAFT），本 diff 的兜底**绕过**了它",
+        "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 占位行必然出现在公司管级列表"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "删掉 `_ensure_placeholder_pipe_class` 与 `PLACEHOLDER_MATERIAL_CLASS`，改成一条**数据迁移**插 `CS-STD` 这行（形状照 `PipeClassService.create` 的 payload 语义：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\":…,\"max\":…}`、`sch_series_json` 用仓里既定的 DN→Sch 形状）；`persist_pipe_chain_result` 恢复成纯落库。若坚持运行时兜底，则至少改为调 `PipeClassService.create`（同一套版本/状态语义），而不是手写 ORM 行。"
+    },
+    {
+      "title": "同一张 pipe_classes 表有两套互斥的行定义",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 101,
+      "why_it_matters": "「一条让 `piping_results.material_class` 外键有目标的管级」这个概念，现在有两份互不相干的实现：运行时的 `CS-STD`（pipe_chain_persist.py:92，dn_series_json={min,max}、sch_series_json={min,max}）与种子的 `E2E-SEED-CS`（本文件，dn_series_json={\"DN150\": 1.0}、sch_series_json={\"DN150\": 40.0}）。更糟的是 `sch_series_json` 这一列有**三份互相矛盾**的真相：ORM 声明 `Mapped[list]`（app/models/config_domain.py:249）、Pydantic 响应声明 `dict[str, str]`（app/schemas/pipe_class.py:61）、两个写入方各写各的。种子的那份值是 float `40.0`（违反 `dict[str,str]`）、键是 DN（违反 ORM 的 list）——它只是因为 `source=\"E2E_SEED\"` 不在 `list_company` 的过滤范围内而**永远不会被响应校验碰到** ⇒ 一颗定时炸弹：任何人把它改成 COMPANY_STD 或给该端点加一个按 project 过滤的变体，列表端点立刻 500。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:101 `FLOW_PIPE_CLASS_ID = \"E2E-SEED-CS\"` 与 515-517 `allowable_stress_json={\"20#\": 137.0}, dn_series_json={\"DN150\": 1.0}, sch_series_json={\"DN150\": 40.0}`",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 `PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"` 与 125-128 `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
+        "pcs-backend/app/models/config_domain.py:249 `sch_series_json: Mapped[list] = mapped_column(JSONB)`（ORM 说 list）",
+        "pcs-backend/app/schemas/pipe_class.py:61-63 `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射…\")`（schema 说 dict[str,str]）",
+        "pcs-backend/app/services/pipe_class_service.py:149 `select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 种子的 E2E_SEED 行从不出现在列表端点 ⇒ 其形状错误当前不可见"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "先定 `sch_series_json` / `dn_series_json` 的**唯一**形状（改 ORM 注释或改 schema，二选一），再让两个写入方共用**同一个构造器**（例如 `app/services/pipe_class_service.py` 里加一个 `build_placeholder_pipe_class()` 或一个数据迁移），删掉 seed 里那份独立手写的 JSON 形状。"
+    },
+    {
+      "title": "seed_e2e_flows 逐字复制了 seed_e2e_data 的 get-or-create",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 243,
+      "why_it_matters": "两个种子脚本现在各自持有一份**逐字相同**的 `_get_or_create`（含 savepoint + IntegrityError + 重读赢家的三步竞态处理），以及各自一份 `_delete_own_rows`（两份互不相同的 FK 删序清单）、`_ensure_workspace` / `_ensure_project` / `_ensure_users` / `_ensure_grants` / `_ensure_streams`（同构不同参）。两份真相源意味着：竞态处理被修好（这正是该 helper 存在的理由）时只改得了一边 ⇒ 另一边的种子在并发下仍会炸；新增实体时两份删序清单都要记得改 ⇒ 漏一份 ⇒ `--reset` 撞 FK。这不是「两个脚本各管一段业务」，而是同一个「幂等种子」的 house pattern 被抄了两遍。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:243-270 — `_get_or_create(db, match, build)`：`db.begin_nested()` + `flush()` + 捕获 `IntegrityError` 后重读赢家",
+        "pcs-backend/scripts/seed_e2e_data.py:108-140 — `_get_or_create(db, match, build)`：**逐字相同**的实现与注释（同一段「house pattern · 评审 #9」的三步说明）",
+        "pcs-backend/scripts/seed_e2e_flows.py:278-321 与 pcs-backend/scripts/seed_e2e_data.py:80-105 — 两份 `_delete_own_rows`，FK 删序清单各写一份（前者 9 张表，后者 4 张表）"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "抽一个共享模块（例：`pcs-backend/scripts/seed_common.py`，放 `_get_or_create` + 一个按固定 id 集合删行的 `delete_by_ids`），两个种子脚本都 `from scripts.seed_common import get_or_create`；删序清单按实体归属各自保留，但删除动作走同一个 helper。"
+    },
+    {
+      "title": "批准链角色在 helpers 与种子之间有两份未钉住的副本",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/helpers.py",
+      "line": 206,
+      "why_it_matters": "`CHAIN_ROLES = (\"CHECKER\", \"REVIEWER\", \"APPROVER\")` 是种子里 `FLOW_MATRIX_STEPS` 的 `sign_role` 序列的**第二份副本**，注释还明说「与种子的签署矩阵一致」——但一致性**没有任何机制保证**：全仓 `FLOW_MATRIX_STEPS` 只出现在种子脚本里，`CHAIN_ROLES` 只出现在 helpers 与一个断言里，两边**没有一处比对**。矩阵一改（加一级、改角色、换顺序），`approve_record_steps` 仍按旧角色发请求 ⇒ 端点返 403 `APPROVAL_ROLE_MISMATCH` ⇒ 症状是「端点坏了 / 批准链卡住」，排查方向会跑到业务代码上。仓里已经有正确做法的样板：`ALLOWED_ROLES` 那份 copy 就被 `test_lane_smoke.py::test_role_headers_rejects_a_role_outside_the_allowlist` 逐个比对钉住——同一批新代码里，一个 copy 钉住了、另一个没钉。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/helpers.py:201-206 — 「⚠️ **与种子的签署矩阵一致** ⇒ CHECKER→REVIEWER→APPROVER」+ `CHAIN_ROLES: tuple[str, ...] = (\"CHECKER\", \"REVIEWER\", \"APPROVER\")`",
+        "pcs-backend/scripts/seed_e2e_flows.py:470-492 — `FLOW_MATRIX_STEPS` 的 `sign_role` 依次为 CHECKER / REVIEWER / APPROVER（另一份真相）",
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:172-191 — 对照样板：`ALLOWED_ROLES` 的 copy 被逐个比对钉住；`CHAIN_ROLES` 全仓无任何比对测试",
+        "grep：全仓 `FLOW_MATRIX_STEPS` 仅出现在 scripts/seed_e2e_flows.py；`CHAIN_ROLES` 仅出现在 tests/e2e_flows/helpers.py 与 test_e2e_record_workflow.py:74"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "删掉手写的 `CHAIN_ROLES`，改为从种子里派生：`CHAIN_ROLES = tuple(s[\"sign_role\"] for s in FLOW_MATRIX_STEPS)`（helpers.py 本来就 import 了 `scripts.seed_e2e_flows`）⇒ 一处真相，矩阵一改链自动跟着改，副本问题消失。"
+    },
+    {
+      "title": "bump_record 在测试文件里被逐字重写了一遍",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/test_e2e_record_workflow.py",
+      "line": 48,
+      "why_it_matters": "`helpers.py:353 bump_record` 已经存在并且被 `test_e2e_change_impact.py` 正常使用；`test_e2e_record_workflow.py:48 _bump_record` 把它**逐字抄了一份**（同样的 `design_press + 0.1`、同样的 `compute_record_hash`、同样的 `await db.flush()` 后算哈希）。两份实现意味着「哈希怎么算、什么时候算」这条规则有两处；将来 CIA 的哈希判据变了（例如改成含更多列），改了 helpers 那份，record_workflow 的变更流仍按旧规则 ⇒ 那条用例会绿着验证一个已失效的判据。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/helpers.py:353-369 — `async def bump_record(e2e_client, record_id) -> str`：`record.design_press = float(record.design_press or 1.0) + 0.1` → flush → `record.record_hash = compute_record_hash(record)` → commit → assert hash",
+        "pcs-backend/tests/e2e_flows/test_e2e_record_workflow.py:48-61 — `async def _bump_record(e2e_client, record_id) -> None`：同一段逻辑再写一遍（该文件的 import 列表 tests/e2e_flows/helpers.py:27-34 里**没有** `bump_record`）",
+        "pcs-backend/tests/e2e_flows/test_e2e_change_impact.py:44,103,137,153 — 同一场景里用的是 helpers 的 `bump_record` ⇒ 同一仓内两种写法并存"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "删掉 `test_e2e_record_workflow.py` 里的 `_bump_record`，改成 `from tests.e2e_flows.helpers import bump_record` 并把第 144 行的 `await _bump_record(...)` 换成 `await bump_record(e2e_client, record_id)`（helpers 版还多返回一个哈希，未来断言也用得上）。"
+    },
+    {
+      "title": "会话工厂挂在 client 的私有属性上（14 处 type: ignore）",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/conftest.py",
+      "line": 294,
+      "why_it_matters": "车道把 `session_factory` 藏进 `httpx.AsyncClient` 实例的私有属性 `_e2e_session_factory`，于是「直查隔离 schema」这件事在 7 个文件里靠 `# type: ignore[attr-defined]` 维持（helpers.py 5 处 + 4 个测试文件 + conftest 1 处）。这是把 fixture 契约藏进一个约定俗成的私有属性里：类型检查器永远看不见它，属性名一改要靠全仓 grep 才能找齐 14 个点；更根本的是**「要一个 DB session」被迫先造一个 HTTP client**——这正是 Feature Envy：helpers 的 `make_record` / `bump_record` / `link_lineage` / `get_record_state` 只需要 session，却都得接一个 client 参数。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/conftest.py:294 — `client._e2e_session_factory = factory  # type: ignore[attr-defined]`（把 DB session factory 挂到 HTTP client 的私有属性上）",
+        "pcs-backend/tests/e2e_flows/helpers.py:230,362,391,425,456 — `async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]`（5 处）",
+        "pcs-backend/tests/e2e_flows/test_e2e_ai_audit.py:69 · test_e2e_permission_matrix.py:177 · test_e2e_record_workflow.py:55 · test_e2e_report.py:167 · test_e2e_deliverable_rev.py:154 · test_e2e_lane_smoke.py:47,123 — 又 8 处同样的私有属性取用",
+        "pcs-backend/tests/e2e_flows/helpers.py:209-215 — `make_record(e2e_client, *, project_id, …)` 的第一个参数就是 client，但它只需要 session ⇒ 边界反了"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 factory 提成**独立 fixture** `e2e_session_factory`（function 级，与 `e2e_client` 同循环；`e2e_client` 改为依赖它），然后把 helpers 的签名从 `make_record(e2e_client, …)` 改成 `make_record(session_factory, …)`、测试里直接 `async with e2e_session_factory() as session` ⇒ 删掉 14 处 `# type: ignore[attr-defined]` 与那套私有属性协议，Feature Envy 一并消掉。"
+    },
+    {
+      "title": "useFetch 是绕过 axios 拦截器的第二套 HTTP 通道",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/routeWrappers.tsx",
+      "line": 87,
+      "why_it_matters": "本 diff 给 `useFetch` 手工拼 Authorization 头（`Bearer ${token}`），于是前端出现**两条取数通道**：`src/api/client.ts` 的 axios 实例（有 baseURL、请求拦截器注入 token、响应拦截器在会话型 401 上 `clearSession()` + 跳 `/login`）与这里的裸 `fetch`（无 baseURL、无响应拦截器、`.catch(() => {})` 静默吞错）。代价有三：(1) token 取法被复制成两份，改「token 从哪来」要改两处；(2) **401 语义分叉**——这些页面上会话过期不会清 session、不会跳登录页，而是永远停在「加载中…」；(3) 路径里写死 `/api/v1` 前缀，而 axios 的 baseURL 已经是 `/api/v1` ⇒ 两条通道的 URL 口径还不一致，将来改前缀要改两处。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/routeWrappers.tsx:85-92 — `const token = useAuth.getState().accessToken; const authorization = token ? `Bearer ${token}` : DEV_BEARER; void fetch(path, { headers: { Authorization: authorization } }).then((r) => (r.ok ? r.json() : null)) … .catch(() => {/* offline / unhandled: keep empty fixtures */})`",
+        "pcs-frontend/src/api/client.ts:6-14 — canonical 通道：`api = axios.create({ baseURL: '/api/v1' })` + 请求拦截器 `config.headers.Authorization = `Bearer ${token}``",
+        "pcs-frontend/src/api/client.ts:51-66 — 响应拦截器：会话型 401 ⇒ `useAuth.getState().clearSession()` + `window.location.href = '/login'`（裸 fetch 通道完全没有这一段）",
+        "pcs-frontend/src/pages/routeWrappers.tsx:107,159,169,181,185,189,212,331,335 — 9 个路由的取数都走这条裸 fetch 通道"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把 `useFetch` 改成走 canonical 的 axios 实例：`const { data } = await api.get<T>(path.replace(/^\\/api\\/v1/, ''));`（去掉重复的 `/api/v1` 前缀，交给 baseURL）⇒ token 注入、401 清 session、baseURL 三件事全部回到 `src/api/client.ts` 一处，前端只剩一条 HTTP 通道。"
+    },
+    {
+      "title": "前端手抄种子常量，且矩阵名已与种子对不上",
+      "severity": "P2",
+      "file": "pcs-frontend/e2e/real_backend_flows.spec.ts",
+      "line": 41,
+      "why_it_matters": "跨语言边界的常量靠**手抄**：`FLOW_PROJECT_ID`（种子里是 `uuid5(NAMESPACE_DNS, \"pcs-e2e-flows-project\")` 的结果）、`STREAM_NAME`、`DELIVERABLE_TITLE`、`MATRIX_NAME` 四个值在 Python 与 TS 各存一份，没有任何生成或校验机制 ⇒ 种子里那个名字一改，前端 spec 静默地查另一个项目/另一条矩阵，症状是「页面空着」而不是「常量过期」。而且**已经有一份对不上了**：spec 注释写「种子签署矩阵名（`_ensure_matrix`）」，值是 `DEFAULT_RECORD_3_LEVEL`，而种子的 `_ensure_matrix` 写的是 `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\"` ⇒ 这条断言要么红，要么在断一条**不是种子那条**的矩阵（迁移 p9_013 插入的内置矩阵）⇒ 断言与被测对象脱钩。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_flows.spec.ts:32-41 — `const FLOW_PROJECT_ID = '2488b011-14fc-584b-966e-1e2dfaeb9eb7';` / `const STREAM_NAME = 'E2E-FLOW-S-001';` / `const DELIVERABLE_TITLE = 'E2E 流程级种子计算书';` / `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`，注释分别写着「（`scripts/seed_e2e_flows.py::FLOW_STREAM_NAMES`）」「（`_ensure_matrix`）」",
+        "pcs-backend/scripts/seed_e2e_flows.py:583-584 — `_ensure_matrix` 造的是 `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\"` ⇒ 与 spec 的 `MATRIX_NAME` 不一致",
+        "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"` ⇒ spec 断的其实是迁移插入的内置矩阵，不是 E2E 种子那条",
+        "pcs-backend/scripts/seed_e2e_flows.py:80-117 — 种子 id 全部由 `_uid(\"pcs-e2e-flows-*\")` 派生 ⇒ 前端那串 uuid 是手工反推出来的，没有生成链路"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "让种子把自己的 id/名字吐成一份机器可读产物（如 `scripts/seed_e2e_flows.py --print-ids` 写 `pcs-frontend/e2e/seed-ids.json`），前端 spec import 那份 JSON（替代 4 个手抄常量）⇒ 跨语言只留一份真相；同时把 `MATRIX_NAME` 改成种子实际用的 `E2E_FLOWS_RECORD_3_LEVEL`（或明确断内置矩阵并改注释）。"
+    },
+    {
+      "title": "schema 一致性检查塞进了隔离车道，还去读开发库",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py",
+      "line": 57,
+      "why_it_matters": "这条用例断的是 **`pcs` 与 `pcs_test` 两个开发库的 `alembic_version` 是否相同**——它既不用车道的隔离 schema，也不用车道自己的库（它从 `.env` 派 URL 连开发库）。它被标成 `@pytest.mark.e2e` ⇒ **只在 E2E 车道跑** ⇒ 而 E2E 车道是「批末跑一次」的 ⇒ 这条「两库版本一致」的发布前检查实际上**几乎不会执行**，可它偏偏占了 E2E 车道的一个名额；同时它让这条车道**不再 hermetic**（开发库不可达/未迁移 ⇒ 车道红，且红的理由与车道本身无关）。职责错位：这是发布前检查清单里的条目，不是端到端场景。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:57-76 — `@pytest.mark.e2e async def test_e2e_018_pcs_and_pcs_test_schema_versions_match()`，URL 来自 `dotenv_values(BACKEND_ROOT / \".env\")` ⇒ 连的是开发库 `pcs`/`pcs_test`",
+        "pcs-backend/tests/e2e_flows/conftest.py:1-19 — 车道的定义是「**隔离 schema** · 真 PG」，`e2e_schema` fixture 的隔离 schema 与这条用例无关",
+        "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:1-16 — 文件自己的 docstring 承认这是「两库 schema 版本一致」的发布前性质检查",
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:103-158 — 同车道里的隔离守卫用例确实用的是隔离 schema ⇒ 两条用例的主题并不属于同一层"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把它从 `tests/e2e_flows/` 挪到 `tests/scripts/`（或发布前检查脚本 `scripts/gate_alembic_check.py` 附近），用**不带 e2e marker** 的方式在默认车道/发布检查里跑；E2E 车道只留「隔离 schema 内部」的用例 ⇒ 车道与发布检查各归其位，且这条检查真的会跑。"
+    },
+    {
+      "title": "scripts/ 被当成测试 fixture 的公共库",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/helpers.py",
+      "line": 228,
+      "why_it_matters": "测试层的 fixture 数据住在**CLI 脚本**里：`helpers.py` 从 `scripts.seed_e2e_flows` 取 `PIPING_RECORD_PAYLOAD`（造记录的 21 字段模板），`conftest.py` 从同一个脚本取全部 id 与角色映射。`scripts/` 是个装着 CLI 入口的目录，不是包（靠 namespace package 被 import 进来），现在却被当公共库用 ⇒ 后果是「测试夹具的真相源」与「一个运维脚本」耦合：这个脚本为了当库用而不断加 `__all__`（scripts/seed_e2e_flows.py:773-794 已经列了 20 个常量），脚本的重构会牵动测试，测试想加一个 fixture 字段就得改一个 CLI 脚本。分层上，生产/运维脚本是上层，测试夹具是下层——依赖方向反了。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/helpers.py:226-228 — `from app.models.calc import PipingResult` / `from app.services.calc_lineage import compute_record_hash` / `from scripts.seed_e2e_flows import PIPING_RECORD_PAYLOAD`",
+        "pcs-backend/tests/e2e_flows/conftest.py:217-227 — `from scripts.seed_e2e_flows import (FLOW_DELIVERABLE_ID, FLOW_EQUIPMENT_ID, …, seed_flows)`",
+        "pcs-backend/tests/e2e_flows/conftest.py:317 — `from scripts.seed_e2e_flows import ROLE_TO_USERNAME, USERNAME_TO_ROLE`",
+        "pcs-backend/scripts/seed_e2e_flows.py:773-794 — `__all__` 已膨胀到 20 个常量名，纯粹是为了让这个脚本可被当库 import"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把种子用到的**常量**（id、角色映射、`PIPING_RECORD_PAYLOAD`）抽到一个中立模块（例如 `pcs-backend/e2e_seed/constants.py`，或 `app/testing/e2e_seed_data.py`），由 `scripts/seed_e2e_flows.py` 与 `tests/e2e_flows/{conftest,helpers}.py` **共同** import；脚本本身只保留「灌数据」的行为，测试不再从 CLI 脚本里取夹具。"
+    },
+    {
+      "title": "preview_streams_json 的注释写错了对手方形状",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/sim_imports_query.py",
+      "line": 361,
+      "why_it_matters": "新增的读侧归一分支本身是对的（列里存的是 list），但它上面那段注释**写反了对手方**：「而 SIM/Excel 导入存 **dict**（`{\"streams\": [...]}`）」——实际上两个写入方 `import_service.py:496` 与 `:612` 都存 **list**（`preview_streams_json=preview_dict.get(\"preview_streams\", [])`），全仓没有任何写入方存 `{\"streams\": […]}`。注释是后来者读到的唯一规格，它会让人以为「改成 dict 是合法写法」⇒ 下一个写入方照着注释写 dict ⇒ 读侧那个 `isinstance(payload, list)` 分支就再也盖不住了。同时模型注解 `preview_streams_json: Mapped[dict]`（app/models/sim_import.py:95）仍是错的，本 diff 加了分支却没把注解对齐。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/api/v1/sim_imports_query.py:360-367 — 注释「**PRO/II 导入**把 preview 存成 **list**… 而 **SIM/Excel 导入存 dict**（`{\"streams\": [...]}`）」+ `payload = imp.preview_streams_json` / `if isinstance(payload, list): return {\"streams\": payload}`",
+        "pcs-backend/app/services/import_service.py:496 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**",
+        "pcs-backend/app/services/import_service.py:612 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**（两个写入方形状相同）",
+        "pcs-backend/app/models/sim_import.py:95 — `preview_streams_json: Mapped[dict] = mapped_column(JSONB, default=dict)` ⇒ 注解与实际写入的 list 不符"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "把注释改成事实（两个写入方都存 list；读侧把 list 包成 `{\"streams\": […]}` 以满足端点声明的 dict 响应），并把模型注解改成 `Mapped[dict | list]`（或 `JSONB`）——让注解与真实形状一致，下一个写入方才不会照着旧注解再写一种形状。"
+    },
+    {
+      "title": "test_lane_smoke 里的 text_ 辅助函数是死代码",
+      "severity": "P3",
+      "file": "pcs-backend/tests/e2e_flows/test_lane_smoke.py",
+      "line": 247,
+      "why_it_matters": "`text_()` 定义后全文件零引用（同文件的 SQL 都在函数体内直接 `from sqlalchemy import text`）——新文件里的死代码，读者会以为有一条「统一走 text_ 短别名」的约定。顺手删掉即可。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_lane_smoke.py:247-251 — `def text_(sql: str): \"\"\"`sqlalchemy.text` 的短别名（避免在函数体里到处 import）。\"\"\"` + `from sqlalchemy import text` + `return text(sql)`",
+        "grep：`text_(` 在 tests/e2e_flows/ 下只出现在这一处定义处，无任何调用"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "删掉 `text_`（第 247-251 行）——文件里没有第二个使用者。"
+    }
+  ],
+  "residual_risks": [
+    "车道与守卫脚本的职责边界本身是干净的：`scripts/pytest_e2e.sh` 是纯薄封装（只 export 两个环境变量后 exec `pytest_pg.sh`），三道 fail-closed 闸门与 flock 互斥锁都只存在于 `pytest_pg.sh` 一处，并由 `tests/scripts/test_pytest_e2e_gate.py` 静态钉住（不许出现 `uv run pytest` / 不许导 DATABASE_URL / 必须委派）。这一条**没有发现**结构问题。",
+    "`pytest_pg.sh` 的 `-m \"$PG_PYTEST_MARK\"` 会覆盖 `pyproject.toml` addopts 里的 `-m 'not visual'` ⇒ 两条车道都跑 visual 标记的用例（PG 车道是既有问题，本 diff 只是把 marker 参数化后沿用了同一路径）。",
+    "e2e 车道的隔离 schema 每次会话跑一次完整 `alembic upgrade head`（conftest.py:176-183，timeout 900s）⇒ 车道耗时与迁移时长强耦合；迁移变慢时车道会先超时而不是失败得更准。",
+    "`tests/e2e_flows/` 与 `tests/e2e/` 同名不同义（后者是 12 条既有用例的所在地）——目录命名的这层区分只在 conftest 的 docstring 里解释，未来有人新建 `tests/e2e/` 下的文件时不会看到那段说明。",
+    "本批多处新增注释里记录了「为什么」与踩坑史，密度很高；它们大多带约束或跨文件事实，但个别（见 preview_streams_json 那条）会误导后来者，建议在后续批里顺手校准。"
+  ],
+  "testing_gaps": [
+    "`CHAIN_ROLES`（tests/e2e_flows/helpers.py:206）与 `FLOW_MATRIX_STEPS`（scripts/seed_e2e_flows.py:470）之间**没有**一致性断言——加一条「helpers 的 CHAIN_ROLES == 种子的 sign_role 序列」的单测，才能把「注释说一致」变成「机制保证一致」（同类样板已在 test_lane_smoke.py:172-191 为 ALLOWED_ROLES 立过）。",
+    "种子的 `PipeClass` 行（scripts/seed_e2e_flows.py:515-517）的 `dn_series_json` / `sch_series_json` 形状**从不被响应校验碰到**（source=E2E_SEED 不在 list_company 的过滤范围）⇒ 没有测试能发现它与 PipeClassResponse 的 `dict[str,int]` / `dict[str,str]` 约定冲突；至少应有一条「种子造的每条 PipeClass 行都能通过 PipeClassResponse 校验」的断言。",
+    "前端 `useFetch`（裸 fetch 通道）上的 401 行为无测试：会话过期时这些页面既不清 session 也不跳登录页，与 axios 通道的行为分叉没有任何断言守住。"
+  ]
+}

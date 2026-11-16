@@ -1,0 +1,151 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "data_version 修复是死代码：审计哈希端点仍返回空串",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 118,
+      "why_it_matters": "本批声称用 `row.data_version = digest` 修掉 bug-2165（`GET /report/{id}/hash` 恒返回空串）。但 `_finalize` 在到达该行之前就 return 了：worker 先调 `report_service.generate` → `store_rendered` → `_upsert_report_file`，那里**另建**了一行 content_hash==digest、status=SUCCEEDED 的 ReportFile（且**不写** data_version）；随后 `_finalize` 的 dup 查询（content_hash==digest 且 id != 占位行 id）必然命中这行 ⇒ 走 `dup is not None` 分支 ⇒ 删占位行、return dup 的 id ⇒ **存活的那一行 data_version 仍是 NULL** ⇒ `_expected_digest` 仍返回 \"\"。本批自己的 E2E 用例仍以 `pytest.xfail` 收尾（test_e2e_report.py:90-94，注释写「根因未完全隔离」）⇒ 车道绿灯掩盖了一个没修的缺陷，而 report.py 新加的 docstring 却宣称「修在任务侧 ⇒ 端点语义不变」。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:109-111 — `await db.delete(row)` / `await db.flush()` / `return str(dup.report_file_id)`（dup 分支先于 data_version 赋值 return）",
+        "pcs-backend/app/workers/report_tasks.py:113-118 — `row.content_hash = digest` … `row.data_version = digest`（被上面那条 return 挡住，永不执行）",
+        "pcs-backend/app/services/report/report_service.py:612-618 — `row = ReportFile(report_file_id=..., project_id=..., content_hash=kw[\"content_hash\"], file_path=kw[\"relpath\"], file_format=kw[\"fmt\"], size_bytes=kw[\"size\"], status=\"SUCCEEDED\", has_assumption_page=kw[\"has_assumption\"])` —— 真正存活的那一行没有 data_version",
+        "pcs-backend/app/api/v1/report.py:494 — `return row.data_version or \"\"`（端点读的仍是空串）",
+        "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 — `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165 … 根因未完全隔离）\")`（本批自己的用例仍 xfail）"
+      ],
+      "suggested_fix": "把 `data_version` 落到**真正存活的那一行**：在 `app/services/report/report_service.py::_upsert_report_file` 建 ReportFile 时一并写 `data_version=kw[\"content_hash\"]`（并同步修 `_finalize` 的 dup 分支：`dup.data_version = digest`），再删掉 `report_tasks._finalize` 里那行永不执行的赋值与 report.py 里「已修好」的 docstring 措辞；配套把 test_e2e_report.py 的 xfail 改成真断言。",
+      "pre_existing": false
+    },
+    {
+      "title": "占位管级裸 SELECT-then-INSERT ⇒ 并发下撞主键 500",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 105,
+      "why_it_matters": "`_ensure_placeholder_pipe_class` 先 SELECT 查 `CS-STD` 在不在，不在就 INSERT。`POST /api/v1/pipe/calc-chain` 是可并发调用的写端点 ⇒ 两个并发请求都看到「不存在」⇒ 都 INSERT ⇒ 输家撞 `pipe_classes.class_id` 主键 ⇒ IntegrityError ⇒ 端点 500（且这一笔事务被污染）。本仓对这类形状已有明确house pattern（savepoint + 重读赢家），本批新写的种子脚本自己也在用，但产品代码这段没有 ⇒ 「第一次并发就 500」。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:105-111 — `exists = (await db.execute(select(PipeClass.class_id).where(PipeClass.class_id == class_id))).scalar_one_or_none()` / `if exists is not None: return`",
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:112-138 — `db.add(PipeClass(class_id=class_id, ...))` / `await db.flush()`（无 savepoint、无 IntegrityError 兜底）",
+        "pcs-backend/scripts/seed_e2e_flows.py:257-269 — 本批新脚本的house pattern：`async with db.begin_nested(): db.add(entity); await db.flush()` / `except IntegrityError: winner = (await db.execute(match)).scalar_one_or_none()`（产品代码这段没照抄）"
+      ],
+      "suggested_fix": "把 `_ensure_placeholder_pipe_class` 改成与 `scripts/seed_e2e_flows.py::_get_or_create` 同款：`async with db.begin_nested(): db.add(PipeClass(...)); await db.flush()`，捕获 `IntegrityError` 后回滚 savepoint 并重读赢家；或直接复用该 helper（提到 app/services 下供脚本与产品代码共用，避免两份真相源）。",
+      "pre_existing": false
+    },
+    {
+      "title": "计算端点往公司级参考表塞占位行 ⇒ 全员可见的假公司标准",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "line": 134,
+      "why_it_matters": "占位管级用 `source=\"COMPANY_STD\"` 落库，于是它出现在**公司级管架列表**（`GET /pipe-classes` 的 status 过滤缺省为 None ⇒ 不过滤状态）里，名字叫「碳钢标准（链计算占位）」、状态 DRAFT。也就是说：任何人在任何项目跑一次链计算，就往**共享参考数据**里永久插入一行假的公司标准，并出现在所有人的管架下拉里（还能被选中、被 fork 成项目级管级）。计算端点产生这种全局副作用，与「占位」的语义相反 —— 代码注释里「别的 source ⇒ 在下游列表里看不见」的取舍正是把它伪装成公司标准的原因。",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 — `# ⚠️ `source=\"COMPANY_STD\"` —— 公司级管架列表**只列** `source == 'COMPANY_STD'` 的行` / `source=\"COMPANY_STD\",`",
+        "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")`（status 只在显式传参时过滤）",
+        "pcs-backend/app/api/v1/pipe_classes.py:112 — `status: str | None = Query(None), keyword: str | None = Query(None),`（列表端点缺省不过滤状态 ⇒ DRAFT 的占位行也在列）",
+        "pcs-backend/app/models/config_domain.py:262-264 — `status: Mapped[str] = mapped_column(String(20), default=\"DRAFT\", ...)`（占位行落库即 DRAFT）"
+      ],
+      "suggested_fix": "不要往公司标准表塞运行时占位行：要么给 `piping_results.material_class` 一个**可空**的语义（或在 `pipe_classes` 里种一条真正的迁移种子行，source=COMPANY_STD、status=PUBLISHED 的正式「碳钢标准」），要么把占位行的 source 设成一个非 COMPANY_STD 的值并让「下游可见」这条断言改查 `GET /pipe-classes/{class_id}` 而不是公司列表。若坚持运行时建，至少要显式置 `status` 并在类名里去掉「占位」字样。",
+      "pre_existing": false
+    },
+    {
+      "title": "种子管级违反 PipeClassResponse 契约 ⇒ 按 id 查即 500",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "line": 519,
+      "why_it_matters": "本批新建的种子脚本造的 `pipe_classes` 行有三处违反出参契约：① `source=\"E2E_SEED\"` 不在 `PipeClassBase.source` 的 `Literal[\"COMPANY_STD\",\"PROJECT\"]` 里；② `dn_series_json={\"DN150\": 1.0}` 没有 min/max ⇒ 触发 `_check_dn` 的 ValueError；③ `sch_series_json={\"DN150\": 40.0}` 的值是 float，而契约是 `dict[str, str]`（pydantic v2 不把数字转字符串）。⇒ `GET /pipe-classes/E2E-SEED-CS` 必然 ResponseValidationError ⇒ 500。这行种子还会经 compose 的 `seed` 服务灌进 pcs_pgtest 的 public schema ⇒ 真后端通道的库里也躺着一颗雷。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `dn_series_json={\"DN150\": 1.0},` / `sch_series_json={\"DN150\": 40.0},` / `flange_class=\"PN16\",` / `source=\"E2E_SEED\",`",
+        "pcs-backend/app/schemas/pipe_class.py:77-79 — `source: Literal[\"COMPANY_STD\", \"PROJECT\"] = Field(..., description=\"数据来源：公司标准 / 项目自定义\")`",
+        "pcs-backend/app/schemas/pipe_class.py:62-63 — `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）\")`",
+        "pcs-backend/app/schemas/pipe_class.py:91-93 — `mn, mx = self.dn_series_json.get(\"min\"), self.dn_series_json.get(\"max\")` / `if mn is None or mx is None or not (0 < mn <= mx): raise ValueError(\"dn_series_json 需 {min,max} 且 0<min<=max（单口径 min==max 合法）\")`",
+        "pcs-backend/app/api/v1/pipe_classes.py:168-169 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)`"
+      ],
+      "suggested_fix": "把种子那一行改成契约内的形状：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\": 150, \"max\": 150}`、`sch_series_json={\"DN150\": \"40\"}`（值用字符串）；并在 tests/scripts/test_seed_e2e_flows.py 里加一条断言：种子的 PipeClass 行必须能通过 `PipeClassResponse.model_validate(row)`（这样以后 schema 一改就红）。",
+      "pre_existing": false
+    },
+    {
+      "title": "两库 schema 一致闸只比彼此 ⇒ 两库都落后也绿",
+      "severity": "P2",
+      "file": "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py",
+      "line": 73,
+      "why_it_matters": "E2E-018 是本批唯一的「两库 schema 一致」闸（CLAUDE.md 发布前检查第 1 条），但它只断言 `pcs_rev == pcs_test_rev` —— **从不与代码 head 比**。若 pcs 与 pcs_test 一起停在同一个旧 revision（CLAUDE.md 明确记过「pcs_test 长期停在 p7_s4_001 / p9_006」这类事故），该断言照样通过 ⇒ 假绿。而且它读的是**开发库**（`.env` 的 DATABASE_URL ⇒ pcs/pcs_test），把 E2E 车道的红绿绑在开发机的本地 DB 状态上：pcs_test 没对齐就必红（docstring 自己写了「不一致就登记（本批不修）⇒ 断言直接红」），pcs_test 与 pcs 都落后就假绿。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:70-76 — `pcs_rev = _revision_of(dev_url)` / `pcs_test_rev = _revision_of(test_url)` / `assert pcs_rev == pcs_test_rev, (\"两库 schema 版本不一致：pcs={pcs_rev} · pcs_test={pcs_test_rev}\" \"⇒ 登记偏离（本批不修）\")`",
+        "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:30-38 — `print(conn.execute(text(\"SELECT version_num FROM alembic_version\")).scalar_one())`（只读各库当前 revision，没有 head 的概念）",
+        "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:65-68 — `dev_url = dotenv_values(BACKEND_ROOT / \".env\").get(\"DATABASE_URL\")` / `test_url = re.sub(r\"/pcs(\\?|$)\", r\"/pcs_test\\1\", dev_url)`（断言对象是开发库，不是车道自己的隔离 schema）"
+      ],
+      "suggested_fix": "再加一条与代码 head 的比较：子进程跑 `alembic heads` 取 head revision，断言 `pcs_rev == head and pcs_test_rev == head`（两条都要，不一致就分别报出是哪一库落后）；并把「pcs/pcs_test 落后」从「断言直接红」改成显式的 known-deviation 清单（现在这样会让 E2E 车道在干净机器上永远红）。",
+      "pre_existing": false
+    },
+    {
+      "title": "仪表盘 404 修复条件不严：工作区无 project_id 时照旧 404",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/DashboardPage.tsx",
+      "line": 40,
+      "why_it_matters": "bug-2168 的成因是面板拿到**占位 projectId** `00000000-0000-0000-0000-000000000001` 去取数（2 个 404 + 控制台 error），本批改成「没选工作区就不渲染面板」。但真正的触发条件是「拿到的 projectId 是占位值」，而不是「没选工作区」：`workspaceProjectId(ws)` 在 `ws.project_id` 为 null 时**仍然**返回占位 id。而 `Workspace.project_id` 是可空的，两个种子脚本造的工作区都**没填** project_id ⇒ 选中它们之后面板照旧用占位 id 取数 ⇒ 404 与控制台 error 照旧出现 ⇒ 真后端通道「控制台无 error」的断言仍会红。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/DashboardPage.tsx:40 — `{selected ? <InputChecklistPanel projectId={projectId} /> : null}`",
+        "pcs-frontend/src/pages/DashboardPage.tsx:8-10 — `function workspaceProjectId(ws: Workspace): string { return ws.project_id ?? '00000000-0000-0000-0000-000000000001'; }`（project_id 为 null 时仍给占位 id）",
+        "pcs-backend/app/models/project.py:118-119 — `project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey(\"projects.project_id\"), index=True)`（可空）",
+        "pcs-backend/scripts/seed_e2e_flows.py:338-343 — `lambda: Workspace(workspace_id=FLOW_WORKSPACE_ID, workspace_type=\"FORMAL\", name=\"E2E Flows Workspace\", status=\"ACTIVE\",)`（无 project_id ⇒ 前端选中后仍拿占位 id）"
+      ],
+      "suggested_fix": "把渲染条件从「选了工作区」改成「拿到了真 project id」：抽一个 `const PLACEHOLDER_PROJECT_ID = '00000000-0000-0000-0000-000000000001'`，`const effectiveProjectId = selected?.project_id ?? null`，渲染条件用 `effectiveProjectId`（并在卡片标题里区分「该工作区未归属项目」）；同时给种子工作区补上 project_id（`seed_e2e_flows.py::_ensure_workspace` 与 `seed_e2e_data.py`），否则真后端通道的工作区列表里就有一个无项目的工作区。",
+      "pre_existing": false
+    },
+    {
+      "title": "签署矩阵 UI 断言匹配的是内置模板，不是种子矩阵",
+      "severity": "P2",
+      "file": "pcs-frontend/e2e/real_backend_flows.spec.ts",
+      "line": 41,
+      "why_it_matters": "用例名叫「项目绑定的矩阵与三级链可见」，但它断言的文本是 `DEFAULT_RECORD_3_LEVEL` —— 那是迁移 p9_013 落的**全局内置模板**，任何库里都恒在；而本批种子绑到项目上的矩阵叫 `E2E_FLOWS_RECORD_3_LEVEL`。签名矩阵页同时渲染全局模板表与项目绑定表，所以这条断言即使种子的矩阵/绑定完全没灌进去也会通过 ⇒ 假绿：seed_e2e_flows 的矩阵 + 绑定这条链路实际上没被 UI 流覆盖（后端 E2E 有覆盖，但 UI 这条声称覆盖的没有）。",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/e2e/real_backend_flows.spec.ts:41 — `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`",
+        "pcs-frontend/e2e/real_backend_flows.spec.ts:113-123 — `@real-backend 签署矩阵：项目绑定的矩阵与三级链可见` … `await expect(realPage.getByText(MATRIX_NAME, { exact: false })).toBeVisible();`",
+        "pcs-backend/scripts/seed_e2e_flows.py:583 — `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\",`（种子矩阵的名字不是断言里那个）",
+        "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"`（内置全局模板，恒存在）"
+      ],
+      "suggested_fix": "把常量改成种子里那个矩阵名（`MATRIX_NAME = 'E2E_FLOWS_RECORD_3_LEVEL'`），并把断言收窄到**项目绑定**那一块（给绑定表加个 testid，如 `signature-matrix-project-bindings`，断言其行文本含该矩阵名）而不是整页 `getByText`；顺带断言绑定矩阵的三级角色顺序（CHECKER→REVIEWER→APPROVER）来自绑定行而不是全局模板行。",
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "E2E 车道有一条**未声明的前置**：`test_lane_never_writes_to_the_public_schema` 用独立连接查 `public.users/projects/streams/user_projects` 的 count，而 pcs_pgtest 的 public schema 只有跑过 `scripts/compose_test_stack.sh`（migrate+seed）才有这些表；只按 `pytest_pg.sh` 的提示起 `--profile pg` 时该用例会以「relation public.users does not exist」报错，看起来像产品缺陷而不是前置缺失。",
+    "隔离 schema 只覆盖 `get_db` 依赖：任何绕过 `Depends(get_db)` 自建 session 的代码路径（如 `app/api/v1/ws.py` 的 websocket、`app.db.session.get_async_session_factory()`）仍会落到 public schema；当前 E2E 场景没走到这些路径，但「隔离」这条不变量并没有被机制强制。",
+    "`_public_snapshot` 只数 4 张表（users/projects/streams/user_projects）⇒ E2E 若写进别的表（记录、交付物、审计行…），「public 不变」这条守卫看不见。",
+    "车道互斥锁固定在 `/tmp/pcs-pgtest-lane.lock`，与 `PG_DB_NAME` 无关 ⇒ 用不同库名跑两条车道会被无谓地互斥挡住（误报「另一条车道正在跑」）。",
+    "E2E 车道读开发库 pcs / pcs_test（两库一致性用例）⇒ 车道的红绿依赖开发机本地库状态，在没有这两台库的机器/CI 上不可跑。"
+  ],
+  "testing_gaps": [
+    "`pcs-frontend/e2e/real_backend_route_sweep.spec.ts` 的两条断言实际是空的：`root` 判的是 `#root` 这个挂载点存在（SPA 挂载后恒真，与渲染了哪一页无关），`redirected` 在会话还活着时恒为 false（pushState 不清内存态 session）⇒ 路由页全挂也不会红；建议改成断言各路由的特征元素（或至少断言路由切换后 `location.pathname` 未被重写且页面标题/表格标题变化）。",
+    "并发路径没有覆盖：`_ensure_placeholder_pipe_class` 的「两个请求同时首次建 CS-STD」这条竞态没有用例（可在 PG 车道里用两个并发事务复现，断言不出现 IntegrityError）。",
+    "种子数据的「出参可序列化」没有守卫：tests/scripts/test_seed_e2e_flows.py 只按 ORM metadata 比必填列，不验证种子行能否通过对应 Response 模型 ⇒ PipeClass.source/dn_series_json/sch_series_json 这类契约违例要等真跑端点才暴露。",
+    "报表任务的两条登记路径（worker 的 `_finalize` vs `report_service._upsert_report_file`）没有对拍测试：没有用例断言「生成后的 ReportFile 行上 data_version 非空」，所以 bug-2165 这类「字段没落到存活行」的缺陷可以再次静默复发。"
+  ]
+}

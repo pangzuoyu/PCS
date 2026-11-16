@@ -1,0 +1,5 @@
+{"phase": "start", "stage": "scope", "ts": "2026-11-16T17:38:29.282016+00:00"}
+{"facts": {"changed_lines": 8659, "depth": "full", "exec_nontest_lines": 974, "size_band": "large"}, "phase": "end", "reviewers": 9, "stage": "scope", "ts": "2026-11-16T17:42:33.501494+00:00"}
+{"phase": "start", "stage": "select", "ts": "2026-11-16T17:42:33.501494+00:00"}
+{"candidates": 9, "note": "peer skipped: no allowlisted peer provider CLI present (codex/grok/composer/cursor-agent absent; CROSS_MODEL_PEERS unset) => in-process adversarial reviewer covers the lens", "phase": "end", "reviewers": 9, "stage": "dispatch", "ts": "2026-11-16T17:42:33.531325+00:00"}
+{"phase": "start", "stage": "select", "ts": "2026-11-16T17:42:33.531325+00:00"}
