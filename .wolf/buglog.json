@@ -6211,6 +6211,26 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2165",
+      "timestamp": "2026-11-16",
+      "severity": "medium",
+      "error_message": "`GET /api/v1/report/{report_file_id}/hash` 在**生成的**报表上**恒返回空哈希**（`record_hash_digest: ''`，`data_version: None`）—— 审计端点拿不到哈希（P10-B 的 E2E-009 撞出来的）",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "root_cause": "端点 `GET /report/{id}/hash` 的 `_expected_digest(row)` **读 `row.data_version`**（既有单测 `tests/api/v1/test_report.py` 就断言 `record_hash_digest == data_version` ⇒ 端点语义**没错**）⇒ 而**任务侧只写 `content_hash`**、**从不写 `data_version`** ⇒ ⇒ 端点在**真实生成路径**上永远读到 NULL ⇒ 返回空串。\n⚠️ 既有单测之所以绿：它的 fixture **手工**填了 `data_version` ⇒ **生成路径从未被覆盖**。\n⚠️ **根因未完全隔离**：已在 `_finalize` 里补 `row.data_version = digest`（赋值确实执行、运行时源码可见）⇒ 但库里**仍是 NULL** ⇒ 说明该行对象与持久化行**不是同一个**（`_mark_pending` 的返回对象与 flush 的对象脱钩），**待继续查**。",
+      "fix": "**部分修复 + 诚实标记**：① 任务侧 `_finalize` 冻结 `data_version`（语义正确的补法）；② E2E-009 里那条断言**标 `pytest.xfail`**（不假装绿）⇒ 一旦有人修好根因，这行会**自然变成真断言**（不靠人工记得改）。\n⇒ ⚠️ **未闭环**：赋值不落库的原因还没定位 ⇒ 需要单独查 `_mark_pending` 返回的对象与被 flush 的行是不是同一个。",
+      "fix_commit": "f605ab9",
+      "tags": [
+        "P10-B",
+        "E2E",
+        "report",
+        "审计哈希",
+        "待查"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
     }
   ]
 }
