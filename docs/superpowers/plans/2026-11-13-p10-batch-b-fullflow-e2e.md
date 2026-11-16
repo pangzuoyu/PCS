@@ -964,6 +964,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 | **D26** | 18 场景「全部通过」 | 本批：后端 18 条 + 前端 5 条 UI 流（UI 不重复覆盖 18 条） | **后端为权威覆盖**，前端是**抽样 UI 复验** |
 | **D27** | 项目创建后输入清单**自动生成** | 仓里**没有**任何建项目时碰清单的代码 ⇒ 真实流程是 `POST /api/v1/checklist/projects/{id}/seed` **显式** seed | **以代码为准** ⇒ E2E-001 断「显式 seed 后清单非空」⇒ SPEC 措辞修订 |
 | **D28** | AUTH-E2E-02「CHECKER 送审被拒（角色不够）」 | 代码里 `CHECKER` **过得了**粗闸（`SUBMIT_FOR_CHECK` 含 CHECKER）⇒ 403 的真因是**自审闸**（提交人角色出现在批准链里）⇒ 错误码 `APPROVAL_SELF_REVIEW_FORBIDDEN` | **以代码为准** ⇒ 矩阵断**错误码**而非只断状态码 ⇒ SPEC 的「角色不够」措辞修订 |
+| **D30** | 批准链走完后的状态词（若 SPEC 写 `APPROVED`） | 9 态里**没有 `APPROVED`** ⇒ 链尾是 **`CHECKED`**（`IN_APPROVAL` 只在链中途） | **以代码为准** ⇒ 断言精确断 `CHECKED` + `approval_step is None` ⇒ SPEC 词表订正 |
 | **D29** | 报表生成是**异步**的（HTTP 202 + 轮询） | 入队依赖 **Redis + ARQ worker** ⇒ 本批**不引 Redis/worker** ⇒ 队列不可达时端点**当场 503** ⇒ 轮询到 `SUCCESS` **不可达** | **本批用三段式**（HTTP 503 fail-closed + 直调 worker 任务体 + 产物断言）⇒ 「真过 Redis + worker」延到 **TODO-155** |
 
 - [ ] **Step 2: 跑批末闸门**
@@ -1069,7 +1070,7 @@ git commit -F <msgfile>   # 首行: docs(P10-B): 偏离登记 + 账簿 + QA 收�
 | 1 | **AUTH-E2E-11/12（`TEST_VIEWER` + 测试报告页）** | 角色不存在 · 页面属 P10-C | **本批不做**（D24）⇒ 登记 TODO ⇒ P10-C 一并做 |
 | 2 | **「E2E 在 CI 中可自动执行」** | 与「不新建 CI 流水线」的既有裁决冲突 | **本批只给本地车道**（D25）⇒ P10-F 裁决 |
 | 3 | **SPEC 的 `SYSADMIN` vs 代码的 `SYSTEM_ADMIN`** | 词表不一致 | 本批按代码写并登记（D23）⇒ 建议把 SPEC 词表订正 |
-| 4 | **E2E 车道与 PG 车道同库（`pcs_pgtest`）** | E2E 用**隔离 schema** ⇒ 不碰 public schema ⇒ 可同库 | 无需裁决（已定） |
+| 4 | **E2E 车道与 PG 车道同库（`pcs_pgtest`）** | **E2E 车道自己**用隔离 schema ⇒ 不碰 public ⇒ 可同库（⚠️ 但 **PG 车道**会写 public ⇒ 见 #14） | 无需裁决（已定） |
 | 5 | **ARQ worker 在 E2E 里要不要起** | 审计落库是异步的 | 本批**不起 worker** ⇒ 直接调写库任务 ⇒ 车道依赖更少（已定） |
 | 6 | **E2E-018 的两库口径** | SPEC 写 `pcs` 与 `pcs_test`；本机 `pcs_test` 存在 | 本批直查两库 `alembic_version` ⇒ 不一致就**登记**（不修） |
 | 7 | **TODO-141（全量测试迁 `strict_client`）** | 本批只迁**新写的**用例 | 原 TODO **保留** ⇒ 迁完才是「关闭」 |
@@ -1091,7 +1092,7 @@ git commit -F <msgfile>   # 首行: docs(P10-B): 偏离登记 + 账簿 + QA 收�
 | 13 | **默认车道的 `e2e` 闸门只在本仓生效** | 若将来有人 `pytest -m e2e` 直接跑（不经 `pytest_e2e.sh`）⇒ 闸门**照跳**（因为没有 `PCS_E2E_LANE=1`）⇒ 看着像「收集到 0 个测试」 | 闸门**照跳是对的**（fail-closed）⇒ README 写明「E2E 车道只能经 `scripts/pytest_e2e.sh` 跑」 |
 | 14 | **`e2e` 车道与 `pg` 车道的库是同一个 `pcs_pgtest`** | PG 车道的守卫 `test_compose_test_stack_pg.py` 的 seed **落 public**（无 `search_path` 覆盖）⇒ **两条车道并非互不影响** | 登记 ⇒ **TODO-154**（public 的测试残留）一并说明 |
 | 15 | **UI 通道只能登 alice/bob/carol/dan** | 其余真账号（LDAP）不可用 ⇒ UI 流覆盖不到那些角色 | 本批只覆盖 alice（+ 3 个未授权的对照）⇒ 其余留 P10-C/P10-F |
-| 16 | **状态机断言的「终态词表」** | 9 态无 `APPROVED`；链尾是 `CHECKED` ⇒ SPEC 措辞若用 `APPROVED` 要订正 | 已登记 **D28** 一并修订 SPEC 措辞 |
+| 16 | **状态机断言的「终态词表」** | 9 态无 `APPROVED`；链尾是 `CHECKED` ⇒ SPEC 措辞若用 `APPROVED` 要订正 | 已登记 **D30** 一并修订 SPEC 措辞 |
 
 ---
 
