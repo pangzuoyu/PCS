@@ -350,6 +350,91 @@ async def approve_record_steps(
     return steps
 
 
+async def bump_record(e2e_client, record_id: uuid.UUID) -> str:
+    """改记录的一个数值并**重算哈希** ⇒ 返回新哈希。
+
+    ⚠️ **必须重算** —— CIA（变更影响）按哈希判定「结果变了没」
+    ⇒ ⇒ 只改值不重算 ⇒ 哈希不变 ⇒ 判定「没变」。
+    """
+    from app.models.calc import PipingResult
+    from app.services.calc_lineage import compute_record_hash
+
+    async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+        record = await session.get(PipingResult, record_id)
+        record.design_press = float(record.design_press or 1.0) + 0.1
+        await session.flush()
+        record.record_hash = compute_record_hash(record)
+        await session.commit()
+        assert record.record_hash, "改完的记录没有哈希"
+        return record.record_hash
+
+
+async def link_lineage(
+    e2e_client,
+    *,
+    upstream_id: uuid.UUID,
+    downstream_id: uuid.UUID,
+) -> None:
+    """把两条记录接成「上游 → 下游」的**血缘链**（`parent_lineage_id`）。
+
+    ⚠️ **链式传播走的是 `parent_lineage_id`**（`cia_engine.CIAEngine.propagate`
+    ⇒ `LineageTracker.downstream`）⇒ ⇒ **不是** `source_ref_*`
+    ⇒ 只写 `source_ref_*` ⇒ 传播**找不到下游** ⇒ 下游永远不会被标 STALE。
+
+    ⚠️ **基线（`change_diff_json`）要算全**：`record_hash`（记录自己的哈希）
+    + `hash`（**全列**哈希）⇒ ⇒ `cia_engine._scan_one_class` 拿 `hash` 比对
+    ⇒ 写错 ⇒ 扫描会把下游当成「哈希不匹配」⇒ 走错分支。
+    """
+    from app.models.calc import PipingResult
+    from app.services.lineage import LineageTracker, _compute_hash
+
+    async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+        up = await session.get(PipingResult, upstream_id)
+        down = await session.get(PipingResult, downstream_id)
+        tracker = LineageTracker(session)
+        up_ln = await tracker.track(
+            record=up,
+            source="CALC",
+            change_summary="E2E 上游计算血缘",
+            change_diff={
+                "formula_version": "E2E-v1",
+                "record_hash": up.record_hash,
+                "hash": _compute_hash(up),
+            },
+        )
+        down_ln = await tracker.track(
+            record=down,
+            source="CALC",
+            change_summary="E2E 下游计算血缘",
+            change_diff={
+                "formula_version": "E2E-v1",
+                "record_hash": down.record_hash,
+                "hash": _compute_hash(down),
+            },
+        )
+        down_ln.parent_lineage_id = up_ln.lineage_id
+        down_ln.source_ref_type = "PipingResult"
+        down_ln.source_ref_id = upstream_id
+        await session.commit()
+
+
+async def get_record_state(e2e_client, record_id: uuid.UUID) -> tuple[str, str]:
+    """直查一条记录的（`sign_status`, `record_hash`）。"""
+    from sqlalchemy import text as _text
+
+    async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+        row = (
+            await session.execute(
+                _text(
+                    "SELECT sign_status, record_hash FROM piping_results "
+                    "WHERE pipe_id = :rid"
+                ),
+                {"rid": record_id},
+            )
+        ).mappings().one()
+    return row["sign_status"], row["record_hash"]
+
+
 async def run_report_task(
     e2e_client,
     *,

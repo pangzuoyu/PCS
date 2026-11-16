@@ -14,11 +14,11 @@
 
 ## 执行前置（开工第一步 · 不是可选项）
 
-- [ ] **逐条核对「事实基础」表（23 行）** —— 2026-11-16 自查发现**计划的 20 行事实基础里
+- [x] **逐条核对「事实基础」表（23 行）** —— 2026-11-16 自查发现**计划的 20 行事实基础里
   有 4 行是错的**（折标煤表名 · E2E-002 端点 · E2E-001 清单 · E2E-018 的进程口径）
   ⇒ **事实基础不是「已核验的真相」，是「写计划时的快照」** ⇒ 开工前逐行重核
   ⇒ 每行核到**当前**的源码/库 ⇒ 与计划不符就**改计划**（不是改实现去迁就计划）。
-- [ ] **hermes 的 11 条发现已折进本计划**（2026-11-16）⇒ 逐条对照「hermes 第三视角」章节
+- [x] **hermes 的 11 条发现已折进本计划**（2026-11-16）⇒ 逐条对照「hermes 第三视角」章节
   ⇒ 确认每条都有落点（改计划 / 登记偏离 / 进 TODO）⇒ **不许「看到了但没处理」**。
 
 ---
@@ -787,7 +787,7 @@ git commit -F <msgfile>   # 首行: test(P10-B): WF-PATH 五类路径 + E2E-010~
 - Produces: `tests/e2e_flows/test_e2e_permission_matrix.py` 里一张**参数化表**（角色 × 操作 × 期望码）⇒
   加新用例只改表，不改逻辑
 
-- [ ] **Step 1: 写失败的测试**
+- [x] **Step 1: 写失败的测试**
 
 ```python
 # AUTH-E2E-01~10（参数化）
@@ -858,12 +858,12 @@ async def test_wf_path_04_matrix_and_signature_matrix_agree(...)
     ⇒ 否则出现「谁都能过粗闸、但矩阵这一步没人能签」的**死链**。"""
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: FAIL（矩阵未跑 / 审计行未落）
 
-- [ ] **Step 3: 实现场景**
+- [x] **Step 3: 实现场景**
 
 - ⚠️ **403 与 404 分开断言**（Review Focus #3）：
   **角色不对**（同项目、有授权、但角色不够）⇒ **403**；
@@ -873,12 +873,12 @@ Expected: FAIL（矩阵未跑 / 审计行未落）
   ② 直调写库任务（断「落库这一段是对的」）⇒ 合起来覆盖链路，**不起 worker**
 - ⚠️ **E2E-018** 直查两库 `alembic_version` ⇒ **不一致就登记**（本批不修）
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: PASS（AUTH-E2E-01~10 + WF-PATH-04 + E2E-016/017/018 全绿）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add pcs-backend/tests/e2e_flows/
@@ -971,6 +971,9 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 | **D29** | 报表生成是**异步**的（HTTP 202 + 轮询） | 入队依赖 **Redis + ARQ worker** ⇒ 本批**不引 Redis/worker** ⇒ 队列不可达时端点**当场 503** ⇒ 轮询到 `SUCCESS` **不可达** | **本批用三段式**（HTTP 503 fail-closed + 直调 worker 任务体 + 产物断言）⇒ 「真过 Redis + worker」延到 **TODO-155** |
 | **D31** | 导入 ⇒ 物性补全（E2E-002 一气呵成） | **PRO/II 解析器不抽组成**（`app/services/import_service.py:135` 明写「SIM-10 MVP 仅 T/P/flow/phase 落库」）⇒ 导入的物流 `composition_json is None` ⇒ **进不了计算链**（flash 要求有组成） | **E2E-002 拆两段**（导入段断「物流落库 + 能进审批流」· 物性补全段断「有组成的 CHECKED 物流能算出物性」）⇒ 「导入的物流进不了计算链」是**产品缺口** ⇒ **TODO-156** |
 | **D32** | 容器计算返回**尺寸**（E2E-006） | 尺寸要 `sizing_spec`（C-08 **V1.2** 的两相分离器尺寸，Souders-Brown）⇒ 那是 **P6-4 的遗留债**（SPEC V1.1 内部不一致 ⇒ 计划已停工待 V1.2） | **本批断「结果里有 `sizing` + `hydraulics` 两块」**，**不断尺寸数值** ⇒ 尺寸留给 P6-4 的 V1.2 |
+| **D33** | E2E-018「两库 schema 版本一致」 | alembic 的 `settings` 是 **pydantic 缓存实例** ⇒ **同一进程内**第二次改 `DATABASE_URL` **不生效** ⇒ 两库实际只查了一个（CLAUDE.md 2026-11-01 的打脸记录） | **一库一个进程**（两个独立子进程各读一次 `alembic_version`）⇒ SPEC 的「两库一致性检查」口径订正为「**一库一进程**」⇒ **口令只在环境变量里** |
+| **D34** | 01C 断「`marked_stale >= 1`」 | 响应里**两个计数器**：`marked_stale` = `scan_stale()`（**自己**哈希对不上基线）· `propagated` = **链式传播**（上游变了 ⇒ 下游 STALE）⇒ 断前者 ⇒ 「上游改了」这个场景**压根没被验到** | **断 `propagated >= 1`** + **直查下游状态 = `STALE`** ⇒ 走的是传播那条路 |
+| **D35** | AUTH-E2E-05「APPROVER 批 ⇒ 200」 | 矩阵链是 **CHECKER → REVIEWER → APPROVER** ⇒ 第一步的「待批角色」是 CHECKER ⇒ APPROVER/REVIEWER 现在批 = **插队** ⇒ 403 `APPROVAL_ROLE_MISMATCH` | **拆两行**：① 「插队 ⇒ 403 `APPROVAL_ROLE_MISMATCH`」· ② 「**轮到你时**你批得动 ⇒ 200」（前两步先由 CHECKER、REVIEWER 批完） |
 
 - [ ] **Step 2: 跑批末闸门**
 
