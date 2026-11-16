@@ -358,7 +358,16 @@ async def get_preview_streams(
                 ),
             },
         )
-    return imp.preview_streams_json
+    # ⚠️ **读侧归一**（P10-B 的 E2E-002 撞出来的）：**PRO/II 导入**把 preview
+    # 存成 **list**（`preview_streams_json = [...]`），而 SIM/Excel 导入存
+    # **dict**（`{"streams": [...]}`）⇒ 本端点声明 `-> dict` ⇒ 直接返回 list
+    # ⇒ FastAPI 响应校验失败 ⇒ **500**（每次调用都炸）。
+    # ⇒ ⇒ 归一：list ⇒ 包成 `{"streams": [...]}` ⇒ **不迁数据、不改契约**
+    # （响应形状仍是 dict ⇒ 前端与 OpenAPI 都不受影响）。
+    payload = imp.preview_streams_json
+    if isinstance(payload, list):
+        return {"streams": payload}
+    return payload
 
 
 # ---------------------------------------------------------------------------

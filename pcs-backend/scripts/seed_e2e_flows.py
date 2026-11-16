@@ -99,6 +99,15 @@ def _stream_id(name: str) -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_DNS, f"pcs-e2e-flow-stream-{name}")
 
 
+#: 种子物流的 id（**有序** ⇒ `FLOW_STREAM_NAMES` 的顺序）。
+#:
+#: ⚠️ **必须是模块级常量** —— 计算链场景要拿「源物流」的 id ⇒
+#: 若只能从种子返回值里取 ⇒ 场景就得先调种子 ⇒ 耦合 ⇒ 且 id 的真相源会散成两处。
+FLOW_STREAM_IDS: tuple[uuid.UUID, ...] = tuple(
+    _stream_id(name) for name in FLOW_STREAM_NAMES
+)
+
+
 # ---------------------------------------------------------------------------
 # 角色矩阵
 # ---------------------------------------------------------------------------
@@ -696,6 +705,7 @@ __all__ = [
     "FLOW_PROJECT_ID",
     "FLOW_RECORD_ID",
     "FLOW_REPORT_DEF_ID",
+    "FLOW_STREAM_IDS",
     "FLOW_STREAM_NAMES",
     "FLOW_USERNAMES",
     "FLOW_WORKSPACE_ID",

@@ -183,6 +183,7 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
         FLOW_PROJECT_ID,
         FLOW_RECORD_ID,
         FLOW_REPORT_DEF_ID,
+        FLOW_STREAM_IDS,
         FLOW_WORKSPACE_ID,
         seed_flows,
     )
@@ -207,6 +208,8 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
         "deliverable_id": FLOW_DELIVERABLE_ID,
         "record_id": FLOW_RECORD_ID,
         "report_def_id": FLOW_REPORT_DEF_ID,
+        # ⚠️ **源物流的 id**（有序）⇒ 计算链场景拿它当输入
+        "stream_ids": list(FLOW_STREAM_IDS),
     }
 
 

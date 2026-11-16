@@ -82,6 +82,62 @@ _COL_SELECTED_DIAMETER: Final[str] = "selected_diameter"
 _COL_CLEANING_METHOD: Final[str] = "cleaning_method"
 
 
+#: 链计算用的**占位**管级 id（碳钢标准）。
+#:
+#: ⚠️ **`piping_results.material_class` 是指向 `pipe_classes.class_id` 的外键**
+#: ⇒ 这个占位值必须**真的存在** ⇒ 而**迁移不种它**、任何库里都没有它
+#: ⇒ ⇒ 插记录撞 FK ⇒ **端点 500**（P10-B 的 E2E-003 撞出来的）。
+#: ⚠️ ⚠️ 单测走 **SQLite** ⇒ **不强制 FK** ⇒ 单测照绿 ⇒ 真库每次都炸
+#: ⇒ ⇒ 这正是本仓最怕的「单测照绿、真库会炸」的形状。
+PLACEHOLDER_MATERIAL_CLASS = "CS-STD"
+
+
+async def _ensure_placeholder_pipe_class(db: AsyncSession, class_id: str) -> None:
+    """兜底建那条**占位管级**（不存在才建 ⇒ 幂等）。
+
+    ⚠️ 为什么不能靠「迁移里种一行」：迁移是**历史**（改它要过 ORM 漂移核对
+    与三库口径），而这里是**运行时占位** ⇒ 运行时兜底最贴切。
+    """
+    from sqlalchemy import select
+
+    from app.models.config_domain import PipeClass
+
+    exists = (
+        await db.execute(
+            select(PipeClass.class_id).where(PipeClass.class_id == class_id)
+        )
+    ).scalar_one_or_none()
+    if exists is not None:
+        return
+    db.add(
+        PipeClass(
+            class_id=class_id,
+            class_name="碳钢标准（链计算占位）",
+            material_standard="GB/T 150",
+            base_material="20#",
+            corrosion_allowance=1.5,
+            design_pressure=1.0,
+            design_temperature=60.0,
+            allowable_stress_json={"20#": 137.0},
+            # ⚠️ **必须含 {min,max} 且 0<min<=max** —— `PipeClassResponse` 的
+            # `model_validator` 会校验（`app/schemas/pipe_class.py::_check_dn`）
+            # ⇒ 空 dict ⇒ **列表端点整条 500**（P10-B 的 E2E-003 撞出来的）。
+            dn_series_json={"min": 15.0, "max": 600.0},
+            # ⚠️ `sch_series_json` 的 min/max 是**字符串**（`dict[str, str]`）
+            # ⇒ 塞数字 ⇒ 响应校验失败 ⇒ **列表端点整条 500**
+            sch_series_json={"min": "0.5", "max": "1.2"},
+            flange_class="PN16",
+            # ⚠️ `source="COMPANY_STD"` —— 公司级管架列表**只列**
+            # `source == 'COMPANY_STD'` 的行（`pipe_class_service.list_company`）
+            # ⇒ 别的 source ⇒ 这条占位行**在下游列表里看不见**
+            # ⇒ 「计算结果落库且下游可见」这条断言就断不了。
+            source="COMPANY_STD",
+            version="1",
+        )
+    )
+    await db.flush()
+
+
 async def persist_pipe_chain_result(
     db: AsyncSession,
     inp: PipeChainInput,
@@ -149,7 +205,7 @@ async def persist_pipe_chain_result(
         seq_no=1,  # 一览表序号（占位 1；下游 P4-TASK0 接管编号服务）
         line_no=inp.tag_number,
         line_size=placeholder_dn,
-        material_class="CS-STD",  # 碳钢标准（占位；下游 P4-TASK0 接管）
+        material_class=PLACEHOLDER_MATERIAL_CLASS,  # 碳钢标准（占位；下游 P4-TASK0 接管）
         fluid_code="",
         fluid_name="",
         fluid_phase=inp.segments[0].fluid_phase,
@@ -198,6 +254,10 @@ async def persist_pipe_chain_result(
     row.workspace_id = inp.workspace_id
     # 链计算无 record_hash 直写；finalize_calc_record 内部填充
     row.record_hash = ""
+
+    # ⚠️ **先兜底建占位管级** —— 否则 `material_class` 的外键没有目标
+    # ⇒ 插记录撞 FK ⇒ 端点 500。
+    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)
 
     db.add(row)
     await db.flush()  # 让 pipe_id 落库

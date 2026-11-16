@@ -334,6 +334,38 @@ async def test_get_preview_streams_ok_when_preview(
     assert body["streams"][0]["id"] == "S1"
 
 
+@pytest.mark.asyncio
+async def test_get_preview_streams_ok_when_preview_stored_as_a_list(
+    client, designer_headers, db, make_project
+):
+    """⚠️ **PRO/II 导入把 preview 存成 `list`**（SIM/Excel 导入存 dict）
+    ⇒ 端点声明 `-> dict` ⇒ 直接返回 list ⇒ FastAPI 校验失败 ⇒ **500**
+    ⇒ ⇒ 读侧**归一**（不迁数据、不改契约）⇒ 返回 `{"streams": [...]}`。
+
+    ⚠️ 这个端点在**快车道**里是绿的 —— 既有测试只喂 dict 形状
+    ⇒ ⇒ 这条把「list 形状」也钉住（P10-B 的 E2E-002 撞出来的）。
+    """
+    proj = await make_project()
+    imp = _mk(
+        db,
+        proj.project_id,
+        proj.workspace_id,
+        status=SimImportStatus.PREVIEW,
+        preview_streams=[{"stream_name": "FEED", "mass_flow": 100000.0}],
+    )
+    db.add(imp)
+    await db.commit()
+    await db.refresh(imp)
+
+    resp = await client.get(
+        f"/api/v1/imports/{imp.import_id}/preview-streams",
+        headers=designer_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["streams"][0]["stream_name"] == "FEED"
+
+
 # ---------------------------------------------------------------------------
 # 4) GET /imports/{import_id}/warnings
 # ---------------------------------------------------------------------------
