@@ -6170,6 +6170,47 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-13"
+    },
+    {
+      "id": "bug-2163",
+      "timestamp": "2026-11-16",
+      "severity": "high",
+      "error_message": "`GET /api/v1/imports/{import_id}/preview-streams` **每次调用都 500**：`fastapi.exceptions.ResponseValidationError: 1 validation error: {'type': 'dict_type', 'loc': ('response',), 'msg': 'Input should be a valid dictionary', 'input': [ {...}, ... ]}`（P10-B 的 E2E-002 撞出来的）",
+      "file": "pcs-backend/app/api/v1/sim_imports_query.py",
+      "root_cause": "端点声明 `-> dict` ⇒ FastAPI 按 dict 校验响应 ⇒ 而它 `return imp.preview_streams_json` **原样返回**。⚠️ **PRO/II 导入**把 preview 存成 **list**（`preview_streams_json = [...]`），**SIM/Excel 导入**存 **dict**（`{\"streams\": [...]}`）⇒ ⇒ PRO/II 的导入**每次读预览都 500**。\n⚠️ 既有单测（`tests/api/v1/test_sim_imports_query_endpoints.py`）**只喂 dict 形状** ⇒ 绿灯 ⇒ 这个形状差异从没被覆盖。",
+      "fix": "**读侧归一**（不迁数据、不改契约）：`payload = imp.preview_streams_json` ⇒ `if isinstance(payload, list): return {\"streams\": payload}` ⇒ 响应形状**仍是 dict** ⇒ 前端与 OpenAPI 都不受影响。\n⇒ 另在快车道补一条测试（list 形状 ⇒ 200 + `body[\"streams\"][0]`）⇒ 把这个形状差异钉住。",
+      "fix_commit": "8bfa190",
+      "tags": [
+        "P10-B",
+        "E2E",
+        "sim_import",
+        "响应模型",
+        "真PG"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2164",
+      "timestamp": "2026-11-16",
+      "severity": "high",
+      "error_message": "`POST /api/v1/pipe/calc-chain` 在**任何库上**都 500：`psycopg.errors.ForeignKeyViolation: insert or update on table \"piping_results\" violates foreign key constraint \"fk_piping_results_material_class_pipe_classes\"`（P10-B 的 E2E-003 撞出来的）",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "root_cause": "链计算落库时把 `material_class` 写死成 `\"CS-STD\"`（注释写「碳钢标准（**占位**；下游 P4-TASK0 接管）」）⇒ 而 `piping_results.material_class` 是指向 `pipe_classes.class_id` 的**外键** ⇒ 而**任何库里都没有那一行**（迁移不种它 · 实测 `pcs` / `pcs_pgtest` 的 `pipe_classes` 都是空的）⇒ ⇒ 插记录必撞 FK ⇒ 端点 500。\n⚠️⚠️ **单测照绿、真库必炸** —— `tests/services/pipe/test_pipe_chain.py` 走 **in-memory SQLite** ⇒ SQLite **默认不强制外键** ⇒ 这个缺陷在单测车道里**完全隐形**。",
+      "fix": "运行时**兜底建**那条占位管级（幂等）：`persist_pipe_chain_result` 落库前调 `_ensure_placeholder_pipe_class(db, \"CS-STD\")`（不存在才建 ⇒ 幂等）⇒ 为什么不靠迁移：迁移是**历史**（改它要过 ORM 漂移核对与三库口径），而这里是**运行时占位** ⇒ 运行时兜底最贴切。\n⇒ 兜底时又暴露两个形状坑：`dn_series_json` 必须含 `{min,max}` 且 `0<min<=max`、`sch_series_json` 的 min/max 是**字符串** ⇒ 否则 `GET /pipe-classes`（响应模型校验）整条 500。",
+      "fix_commit": "8bfa190",
+      "tags": [
+        "P10-B",
+        "E2E",
+        "pipe",
+        "外键",
+        "SQLite不强制FK",
+        "真PG"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-16"
     }
   ]
 }
