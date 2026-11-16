@@ -969,6 +969,8 @@ git commit -F <msgfile>   # 首行: test(P10-B): 真后端通道的 5 条 UI 流
 | **D28** | AUTH-E2E-02「CHECKER 送审被拒（角色不够）」 | 代码里 `CHECKER` **过得了**粗闸（`SUBMIT_FOR_CHECK` 含 CHECKER）⇒ 403 的真因是**自审闸**（提交人角色出现在批准链里）⇒ 错误码 `APPROVAL_SELF_REVIEW_FORBIDDEN` | **以代码为准** ⇒ 矩阵断**错误码**而非只断状态码 ⇒ SPEC 的「角色不够」措辞修订 |
 | **D30** | 批准链走完后的状态词（若 SPEC 写 `APPROVED`） | 9 态里**没有 `APPROVED`** ⇒ 链尾是 **`CHECKED`**（`IN_APPROVAL` 只在链中途） | **以代码为准** ⇒ 断言精确断 `CHECKED` + `approval_step is None` ⇒ SPEC 词表订正 |
 | **D29** | 报表生成是**异步**的（HTTP 202 + 轮询） | 入队依赖 **Redis + ARQ worker** ⇒ 本批**不引 Redis/worker** ⇒ 队列不可达时端点**当场 503** ⇒ 轮询到 `SUCCESS` **不可达** | **本批用三段式**（HTTP 503 fail-closed + 直调 worker 任务体 + 产物断言）⇒ 「真过 Redis + worker」延到 **TODO-155** |
+| **D31** | 导入 ⇒ 物性补全（E2E-002 一气呵成） | **PRO/II 解析器不抽组成**（`app/services/import_service.py:135` 明写「SIM-10 MVP 仅 T/P/flow/phase 落库」）⇒ 导入的物流 `composition_json is None` ⇒ **进不了计算链**（flash 要求有组成） | **E2E-002 拆两段**（导入段断「物流落库 + 能进审批流」· 物性补全段断「有组成的 CHECKED 物流能算出物性」）⇒ 「导入的物流进不了计算链」是**产品缺口** ⇒ **TODO-156** |
+| **D32** | 容器计算返回**尺寸**（E2E-006） | 尺寸要 `sizing_spec`（C-08 **V1.2** 的两相分离器尺寸，Souders-Brown）⇒ 那是 **P6-4 的遗留债**（SPEC V1.1 内部不一致 ⇒ 计划已停工待 V1.2） | **本批断「结果里有 `sizing` + `hydraulics` 两块」**，**不断尺寸数值** ⇒ 尺寸留给 P6-4 的 V1.2 |
 
 - [ ] **Step 2: 跑批末闸门**
 
