@@ -3535,9 +3535,18 @@ P10-B 的真后端 Playwright 通道的后端连的是 **`pcs_pgtest` 的 public
 
 ---
 
-## TODO-155: AI 审计的「真链路」（中间件 → Redis → worker → 落库）没被端到端覆盖 🟡
+## TODO-155: 「真过 Redis + ARQ worker」的那一段没被端到端覆盖（AI 审计 **+ 报表生成**） 🟡
 
-**现状**（2026-11-13 · P10-B 计划的 /plan-eng-review · D6 的副产物）：
+**现状**（2026-11-13 · P10-B 计划的 /plan-eng-review · D6 的副产物；
+**2026-11-16 扩到报表** —— hermes 第三视角的 P0-1）：
+
+⚠️ **报表生成也在这条债里**（`E2E-009` / `E2E-015`）：
+`POST /api/v1/report/generate` 走 `create_pool(RedisSettings.from_dsn(...))`
+（`app/api/v1/report.py:178`）⇒ **Redis 不可达 ⇒ 入队失败 ⇒ 就地把那行标 `FAILED`**
+⇒ 「轮询到 `SUCCESS`」**不可达** ⇒ P10-B 因此改用**两段式**
+（202 受理 + **直调** `generate_report_task` / `execute_definition_task`）
+⇒ ⇒ **「入队 → Redis → worker 消费 → 改状态」那一段仍未被端到端覆盖**
+⇒ 与 AI 审计那条**同一个修法**（一起起 Redis + worker 就都覆盖了）。
 
 P10-B 的 E2E-017 采用**两段式**：① spy `enqueue_ai_audit_log`（断「请求产生了审计」）
 ② 直调 `app.workers.ai_audit_tasks` 的写库任务（断「落库这一段是对的」）
@@ -3550,4 +3559,5 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 （`arq_queue.py` 记 warning 不抛）⇒ 没有端到端用例就没人知道。
 
 **何时做**：**P10-F**（与 TODO-152 同批做最划算 —— 都需要「车道里能起 worker」）
-⇒ 补法：在 E2E 车道里真起 Redis + `app/workers/worker.py` ⇒ 走完整链路。
+⇒ 补法：在 E2E 车道里真起 Redis + `app/workers/worker.py` ⇒ 走完整链路
+⇒ **一次补两条**（AI 审计 + 报表生成）⇒ 别只补 AI 审计那条。

@@ -1,0 +1,282 @@
+│ cache/scratch/check_openapi_paths.py
+│ @@ -0,0 +1,35 @@
+│ +import json
+│ +
+│ +spec = json.load(open("docs/openapi.json"))
+│ +paths = spec["paths"]
+│ +print("total paths:", len(paths))
+│ +need = [
+│ +    "/deliverables/{id}/versions",
+│ +    "versions/{rev}/snapshot",
+│ +    "/deliverables/{id}/sign-step",
+│ +    "/deliverables/{id}/issue",
+│ +    "customer-approval/proxy",
+│ +    "change-notice",
+│ +    "/checklist/projects/{project_id}/completeness",
+│ +    "/imports",
+│ +    "preview-streams",
+│ +    "/flash/calculate",
+│ +    "/pipe/calc-chain",
+│ +    "/pipe-classes",
+│ +    "/equipment-list",
+│ +    "energy-summary/aggregate",
+│ +    "/util/summary",
+│ +    "/report/generate",
+│ +    "/report/{report_id}/status",
+│ +    "/report/{report_id}/hash",
+│ +    "/report/{report_id}/download",
+│ +    "/report-builder/definitions",
+│ +    "/report-builder/executions/{task_id}",
+│ +    "/ai/intent",
+│ +    "confirm-recalc",
+│ +    "supplier",
+│ +    "audit-logs",
+│ +]
+│ +for n in need:
+│ +    hits = [p for p in paths if n in p]
+│ +    print(("OK  " if hits else "MISS"), n, "->", hits[:4])
+│ cache/scratch/check2.py
+│ @@ -0,0 +1,25 @@
+│ +import json
+│ +import re
+│ +
+│ +spec = json.load(open("docs/openapi.json"))
+│ +paths = spec["paths"]
+│ +print("--- deviation / actual / vendor search ---")
+│ +for kw in ["deviation", "actual", "vendor", "supplier", "quote"]:
+│ +    hits = [p for p in paths if kw in p.lower()]
+│ +    print(kw, len(hits), hits[:6])
+│ +print("--- deliverables versions/sign/issue ---")
+│ +for p in sorted(paths):
+│ +    if "deliverables" in p and any(k in p for k in ["versions", "sign-step", "issue"]):
+│ +        print(p)
+│ +print("--- report paths ---")
+│ +for p in sorted(paths):
+│ +    if "/report" in p and "builder" not in p:
+│ +        print(p)
+│ +
+│ +src = open("app/models/calc.py").read()
+│ +m = re.search(r"class PipingResult.*?(?=\nclass )", src, re.S)
+│ +body = m.group(0)
+│ +annot = re.findall(r"(\w+): Mapped\[(?!\s*uuid\.UUID\s*\|\s*None)([^]]+?)\] = mapped_column", body)
+│ +nonopt = [(n, t) for n, t in annot if "| None" not in t and "Optional" not in t]
+│ +print("--- PipingResult: total annotated:", len(annot), " non-Optional (=> NOT NULL):", len(nonopt))
+│ +print([n for n, _ in nonopt][:30])
+All 20 claims verified against code, decisions analyzed, and several new findings surfaced (most critically: E2E-009/015 are ARQ/Redis-dependent which the Redis-less lane cannot run). Final verdict:
+
+```json
+{
+  "reviewer": "hermes-third-perspective",
+  "model": "glm-5.2 (zai)",
+  "scope_read": [
+    "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md",
+    "docs/superpowers/plans/2026-11-04-p10-master-plan.md",
+    "spec/PCS-SPEC-P10 V1.3.1 ...md (§3.2.2, L690-799)",
+    "pcs-backend/app/services/state_machine.py (全文)",
+    "pcs-backend/app/api/v1/records_actions.py (全文)",
+    "pcs-backend/app/models/enums.py (L1-70)",
+    "pcs-backend/app/models/project.py (L190-239)",
+    "pcs-backend/app/api/v1/config.py (L535-572)",
+    "pcs-backend/app/services/token_issuer.py (derive_user_id)",
+    "pcs-backend/scripts/seed_e2e_data.py (全文)",
+    "pcs-backend/scripts/pytest_pg.sh (全文)",
+    "pcs-backend/tests/conftest.py (全文)",
+    "pcs-backend/tests/scripts/test_pytest_pg_gate.py (全文)",
+    "pcs-backend/tests/api/v1/test_stream_batch_concurrency_pg.py (L1-120+grep)",
+    "pcs-backend/tests/scripts/test_compose_test_stack_pg.py (全文)",
+    "pcs-backend/tests/services/ai/test_ai_audit_task_pg.py (头部)",
+    "pcs-backend/tests/e2e/test_sim_three_entry_consistency.py (头部)",
+    "pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py (头部)",
+    "pcs-backend/pyproject.toml (全文)",
+    "pcs-backend/app/services/calc_lineage.py (L1-90)",
+    "pcs-backend/app/main.py (grep: lifespan/L159-160)",
+    "pcs-backend/app/core/ai_audit_middleware.py (L230-290)",
+    "pcs-backend/app/services/ai/arq_queue.py (grep)",
+    "pcs-backend/app/api/v1/change_impact.py (L140-260)",
+    "pcs-backend/app/api/v1/report.py (L138-225)",
+    "pcs-backend/app/api/v1/report_builder.py (grep: execute/arq)",
+    "pcs-backend/app/api/v1/util.py + app/services/util/summary_service.py (grep)",
+    "pcs-backend/app/api/v1/mock_auth.py (MOCK_USERS)",
+    "pcs-backend/app/api/v1/record_edits.py / records.py / checklist.py / audit.py / deliverables.py (grep)",
+    "pcs-backend/app/services/user_project_service.py (VALID_PROJECT_ROLES)",
+    "pcs-backend/docs/openapi.json (程序化路径清点)",
+    "pcs-frontend/e2e/*.spec.ts (test 计数) + playwright.config.ts"
+  ],
+  "fact_verdicts": [
+    {"#": 1, "status": "confirmed", "evidence": "spec/PCS-SPEC-P10 V1.3.1 ...md:706-725 E2E-001~018; :729-739 WF-PATH 表(01A~01E/02/03/04); :743-755 AUTH-E2E-01~12; :750 写 SYSADMIN; :754-755 写 TEST_VIEWER", "impact_if_wrong": null},
+    {"#": 2, "status": "confirmed", "evidence": "app/models/enums.py:10-26 RecordSignStatus9 9 态(DRAFT..OBSOLETE); :29-44 StreamSignStatus 同 9 值", "impact_if_wrong": null},
+    {"#": 3, "status": "confirmed", "evidence": "app/services/state_machine.py:96-115 TRANSITION_ROLES 并集恰为 {DESIGNER,CHECKER,REVIEWER,APPROVER,SYSTEM_ADMIN}; SPEC:750 用 SYSADMIN ⇒ 不一致属实", "impact_if_wrong": null},
+    {"#": 4, "status": "confirmed", "evidence": "app/api/v1/records_actions.py:574-575 resolve_project_matrix(module=RECORD_MODULE); :738 'if record.approval_role and record.approval_role != actor.role' → 403。注意 nuance: approval_role 为空时该闸跳过(fail-open, :738 的 if 前置条件)", "impact_if_wrong": null},
+    {"#": 5, "status": "confirmed", "evidence": "openapi.json 实测: /api/v1/deliverables/{deliverable_id}/{versions, versions/{rev}/snapshot, sign-step, issue, customer-approval/proxy} + /api/v1/records/{module}/{record_id}/change-notice(+/cancel) 全部存在", "impact_if_wrong": null},
+    {"#": 6, "status": "confirmed", "evidence": "openapi.json 实测 total paths = 259(与计划一致); imports preview/commit、flash/calculate、pipe/calc-chain、pipe-classes、equipment-list、equipment/{id}/actual-data(+/confirm,/check)+deviation-report(=E2E-014 的『供应商』端点, 无 supplier 命名)、report/{generate,{id}/status,hash,download}、report-builder/{definitions,publish,executions/{task_id}}、ai/intent、change-impact/.../confirm-recalc、audit-logs、checklist completeness 均在。⚠️ 但 E2E-009/015 的端点存在 ≠ 可跑: 二者硬依赖 Redis(见 missed_findings #1)", "impact_if_wrong": "端点存在性成立但可用性不成立 ⇒ 18 条全绿的地基有两块是空的"},
+    {"#": 7, "status": "confirmed", "evidence": "app/models/project.py:207-209 role_in_project 注释列 6 值; app/services/user_project_service.py:41-45 VALID_PROJECT_ROLES 6 值且 :79 强制校验; 全仓无 TEST_VIEWER", "impact_if_wrong": null},
+    {"#": 8, "status": "confirmed", "evidence": "scripts/seed_e2e_data.py:59 SEED_USERNAMES=(alice,bob,carol,dan); :65 SEED_PROJECT_ROLE='DESIGNER'(统一); :69-73 1 workspace+1 project+2 streams", "impact_if_wrong": null},
+    {"#": 9, "status": "confirmed", "evidence": "app/services/token_issuer.py:57-63 derive_user_id=uuid5(NAMESPACE_DNS,username); app/api/v1/config.py:552-559 无 user_id claim 时同款 uuid5(sub)。seed 用 derive_user_id(seed_e2e_data.py:54,193) ⇒ 同源", "impact_if_wrong": null},
+    {"#": 10, "status": "confirmed", "evidence": "grep 实测 mock 通道 7 个 spec 的 test( 计数 5+5+2+7+1+1+2=23; real_backend_smoke.spec.ts test( = 1", "impact_if_wrong": null},
+    {"#": 11, "status": "confirmed", "evidence": "tests/api/v1/test_stream_batch_concurrency_pg.py:69-75 CREATE SCHEMA+options=-csearch_path; :306 CREATE; :367 'DROP SCHEMA IF EXISTS ... CASCADE'", "impact_if_wrong": null},
+    {"#": 12, "status": "confirmed", "evidence": "tests/conftest.py:311 strict_client fixture(不 mock 项目守卫, :310-342)", "impact_if_wrong": null},
+    {"#": 13, "status": "wrong", "evidence": "tests/e2e/test_sim_three_entry_consistency.py(2026-09-25, 18.6KB)是多步流测试: 三入口导入+check-reject 重提循环+迁移幂等×2(文件头 docstring); 另有 tests/integration/test_e2e_template_to_pipe_code.py(建项目→5 态 PUBLISHED→生成管代码全链)。『只有单点 API 测试』不成立; 成立的表述应是『没有 SPEC 18 场景 × 真 PG 的全流程』", "impact_if_wrong": "计划把 tests/e2e/ 当空目录『Create conftest.py』——新 conftest 会改变该目录既有用例的收集/skip 行为; 若为车道隔离加 autouse skip, 会把既有 SQLite 用例静默 skip(本仓最恨的假绿形状)"},
+    {"#": 14, "status": "confirmed", "evidence": "scripts/pytest_pg.sh:19 PG_PYTEST_MARK='${PG_PYTEST_MARK:-pg}' 已参数化; 三道闸在 :38-70(PG 起/收集>0/有 passed)。注意 :50-51 无条件覆写 DATABASE_URL/TEST_DATABASE_URL ⇒ 薄封装里的 export DATABASE_URL 是死代码", "impact_if_wrong": null},
+    {"#": 15, "status": "wrong", "evidence": "5 个 pg 文件属实(test_p9_013/p9_014/stream_batch_concurrency_pg/ai_audit_task_pg/compose_test_stack_pg), 但 tests/scripts/test_compose_test_stack_pg.py 不用隔离 schema: 直接在 pcs_pgtest public 上跑 alembic upgrade head + seed_e2e_data 两遍并直查行数(SEED_TABLES=('workspaces','projects','users','user_projects','streams')) ⇒ 『全部隔离 ⇒ 不碰 public』为假", "impact_if_wrong": "D3/T7 的『PG 车道不受影响』论据错了(结论侥幸成立: 该测试断言是 before/after 增量, 多出的 flows 行不破坏它); 但未来若有人把断言改成绝对行数就会与 D3 的 public 数据相撞, 且『public 干净』这一不变量从未为真"},
+    {"#": 16, "status": "confirmed", "evidence": "httpx ASGITransport 不执行 lifespan(httpx 文档行为); 佐证: tests/conftest.py:257-266 为绕开 lifespan 专建最小 app; app/main.py:127 lifespan 只经 FastAPI lifespan 协议触发", "impact_if_wrong": null},
+    {"#": 17, "status": "confirmed", "evidence": "app/main.py:159-160 lifespan 内 CoefficientService.seed_default_tables + seed_system_setting_defaults; app/api/v1/util.py:685 注释『折标系数 CONFIG』; app/services/util/summary_service.py:102 读 toe_conversion_factor", "impact_if_wrong": null},
+    {"#": 18, "status": "confirmed", "evidence": "app/services/calc_lineage.py:85 '\"PipingResult\": PipingResult'; 文件头 :26-33 明言 CostEstResult/TwoPhaseResult/ProjectCalculationStandardProfile 缺 24~25 个 RecordMixin 列, 能力判定在 record_capabilities.supports_state_workflow", "impact_if_wrong": null},
+    {"#": 19, "status": "confirmed", "evidence": "app/models/calc.py PipingResult: 54 个 Mapped 列中 22 个非 Optional(⇒ NOT NULL)≈『~20 个必填』", "impact_if_wrong": null},
+    {"#": 20, "status": "confirmed", "evidence": "app/core/ai_audit_middleware.py:43 'from app.services.ai.arq_queue import enqueue_ai_audit_log'; :262 await enqueue_ai_audit_log(...)(异常仅降级日志); 落库在 worker 侧任务", "impact_if_wrong": null}
+  ],
+  "decision_verdicts": [
+    {"decision": "D2", "verdict": "agree", "reason": "单测已覆盖算法数值, E2E 重复数值断言只会制造两套会漂移的真相源; 计划同时给 T4 汇总场景保留『汇总=明细之和』的关系断言(util.py 的聚合正是该形状), 边界划得对。", "consequence_if_wrong": "若错: E2E 里重抄数值 ⇒ 算法一改两处红, 最终有人把 E2E 断言删了事"},
+    {"decision": "D3", "verdict": "partly", "reason": "落 pcs_pgtest public 是可行的最小方案且残料已登记 TODO-154; 但计划引用的论据(事实 #15『5 个 PG 文件全隔离』)是错的(test_compose_test_stack_pg.py 本来就写 public), 且 T7 有更硬的未解问题: MOCK_USERS 只有 alice/bob/carol/dan(mock_auth.py:14-19), 而 flows 种子只授权 6 个 e2e-* 用户 ⇒ 任何 mock 登录用户都看不到 FLOW 项目。", "consequence_if_wrong": "T7 的『记录详情/交付物/设备表』三条 UI 流在空表或 404 上写断言 ⇒ 只能弱化成『页面没报错』的假绿, 或返工种子"},
+    {"decision": "D5", "verdict": "agree", "reason": "test_pytest_pg_gate.py:96-103 的守卫只读 pytest_pg.sh 本体, 薄封装不改它 ⇒ 守卫不破; 闸门单一真相源成立。唯一噪音: 封装里的 export DATABASE_URL 是死代码(pytest_pg.sh:50 无条件覆写), 应只 export PG_PYTEST_MARK 以免误导后人以为封装控制库。", "consequence_if_wrong": "若复制闸门: 两份真相源漂移, 一条车道悄悄失去 fail-closed"},
+    {"decision": "D6", "verdict": "agree", "reason": "中间件确实只入队(ai_audit_middleware.py:262), spy 目标是模块级 by-value 绑定, monkeypatch 可行; 直调写库任务验落库, 覆盖两段而免 Redis, 真链路登记 TODO-155 —— 对 E2E-017 这是正确解法。⚠️ 但同一裁决的『车道不引 Redis』前提没有被推广检查: E2E-009/015 与 AI 审计同形状(入队+worker)却无人给它们做两段式(见 missed_findings #1)。", "consequence_if_wrong": "若起 worker: 车道重且 worker 看不见隔离 schema; 若不做两段式: 两条场景直接 503/永久 PENDING"},
+    {"decision": "D7", "verdict": "agree", "reason": "共享项目+按记录隔离消除了每场景重建授权的成本; 计划已自带『汇总断言比增量』的补丁。缺口: helpers 只规划了 make_record, 而 WF-PATH-02/03 与 E2E-011/012 要交付物, 种子只有 1 个 DRAFT 交付物且会被 02 的 issue 升版 —— 没有 make_deliverable, 五个场景在同一个交付物上互相踩。", "consequence_if_wrong": "交付物场景按文件字母序互相污染 ⇒ 偶发红且难复现"},
+    {"decision": "D8", "verdict": "agree", "reason": "22 个 NOT NULL 列(事实 #19)×9 场景的重复是实打实的维护债, 模块级常量+模板被单测引用是本仓已验证的形状(seed_e2e_data 同款)。", "consequence_if_wrong": "若逐场景传 payload: 改一列要改九处, 最终有人抄漏一列全红"},
+    {"decision": "D9", "verdict": "agree", "reason": "outsider 与 designer 同全局角色, 不显式点名就拿错 token 全场 404(config.py 派生 id 与授权行错位) —— 计划对这一失败模式的预防(未知角色报错)形状正确。", "consequence_if_wrong": "正常场景拿到局外人 token ⇒ 全部 404, 症状像『端点坏了』"},
+    {"decision": "D10", "verdict": "agree", "reason": "同库两车道并发 DDL 只会偶发卡住, 串行+零新依赖是对的; `-k` 分批够用。", "consequence_if_wrong": "xdist ⇒ 锁等待超时的偶发红, 排查成本远超并行收益"},
+    {"decision": "D4(两条 lifespan 表)", "verdict": "agree", "reason": "事实 #16/#17 成立: ASGITransport 不跑 lifespan, 折标系数/系统参数只在 lifespan 播种(main.py:159-160), 显式补种且不引 asgi-lifespan 是最小侵入。", "consequence_if_wrong": "不补 ⇒ E2E-008 折标煤恒 0, 断言必飘且病因离症状远"},
+    {"decision": "4 条 TODO(152 CI/153 TEST_VIEWER/154 public 残料/155 真链路)", "verdict": "agree", "reason": "四条都有明确承接批次且与既有裁决(不新建 CI)一致; 唯一补充: TODO-154 的清理脚本应同时覆盖 test_compose_test_stack_pg 已在 public 写入的种子行口径, 否则『清 flows』清不干净。", "consequence_if_wrong": "无实质风险; 只是清理口径要并两条种子的 UUID 清单"}
+  ],
+  "missed_findings": [
+    {
+      "title": "E2E-009 与 E2E-015 是 ARQ/Redis 依赖端点, 无 Redis 车道里必然 503/永久 PENDING —— 18 条全绿的验收不可达",
+      "severity": "P0",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 178,
+      "why_it_matters": "POST /report/generate 建不出 ARQ 池就 503 REPORT_QUEUE_UNAVAILABLE 并把行标 FAILED; report-builder execute 同样经 arq_queue 入队(report_builder.py:359)。计划全局约束『车道不引 Redis/worker』(D6 的理由)对这两条场景是致命的: 202 拿得到, 但 status 永远不会变成功, hash/download 永远不存在。更深的坑: 即使起了 compose worker, 它连的库/也看不见本车道随机命名的隔离 schema —— 隔离 schema 策略与 worker 执行的任务天然不兼容, 计划完全没排这一层。",
+      "first_evidence": "report.py:178 'pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))' + :184 'code=\"REPORT_QUEUE_UNAVAILABLE\", status=503'; report_builder.py:359 'from app.services.report import arq_queue'",
+      "suggested_fix": "把 D6 的两段式推广到这两条: POST 拿 202 后 monkeypatch/绕过入队, 用 scoped session 直调 generate_report_task / report-builder 执行任务的函数本体(同 ai_audit_tasks 的做法), 再轮询 status→hash→download(全库读, 不依赖队列); 或在 T1 起一个 DATABASE_URL 带 search_path 的随车道 worker。二者选一并写进 T4, 同时把『队列编排段未端到端覆盖』并入 TODO-155。",
+      "confidence": 100
+    },
+    {
+      "title": "e2e marker 没有默认车道 skip 机制 —— `uv run pytest` 会在开发库 pcs 上跑 18 条场景+alembic",
+      "severity": "P0",
+      "file": "pcs-backend/pyproject.toml",
+      "line": 94,
+      "why_it_matters": "addopts 只排除 visual, tests/e2e/ 会被默认全量收集。仓里现成的 pg skip 形状是『无 postgres URL 才 skip』(test_stream_batch_concurrency_pg.py:39-48, 还会回读 .env) —— 开发机 .env 就是 postgres ⇒ 根本不 skip; 只有 test_compose_test_stack_pg.py 的 TEST_DATABASE_URL 判据是对的。计划 T1 的 conftest 规格里没写任何 skip 判据, 而 T8 Step 2 明确期望『新增 e2e 用例默认跳过』—— 这个期望当前没有执行者。后果: 全量跑在开发库上建 schema、跑 alembic upgrade head、灌种子, 直接违反计划自己的 Global Constraint #21。",
+      "first_evidence": "pyproject.toml:94 'addopts = \"-m 'not visual'\"'; test_compose_test_stack_pg.py:99-103 以 TEST_DATABASE_URL 是否存在为车道判据",
+      "suggested_fix": "tests/e2e/conftest.py 的 fixture 首行判 `os.environ.get('PG_PYTEST_MARK') == 'e2e' and os.environ.get('TEST_DATABASE_URL')` 否则 pytest.skip; 并加一条守卫测试: 默认车道(`uv run pytest --collect-only` 之外真跑一个)下 e2e 用例全部 skip 且被计为 skip 而非 pass。",
+      "confidence": 85
+    },
+    {
+      "title": "E2E-001 的『清单自动生成』在代码里不存在 —— 新建项目的 completeness 是空的",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/checklist_service.py",
+      "line": 47,
+      "why_it_matters": "SPEC 与计划都断言 POST /projects 后 GET completeness 『清单非空』, 但全仓只有 API 显式调 bulk_seed 才写清单行(projects.py 无任何 checklist 引用; bulk_seed 的调用方只有 app/api/v1/checklist.py)。照抄场景会红, 而最省事的『修法』是把断言弱化成 200+字段存在 —— 又一个形状与守卫无关的假绿。",
+      "first_evidence": "checklist_service.py:47 'async def bulk_seed(' 且 grep 全仓 bulk_seed 仅 api/v1/checklist.py 引用; projects.py 内零 checklist 命中",
+      "suggested_fix": "场景里显式走 POST bulk_seed(或对应端点)再断言非空, 并把『SPEC 的清单自动生成未实现』登记为偏离(D23~D26 之外新增一条); 不要改断言。",
+      "confidence": 90
+    },
+    {
+      "title": "T7 的 UI 流没有可登录且被授权的用户 —— MOCK_USERS 与 flows 种子的用户集不相交",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/mock_auth.py",
+      "line": 14,
+      "why_it_matters": "mock 登录只认 alice/bob/carol/dan 四人; flows 种子只把 FLOW 项目授权给 6 个 e2e-* 用户。T7 五条流里『记录详情/交付物 Rev/设备表』都需要 FLOW 项目的数据, 而任何 mock 用户对它无授权行 ⇒ 列表空/详情 404。计划只留了一句『若 UI 流需要额外起点态数据』的活口, 没有裁决。",
+      "first_evidence": "mock_auth.py:14-19 'MOCK_USERS: dict[str, str] = {\"alice\": \"DESIGNER\", \"bob\": \"CHECKER\", \"carol\": \"APPROVER\", \"dan\": \"SYSTEM_ADMIN\"}'",
+      "suggested_fix": "flows 种子显式给 alice(DESIGNER) 加一条 FLOW 项目的 UserProject(VIEWER 即可读); 或 T7 的五条流改断言旧种子项目(E2E-0001, 只有物流)。写进 T2 的种子规格, 不留活口。",
+      "confidence": 90
+    },
+    {
+      "title": "tests/e2e/ 已有住客 —— 新 conftest 会改变既有用例的行为",
+      "severity": "P1",
+      "file": "pcs-backend/tests/e2e/test_sim_three_entry_consistency.py",
+      "line": 1,
+      "why_it_matters": "该目录已有一条 18.6KB 的多步流测试(默认车道在 SQLite 上真跑)。计划把 conftest.py『Create』进同目录且不知道它存在(事实表 #13 写着『没有任何全流程 API 测试』)。conftest 若含 autouse skip(见第 2 条 finding 的修法)会连带把这条老用例静默 skip —— 默认车道覆盖悄悄缩水, 正是 CLAUDE.md 反复警告的形状。",
+      "first_evidence": "tests/e2e/test_sim_three_entry_consistency.py:1 'P3.2 SIM-11：三入口（PRO/II + Excel + 手工 API）E2E 集成测试'",
+      "suggested_fix": "T1 明写: 住客保持默认车道行为不变; skip 判据只作用于带 e2e marker 的用例(如 hook 内判断 item.get_closest_marker('e2e')), 并加一条守卫: 默认车道下老用例仍被收集执行。",
+      "confidence": 85
+    },
+    {
+      "title": "WF-PATH-01C 的状态断言链画错了: confirm-recalc 是『标 STALE』, /confirm 到 CHANGE_PENDING, CHANGED 还差 apply-change",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/change_impact.py",
+      "line": 80,
+      "why_it_matters": "计划草图『上游改 ⇒ 下游 STALE ⇒ confirm-recalc ⇒ 变 CHANGED』把三个端点的语义压成了一个。实测: confirm-recalc 的响应字段是 marked_stale(传播触发器); /confirm 才把 STALE 走 RESOLVE_STALE_CHANGED 到 CHANGE_PENDING(requires_re_approval=true); 要到 CHANGED 必须再改数据+apply-change(且有 NoModification 闸, state_machine.py:401-404)。照草图写断言必红, 或被『改宽』成假绿。",
+      "first_evidence": "change_impact.py:80 'marked_stale: int = Field(..., description=\"被标 STALE 的行数\")'; :228-231 transition = RESOLVE_STALE_NO_CHANGE if decision=='NO_CHANGE' else RESOLVE_STALE_CHANGED",
+      "suggested_fix": "T5 的 01C 用例按真实链写四步: 上游真实端点改动 → confirm-recalc(断 marked_stale≥1) → 改下游 → /confirm(CHANGED 决议, 断 sign_status=CHANGE_PENDING) → apply-change(断 CHANGED+哈希变化)。",
+      "confidence": 90
+    },
+    {
+      "title": "WF-PATH-01A 终态写成『APPROVED/IN_APPROVAL』—— APPROVED 不存在, 且接受 IN_APPROVAL 会放过链条卡死",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records_actions.py",
+      "line": 755,
+      "why_it_matters": "9 态里没有 APPROVED; 深度耗尽走 PASS_CHECK → CHECKED。若断言写成『APPROVED 或 IN_APPROVAL 皆可』, 那么深度解析错成 4 时链条停在第 3 步(IN_APPROVAL)用例照样绿 —— 恰是本仓『断言形状与守卫无关』的病。",
+      "first_evidence": "records_actions.py:755-762 'elif current_step >= depth: … await _transition(db, record=record, transition=StateTransition.PASS_CHECK …' → CHECKED",
+      "suggested_fix": "断言精确终态: 三步后 sign_status == 'CHECKED' 且 approval_step is None 且 approval_role is None; 另断言每步后 approval_role 被推进为链上下一步角色。",
+      "confidence": 85
+    },
+    {
+      "title": "AUTH-E2E-01/02 的操作被静默替换(编辑草稿→submit-approval)且未登记偏离",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/records.py",
+      "line": 116,
+      "why_it_matters": "SPEC 的 01/02 是『编辑草稿』, 但仓里没有带 DESIGNER-only 角色闸的记录编辑端点(records.py 只有 POST /piping 与 transition) ⇒ 按字面不可实现。计划把矩阵行换成 submit-approval 却仍标 AUTH-E2E-01/02, 且 CHECKER 的 403 实际来自 APPROVAL_SELF_REVIEW_FORBIDDEN(records_actions.py:598-606)而非角色闸 —— TRANSITION_ROLES 本来就允许 CHECKER 送审(state_machine.py:96)。D23~D26 没有一条覆盖这个替换。",
+      "first_evidence": "records.py:116-167 仅两个端点(POST /piping, POST /piping/{pipe_id}/transition); state_machine.py:96 SUBMIT_FOR_CHECK 含 CHECKER",
+      "suggested_fix": "偏离登记加一行: AUTH-E2E-01/02 的『编辑草稿』无对应角色闸, 以 submit-approval 代测, 403 来自自审闸; 断言里 pin 错误码 APPROVAL_SELF_REVIEW_FORBIDDEN, 避免矩阵一换行语义漂移。",
+      "confidence": 80
+    },
+    {
+      "title": "文件结构表写『AUTH-E2E-01~10/12』与 D24(11/12 延 P10-C)自相矛盾",
+      "severity": "P3",
+      "file": "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md",
+      "line": 154,
+      "why_it_matters": "实施 agent 按文件结构表干活时会尝试写 AUTH-E2E-12(测试报告页不存在) ⇒ 要么编造断言要么卡住; 验收表又说只到 10。三处口径必须一致。",
+      "first_evidence": "计划 L154 'test_e2e_permission_matrix.py | 新建 · E2E-016 + AUTH-E2E-01~10/12' vs L834 'AUTH-E2E-01~10 全过；AUTH-E2E-11/12 延到 P10-C（D24）'",
+      "suggested_fix": "L154 改为『AUTH-E2E-01~10』。",
+      "confidence": 95
+    },
+    {
+      "title": "没有 make_deliverable helper —— 交付物场景共用种子唯一 DRAFT 交付物, 与 D7 的隔离原则冲突",
+      "severity": "P2",
+      "file": "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md",
+      "line": 530,
+      "why_it_matters": "helpers 只规划了 make_record/advance_record; E2E-011/012 与 WF-PATH-02/03 全都要交付物, 而种子只造 1 个 DRAFT 交付物, issue 会升版改状态 ⇒ 四五个场景在同一个对象上叠状态, 文件序一变结果就变(D7 自己反对的形状)。",
+      "first_evidence": "计划 L530-531 'Consumes: T2 的签署矩阵 + DRAFT 记录 + DRAFT 交付物; Produces: helpers.py 加 advance_record'(无交付物工厂); T2 起点态清单仅 '1 个 DRAFT 交付物'",
+      "suggested_fix": "helpers 加 make_deliverable(POST /deliverables 创建, 只换 id), 交付物场景各自造; 种子那个留给 T7 的 UI 流。",
+      "confidence": 75
+    },
+    {
+      "title": "『两条车道不要同时跑』只有口头约束, 没有机制",
+      "severity": "P3",
+      "file": "pcs-backend/scripts/pytest_pg.sh",
+      "line": 1,
+      "why_it_matters": "同库并发 DDL 的表现是偶发卡住而非报错, 排查一次的成本远高于一把 flock。计划写了『串行跑』但没有任何东西强制它。",
+      "first_evidence": "pytest_pg.sh 全文无锁; 计划 L23-24 仅文字约束",
+      "suggested_fix": "pytest_e2e.sh 开头 `exec 9>/tmp/pcs_pgtest_lane.lock; flock -n 9 || { echo 'PG/E2E 车道正在跑'; exit 1; }`(或两边都加), 零依赖。",
+      "confidence": 70
+    }
+  ],
+  "assertion_shape_diseases": [
+    {"where": "T5 WF-PATH-01A", "the_disease": "『状态 = APPROVED/IN_APPROVAL(按矩阵第 3 级)』: APPROVED 不存在; 接受 IN_APPROVAL 时, 深度解析错成 4、链条停第 3 步, 用例照样绿", "suggested_assertion": "精确断言 sign_status=='CHECKED' 且 approval_step is None; 且每步后 approval_role == 链上下一步的 sign_role(records_actions.py:771 推进逻辑)"},
+    {"where": "T3 E2E-001", "the_disease": "断言『清单非空』守的是一段不存在的自动生成逻辑 —— 要么红, 要么被弱化成『200+字段在』的空壳", "suggested_assertion": "先显式 bulk_seed 再断言行数>0 且各条目状态字段形状正确; SPEC『自动生成』按未实现登记偏离"},
+    {"where": "T6 AUTH_MATRIX 行 (CHECKER, submit-approval, 403)", "the_disease": "403 的真因是自审闸(APPROVAL_SELF_REVIEW_FORBIDDEN)而非角色不够; 换一份不含 CHECKER 的矩阵该行会变 200 而『权限语义』其实没变", "suggested_assertion": "断言 status==403 且 code=='APPROVAL_SELF_REVIEW_FORBIDDEN'; 另加一行 SYSTEM_ADMIN(不在链内)submit==200 钉住『粗闸允许但矩阵细判』的两层语义"},
+    {"where": "T1 test_lane_never_writes_to_the_public_schema", "the_disease": "计划没说查哪个库、用哪条连接: 若经被覆盖的 app engine 查, search_path 指向隔离 schema, 永远查不到 public —— 守卫恒绿", "suggested_assertion": "用独立连接连 pcs_pgtest(无 search_path), 对比场景运行前后 public 关键表(users/projects/streams/user_projects/ai_audit_log)的行数与 max(id) 快照; 并在 e2e 用例真跑过写路径之后执行"},
+    {"where": "T4 E2E-009/015 轮询断言", "the_disease": "在无 Redis 车道里 status 永远 PENDING —— 轮询 30s 超时后用例红, 但红因是车道缺件而非产品缺陷; 更糟的修法是把轮询断言删掉只留 202", "suggested_assertion": "直调 worker 任务函数(Scoped session)后再轮询; 同时断言 status 终态=='SUCCESS' 且 download 返回的字节数>0 且 hash 非空(三段各自独立可失败)"},
+    {"where": "T5 WF-PATH-01C", "the_disease": "『confirm-recalc ⇒ 变 CHANGED』一跳跨了三个端点; 按字面写会在 CHANGE_PENDING 上断 CHANGED 而红", "suggested_assertion": "分步断言: confirm-recalc 后 marked_stale>=1; /confirm 后 sign_status=='CHANGE_PENDING'; apply-change 后 =='CHANGED' 且 record_hash != 发起时哈希"}
+  ],
+  "delivery_risks": [
+    {"risk": "E2E-009/015 依赖 ARQ+Redis+worker, 车道无 Redis ⇒ 两条场景必挂, 验收『≥18 passed』不可达(本评最高优先级)", "mitigation": "开工前裁决: D6 两段式推广(直调 generate_report_task / report-builder 执行任务)或车道起 scoped worker; 写进 T4 再动手"},
+    {"risk": "默认车道没有 e2e skip 判据 ⇒ `uv run pytest` 在开发库 pcs 上建 schema+跑 alembic+灌种子", "mitigation": "conftest 按 PG_PYTEST_MARK=='e2e' AND TEST_DATABASE_URL 存在才放行, 否则 skip; 加默认车道 skip 守卫测试"},
+    {"risk": "tests/e2e/ 既有住客被新 conftest 的 autouse/skip 逻辑连带静默 skip", "mitigation": "skip 只按 marker 生效; 守卫测试钉住老用例在默认车道仍执行"},
+    {"risk": "T7 首跑(新机器/CI): postgres-pgtest 未起或 public 没有 flows 种子 ⇒ real-backend 通道 6 条全红", "mitigation": "把 seed_e2e_flows(连同 migrate)写进 compose seed 服务或 compose_test_stack.sh 的启动序列, 不留手动步骤; README 同步"},
+    {"risk": "两车道并发跑 = 同库 DDL 锁等待, 表现为偶发卡住", "mitigation": "flock 单实例锁(见 missed_findings #11)"},
+    {"risk": "alembic 子进程 URL 派生错(query 拼接符或 cwd 层级) ⇒ schema 建到了 public", "mitigation": "沿用既有文件的 parents[N] 与 ?/& 拼接判据并抄其守卫断言(迁移后断言 public 无新表)"},
+    {"risk": "DROP SCHEMA 失败残留 ⇒ 下次跑『schema 已存在』类失败", "mitigation": "车道 fixture 起手 DROP SCHEMA IF EXISTS … CASCADE 再 CREATE, 名字可预测前缀 + 收尾清理日志"},
+    {"risk": "role_headers 的 token role 必须过 config.py:542 的白名单; 若场景里发明 PROCESS_CONTROLLER 之外的新词(如 SYSADMIN)直接 403", "mitigation": "role_headers 工厂内 assert role in 白名单(报错优于 403)"}
+  ],
+  "verdict_agreement": "partly — 骨架(车道/种子/隔离/复用清单)扎实, 20 条事实里 18 条属实; 但有一个 P0(E2E-009/015 的 Redis 依赖使『18 条全绿』当前不可达)和一个 P0 级缺口(e2e 默认车道 skip 机制缺失会让全量跑打到开发库), 加上 E2E-001 的断言前提不存在。这三处修完之前不应开工; 修法都是局部的, 不动批次结构。",
+  "residual_notes": [
+    "pytest_e2e.sh 里的 export DATABASE_URL 是死代码(pytest_pg.sh:50-51 无条件覆写)——留着会误导后人以为封装控制库指向",
+    "records_actions.py:738 的细闸在 approval_role 为空时跳过(fail-open)——WF-PATH-04 的一致性用例应顺带钉住『链上每步 approval_role 非空』",
+    "E2E-014 的端点是 equipment 域(/equipment/{id}/actual-data + /deviation-report), 无 supplier 命名——场景命名与端点域对齐即可, 无需改代码",
+    "ENQUEUE_TIMEOUT_S=2.0(arq_queue.py:30): E2E-017 若忘了 spy, 每个 501 请求多付 2s 超时——spy 本身也把这个延迟消掉了",
+    "submit-approval 要求工作区 FORMAL(records_actions.py:573)——种子工作区已是 FORMAL, 但 E2E-001 新建项目的场景要注意其工作区归属",
+    "单测车道对 pg 用例的『skip』在开发机上其实不 skip(_pg_url 回读 .env 的 postgres URL)——这是既有债, e2e 车道不要再复制这个形状",
+    "事实 #13/#15 两行错了但结论损伤有限: 真正要改的是计划里引用它们做论据的两句话(T7 的『PG 车道不受影响』与文件结构表的『Create tests/e2e/conftest.py』)",
+    "mock 通道 23 条与 real-backend 1 条的基线已核对; T8 验收『23 passed 不许回归』口径正确"
+  ]
+}
+```
+EXIT=0

@@ -206,7 +206,7 @@ P10-A ──→ P10-B ──→ P10-F
 | 批 | 状态 | 落地 commit | 证据 |
 |---|---|---|---|
 | **P10-A**（前置 + AI 预留） | ✅ **已闭环** | `2ef122d` ~ `5b608a1`（14 commit） | 后端 5751 passed（+89）· PG 车道 6 passed（+1）· 前端 1054 tests（+1）· Playwright mock 24 + 真后端 1 passed · 裸载荷 71 未涨 · G-08 4/4 · 两库 `p10_001 (head)` + `alembic check` exit 0 · 浏览器回归 **0C-0H-0M**（`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-12-p10a.md`） |
-| P10-B（全流程 E2E） | 📋 **计划已写**（2026-11-13）| —— | 计划：`docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md`（8 个 task · 18 场景 + WF-PATH 五类 + 权限矩阵）<br>✅ **TODO-149 有答案**：种子**不扩量**（业务输入写在场景里 ⇒ 种子只加**角色维度**：6 用户 × 全局角色各异 × 项目内角色各异）⇒ 「量规模」这一步的结论是「规模不大、缺的是角色维度」<br>⚠️ 权限矩阵要 per-user 项目内角色 ⇒ **新脚本** `scripts/seed_e2e_flows.py`（现有 `seed_e2e_data.py` 是**冒烟级**，不动） |
+| P10-B（全流程 E2E） | 📋 **计划已写**（2026-11-13）| —— | 计划：`docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md`（8 个 task · 18 场景 + WF-PATH 五类 + 权限矩阵）<br>✅ **TODO-149 有答案**：种子**不扩量**（业务输入写在场景里 ⇒ 种子只加**角色维度**：**7** 用户 × 全局角色各异 × 项目内角色各异 ⇒ 比原 6 多一个 `alice`，因为 mock 登录只认 alice/bob/carol/dan ⇒ UI 通道必须有一个「可登录且有授权」的人）⇒ 「量规模」这一步的结论是「规模不大、缺的是角色维度」<br>✅ **三路审查已合并**（2026-11-16）：`/plan-eng-review` 16 条 + 自查 4 条 + **hermes 第三视角 11 条**（含 **2 个 P0**：报告场景的 Redis 依赖 / `e2e` marker 无默认车道 skip ⇒ 会误伤开发库）⇒ 全部落进计划 ⇒ **18 个决策 · 0 未决**<br>⚠️ 权限矩阵要 per-user 项目内角色 ⇒ **新脚本** `scripts/seed_e2e_flows.py`（现有 `seed_e2e_data.py` 是**冒烟级**，不动） |
 | P10-C / D / E / F | ⏳ 未开工 | —— | 见本总纲 §二 的批次表 |
 
 ⇒ **偏离登记 D1~D22 已回写进 SPEC**
