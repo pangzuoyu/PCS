@@ -25,6 +25,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from tests.scripts.lane_script_body import lane_script_body
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_e2e.sh"
 PG_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_pg.sh"
 
@@ -32,15 +34,11 @@ PG_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_pg.sh"
 def _body() -> str:
     """脚本的**可执行部分**（去掉注释）。
 
-    ⚠️ 注释里提到 `uv run pytest` / `DATABASE_URL` 是**说明**（为什么要这么写）
-    ⇒ 断「脚本有没有做这件事」必须断**可执行部分** ⇒ 否则注释就足以让守卫误红。
+    ⚠️ **一处真相源**（P10-F · 评审 #27）：剥注释的口径在
+    `tests/scripts/lane_script_body.py` ⇒ ⇒ 本文件与 `test_pytest_pg_gate.py`
+    共用同一份 ⇒ ⇒ 同一个文件里**不再**有两套口径。
     """
-    lines: list[str] = []
-    for line in SCRIPT.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("#"):
-            continue
-        lines.append(line.split("#", 1)[0])
-    return "\n".join(lines)
+    return lane_script_body(SCRIPT)
 
 
 def test_script_exists_and_is_executable():
@@ -90,9 +88,15 @@ def test_lane_scripts_serialize_with_flock():
     ⚠️ **锁在共享的 `pytest_pg.sh` 里**（不是薄封装里）⇒
     ① 一次加锁 ⇒ 两条车道都生效 ② 薄封装 exec 进它 ⇒ 不会自己锁死自己
     ⇒ 所以这里断的是 **`pytest_pg.sh`** 的 body。
+
+    ⚠️ **断「可执行部分」**（P10-F · 评审 #27）⇒ ⇒ 注释里写一句 `flock`
+    不足以让守卫通过 ⇒ ⇒ 与 `test_pytest_pg_gate.py` 同一份口径。
     """
-    pg_body = PG_SCRIPT.read_text(encoding="utf-8")
-    assert "flock" in pg_body, (
-        "共享的 pytest_pg.sh 没有用 flock ⇒ 两条车道并发时只会「偶发卡住」"
+    pg_body = lane_script_body(PG_SCRIPT)
+    assert "flock -n" in pg_body, (
+        "共享的 pytest_pg.sh 没有用**非阻塞** flock（-n）⇒ 两条车道并发时会排队卡住"
+    )
+    assert "exec 9>" in pg_body, (
+        "共享的 pytest_pg.sh 没有锁住 fd 9 ⇒ 锁的生命周期只覆盖一条命令"
     )
     assert "pytest_pg.sh" in _body(), "薄封装没有委派 ⇒ 拿不到共享的那把锁"

@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.scripts.lane_script_body import lane_script_body
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_pg.sh"
 
 
@@ -136,13 +138,39 @@ def test_fails_when_some_pg_tests_are_skipped(tmp_path):
 
 
 def test_script_does_not_teach_a_second_entry_point():
-    """⚠️ 唯一入口：脚本里不得出现「直接 DATABASE_URL=... pytest」的第二条路。"""
-    body = SCRIPT.read_text(encoding="utf-8")
-    assert "pytest -m pg" in body
+    """⚠️ 唯一入口：脚本里不得出现「直接 DATABASE_URL=... pytest」的第二条路。
+
+    ⚠️ **断「可执行部分」**（P10-F · 评审 #27）⇒ ⇒ 注释里写一句
+    `uv run pytest` 不足以让计数变成 3 ⇒ ⇒ 那正是「唯一入口」被绕过、
+    而守卫仍然绿的那条路。
+    """
+    body = lane_script_body(SCRIPT)
+    # ⚠️ **可执行部分里没有字面量 `pytest -m pg`** —— 脚本走的是变量
+    # `uv run pytest -m "$PG_PYTEST_MARK"` ⇒ ⇒ 断**默认 marker**才是同一个意思
+    # （原先那句断的是**注释**里的用法示例 ⇒ 那是「说明」，不是「行为」）。
+    assert 'PG_PYTEST_MARK:-pg' in body, (
+        "脚本的默认 marker 必须是 pg（可执行部分里断）"
+    )
     # 不得在脚本里另起一条不经脚本的 pytest 调用路径（注释里说明允许）
     assert body.count("uv run pytest") == 2, (
         "脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；"
         "多出来的说明有人加了第二条路径"
+    )
+
+
+def test_lane_script_serializes_with_nonblocking_flock():
+    """⚠️ **非阻塞** flock（`-n`）+ **锁住 fd 9**（P10-F · 评审 #27）。
+
+    ⇒ `-n` 缺了 ⇒ 抢不到锁时**排队等** ⇒ ⇒ 表现是「卡住」而不是「立刻失败」
+    ⇒ ⇒ 与「偶发卡住」这个症状同形 ⇒ ⇒ 守卫必须断 `-n` 本身。
+    ⇒ ⇒ `exec 9>` 缺了 ⇒ 锁只覆盖**一条命令**⇒ ⇒ 脚本后半段不再受保护。
+    """
+    body = lane_script_body(SCRIPT)
+    assert "flock -n" in body, (
+        "flock 必须是**非阻塞**版（-n）⇒ 否则并发时排队卡住"
+    )
+    assert "exec 9>" in body, (
+        "必须锁住 fd 9 ⇒ 整个脚本生命周期都持锁"
     )
 
 
@@ -152,21 +180,34 @@ def test_default_lock_path_is_inside_the_project_not_tmp():
     ⇒ `/tmp` 会被**清理**（tmpfs / 重启）⇒ ⇒ 锁文件 inode 换新 ⇒ ⇒
     ⇒ 正在跑的车道的锁对新车道**不可见** ⇒ ⇒ 互斥**静默失效** ⇒ ⇒
     ⇒ 默认路径必须是项目内的 `.tmp/lane.lock`。
+
+    ⚠️ **默认路径只能静态断**（不能真占默认锁 ⇒ 会与真车道抢同一把锁 ⇒
+    撞「守门测试与被守机制共享资源」，正是
+    `docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md`
+    记的病）⇒ ⇒ 只能静态断 ⇒ ⇒ 就必须**断得严**：路径 + 非阻塞 + 锁 fd。
     """
-    body = SCRIPT.read_text(encoding="utf-8")
+    body = lane_script_body(SCRIPT)
     assert "/tmp/pcs-pgtest-lane.lock" not in body, (
         "默认锁路径还在 /tmp ⇒ 清理后 inode 换新 ⇒ 互斥静默失效（评审 #15）"
     )
     assert ".tmp/lane.lock" in body, (
         "默认锁路径应是项目内的 .tmp/lane.lock（评审 #15）"
     )
+    assert "flock -n" in body and "exec 9>" in body, (
+        "默认路径只能静态断 ⇒ 就必须断得严：非阻塞 + 锁 fd"
+    )
 
 
-def test_two_lanes_are_mutually_exclusive_on_the_default_path(tmp_path):
-    """⚠️ **默认路径**下两条车道**真的互斥**（P10-B 评审 #15 第 ③ 步）。
+def test_two_lanes_are_mutually_exclusive_on_an_overridden_lock_path(tmp_path):
+    """⚠️ **覆盖路径**（`PCS_PGTEST_LANE_LOCK`）下两条车道**真的互斥**。
 
-    ⇒ 之前只测过「覆盖过的锁文件」（守门测试自己那份）⇒ ⇒ **默认路径
-    ⇒ 从没被测过** ⇒ ⇒ 「默认路径也有效」只能靠读代码 ⇒ ⇒ 这里**实测**。
+    ⚠️ **这条曾经叫 `..._on_the_default_path` ⇒ 那是错的**（P10-F · 评审 #27）：
+    它在 `:205` 设了 `PCS_PGTEST_LANE_LOCK` ⇒ ⇒ **实测的是覆盖路径**，
+    **不是**默认路径 ⇒ ⇒ 它**没测它命名的东西** ⇒ ⇒ 名字改成诚实的。
+
+    ⇒ **默认路径**（`.tmp/lane.lock`）**至今只有静态守卫**
+    （`test_default_lock_path_is_inside_the_project_not_tmp`）⇒ ⇒ 因为
+    真占默认锁会与真车道抢锁 ⇒ ⇒ 那条互斥实测留给真车道跑的时候观察。
 
     ⇒ 做法：起一个**占着锁**的进程（`flock -n` 同一路径 + sleep）⇒ ⇒
     ⇒ 再跑车道脚本 ⇒ ⇒ 它必须因为「另一条车道正在跑」而失败。
