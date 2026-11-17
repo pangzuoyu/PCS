@@ -282,7 +282,7 @@ async def e2e_seed(e2e_schema) -> dict[str, object]:
 
 
 @pytest_asyncio.fixture
-async def e2e_client(e2e_schema):
+async def e2e_client(e2e_schema, public_baseline):
     """`httpx.AsyncClient` ⇒ **真 app**（`create_app()`）+ `get_db` 覆盖到隔离 schema。
 
     ⚠️ **不用 `strict_client` 那套最小 app** —— E2E 要**真中间件链**
@@ -294,6 +294,10 @@ async def e2e_client(e2e_schema):
     ⇒ ⇒ 车道验的是「生产同款」。
     ⚠️ **不跑完整 lifespan** —— ARQ worker / 信号在测试进程里是**噪音**
     ⇒ ⇒ 车道要的是「有生产默认数据」，不是「完整跑一遍生产启动」。
+
+    ⚠️ **依赖 `public_baseline`**（P10-F · 评审 #22）—— ⇒ 它在**第一个** E2E
+    用例之前就建立（session 级）⇒ ⇒ 会话级基线圈住的是**整个车道**
+    ⇒ ⇒ 而不是「从某个用例才开始」的那一段。
     """
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -326,6 +330,23 @@ async def e2e_client(e2e_schema):
     db_session_mod._async_engine = engine
     db_session_mod._async_session_factory = factory
 
+    # ⚠️ **第三个单例也必须指向隔离 schema**（P10-F · 评审 #22）
+    # ⇒ `app/db/session.py::get_engine()` 用的 `_sync_engine` 是**模块级单例**
+    # ⇒ ⇒ #19 只覆写了两个 async 的 ⇒ ⇒ **任何走 `get_engine()` 的路径在车道里
+    # 读写的是 public**（今天 `get_engine()` 只被 `check_database()` 用 ⇒
+    # **还没有活的泄漏路径** ⇒ ⇒ 它是**未来泄漏点** ⇒ ⇒ 现在就堵住）。
+    # ⚠️ **同步引擎的 schema 绑定与 async 不同** —— async 侧用
+    # `server_settings={'search_path': …}`（asyncpg 不认 `options=`），
+    # 同步侧用 **psycopg 的 `options=-csearch_path=…`** ⇒ ⇒ 两者不可混抄。
+    from sqlalchemy import create_engine
+
+    prev_sync_engine = db_session_mod._sync_engine
+    sync_engine = create_engine(
+        _lane_url(),
+        connect_args={"options": f"-csearch_path={e2e_schema}"},
+    )
+    db_session_mod._sync_engine = sync_engine
+
     transport = httpx.ASGITransport(app=app)
     try:
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -336,8 +357,89 @@ async def e2e_client(e2e_schema):
     finally:
         db_session_mod._async_engine = prev_engine
         db_session_mod._async_session_factory = prev_factory
+        db_session_mod._sync_engine = prev_sync_engine
         app.dependency_overrides.clear()
+        sync_engine.dispose()
         await engine.dispose()
+
+
+# ---------------------------------------------------------------------------
+# fixture：public schema 的快照与基线（P10-F · 评审 #22）
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def public_engine():
+    """**独立连接**到 public schema 的同步引擎（**不带** search_path 覆盖）。
+
+    ⚠️ **必须独立连接** —— 用 app 的 engine 查 public **永远查不到**
+    ⇒ ⇒ 守卫恒绿 = 空壳（hermes 断言形状病 #4）。
+    """
+    from sqlalchemy import create_engine
+
+    from tests.e2e_flows.helpers import public_sync_url
+
+    engine = create_engine(public_sync_url())
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def public_first_snapshot(e2e_schema):
+    """public schema 的**第一时刻**快照（session 级）。
+
+    ⚠️ **谁先谁后由依赖图定** —— `public_baseline` 依赖本 fixture ⇒ ⇒
+    本快照**必然**先于基线快照 ⇒ ⇒ 两者不等 ⇒ 就是「中间有东西写了 public」。
+    """
+    from sqlalchemy import create_engine
+
+    from tests.e2e_flows.helpers import public_snapshot, public_sync_url
+
+    engine = create_engine(public_sync_url())
+    try:
+        return public_snapshot(engine)
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def public_baseline(public_first_snapshot):
+    """public schema 的 **session 级基线** ⇒ 会话结束时**逐张相等**。
+
+    ⚠️ **为什么是 session 级**：单条写路径的前后快照只断「那一条写路径」⇒ ⇒
+    **别的**写路径（将来新加的）不受管 ⇒ ⇒ session 级基线把**整个车道**
+    都圈进来 ⇒ ⇒ 与「单条写路径守卫」**并存**（两种口径，各管各的）。
+
+    ⚠️ **取快照的时机**：`e2e_schema` 就绪之后（本 fixture 依赖它 ⇒ 它先建好）
+    ⇒ ⇒ 会话开始时的 public 就是「车道动手之前」的 public。
+    """
+    from sqlalchemy import create_engine
+
+    from tests.e2e_flows.helpers import public_snapshot, public_sync_url
+
+    engine = create_engine(public_sync_url())
+    baseline = public_snapshot(engine)
+    try:
+        yield baseline
+    finally:
+        after = public_snapshot(engine)
+        engine.dispose()
+        assert baseline == after, (
+            "public schema 在 E2E 车道期间被改了 ⇒ 隔离失效："
+            f"{_diff_tables(baseline, after)}"
+        )
+
+
+def _diff_tables(before: dict, after: dict) -> list[str]:
+    """两张 public 快照的差异（表名 + 前后的值）⇒ 便于定位。"""
+    out: list[str] = []
+    for table in sorted(set(before) | set(after)):
+        b, a = before.get(table), after.get(table)
+        if b != a:
+            out.append(f"{table}: {b} → {a}")
+    return out
 
 
 # ---------------------------------------------------------------------------

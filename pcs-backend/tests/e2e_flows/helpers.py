@@ -181,6 +181,51 @@ def public_sync_url() -> str:
     )
 
 
+def public_snapshot(engine) -> dict[str, tuple[int, int]]:
+    """public schema **全部表**的快照（每张表 `count(*)` + `max(xmin)`）。
+
+    ⚠️ **为什么快照「全部表」而不是「车道会写的那些表」**（P10-F · 评审 #22 · D3）：
+    守卫要的属性从来是「**public 没被动过**」⇒ ⇒ **不需要知道「车道写了哪些表」**
+    ⇒ ⇒ 表清单来自 `information_schema` ⇒ ⇒ 「抄一次就漂一次」那个病直接消失
+    ⇒ ⇒ **不再有任何手抄表清单**。
+
+    ⚠️ **为什么带 `max(xmin)`**（D12）：`count(*)` 只看得见**增 / 删**⇒ ⇒
+    **同表内的替换与更新看不见**（`UPDATE` 不改行数）⇒ ⇒ `xmin` 是事务 id
+    ⇒ ⇒ 插入 / 删除 / **更新**都会让它变 ⇒ ⇒ 捕获能力相同。
+    ⚠️ **代价**：`VACUUM FREEZE` 会把 `xmin` 归 2 ⇒ ⇒ 两个快照之间若发生
+    freeze ⇒ **误报**（车道库几乎不会 freeze ⇒ 但要知道）。
+
+    ⚠️ **`xmin` 是 PG 专有系统列** ⇒ ⇒ 这条**只能在 E2E 车道（真 PG）跑**
+    ⇒ ⇒ SQLite 上会报 `no such column: xmin` ⇒ ⇒ 别把它挪进默认车道。
+
+    ⚠️ **`public.` 显式限定** —— `information_schema` 不受 `search_path` 约束
+    ⇒ ⇒ 这里必须写全 `public."<表名>"`。
+    """
+    from sqlalchemy import text
+
+    out: dict[str, tuple[int, int]] = {}
+    with engine.connect() as conn:
+        tables = [
+            row[0]
+            for row in conn.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
+                    "ORDER BY table_name"
+                )
+            )
+        ]
+        for table in tables:
+            count, xmin_max = conn.execute(
+                text(
+                    f'SELECT count(*), coalesce(max(t.xmin::text::bigint), 0) '
+                    f'FROM public."{table}" AS t'
+                )
+            ).one()
+            out[table] = (int(count), int(xmin_max))
+    return out
+
+
 async def advance_stream_to_checked(
     client, stream_id: uuid.UUID, *, role_headers
 ) -> dict[str, Any]:

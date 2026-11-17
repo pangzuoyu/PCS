@@ -25,6 +25,9 @@ import re
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
+
+from tests.e2e_flows.helpers import public_snapshot
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -100,21 +103,25 @@ async def test_lane_role_headers_map_to_seeded_users(e2e_client, e2e_seed, role_
 
 
 @pytest.mark.e2e
-async def test_lane_never_writes_to_the_public_schema(e2e_client, e2e_schema, role_headers):
+async def test_lane_never_writes_to_the_public_schema(
+    e2e_client, e2e_schema, role_headers, public_engine
+):
     """⚠️ **「隔离」这句话必须被验** —— E2E 的行**不能**出现在 public schema。
 
     ⚠️ **断法必须换**（2026-11-16 · hermes 断言形状病 #4）：
     **不能用「被覆盖过的 app engine」去查 public** —— 那个 engine 的
     `search_path` 指向隔离 schema ⇒ 查 public **永远查不到** ⇒ 守卫**恒绿** = 空壳。
     ⇒ 改用**独立连接**（不带 `options=-csearch_path=`）⇒ 取**写路径前后**的
-    `count(*)` 快照 ⇒ **断言不变**。
+    快照 ⇒ **断言不变**。
     ⇒ 且本用例**自己先走一遍真写路径** ⇒ 否则库里本来就没新行 ⇒ 照样恒绿。
     ⇒ ⚠️ **写必须真的成功**（201）—— 允许 422 等「失败」等于允许「什么都没写」
     ⇒ 那时「public 不变」只是「没写」的同义反复 ⇒ 守卫仍是空壳。
+
+    ⚠️ **快照覆盖面**（P10-F · 评审 #22 · D3）：现在快照的是 public 的
+    **全部表**（表清单来自 `information_schema`）⇒ ⇒ 不需要手抄「车道会写哪些表」
+    ⇒ ⇒ 抄一次就漂一次那个病直接消失。
     """
     import uuid as _uuid
-
-    from sqlalchemy import create_engine
 
     from app.models.project import Workspace
 
@@ -126,35 +133,155 @@ async def test_lane_never_writes_to_the_public_schema(e2e_client, e2e_schema, ro
         # ⚠️ `expire_on_commit=False` ⇒ commit 后属性仍可读
         workspace_id = workspace.workspace_id
 
-    public_engine = create_engine(_public_sync_url())
-    try:
-        before = _public_snapshot(public_engine)
-        # ② 走一遍**真写路径**（建项目 ⇒ 会写 projects + user_projects）
-        resp = await e2e_client.post(
-            "/api/v1/projects",
-            json={
-                "project_no": f"E2E-GUARD-{_uuid.uuid4().hex[:8]}",
-                "project_name": "隔离守卫用项目",
-                "owner_company": "业主",
-                "location": "地点",
-                "project_type": "CHEMICAL",
-                "design_phase": "FEED",
-                "unit_system": "SI",
-                "workspace_id": str(workspace_id),
-            },
-            # ⚠️ 建项目端点要求 **SYSTEM_ADMIN**（`require_roles`）⇒
-            # 用 `e2e-admin` 的 token（`role_headers` 的映射里唯一那个）
-            headers=role_headers("SYSTEM_ADMIN"),
-        )
-        assert resp.status_code in (200, 201), (
-            f"写路径没走通（status={resp.status_code} body={resp.text[:200]}）⇒ "
-            "本用例的「public 不变」就成空壳"
-        )
-        after = _public_snapshot(public_engine)
-    finally:
-        public_engine.dispose()
+    before = public_snapshot(public_engine)
+    # ② 走一遍**真写路径**（建项目 ⇒ 会写 projects + user_projects）
+    resp = await e2e_client.post(
+        "/api/v1/projects",
+        json={
+            "project_no": f"E2E-GUARD-{_uuid.uuid4().hex[:8]}",
+            "project_name": "隔离守卫用项目",
+            "owner_company": "业主",
+            "location": "地点",
+            "project_type": "CHEMICAL",
+            "design_phase": "FEED",
+            "unit_system": "SI",
+            "workspace_id": str(workspace_id),
+        },
+        # ⚠️ 建项目端点要求 **SYSTEM_ADMIN**（`require_roles`）⇒
+        # 用 `e2e-admin` 的 token（`role_headers` 的映射里唯一那个）
+        headers=role_headers("SYSTEM_ADMIN"),
+    )
+    assert resp.status_code in (200, 201), (
+        f"写路径没走通（status={resp.status_code} body={resp.text[:200]}）⇒ "
+        "本用例的「public 不变」就成空壳"
+    )
+    after = public_snapshot(public_engine)
 
     assert before == after, f"public schema 被 E2E 改了：{before} → {after}"
+
+
+# ---------------------------------------------------------------------------
+# 守卫**自证**（P10-F · 评审 #22 · D10）—— 「它看得见泄漏」必须有证据
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.e2e
+async def test_public_guard_detects_a_leaked_row(public_engine):
+    """守卫自证：往 public **插一行** ⇒ 快照必须变化 ⇒ 否则它是空壳。
+
+    ⚠️ **探针表选 `audit_logs`** —— 它**不在**旧守卫数的 4 张表里
+    （users / projects / streams / user_projects）⇒ ⇒ 旧守卫**看不见**它
+    ⇒ ⇒ 这条对「覆盖面不够」有证明力。
+
+    ⚠️ **必须清理**：探针行删掉后，表里活着的行数与 `max(xmin)` 都回到原样
+    ⇒ ⇒ session 级基线（会话结束逐张相等）才不会红。
+    """
+    _purge_probe_rows(public_engine)
+    before = public_snapshot(public_engine)
+    with public_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO public.audit_logs (audit_id, action, resource_type) "
+                "VALUES (gen_random_uuid(), 'E2E_LEAK_PROBE', 'PROBE')"
+            )
+        )
+    after = public_snapshot(public_engine)
+    assert before["audit_logs"] != after["audit_logs"], (
+        "往 public 写了一行，快照却没变 ⇒ 守卫是空壳（连插都看不见）"
+    )
+
+    # ⚠️ **删除也必须看得见**（另一半的捕获能力）
+    with public_engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM public.audit_logs WHERE action = 'E2E_LEAK_PROBE'")
+        )
+    deleted = public_snapshot(public_engine)
+    assert after["audit_logs"] != deleted["audit_logs"], (
+        "删掉那一行，快照却没变 ⇒ 守卫是空壳（连删都看不见）"
+    )
+    assert deleted["audit_logs"] == before["audit_logs"], (
+        "探针行删掉后快照**必须**回到原样 ⇒ 否则 session 级基线会误红"
+    )
+
+
+@pytest.mark.e2e
+async def test_public_guard_detects_an_updated_row(public_engine):
+    """⚠️ **UPDATE 是本任务的核心** —— `count(*)` **不变** ⇒ 只有 `max(xmin)` 看得见。
+
+    ⇒ ⇒ 「同表内的替换与更新」是旧守卫的**真盲区**（只断 `count(*)`）。
+    """
+    _purge_probe_rows(public_engine)
+    before = public_snapshot(public_engine)
+    with public_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO public.audit_logs (audit_id, action, resource_type) "
+                "VALUES (gen_random_uuid(), 'E2E_LEAK_PROBE', 'PROBE')"
+            )
+        )
+    inserted = public_snapshot(public_engine)
+    with public_engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE public.audit_logs SET resource_type = 'PROBE-UPDATED' "
+                "WHERE action = 'E2E_LEAK_PROBE'"
+            )
+        )
+    updated = public_snapshot(public_engine)
+
+    assert inserted["audit_logs"][0] == updated["audit_logs"][0], (
+        "UPDATE 不改行数 ⇒ 行数必须一样（否则这条测的不是 UPDATE）"
+    )
+    assert inserted["audit_logs"] != updated["audit_logs"], (
+        "UPDATE 之后快照没变 ⇒ 守卫看不见**同表内的更新**（只断 count(*) 的老盲区）"
+    )
+
+    with public_engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM public.audit_logs WHERE action = 'E2E_LEAK_PROBE'")
+        )
+    assert public_snapshot(public_engine)["audit_logs"] == before["audit_logs"], (
+        "探针行删掉后快照**必须**回到原样 ⇒ 否则 session 级基线会误红"
+    )
+
+
+@pytest.mark.e2e
+async def test_public_baseline_is_taken_before_any_lane_write(
+    public_first_snapshot, public_baseline
+):
+    """基线必须**早于**车道的任何写入 ⇒ ⇒ 两份「最初时刻」的快照必须相等。
+
+    （若中间有写入 ⇒ 不等 ⇒ 顺序被写错时这条立刻红。）
+    """
+    assert public_first_snapshot == public_baseline, (
+        "两份「最初时刻」的快照不相等 ⇒ 中间有东西写了 public"
+    )
+
+
+@pytest.mark.e2e
+async def test_sync_engine_singleton_is_bound_to_the_isolated_schema(
+    e2e_client, e2e_schema
+):
+    """⚠️ **第三个单例**（`_sync_engine`）也必须指向隔离 schema（P10-F · 评审 #22）。
+
+    ⚠️ #19 只覆写了两个 async 单例 ⇒ ⇒ **任何走 `get_engine()` 的路径在车道里
+    读写的是 public** ⇒ ⇒ 今天 `get_engine()` 只被 `check_database()` 用
+    ⇒ ⇒ **还没有活的泄漏路径** ⇒ ⇒ 它是**未来泄漏点** ⇒ ⇒ 现在就堵住。
+
+    ⇒ ⇒ 断**行为**（真连一次看 `current_schema()`）而不是断「某行代码存在」。
+    """
+    import app.db.session as db_session_mod
+
+    engine = db_session_mod._sync_engine
+    assert engine is not None, (
+        "同步引擎单例没有被覆写 ⇒ 任何走 `get_engine()` 的路径都读写 public"
+    )
+    with engine.connect() as conn:
+        current = conn.execute(text("SELECT current_schema()")).scalar_one()
+    assert current == e2e_schema, (
+        f"同步引擎落在 schema {current!r}（应是隔离 schema {e2e_schema!r}）"
+        "⇒ 走 `get_engine()` 的路径会写 public"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -231,16 +358,18 @@ def _public_sync_url() -> str:
     return public_sync_url()
 
 
-def _public_snapshot(engine) -> dict[str, int]:
-    from sqlalchemy import text
+def _purge_probe_rows(engine) -> None:
+    """删掉**上一次**跑剩下的探针行（幂等自洁）。
 
-    out: dict[str, int] = {}
-    with engine.connect() as conn:
-        for table in ("users", "projects", "streams", "user_projects"):
-            out[table] = int(
-                conn.execute(text(f"SELECT count(*) FROM public.{table}")).scalar_one()
-            )
-    return out
+    ⚠️ **为什么需要**：探针行是**真的写进 public** 的 ⇒ ⇒ 上一次跑若中途
+    崩了（断言红 ⇒ 清理没跑到）⇒ ⇒ 残留会**污染下一次跑的基线**
+    ⇒ ⇒ 「删掉后快照必须回到原样」那条断言就会**假红**。
+    ⇒ ⇒ 所以每次探针**先**清残留、再取基线。
+    """
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM public.audit_logs WHERE action = 'E2E_LEAK_PROBE'")
+        )
 
 
 def text_(sql: str):
