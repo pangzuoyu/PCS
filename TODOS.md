@@ -3854,3 +3854,33 @@ pub/sub 行为）⇒ ⇒ 这类测试**不该**在默认车道跑。
 **何时做**：下一批（产品裁决）
 
 **归属**：P10-F（F1-T3 的延伸 · 交人裁决）
+
+---
+
+## TODO-167: 前端还有别处把**占位常量**当真项目 id 用 🟡
+
+**现状**（2026-11-17 · P10-F 的 F2-T2 期间发现）：
+
+评审 #24 的根因是「占位 id 被当真值用」⇒ ⇒ 本批已修**仪表盘**那一处
+（守卫条件改成「**拿到了真 project_id**」）⇒ ⇒ 并把常量改名成
+`PLACEHOLDER_PROJECT_ID`（`src/constants/env.ts`）⇒ ⇒ 旧名 `PROJECT_ID`
+保留为别名（语义 = 占位 id）。
+
+⇒ ⇒ **仍有 4 处引用**把它当**真 id** 用：
+
+- `src/pages/routeWrappers.tsx:136`（`StreamManualWizardRoute`）
+- `src/pages/routeWrappers.tsx:212`（`PipeLineListRoute`）
+- `src/pages/routeWrappers.tsx:331`（`PmsRoute`）
+- `src/pages/routeWrappers.tsx:335`（`BeddRoute`）
+
+⇒ ⇒ 那 3 个页面的 404 是 **TODO-159**（前端调了**不存在**的端点）的
+**既有白名单项** ⇒ ⇒ **本批不顺手改**（改了 ⇒ 白名单失效 ⇒ 反而掩盖真缺口）。
+
+**建议改法**：给那 3 个端点补齐（TODO-159）⇒ ⇒ 页面改成从
+**路由上下文 / 用户选择**里拿真 `project_id` ⇒ ⇒ 然后删掉白名单条目。
+⚠️ 改名只是「让名字说真话」，**不解决**「拿哪个真 id」的问题 ⇒ ⇒
+**必须与 TODO-159 一起做**。
+
+**何时做**：TODO-159 那一批
+
+**归属**：P10-F（F2-T2 的延伸 · 与 TODO-159 绑定）

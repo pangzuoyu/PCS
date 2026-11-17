@@ -33,6 +33,7 @@ from app.models.report import ReportDefinition
 from scripts.seed_e2e_flows import (
     AUTHORIZED_USERNAMES,
     FLOW_MATRIX_ID,
+    FLOW_PERSONAL_WORKSPACE_ID,
     FLOW_PIPE_CLASS_ID,
     FLOW_PROJECT_ID,
     FLOW_USERNAMES,
@@ -455,3 +456,55 @@ async def test_seed_corrects_an_existing_legacy_row(db_session):
     PipeClassResponse.model_validate(
         {c.name: getattr(row, c.name) for c in PipeClass.__table__.columns}
     )  # ← 不抛错 ⇒ 老行被订正过
+
+
+async def test_seed_corrects_a_legacy_workspace_without_owner(db_session):
+    """库里**已存在** `owner_id` 为 NULL 的老工作区 ⇒ 重跑种子 ⇒ **被订正**。
+
+    ⚠️ **为什么必须有**（P10-F · F2-T2 · 评审 #24）：`_get_or_create` 是
+    「**存在就不动**」⇒ ⇒ 只改工厂函数**不修已种下的老行** ⇒ ⇒
+    ⇒ 工作区的 `owner_id` 仍是 NULL ⇒ ⇒ 前端切换器（**永远**带 `owner_id`
+    取列表）**选不中它** ⇒ ⇒ 现象照旧 ⇒ ⇒ 必须**显式订正**。
+
+    ⚠️ E2E 车道**测不到这条**（那条车道的 schema 每次都是**新建**的 ⇒
+    ⇒ 行永远是新建的 ⇒ ⇒ 订正分支**走不到**）⇒ ⇒ 这条只能在默认车道测。
+    """
+    from app.models.project import Workspace
+    from app.services.token_issuer import derive_user_id
+
+    db_session.add(
+        Workspace(
+            workspace_id=FLOW_WORKSPACE_ID,
+            workspace_type="FORMAL",
+            name="E2E Flows Workspace",
+            owner_id=None,  # ← 老形状：没有 owner ⇒ 切换器里选不中
+            status="ACTIVE",
+        )
+    )
+    await db_session.commit()
+
+    await seed_flows(db_session)  # ← 重跑
+
+    row = (
+        await db_session.execute(
+            select(Workspace).where(Workspace.workspace_id == FLOW_WORKSPACE_ID)
+        )
+    ).scalar_one()
+    assert row.owner_id == derive_user_id("alice"), (
+        f"老工作区的 owner_id 没被订正 ⇒ {row.owner_id}"
+    )
+    # ⚠️ **FORMAL 工作区也要有项目**（回填）⇒ ⇒ 仪表盘那条路径才测得了
+    assert row.project_id is not None, "FORMAL 工作区没有回填 project_id"
+
+    # ⚠️ **「无项目的工作区」也要有**（PERSONAL · project_id 留空）⇒ ⇒
+    # ⇒ 仪表盘那条路径（选到无项目工作区 ⇒ 不渲染面板）在真后端才**测得了**。
+    personal = (
+        await db_session.execute(
+            select(Workspace).where(Workspace.workspace_id == FLOW_PERSONAL_WORKSPACE_ID)
+        )
+    ).scalar_one()
+    assert personal.workspace_type == "PERSONAL", personal.workspace_type
+    assert personal.project_id is None, (
+        f"PERSONAL 工作区**按设计**没有项目 ⇒ {personal.project_id}"
+    )
+    assert personal.owner_id == derive_user_id("alice"), personal.owner_id

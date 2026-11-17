@@ -79,6 +79,13 @@ def _uid(name: str) -> uuid.UUID:
 
 #: 工作区（FORMAL）。
 FLOW_WORKSPACE_ID = _uid("pcs-e2e-flows-workspace")
+#: 工作区（**PERSONAL** · **无项目**）—— 仪表盘的「无项目工作区」形态（P10-F · F2-T2）。
+#:
+#: ⚠️ **为什么要它**：真实产品里「个人 / 临时工作区」**按设计**没有项目
+#: ⇒ ⇒ 真后端里必须有这个形态**才测得了**「仪表盘选到无项目工作区」
+#: ⇒ ⇒ 否则那条路径在真后端下**选都选不中** ⇒ ⇒ 等于没测。
+#: ⚠️ **只建 PERSONAL**（不建 TEMPORARY）⇒ ⇒ 一个就够 ⇒ ⇒ YAGNI。
+FLOW_PERSONAL_WORKSPACE_ID = _uid("pcs-e2e-flows-personal-workspace")
 #: 项目（绑 `module='RECORD'` 签署矩阵）。
 FLOW_PROJECT_ID = _uid("pcs-e2e-flows-project")
 #: 记录级签署矩阵（3 级：CHECKER → REVIEWER → APPROVER）。
@@ -335,21 +342,75 @@ async def _delete_own_rows(db: AsyncSession) -> None:
 # ---------------------------------------------------------------------------
 
 
+async def _correct_workspace(db: AsyncSession, ws: Workspace, **fields: Any) -> Workspace:
+    """把工作区的若干列**订正**成给定值（幂等 · 只在真的不对时才写）。
+
+    ⚠️ **为什么需要**：`_get_or_create` 是「**存在就不动**」⇒ ⇒ 只改工厂函数
+    **不修已种下的老行** ⇒ ⇒ 现象照旧（hermes 裁决里点名的那个坑）。
+    ⇒ ⇒ 这里显式订正 ⇒ ⇒ 重跑一次种子就修好了。
+    """
+    changed = False
+    for column, value in fields.items():
+        if getattr(ws, column) != value:
+            setattr(ws, column, value)
+            changed = True
+    if changed:
+        await db.flush()
+    return ws
+
+
 async def _ensure_workspace(db: AsyncSession) -> Workspace:
     """建/取种子工作区（FORMAL）。
 
     ⚠️ `Project.workspace_id` 是 NOT NULL ⇒ 没有工作区就**建不出项目**
     ⇒ 工作区是种子链的第一环。
+
+    ⚠️ **`owner_id` 要填**（P10-F · F2-T2 · 评审 #24）—— 前端**永远**带
+    `owner_id` 取工作区列表（`WorkspaceSwitcher` ⇒ `workspaceApi.list(ownerId)`）
+    ⇒ ⇒ `owner_id` 是 NULL ⇒ 列表里**选不中它** ⇒ ⇒ 「补 project_id」那步
+    根本轮不到 ⇒ ⇒ 填**派生 id**（不是用户名）。
     """
-    return await _get_or_create(
+    ws = await _get_or_create(
         db,
         select(Workspace).where(Workspace.workspace_id == FLOW_WORKSPACE_ID),
         lambda: Workspace(
             workspace_id=FLOW_WORKSPACE_ID,
             workspace_type="FORMAL",
             name="E2E Flows Workspace",
+            owner_id=derive_user_id("alice"),
             status="ACTIVE",
         ),
+    )
+    # ⚠️ **存在即订正**（幂等）—— 已种下的老行 `owner_id` 是 NULL ⇒ ⇒
+    # ⇒ 切换器里**选不中** ⇒ ⇒ 现象照旧 ⇒ ⇒ 这里订正回来。
+    return await _correct_workspace(db, ws, owner_id=derive_user_id("alice"))
+
+
+async def _ensure_personal_workspace(db: AsyncSession) -> Workspace:
+    """建/取**无项目**的工作区（PERSONAL · owner=alice）。
+
+    ⚠️ **这是真实产品里的形态** —— 「个人 / 临时工作区」**按设计**没有项目
+    ⇒ ⇒ 真后端要有它，仪表盘的「选到无项目工作区」那条路径才**测得了**
+    ⇒ ⇒ 否则那条路径在真后端下**根本选不中** ⇒ ⇒ 等于没测。
+
+    ⚠️ **`project_id` 留空** ⇒ ⇒ 这就是「无项目工作区」的定义。
+    ⚠️ **名字带「无项目」** ⇒ ⇒ E2E 按文本选它（antd 的 option 是**隐藏副本**
+    ⇒ ⇒ 用 `.ant-select-item-option`）。
+    """
+    ws = await _get_or_create(
+        db,
+        select(Workspace).where(Workspace.workspace_id == FLOW_PERSONAL_WORKSPACE_ID),
+        lambda: Workspace(
+            workspace_id=FLOW_PERSONAL_WORKSPACE_ID,
+            workspace_type="PERSONAL",
+            name="E2E 无项目工作区",
+            owner_id=derive_user_id("alice"),
+            project_id=None,
+            status="ACTIVE",
+        ),
+    )
+    return await _correct_workspace(
+        db, ws, owner_id=derive_user_id("alice"), project_id=None
     )
 
 
@@ -747,6 +808,16 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
 
     workspace = await _ensure_workspace(db)
     project = await _ensure_project(db, workspace)
+    # ⚠️ **FORMAL 工作区回填 `project_id`**（P10-F · F2-T2 · 评审 #24）——
+    # ⇒ FORMAL 按设计**归属一个项目** ⇒ ⇒ 真后端里「有项目的工作区」就是这个。
+    # ⇒ ⚠️ **顺序约束**：工作区**先于**项目创建（`Project.workspace_id` NOT NULL）
+    # ⇒ ⇒ `workspace.project_id` **只能在 `_ensure_project` 之后**回填
+    # ⇒ ⇒ 提前填 ⇒ 撞 FK（`workspaces.project_id` → `projects.project_id`）。
+    if workspace.project_id != project.project_id:
+        workspace.project_id = project.project_id
+    # ⚠️ **「无项目的工作区」也要有**（PERSONAL · project_id 留空）——
+    # ⇒ 仪表盘那条路径（选到无项目工作区 ⇒ 不渲染面板）在真后端才**测得了**。
+    await _ensure_personal_workspace(db)
     users = await _ensure_users(db)
     await _ensure_grants(db, users, project)
     streams = await _ensure_streams(db, project, workspace)
@@ -771,7 +842,8 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
     await db.commit()
 
     counts = {
-        "workspaces": 1,
+        # ⚠️ **2 个**工作区（FORMAL 有项目 + PERSONAL 无项目）—— P10-F · F2-T2
+        "workspaces": 2,
         "projects": 1,
         "users": len(users),
         "user_projects": len(AUTHORIZED_USERNAMES),

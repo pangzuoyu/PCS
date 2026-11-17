@@ -165,3 +165,70 @@ test('@real-backend 权限：角色够但无授权的用户看到的是「与不
   await expect(realPage.getByTestId('stream-list-page')).toBeVisible();
   await expect(realPage.getByText(STREAM_NAME, { exact: false })).toHaveCount(0);
 });
+
+// ---------------------------------------------------------------------------
+// 仪表盘的守卫条件（P10-F · F2-T2 · 评审 #24）
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ **身份必须是 `alice`** —— 工作区的 `owner_id` 是 alice 的**派生 id**
+ * ⇒ ⇒ 前端**永远**带 `owner_id` 取列表 ⇒ ⇒ 别人的工作区**看不见**
+ * ⇒ ⇒ 用 `dan` 会**连列表都空** ⇒ ⇒ 用 `dan` 测不出任何东西。
+ */
+const WORKSPACE_OWNER = 'alice';
+
+/** 打开仪表盘上的工作区切换器并选中某个工作区（按文本片段）。 */
+async function selectWorkspace(
+  page: import('@playwright/test').Page,
+  textFragment: string,
+): Promise<void> {
+  // ⚠️ antd 的 `role="option"` 是**隐藏副本** ⇒ 用可见的选项项
+  await page.locator('[data-testid="workspace-switcher"] .ant-select-selector').click();
+  const option = page.locator('.ant-select-item-option', { hasText: textFragment });
+  await option.waitFor({ state: 'visible' });
+  await option.click();
+}
+
+test('@real-backend 真后端：选「无项目的工作区」⇒ 清单面板不渲染且无 404 / 无 console error', async ({
+  realPage,
+}) => {
+  const consoleErrors: string[] = [];
+  const badResponses: string[] = [];
+  realPage.on('console', (m) => {
+    if (m.type() === 'error') consoleErrors.push(m.text());
+  });
+  realPage.on('response', (r) => {
+    if (r.status() >= 400) badResponses.push(`${r.status()} ${r.url()}`);
+  });
+
+  await loginViaUi(realPage, WORKSPACE_OWNER);
+  await selectWorkspace(realPage, '无项目');
+
+  // ⇒ 面板**不渲染** ⇒ ⇒ 一个请求都不该发 ⇒ ⇒ 没有 404
+  await expect(realPage.getByTestId('input-checklist-panel')).toHaveCount(0);
+  expect(badResponses, '选无项目工作区不该有 4xx/5xx').toEqual([]);
+  expect(
+    consoleErrors.filter((t) => !t.includes('Failed to load resource')),
+    '选无项目工作区不该有 console error',
+  ).toEqual([]);
+});
+
+test('@real-backend 真后端：选有项目的工作区 ⇒ 面板渲染且请求带**真项目 id**', async ({
+  realPage,
+}) => {
+  const checklistRequests: string[] = [];
+  realPage.on('request', (req) => {
+    if (req.url().includes('/checklist/projects/')) checklistRequests.push(req.url());
+  });
+
+  await loginViaUi(realPage, WORKSPACE_OWNER);
+  await selectWorkspace(realPage, 'E2E Flows Workspace');
+
+  await expect(realPage.getByTestId('input-checklist-panel')).toBeVisible();
+  // ⚠️ **断「带的是真项目 id」** ⇒ 不是断「渲染了」那种烟测 ⇒ ⇒
+  // ⇒ 也钉住「占位常量被当真值用」这个病根。
+  expect(
+    checklistRequests.some((u) => u.includes(FLOW_PROJECT_ID)),
+    `清单请求没带真项目 id ${FLOW_PROJECT_ID}：${checklistRequests.join(' | ')}`,
+  ).toBe(true);
+});
