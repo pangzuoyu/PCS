@@ -312,6 +312,48 @@ async def test_seed_flows_creates_the_pipe_class_the_record_points_to(db_session
     )
 
 
+async def test_seed_flows_seeds_the_production_default_data(db_session):
+    """⚠️ **生产默认数据**（系数表 + 系统参数）也在隔离 schema 里（P10-B 评审 #18）。
+
+    ⇒ 生产在 **lifespan** 里 seed 这两处 ⇒ ⇒ 车道**不跑 lifespan**
+    ⇒ ⇒ 种子脚本**显式调生产用的那两个函数** ⇒ ⇒ 车道验的是「生产同款」。
+
+    ⚠️ **断言的是「行数 = 源清单的条数」**（不是写死的数字）⇒ ⇒
+    ① 漏灌 ⇒ 红；② 源清单变了 ⇒ 断言**自动跟着变** ⇒ 不会「数字过期 ⇒ 假红」。
+    """
+    counts = await seed_flows(db_session)
+
+    from scripts.seed_e2e_flows import (
+        _default_coefficient_tables,
+        _default_system_settings,
+    )
+
+    assert counts["coefficient_tables"] == len(_default_coefficient_tables()), (
+        f"系数表行数不对：{counts['coefficient_tables']}"
+        f" ≠ {len(_default_coefficient_tables())}"
+    )
+    assert counts["system_settings"] == len(_default_system_settings()), (
+        f"系统参数行数不对：{counts['system_settings']}"
+        f" ≠ {len(_default_system_settings())}"
+    )
+
+    # ⇒ 且**真的在库里**（不是只在计数里）
+    from app.models.config_domain import CoefficientTable
+    from app.models.system import SystemSetting
+
+    coeff_rows = (
+        await db_session.execute(select(CoefficientTable))
+    ).scalars().all()
+    setting_rows = (
+        await db_session.execute(select(SystemSetting))
+    ).scalars().all()
+    assert len(coeff_rows) == len(_default_coefficient_tables())
+    assert len(setting_rows) == len(_default_system_settings())
+    assert {r.setting_key for r in setting_rows} == {
+        item["key"] for item in _default_system_settings()
+    }
+
+
 def test_record_payload_template_has_all_required_columns():
     """`PIPING_RECORD_PAYLOAD` **不缺列** ⇒ 缺一个 ⇒ 造记录的场景全红
     （且错误信息在**响应体**里，不在模板里 ⇒ 极难定位）。

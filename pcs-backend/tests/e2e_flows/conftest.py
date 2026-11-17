@@ -288,7 +288,12 @@ async def e2e_client(e2e_schema):
     ⚠️ **不用 `strict_client` 那套最小 app** —— E2E 要**真中间件链**
     （审计 / trace / CORS）⇒ 场景验的是**生产同款**行为。
     ⚠️ **不走 lifespan** ⇒ `httpx.ASGITransport` 本来就不跑 lifespan ⇒
-    「只有 lifespan 才会做的那两处 seed」由 `e2e_seed` 显式补（T2 起）。
+    ⇒ 「只有 lifespan 才会做的那两处 seed」（**系数表** + **系统参数**）
+    ⇒ ⇒ 由 **`scripts/seed_e2e_flows.py` 显式调生产用的那两个函数**补上
+    ⇒ ⇒（P10-B 评审 #18 · 裁决选 (b)）⇒ ⇒ 隔离 schema 里**有生产默认数据**
+    ⇒ ⇒ 车道验的是「生产同款」。
+    ⚠️ **不跑完整 lifespan** —— ARQ worker / 信号在测试进程里是**噪音**
+    ⇒ ⇒ 车道要的是「有生产默认数据」，不是「完整跑一遍生产启动」。
     """
     from sqlalchemy.ext.asyncio import async_sessionmaker
 

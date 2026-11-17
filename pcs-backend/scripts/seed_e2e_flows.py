@@ -736,9 +736,18 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
     await _ensure_record(db, project, workspace)
     await _ensure_report_definition(db, project)
 
+    # ⚠️ **生产默认数据也要灌**（P10-B 评审 #18 · 裁决选 (b)）——
+    # ⇒ 生产在 **lifespan** 里 seed 这两处（`app/main.py`）⇒ ⇒ 车道**不跑
+    # lifespan**（ARQ/信号在测试进程里是噪音）⇒ ⇒ **这里显式调同样的两个函数**
+    # ⇒ ⇒ 隔离 schema 里就有**生产默认数据** ⇒ ⇒ 车道验的是「生产同款」。
+    #
+    # ⚠️ **不是「跑一遍生产启动」** —— 车道要的是「有生产默认数据」，
+    # 不是完整启动流程 ⇒ ⇒ 这两处**只调 seed**（幂等）。
+    await _seed_production_defaults(db)
+
     await db.commit()
 
-    return {
+    counts = {
         "workspaces": 1,
         "projects": 1,
         "users": len(users),
@@ -752,6 +761,81 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
         "equipment": 1,
         "equipment_type_codes": 1,
     }
+    counts.update(await _seed_production_defaults(db))
+    return counts
+
+
+async def _seed_production_defaults(db: AsyncSession) -> dict[str, int]:
+    """灌**生产默认数据**（系数表 + 系统参数）并**断言行数**。
+
+    ⚠️ **调的是生产用的那两个函数**（不是复制一份逻辑）⇒ ⇒ 生产与车道
+    ⇒ 灌的是**同一批**默认数据 ⇒ ⇒ 车道验的就是生产同款。
+
+    ⚠️ **断言行数 = 源清单的条数**（不是写死的数字）⇒ ⇒
+    ① 漏灌 ⇒ 行数不够 ⇒ 红；
+    ② 源清单变了 ⇒ 断言**自动跟着变** ⇒ ⇒ 不会「数字过期 ⇒ 假红」。
+    ⚠️ **SPEC 写的「6 张系数表 / 7 个系统参数」是旧数字**（现在是 9 / 13）⇒
+    ⇒ 偏离登记见 SPEC 的 D39。
+    """
+    from app.services.coefficient_service import CoefficientService
+    from app.services.system_setting_service import (
+        seed_defaults as seed_system_setting_defaults,
+    )
+
+    await CoefficientService.seed_default_tables(db)
+    await seed_system_setting_defaults(db)
+
+    expected_coefficient = len(_default_coefficient_tables())
+    expected_settings = len(_default_system_settings())
+
+    actual_coefficient = await _count_rows(db, "coefficient_tables")
+    actual_settings = await _count_rows(db, "system_settings")
+    assert actual_coefficient == expected_coefficient, (
+        f"系数表行数不对：{actual_coefficient} ≠ {expected_coefficient}"
+        "（生产默认数据没灌全 ⇒ 车道里的系数页会是空的）"
+    )
+    assert actual_settings == expected_settings, (
+        f"系统参数行数不对：{actual_settings} ≠ {expected_settings}"
+        "（`system_settings` 0 行 ⇒ 管理员打开参数页**一片空白**）"
+    )
+    return {
+        "coefficient_tables": actual_coefficient,
+        "system_settings": actual_settings,
+    }
+
+
+def _default_coefficient_tables() -> dict[str, Any]:
+    """生产默认系数表的**源清单**（`app/seeds/category3_defaults.json`）。"""
+    import json
+    from pathlib import Path
+
+    seed_file = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "seeds"
+        / "category3_defaults.json"
+    )
+    return json.loads(seed_file.read_text(encoding="utf-8"))
+
+
+def _default_system_settings() -> list[dict[str, Any]]:
+    """生产默认系统参数的**源清单**（`DEFAULT_SETTINGS`）。"""
+    from app.services.system_setting_service import DEFAULT_SETTINGS
+
+    return DEFAULT_SETTINGS
+
+
+async def _count_rows(db: AsyncSession, table: str) -> int:
+    """数一张表的行数（表名**白名单**，避免拼进 SQL）。"""
+    from sqlalchemy import func, select
+
+    if table == "coefficient_tables":
+        from app.models.config_domain import CoefficientTable as model
+    elif table == "system_settings":
+        from app.models.system import SystemSetting as model
+    else:  # pragma: no cover — 白名单外的表名 ⇒ 编程错误
+        raise ValueError(f"未知的表名：{table!r}")
+    return int((await db.execute(select(func.count()).select_from(model))).scalar_one())
 
 
 async def _main(reset: bool) -> None:
