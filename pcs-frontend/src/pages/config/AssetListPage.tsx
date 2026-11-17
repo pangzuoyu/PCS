@@ -37,6 +37,7 @@ import {
   type ConfigCategory,
 } from '../../types/configAsset';
 import { DEV_BEARER } from '../../constants/env';
+import { useAuth } from '../../store/auth';
 import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
@@ -150,8 +151,14 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
               // 拉取 RevTimeline 数据
               setRevAssetId(row.asset_id);
               setRevisionsLoading(true);
+              // ⚠️ **用会话里的真 token**（P10-F · 评审 #9）——
+              // `DEV_BEARER` 是**写死的假 token**（`Bearer mock-jwt-token`）
+              // ⇒ 真后端通道下必然 401。
+              // ⚠️ 没会话时（未登录）才回退 `DEV_BEARER`（保持既有开发流程不变）。
+              const token = useAuth.getState().accessToken;
+              const authorization = token ? `Bearer ${token}` : DEV_BEARER;
               void fetch(`/api/v1/config/assets/${row.asset_id}/revisions`, {
-                headers: { Authorization: DEV_BEARER },
+                headers: { Authorization: authorization },
               })
                 .then((r) => (r.ok ? r.json() : []))
                 .then((j: RevVersion[]) => setRevisions(j))

@@ -48,18 +48,36 @@ const SESSION_OVER_CODES = new Set([
   'REFRESH_REVOKED',
 ]);
 
+/**
+ * 401「会话结束」的**唯一**处理点。
+ *
+ * ⚠️ **为什么抽出来**（P10-F · 评审 #9）：前端有**两条** HTTP 通道 ——
+ * ① axios（`api`）· ② `useFetch`（`routeWrappers.tsx` 的**裸 `fetch`**）。
+ * ② 原先**完全不处理 401** ⇒ access token 30 分钟过期后，② 通道既不跳登录页、
+ * 也不清会话 ⇒ 页面停在「加载中…」⇒ **每个用户每个会话必遇**。
+ * ⇒ ⇒ 把「401 ⇒ 清会话 + 跳 `/login`」抽成这一个函数 ⇒ ⇒ 两条通道共用
+ * **同一份真相源**（含 `SESSION_OVER_CODES` 白名单口径）。
+ *
+ * @param status HTTP 状态码（**非 401 直接不管**）。
+ * @param code   错误体里的 `code`（`undefined` ⇒ 不知道是什么 401 ⇒ 当会话过期处理）。
+ */
+export function handleSessionOver(status: number, code?: string): void {
+  if (status !== 401) return;
+  // ⚠️ **没有 code** ⇒ 不知道是什么 401 ⇒ 按会话过期处理（旧行为）
+  if (!code || SESSION_OVER_CODES.has(code)) {
+    useAuth.getState().clearSession();
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }
+}
+
 api.interceptors.response.use(
   (r) => r,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
       const code = (err.response.data as { code?: string } | undefined)?.code;
-      // ⚠️ **没有 code** ⇒ 不知道是什么 401 ⇒ 按会话过期处理（旧行为）
-      if (!code || SESSION_OVER_CODES.has(code)) {
-        useAuth.getState().clearSession();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-      }
+      handleSessionOver(401, code);
     }
     return Promise.reject(err);
   },

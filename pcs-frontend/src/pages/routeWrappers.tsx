@@ -11,8 +11,10 @@
  */
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
-import { Typography } from 'antd';
+import { Alert, Typography } from 'antd';
 import { useParams } from 'react-router-dom';
+
+import { handleSessionOver } from '../api/client';
 
 import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types/common';
 import type { Stream } from '../types/stream';
@@ -73,10 +75,48 @@ import { useAuth } from '../store/auth';
 import { VesselComputePage } from './vessel/VesselComputePage';
 import { ProjectWizardPage } from './wizard/ProjectWizardPage';
 
-function useFetch<T>(path: string, initial: T): T {
+/** `useFetch` 的请求超时（15s）—— 超时后进入**失败态**，不再无限期「加载中…」。 */
+const FETCH_TIMEOUT_MS = 15_000;
+
+/** 取错误体里的 `code`（401 判定要靠它区分「会话结束」与「二次认证失败」）。 */
+async function errorCodeOf(r: Response): Promise<string | undefined> {
+  try {
+    const data = (await r.json()) as { code?: string } | undefined;
+    return data?.code;
+  } catch {
+    return undefined;
+  }
+}
+
+/** `useFetch` 的返回形状。 */
+interface FetchState<T> {
+  data: T;
+  /** 失败原因（`null` ⇒ 没失败）。 */
+  error: string | null;
+  loading: boolean;
+}
+
+/**
+ * 路由层的**第二条 HTTP 通道**（第一条是 axios）。
+ *
+ * ⚠️ **它与 axios 的差别正是本函数存在的原因**（P10-F · 评审 #9）：
+ * - 401 走 **`handleSessionOver`**（`src/api/client.ts`）⇒ ⇒ 与 axios
+ *   **同一份真相源**（含 `SESSION_OVER_CODES` 白名单）。
+ * - 失败态**与加载态长得不一样** ⇒ 后端 500 / 网络断了 / 超时，都有话说。
+ * - 请求带 **`AbortSignal`** + 15s 超时 ⇒ 卸载时能取消，定时器会清。
+ */
+function useFetch<T>(path: string, initial: T): FetchState<T> {
   const [data, setData] = useState<T>(initial);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
+    let timedOut = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, FETCH_TIMEOUT_MS);
     // ⚠️ **用会话里的真 token**（P10-B · T7 · bug-2169）——
     // `DEV_BEARER` 是**写死的假 token**（`Bearer mock-jwt-token`）
     // ⇒ ⇒ 真后端通道下 **401** ⇒ 物流详情页 / 设备一览页**永远停在「加载中…」**
@@ -84,15 +124,52 @@ function useFetch<T>(path: string, initial: T): T {
     // ⇒ 没会话时（未登录）才回退 `DEV_BEARER`（保持既有开发流程不变）。
     const token = useAuth.getState().accessToken;
     const authorization = token ? `Bearer ${token}` : DEV_BEARER;
-    void fetch(path, { headers: { Authorization: authorization } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: T | null) => {
-        if (!cancelled && j !== null) setData(j);
-      })
-      .catch(() => {/* offline / unhandled: keep empty fixtures */});
-    return () => { cancelled = true; };
+    void (async () => {
+      try {
+        const r = await fetch(path, {
+          headers: { Authorization: authorization },
+          signal: controller.signal,
+        });
+        if (!r.ok) {
+          // ⚠️ 401 ⇒ **先**走会话结束的同一份真相源，再报失败
+          if (r.status === 401) {
+            handleSessionOver(r.status, await errorCodeOf(r));
+          }
+          if (!cancelled) {
+            setError(`HTTP ${r.status}`);
+            setLoading(false);
+          }
+          return;
+        }
+        const j = (await r.json()) as T;
+        if (cancelled) return;
+        // ⚠️ 空响应体（`null`）⇒ **不许**静默停在「加载中…」⇒ 显式失败
+        if (j === null || j === undefined) {
+          setError('响应为空');
+        } else {
+          setData(j);
+        }
+        setLoading(false);
+      } catch (err) {
+        if (cancelled) return;
+        // ⚠️ **区分两类失败**：超时 vs 网络异常（不吞）
+        if (timedOut) {
+          setError(`请求超时（${FETCH_TIMEOUT_MS / 1000}s）`);
+        } else {
+          setError('网络错误');
+        }
+        setLoading(false);
+      } finally {
+        clearTimeout(timer);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [path]);
-  return data;
+  return { data, error, loading };
 }
 
 // === 基础配置 ===
@@ -104,7 +181,7 @@ export function AssetListRoute(): JSX.Element {
   // 就是这个 GET，此前**从未实现**（前端跑在前面）。
   // 支持 `?category=CATEGORY_N` 过滤 —— 但 Tabs 已经在前端按 category 过滤了，
   // 所以这里不带参数（少一次往返，且过滤逻辑只有一处）。
-  const assets = useFetch<ConfigAsset[]>('/api/v1/config/assets', []);
+  const { data: assets } = useFetch<ConfigAsset[]>('/api/v1/config/assets', []);
   return <AssetListPage assets={assets} />;
 }
 export function CoefficientEditorRoute(): JSX.Element {
@@ -156,8 +233,13 @@ export function StreamDetailRoute(): JSX.Element {
   const streamId = id ?? 's-101';
   // initial 传 null（而不是一个空 Stream）—— 缺失的值要显式失败/显示加载态，
   // 不要塞个形状完整的空对象：那会让「还没加载」和「加载完是空」长得一样。
-  const stream = useFetch<Stream | null>(`/api/v1/streams/${streamId}`, null);
-  if (!stream) return <Typography.Text>加载中…</Typography.Text>;
+  const { data: stream, loading, error } = useFetch<Stream | null>(
+    `/api/v1/streams/${streamId}`,
+    null,
+  );
+  if (loading) return <Typography.Text>加载中…</Typography.Text>;
+  if (error) return <Alert type="error" message={`加载失败：${error}`} />;
+  if (!stream) return <Alert type="warning" message="该物流不存在或返回为空" />;
   return <StreamDetailPage stream={stream} />;
 }
 export function ImportWizardRoute(): JSX.Element {
@@ -166,7 +248,7 @@ export function ImportWizardRoute(): JSX.Element {
 
 // === 管道等级 ===
 export function PipeClassListRoute(): JSX.Element {
-  const classes = useFetch<PipeClass[]>('/api/v1/pipe-classes', []);
+  const { data: classes } = useFetch<PipeClass[]>('/api/v1/pipe-classes', []);
   return <PipeClassListPage classes={classes} />;
 }
 export function SymbolTableRoute(): JSX.Element {
@@ -178,15 +260,15 @@ export function CodeFormatRoute(): JSX.Element {
 
 // === 物性 / 许用应力 / 毒性爆炸 ===
 export function PropertySearchRoute(): JSX.Element {
-  const components = useFetch<ComponentProperty[]>('/api/v1/common/materials/search', []);
+  const { data: components } = useFetch<ComponentProperty[]>('/api/v1/common/materials/search', []);
   return <PropertySearchPage components={components} />;
 }
 export function AllowableStressRoute(): JSX.Element {
-  const stresses = useFetch<AllowableStress[]>('/api/v1/common/allowable-stress', []);
+  const { data: stresses } = useFetch<AllowableStress[]>('/api/v1/common/allowable-stress', []);
   return <AllowableStressPage stresses={stresses} />;
 }
 export function ToxicityRoute(): JSX.Element {
-  const classes = useFetch<ToxicityClass[]>('/api/v1/common/safety', []);
+  const { data: classes } = useFetch<ToxicityClass[]>('/api/v1/common/safety', []);
   return <ToxicityExplosivityPage classes={classes} />;
 }
 
@@ -209,7 +291,7 @@ export function PipeRoute(): JSX.Element {
   );
 }
 export function PipeLineListRoute(): JSX.Element {
-  const rows = useFetch<PipeLineListRow[]>(`/api/v1/projects/${PROJECT_ID}/pipe-line-list`, []);
+  const { data: rows } = useFetch<PipeLineListRow[]>(`/api/v1/projects/${PROJECT_ID}/pipe-line-list`, []);
   return <PipeLineListPage rows={rows} />;
 }
 export function PipeNetRoute(): JSX.Element {
@@ -328,11 +410,11 @@ export function SystemSettingsRoute(): JSX.Element {
 
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
-  const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);
+  const { data: items } = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);
   return <PmsPage items={items} />;
 }
 export function BeddRoute(): JSX.Element {
-  const sections = useFetch<BeddSection[]>(`/api/v1/projects/${PROJECT_ID}/bedd`, []);
+  const { data: sections } = useFetch<BeddSection[]>(`/api/v1/projects/${PROJECT_ID}/bedd`, []);
   return <BeddPage sections={sections} />;
 }
 export function WizardRoute(): JSX.Element {
