@@ -74,6 +74,12 @@ P10-B 的「评审修复批」落地**（报告 `docs/ce-code-review/20261117-01
 
 ### ① 已由 P10-B 落地（**不在本批**）—— 证据在仓库里，不在记忆里
 
+> ⚠️ **本表的 commit 与文件行号是 2026-11-17 写计划时的快照** ⇒ ⇒ 开工前应当
+> `git show <commit> --stat` + `grep` **逐个确认**（尤其是 `report.py:487-495` 是否真读
+> `content_hash`、`conftest.py:324-327` 是否真覆写了两个 async 单例 ⇒ ⇒ **有没有漏第三个**）
+> ⇒ ⇒ 这是防止「**P10-B 声称修了但实际没修**」的唯一手段 ⇒ ⇒ 而那正是 ce review #3 抓到的病
+> ⇒ ⇒ **（2026-11-17 已核过一次：三条均通过）**
+
 | 发现 | 落地形状 | commit | **现在能核到的证据** |
 |---|---|---|---|
 | **A1 / #14**（+ #3 / #4 / #12 随之） | 审计端点读 `content_hash`；删掉 `dup` 早退后**永不可达**的 `data_version = digest` | `cebf48d` | `app/api/v1/report.py:486-495`（`_expected_digest` 读 `content_hash`）· `app/workers/report_tasks.py:114`（「不再写 `data_version`」）· `tests/e2e_flows/test_e2e_report.py:86`（「**不再 xfail**」+ 断「等于该文件的 sha256 · 64 位 hex」） |
@@ -389,6 +395,15 @@ uv run python scripts/check_openapi_payload_coverage.py        # 裸载荷不涨
 
 ⇒ ⇒ ⚠️ 滚 baseline 前**先看 diff** ⇒ ⇒ 若 diff 超出「`streams` 键 + 类型变具体」⇒ ⇒ **停下**，说明契约漂移超预期 ⇒ 登记 TODO。
 
+⇒ ⇒ ⚠️ **滚完必须确认四份都在**（否则 Step 6 的 `git add` 会报 pathspec 不匹配）：
+
+```bash
+git status --short pcs-backend/docs/openapi.json pcs-backend/docs/openapi-baseline.json \
+                pcs-frontend/openapi.snapshot.json pcs-frontend/src/types/api.d.ts
+```
+⇒ ⇒ 期望：**四个都有改动** ⇒ ⇒ 若 `openapi-baseline.json` 没变 ⇒ ⇒ 说明 baseline **没滚** ⇒ ⇒ 重跑
+⇒ ⇒ 若 `api.d.ts` 没变 ⇒ ⇒ 说明 `npm run api:gen` 没生效 ⇒ ⇒ 重跑。
+
 - [ ] **Step 6: 提交**
 
 ```bash
@@ -568,6 +583,9 @@ def lane_script_body(script: Path) -> str:
     ⇒ ⇒ `echo "a # b"` 里的 `#` 是**字面量** ⇒ ⇒ `echo a#b` 里的 `#` 也是字面量
     ⇒ ⇒ ⇒ 早先的 `line.split("#", 1)[0]` 会把这两类**一起剥掉** ⇒ ⇒ 守卫会在
     「脚本里只剩注释」时**误判为可执行**（⇒ ⇒ 假绿）。
+
+    ⚠️ **不支持**：反引号（`` `…` ``）与 heredoc（`<<EOF`）⇒ ⇒ 这两种写法里的 `#`
+    会被误剥 ⇒ ⇒ **守卫脚本自己不应使用这两种写法** ⇒ ⇒ 若将来要用 ⇒ ⇒ 换 `shlex` 解析。
     """
     out: list[str] = []
     for line in script.read_text(encoding="utf-8").splitlines():
@@ -679,8 +697,11 @@ async def test_public_guard_detects_a_leaked_row(public_engine, public_snapshot)
     assert before["audit_logs"] != after["audit_logs"]
 ```
 
-⇒ ⇒ ⚠️ **探针表要选「车道会写、但现守卫没数」的那张** ⇒ ⇒ 才有证明力
-⇒ ⇒ `audit_logs` 只是候选 ⇒ ⇒ 开工时挑一张**车道确实会写**的表。
+⇒ ⇒ ⚠️ **探针表要选「`public` 里存在、且**现守卫没数**它」的那张** ⇒ ⇒ 才有证明力
+⇒ ⇒ 探针写的是 **`public` 里的一行**，模拟「如果车道泄漏会怎样」
+⇒ ⇒ ⇒ **不需要**这张表在隔离 schema 里真的被车道写过（车道本来就不该写 public）
+⇒ ⇒ `audit_logs` 是候选（它不在现守卫的 4 张表 `users/projects/streams/user_projects` 里）
+⇒ ⇒ 开工时确认它**在 public 里存在**且**有可插的最小列**。
 
 - [ ] **Step 2: 跑测试确认失败**（现快照只数 4 张表 ⇒ 探针写进别的表 ⇒ 看不见 ⇒ 失败）
 
@@ -697,7 +718,20 @@ async def test_public_guard_detects_a_leaked_row(public_engine, public_snapshot)
    在 session 结束时再取一次 ⇒ ⇒ 断言**逐张相等** ⇒ ⇒ ⚠️ **两种基线时机不能混**（车道内的
    `POST /api/v1/projects` 那条守卫仍保留 ⇒ ⇒ 它断「这条写路径没碰 public」⇒ ⇒ 两者**并存**）
 ③ **第三个 singleton**：把 `conftest.py:324-327` 的覆写**扩到 `_sync_engine`**
-（造一个 schema-scoped 的 sync engine 赋给 `db_session_mod._sync_engine`）⇒ ⇒ 堵住未来的 `get_engine()` 路径
+⇒ ⇒ **具体做法**（同步引擎的 schema 绑定与 async 不同，别照抄 async 那段）：
+
+```python
+# 同步引擎 ⇒ 用 **psycopg** 的 connect_args["options"] 绑 search_path
+db_session_mod._sync_engine = create_engine(
+    _lane_url(),                       # postgresql+psycopg://…（不是 asyncpg）
+    connect_args={"options": f"-csearch_path={e2e_schema}"},
+)
+```
+
+⇒ ⇒ ⚠️ `options=-csearch_path=…` 是 **psycopg** 的写法 ⇒ ⇒ `asyncpg` **不适用**
+（async 侧现有那行用的是 `server_settings={'search_path': …}` ⇒ ⇒ 两者不可混抄）
+⇒ ⇒ ⚠️ 造完记得**还原**（与 `_async_engine` 同一套 try/finally 形状）
+⇒ ⇒ 目的：堵住「将来有人写一条走 `get_engine()` 的路径」
 ④ 写路径仍断「必须 200/201」（断**后果**不断**动作** ⇒ 已有，不要改）
 
 - [ ] **Step 3b: 补「基线早于任何写入」的钉子**（⚖️ D10：双快照）
@@ -738,12 +772,19 @@ Expected: 全绿
 **Files:**
 - Modify: `pcs-frontend/src/constants/env.ts:13`（导出 `PLACEHOLDER_PROJECT_ID` 共享常量）
 - Modify: `pcs-frontend/src/pages/DashboardPage.tsx:8-10`（**删掉** `workspaceProjectId`）· `:20`（`effectiveProjectId`）· `:38`（面板渲染条件）
-- Modify: `pcs-backend/scripts/seed_e2e_flows.py:340-352`（`_ensure_workspace` **补 `owner_id`** ⇒ ⇒ `_ensure_project` 之后**回填 `project_id`**）
+- Modify: `pcs-backend/scripts/seed_e2e_flows.py:340-352`（`_ensure_workspace` **补 `owner_id`** ⇒ ⇒ `_ensure_project` 之后**回填 `project_id`**）· **新增 `_ensure_personal_workspace()`**（PERSONAL 类型 · `project_id` **留空** · owner=alice）
 - Test: `pcs-frontend/tests/pages/DashboardPage.test.tsx`（**新建**，若已存在则**加一条**）· `pcs-backend/tests/e2e_flows/test_e2e_workspaces_visible.py`（**新建** ⇒ 「种子工作区在切换器里可见」）
 
 **Interfaces:**
 - Consumes: `app/models/project.py:116-119`（`owner_id` · `project_id` **均可空**）· `derive_user_id(username)`（与 `tests/e2e_flows/conftest.py:273` 同一口径 ⇒ **填派生 id，不是用户名**）
 - Produces: `PLACEHOLDER_PROJECT_ID`（导出于 `src/constants/env.ts`）⇒ ⇒ `env.ts` 的兜底与 `DashboardPage` **共用一份**
+
+⚠️ **两条已核实的硬事实**（决定本任务怎么做 ⇒ ⇒ **别再改这两条**）：
+
+| 事实 | 证据 | 后果 |
+|---|---|---|
+| **前端永远带 `owner_id`** | `DashboardPage.tsx:28` ⇒ `<WorkspaceSwitcher ownerId={userId}>` ⇒ `WorkspaceSwitcher.tsx:55` ⇒ `workspaceApi.list(ownerId)` ⇒ `src/api/sprint1.ts:16` ⇒ `params: ownerId ? { owner_id: ownerId } : {}` | ⇒ ⇒ **dan 看不到 alice 的工作区**（后端 `owner_id=None` 才不过滤 ⇒ 但前端从不省略）⇒ ⇒ **E2E 必须用 alice 登录** |
+| **种子只有**一个**工作区，且是 FORMAL** | `seed_e2e_flows.py:338-352`（`_ensure_workspace` 建 `FLOW_WORKSPACE_ID` · `workspace_type="FORMAL"`） | ⇒ ⇒ FORMAL 按设计**归属一个项目** ⇒ ⇒ 回填 `project_id` 后它**有**项目 ⇒ ⇒ **真后端里今天没有「无项目工作区」这个形态** ⇒ ⇒ ⇒ 必须**另建一个 PERSONAL 工作区**（`project_id` 留空）才测得了 ⇒ ⇒ 那正是**真实产品里「无项目工作区」的形态**（PERSONAL / TEMPORARY）⇒ ⇒ **按真实语义建**
 
 - [ ] **Step 1: 写失败测试**（前端）
 
@@ -798,26 +839,33 @@ async def test_seeded_workspace_is_visible_to_its_owner(client, ...):
 
 - [ ] **Step 5: 跑测试确认失败**（现在 `owner_id` 是 NULL ⇒ 列表为空）
 
-- [ ] **Step 6: 实现种子侧**（`scripts/seed_e2e_flows.py:340-352`）
+- [ ] **Step 6: 实现种子侧**（`scripts/seed_e2e_flows.py:340-352` + 新增一个函数）
 
-① `_ensure_workspace` 填 `owner_id = derive_user_id(<种子的那个用户名>)`（**派生 id**）
+① `_ensure_workspace`（FORMAL）填 `owner_id = derive_user_id("alice")`（**派生 id**）
 ② `_ensure_project` **之后**回填 `workspace.project_id = project.project_id` ⇒ ⇒
 ⚠️ **顺序约束写进注释**（工作区先于项目创建 ⇒ 提前填会撞 FK）
-⇒ ⇒ ⚠️ **产品决定**：「FORMAL 工作区要不要回填 `project_id`」⇒ ⇒ **交人裁决** ⇒ ⇒ 本条**默认不回填**
-（只补 `owner_id`）⇒ ⇒ 回填作为 **TODO** 登记 ⇒ ⇒ 理由：回填会让「无项目工作区」在真后端消失 ⇒ ⇒
-而那正是要测的形态 ⇒ ⇒ 保留 mock 通道提供「无项目工作区」的形态。
+⇒ ⇒ ⚠️ 「FORMAL 工作区要不要回填 `project_id`」⇒ ⇒ **按真实语义回填**（FORMAL 归属一个项目）
+⇒ ⇒ ⇒ 代价：「无项目工作区」在真后端消失 ⇒ ⇒ ⇒ **所以要 ③**
+
+③ ⭐ **新增 `_ensure_personal_workspace()`**：建一个 **PERSONAL** 类型的工作区
+   （`workspace_type="PERSONAL"` · `project_id` **留空** · `owner_id = derive_user_id("alice")`
+   · `status="ACTIVE"` · 名字带「无项目」以便 E2E 按文本选）
+   ⇒ ⇒ **为什么**：真实产品里「个人/临时工作区」**按设计**没有项目
+   （mock 种子的 `ws-personal-002` / `ws-temp-003` 就是 `project_id: null`）
+   ⇒ ⇒ 真后端要有这个形态可测 ⇒ ⇒ **按真实语义建一个** ⇒ ⇒ 不新增「第三种」工作区类型
+   ⇒ ⇒ ⚠️ **不建 TEMPORARY**（一个就够 ⇒ ⇒ YAGNI）⇒ ⇒ ⚠️ 名字要**唯一**（`_get_or_create` 按 id 查 ⇒ ⇒ 给它一个常量 id）
 
 - [ ] **Step 6b: 加真后端 E2E 断言**（⚠️ **「保留无项目工作区供测」是意图，不是证据**）
 
-⇒ ⇒ 补了 `owner_id` 之后 ⇒ ⇒ 这个工作区在**真后端的切换器里可见** ⇒ ⇒
-⇒ ⇒ 选中它 ⇒ ⇒ **面板必须不渲染** ⇒ ⇒ 且**不产生 404 / console error**
-⇒ ⇒ ⇒ 否则「无项目工作区」这个形态**只在 mock 里存在** ⇒ ⇒ 真后端通道根本验不到它。
+⇒ ⇒ ⚠️ **登录身份必须是 `alice`**（不是 `dan`）⇒ ⇒ 理由见上面「两条已核实的硬事实」：
+⇒ ⇒ **前端永远带 `owner_id`** ⇒ ⇒ dan 看不到 alice 的工作区 ⇒ ⇒ 用 dan 会**选不中** ⇒ ⇒
+⇒ ⇒ ⇒ alice 是种子工作区的 owner ⇒ ⇒ **它俩一致** ⇒ ⇒
+⇒ ⇒ ⇒ 备选：若将来决定让 SYSTEM_ADMIN 能看全部 ⇒ ⇒ 那要改**前端**（`ownerId` 可选）⇒ ⇒ 属另一批。
 
 ```ts
 // pcs-frontend/e2e/real_backend_flows.spec.ts（新增一条）
 test('真后端：选「无项目的工作区」⇒ 清单面板不渲染且无 404 / 无 console error', async ({ page }) => {
-  await loginViaUi(page, 'dan');
-  // 打开仪表盘 ⇒ 切到那个没有 project_id 的工作区
+  await loginViaUi(page, 'alice');
   await page.getByRole('combobox').click();          // WorkspaceSwitcher
   await page.locator('.ant-select-item-option', { hasText: '无项目' }).click();
   await expect(page.getByTestId('input-checklist-panel')).toHaveCount(0);
@@ -825,8 +873,21 @@ test('真后端：选「无项目的工作区」⇒ 清单面板不渲染且无 
 });
 ```
 
-⇒ ⇒ ⚠️ **这条必须用真后端通道跑**（`npm run e2e:real`）⇒ ⇒ mock 通道**证明不了**它
-⇒ ⇒ ⇒ 理由：mock 的工作区种子**本来就**把 `project_id` 设成 null ⇒ ⇒ mock 下这条恒绿。
+⇒ ⇒ ⭐ **再补一条正向断言**（同一身份 ⇒ ⇒ 选 FORMAL 工作区 ⇒ ⇒ 面板**要**渲染且请求带**真项目 id**）：
+
+```ts
+test('真后端：选有项目的工作区 ⇒ 面板渲染且请求带真 project id', async ({ page }) => {
+  await loginViaUi(page, 'alice');
+  await page.getByRole('combobox').click();
+  await page.locator('.ant-select-item-option', { hasText: 'E2E Flows Workspace' }).click();
+  await expect(page.getByTestId('input-checklist-panel')).toBeVisible();
+  // ⇒ 断请求里的 projectId 是**真项目 id**，不是占位常量
+});
+```
+
+⇒ ⇒ ⚠️ **这两条必须用真后端通道跑**（`npm run e2e:real`）⇒ ⇒ mock 通道**证明不了**它们
+⇒ ⇒ ⇒ 理由：mock 的工作区种子**本来就**把 PERSONAL 的 `project_id` 设成 null ⇒ ⇒ mock 下第一条恒绿
+⇒ ⇒ ⇒ 而 mock 的 FORMAL 工作区用的**就是占位 id** ⇒ ⇒ 第二条在 mock 下**会红**（这正是它该抓的病）。
 
 - [ ] **Step 7: 跑测试 + typecheck + lint**
 
@@ -836,7 +897,8 @@ Run: `cd pcs-frontend && npm run e2e:real`      # ← Step 6b 那条在此跑
 Expected: 全绿
 
 - [ ] **Step 8: 提交**（`fix(P10-F): 仪表盘守卫条件改成「拿到了真 project_id」（评审 #24）`）
-⇒ ⇒ 顺带在 `TODOS.md` 登记：「FORMAL 工作区要不要回填 `project_id`？」+「前端还有别处把占位常量当真值用」
+⇒ ⇒ 顺带在 `TODOS.md` 登记：「**前端还有别处把占位常量当真值用**」（`env.ts:13` 的 `PROJECT_ID`
+被 `routeWrappers.tsx:136,212,331,335` 当**真 id** 用 ⇒ ⇒ 那是 TODO-159 那 3 个页面的根因之一）
 
 ---
 
@@ -991,9 +1053,12 @@ def test_default_lane_never_connects_to_a_real_database_or_redis():
     ...
 ```
 
-⇒ ⇒ ⚠️ **断法二选一**：① 扫 socket（Linux 专有 ⇒ 别的平台跳过）② **把 URL 改成不可路由端口**
-⇒ ⇒ **推荐 ②**（跨平台、且「连了就炸」比「查到了再判」更硬）⇒ ⇒
-⇒ ⇒ 但 ② 需要把 `settings.redis_url` 与 `settings.database_url` 在 conftest 里**改掉** ⇒ ⇒
+⇒ ⇒ ⚠️ **断法 = 「把 URL 改成不可路由端口」**（与 Step 3 的实现**同一种** ⇒ ⇒
+⇒ ⇒ 跨平台、且「连了就炸」比「查到了再判」更硬）⇒ ⇒
+⇒ ⇒ ⇒ 测试断言的是「**conftest 把 `settings.redis_url` / `settings.database_url` 改成了
+不可路由目标**」⇒ ⇒ **与实现同形** ⇒ ⇒ 不用「扫 socket」（Linux 专有）⇒ ⇒
+⇒ ⇒ ⇒ 扫 socket 只作为**额外的手工核验**（Step 4 的 `ss -tnp`）保留 ⇒ ⇒
+⇒ ⇒ 但需要把 `settings.redis_url` 与 `settings.database_url` 在 conftest 里**改掉** ⇒ ⇒
 ⚠️ `settings` 是 **pydantic 缓存实例** ⇒ ⇒ 改法照 `alembic/env.py` 的口径（**进程内**改环境变量 **在 import 之前**）
 
 - [ ] **Step 2: 跑测试确认失败**（现状必红 ⇒ ⇒ 证明「默认车道确实连了真库/真 Redis」）
@@ -1278,7 +1343,7 @@ Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | 未跑（P10-F 范围已由 P10 主计划 + SPEC §3.2.7 界定） |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | `codex` 未安装 |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 19 issues · 0 critical gaps · 8 条决策全部落进计划 |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 19 issues · 0 critical gaps · 8 条决策全部落进计划<br>⚠️ **这里的 19 是 eng review 的 findings 数**，与 ce review 的 19 条**可执行项**不是同一批 |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | 未跑（本批无新界面） |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | 未跑 |
 
