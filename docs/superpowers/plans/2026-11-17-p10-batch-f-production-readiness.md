@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 P10 收在「**可上线**」这个状态上 —— ① 清掉 P10-B 评审遗留的 8 条技术债（**F1/F2**）② 给出物流面外守卫覆盖的**结论**而不是「未审即没问题」（**F3**）③ 把 SPEC §3.2.7 的 10 个评审项逐项**做出来并留证据**（**F4/F5**）④ 收口：部署前置清单 + 偏离回写 + 全量闸门（**F6**）。
+**Goal:** 把 P10 收在「**可上线**」这个状态上 —— ① 清掉 P10-B 评审遗留的 8 条技术债 + 1 条评审期间新发现（**F1/F2**）② 给出物流面外守卫覆盖的**结论**而不是「未审即没问题」（**F3**）③ 把 SPEC §3.2.7 的 10 个评审项逐项**做出来并留证据**（**F4/F5**）④ 收口：部署前置清单 + 偏离回写 + 全量闸门（**F6**）。
 
 **Architecture:** P10-F 是**评审批**，不是功能批 ⇒ ⇒ 它的产出**不是新功能**，而是「**证据 + 清单 + 结论**」⇒ ⇒ 所以每个 Task 的交付物是**可复跑的脚本/文档 + 一条断言**，不是一段新代码。技术债部分（F1/F2）沿用 P10-B 车道的既有形状（隔离 schema + 真 PG + 变异测试），⇒ **不新建第二套验证机制**。
 
