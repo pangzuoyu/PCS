@@ -13,7 +13,10 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
+
+import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "pytest_pg.sh"
 
@@ -141,3 +144,75 @@ def test_script_does_not_teach_a_second_entry_point():
         "脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；"
         "多出来的说明有人加了第二条路径"
     )
+
+
+def test_default_lock_path_is_inside_the_project_not_tmp():
+    """⚠️ **默认锁路径在项目内**（P10-B 评审 #15 第 ② 步）。
+
+    ⇒ `/tmp` 会被**清理**（tmpfs / 重启）⇒ ⇒ 锁文件 inode 换新 ⇒ ⇒
+    ⇒ 正在跑的车道的锁对新车道**不可见** ⇒ ⇒ 互斥**静默失效** ⇒ ⇒
+    ⇒ 默认路径必须是项目内的 `.tmp/lane.lock`。
+    """
+    body = SCRIPT.read_text(encoding="utf-8")
+    assert "/tmp/pcs-pgtest-lane.lock" not in body, (
+        "默认锁路径还在 /tmp ⇒ 清理后 inode 换新 ⇒ 互斥静默失效（评审 #15）"
+    )
+    assert ".tmp/lane.lock" in body, (
+        "默认锁路径应是项目内的 .tmp/lane.lock（评审 #15）"
+    )
+
+
+def test_two_lanes_are_mutually_exclusive_on_the_default_path(tmp_path):
+    """⚠️ **默认路径**下两条车道**真的互斥**（P10-B 评审 #15 第 ③ 步）。
+
+    ⇒ 之前只测过「覆盖过的锁文件」（守门测试自己那份）⇒ ⇒ **默认路径
+    ⇒ 从没被测过** ⇒ ⇒ 「默认路径也有效」只能靠读代码 ⇒ ⇒ 这里**实测**。
+
+    ⇒ 做法：起一个**占着锁**的进程（`flock -n` 同一路径 + sleep）⇒ ⇒
+    ⇒ 再跑车道脚本 ⇒ ⇒ 它必须因为「另一条车道正在跑」而失败。
+
+    ⚠️ **第 ① 步（PG 实例起着）要用假 docker 顶掉** ⇒ ⇒ 否则失败理由会是
+    「PG 实例未起」⇒ ⇒ 测的不是互斥（与本文件其它守卫测试同款做法）。
+    """
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "docker").write_text("#!/bin/sh\necho 'postgres-pgtest running'\nexit 0\n")
+    (fake_bin / "docker").chmod(0o755)
+
+    lock_file = tmp_path / "lane.lock"
+    holder = subprocess.Popen(
+        ["flock", "-n", str(lock_file), "sleep", "30"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        # 等 holder 真的拿到锁（否则测的是「锁没人占」）
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            probe = subprocess.run(
+                ["flock", "-n", str(lock_file), "true"],
+                capture_output=True,
+                text=True,
+            )
+            if probe.returncode != 0:
+                break
+            time.sleep(0.1)
+        else:  # pragma: no cover — 环境异常
+            pytest.fail("占锁进程没拿到锁 ⇒ 测不了互斥")
+
+        result = _run(
+            {
+                "PCS_PGTEST_LANE_LOCK": str(lock_file),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            }
+        )
+        assert result.returncode != 0, (
+            "锁被占着却跑通了 ⇒ 两条车道**不互斥** ⇒ 并发建 schema ⇒ DDL 互相等锁"
+        )
+        assert "另一条车道" in (result.stdout + result.stderr), (
+            f"失败理由不是「另一条车道正在跑」⇒ 测的不是互斥："
+            f"{(result.stdout + result.stderr)[:300]}"
+        )
+    finally:
+        holder.terminate()
+        holder.wait(timeout=10)

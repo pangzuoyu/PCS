@@ -53,7 +53,17 @@ fi
 # ⚠️ **锁放在这个共享脚本里**（不是各自的薄封装里）⇒
 #    ① 一次加锁 ⇒ 两条车道都生效（E2E 车道 exec 进这里 ⇒ 一样被锁）
 #    ② 薄封装**不会**自己再抢一次 ⇒ 不会自己锁死自己。
-LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}"
+#
+# ⚠️ **锁文件在项目内**（不是 `/tmp`）—— P10-B 评审 #15 的第 ② 步：
+#    `/tmp` 会被**清理**（tmpfs / 重启）⇒ ⇒ 锁文件的 inode 换新 ⇒ ⇒
+#    ⇒ 正在跑的车道的锁**对新来的车道不可见** ⇒ ⇒ 互斥**静默失效**
+#    ⇒ ⇒ 放项目内（`.tmp/` 不被清理 ⇒ inode 稳定）。
+#    ⚠️ **绝对路径**（`$BACKEND_DIR`）⇒ ⇒ 从任何目录调脚本都锁**同一个**文件。
+#    ⚠️ 守门测试用 `PCS_PGTEST_LANE_LOCK` **覆盖**它（见
+#    `tests/scripts/test_pytest_pg_gate.py`）⇒ ⇒ 与真车道互不干扰。
+BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-${BACKEND_DIR}/.tmp/lane.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema" >&2

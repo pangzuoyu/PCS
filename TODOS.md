@@ -3710,3 +3710,36 @@ There is no guarantee that it will work as expected.
 （`e2e/real_backend_route_sweep.spec.ts::ALLOWED_CONSOLE_ERRORS`）。
 
 **归属**：P10-C
+
+## TODO-163: compose 的 `migrate` / `seed` 两个写者**不在车道互斥锁内** 🟡
+
+**现状**（2026-11-17 · P10-B 评审 #15 的第 ① 步）：
+
+`scripts/pytest_pg.sh` 的车道互斥锁只约束**走进这个脚本的进程**
+（PG 车道 / E2E 车道）⇒ ⇒ 而 compose 的两个**一次性写者**
+（`migrate` · `seed`）**不经过这个脚本** ⇒ ⇒ 它们与车道**并发**时：
+
+- `migrate`（`alembic upgrade head`）与车道在**同一个库**上建 schema
+  ⇒ ⇒ DDL 互相等锁 ⇒ ⇒ 表现是「**偶发卡住**」（不是报错 ⇒ 极难定位）；
+- `seed` 往 **public schema** 灌数据 ⇒ ⇒ 与车道的隔离 schema 不冲突，
+  但**同库同表** ⇒ ⇒ 可能撞唯一约束。
+
+**为什么本批只做了一半**（评审 #15 的裁决是「最小可行三步」）：
+
+① compose 的两个服务要进**同一把锁** ⇒ ⇒ 容器里得 `flock` 同一个文件 ⇒ ⇒
+需要 ① 把锁目录**以可写方式**挂进容器（`./pcs-backend:/app:ro` 是**只读**的）
+② 容器镜像里要有 `flock`（`util-linux`）—— 本机**无外网** ⇒ 镜像既不能构建
+也不能在运行时 `apt-get` ⇒ ⇒ **改完无法验证** ⇒ ⇒ 留到 P10-C（有网环境）。
+
+⇒ ⇒ 本批已做的两步（**可验证**）：
+- **第 ② 步**：默认锁路径从 `/tmp/pcs-pgtest-lane.lock` 改**项目内**
+  `pcs-backend/.tmp/lane.lock` ⇒ ⇒ `/tmp` 会被清理 ⇒ inode 换新 ⇒ ⇒
+  正在跑的车道的锁对新车道**不可见** ⇒ ⇒ 互斥**静默失效** ⇒
+  （`.gitignore` 已加 `pcs-backend/.tmp/`）
+- **第 ③ 步**：守门测试补一条「**默认路径**下两 lane 互斥」的**子进程实测**
+  （`tests/scripts/test_pytest_pg_gate.py::test_two_lanes_are_mutually_exclusive_on_the_default_path`）
+  ⇒ ⇒ 之前只测过「覆盖过的锁文件」⇒ ⇒ **默认路径从没被测过**
+
+**何时做**：**P10-C**（有网环境 ⇒ 能构建镜像 ⇒ 能验证 compose 侧改动）
+
+**归属**：P10-C
