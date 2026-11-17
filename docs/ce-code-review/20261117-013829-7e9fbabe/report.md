@@ -1040,3 +1040,26 @@ pcs_pgtest : signature_matrices = [DEFAULT_RECORD_3_LEVEL, E2E_FLOWS_RECORD_3_LE
 （0 xfailed）· 真后端 Playwright **7 passed** · mock 通道 **23 passed** ·
 vitest **1054 passed** · typecheck / lint clean · 两库 `p10_002 (head)` +
 `alembic check` 干净 · 幂等 48 迁移 0 violations · 裸载荷 42 ≤ 71。
+
+---
+
+## 第三方裁决（hermes / learnings 人格）—— 6 条人未裁决的发现
+
+⇒ **单独成文**：[`hermes-adjudication.md`](./hermes-adjudication.md)（2026-11-17）
+
+⇒ ⇒ 那 6 条（#9 · #13 · #17 · #22 · #24 · #27）**人未裁决** ⇒ ⇒ 已交 **hermes**
+（ce-code-review 的 `learnings` 人格）作第三方裁决 ⇒ ⇒ 意见**不自动应用**。
+
+**裁决摘要**（5 条**改判** · 1 条**修**）：
+
+| # | 裁决 | 优先级 | 与原报告的关键差异 |
+|---|---|---|---|
+| **#9** | 改判 | P2（原 P1） | 「永久卡死」**不成立**（token 仅存内存 ⇒ 刷新即重登 ⇒ 可恢复）⇒ 范围扩到「前端第二条 HTTP 通道」（4 文件 5 处裸 `fetch`）⇒ ⚠️ **不要直接换 axios**（`baseURL` 已含 `/api/v1`，9 个 path 也带 ⇒ 会全 404）⇒ 改为**抽共享 401 处理函数** |
+| **#13** | 修 | P2 | 事实全对 ⇒ 但同文件 5 个端点**只有它**没 `response_model` ⇒ 是文件内部不一致；前端**零**消费者 ⇒ 今天只是「契约没记事实」 |
+| **#17** | 改判 | P2（原 P3） | 「必 500」范围**收窄**（`list_company` 固定过滤 `source=='COMPANY_STD'` ⇒ 列表端点不 500）⇒ ⚠️ 报告漏了「**已种下的老行怎么办**」（`_get_or_create` 存在就不动 ⇒ 改脚本不修老行） |
+| **#22** | 改判 | P2 | 「种子前基线」对车道**已失效**（车道种子已是 schema-scoped 引擎 ⇒ 不写 public）⇒ 重心移到 ③ `count(*)`-only 盲区 + ④ **`_sync_engine` 是 #19 漏掉的第三个 singleton** |
+| **#24** | 改判 | P2 | 报告的「车道会红」**今天不成立**（种子工作区 `owner_id` 也是 NULL ⇒ 切换器选不中）⇒ 但**生产里是真缺陷**（mock 种子的 PERSONAL/TEMPORARY 工作区 `project_id` 就是 null ⇒ 两条 404）⇒ ⚠️ 报告漏了**前置的 `owner_id`** |
+| **#27** | 改判 | P2（原 P3） | #15③ 已落地**行为级**互斥实测 ⇒ 「互斥无证据」不成立 ⇒ 但发现**更硬的新问题**：那条测试**名叫「默认路径」而实测的是覆盖路径** ⇒ 它没测它命名的东西 |
+
+⇒ ⇒ **落地入口**：`docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md`（F1/F2）
+⇒ ⇒ 计划里被 hermes 改判的 6 条**已按裁决改写**（实现前仍须重核「事实基础」）。
