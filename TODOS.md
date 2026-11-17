@@ -3723,6 +3723,20 @@ There is no guarantee that it will work as expected.
 
 **归属**：P10-C
 
+**2026-11-17 · P10-F 的 F2-T4 关闭** ⇒ ⇒ **根因已消除**（不是「页面改好了」）：
+
+- **组件**：`FormulaEditorPage` 的参数表 `rowKey` 改成**只收一个参数**的回调
+  （`rowKey={(r) => r.__rowKey}`）⇒ ⇒ 行**自带稳定 key**（内部类型
+  `EditableParam`）⇒ ⇒ **出参时剥掉**（`toPublicEditor`）⇒ ⇒
+  `FormulaEditor`（公开形状 / 保存的载荷）**不受影响** ⇒ ⇒ **无契约变化**。
+- **棘轮**：`tests/pages/rowKey_contract.test.ts` 扩展到**函数形式**
+  ⇒ ⇒ 判据 = **回调的参数个数**（antd 的告警判据是 `rowKey.length > 1`
+  ⇒ ⇒ **参数叫 `i` / `pos` 也一样告警** ⇒ ⇒ 断名字不够）⇒ ⇒
+  ⇒ **一处复发即红**（而不是一页一断言）。
+- **白名单**：`ALLOWED_CONSOLE_ERRORS` **删掉那条** ⇒ ⇒ 现在这张表
+  **是空的** ⇒ ⇒ 真后端通道的路由扫描**照旧全绿** ⇒ ⇒
+  ⇒ 这就是「组件修好后删白名单条目」这条纪律的**验证本身**。
+
 ## TODO-163: compose 的 `migrate` / `seed` 两个写者**不在车道互斥锁内** 🟡
 
 **现状**（2026-11-17 · P10-B 评审 #15 的第 ① 步）：

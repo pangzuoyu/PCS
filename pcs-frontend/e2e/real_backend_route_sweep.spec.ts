@@ -112,11 +112,15 @@ const ALLOWED_BAD_RESPONSES: { page: string; pathFragment: string; todo: string 
 ];
 
 /** ⚠️ 控制台 error 的白名单（每条写「页面 + 文本片段 + TODO 号」）。 */
-const ALLOWED_CONSOLE_ERRORS: { page: string; textFragment: string; todo: string }[] = [
-  // TODO-162：公式编辑器的参数表用了 antd `rowKey` 回调的 **index** 参数
-  // ⇒ antd 5.29 起**弃用告警**（控制台 error 级）⇒ 端点/组件改造时一并修
-  { page: '/config/formula-editor', textFragment: 'rowKey', todo: 'TODO-162' },
-];
+/**
+ * ⚠️ **控制台 error 的白名单** —— 现在**是空的**。
+ *
+ * ⚠️ 原先有一条（TODO-162：公式编辑器的参数表用了 antd `rowKey` 回调的
+ * **index** 参数 ⇒ antd 5.29 起**弃用告警**，控制台 error 级）
+ * ⇒ ⇒ **已修**（P10-F · F2-T4）：`rowKey` 改成**只收一个参数**的回调
+ * ⇒ ⇒ 行自带稳定 key ⇒ ⇒ 告警消失 ⇒ ⇒ **条目删除**（白名单外必须为空）。
+ */
+const ALLOWED_CONSOLE_ERRORS: { page: string; textFragment: string; todo: string }[] = [];
 
 /** 命中的白名单条目（用于打印「哪些是已知缺口」）。 */
 function matchAllowlist<T extends { page: string }>(

@@ -135,6 +135,39 @@ describe('棘轮：antd Table 的 rowKey 必须是契约里真实存在的字段
     ).toEqual([]);
   });
 
+  it('⚠️ 不得用 antd `rowKey` 回调的 **index** 参数（antd 5.29 起弃用 · TODO-162）', () => {
+    // ⚠️ **判据 = 回调的「参数个数」**（不是参数名）——
+    // antd 的告警判据是 `rowKey.length > 1`
+    // （`node_modules/antd/lib/table/InternalTable.js:76`）⇒ ⇒ **声明了**
+    // ⇒ **第二参**就告警 ⇒ ⇒ 参数叫 `i` / `pos` 也一样 ⇒ ⇒ 断名字不够。
+    //
+    // ⚠️ 之前这条棘轮**只取字符串形式**（`rowKey="字段"`）⇒ ⇒ **函数形式是
+    // 它已知且明写的盲区** ⇒ ⇒ 全仓 index 型 rowKey 就在那盲区里。
+    const offenders: string[] = [];
+    for (const file of pageFiles(join(SRC, 'pages'))) {
+      const src = readFileSync(file, 'utf-8');
+      // `rowKey={(a, b) => …}` 或 `rowKey={a => …}`
+      for (const m of src.matchAll(
+        /rowKey=\{\s*(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/g,
+      )) {
+        const params = (m[1] ?? m[2] ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (params.length > 1) {
+          offenders.push(
+            `${file.replace(SRC + '/', '')} → rowKey={${m[0].slice(0, 80)}}`,
+          );
+        }
+      }
+    }
+    expect(
+      offenders,
+      `这些 rowKey 回调**声明了第二个参数**（antd 5.29 起弃用 ⇒ 控制台 error 级）：\n` +
+        offenders.join('\n'),
+    ).toEqual([]);
+  });
+
   it('⚠️ 契约类型文件里确实有这些字段（防止上面那条变成空断言）', () => {
     // 断言这条棘轮**不是空跑**：契约里必须真的有一批字段
     expect(allContractFieldNames().size).toBeGreaterThan(50);

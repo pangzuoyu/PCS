@@ -38,6 +38,45 @@ export interface FormulaParam {
   default_value?: number | string;
 }
 
+/**
+ * **页面内部**的参数行 = 公开形状 + 一个**稳定 key**。
+ *
+ * ⚠️ **为什么需要稳定 key**（P10-F · F2-T4 · TODO-162）：antd 5.29 起
+ * `rowKey` 回调**声明了第二参**就发弃用告警（判据是 `rowKey.length > 1`
+ * ⇒ `node_modules/antd/lib/table/InternalTable.js:76`）⇒ ⇒ 回调**只能收
+ * 一个参数** ⇒ ⇒ key **只能由行自己带** ⇒ ⇒ 行的身份不能用「位置」
+ * ⇒ ⇒ 也不能用 `name`（**允许空 / 重复** ⇒ antd 会报 Duplicate row key
+ * ⇒ 换成另一种告警）。
+ *
+ * ⚠️ **key 不进公开形状** —— `FormulaEditor`（保存的载荷）里**没有**它
+ * ⇒ ⇒ 出参时剥掉（`toPublicEditor`）⇒ ⇒ 载荷与契约**不受影响**。
+ */
+interface EditableParam extends FormulaParam {
+  /** 行的**稳定 key**（只在页面内部存在 ⇒ 出参时剥掉）。 */
+  __rowKey: string;
+}
+
+/** 页面内部的公式草稿（`params` 带稳定 key ⇒ 其余与公开形状一致）。 */
+interface EditableFormulaEditor extends Omit<FormulaEditor, 'params'> {
+  params: EditableParam[];
+}
+
+/** 生成一个行的稳定 key（页面内部用 ⇒ **不进**保存的载荷）。 */
+function newRowKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `row-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+}
+
+/** 把内部草稿**剥成公开形状**（去掉行的稳定 key ⇒ 不漏进保存的载荷）。 */
+function toPublicEditor(draft: EditableFormulaEditor): FormulaEditor {
+  return {
+    ...draft,
+    params: draft.params.map(({ __rowKey, ...rest }) => rest),
+  };
+}
+
 /** preconditions（SPEC §7.10.2：input.* / params.* / result）。 */
 export type PreconditionSource = 'input' | 'params' | 'result';
 
@@ -112,28 +151,45 @@ function toLatex(expression: string | undefined): string {
     .replace(/\^(\w+)/g, '^{$1}');
 }
 
-/** 在 params 表追加一行（immutable 模式）。 */
-function appendParam(params: FormulaParam[]): FormulaParam[] {
-  return [...params, { name: '', unit: '', description: '', default_value: undefined }];
+/** 在 params 表追加一行（immutable 模式）⇒ **带一个新的稳定 key**。 */
+function appendParam(params: EditableParam[]): EditableParam[] {
+  return [
+    ...params,
+    {
+      name: '',
+      unit: '',
+      description: '',
+      default_value: undefined,
+      __rowKey: newRowKey(),
+    },
+  ];
 }
 
 export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Element {
-  const [draft, setDraft] = useState<FormulaEditor>(formula);
+  // ⚠️ **内部草稿带稳定 key**（`EditableParam`）⇒ ⇒ 出参时剥掉
+  // ⇒ ⇒ `FormulaEditor`（公开形状 / 保存的载荷）**不受影响**。
+  const [draft, setDraft] = useState<EditableFormulaEditor>(() => ({
+    ...formula,
+    params: formula.params.map((p) => ({ ...p, __rowKey: newRowKey() })),
+  }));
 
-  function update<K extends keyof FormulaEditor>(key: K, value: FormulaEditor[K]): void {
+  function update<K extends keyof EditableFormulaEditor>(
+    key: K,
+    value: EditableFormulaEditor[K],
+  ): void {
     const next = { ...draft, [key]: value };
     setDraft(next);
-    onChange?.(next);
+    onChange?.(toPublicEditor(next));
   }
 
   const latex = useMemo(() => toLatex(draft.expression), [draft.expression]);
 
-  const paramColumns: StrictColumns<FormulaParam> = [
+  const paramColumns: StrictColumns<EditableParam> = [
     {
       title: '名称',
       dataIndex: 'name',
       width: 140,
-      render: (v: string, _row: FormulaParam, idx: number) => (
+      render: (v: string, _row: EditableParam, idx: number) => (
         <Input
           size="small"
           data-testid="formula-param-name"
@@ -150,7 +206,7 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
       title: '单位',
       dataIndex: 'unit',
       width: 100,
-      render: (v: string, _row: FormulaParam, idx: number) => (
+      render: (v: string, _row: EditableParam, idx: number) => (
         <Input
           size="small"
           data-testid="formula-param-unit"
@@ -166,7 +222,7 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
     {
       title: '描述',
       dataIndex: 'description',
-      render: (v: string, _row: FormulaParam, idx: number) => (
+      render: (v: string, _row: EditableParam, idx: number) => (
         <Input
           size="small"
           data-testid="formula-param-desc"
@@ -183,7 +239,7 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
       title: '默认值',
       dataIndex: 'default_value',
       width: 110,
-      render: (v: number | string | undefined, _row: FormulaParam, idx: number) => (
+      render: (v: number | string | undefined, _row: EditableParam, idx: number) => (
         <InputNumber
           size="small"
           data-testid="formula-param-default"
@@ -237,8 +293,8 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
               </Form.Item>
 
               <Form.Item label="参数表" data-testid="formula-params-section">
-                <Table<FormulaParam>
-                  rowKey={(_r, idx) => String(idx)}
+                <Table<EditableParam>
+                  rowKey={(r) => r.__rowKey}
                   columns={paramColumns}
                   dataSource={draft.params}
                   pagination={false}
@@ -339,7 +395,7 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
                 <Button
                   type="primary"
                   data-testid="formula-save-btn"
-                  onClick={() => onSave?.(draft)}
+                  onClick={() => onSave?.(toPublicEditor(draft))}
                 >
                   保存
                 </Button>
