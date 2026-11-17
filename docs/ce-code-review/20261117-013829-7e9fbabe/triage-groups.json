@@ -1,0 +1,69 @@
+{
+  "grouping": "auto",
+  "triage_groups": [
+    {
+      "id": "T1",
+      "title": "占位管级在运行时写全局配置主表",
+      "findings": ["#1", "#2"],
+      "kind": "decision-gate",
+      "context": "本批为了让链计算能落库，在请求路径上现场补一行 pipe_classes（source=COMPANY_STD）⇒ 同时踩到并发与数据归属两个面。",
+      "preferred_resolution": "先裁 #2（占位行到底归谁：迁移里种一行，还是允许运行时兜底并从公司列表里过滤掉），再按裁决落 #1（savepoint + 重读赢家 / ON CONFLICT DO NOTHING）；#2 是设计裁决，#1 是可以照抄仓内 house pattern 的机械改。",
+      "why": "两处同一个函数、同一个根因（运行时兜底代替配置流程）；先裁归属才不会把 #1 的修复做两遍。"
+    },
+    {
+      "id": "T2",
+      "title": "bug-2165 的审计哈希链路：修复是空操作",
+      "findings": ["#3", "#4", "#12", "#14"],
+      "kind": "apply-queue",
+      "context": "本批自称修好了审计哈希端点，但赋值落在 dup 早退之后不可达，E2E-009 又用命令式 xfail 把用例中止 ⇒ 「修好了」今天没有任何证据。",
+      "preferred_resolution": "一次做完四步：① #3 把 data_version 落到真正存活的那一行（report_service._upsert_report_file 建行时一并写 + _finalize 的 dup 分支补写）；② #4 把命令式 pytest.xfail 换成只标记那一条断言或先红后绿的真断言；③ #12 与 #14 一起裁（data_version 与 record_hash_digest 的语义分开，老行/复用行的空串一并处理）。",
+      "why": "四条是同一条需求（审计要拿到完整哈希）的四个断点；任何一条单独修，车道仍然全绿。"
+    },
+    {
+      "id": "T3",
+      "title": "真后端前端通道的断言恒真 / 断错对象",
+      "findings": ["#5", "#6", "#7"],
+      "kind": "apply-queue",
+      "context": "5 条真后端 UI 流里 3 条的断言结构上不可能失败：越权流比的是两个 403、矩阵流断的是内置全局矩阵、路由扫描断的是 #root 这个静态 div。",
+      "preferred_resolution": "先 #5（改断项目守卫真正会走的那个分支）与 #7（断页面具体特征，或把 console error / 4xx 变成断言并把 TODO-159/160 那几个页面列成显式白名单）。#6 在验证阶段是**未决闸门**：名字错配已核实，但「内置那张矩阵在目标库里到底存不存在」没有核实到（迁移 p9_013 未读）⇒ 先查那一条证据再决定是改断言名字还是改种子名，**不要在证据到手前把它当成已确认的缺陷去改**。",
+      "why": "三条同属一个通道、同一种失败形状（断言与被测行为脱钩）；修完这条通道才第一次具备「能证明」的资格。#6 需要的是一次证据查询，不是机械改。"
+    },
+    {
+      "id": "T4",
+      "title": "E2E 车道的隔离与目标库护栏",
+      "findings": ["#8", "#18", "#19", "#20"],
+      "kind": "apply-queue",
+      "context": "计划最硬的一条约束是「开发库 public schema 一个字节不动」，但车道只凭一个环境变量放行，且只隔离了 get_db 这一条路。",
+      "preferred_resolution": "先 #8（车道与种子脚本都加目标库名白名单，不匹配就非零退出），再 #19（把隔离 session factory 注入全局 session factory 的两个使用点），再 #20（把两库 schema 一致检查移出场景车道、它是发布前检查），最后 #18（补 lifespan 或删掉那句撒谎的注释）。",
+      "why": "护栏要在最外层先立起来，否则后面三条的修复仍可能在开发库上执行。"
+    },
+    {
+      "id": "T5",
+      "title": "前端取数通道与真后端车道可复现性",
+      "findings": ["#9", "#23", "#24"],
+      "kind": "apply-queue",
+      "context": "useFetch 是绕过 axios 拦截器的第二套 HTTP 通道且静默吞错；仪表盘的 404 守卫条件写错；真后端通道的跑法没有落进仓库。",
+      "preferred_resolution": "先 #9（统一走 src/api/client.ts 的 axios，或至少区分 401 与其它错误并暴露错误态），再 #24（守卫改成「拿到了真 project_id」而不是「选了工作区」），最后 #23（把 4 个环境变量写进 package.json 的 script 或 README，带默认值）。",
+      "why": "三条都在「前端怎么把数据取回来」这一层；#9 不修，#23 写下的跑法也只会跑出空页面。"
+    },
+    {
+      "id": "T6",
+      "title": "契约口径与种子数据不符契约",
+      "findings": ["#13", "#17", "#26"],
+      "kind": "apply-queue",
+      "context": "preview-streams 统一了返回形状却没进 OpenAPI；种子管级那一行违反 PipeClassResponse（按 id 取必 500）；case_type 响应可空但请求仍必填。",
+      "preferred_resolution": "先 #17（种子行按 PipeClassResponse 改，并加一条「按 id 取不 500」的断言），再 #13（补 response_model 并修那句与事实相反的注释），再 #26（决定请求侧是否也允许省略 case_type，并把结论写进契约）。",
+      "why": "三条都是「形状与契约不一致」；种子那行是硬故障（500），另两条是契约漂移，先修会炸的那条。"
+    },
+    {
+      "id": "T7",
+      "title": "E2E / PG 闸门的 fail-closed 不严",
+      "findings": ["#16", "#21", "#22", "#27"],
+      "kind": "apply-queue",
+      "context": "闸门③只要求「至少 1 passed」、两库一致闸只比彼此不与代码 head 比、「不写 public」守卫只盯 4 张表、flock 守卫自身用子串匹配（含注释）。",
+      "preferred_resolution": "先 #16（闸门改为「无 skip 且 passed 数 ≥ 场景数」），再 #22（守卫快照覆盖本批写的所有表 + 种子前取基线），再 #21（加「与 alembic head 比」这一条），最后 #27（守卫剥注释后再匹配，入口守卫按命令形状匹配）。",
+      "why": "这四条是闸门本身不可信；它们全绿时，车道的绿灯不含任何信息。"
+    }
+  ],
+  "ungrouped": ["#10", "#11", "#25"]
+}

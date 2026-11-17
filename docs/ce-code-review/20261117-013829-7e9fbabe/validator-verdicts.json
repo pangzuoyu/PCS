@@ -1,0 +1,130 @@
+{
+ "verdicts": [
+  {
+   "#": 1,
+   "status": "confirmed",
+   "protected_subject": "concurrency",
+   "reason": "pipe_chain_persist.py:105-138 performs a bare SELECT-then-INSERT of the CS-STD placeholder with no begin_nested()/IntegrityError branch, and pipe.py:213-216 catches only PcsError, so two concurrent first-time POST /api/v1/pipe/calc-chain requests would let the loser take a PK IntegrityError that escapes as a 500; the code is new in this batch and no savepoint guards it (precondition: concurrent requests before the placeholder row is committed; incidence not measured)."
+  },
+  {
+   "#": 2,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "The new _ensure_placeholder_pipe_class (pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138) is called on the main calc path (pipe_chain_persist.py:260) and writes a pipe_classes row with source='COMPANY_STD' directly via db.add/flush, so it surfaces in GET /api/v1/pipe-classes (list_company filters source=='COMPANY_STD', pipe_class_service.py:149) as a synthetic company standard with no ConfigAsset/ConfigVersion (the canonical path create_with_config_asset, pipe_class_service.py:371-379, is bypassed), and it stores sch_series_json as a {'min','max'} pair (pipe_chain_persist.py:128) that contradicts the DN-to-Sch mapping shape the canonical importer builds (pipe_class_service.py:351)."
+  },
+  {
+   "#": 3,
+   "status": "confirmed",
+   "protected_subject": "public-contract",
+   "reason": "report_service.py:513-517/612-618 already creates the row with content_hash=digest (no data_version), so report_tasks.py:101-111 always finds dup != None and returns at line 111, making the newly added `row.data_version = digest` at report_tasks.py:118 unreachable and leaving data_version NULL, so GET /report/{id}/hash (_expected_digest, report.py:494) keeps returning an empty string for generated reports."
+  },
+  {
+   "#": 4,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/e2e_flows/test_e2e_report.py:90-94 calls imperative pytest.xfail() (which aborts the test) when record_hash_digest is falsy, so the download assertions at lines 96-100 never execute, while scripts/pytest_pg.sh:83 only greps for 'N passed' so an xfailed scenario leaves the lane green."
+  },
+  {
+   "#": 5,
+   "status": "confirmed",
+   "protected_subject": "authorization-authentication",
+   "reason": "mock_auth.py:14-19 gives bob the CHECKER role and streams.py:407 runs require_roles(user, 'DESIGNER','PROCESS_CONTROLLER','SYSTEM_ADMIN') before check_project_access_or_404 at streams.py:410, so both the cross-project and the nonexistent-project requests return 403 and the assertion at real_backend_flows.spec.ts:144 compares 403 == 403, never exercising the cross-project 404 path."
+  },
+  {
+   "#": 6,
+   "status": "unresolved",
+   "protected_subject": null,
+   "reason": "The name mismatch is verified (real_backend_flows.spec.ts:41 asserts 'DEFAULT_RECORD_3_LEVEL' while scripts/seed_e2e_flows.py:583 creates 'E2E_FLOWS_RECORD_3_LEVEL', and the built-in name is defined at signature_matrix_service.py:124), but whether that built-in row actually exists in the target DB - which decides whether the flow is green-without-the-seed or red - could not be verified within budget (migration p9_013 not read)."
+  },
+  {
+   "#": 7,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "real_backend_route_sweep.spec.ts:56 counts '#root', which index.html:9 renders as a static div always present, so the assertion at line 70 is vacuously true, and lines 60-69 only print console errors and 4xx/5xx responses instead of asserting them."
+  },
+  {
+   "#": 8,
+   "status": "confirmed",
+   "protected_subject": "data-loss",
+   "reason": "tests/e2e_flows/conftest.py:93-101 accepts any DATABASE_URL whose scheme starts with 'postgres' and then (conftest.py:164-187) creates a schema, runs alembic upgrade head and seeds rows in that database, so a manually exported dev-DB URL would be migrated and seeded there; the whitelist exists only in scripts/pytest_pg.sh:66 (precondition: PCS_E2E_LANE=1 with DATABASE_URL pointing at a shared/dev database; incidence not measured)."
+  },
+  {
+   "#": 9,
+   "status": "confirmed",
+   "protected_subject": "authorization-authentication",
+   "reason": "routeWrappers.tsx:87-92 folds any non-2xx into null and swallows rejections with .catch(() => {}), and routeWrappers.tsx:159-160 renders '加载中…' whenever the value is null, while the 401 handling (clearSession + redirect to /login) lives only in the axios interceptor at src/api/client.ts:51-66 that this raw fetch bypasses - so an expired 30-minute access token leaves the page stuck in the loading state with no error."
+  },
+  {
+   "#": 12,
+   "status": "confirmed",
+   "protected_subject": "public-contract",
+   "reason": "report.py:486-494 returns `row.data_version or \"\"` and report_tasks.py:107-111 returns the reused row without ever writing data_version (the same holds for the row built at report_service.py:612-618), so the externally consumed record_hash_digest field of GET /report/{id}/hash is an empty string rather than the report digest."
+  },
+  {
+   "#": 13,
+   "status": "confirmed",
+   "protected_subject": "public-contract",
+   "reason": "sim_imports_query.py:325-330 declares the preview-streams endpoint with a bare `-> dict` and no response_model (so OpenAPI records only a generic object for the shape this batch normalised to {\"streams\": [...]}), and the comment at lines 361-366 is contradicted by the write sites: import_service.py:496 (PRO/II) and import_service.py:612 (EXCEL) both store a list."
+  },
+  {
+   "#": 16,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "scripts/pytest_pg.sh:81-86 fails the lane only when the output contains no 'N passed' at all, and scripts/pytest_e2e.sh:32-35 reuses that same gate with PG_PYTEST_MARK=e2e, so a lane where nearly all of the ~30 e2e scenarios are skipped but one passes still reports green."
+  },
+  {
+   "#": 17,
+   "status": "confirmed",
+   "protected_subject": "public-contract",
+   "reason": "scripts/seed_e2e_flows.py:516-519 seeds source='E2E_SEED' (not in the Literal at schemas/pipe_class.py:77-79), dn_series_json without min/max (fails _check_dn at schemas/pipe_class.py:84-93) and sch_series_json with float values against dict[str,str] (schemas/pipe_class.py:62-63), while GET /pipe-classes/{class_id} returns PipeClassResponse (api/v1/pipe_classes.py:168-185) - and the seed runs against pcs_pgtest public via docker-compose.yml:140-153 - so that id's GET must fail response validation rather than return the row."
+  },
+  {
+   "#": 18,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "The two production seeds live only in the lifespan at app/main.py:157-160, the lane never runs lifespan (conftest.py:265-272), and the fixture it does call (conftest.py:238 seed_flows -> scripts/seed_e2e_flows.py:698-730) contains no CoefficientService.seed_default_tables / seed_system_setting_defaults call, so the conftest comment at lines 271-272 promising the seeds are explicitly supplemented is false."
+  },
+  {
+   "#": 19,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/e2e_flows/conftest.py:285-289 overrides only get_db, while app/db/session.py:98-105 keeps a process-level session-factory singleton bound to settings.database_url, so non-get_db paths use a different schema than the isolated one; note the one verified such writer (app/core/errors.py:45-52) short-circuits under PYTEST_CURRENT_TEST and app/api/v1/ws.py:77 was not inspected."
+  },
+  {
+   "#": 20,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/e2e_flows/test_e2e_schema_parity.py:57-76 is marked @pytest.mark.e2e yet derives its URLs from .env (pcs / pcs_test) rather than the lane's isolated schema, so a development-database parity check occupies an E2E lane slot and makes the lane's result depend on local dev DB state."
+  },
+  {
+   "#": 21,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/e2e_flows/test_e2e_schema_parity.py:70-76 only asserts pcs_rev == pcs_test_rev (read via the read-only helper at lines 30-54) and never compares either against the code's head revision, so both development databases sitting on the same old revision passes the only schema gate in the lane."
+  },
+  {
+   "#": 22,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/e2e_flows/test_lane_smoke.py:130-158 takes its public-schema baseline only after the session-scoped e2e_seed fixture has already run (so seed-phase leakage is absorbed into the baseline) and exercises only POST /api/v1/projects, while _public_snapshot (lines 235-245) counts only users/projects/streams/user_projects - narrower than the docstring's claim."
+  },
+  {
+   "#": 23,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "package.json:20 sets only VITE_ENABLE_MOCK and VITE_API_PROXY_TARGET (defaulting to the :8000 dev backend), playwright.config.ts:70 starts the real-backend server with only VITE_ENABLE_MOCK=false, and src/constants/env.ts:12-13 falls back to the placeholder project id, so VITE_PROJECT_ID is never supplied by the repository and the pages query a different project unless the runbook (kept only in the gitignored .gstack/qa-report) supplies it."
+  },
+  {
+   "#": 24,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "DashboardPage.tsx:40 renders the panel whenever a workspace is selected and DashboardPage.tsx:8-10 still falls back to the placeholder id '00000000-0000-0000-0000-000000000001' when ws.project_id is null, so selecting a workspace without a project id reproduces exactly the 404/console-error condition the change set out to remove (precondition: a selectable workspace row with NULL project_id; the seed scripts' workspace rows were not inspected)."
+  },
+  {
+   "#": 27,
+   "status": "confirmed",
+   "protected_subject": null,
+   "reason": "tests/scripts/test_pytest_e2e_gate.py:93-96 asserts on PG_SCRIPT.read_text() verbatim (the same file's _body() at lines 32-43 exists precisely to strip comments) and only checks for the substring 'flock', so a comment mentioning flock, or a blocking 'flock 9' without -n, would still satisfy the guard."
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+{
+  "outcome": "verdicts",
+  "reason": "the single validator batch (21 findings: every P0/P1 plus every remaining actionable finding, ordered by severity then stable #) returned one verdict per input # inside the budget; the verdicts file is present and every entry maps to an input number",
+  "verdicts": "/tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe/validator-verdicts.json"
+}
