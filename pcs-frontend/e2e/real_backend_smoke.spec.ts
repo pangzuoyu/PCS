@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, loginViaUi } from './fixtures';
 
 /**
  * 真后端通道的**冒烟**（P10-A · Task T3 · 评审 #8 改过）。
@@ -25,18 +25,9 @@ test('@real-backend 真后端通道：登录 ⇒ 仪表盘渲染 ⇒ 种子数�
   realPage.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await realPage.goto('/login');
-  // ⚠️ **抓登录响应** —— token 只在 zustand 内存里（不落 localStorage）
-  // ⇒ 只能从响应里取（前端读的是 `access_token`）。
-  const [loginResponse] = await Promise.all([
-    realPage.waitForResponse(
-      (res) => res.url().includes('mock-login') && res.status() === 200,
-      { timeout: 15000 },
-    ),
-    realPage.getByRole('button', { name: '登 录' }).click(),
-  ]);
-  const { access_token: accessToken } = await loginResponse.json();
-  await realPage.waitForURL('/', { timeout: 15000 });
+  // ⚠️ **走 UI 登录**（`fixtures.ts::loginViaUi` —— 一处真相源）——
+  // token 只在 zustand 内存里（不落 localStorage）⇒ 只能从**响应**里取。
+  const accessToken = await loginViaUi(realPage);
   // ⚠️ 用 **heading** 定位而不是 getByText('仪表盘') —— 侧边菜单里也有一个
   // 「仪表盘」⇒ getByText 命中 2 个 ⇒ strict mode violation。
   await expect(realPage.getByRole('heading', { name: '仪表盘' })).toBeVisible();

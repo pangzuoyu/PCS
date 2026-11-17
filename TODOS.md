@@ -3682,3 +3682,31 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 ⇒ ⚠️ 迁移种子的话注意：`pipe_classes` 是**配置表**（CLAUDE.md 的漂移盲区）。
 
 **归属**：P10-C
+
+## TODO-162: 公式编辑器的参数表用了 antd `rowKey` 回调的 **index** 参数 🟡
+
+**现状**（2026-11-17 · P10-B 评审 #7 的路由扫描撞出来的）：
+
+`src/pages/config/FormulaEditorPage.tsx:241` 写
+`rowKey={(_r, idx) => String(idx)}` ⇒ antd **5.29 起弃用**回调的 `index`
+参数 ⇒ 控制台出**错误级**告警：
+
+```
+[antd: Table] `index` parameter of `rowKey` function is deprecated.
+There is no guarantee that it will work as expected.
+```
+
+⚠️ **当前不炸**（antd 5 仍会传 index）⇒ 但 antd 6 可能**移除** ⇒ ⇒
+参数表的行 key 会变成 `undefined` ⇒ 行渲染错乱。
+
+⚠️ **为什么不能简单改成 `rowKey={(r) => r.name}`** —— 参数行的 `name`
+**允许为空**（新建的行）且**允许重复** ⇒ antd 会报「Duplicate row key」
+⇒ 换成另一种告警。⇒ ⇒ 仓里已有同款解法
+（`src/pages/sim/tabs/StreamStatePointsTab.tsx`：**取数时**把 key 算好 ⇒
+`rowKey="key"` 用字符串形式）⇒ 参数表要改成同款（**给每行一个内部 key**
+⇒ ⚠️ 不能加进 `FormulaParam` 公开形状 ⇒ 会漏进保存的载荷）。
+
+**何时做**：**P10-C**（前端改造）⇒ 改造后**删掉**路由扫描里那条白名单
+（`e2e/real_backend_route_sweep.spec.ts::ALLOWED_CONSOLE_ERRORS`）。
+
+**归属**：P10-C
