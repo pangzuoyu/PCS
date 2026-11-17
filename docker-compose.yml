@@ -107,6 +107,13 @@ services:
     # ⇒ README 记的「怎么起测试栈」是**断的**。
     #
     # ⚠️ **绝不**用开发库（`pcs`）的 URL 去迁移它 —— 那是污染。
+    #
+    # ⚠️ **必须经 `pcs-backend/scripts/compose_test_stack.sh` 起**（P10-F · F2-T3）
+    # ⇒ ⇒ 那个脚本**先抢车道锁**（`pcs-backend/.tmp/lane.lock`）⇒ ⇒ 与
+    # ⇒ PG 车道 / E2E 车道**互斥**（它们写同一个库 ⇒ 并发 ⇒ DDL 等锁 ⇒
+    # ⇒ 表现是「偶发卡住」）。
+    # ⇒ ⇒ **直接 `docker compose run --rm migrate` 会绕过锁** ⇒ ⇒ 那是已知
+    # ⇒ ⇒ 残留（容器侧装 flock 的路线归 P10-C · TODO-163）。
     image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     profiles: ["test"]
     working_dir: /app
@@ -124,6 +131,10 @@ services:
     # 一次性任务：灌 E2E 种子数据（P10-A · Task T2 的脚本）。
     # 与 worker 同款（uv 官方镜像 + 源码挂载 + `uv run --frozen`）——
     # ⚠️ **不要**用裸 `python`：uv 官方镜像里没有项目依赖 ⇒ 立刻 ModuleNotFoundError。
+    # ⚠️ **必须经 `pcs-backend/scripts/compose_test_stack.sh` 起**（P10-F · F2-T3）
+    # ⇒ ⇒ 那个脚本**先抢车道锁**（`pcs-backend/.tmp/lane.lock`）⇒ ⇒ 与
+    # ⇒ PG 车道 / E2E 车道**互斥** ⇒ ⇒ 直接 `docker compose run --rm seed`
+    # ⇒ ⇒ **会绕过锁** ⇒ ⇒ 已知残留（容器侧路线归 P10-C · TODO-163）。
     image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
     # ⚠️ profile 只给**一次性任务** —— 加了它 `docker compose up` 就不再起它
     #    （这是本仓的纪律：日常开发服务绝不进 profile）。

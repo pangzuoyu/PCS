@@ -3754,6 +3754,22 @@ There is no guarantee that it will work as expected.
 
 **何时做**：**P10-C**（有网环境 ⇒ 能构建镜像 ⇒ 能验证 compose 侧改动）
 
+**2026-11-17 · P10-F 的 F2-T3 部分关闭** ⇒ ⇒ **宿主侧**已进同一把锁：
+
+- `scripts/compose_test_stack.sh` 现在**先抢车道锁**（与 `scripts/pytest_pg.sh`
+  **同一把**、**同一路径口径** `${BACKEND_DIR}/.tmp/lane.lock`、同样支持
+  `PCS_PGTEST_LANE_LOCK` 覆盖）⇒ ⇒ 抢不到 ⇒ 非零退出 + 「另一条车道正在跑」。
+- 守卫两条（`tests/scripts/test_compose_test_profile.py`）：静态（锁在调
+  compose **之前** + `flock -n` + `exec 9>`）+ **行为**（锁被占着 ⇒ 假 docker
+  + 真占锁进程 ⇒ 脚本必须失败）。
+- `docker-compose.yml` 的 `migrate` / `seed` 两个服务都注明「**必须**经
+  `scripts/compose_test_stack.sh` 起」。
+
+⚠️ **残留**（**未关闭** ⇒ 归 P10-C）：直接 `docker compose run --rm seed`
+**仍能绕过锁** ⇒ ⇒ 容器侧装 `flock` + 把锁目录**可写**挂进容器那条路
+⇒ ⇒ 本机 docker registry 拉不动 ⇒ ⇒ **改完无法验证** ⇒ ⇒ 不硬改。
+⇒ ⇒ **保留本条**（状态从「完全没做」变成「宿主侧已做 · 容器侧待 P10-C」）。
+
 **归属**：P10-C
 
 ---

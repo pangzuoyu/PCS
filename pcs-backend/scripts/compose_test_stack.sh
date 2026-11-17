@@ -46,6 +46,32 @@ PG_DB_NAME="${PG_DB_NAME:-pcs_pgtest}"
 VENV_VOL="${PCS_PGTEST_VENV_VOL:-pcs-pgtest-venv}"
 CACHE_VOL="${PCS_PGTEST_CACHE_VOL:-pcs-pgtest-uvcache}"
 
+# ---------------------------------------------------------------------------
+# 车道互斥锁（P10-F · F2-T3 · 评审 #15 第 ① 步）
+# ---------------------------------------------------------------------------
+#
+# ⚠️ **为什么测试栈也要进这把锁**：本脚本会**建 schema / 跑迁移 / 灌种子**
+# ⇒ ⇒ 与 `scripts/pytest_pg.sh`（PG 车道）、`scripts/pytest_e2e.sh`（E2E 车道）
+# **写同一个库** ⇒ ⇒ 并发 ⇒ ⇒ DDL 互相等锁 ⇒ ⇒ 表现是「**偶发卡住**」
+# ⇒ ⇒ 不是报错 ⇒ ⇒ 极难定位。
+#
+# ⚠️ **与 `pytest_pg.sh` 同一把锁、同一口径**（路径 `${BACKEND_DIR}/.tmp/lane.lock`
+# ⇒ 绝对路径 ⇒ 从任何目录调都锁同一个文件）⇒ ⇒ 也支持
+# `PCS_PGTEST_LANE_LOCK` **覆盖**（守门测试要用自己的锁 ⇒ 免得与真车道抢）。
+#
+# ⚠️ **为什么锁在宿主侧**（而不是容器里装 `flock`）：本机 docker registry
+# 拉不动 ⇒ ⇒ 容器侧改完**无法验证** ⇒ ⇒ 宿主侧取锁 = 零镜像改动、可验证。
+# ⇒ ⇒ **残留**：直接 `docker compose run --rm seed` **仍能绕过锁** ⇒ ⇒ 已登记
+# TODO-163（容器侧路线归 P10-C）。
+BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-${BACKEND_DIR}/.tmp/lane.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "FAIL: 另一条车道（PG 车道 / E2E 车道 / 测试栈）正在跑 ⇒ 同一个库不能并发建 schema" >&2
+  exit 1
+fi
+
 if [ -n "${PG_COMPOSE_PROJECT:-}" ]; then
   COMPOSE_PROJECT_ARGS=(-p "$PG_COMPOSE_PROJECT")
 else
