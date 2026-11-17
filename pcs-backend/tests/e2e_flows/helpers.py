@@ -164,6 +164,23 @@ def flash_body(*, stream_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
+def public_sync_url() -> str:
+    """**public schema** 的同步 URL（**不带** `options=-csearch_path=`）。
+
+    ⚠️ 用途：查「public 有没有被写脏」⇒ 必须用**独立连接**
+    ⇒ 用隔离 schema 的连接查 public **永远查不到** ⇒ 守卫恒绿 = 空壳。
+    """
+    import os
+
+    url = os.environ.get("DATABASE_URL") or ""
+    assert url.startswith("postgres"), (
+        f"不在 E2E 车道里（DATABASE_URL={url!r}）⇒ 本 helper 需要真 PG"
+    )
+    return url.replace("postgresql+asyncpg://", "postgresql+psycopg://").replace(
+        "+asyncpg", "+psycopg"
+    )
+
+
 async def advance_stream_to_checked(
     client, stream_id: uuid.UUID, *, role_headers
 ) -> dict[str, Any]:
@@ -302,7 +319,6 @@ async def approve_record_chain(
 
     ⚠️ `until_role` ⇒ 只走到**那个角色那一步**（含）⇒ 用来测「驳回后重交」。
     """
-    steps: list[dict[str, Any]] = []
     # ⚠️ **两处都要 await** —— 漏一个 ⇒ 请求根本没发出去 ⇒ 记录停在 DRAFT
     # ⇒ 症状是「409 APPROVAL_NOT_ACTIVE / 记录还是 DRAFT」⇒ 看着像端点坏了。
     await submit_for_approval(
@@ -499,6 +515,7 @@ __all__ = [
     "flash_body",
     "pipe_chain_body",
     "post_calc",
+    "public_sync_url",
     "psv_body",
     "pump_chain_body",
     "vessel_body",

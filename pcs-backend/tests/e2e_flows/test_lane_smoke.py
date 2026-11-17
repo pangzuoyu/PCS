@@ -21,7 +21,6 @@
 """
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
@@ -222,14 +221,14 @@ def test_e2e_items_are_skipped_without_the_lane_flag():
 
 
 def _public_sync_url() -> str:
-    """public schema 的**同步** URL（**不带** `options=-csearch_path=`）。"""
-    url = os.environ.get("DATABASE_URL") or ""
-    assert url.startswith("postgres"), (
-        f"不在 E2E 车道里（DATABASE_URL={url!r}）⇒ 本用例需要真 PG"
-    )
-    return url.replace("postgresql+asyncpg://", "postgresql+psycopg://").replace(
-        "+asyncpg", "+psycopg"
-    )
+    """public schema 的**同步** URL（**不带** `options=-csearch_path=`）。
+
+    ⚠️ 真相源已挪到 `tests/e2e_flows/helpers.py::public_sync_url`
+    ⇒ 这里保留一个薄壳 ⇒ 免得两处各写一份 URL 改法。
+    """
+    from tests.e2e_flows.helpers import public_sync_url
+
+    return public_sync_url()
 
 
 def _public_snapshot(engine) -> dict[str, int]:

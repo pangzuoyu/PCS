@@ -35,12 +35,12 @@ from pathlib import Path
 
 import httpx
 import pytest
+import pytest_asyncio
 
 from app.core.db_guard import (
     assert_allowed_lane_database,
     db_name_from_url,
 )
-import pytest_asyncio
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -306,14 +306,33 @@ async def e2e_client(e2e_schema):
             yield session
 
     app.dependency_overrides[get_db] = _get_db
+
+    # ⚠️ **进程级 session factory 也必须指向隔离 schema**（P10-B 评审 #19 · P1）
+    # ⇒ `app/db/session.py::get_async_session_factory()` 是**模块级单例**
+    # ⇒ 只改 `get_db` ⇒ 下面两条路径读写的是 **pcs_pgtest 的 public schema**：
+    #   · `app/api/v1/ws.py:77`（WS 握手鉴权）
+    #   · `app/core/errors.py`（RBAC 拒绝的审计行 —— 评审 #10 的落点）
+    # ⇒ ⇒ 「真 app + 真库 + 同款路径」在那两条路径上**不成立**
+    # ⇒ ⇒ 这里把模块级单例也换成隔离 schema 的 engine/factory（测完还原）。
+    import app.db.session as db_session_mod
+
+    prev_engine = db_session_mod._async_engine
+    prev_factory = db_session_mod._async_session_factory
+    db_session_mod._async_engine = engine
+    db_session_mod._async_session_factory = factory
+
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        # 供「直查隔离 schema」的用例用（不能靠 app 的 engine —— 它被
-        # search_path 覆盖了 ⇒ 查 public 永远查不到 ⇒ 守卫恒绿 = 空壳）
-        client._e2e_session_factory = factory  # type: ignore[attr-defined]
-        yield client
-    app.dependency_overrides.clear()
-    await engine.dispose()
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            # 供「直查隔离 schema」的用例用（不能靠 app 的 engine —— 它被
+            # search_path 覆盖了 ⇒ 查 public 永远查不到 ⇒ 守卫恒绿 = 空壳）
+            client._e2e_session_factory = factory  # type: ignore[attr-defined]
+            yield client
+    finally:
+        db_session_mod._async_engine = prev_engine
+        db_session_mod._async_session_factory = prev_factory
+        app.dependency_overrides.clear()
+        await engine.dispose()
 
 
 # ---------------------------------------------------------------------------
