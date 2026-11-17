@@ -9,7 +9,7 @@
  * 后续 P5-1 接真接口后由 data loader 替换；当前阶段 MSW devOnlyMockHandlers
  * 已覆盖 13 个端点（QA 11 组件实例化 P1）。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { Alert, Typography } from 'antd';
 import { useParams } from 'react-router-dom';
@@ -109,6 +109,10 @@ function useFetch<T>(path: string, initial: T): FetchState<T> {
   const [data, setData] = useState<T>(initial);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // ⚠️ **`initial` 不进依赖** —— 它多半是内联字面量（`[]` / `null`）
+  // ⇒ ⇒ 每次渲染都是新引用 ⇒ ⇒ 进依赖 ⇒ effect 每次渲染都重跑 ⇒ ⇒ 无限请求。
+  // ⇒ ⇒ 用 ref 留住**第一次**的那份（重置时也用它）。
+  const initialRef = useRef(initial);
   useEffect(() => {
     let cancelled = false;
     let timedOut = false;
@@ -117,6 +121,15 @@ function useFetch<T>(path: string, initial: T): FetchState<T> {
       timedOut = true;
       controller.abort();
     }, FETCH_TIMEOUT_MS);
+    // ⚠️ **path 变了 ⇒ 状态必须重置**（P10-F · 整支评审 C1）——
+    // React Router **复用同一个组件实例**（`/streams/:id` 换 id 时）⇒ ⇒
+    // `useState` 不会自动重置 ⇒ ⇒ 上一条请求的失败态 / 旧数据会**粘住**
+    // ⇒ ⇒ 详情页停在一个**假的**失败提示上（新数据永远不显示），
+    // 或者把**上一条物流的数据**显示在当前 URL 下。
+    // ⚠️ 与 bug-2043 同一形状（Router 复用实例 ⇒ state 留着上一页的行）。
+    setError(null);
+    setLoading(true);
+    setData(initialRef.current);
     // ⚠️ **用会话里的真 token**（P10-B · T7 · bug-2169）——
     // `DEV_BEARER` 是**写死的假 token**（`Bearer mock-jwt-token`）
     // ⇒ ⇒ 真后端通道下 **401** ⇒ 物流详情页 / 设备一览页**永远停在「加载中…」**
@@ -131,14 +144,17 @@ function useFetch<T>(path: string, initial: T): FetchState<T> {
           signal: controller.signal,
         });
         if (!r.ok) {
+          // ⚠️ 401 ⇒ 取一次错误码（区分「会话结束」与「二次认证失败」）
+          const code = r.status === 401 ? await errorCodeOf(r) : undefined;
+          // ⚠️ **卸载后不做副作用**（评审 M7）—— 迟到的 401 不该再清会话
+          // ⇒ ⇒ 否则「用户刚离开这个页面」就被登出。
+          if (cancelled) return;
           // ⚠️ 401 ⇒ **先**走会话结束的同一份真相源，再报失败
           if (r.status === 401) {
-            handleSessionOver(r.status, await errorCodeOf(r));
+            handleSessionOver(r.status, code);
           }
-          if (!cancelled) {
-            setError(`HTTP ${r.status}`);
-            setLoading(false);
-          }
+          setError(`HTTP ${r.status}`);
+          setLoading(false);
           return;
         }
         const j = (await r.json()) as T;

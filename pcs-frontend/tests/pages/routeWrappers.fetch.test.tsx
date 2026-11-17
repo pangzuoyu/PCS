@@ -21,7 +21,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import type { JSX } from 'react';
 
 import {
@@ -93,6 +93,12 @@ function renderAt(path: string, pattern: string, element: JSX.Element) {
   );
 }
 
+/** 一个能改路由的按钮（用来制造「同一个组件实例、path 变了」）。 */
+function Nav({ to }: { to: string }): JSX.Element {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate(to)}>go</button>;
+}
+
 const stream: Stream = {
   stream_id: 's-1',
   stream_name: '新鲜进料',
@@ -136,6 +142,9 @@ const asset: ConfigAsset = {
   status: 'DRAFT',
   current_version: 'v1',
 };
+
+/** 第二条物流（用来断「换 id 之后显示的是新数据，不是上一条」）。 */
+const stream2: Stream = { ...stream, stream_id: 's-2', stream_name: '另一条物流' };
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -284,5 +293,76 @@ describe('useFetch 改签名后的调用点回归（9 个调用点 · 代表 3 �
 
     expect(await screen.findByTestId('property-search-page')).toBeInTheDocument();
     expect(screen.getByText('苯')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ⚠️ **path 变化 ⇒ 状态必须重置**（P10-F · 整支评审 C1）
+// ---------------------------------------------------------------------------
+
+describe('useFetch 在 path 变化时必须重置状态（评审 C1）', () => {
+  it('上一条请求失败 ⇒ 换 id 后不再停在那条错误上（重新进入加载态 ⇒ 再显示新数据）', async () => {
+    // ⚠️ 第二条请求**故意挂住** ⇒ ⇒ 「加载中…」这个中间态可以被确定性地断言
+    //    （若立即 resolve ⇒ 断言与微任务赛跑 ⇒ 假绿）。
+    let resolveSecond: (v: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        url.endsWith('/s-1')
+          ? Promise.resolve(response({ message: 'boom' }, { ok: false, status: 500 }))
+          : second,
+      ),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/streams/s-1']}>
+        <Nav to="/streams/s-2" />
+        <Routes>
+          <Route path="/streams/:id" element={<StreamDetailRoute />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // ① 第一条失败 ⇒ 失败态
+    expect(await screen.findByText(/加载失败：HTTP 500/)).toBeInTheDocument();
+
+    // ② ⚠️ **换 id**（React Router **复用同一个组件实例** ⇒ `useState` 不重置）
+    //    ⇒ ⇒ 旧代码里 `error` 仍是 'HTTP 500'、`loading` 仍是 false
+    //    ⇒ ⇒ 页面停在一个**假的**失败提示上，且新数据永远不显示。
+    fireEvent.click(screen.getByText('go'));
+    expect(screen.getByText('加载中…')).toBeInTheDocument();
+    expect(screen.queryByText(/加载失败/)).not.toBeInTheDocument();
+
+    // ③ 新数据真的渲染出来（不是上一条的）
+    await act(async () => {
+      resolveSecond(response(stream2));
+    });
+    expect(await screen.findByTestId('stream-detail-page')).toBeInTheDocument();
+    expect(screen.getByTestId('stream-detail-descriptions').textContent).toContain(
+      '另一条物流',
+    );
+  });
+
+  it('卸载后迟到的 401 不清会话（不在已卸载的组件上做会话副作用）', async () => {
+    login();
+    stubLocation('/streams/s-1');
+    let resolve401: (v: unknown) => void = () => {};
+    const pending = new Promise((resolve) => {
+      resolve401 = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn(() => pending));
+
+    const { unmount } = renderAt('/streams/s-1', '/streams/:id', <StreamDetailRoute />);
+    unmount();
+
+    await act(async () => {
+      resolve401(response({ code: 'EXPIRED_TOKEN' }, { ok: false, status: 401 }));
+    });
+
+    // ⚠️ 组件已经卸载 ⇒ ⇒ 不该再清会话（否则「用户刚离开页面」就被登出）
+    expect(useAuth.getState().accessToken).not.toBeNull();
   });
 });
