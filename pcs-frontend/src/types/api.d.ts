@@ -17704,6 +17704,24 @@ export interface components {
             offset: number;
         };
         /**
+         * SimImportPreviewStreamsResponse
+         * @description preview 阶段的物流列表（`GET /imports/{id}/preview-streams` 的 200）。
+         *
+         *     ⚠️ **为什么补这个模型**（P10-F · 评审 #13）：此前该端点是 `-> dict` 且
+         *     **没有** `response_model` ⇒ OpenAPI 的 200 形状是 `{"type": "object"}`
+         *     ⇒ 前端生成的类型是 `object` ⇒ **客户端只能靠试**。
+         *     ⇒ ⇒ 与同文件另外 4 个兄弟端点（都显式写了 `response_model=`）口径一致。
+         */
+        SimImportPreviewStreamsResponse: {
+            /**
+             * Streams
+             * @description preview 阶段的物流列表
+             */
+            streams?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * SimImportStatus
          * @description 导入生命周期状态。
          * @enum {string}
@@ -32818,9 +32836,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimImportPreviewStreamsResponse"];
                 };
             };
             /** @description Validation Error */

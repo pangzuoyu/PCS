@@ -439,3 +439,66 @@ async def test_list_expired(client, designer_headers, db, make_project):
     assert resp.status_code == 200
     body = resp.json()
     assert body["total"] == 1
+
+# ---------------------------------------------------------------------------
+# 3b) preview-streams 的**契约形状**（P10-F · 评审 #13）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_preview_streams_response_model_declares_the_streams_key():
+    """契约里必须能读到 `streams` 键 ⇒ 客户端不必靠试。
+
+    ⚠️ 此前该端点是 `-> dict` 且**没有** `response_model`
+    ⇒ OpenAPI 的 200 形状是 `{"type": "object"}`
+    ⇒ 前端生成的类型是 `object` ⇒ **只能靠试**。
+    ⇒ ⇒ 与同文件另外 4 个兄弟端点（都显式写了 `response_model=`）口径不一致。
+    """
+    from app.main import app
+
+    op = app.openapi()["paths"]["/api/v1/imports/{import_id}/preview-streams"]["get"]
+    schema = op["responses"]["200"]["content"]["application/json"]["schema"]
+    ref = schema.get("$ref", "")
+    assert ref.endswith("SimImportPreviewStreamsResponse"), schema
+
+
+@pytest.mark.asyncio
+async def test_preview_streams_reads_both_historical_shapes(
+    client, designer_headers, db, make_project
+):
+    """老数据是 `list`、归一化后是 `dict` ⇒ **两种都要能读**。
+
+    ⚠️ 为什么这条必须有：加了 `response_model` 之后，读侧若把
+    `isinstance(payload, list)` 分支删掉 ⇒ 老数据（list）会**直接 500**
+    ⇒ ⇒ 「修了契约、炸了老数据」这类回归没有钉子。
+
+    ⚠️ 形状事实（2026-11-17 核）：`app/services/import_service.py:496` 与 `:612`
+    **两个写入点都存 list** ⇒ 注释里「SIM/Excel 导入存 dict」那句与事实相反。
+    """
+    proj = await make_project()
+    old_row = _mk(
+        db,
+        proj.project_id,
+        proj.workspace_id,
+        status=SimImportStatus.PREVIEW,
+        preview_streams=[{"stream_name": "FEED", "mass_flow": 100000.0}],
+    )
+    new_row = _mk(
+        db,
+        proj.project_id,
+        proj.workspace_id,
+        status=SimImportStatus.PREVIEW,
+        preview_streams={"streams": [{"stream_name": "FEED2", "mass_flow": 1.0}]},
+    )
+    db.add(old_row)
+    db.add(new_row)
+    await db.commit()
+
+    for row, expected in ((old_row, "FEED"), (new_row, "FEED2")):
+        resp = await client.get(
+            f"/api/v1/imports/{row.import_id}/preview-streams",
+            headers=designer_headers,
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["streams"][0]["stream_name"] == expected

@@ -28,10 +28,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,6 +123,20 @@ class SimImportWarningListResponse(BaseModel):
 
     items: list[SimImportWarningItem]
     total: int
+
+
+class SimImportPreviewStreamsResponse(BaseModel):
+    """preview 阶段的物流列表（`GET /imports/{id}/preview-streams` 的 200）。
+
+    ⚠️ **为什么补这个模型**（P10-F · 评审 #13）：此前该端点是 `-> dict` 且
+    **没有** `response_model` ⇒ OpenAPI 的 200 形状是 `{"type": "object"}`
+    ⇒ 前端生成的类型是 `object` ⇒ **客户端只能靠试**。
+    ⇒ ⇒ 与同文件另外 4 个兄弟端点（都显式写了 `response_model=`）口径一致。
+    """
+
+    streams: list[dict[str, Any]] = Field(
+        default_factory=list, description="preview 阶段的物流列表"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -322,12 +336,12 @@ async def get_import_by_id(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/{import_id}/preview-streams")
+@router.get("/{import_id}/preview-streams", response_model=SimImportPreviewStreamsResponse)
 async def get_preview_streams(
     import_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict:
+) -> SimImportPreviewStreamsResponse:
     """返回 preview 阶段的 streams JSON（仅 PREVIEW 状态）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     imp = (
@@ -358,16 +372,18 @@ async def get_preview_streams(
                 ),
             },
         )
-    # ⚠️ **读侧归一**（P10-B 的 E2E-002 撞出来的）：**PRO/II 导入**把 preview
-    # 存成 **list**（`preview_streams_json = [...]`），而 SIM/Excel 导入存
-    # **dict**（`{"streams": [...]}`）⇒ 本端点声明 `-> dict` ⇒ 直接返回 list
-    # ⇒ FastAPI 响应校验失败 ⇒ **500**（每次调用都炸）。
-    # ⇒ ⇒ 归一：list ⇒ 包成 `{"streams": [...]}` ⇒ **不迁数据、不改契约**
-    # （响应形状仍是 dict ⇒ 前端与 OpenAPI 都不受影响）。
+    # ⚠️ **读侧归一**（P10-B 的 E2E-002 撞出来的）：**两个写入点都存 list**
+    # （`app/services/import_service.py:496` 与 `:612` 都是
+    # `preview_dict.get("preview_streams", [])` ⇒ PRO/II 与 EXCEL **都**是 list），
+    # 而**早期**写入的数据存的是 dict（`{"streams": [...]}`）⇒
+    # ⇒ 两种历史形状都要能读 ⇒ ⇒ 统一归一成 `{"streams": [...]}`。
+    # ⚠️ **不要删 `isinstance(payload, list)` 分支** —— 老数据是 list
+    # ⇒ 删了 ⇒ 直接 500。
     payload = imp.preview_streams_json
     if isinstance(payload, list):
-        return {"streams": payload}
-    return payload
+        return SimImportPreviewStreamsResponse(streams=payload)
+    streams = (payload or {}).get("streams") or []
+    return SimImportPreviewStreamsResponse(streams=streams)
 
 
 # ---------------------------------------------------------------------------
