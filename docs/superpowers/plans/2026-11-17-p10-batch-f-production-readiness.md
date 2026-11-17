@@ -6,7 +6,7 @@
 
 **Architecture:** P10-F 是**评审批**，不是功能批 ⇒ ⇒ 它的产出**不是新功能**，而是「**证据 + 清单 + 结论**」⇒ ⇒ 所以每个 Task 的交付物是**可复跑的脚本/文档 + 一条断言**，不是一段新代码。技术债部分（F1/F2）沿用 P10-B 车道的既有形状（隔离 schema + 真 PG + 变异测试），⇒ **不新建第二套验证机制**。
 
-**Tech Stack:** FastAPI · SQLAlchemy 2.x async · alembic · pytest（asyncio_mode=auto）· Playwright · React 18 + antd 5 · docker compose · k6（**P10-D 引入**）· bandit / pip-audit / npm audit / trivy（**F4 引入**）
+**Tech Stack:** FastAPI · SQLAlchemy 2.x async · alembic · pytest（asyncio_mode=auto）· Playwright · React 18 + antd 5 · docker compose · **bandit**（已装）· **uv audit**（内建于 uv 0.11.2）· npm audit · k6（**P10-D 引入**）· trivy（**F4-T3 待 P10-C 出镜像后再定**）
 
 **Spec:** `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md` §3.2.7（10.7 生产就绪评审）· §3.3.1~3.3.3（非功能需求）· 批次划分见 `docs/superpowers/plans/2026-11-04-p10-master-plan.md` §二 / §六 · 本批的前置批次：P10-A（`2026-11-04-p10-batch-a-preflight-ai-reserve.md`）· P10-B（`2026-11-13-p10-batch-b-fullflow-e2e.md`）· 评审与裁决：`docs/ce-code-review/20261117-013829-7e9fbabe/report.md`（末尾「裁决与执行口径」+「执行结果」两节）
 
@@ -189,7 +189,8 @@ Expected: FAIL（现在只有「加载中…」，找不到「加载失败」；
 ⇒ 签名改为 `{ data, error, loading }`；⇒ `fetch` 用 **`AbortController`**（cleanup 里 `abort()`）+
 **15s 超时**（`setTimeout` ⇒ cleanup 里 `clearTimeout`）；⇒ `!r.ok` ⇒
 **先** `if (r.status === 401) handleSessionOver(r.status)` ⇒ ⇒ **再** `error = \`HTTP ${r.status}\``；
-`catch` ⇒ `error = '网络错误'`（**不吞**）。
+`catch` ⇒ **区分两类失败**：**超时**（`err.name === 'AbortError'`）⇒ `error = '请求超时（15s）'`；
+其余（`TypeError` 等）⇒ `error = '网络错误'`（**不吞**）。
 
 ⇒ `StreamDetailRoute`（`:159-161`）：`if (loading) return <Typography.Text>加载中…</Typography.Text>;`
 `if (error) return <Alert type="error" message={`加载失败：${error}`} />;`
@@ -197,14 +198,26 @@ Expected: FAIL（现在只有「加载中…」，找不到「加载失败」；
 - [ ] **Step 5: 改 9 个调用点**（同一文件）⇒ ⇒ 每个写成
 `const { data, loading, error } = useFetch<T>(path, initial)` ⇒ ⇒ **不要**改各页面的渲染逻辑
 （只把 `data` 换成解构出来的 `data`）⇒ ⇒ ⚠️ `StreamDetailRoute` 额外加失败态（Step 4）。
+⇒ ⇒ ⚠️ 其中 3 个（`:212` `:331` `:335`）用的是**占位** `PROJECT_ID` ⇒ ⇒ 那些页面的 404 是
+TODO-159/160 的既有白名单项，**不是本任务引入的** ⇒ ⇒ 不要在白名单里新增。
 
 - [ ] **Step 6: 换掉 `AssetListPage` 的写死 token**（`src/pages/config/AssetListPage.tsx:153-154`）
 
 ⇒ `DEV_BEARER` ⇒ `useAuth.getState().accessToken`（照 `routeWrappers.tsx:85-86` 的写法）⇒ ⇒
-⚠️ 提交信息里写明：「`GET /api/v1/config/assets/{id}/revisions` **后端尚不存在**（今天 404）⇒ ⇒
-端点补齐那天这条必须仍成立」。
+⚠️ **该端点后端根本不存在**（`GET /api/v1/config/assets/{id}/revisions` ⇒ 今天 404）⇒ ⇒
+**这一步的行为不可观测** ⇒ ⇒ 必须靠 Step 7 的请求头断言把它变成可观测 ⇒ ⇒
+提交信息里写明：「端点补齐那天这条必须仍成立」。
 
-- [ ] **Step 7: 跑测试确认通过 + 变异自证**
+- [ ] **Step 7: 补齐四个边界测试**（⚖️ 评审 D11：四个都补）
+
+| 测试 | 断什么 | 怎么断 |
+|---|---|---|
+| **超时** | 15s 后进入失败态，文案是「请求超时」 | `vi.useFakeTimers()` ⇒ 推进 15s ⇒ 断文案 |
+| **卸载清理** | 卸载时 `abort()` 被调 + `clearTimeout` 被调（防 timer 泄漏） | `vi.spyOn(AbortController.prototype,'abort')` + 卸载 ⇒ 断两个 spy |
+| **9 个调用点回归** | 改签名后各页渲染不变（至少 3 个代表页：`/pipe-classes` · `/streams/{id}` · 一个 common 页） | 断关键行内容 ⇒ ⇒ **不是**断「渲染了」 |
+| **请求头** | `AssetListPage` 发出的请求带的是**会话 token**，不是写死的 `mock-jwt-token` | stub `fetch` ⇒ 断 `Authorization` 头 |
+
+- [ ] **Step 8: 跑测试确认通过 + 变异自证**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/routeWrappers.fetch.test.tsx && npm run typecheck && npm run lint`
 Expected: 新测试 PASS · typecheck/lint clean
@@ -212,12 +225,14 @@ Expected: 新测试 PASS · typecheck/lint clean
 ⇒ ⇒ **变异自证**：临时删掉 Step 4 里的 `handleSessionOver(r.status)` 调用 ⇒ ⇒ 重跑 ⇒ ⇒
 「401 ⇒ 清会话」那条**必须红** ⇒ ⇒ 还原。
 
-- [ ] **Step 8: 跑真后端通道**（**白名单外必须为空**）
+- [ ] **Step 9: 跑真后端通道**（**白名单外必须为空**）
 
 Run: `cd pcs-frontend && npm run e2e:real`
 Expected: 7+ passed（路由扫描的 4xx/console 白名单**不变** ⇒ ⇒ 本任务没引入新的 404）
+⚠️ 跑法：**先**在终端 A 起后端 `cd pcs-backend && bash scripts/serve_e2e_backend.sh`
+⇒ ⇒ **再**在终端 B 跑 `npm run e2e:real` ⇒ ⇒（否则通道起不来，报错与本任务无关）。
 
-- [ ] **Step 9: 提交**
+- [ ] **Step 10: 提交**
 
 ```bash
 cd pcs-frontend && git add src/api/client.ts src/pages/routeWrappers.tsx \
@@ -230,13 +245,12 @@ git commit -m "fix(P10-F): useFetch 失败态 + 401 与 axios 共用真相源（
 ### Task F1-T2: `preview-streams` 的**契约形状**（评审 #13 · 后端契约）
 
 **Files:**
-- Modify: `pcs-backend/app/api/v1/sim_imports_query.py:323`（端点签名）· `:360-367`（**与事实相反的注释**）
-- Create: `pcs-backend/app/schemas/sim_import.py`（新文件 ⇒ 只放这一个响应模型 ⇒ 名字 `SimImportPreviewStreamsResponse`）
+- Modify: `pcs-backend/app/api/v1/sim_imports_query.py:118` 之后（**新增** `SimImportPreviewStreamsResponse` ⇒ **与 4 个兄弟模型同文件**）· `:325-330`（端点签名）· `:360-367`（**与事实相反的注释**）
 - Modify: `pcs-frontend/src/types/api.d.ts`（**由 `npm run api:gen` 生成 ⇒ 不手改**）
-- Test: `pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py`（**既有文件** ⇒ 加一条）
+- Test: `pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py`（**既有文件** ⇒ 加两条）
 
 **Interfaces:**
-- Consumes: `app/schemas/pipe_class.py` 的**具名 schema 风格**（`Field(..., description=…)` + `model_config`）⇒ ⇒ 新模型照抄那个风格。
+- Consumes: 兄弟模型 `SimImportListResponse`（`:76`）· `SimImportDetailResponse`（`:85`）· `SimImportWarningListResponse`（`:118`）—— **都定义在本文件里**（全仓**没有** `app/schemas/sim_*.py`）⇒ ⇒ 新模型**紧跟它们**，**不新建 schemas 模块**（⚖️ 评审 D7）。
 - Produces: `SimImportPreviewStreamsResponse(streams: list[dict[str, Any]] = [])` ⇒ ⇒ **OpenAPI 里 200 的形状**从 `{"type":"object"}` 变成 `{"streams": [...]}` ⇒ ⇒ **契约破坏性变化**（前端生成类型变具体）⇒ ⇒ 批末**必须滚 baseline**。
 
 - [ ] **Step 1: 写失败测试**（加到 `tests/api/v1/test_sim_imports_query_endpoints.py`）
@@ -256,19 +270,41 @@ Expected: FAIL（现在 200 是 `{"type":"object"}` ⇒ 没有 `$ref`）
 
 - [ ] **Step 3: 实现**
 
-① `app/schemas/sim_import.py`：
+① 在 `sim_imports_query.py` 里（`:118` 的 `SimImportWarningListResponse` 之后）**新增**：
 
 ```python
 class SimImportPreviewStreamsResponse(BaseModel):
-    """preview 阶段的 streams 列表（`GET /imports/{id}/preview-streams` 的 200）。"""
+    """preview 阶段的物流列表（`GET /imports/{id}/preview-streams` 的 200）。"""
     streams: list[dict[str, Any]] = Field(default_factory=list, description="preview 阶段的物流列表")
 ```
 
-② 端点签名改成 `-> SimImportPreviewStreamsResponse`（`response_model` 由返回注解推导 ⇒ ⇒ **不要**再写
-`response_model=`）⇒ ⇒ 返回体改成 `SimImportPreviewStreamsResponse(streams=payload if isinstance(payload, list) else payload.get("streams", []))`。
+⇒ ⇒ ⚠️ 若 `Field` 尚未 import ⇒ 加进 `from pydantic import BaseModel` 那一行 ⇒ ⇒
+⚠️ `Any` 需 `from typing import Annotated, Any, Literal`。
+
+② 端点改成 **与 4 个兄弟完全同形**（⚖️ 评审 D7：**显式 `response_model=`**，不用注解推导）：
+
+```python
+@router.get("/{import_id}/preview-streams", response_model=SimImportPreviewStreamsResponse)
+async def get_preview_streams(...) -> SimImportPreviewStreamsResponse:
+```
+
+⇒ ⇒ 返回体改成 `SimImportPreviewStreamsResponse(streams=payload if isinstance(payload, list) else payload.get("streams", []))`
+⇒ ⇒ ⚠️ **读侧的 `isinstance(payload, list)` 分支不能删**（老数据是 list ⇒ 删了老数据就 500）。
 
 ③ **改注释**（`:360-367`）：「**PRO/II 与 EXCEL 两个写入点都存 list** ⇒ 读侧统一归一成 `{"streams": [...]}`」
 ⇒ ⇒ **删掉**「SIM/Excel 导入存 dict」那句（与事实相反）。
+
+- [ ] **Step 3b: 补「两种历史形状」的钉子**（⚖️ 评审 D9：两条都补）
+
+```python
+async def test_preview_streams_reads_both_historical_shapes(client, ...):
+    """老数据是 list、归一化后是 dict ⇒ **两种都要能读** ⇒ 否则「加了 response_model
+    反而把老数据 500 了」这类回归没有钉子。"""
+    # 造一条 preview_streams_json = [ {...} ] 的老行 ⇒ GET ⇒ 200 且 body["streams"] 有值
+    # 造一条 preview_streams_json = {"streams": [ {...} ]} 的新行 ⇒ GET ⇒ 200 且 body["streams"] 有值
+```
+
+⇒ ⇒ **两条历史形状各一行** ⇒ ⇒ 跑完确认 RED（现在没有 `response_model` ⇒ 第一条会因为返回体形状不对而红）。
 
 - [ ] **Step 4: 跑测试确认通过**
 
@@ -351,6 +387,30 @@ Expected: FAIL（`dn_series_json` 缺 `min`/`max` ⇒ `ValidationError`）
 ⇒ `_ensure_pipe_class` 在 `_get_or_create` 命中已有行时 ⇒ ⇒ **也要把形状订正过来**
 （`dn_series_json` / `sch_series_json` / `source` 三列）⇒ ⇒ 否则 pcs_pgtest public 里那行**照旧 500**。
 ⇒ ⇒ 或等价做法：给脚本加 `--reset` 并把「批末重灌」写成动作 ⇒ ⇒ **二选一，写进提交信息**。
+
+- [ ] **Step 4b: 补「老行会被订正」的钉子**（⚖️ 评审 D9：**两条都补**）
+
+```python
+async def test_seed_corrects_an_existing_legacy_row(db_session):
+    """库里**已存在**契约外形状的老行 ⇒ 重跑种子 ⇒ **老行被订正** ⇒
+    否则「改了脚本但现象照旧」（hermes：`_get_or_create` 存在就不动）。"""
+    await db_session.execute(insert(PipeClass).values(
+        class_id=FLOW_PIPE_CLASS_ID,
+        dn_series_json={"DN150": 1.0},          # ← 契约外的旧形状
+        sch_series_json={"DN150": 40.0},
+        source="E2E_SEED",
+    ))
+    await db_session.commit()
+    await seed_flows(db_session)                    # ← 重跑
+    row = (await db_session.execute(
+        select(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID)
+    )).scalar_one()
+    PipeClassResponse.model_validate(
+        {c.name: getattr(row, c.name) for c in PipeClass.__table__.columns}
+    )   # ← 不抛错 ⇒ 老行被订正过
+```
+
+⇒ ⇒ **必须先跑一次确认它红**（老形状不被订正 ⇒ `ValidationError`）⇒ ⇒ 再改实现 ⇒ ⇒ 再绿。
 
 - [ ] **Step 5: 跑测试确认通过**
 
@@ -492,18 +552,25 @@ git commit -m "fix(P10-F): 守门测试统一断可执行部分 + 默认路径�
 > （`get_engine()` 只被 `session.py:42 check_database()` 用，health 走 async 版）⇒ ⇒ 是**未来泄漏点**
 > ④ ⚠️ `max(id)` 那句要**逐表核 PK 列名**（本仓 PK 列名不统一 ⇒ 照抄 `max(id)` 会**恒为 0** ⇒ 等于没加）
 > ⑤ ⚠️ `public.` **显式限定是对的**（`information_schema` 不受 `search_path` 约束）⇒ ⇒ **不要**改成 `current_schema()`
+>
+> ⚖️ **评审改判（D3 · D10 · D12）**：
+> ⑥ ⭐ **不再枚举「车道会写的表」** ⇒ ⇒ 改为**快照 `public` schema 的全部表** ⇒ ⇒
+>    **彻底不需要手抄清单** ⇒ ⇒ 直接闭合 hermes residual #2（「抄一次就漂一次」）⇒ ⇒
+>    守卫要的属性从来是「**public 没被动过**」，不是「我知道车道写了哪些表」
+> ⑦ ⭐ 判据用 **`count(*)` + `max(xmin::text::bigint)`**（不是内容哈希）⇒ ⇒ 流式聚合**不物化** ⇒ ⇒
+>    插入/删除/**更新**都会让它变 ⇒ ⇒ 捕获能力相同 ⇒ ⇒ ⚠️ 代价：VACUUM FREEZE 会把 `xmin` 归 2 ⇒ ⇒
+>    两个快照之间若发生 freeze ⇒ **误报**（车道库里几乎不会发生 ⇒ **必须写进注释**）
+> ⑧ ⭐ **不只要静态守卫** ⇒ ⇒ 要**行为测试**：①「插/删/**改**一行 ⇒ 快照必变」②
+>    「基线早于车道任何写入」用**双快照**钉住
 
 **Files:**
 - Modify: `pcs-backend/tests/e2e_flows/test_lane_smoke.py:102-157`（守卫）· `:234-243`（`_public_snapshot`）
-- Modify: `pcs-backend/tests/e2e_flows/conftest.py:324-327`（**扩到 `_sync_engine`**）· 加 session 级 public 基线 fixture
+- Modify: `pcs-backend/tests/e2e_flows/conftest.py:324-327`（**扩到 `_sync_engine`**）· 加 session 级 public 基线 fixture + 「第一时刻快照」fixture
 
 **Interfaces:**
-- Consumes: `scripts/seed_e2e_flows.py` 实际写的表清单（**以代码为准** ⇒ 开工时用
-`grep -oE "(Workspace|Project|UserProject|Stream|PipeClass|EquipmentTypeCode|Equipment|SignatureMatrix|ProjectSignatureMatrixBinding|Deliverable|PipingResult|ReportDefinition|CoefficientTable|SystemSetting)" scripts/seed_e2e_flows.py | sort -u` 取）
-  ⚠️ **不要手抄** ⇒ ⇒ 但也要知道：**手抄一次就漂一次** ⇒ ⇒ 把「表清单」**写成仓库里的一份清单文件**
-  （如 `tests/e2e_flows/lane_written_tables.py`）⇒ ⇒ 至少漂的时候**只改一处** ⇒ ⇒ 登记 TODO：
-  「结构性的解法是从 ORM 模型集合 ∪ 迁移建表清单推出来，而不是第二次手抄」
-- Produces: `public_snapshot(engine) -> dict[str, tuple[int, int]]`（每张表 **count(\*) + max(<pk>)**）
+- Consumes: `information_schema.tables`（`table_schema = 'public'`）⇒ ⇒ **表清单来自数据库自己** ⇒ ⇒
+  **不需要任何手抄清单**（⚖️ D3 ⇒ ⇒ 计划里**不再有** `lane_written_tables.py` ⇒ ⇒ 也不再有「表清单漂移」这个 TODO）
+- Produces: `public_snapshot(engine) -> dict[str, tuple[int, int]]`（每张表 **count(\*) + max(xmin)**）
   ⇒ ⇒ 断言「session 启动时 == session 结束时」⇒ ⇒ **逐张相等**
 
 - [ ] **Step 1: 写失败测试**（**先证伪现守卫**）
@@ -513,22 +580,27 @@ git commit -m "fix(P10-F): 守门测试统一断可执行部分 + 默认路径�
 
 ```python
 @pytest.mark.e2e
-async def test_public_guard_detects_a_leaked_row(public_engine, lane_written_tables):
+async def test_public_guard_detects_a_leaked_row(public_engine, public_snapshot):
     """守卫自证：往 public 写一行 ⇒ 快照必须变化 ⇒ 否则它是空壳。"""
-    table = lane_written_tables[0]                    # ← 守卫覆盖范围内的表
-    pk = lane_written_tables_pk[table]
     before = public_snapshot(public_engine)
     with public_engine.begin() as conn:
-        conn.execute(text(f"INSERT INTO public.{table} ..."))   # ← 用该表的最小可插列
+        conn.execute(text("INSERT INTO public.audit_logs (action, resource_type) "
+                          "VALUES ('E2E_LEAK_PROBE','PROBE')"))
     after = public_snapshot(public_engine)
-    assert before[table] != after[table]
+    assert before["audit_logs"] != after["audit_logs"]
 ```
+
+⇒ ⇒ ⚠️ **探针表要选「车道会写、但现守卫没数」的那张** ⇒ ⇒ 才有证明力
+⇒ ⇒ `audit_logs` 只是候选 ⇒ ⇒ 开工时挑一张**车道确实会写**的表。
 
 - [ ] **Step 2: 跑测试确认失败**（现快照只数 4 张表 ⇒ 探针写进别的表 ⇒ 看不见 ⇒ 失败）
 
 - [ ] **Step 3: 实现**
-① `_public_snapshot` 扩到**车道会写的全部表** + 每张断 `count(*)` 与 `max(<pk>)`（**PK 列名逐表核**）
-⇒ ⇒ 表清单落 `tests/e2e_flows/lane_written_tables.py`（**一处真相源**）
+① `_public_snapshot` 改成：**从 `information_schema.tables` 枚举 `public` 的全部表**
+⇒ ⇒ 每张表取 `SELECT count(*), coalesce(max(xmin::text::bigint), 0) FROM public.<t>`
+⇒ ⇒ ⚠️ **`xmin` 的语义写进注释**：事务 id 单调增 ⇒ 插入/删除/更新都会让它变 ⇒ ⇒
+⚠️ **VACUUM FREEZE ⇒ 误报**（车道库不会 freeze ⇒ 但要知道）
+⇒ ⇒ ⚠️ `public.` **显式限定**（`information_schema` 不受 `search_path` 约束 ⇒ cerebrum:1651）
 ② **session 级基线**：新增 session scope 的 fixture，在 `e2e_schema` 就绪后取一次 public 快照，
    在 session 结束时再取一次 ⇒ ⇒ 断言**逐张相等** ⇒ ⇒ ⚠️ **两种基线时机不能混**（车道内的
    `POST /api/v1/projects` 那条守卫仍保留 ⇒ ⇒ 它断「这条写路径没碰 public」⇒ ⇒ 两者**并存**）
@@ -536,15 +608,28 @@ async def test_public_guard_detects_a_leaked_row(public_engine, lane_written_tab
 （造一个 schema-scoped 的 sync engine 赋给 `db_session_mod._sync_engine`）⇒ ⇒ 堵住未来的 `get_engine()` 路径
 ④ 写路径仍断「必须 200/201」（断**后果**不断**动作** ⇒ 已有，不要改）
 
+- [ ] **Step 3b: 补「基线早于任何写入」的钉子**（⚖️ D10：双快照）
+
+```python
+@pytest.mark.e2e
+async def test_public_baseline_is_taken_before_any_lane_write(first_snapshot, public_baseline):
+    """基线必须**早于**车道的任何写入 ⇒ ⇒ 两份「最初时刻」的快照必须相等。
+    （若中间有写入 ⇒ 不等 ⇒ 顺序被写错时这条立刻红）"""
+    assert first_snapshot == public_baseline
+```
+
+⇒ ⇒ `first_snapshot` = session 里**第一个**跑的 fixture 取的快照；`public_baseline` = 基线 fixture 取的快照
+⇒ ⇒ 两者相等 ⇒ ⇒ 中间没有写入 ⇒ ⇒ 顺序对。
+
 - [ ] **Step 4: 跑 E2E 车道 + 变异自证**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: 全绿
 
-⇒ ⇒ **变异自证**：在 public 里手工插一行 / 删一行 / **改一行**（同表替换）⇒ ⇒ 守卫**必须红**
-⇒ ⇒ 三种都验过才进 Step 5。
+⇒ ⇒ **变异自证**（三种都要红）：在 public 里手工插一行 / 删一行 / **改一行**（同表 UPDATE）
+⇒ ⇒ ⚠️ **UPDATE 那条是本任务的核心**（`count` 不变 ⇒ 只有 `max(xmin)` 能看见）⇒ ⇒ 必须验过。
 
-- [ ] **Step 5: 提交**（`fix(P10-F): public 守卫扩覆盖面 + 补 _sync_engine + session 级基线（评审 #22）`）
+- [ ] **Step 5: 提交**（`fix(P10-F): public 守卫快照全部表 + 补 _sync_engine + session 级基线（评审 #22）`）
 
 ---
 
@@ -581,6 +666,22 @@ it('选中的工作区没有 project_id ⇒ 不渲染清单面板（不产生 40
 
 ⇒ ⇒ ⚠️ 断言的**形状**要能区分「没渲染面板」与「渲染了但没发请求」⇒ ⇒ **两个都断**：
 面板不存在 **且** `checklistApi.list` / `checklistApi.completeness` **一次都没被调**。
+
+⇒ ⇒ ⚖️ **评审 D11：正向路径也要断**（否则「永远不渲染面板」也能过）：
+
+```tsx
+it('选中的工作区**有** project_id ⇒ 面板渲染且发出 2 个请求（用真 project id）', async () => {
+  render(<DashboardPage />);
+  await user.click(screen.getByRole('combobox'));
+  await user.click(screen.getByText('有项目工作区'));
+  expect(await screen.findByTestId('input-checklist-panel')).toBeInTheDocument();
+  expect(checklistApi.list).toHaveBeenCalledWith(REAL_PROJECT_ID);
+  expect(checklistApi.completeness).toHaveBeenCalledWith(REAL_PROJECT_ID);
+});
+```
+
+⇒ ⇒ ⚠️ **必须断 `projectId` 的值是「真项目 id」** ⇒ ⇒ 不是「渲染了」那种烟测 ⇒ ⇒
+⇒ ⇒ 这条同时钉住「占位常量被当真值用」这个病（`src/constants/env.ts:13` 的 `PROJECT_ID`）。
 
 - [ ] **Step 2: 跑测试确认失败**（现在 `selected` truthy ⇒ 面板渲染 ⇒ 用了占位 id ⇒ 404）
 
@@ -644,43 +745,103 @@ def test_compose_test_stack_takes_the_lane_lock_before_invoking_compose():
     assert body.index("lane.lock") < body.index("docker compose"), "锁必须在调 compose **之前**抢"
 ```
 
+- [ ] **Step 1b: 补「抢不到锁」的行为测试**（⚖️ 评审 D10：**静态断不够**）
+
+⇒ ⇒ 照搬 `tests/scripts/test_pytest_pg_gate.py:165-218` 的现成做法（**假 docker** + **真占锁进程**）：
+
+```python
+def test_compose_test_stack_fails_when_the_lane_lock_is_held(tmp_path):
+    """抢不到锁 ⇒ **非零退出**且说清「另一条车道在跑」⇒ ⇒ 只断文本等于没断。"""
+    fake_bin = tmp_path / "bin"; fake_bin.mkdir()
+    (fake_bin / "docker").write_text("#!/bin/sh\necho 'fake'\nexit 0\n")
+    (fake_bin / "docker").chmod(0o755)
+    lock_file = tmp_path / "lane.lock"
+    holder = subprocess.Popen(["flock", "-n", str(lock_file), "sleep", "30"],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        r = subprocess.run(["bash", str(SCRIPT)], env={**os.environ,
+                           "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                           "PCS_PGTEST_LANE_LOCK": str(lock_file)},
+                          capture_output=True, text=True, timeout=60)
+        assert r.returncode != 0, "锁被占着却跑通了 ⇒ 两条车道不互斥"
+        assert "另一条车道" in (r.stdout + r.stderr)
+    finally:
+        holder.terminate(); holder.wait(timeout=10)
+```
+
+⇒ ⇒ ⚠️ 脚本要支持 `PCS_PGTEST_LANE_LOCK` **覆盖**（守门测试不能抢真车道的锁 ⇒ 同
+`docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md`）。
+
 - [ ] **Step 2: 跑测试确认失败**
 - [ ] **Step 3: 实现**（`compose_test_stack.sh`）⇒ ⇒ 与 `pytest_pg.sh` **同款**的锁段
 （`exec 9>"$LOCK_FILE"` + `flock -n 9` ⇒ 抢不到 ⇒ 退出码 1 + 「另一条车道正在跑」）⇒ ⇒
-⚠️ **路径口径必须一致**（`${BACKEND_DIR}/.tmp/lane.lock`）⇒ ⇒ `mkdir -p` 也要有。
+⚠️ **路径口径必须一致**（`${BACKEND_DIR}/.tmp/lane.lock`）⇒ ⇒ `mkdir -p` 也要有
+⇒ ⇒ ⚠️ **支持 `PCS_PGTEST_LANE_LOCK` 覆盖**（Step 1b 要用）。
 ⇒ ⇒ `docker-compose.yml` 两个服务的注释补一句「**必须**经 `scripts/compose_test_stack.sh` 起（它抢车道锁）⇒ 直接 `docker compose run` 会绕过锁」。
 - [ ] **Step 4: 跑测试 + 手工验一次**（`bash scripts/compose_test_stack.sh` ⇒ 应正常跑完 ⇒ 且 `pcs-backend/.tmp/lane.lock` 被创建）
+⇒ ⇒ ⚠️ **本机 docker registry 拉不动**（实测 `docker manifest inspect` 挂 >120s）⇒ ⇒
+**容器侧**的 flock 路线**不可验证** ⇒ ⇒ 本任务选**宿主侧**取锁（零镜像改动）⇒ ⇒
+⇒ ⇒ 残留：直接 `docker compose run --rm seed` **仍能绕过锁** ⇒ ⇒ 登记 TODO（P10-C）。
 - [ ] **Step 5: 提交**（`fix(P10-F): 测试栈起服也进车道锁（评审 #15 第 ① 步）`）
 ⇒ ⇒ ⚠️ **同时关闭 TODO-163**（在 `TODOS.md` 里标「2026-11-17 关闭 · `<commit>`」）
 
 ---
 
-### Task F2-T4: 公式编辑器的 `rowKey` 去掉 **index** 参数（TODO-162）
+### Task F2-T4: **扩展 repo 级 rowKey 棘轮** ⇒ 禁掉 index 型 rowKey（TODO-162）
+
+> ⚖️ **评审 D8：扩展已有的棘轮，不写页面级测试**
+> ⇒ ⇒ 仓里**已有** `pcs-frontend/tests/pages/rowKey_contract.test.ts`（repo 级 ⇒ 扫 `src/pages/**/*.tsx`
+> 的 `rowKey="字段"` ⇒ 断言该字段真的在契约里）⇒ ⇒ 它的 docstring **明写**「只取字符串形式 ——
+> 函数形式无法静态判定」⇒ ⇒ 回调形式是它**已知且明写**的盲区
+> ⇒ ⇒ 全仓 index 型 rowKey **只有 1 处**（`FormulaEditorPage.tsx:241`）⇒ ⇒
+> ⇒ ⇒ 修法 = **把棘轮扩到函数形式** ⇒ ⇒ 一处复发即红（而不是一页一断言）
 
 **Files:**
-- Modify: `pcs-frontend/src/pages/config/FormulaEditorPage.tsx:241`
+- Modify: `pcs-frontend/tests/pages/rowKey_contract.test.ts`（**扩到函数形式** ⇒ 禁 index 型回调）
+- Modify: `pcs-frontend/src/pages/config/FormulaEditorPage.tsx:241`（唯一一处命中 ⇒ 改成稳定 key）
 - Modify: `pcs-frontend/e2e/real_backend_route_sweep.spec.ts`（**删掉白名单里那条** ⇒ ⇒ 白名单外必须为空 ⇒ ⇒ 删条目后仍要绿 ⇒ ⇒ **这本身就是验证**）
-- Test: `pcs-frontend/tests/pages/FormulaEditorPage.test.tsx`（**既有则加**，否则新建）
 
-- [ ] **Step 1: 写失败测试**
+**Interfaces:**
+- Consumes: `rowKey_contract.test.ts` 已有的扫描机制（`readFileSync` + 正则遍历 `src/pages`）
+- Produces: 棘轮新增一条断言 —— **全仓不得存在「回调第二参是 `idx`/`index`」的 `rowKey`**
 
-```tsx
-it('参数表的 rowKey 不依赖 antd 回调的 index 参数', () => {
-  // ⇒ 断言：渲染两行同名的参数 ⇒ 控制台**没有** antd 的 rowKey 弃用告警
-  const errSpy = vi.spyOn(console, 'error');
-  render(<FormulaEditorPage formula={formulaWithTwoEmptyParams} />);
-  expect(errSpy.mock.calls.flat().join(' ')).not.toMatch(/rowKey/);
+- [ ] **Step 1: 写失败测试**（扩棘轮 ⇒ ⇒ **它必须先红**）
+
+```ts
+it('⚠️ 不得用 antd 回调的 **index** 参数当 rowKey（antd 5.29 起弃用 · TODO-162）', () => {
+  const offenders: string[] = [];
+  for (const file of walkTsx(SRC)) {
+    const src = readFileSync(file, 'utf-8');
+    // 函数形式：rowKey={(...args) => ...} ⇒ 第二参叫 idx/index ⇒ 行身份随排序漂移
+    for (const m of src.matchAll(/rowKey=\{[^}]*?\(\s*[^)]*,\s*(idx|index)\b[^}]*\}/g)) {
+      offenders.push(`${file.replace(SRC + '/', '')} → ${m[0].slice(0, 80)}`);
+    }
+  }
+  expect(offenders, `这些 rowKey 用了 index 参数：\n${offenders.join('\n')}`).toEqual([]);
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**（现在有 antd 弃用告警 ⇒ 控制台 error ⇒ 断不到 ⇒ RED）
-- [ ] **Step 3: 实现**⇒ ⇒ ⚠️ **不能**简单改成 `rowKey={(r) => r.name}`（参数名**允许空/重复** ⇒ antd 会报
-Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaEditorPage` 的 **draft 之外**维护一份
-「每行的稳定 key」⇒ ⇒ 用 `useState<string[]>` 存 key（新增行 ⇒ `crypto.randomUUID()`）⇒ ⇒
-`rowKey` 用字符串字段 ⇒ ⇒ ⚠️ **key 不得进 `FormulaEditor` 公开形状**（会漏进保存的载荷）⇒ ⇒
+⇒ ⇒ ⚠️ **必须先跑一次确认它红**（现在命中 `FormulaEditorPage.tsx:241`）⇒ ⇒ 这就是 RED。
+
+- [ ] **Step 2: 改那一处**（`FormulaEditorPage.tsx:241`）⇒ ⇒ ⚠️ **不能**简单改成 `rowKey={(r) => r.name}`
+（参数名**允许空/重复** ⇒ antd 会报 Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：
+在 `FormulaEditorPage` 的 **draft 之外**维护一份「每行的稳定 key」（`useState<string[]>` ⇒ 新增行 ⇒
+`crypto.randomUUID()`）⇒ ⇒ `rowKey` 用那个字符串字段 ⇒ ⇒
+⚠️ **key 不得进 `FormulaEditor` 公开形状**（会漏进保存的载荷）⇒ ⇒
 ⇒ 若实现发现必须改公开类型 ⇒ ⇒ **停下并登记 TODO**（契约面 ⇒ 属另一批）。
-- [ ] **Step 4: 跑测试 + 真后端通道**（`npm run e2e:real` ⇒ 扫描的白名单删掉那条后仍全绿 ⇒ ⇒ 这就是「端点/组件修好后删条目」的证据）
-- [ ] **Step 5: 提交**（`fix(P10-F): 公式编辑器 rowKey 去掉 index 参数（TODO-162）`）
+
+- [ ] **Step 3: 跑测试确认通过**
+
+Run: `cd pcs-frontend && npm run test -- tests/pages/rowKey_contract.test.ts && npm run typecheck && npm run lint`
+Expected: 棘轮 PASS（禁 index 型）· typecheck/lint clean
+
+- [ ] **Step 4: 跑真后端通道**（**白名单删条目后仍全绿** ⇒ 这就是「组件修好后删白名单条目」的证据）
+
+Run: `cd pcs-frontend && npm run e2e:real`
+Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出现** ⇒ ⇒ 白名单里那条删掉）
+
+- [ ] **Step 5: 提交**（`fix(P10-F): rowKey 棘轮扩到函数形式 + 禁 index 型（TODO-162）`）
+⇒ ⇒ ⚠️ 顺带在 `TODOS.md` 关闭 **TODO-162**（根因 = 棘轮的盲区 ⇒ 盲区已补 ⇒ 不是「页面改好了」而是「这类写法以后进不来」）。
 
 ---
 
@@ -697,18 +858,38 @@ Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaE
 
 ### Task F3-T2 ~ T3: 逐模块**审计**（守卫覆盖面）
 
-⇒ ⇒ 每个模块一条：**列出全部端点 → 每个端点判「有没有项目/资源级守卫」→ 给出证据（端点号 + 守卫调用）**
-⇒ ⇒ 缺口 ⇒ **逐条登记 TODO**（不许合并成「若干缺口」）⇒ ⇒ 已覆盖的 ⇒ **给出断言位置**（哪个测试守着）。
+⚖️ **评审 D6：判据先写死**（否则「有守卫」不可复核 ⇒ ⇒ 而这正是本仓反复吃过的亏）
+
+⇒ ⇒ **每个端点必答 4 问**（缺任一问 ⇒ 即算缺口）：
+
+| # | 必答问题 | 合格答案的样子 |
+|---|---|---|
+| ① | 端点从哪个参数拿到**资源 id**（project_id / 设备 id / …）？ | `project_id: UUID`（路径参数/查询参数，写明行号） |
+| ② | 该 id 是否**按当前用户/项目**做授权判定？ | `check_project_access_or_404(...)`（行号） |
+| ③ | 未授权时**返回什么**？ | 404（与「不存在」同形）/ 403 / **200**（⇒ ⇒ 这是缺口） |
+| ④ | 授权判定发生在**哪一行**？ | 文件:行号 |
+
+⇒ ⇒ 输出**一张统一表格**（模块 · 端点 · ①~④ 的答案 · 结论「已覆盖 / 缺口」）
+⇒ ⇒ 缺口 ⇒ **逐条登记 TODO**（不许合并成「若干缺口」）⇒ ⇒
+已覆盖的 ⇒ **给出断言位置**（哪个测试守着）⇒ ⇒ ⚠️ **「代码里有守卫调用」不等于「有断言」**
+⇒ ⇒ ⇒ 两者都要填。
+
+⇒ ⇒ ⚖️ **抽样变异**（D6 的另一半）：从「已覆盖」的端点里**抽样 ≥ 3 个**
+⇒ ⇒ 对每个：**临时删掉它的守卫** ⇒ ⇒ 相关断言**必须红** ⇒ ⇒ 还原
+⇒ ⇒ ⚠️ 若某个端点**没有对应断言** ⇒ ⇒ 变异后**无人应答** ⇒ ⇒ 那本身就是缺口（登记 TODO）
+
+⇒ ⇒ 范围量（已知）：`config.py` 12 · `report_builder.py` 9 · `psychro.py` 13 = **34 端点**
 
 ### Task F3-T4: 三条越权债**复核**（不重做）
 
 ⇒ ⇒ TODO-132（禁用用户）· TODO-133（workspace 归属）· TODO-135（mock 旁路）⇒ ⇒ ✅ 已由 P9B-4 闭合
-⇒ ⇒ 本批**只复核**：每条找一条**现存**的断言 + 跑一次 ⇒ ⇒ 写「复核结论 + 证据」。
+⇒ ⇒ 本批**只复核**：每条找一条**现存**的断言 + 跑一次 ⇒ ⇒ 写「复核结论 + 证据」
+⇒ ⇒ ⚠️ 复核的标准与 F3-T2 相同（**断言必须对它命名的缺陷敏感** ⇒ ⇒ 抽一个做变异验证）。
 
 ### Task F3-T5: 审计结论**落文档 + 账簿**
 
 ⇒ ⇒ 落 `docs/solutions/security-issues/guard-coverage-audit-logistics-adjacent-modules.md`
-（**新建** ⇒ frontmatter 照同目录既有条目）⇒ ⇒ 内容 = 范围 · 方法 · 逐端点结论 · 缺口 TODO 清单 ⇒ ⇒
+（**新建** ⇒ frontmatter 照同目录既有条目）⇒ ⇒ 内容 = 范围 · 方法 · 逐端点表格（①~④）· 抽样变异记录 · 缺口 TODO 清单 ⇒ ⇒
 ⇒ ⇒ 同时更新 `TODOS.md`（每条缺口一条）⇒ ⇒ **不许**写「未审即没问题」。
 
 ---
@@ -717,15 +898,44 @@ Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaE
 
 > **本批前置**：P10-C（部署与可观测性）落地 ⇒ ⇒ 否则没有可扫的镜像、没有部署物、没有告警。
 > **SPEC 依据**：§3.2.7 的「安全扫描 / 依赖漏洞 / 容器镜像扫描 / 回滚演练 / 数据迁移演练」。
+> ⚖️ **评审 D4：只用已装的工具** ⇒ ⇒ `bandit`（1.9.4 已装）· `uv audit`（**内建于 uv 0.11.2**）· `npm audit`
+> ⇒ ⇒ **不新增 pip-audit / trivy 二进制**（除非 P10-C 给出镜像后确实需要）
+> ⚠️ **本机事实**：宿主到 npmjs/github/ghcr.io **TCP 可达**；但 **docker registry 拉不动**
+> （`docker manifest inspect` 挂 >120s）⇒ ⇒ **容器里装工具**这条路不通。
 
 ### 任务清单（开工时把每个任务写成 TDD 步骤）
 
-- **F4-T1 安全扫描**（SAST：bandit · DAST：无 ⇒ 用 §3.2.7 的「无高危」判据 ⇒ 工具与基线写进 `scripts/`）
-- **F4-T2 依赖漏洞**（pip-audit + npm audit + 基础镜像 CVE ⇒ **高危为 0** ⇒ 输出可复跑）
-- **F4-T3 容器镜像扫描**（trivy ⇒ 镜像来自 P10-C ⇒ 高危为 0）
+- **F4-T1 安全扫描**（SAST：`bandit -r app/` ⇒ **判据用「高危为 0」** ⇒
+  ⚠️ bandit 的严重度档是 `HIGH/MEDIUM/LOW` ⇒ ⇒ 判据 = `bandit -r app/ -ll`（只报 HIGH 及以上）**退出 0**
+  ⇒ ⇒ 工具与基线写进 `scripts/`（一个可复跑的脚本）
+- **F4-T2 依赖漏洞**（⚖️ D14：**按可达性分级处置**，不是「一刀切为 0」）
+  - 命令：`cd pcs-backend && uv audit --no-dev`（生产依赖）+ `cd pcs-frontend && npm audit --production`
+  - **已知基线（2026-11-17 实测）**：
+
+    | 包 | 锁定版本 | 条数 | 修复版本 | 可达性 |
+    |---|---|---|---|---|
+    | **authlib** | 1.8.0 | **14**（含 JWS/JWT 签名伪造） | 1.9.0 / 1.9.1 | ⚠️ `pyproject` 直接声明，但**全仓零 import** ⇒ ⇒ **删掉这一行即清除** |
+    | **pyjwt** | 2.13.0 | **29** | 2.14.0 / 2.15.0 | ✅ 直接依赖 · `app/api/v1/config.py:47` · `app/api/v1/auth.py:13` · `app/core/security.py:11`（签发令牌） |
+    | pillow | 12.3.0 | 62 | 13.0.0 | ⚠️ 传递自 **reportlab**（生产 PDF 报表）⇒ ⇒ **大版本升级 ⇒ 需验证 reportlab 兼容性** |
+    | pyasn1 | 0.6.4 | 4 | 0.6.5 | 传递自 ldap3（生产 LDAP 认证）⇒ ⇒ 补丁级 |
+    | mako | 1.4.1 | 2 | 1.4.2 | 传递自 alembic（生产）⇒ ⇒ 补丁级 |
+    | joserfc | 1.7.5 | 1 | — | 传递自 authlib ⇒ ⇒ 删 authlib 后自动消失 |
+    | certifi | 2026.7.22 | 2 | 2026.10.18 | 传递 ⇒ 补丁级 |
+    | pypdf | 6.19.0 | 18 | 6.20.x–6.21.3 | **dev 组** ⇒ ⇒ 不进生产 |
+
+  - **判据**：**生产依赖** ∧ **可达**（我们的代码真的 import/调用）∧ **有高危** ⇒ ⇒ **必须修**；
+    其余逐条给**处置结论**（修 / 豁免+理由 / 不进生产）⇒ ⇒ 产出一张**依赖漏洞处置表**
+    （包 · 版本 · 条数 · 可达性 · 处置结论）⇒ ⇒ **不许**只写「已扫描」
+  - **立即可做**（本批内）：① 删 `authlib`（零 import ⇒ 零代码风险 ⇒ 清除 14 条）
+    ② 升 `pyjwt` 到 2.15.0 ⇒ ⇒ ⚠️ **必须验 bug-091 的加固还在**（`options={'require': ['exp','iat','sub']}`）
+    ③ 升 mako / pyasn1 / certifi（补丁级）④ pillow ⇒ ⇒ **先查 reportlab 5.0.1 是否支持 pillow 13**
+    ⇒ ⇒ 不支持 ⇒ ⇒ 记「豁免 + 理由 + 上游 issue」，**不硬升**
+- **F4-T3 容器镜像扫描**（镜像来自 P10-C ⇒ ⚠️ **P10-C 未落地 ⇒ 本任务不启动**
+  ⇒ ⇒ 届时选型：`trivy` 二进制可从 github 下载（可达）⇒ ⇒ 但**容器里跑不行**（registry 拉不动））
 - **F4-T4 回滚演练**（版本回滚流程 ⇒ 真的回滚一次 ⇒ 记录命令 + 输出）
 - **F4-T5 数据迁移演练**（迁移 + **回滚**的数据兼容性 ⇒ 在**隔离 schema** 上跑 upgrade→downgrade→upgrade）
-- **F4-T6 证据落盘**（每项一条「命令 + 输出 + 结论」⇒ 落 `docs/` ⇒ **不许**写「已验证」而没有命令）
+- **F4-T6 证据落盘**（每项一条「命令 + 输出 + 结论」⇒ 落 `docs/` ⇒ **不许**写「已验证」而没有命令
+  ⇒ ⇒ ⚠️ **「跑过」≠「按步骤跑通」** ⇒ ⇒ 两者的措辞必须分开写）
 
 ---
 
@@ -734,15 +944,24 @@ Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaE
 - **F5-T1 监控告警演练**（告警**触发** / **静默** / **升级**三条路径各留证据 ⇒ ⚠️ 依赖 P10-C 的 exporters 与告警规则）
 - **F5-T2 备份恢复演练**（RPO ≤ 30min · RTO ≤ 2h ⇒ 记**模板**与**实测耗时**）
 - **F5-T3 应急联系人**（明确到人/角色 ⇒ ⚠️ 涉及真实人员 ⇒ **交人确认**，不代填）
-- **F5-T4 上线检查清单**（SPEC §3.2.7 的「上线检查清单」⇒ 逐项带证据链接）
+- **F5-T4 上线检查清单**（SPEC §3.2.7 的「上线检查清单」⇒ 逐项带证据链接
+  ⇒ ⇒ ⚠️ **不得**写「CI 会跑 E2E」（既有裁决：不新建 CI 流水线 ⇒ D25））
 - **F5-T5 Go/No-Go 会议纪要模板**（模板 + 填写指引 ⇒ ⚠️ 模板里的「决策」栏留空 ⇒ 不代签）
 
 ---
 
 # F6 · 收口
 
-- **F6-T1 部署前置清单**（TODO-131 `scripts/seed_user_project_access.py` 的一次性授权 · TODO-137 遗留账号迁移 ⇒
-⚠️ **真跑一次** ⇒ ⇒ 查 `SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` ⇒ ⇒ 0 才算过）
+- **F6-T1 部署前置清单**（⚖️ D5：**就在开发库 `pcs` 上跑一次**）
+  - **只读部分**（进发布前闸门，一条**只读**脚本，不写库）：
+    `SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0
+    ⇒ ⇒ 授权行计数（`user_projects` 的行数 vs 期望的环境矩阵）⇒ ⇒ 两条都**只读**
+  - **写部分**（**一次性运维动作** ⇒ 在**开发库 `pcs`** 上真跑一次）：
+    ① `scripts/seed_user_project_access.py --username <u> --project <uuid>`（幂等 ⇒ 重复跑安全）
+    ② TODO-137 的遗留账号迁移（`user_id` → 派生 id）⇒ ⇒ ⚠️ **必须写成幂等**
+    （先查后改 ⇒ 已在目标形态的行**跳过**）⇒ ⇒ 否则重跑会把 id 改两次
+  - ⚠️ **跑之前**：`SELECT count(*)` 的基线先记下来 ⇒ ⇒ 跑完再查一次 ⇒ ⇒ 两条数对得上才算过
+  - ⚠️ **写库的库名必须显式写出来**（`.env` 的 `DATABASE_URL` 指向 `pcs` ⇒ ⇒ **不要**用默认值蒙混）
 - **F6-T2 SPEC 偏离回写**（F1~F5 产生的偏离 ⇒ 写进 **权威** `spec/PCS-SPEC-P10 V1.3.1 …md` 的「第六部分：偏离登记」⇒
 ⇒ **编号续 D41 起** ⇒ ⇒ V1.0 那份只留历史）
 - **F6-T3 账簿**（`.wolf/STATUS.md` · `TODOS.md` · `.wolf/buglog.json`（每个新缺陷一条，`fix_commit` 必填）⇒ ⇒ 本计划的勾选框）
@@ -767,7 +986,89 @@ Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaE
 | 10 | ⚖️ **前端没有 refresh 通路**（后端有 `POST /auth/refresh` + 7 天 refresh token ⇒ 前端**零处**调用） | 「每 30 分钟必须重新登录」是产品事实 ⇒ ⇒ **本计划不修**（属通道问题之外的另一个缺口）⇒ ⇒ 登记 TODO + 给 refresh 流程加一条真后端通道用例 | TODO（新增） |
 | 11 | ⚖️ **前端裸 `fetch(` 没有静态守卫** | `src/` 下已有 5 处裸 fetch ⇒ ⇒ 下一个新页面还会写 ⇒ ⇒ 建议加 lint/测试级守卫（禁 `src/pages`·`src/components` 的裸 fetch）⇒ ⇒ 本计划**不做**（属另一批）⇒ ⇒ 登记 TODO | TODO（新增） |
 | 12 | ⚖️ **「改动 → 该跑哪几个闸」没有索引** | `tests/scripts/` 下已有多份静态守卫，各自 docstring 自述 ⇒ ⇒ 下一个维护者改锁 ⇒ 不知道该跑哪几条 ⇒ ⇒ 建议在 `tests/scripts/README.md` 列一张表 ⇒ ⇒ 登记 TODO | TODO（新增） |
-| 13 | ⚖️ **「隔离表清单」没有仓库级真相源** | 表清单只存在于 `scripts/seed_e2e_flows.py` 的代码里 ⇒ ⇒ 手抄一次就漂一次 ⇒ ⇒ F2-T1 先落一份 `lane_written_tables.py`（一处）⇒ ⇒ 结构性解法（从 ORM ∪ 迁移推）登记 TODO | F2-T1 · TODO |
+| 13 | ⚖️ ~~**「隔离表清单」没有仓库级真相源**~~ | ✅ **已消解** —— 评审 D3 改成「快照 `public` 的**全部表**」⇒ ⇒ **不再需要任何手抄清单** ⇒ ⇒ 表清单来自 `information_schema` | — |
+| 14 | ⚖️ **pillow 62 条要升 13.0.0（大版本）**，但它传递自 **reportlab**（生产 PDF 报表） | 兼容性未验证 ⇒ ⇒ F4-T2 的处置：**先查 reportlab 5.0.1 是否支持 pillow 13** ⇒ ⇒ 不支持 ⇒ ⇒ 记「豁免 + 理由 + 上游 issue」⇒ ⇒ **不硬升** | F4-T2 |
+| 15 | ⚖️ **升 pyjwt（29 条）要验 bug-091 的加固还在** | `options={'require': ['exp','iat','sub']}`（`app/core/security.py`）⇒ ⇒ 升级后**必须**有一条断言证明 `require` 仍在 ⇒ ⇒ 否则「修了漏洞、拆了加固」 | F4-T2 |
+| 16 | ⚖️ **`docker compose run --rm seed` 仍能绕过锁**（F2-T3 选了宿主侧取锁） | 本机 docker registry 拉不动 ⇒ ⇒ 容器侧装 flock **不可验证** ⇒ ⇒ 残留 ⇒ ⇒ P10-C 处理 | F2-T3 · 残留 |
+
+---
+
+## 「已存在的东西」—— **复用，不重建**（评审要求：What already exists）
+
+| 需求 | **已有的**（别重建） | 本计划怎么用 |
+|---|---|---|
+| public 快照 | `tests/e2e_flows/test_lane_smoke.py` 的 `_public_snapshot` + 独立连接写法 | 扩它，不另起一套 |
+| 车道锁 | `scripts/pytest_pg.sh` 的锁段（`exec 9>` + `flock -n 9` + `PCS_PGTEST_LANE_LOCK` 覆盖） | `compose_test_stack.sh` **照抄同款**（同一把锁 · 同一覆盖变量） |
+| 守门测试的「行为测法」 | `tests/scripts/test_pytest_pg_gate.py:165-218`（**假 docker** + **真占锁进程**） | F1-T4 与 F2-T3 都照这个形状写 |
+| 剥注释读脚本 | `tests/scripts/test_pytest_e2e_gate.py::_body()` | 抽成 `lane_script_body.py` 一处真相源，两边 import |
+| rowKey 缺陷的守卫 | **`tests/pages/rowKey_contract.test.ts`（repo 级棘轮）** | **扩它**（禁 index 型回调）⇒ 不另写页面测试 |
+| 依赖漏洞扫描 | **`uv audit`（内建于 uv 0.11.2）** + `bandit`（1.9.4 已装） | F4 直接用 ⇒ **不装 pip-audit / trivy** |
+| 发布前只读检查 | `scripts/check_schema_parity.py`（逐库独立进程 + 与代码 head 比） | F6 的只读部署前置照它的形状写 |
+| 一次性授权 | `scripts/seed_user_project_access.py`（幂等 · `--username/--project`） | F6-T1 直接调，不重写 |
+| 契约滚动 | `scripts/gate_08_openapi_contract.sh` 的四阶段 | F1-T2 照它滚 baseline |
+| 隔离断言 | `docs/solutions/testing-issues/assertion-must-be-sensitive-to-named-defect.md` | 每条新断言都要能抗变异 |
+| 报告落盘 | `.gstack/qa-reports/`（gitignored ⇒ 结论必须同步进 `TODOS.md`） | F6-T4 照此 |
+
+---
+
+## **NOT in scope**（**明确不做** —— 评审要求）
+
+| 不做的事 | 为什么 |
+|---|---|
+| 新建 CI 流水线 | 既有裁决（单人开发）⇒ ⇒ SPEC §3.2.0(2) 的「E2E 进 CI」继续登记偏离（D25） |
+| `docker compose` 的**容器侧** flock 改造 | 本机 docker registry 拉不动 ⇒ ⇒ 改完**无法验证** ⇒ ⇒ 宿主侧取锁 + 残留 TODO |
+| 前端 `refresh` 通路（`POST /auth/refresh` 的调用） | 与 #9 的通道问题**不同族** ⇒ ⇒ 登记 TODO，不在本批顺手做 |
+| 前端「禁裸 `fetch(`」的静态守卫 | 属另一批（要定守卫范围与白名单）⇒ ⇒ 登记 TODO |
+| 「改动 → 该跑哪几个闸」的索引（`tests/scripts/README.md`） | 独立于本批的小改进 ⇒ ⇒ 登记 TODO |
+| pillow 13 的大版本升级（若 reportlab 不兼容） | ⇒ ⇒ 记「豁免 + 理由 + 上游 issue」⇒ ⇒ **不硬升** |
+| PgBouncer 的引入评估 | 主计划 Q1 未裁 ⇒ ⇒ 属 P10-D |
+| F3 审计的**结论**由 agent 代签 | 审计范围（Q10）与「公司管级列表要不要出现种子行」等**产品决定** ⇒ ⇒ 交人裁决 |
+
+---
+
+## 失败模式（每个新代码路径一条）
+
+| 新路径 | 可能怎么坏 | 有测试吗 | 有错误处理吗 | 用户看到什么 | 判定 |
+|---|---|---|---|---|---|
+| `useFetch` 失败态 | 后端 500 ⇒ 页面停在「加载中」 | ✅ F1-T1 | ✅ 失败态 + 重试 | 「加载失败：HTTP 500」 | ✅ |
+| `useFetch` 超时 | 后端慢 ⇒ 15s 后才失败 | ✅（fake timers） | ✅ 区分「请求超时」 | 「加载失败：请求超时（15s）」 | ✅ |
+| `useFetch` 卸载 | 组件卸载 ⇒ timer 泄漏 / setState on unmounted | ✅（abort + clearTimeout） | ✅ cleanup | 无感（正确） | ✅ |
+| `useFetch` 401 | token 过期 ⇒ 静默空页面 | ✅（清会话） | ✅ 跳 `/login` | 跳登录页 | ✅ |
+| `handleSessionOver` 抽出 | axios 通道的 401 行为被改坏 | ⚠️ **依赖既有 axios 测试** ⇒ 开工时确认其存在 | — | — | ⚠️ **开工前核** |
+| `preview-streams` 加 `response_model` | 老数据（list）⇒ 端点 500 | ✅ F1-T2 Step 3b | — | 500 | ✅ |
+| 种子管级改形状 | 已种下的老行没被订正 ⇒ 按 id 查仍 500 | ✅ F1-T3 Step 4b | — | 500 | ✅ |
+| `lane_script_body` 剥注释 | 脚本把逻辑写在 `#` 后面 ⇒ 守卫误判 | ✅（变异自证） | — | 假绿 | ✅ |
+| public 快照 | 车道写了 public ⇒ 数据污染 | ✅（插/删/**改**三种变异） | — | 无人察觉 | ✅ |
+| public 快照 | VACUUM FREEZE ⇒ 误报 | ❌ | ⚠️ 注释说明 | 守卫误红 | ⚠️ **已知取舍**（车道库不会 freeze） |
+| compose 锁 | 锁路径与车道不一致 ⇒ 互斥失效 | ✅（静态 + 行为） | — | 「偶发卡住」 | ✅ |
+| rowKey 棘轮 | 回调形式的匹配漏了 ⇒ 复发 | ✅（先红后绿） | — | antd 告警 | ✅ |
+| `useFetch` 签名变更 | 9 个调用点漏改 ⇒ 渲染 undefined | ✅（3 个代表页） | — | 空页面 | ✅ |
+| 仪表盘 | 有 project_id 的工作区面板不渲染 | ✅（正向路径） | — | 面板空白 | ✅ |
+| F4 依赖升级（pyjwt） | 升级后 `options.require` 加固被拆 | ⚠️ **必须新增断言**（问题 #15） | — | 令牌校验变松 | ⚠️ **F4-T2 必做** |
+| F6-T1 写开发库 | 迁移不幂等 ⇒ 跑两次就坏 | ⚠️ **必须写成幂等**（先查后改） | — | 账号授权错乱 | ⚠️ **F6-T1 必做** |
+
+⇒ ⇒ **无测试 + 无错误处理 + 静默**的三条：**0** ⇒ ⇒ 无 critical gap
+⇒ ⇒ ⚠️ 三条 **⚠️**（已知取舍或必须补断言）⇒ ⇒ **开工时逐条销掉**。
+
+---
+
+## 并行策略（评审要求：worktree 平行化）
+
+⚠️ **本仓禁止 worktree**（历史事故：worktree 被删 ⇒ 会话永久卡死）⇒ ⇒ **不产出 worktree 方案**
+⇒ ⇒ 改以**批次顺序**表达并行度：
+
+| 批 | 触及模块 | 依赖 |
+|---|---|---|
+| F1 | `pcs-frontend/src/api` · `pcs-frontend/src/pages` · `pcs-backend/app/api/v1` · `pcs-backend/scripts` · `pcs-backend/tests/scripts` | — |
+| F2 | `pcs-backend/tests/e2e_flows` · `pcs-frontend/src/pages` · `pcs-frontend/tests/pages` · `pcs-backend/scripts` | **F1**（`useFetch` 新签名） |
+| F3 | `pcs-backend/app/api/v1`（**只读**）· `docs/solutions/` | — |
+| F4 | `pcs-backend/pyproject.toml` · `pcs-frontend/package.json` · `docs/` | **P10-C** |
+| F5 | `docs/` · 部署物 | **P10-C + P10-E** |
+| F6 | `spec/` · `TODOS.md` · `.wolf/` | **F1~F5** |
+
+⇒ ⇒ **同批内顺序执行**（同模块目录 ⇒ 顺序更省心）⇒ ⇒ **跨批不并行**（F2 消费 F1 的接口）
+⇒ ⇒ **F1 与 F3 是唯一可并行的两批**（模块无交集）⇒ ⇒ 但本仓不建 worktree ⇒ ⇒ ⇒
+⇒ ⇒ **实际就是一批一批来**（Native inline）⇒ ⇒ 「一批 = 一个上下文窗口」的容量口径就是这里的并行上限。
 
 ---
 
@@ -776,3 +1077,43 @@ Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：在 `FormulaE
 - **Subagent-driven**（每个任务一个全新子代理 + 任务间一次独立评审）⇒ 最彻底 ⇒ 成本 = 每任务一份上下文。
 - **Native**（本会话 inline 跑完**一批** ⇒ 批末一次整体评审）⇒ 与本仓现状一致（`.superpowers/sdd/<plan>/progress.md` 账簿制）⇒ ⇒
 **推荐 Native**（理由：F1~F3 的任务彼此**接口耦合少**（F1-T1 的 `useFetch` 新签名是唯一跨任务契约）⇒ ⇒ 且**一批 = 一个上下文窗口**⇒ ⇒ 分批执行比逐任务换上下文更省）。
+⇒ ⇒ **人已选 Native inline**（2026-11-17）。
+
+---
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | 未跑（P10-F 范围已由 P10 主计划 + SPEC §3.2.7 界定） |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | `codex` 未安装 |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR (PLAN) | 19 issues · 0 critical gaps · 8 条决策全部落进计划 |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | 未跑（本批无新界面） |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | 未跑 |
+
+- **UNRESOLVED:** 3（#2 #17 产品决定 · #3 #24 产品决定 · #4 F3 审计范围 · 均**交人裁决**，非阻塞）
+- **VERDICT:** ENG CLEARED — 计划可执行（Native inline）
+
+### 评审（2026-11-17）落进计划的 8 条决策
+
+| 决策 | 内容 | 落在哪 |
+|---|---|---|
+| D3 | public 守卫**快照 `public` 全部表**（不再枚举「车道写了哪些表」）⇒ 彻底不需要手抄清单 | F2-T1 |
+| D4 | F4 只用**已装的** `bandit` + **内建的** `uv audit`（不新增 pip-audit / trivy） | F4 |
+| D5 | 部署前置的**写动作**就在**开发库 `pcs`** 上真跑一次（幂等） | F6-T1 |
+| D6 | F3 审计**判据先写死**（每端点必答 4 问）+ 抽样变异 | F3-T2/T3 |
+| D7 | preview-streams 的响应模型**放同文件** + **显式 `response_model=`**（与 4 个兄弟同形） | F1-T2 |
+| D8 | TODO-162 **扩 repo 级 rowKey 棘轮**（禁 index 型回调），不写页面级测试 | F2-T4 |
+| D9 | 「旧数据怎么办」的两条回归钉子**都补**（两种历史形状 + 老行订正） | F1-T2 / F1-T3 |
+| D10 | 新守卫**断行为**不只断文本（compose 锁行为测试 + public 基线双快照） | F2-T1 / F2-T3 |
+| D11 | `useFetch` 的四个边界**都补**（超时 · 卸载清理 · 9 调用点回归 · 请求头断言） | F1-T1 |
+| D12 | public 快照判据用 **`count(*)` + `max(xmin::text::bigint)`**（不物化） | F2-T1 |
+| D14 | 依赖漏洞**按可达性分级处置**（不是「一刀切为 0」）⇒ authlib 删除 · pyjwt 升级 | F4-T2 |
+
+### 评审中查到的**即时事实**（已写进计划）
+
+- `uv audit`（已内建）**现在就能跑**，且已报出：生产依赖 **112** 条 / 7 个包 ⇒ 其中
+  **authlib 14 条是「声明了但全仓零 import」的依赖**（删一行即清）· **pyjwt 29 条是真在用的令牌库**（bug-091 加固要复验）
+- 本机 **docker registry 拉不动**（`docker manifest inspect` 挂 >120s）⇒ ⇒ 容器侧装工具这条路不通
+  ⇒ ⇒ 宿主直连 npmjs/github **是通的** ⇒ ⇒ STATUS 里「本机无外网」**只对 docker 成立**
+- 仓里**已有** repo 级 `rowKey` 棘轮，其 docstring 明写「函数形式无法静态判定」⇒ 全仓 index 型 rowKey **只有 1 处**
