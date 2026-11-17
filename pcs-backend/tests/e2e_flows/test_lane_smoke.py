@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
-from tests.e2e_flows.helpers import public_snapshot
+from tests.e2e_flows.helpers import public_snapshot, purge_probe_rows, take_public_baseline
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -259,6 +259,46 @@ async def test_public_baseline_is_taken_before_any_lane_write(
 
 
 @pytest.mark.e2e
+async def test_baseline_purges_probe_rows_left_by_a_crashed_run(public_engine):
+    """⚠️ **上一次跑崩了留下的探针行，必须在取基线之前清掉**（评审 I4）。
+
+    ⇒ ⇒ 探针行是**真的写进 public** 的 ⇒ ⇒ 某条断言红了 ⇒ ⇒ 清理那步
+    ⇒ ⇒ 没跑到 ⇒ ⇒ **残留**。
+    ⇒ ⇒ 下一次跑：`public_baseline` 在会话开始取（**含**残留）⇒ ⇒
+    ⇒ 探针用例把残留删掉 ⇒ ⇒ 会话结束时「基线 == 现状」**不等** ⇒ ⇒ **红**
+    ⇒ ⇒ 而红的原因与车道行为**无关**（是上一次崩了）。
+    ⇒ ⇒ ⇒ **守卫真的抓漏的那一次，恰恰是最容易把下一次跑带偏的那一次**。
+    """
+    # ① 造残留（模拟上一次跑崩了）
+    with public_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO public.audit_logs (audit_id, action, resource_type) "
+                "VALUES (gen_random_uuid(), 'E2E_LEAK_PROBE', 'PROBE')"
+            )
+        )
+
+    # ② 基线必须**先清残留**再取快照
+    baseline = take_public_baseline(public_engine)
+
+    with public_engine.connect() as conn:
+        left = conn.execute(
+            text("SELECT count(*) FROM public.audit_logs WHERE action = 'E2E_LEAK_PROBE'")
+        ).scalar_one()
+    assert left == 0, (
+        "取基线之前没清探针残留 ⇒ 上一次崩了会把下一次跑带偏（假红）"
+    )
+
+    # ③ 基线里也不该含残留（行数 = 表里的真实行数）
+    with public_engine.connect() as conn:
+        total = conn.execute(text("SELECT count(*) FROM public.audit_logs")).scalar_one()
+    assert baseline["audit_logs"][0] == total, (
+        f"基线里的 audit_logs 行数 {baseline['audit_logs'][0]} ≠ 实际 {total}"
+        " ⇒ 基线是在清残留**之前**取的 ⇒ ⇒ 下一次跑必假红"
+    )
+
+
+@pytest.mark.e2e
 async def test_sync_engine_singleton_is_bound_to_the_isolated_schema(
     e2e_client, e2e_schema
 ):
@@ -361,15 +401,10 @@ def _public_sync_url() -> str:
 def _purge_probe_rows(engine) -> None:
     """删掉**上一次**跑剩下的探针行（幂等自洁）。
 
-    ⚠️ **为什么需要**：探针行是**真的写进 public** 的 ⇒ ⇒ 上一次跑若中途
-    崩了（断言红 ⇒ 清理没跑到）⇒ ⇒ 残留会**污染下一次跑的基线**
-    ⇒ ⇒ 「删掉后快照必须回到原样」那条断言就会**假红**。
-    ⇒ ⇒ 所以每次探针**先**清残留、再取基线。
+    ⚠️ **真相源在 `tests/e2e_flows/helpers.py::purge_probe_rows`**
+    ⇒ ⇒ 这里只做转发（⇒ ⇒ 免得两处各写一份 SQL ⇒ ⇒ 抄一次就漂一次）。
     """
-    with engine.begin() as conn:
-        conn.execute(
-            text("DELETE FROM public.audit_logs WHERE action = 'E2E_LEAK_PROBE'")
-        )
+    purge_probe_rows(engine)
 
 
 def text_(sql: str):

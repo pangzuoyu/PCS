@@ -76,6 +76,15 @@ PG_PASS="${POSTGRES_PASSWORD:-pcs_dev}"
 export DATABASE_URL="postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}"
 export TEST_DATABASE_URL="$DATABASE_URL"
 
+# ⚠️ **「我在车道里」的标记**（P10-F · 整支评审 I1/I2）——
+# 默认车道（`uv run pytest`）有一层「绝不碰开发库 / 真 Redis」的隔离
+# ⇒ ⇒ 它由**根 conftest 的 autouse fixture**施加 ⇒ ⇒ 而那个 fixture 对
+# `-m pg` / `-m e2e` **同样生效** ⇒ ⇒ 车道自带隔离 schema，却会被那层盖掉：
+#   ① 车道里任何走 `get_engine()` 的路径**静默指向 SQLite**（假绿）
+#   ② 依赖真 Redis 的用例在**所有**车道都被跳过（覆盖全丢）
+# ⇒ ⇒ 判据 = **车道脚本自己导出的**这个变量 ⇒ ⇒ 一处生效、跨车道一致。
+export PCS_TEST_LANE=1
+
 # ② 收集到的 PG 测试数必须 > 0
 # ⚠️ pytest 的 `-q --collect-only` 摘要是「N/M tests collected (K deselected)」
 #    —— 第一个数才是**选中**的（N），第二个是总数（M）⇒ 取第一个。

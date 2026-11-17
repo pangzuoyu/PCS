@@ -38,6 +38,26 @@ BACKEND_PORT="${BACKEND_PORT:-8001}"
 PG_USER="${POSTGRES_USER:-pcs}"
 PG_PASS="${POSTGRES_PASSWORD:-pcs_dev}"
 
+# ⚠️ **车道互斥锁**（P10-F · 整支评审 I3）——
+#
+# ⚠️ **为什么本脚本也要进这把锁**：真后端通道的后端**写 public schema**
+# （建项目 / 物流 / 审计行）⇒ ⇒ 而 E2E 车道的守卫断言「public 在车道期间
+# **一字未改**」⇒ ⇒ 两者**并发** ⇒ ⇒ 守卫**误红**（文案却把锅甩给 E2E 车道）
+# ⇒ ⇒ 与 PG / E2E 两条车道**同一把锁**、**同一路径口径** ⇒ ⇒ 谁先谁后由机制定
+# （计划 Global Constraints：「『别同时跑』必须是**机制**，不能只是一句叮嘱」）。
+#
+# ⚠️ **代价（要知道）**：本脚本**整个生命周期**都占着锁 ⇒ ⇒
+# ⇒ 后端在跑的时候，PG 车道 / E2E 车道**起不来**（会明确报错退出）
+# ⇒ ⇒ 跑法：**先跑车道，再起本脚本**（QA 闸门按这个顺序）。
+BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-${BACKEND_DIR}/.tmp/lane.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发 ⇒ 先停掉它们再起本脚本" >&2
+  exit 1
+fi
+
 # ⚠️ **必须是被 seed 的那个库**（`pcs_pgtest` · 宿主 5433）—— 不是 `.env` 里的
 # 开发库 `pcs` ⇒ 种子在 A 库、后端在 B 库 ⇒ 两边不通。
 export DATABASE_URL="postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}"

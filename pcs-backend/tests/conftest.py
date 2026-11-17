@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from collections.abc import AsyncIterator
@@ -432,6 +433,46 @@ def _avoid_real_db_probe(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+def lane_is_active() -> bool:
+    """当前是不是「车道」（PG / E2E）—— 判据 = 车道脚本导出的环境变量。
+
+    ⚠️ **为什么要有这个判据**（P10-F · 整支评审 I1/I2）：根 `conftest.py`
+    的隔离 fixture 是 **autouse** ⇒ ⇒ 它对 `pytest -m pg` / `-m e2e`
+    **同样生效** ⇒ ⇒ 车道自带隔离 schema，却会被这层盖掉 ⇒ ⇒
+    ① 车道里任何走 `get_engine()` 的路径**静默指向 SQLite**（假绿）；
+    ② 依赖真 Redis 的用例在**所有**车道都被跳过（覆盖全丢）。
+
+    ⇒ ⇒ 判据是**车道脚本自己导出的**环境变量（`scripts/pytest_pg.sh`
+    ⇒ ⇒ `export PCS_TEST_LANE=1` ⇒ ⇒ E2E 车道 exec 进它 ⇒ ⇒ 一处生效）。
+    """
+    return bool(os.environ.get("PCS_TEST_LANE"))
+
+
+def apply_default_lane_isolation() -> None:
+    """把「默认车道」的外部依赖改成**碰不到真资源**的状态。
+
+    ⚠️ **只在默认车道做**（车道自带隔离 ⇒ ⇒ 不该被这层覆盖）。
+    """
+    if lane_is_active():
+        return
+
+    import app.db.session as db_session
+    from app.core.config import get_settings
+
+    # ⚠️ **不可路由端口** ⇒ ⇒ 「连了就炸」比「查到了再判」更硬
+    get_settings().redis_url = "redis://127.0.0.1:1/0"
+
+    # ① 同步引擎 ⇒ SQLite（**内存**）⇒ ⇒ `get_engine()` 只被
+    # `check_database()` 用（`SELECT 1`）⇒ ⇒ 不需要建表。
+    prev = db_session._sync_engine
+    if prev is None or not str(prev.url).startswith("sqlite"):
+        db_session._sync_engine = create_engine("sqlite:///:memory:")
+        # ⚠️ **把上一个引擎 dispose 掉**（评审 M6）—— 否则每个用例新建一个
+        # ⇒ ⇒ 上一个的连接池一直挂着（整轮 5835 个用例 ⇒ 5835 个引擎）。
+        if prev is not None:
+            prev.dispose()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_default_lane():
     """默认车道**绝不碰开发库 / 真 Redis** ⇒ ⇒ 同步引擎单例 + Redis URL 全改。
@@ -457,19 +498,11 @@ def _isolate_default_lane():
     ⚠️ **每个用例都重申一遍** —— `app/db/session.py::dispose_sync_engine()`
     会把单例置回 `None` ⇒ ⇒ 只在会话开始设一次 ⇒ ⇒ 后面那些用例又**裸奔**了
     ⇒ ⇒ ⇒ 函数级 autouse ⇒ ⇒ 每次都重新断言。
+
+    ⚠️ **只作用于默认车道**（判据在 `apply_default_lane_isolation` 里）
+    ⇒ ⇒ 车道自带隔离 schema ⇒ ⇒ 不该被这层盖掉（评审 I1/I2）。
     """
-    import app.db.session as db_session
-    from app.core.config import get_settings
-
-    # ⚠️ **不可路由端口** ⇒ ⇒ 「连了就炸」比「查到了再判」更硬
-    get_settings().redis_url = "redis://127.0.0.1:1/0"
-
-    # ① 同步引擎 ⇒ SQLite（**内存**）⇒ ⇒ `get_engine()` 只被
-    # `check_database()` 用（`SELECT 1`）⇒ ⇒ 不需要建表。
-    engine = db_session._sync_engine
-    if engine is None or not str(engine.url).startswith("sqlite"):
-        engine = create_engine("sqlite:///:memory:")
-        db_session._sync_engine = engine
+    apply_default_lane_isolation()
 
     yield
 

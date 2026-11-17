@@ -106,3 +106,43 @@ def test_a_fresh_sqlite_sync_engine_can_be_created_without_a_real_db() -> None:
             assert conn.exec_driver_sql("SELECT 1").scalar_one() == 1
     finally:
         engine.dispose()
+
+
+def test_isolation_does_not_apply_inside_a_lane(monkeypatch) -> None:
+    """⚠️ **隔离只属于默认车道** —— 车道自带隔离 schema，不该被这层盖掉。
+
+    ⇒ ⇒ 判据 = 车道脚本导出的 `PCS_TEST_LANE`（`scripts/pytest_pg.sh`）。
+
+    ⚠️ **为什么必须**（P10-F · 整支评审 I1/I2）：根 `conftest.py` 的隔离
+    fixture 是 **autouse** ⇒ ⇒ 它对 `pytest -m pg` / `-m e2e` **同样生效**
+    ⇒ ⇒ 在**车道里**：
+      ① `_sync_engine` 被换成 SQLite ⇒ ⇒ 任何走 `get_engine()` 的路径
+         **静默指向一个空 SQLite**（假绿）⇒ ⇒ 而 F2-T1 刚把 E2E 车道的
+         `_sync_engine` 绑到隔离 schema ⇒ ⇒ 两层互相覆盖（顺序依赖，脆）；
+      ② `settings.redis_url` 被改成不可路由端口 ⇒ ⇒ 依赖真 Redis 的
+         **21 条**用例在**任何**车道都被跳过 ⇒ ⇒ 覆盖全丢
+         ⇒ ⇒ 而且 TODO-165 规定的「迁到 PG 车道时去掉那个 skip」
+         ⇒ ⇒ **照现在的写法根本执行不了**（判据是「URL 是否被隔离」，
+         ⇒ ⇒ 而隔离在车道里也生效 ⇒ ⇒ 去掉 skip 也没用）。
+    """
+    import app.db.session as db_session
+    from app.core.config import get_settings
+
+    from tests.conftest import apply_default_lane_isolation
+
+    settings = get_settings()
+    # ⚠️ 换成一个**认得出来**的值 ⇒ ⇒ 断「有没有被改写」而不是「是不是隔离值」
+    monkeypatch.setattr(settings, "redis_url", "redis://127.0.0.1:6379/0")
+    monkeypatch.setenv("PCS_TEST_LANE", "1")
+    before_engine = db_session._sync_engine
+
+    apply_default_lane_isolation()
+
+    assert settings.redis_url == "redis://127.0.0.1:6379/0", (
+        f"车道里 redis_url 被改成了 {settings.redis_url!r} ⇒ "
+        "依赖真 Redis 的用例在所有车道都被跳过"
+    )
+    assert db_session._sync_engine is before_engine, (
+        "车道里同步引擎单例被换掉了 ⇒ 任何走 get_engine() 的路径"
+        "在车道里静默指向 SQLite（假绿）"
+    )

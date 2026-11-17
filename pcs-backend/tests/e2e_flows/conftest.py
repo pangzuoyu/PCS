@@ -392,14 +392,18 @@ def public_first_snapshot(e2e_schema):
 
     ⚠️ **谁先谁后由依赖图定** —— `public_baseline` 依赖本 fixture ⇒ ⇒
     本快照**必然**先于基线快照 ⇒ ⇒ 两者不等 ⇒ 就是「中间有东西写了 public」。
+
+    ⚠️ **取之前先清探针残留**（评审 I4）—— 上一次跑崩了会留下探针行
+    ⇒ ⇒ 残留被算进基线 ⇒ ⇒ 探针用例把它删掉 ⇒ ⇒ 会话结束时
+    ⇒ ⇒ 「基线 == 现状」**不等** ⇒ ⇒ **假红**（与车道行为无关）。
     """
     from sqlalchemy import create_engine
 
-    from tests.e2e_flows.helpers import public_snapshot, public_sync_url
+    from tests.e2e_flows.helpers import public_sync_url, take_public_baseline
 
     engine = create_engine(public_sync_url())
     try:
-        return public_snapshot(engine)
+        return take_public_baseline(engine)
     finally:
         engine.dispose()
 
@@ -429,6 +433,7 @@ def public_baseline(public_first_snapshot):
         assert baseline == after, (
             "public schema 在 E2E 车道期间被改了 ⇒ 隔离失效："
             f"{_diff_tables(baseline, after)}"
+            " ⇒ ⚠️ 若真后端通道的后端在跑（它也写 public）⇒ 先停掉它再重跑"
         )
 
 

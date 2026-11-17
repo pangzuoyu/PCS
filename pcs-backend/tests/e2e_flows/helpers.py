@@ -195,6 +195,13 @@ def public_snapshot(engine) -> dict[str, tuple[int, int]]:
     ⚠️ **代价**：`VACUUM FREEZE` 会把 `xmin` 归 2 ⇒ ⇒ 两个快照之间若发生
     freeze ⇒ **误报**（车道库几乎不会 freeze ⇒ 但要知道）。
 
+    ⚠️ **漏报面 —— 这个判据不是「完备的写入检测器」**（P10-F · 整支评审 M3）：
+    ① **事务 id 回绕** —— `xid` 是 32 位 ⇒ ⇒ 回绕后 `max(xmin)` 可能**变小**
+       ⇒ ⇒ 两个快照**相等** ⇒ ⇒ 真有写入也看不见；
+    ② **净零写入** —— 同一行先 `UPDATE` 再 `DELETE` ⇒ ⇒ 行数与 `max(xmin)`
+       都回到原值 ⇒ ⇒ 看不见（「改过又改回去」这类泄漏抓不到）。
+    ⇒ ⇒ 所以它是「**有没有动过**」的**指示器**，不是审计报告。
+
     ⚠️ **`xmin` 是 PG 专有系统列** ⇒ ⇒ 这条**只能在 E2E 车道（真 PG）跑**
     ⇒ ⇒ SQLite 上会报 `no such column: xmin` ⇒ ⇒ 别把它挪进默认车道。
 
@@ -224,6 +231,38 @@ def public_snapshot(engine) -> dict[str, tuple[int, int]]:
             ).one()
             out[table] = (int(count), int(xmin_max))
     return out
+
+
+#: 探针行在 `audit_logs` 里的标记（守卫自证用 ⇒ 真的写进 public）。
+PROBE_ACTION = "E2E_LEAK_PROBE"
+
+
+def purge_probe_rows(engine) -> None:
+    """删掉**上一次**跑剩下的探针行（幂等自洁）。
+
+    ⚠️ **为什么必须**：探针行是**真的写进 public** 的 ⇒ ⇒ 上一次跑若中途
+    崩了（断言红 ⇒ 清理没跑到）⇒ ⇒ 残留会**污染下一次跑的基线**
+    ⇒ ⇒ 「删掉后快照必须回到原样」那条断言就会**假红** ⇒ ⇒
+    ⇒ **守卫真的抓漏的那一次，恰恰是最容易把下一次跑带偏的那一次**
+    （P10-F · 整支评审 I4）。
+    """
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM public.audit_logs WHERE action = :action"),
+            {"action": PROBE_ACTION},
+        )
+
+
+def take_public_baseline(engine) -> dict[str, tuple[int, int]]:
+    """public 的**基线快照** —— ⚠️ **先清探针残留，再取快照**。
+
+    ⇒ ⇒ 顺序是关键：先取基线再清残留 ⇒ ⇒ 残留被算进基线 ⇒ ⇒
+    ⇒ 探针用例把残留删掉 ⇒ ⇒ 会话结束时「基线 == 现状」**不等** ⇒ ⇒ **假红**。
+    """
+    purge_probe_rows(engine)
+    return public_snapshot(engine)
 
 
 async def advance_stream_to_checked(
