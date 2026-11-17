@@ -57,7 +57,12 @@ _FIELDS: dict[str, list[dict[str, Any]]] = {
             "path": "case_type",
             "label": "物流工况",
             "widget": Widget.SELECT.value,
-            "required": True,
+            # ⚠️ **不是必填**（P10-F · 批末闸门实测）：`StreamBase.case_type`
+            # 自评审 #26（commit f22f3a9）起**请求侧可省略**
+            # （DB 列 `streams.case_type` 可空 ⇒ 读写对称）⇒ ⇒ 本表若还写
+            # `required: True` ⇒ `tests/services/test_ui_schema_drift.py`
+            # 的漂移守卫必红 ⇒ ⇒ **表单与契约必须一致**。
+            "required": False,
             "enum_group": "StreamCaseType",
             "help": "NORMAL / END_OF_RUN / START_OF_RUN / TURN_DOWN",
             "order": 20,
