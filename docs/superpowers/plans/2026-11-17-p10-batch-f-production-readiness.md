@@ -36,7 +36,7 @@
 | 批 | 主题 | 任务数 | 开工前置 | 现在能开吗 |
 |---|---|---|---|---|
 | **F1** | P10-B 评审残余（**技术债 · 契约/通道/守门**） | 4 | hermes 第三方裁决落地 | ✅ |
-| **F2** | P10-B 评审残余（**技术债 · 隔离/前端/并发**） | 4 | F1 落地 | ✅ |
+| **F2** | P10-B 评审残余（**技术债 · 隔离/前端/并发**）+ **默认车道隔离性（新发现）** | 5 | F1 落地 | ✅ |
 | **F3** | **守卫覆盖审计**（TODO-129）+ 三条越权债复核 | 5 | 无（车道的审查面已就位） | ✅ |
 | **F4** | 生产就绪的**技术项**（安全扫描 · 依赖漏洞 · 镜像扫描 · 回滚演练 · 数据迁移演练） | 6 | **P10-C 落地**（否则没有可扫的镜像/部署物） | ❌ |
 | **F5** | 生产就绪的**运维项**（告警演练 · 备份恢复 · 应急联系人 · 上线检查清单 · Go/No-Go） | 5 | **P10-C + P10-E 落地**（否则没有告警、没有 Runbook） | ❌ |
@@ -537,7 +537,7 @@ git commit -m "fix(P10-F): 守门测试统一断可执行部分 + 默认路径�
 # F2 · P10-B 评审残余（技术债 · 隔离 / 前端 / 并发）
 
 > **本批前置**：F1 落地（若 hermes 裁决把 F1 的某条改判 ⇒ 先改本批）。
-> **本批产出**：4 条技术债落地 ⇒ ⇒ **批末闸门全绿**。
+> **本批产出**：4 条技术债 + 1 条**评审期间新发现**落地 ⇒ ⇒ **批末闸门全绿**。
 
 ### Task F2-T1: 「不写 public」守卫**扩覆盖面** + **补第三个 singleton** + **session 级基线**（评审 #22）
 
@@ -845,6 +845,63 @@ Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出�
 
 ---
 
+### Task F2-T5: 默认车道的**隔离性** —— 别碰开发库与真 Redis（评审期间新发现）
+
+> 🔎 **2026-11-17 评审期间实测发现**（不在原 8 条里 ⇒ ⇒ 同族但**新**）：
+> ⇒ ⇒ 跑默认车道（`uv run pytest`）时，进程 socket 里出现
+> **`127.0.0.1:5432`（开发库 pcs）** 与 **`127.0.0.1:6379`（真 Redis）** 的连接
+> ⇒ ⇒ 根因：`tests/conftest.py:118-119` 只把**异步**引擎换成 `sqlite+aiosqlite:///:memory:`
+> ⇒ ⇒ 而 `app/db/session.py:22-39` 的**同步**引擎 `_sync_engine` 仍按 `settings.database_url`
+> 连**开发库**；Redis 侧 `app/services/edit_lock.py:142` 与 `app/services/broadcaster.py:80,144`
+> 直接 `aioredis.Redis.from_url(settings.redis_url)`（`config.py:44` 默认 `redis://localhost:6379/0`）
+> ⇒ ⇒ 违反 CLAUDE.md「**单测车道绝不碰开发库**」
+> ⇒ ⇒ 与 hermes #22 的第三条（`_sync_engine` 是第三个未被覆写的 singleton）**同一形状**，
+> 但发生在**默认车道**（⇒ 那一侧从来没被审过）
+
+**Files:**
+- Modify: `pcs-backend/tests/conftest.py`（把 `_sync_engine` 覆写成 SQLite 同步引擎 · Redis 指向替身或禁用）
+- Test: `pcs-backend/tests/test_lane_isolation.py`（**新建** ⇒ 断「默认车道不连真库/真 Redis」）
+
+**Interfaces:**
+- Consumes: `app/db/session.py` 的三个单例（`_sync_engine` · `_async_engine` · `_async_session_factory`）· `app/core/config.py::settings.redis_url`
+- Produces: `assert_no_real_backends()` —— 一条**自证**断言：跑测试期间**不得**有到 5432/6379 的连接
+
+- [ ] **Step 1: 写失败测试**（**先证伪现状**）
+
+```python
+def test_default_lane_never_connects_to_a_real_database_or_redis():
+    """默认车道**不得**连开发库（5432）或真 Redis（6379）⇒
+    今天的实测：进程 socket 里就挂着这两条连接（且整轮跑挂了 33 分钟）。"""
+    # 手段：扫本进程已建立的 socket（/proc/self/net/tcp 或 psutil）⇒ 断没有 5432/6379
+    # 备选：在 conftest 里把两个客户端的 URL 改成不可路由的端口 ⇒ 任何真实连接都会抛错
+    ...
+```
+
+⇒ ⇒ ⚠️ **断法二选一**：① 扫 socket（Linux 专有 ⇒ 别的平台跳过）② **把 URL 改成不可路由端口**
+⇒ ⇒ **推荐 ②**（跨平台、且「连了就炸」比「查到了再判」更硬）⇒ ⇒
+⇒ ⇒ 但 ② 需要把 `settings.redis_url` 与 `settings.database_url` 在 conftest 里**改掉** ⇒ ⇒
+⚠️ `settings` 是 **pydantic 缓存实例** ⇒ ⇒ 改法照 `alembic/env.py` 的口径（**进程内**改环境变量 **在 import 之前**）
+
+- [ ] **Step 2: 跑测试确认失败**（现状必红 ⇒ ⇒ 证明「默认车道确实连了真库/真 Redis」）
+- [ ] **Step 3: 实现**
+① `tests/conftest.py` 里把 `_sync_engine` 覆写成 **SQLite 同步引擎**（`sqlite:///:memory:`）⇒ ⇒
+   ⇒ 与 `_async_engine` 的覆写**成对**（⇒ ⇒ 别再留第三个 singleton 裸奔）
+② Redis：把 `settings.redis_url` 指向**不可路由的端口**（如 `redis://127.0.0.1:1/0`）⇒ ⇒
+   ⇒ 或用 `fakeredis` 替身（⚠️ 若仓里没有 ⇒ ⇒ **不新增依赖** ⇒ ⇒ 选「不可路由端口」）
+③ ⚠️ **副作用要评估**：若有测试**依赖**真 Redis（集成语义）⇒ ⇒ 那类测试应移到
+   `scripts/pytest_pg.sh` 那条**真 PG 车道**里 ⇒ ⇒ 登记 TODO，不在本条硬改。
+- [ ] **Step 4: 跑默认车道**（**必须能跑完、不许挂**）
+
+Run: `cd pcs-backend && uv run pytest -q`
+Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 33 分钟 ⇒ ⇒ **这条本身就是判据**
+
+⇒ ⇒ **同时验**：跑完后 `ss -tnp | grep -E ":5432|:6379"` **不得**出现 pytest 的连接。
+
+- [ ] **Step 5: 提交**（`fix(P10-F): 默认车道隔离同步引擎与 Redis（评审期间新发现）`）
+⇒ ⇒ 顺带在 `.wolf/buglog.json` 记一条（bug-2181）⇒ ⇒ 在 `TODOS.md` 记「依赖真 Redis 的测试迁到真 PG 车道」
+
+---
+
 # F3 · 守卫覆盖审计（TODO-129）+ 三条越权债复核
 
 > **本批前置**：无（P10-B 的车道与真后端通道已就位 ⇒ 审计有观测面）。
@@ -990,6 +1047,8 @@ Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出�
 | 14 | ⚖️ **pillow 62 条要升 13.0.0（大版本）**，但它传递自 **reportlab**（生产 PDF 报表） | 兼容性未验证 ⇒ ⇒ F4-T2 的处置：**先查 reportlab 5.0.1 是否支持 pillow 13** ⇒ ⇒ 不支持 ⇒ ⇒ 记「豁免 + 理由 + 上游 issue」⇒ ⇒ **不硬升** | F4-T2 |
 | 15 | ⚖️ **升 pyjwt（29 条）要验 bug-091 的加固还在** | `options={'require': ['exp','iat','sub']}`（`app/core/security.py`）⇒ ⇒ 升级后**必须**有一条断言证明 `require` 仍在 ⇒ ⇒ 否则「修了漏洞、拆了加固」 | F4-T2 |
 | 16 | ⚖️ **`docker compose run --rm seed` 仍能绕过锁**（F2-T3 选了宿主侧取锁） | 本机 docker registry 拉不动 ⇒ ⇒ 容器侧装 flock **不可验证** ⇒ ⇒ 残留 ⇒ ⇒ P10-C 处理 | F2-T3 · 残留 |
+| 17 | ⚖️ **默认车道不隔离**（`_sync_engine` + 真 Redis）⇒ ⇒ 违反「单测车道绝不碰开发库」 | 🔎 2026-11-17 实测：跑默认车道时进程挂着 **5432** 与 **6379** 的连接 ⇒ ⇒ 且整轮跑到 22% **挂死 33 分钟** ⇒ ⇒ F2-T5 修 | F2-T5 |
+| 18 | ⚖️ **依赖真 Redis 的测试**（若存在）该迁到真 PG 车道 | F2-T5 先把 URL 指向不可路由端口 ⇒ ⇒ 若某测试因此红 ⇒ ⇒ 说明它**依赖**真 Redis ⇒ ⇒ 登记 TODO 迁到 `scripts/pytest_pg.sh` 车道 | F2-T5 · TODO |
 
 ---
 
@@ -1046,6 +1105,7 @@ Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出�
 | 仪表盘 | 有 project_id 的工作区面板不渲染 | ✅（正向路径） | — | 面板空白 | ✅ |
 | F4 依赖升级（pyjwt） | 升级后 `options.require` 加固被拆 | ⚠️ **必须新增断言**（问题 #15） | — | 令牌校验变松 | ⚠️ **F4-T2 必做** |
 | F6-T1 写开发库 | 迁移不幂等 ⇒ 跑两次就坏 | ⚠️ **必须写成幂等**（先查后改） | — | 账号授权错乱 | ⚠️ **F6-T1 必做** |
+| **默认车道连了开发库/真 Redis** | 单测写进开发库 ⇒ 数据污染；或等锁 ⇒ **整轮挂 33 分钟** | ✅ F2-T5 | — | 绿灯但库被改了 | ✅ **F2-T5（评审期间新发现）** |
 
 ⇒ ⇒ **无测试 + 无错误处理 + 静默**的三条：**0** ⇒ ⇒ 无 critical gap
 ⇒ ⇒ ⚠️ 三条 **⚠️**（已知取舍或必须补断言）⇒ ⇒ **开工时逐条销掉**。

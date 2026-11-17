@@ -3755,3 +3755,47 @@ There is no guarantee that it will work as expected.
 **何时做**：**P10-C**（有网环境 ⇒ 能构建镜像 ⇒ 能验证 compose 侧改动）
 
 **归属**：P10-C
+
+---
+
+## TODO-164: **默认单测车道**连了**开发库**与**真 Redis** ⇒ ⇒ 违反「单测车道绝不碰开发库」 🔴
+
+**现状**（2026-11-17 · P10-F 计划评审期间**实测**发现）：
+
+跑默认车道 `cd pcs-backend && uv run pytest -q` 时，用 `ss -tnp` 看这个进程的 socket：
+
+```
+ESTAB 127.0.0.1:41122 → 127.0.0.1:6379   (Redis)   ×3
+ESTAB 127.0.0.1:54322 → 127.0.0.1:5432   (开发库 pcs)
+```
+
+⇒ ⇒ 那一轮跑到 **22% 就挂死 33 分钟**（41 个线程全在 `futex_do_wait`）⇒ ⇒ 已被 kill。
+
+**根因**（读码确认）：
+
+- `tests/conftest.py:118-119` 只把**异步**引擎换成 `sqlite+aiosqlite:///:memory:`
+  ⇒ ⇒ 而 `app/db/session.py:22-39` 的**同步**引擎 `_sync_engine` 仍按 `settings.database_url`
+  建连 ⇒ ⇒ 那是**开发库**（`5432`）；
+- Redis 侧**没有替身**：`app/core/config.py:44` 的默认是 `redis://localhost:6379/0`
+  ⇒ ⇒ `app/services/edit_lock.py:142` 与 `app/services/broadcaster.py:80,144`
+  直接 `aioredis.Redis.from_url(settings.redis_url)` ⇒ ⇒ **真 Redis**。
+
+**为什么重要**：
+
+- CLAUDE.md 明写「**单测车道绝不碰开发库**」⇒ ⇒ 现状**违反**；
+- 与 P10-B 评审 #22 的第三条**同一形状**（`_sync_engine` 是第三个未被覆写的 singleton），
+  但发生在**默认车道** ⇒ ⇒ **那一侧从来没被审过**；
+- 真 Redis 里的编辑锁/pubsub 会被单测写进去 ⇒ ⇒ 跨轮污染 + 依赖一个外部服务
+  ⇒ ⇒ 「绿灯」不代表「这条测试自己跑得通」。
+
+**建议改法**（见 P10-F 计划 F2-T5）：
+
+① `tests/conftest.py` 把 `_sync_engine` 也覆写成 SQLite 同步引擎（与 `_async_engine` **成对**）；
+② 把 `settings.redis_url` 指向**不可路由端口**（`redis://127.0.0.1:1/0`）⇒ ⇒ 「连了就炸」比
+「查到了再判」更硬 ⇒ ⇒ ⚠️ **不新增 fakeredis 依赖**；
+③ ⚠️ 若某测试因此变红 ⇒ ⇒ 说明它**依赖**真 Redis ⇒ ⇒ 该测试应迁到 `scripts/pytest_pg.sh`
+那条真 PG 车道 ⇒ ⇒ 另立 TODO。
+
+**何时做**：**P10-F 的 F2 批**（F2-T5）
+
+**归属**：P10-F（F2）
