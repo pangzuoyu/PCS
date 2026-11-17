@@ -29,20 +29,9 @@ from app.services.broadcaster import Broadcaster, UserSubscriptionRegistry, set_
 from app.services.notifications.in_app import InAppChannel
 from app.services.notifications.payload import NotificationDetail, NotificationPayload
 
+from tests.lane_guards import require_real_redis
+
 REDIS_URL = "redis://localhost:6379/9"
-
-
-def _redis_up() -> bool:
-    async def _ping():
-        r = aioredis.Redis.from_url(REDIS_URL, socket_connect_timeout=1)
-        await r.ping()
-        await r.aclose()
-
-    try:
-        asyncio.run(_ping())
-    except Exception:  # noqa: BLE001
-        return False
-    return True
 
 
 def _token(user_id: uuid.UUID) -> str:
@@ -225,6 +214,7 @@ async def test_mark_read_requires_auth(client, db, user_id):
 
 
 def test_ws_accepts_a_valid_token():
+    require_real_redis()
     """路由**确实存在**的正向证明。
 
     ⚠️ 没有这条，下面两条 `pytest.raises(Exception)` 会在**端点没注册**时
@@ -478,8 +468,8 @@ async def test_ws_sink_still_delivers_to_an_active_user(
     assert ws.closed == []
 
 
-@pytest.mark.skipif(not _redis_up(), reason="真 Redis 未运行（docker compose up redis）")
 def test_ws_delivers_notification_published_by_another_worker():
+    require_real_redis()
     """端到端跨进程推送：连接在 worker A 上，发布在 worker B 上。
 
     这是 ADR-0049 §⑤「推送**必须**跨进程」的唯一端到端证明。

@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.sqlite.base import SQLiteDDLCompiler, SQLiteTypeCompiler
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.schema import ColumnDefault
@@ -111,6 +111,31 @@ except Exception:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 
+def _patch_sqlite_gen_random_uuid() -> None:
+    """SQLite 不支持 PostgreSQL 的 `gen_random_uuid()` server_default。
+
+    ⇒ ⇒ 清掉 server_default 并附加 Python-side ColumnDefault
+    （绕过 RETURNING 问题）⇒ ⇒ **幂等**（可重复调）⇒ ⇒ 抽成函数是因为
+    ⇒ ⇒ 「默认车道的隔离」那条 fixture 也要建表（P10-F · F2-T5）。
+    """
+    for _table in SA_Base.metadata.tables.values():
+        for _col in _table.columns:
+            sd = _col.server_default
+            if sd is not None and "gen_random_uuid" in str(sd.arg):
+                _col.server_default = None
+                _col.default = ColumnDefault(uuid.uuid4)
+
+
+def _register_sqlite_pg_functions(engine) -> None:
+    """给 SQLite 注册 PostgreSQL 的 `gen_random_uuid()` 函数。"""
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _register(dbapi_conn, _record):  # noqa: ANN001
+        dbapi_conn.create_function(
+            "gen_random_uuid", 0, lambda: str(uuid.uuid4())
+        )
+
+
 @pytest_asyncio.fixture
 async def db_engine():
     """in-memory SQLite 异步引擎；测试隔离。"""
@@ -122,20 +147,9 @@ async def db_engine():
 
     # SQLite 不支持 PostgreSQL gen_random_uuid() 函数；
     # 通过 connect 钩子注册 SQLite 自定义函数（每次 INSERT 触发 DEFAULT 时调用）。
-    @event.listens_for(engine.sync_engine, "connect")
-    def _register_sqlite_pg_functions(dbapi_conn, _record):  # noqa: ANN001
-        dbapi_conn.create_function(
-            "gen_random_uuid", 0, lambda: str(uuid.uuid4())
-        )
+    _register_sqlite_pg_functions(engine)
 
-    # SQLite 不支持 PostgreSQL gen_random_uuid() server_default；
-    # 清掉 server_default 并附加 Python-side ColumnDefault（绕过 RETURNING 问题）。
-    for _table in SA_Base.metadata.tables.values():
-        for _col in _table.columns:
-            sd = _col.server_default
-            if sd is not None and "gen_random_uuid" in str(sd.arg):
-                _col.server_default = None
-                _col.default = ColumnDefault(uuid.uuid4)
+    _patch_sqlite_gen_random_uuid()
 
     async with engine.begin() as conn:
         await conn.run_sync(SA_Base.metadata.create_all)
@@ -410,6 +424,53 @@ def _avoid_real_db_probe(monkeypatch):
     monkeypatch.setattr(
         cia_tasks_module, "check_database_async", fake_async, raising=True
     )
+    yield
+
+
+# ---------------------------------------------------------------------------
+# 默认车道的**隔离性**（P10-F · F2-T5 · 评审期间新发现）
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _isolate_default_lane():
+    """默认车道**绝不碰开发库 / 真 Redis** ⇒ ⇒ 同步引擎单例 + Redis URL 全改。
+
+    ⚠️ **为什么必须**（2026-11-17 实测）：跑默认车道时，进程 socket 里挂着
+    **127.0.0.1:5432**（开发库 `pcs`）与 **127.0.0.1:6379**（真 Redis）
+    的连接 ⇒ ⇒ 违反 `CLAUDE.md` 的「**单测车道绝不碰开发库**」
+    ⇒ ⇒ 而且整轮跑到 22% **挂死 33 分钟**。
+
+    ⚠️ **同步引擎单例**（`app/db/session.py::_sync_engine`）必须改 ——
+    ⇒ ⇒ 它按 `settings.database_url` 建 ⇒ ⇒ 那是**开发库** ⇒ ⇒
+    ⇒（今天 `get_engine()` 只被 `check_database()` 用 ⇒ ⇒ 它是
+    ⇒ ⇒**未来泄漏点** ⇒ ⇒ 现在就堵住）。
+
+    ⚠️ **两个 async 单例**（`_async_engine` / `_async_session_factory`）
+    ⇒ ⇒ **本批不改** ⇒ ⇒ 理由：它们被**跨事件循环**使用（session 级 fixture
+    ⇒ ⇒ 建出来的连接绑定在**第一个** loop ⇒ ⇒ 函数级用例用它 ⇒ ⇒
+    ⇒ 「attached to a different loop」（bug-2162 同一形状）⇒ ⇒
+    ⇒ ⇒ **改它比不改更危险** ⇒ ⇒ 改走「让**每条路径**都不去碰它」的路子
+    ⇒ ⇒ （`check_database_async` 已被 patch · RBAC 审计在 pytest 下早退
+    ⇒ ⇒ · WS 那条路依赖真 Redis ⇒ ⇒ 默认车道**跳过**它 ⇒ ⇒ TODO-165）。
+
+    ⚠️ **每个用例都重申一遍** —— `app/db/session.py::dispose_sync_engine()`
+    会把单例置回 `None` ⇒ ⇒ 只在会话开始设一次 ⇒ ⇒ 后面那些用例又**裸奔**了
+    ⇒ ⇒ ⇒ 函数级 autouse ⇒ ⇒ 每次都重新断言。
+    """
+    import app.db.session as db_session
+    from app.core.config import get_settings
+
+    # ⚠️ **不可路由端口** ⇒ ⇒ 「连了就炸」比「查到了再判」更硬
+    get_settings().redis_url = "redis://127.0.0.1:1/0"
+
+    # ① 同步引擎 ⇒ SQLite（**内存**）⇒ ⇒ `get_engine()` 只被
+    # `check_database()` 用（`SELECT 1`）⇒ ⇒ 不需要建表。
+    engine = db_session._sync_engine
+    if engine is None or not str(engine.url).startswith("sqlite"):
+        engine = create_engine("sqlite:///:memory:")
+        db_session._sync_engine = engine
+
     yield
 
 

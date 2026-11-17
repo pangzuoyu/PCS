@@ -36,6 +36,8 @@ from app.services.edit_lock import (
     EditLockService,
 )
 
+from tests.lane_guards import require_real_redis
+
 REDIS_URL = "redis://localhost:6379/9"
 DEAD_REDIS_URL = "redis://127.0.0.1:6399/0"  # 无人监听
 
@@ -55,6 +57,9 @@ async def _redis_up() -> bool:
 
 @pytest_asyncio.fixture
 async def real_redis():
+    # ⚠️ 默认车道把 Redis 隔离成**不可路由**端口 ⇒ ⇒ 真 Redis 语义测不了
+    # ⇒ ⇒ 迁到 scripts/pytest_pg.sh 车道（TODO-165 · P10-F · F2-T5）
+    require_real_redis()
     if not await _redis_up():
         pytest.skip("真 Redis 未运行（docker compose up redis）—— TTL/续期无法用 fake 证明")
     yield REDIS_URL

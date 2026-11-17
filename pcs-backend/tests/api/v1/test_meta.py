@@ -186,7 +186,12 @@ async def test_ui_schema_stream(client, sample_user_token):
     assert fields["stream_name"]["required"] is True
     assert fields["stream_name"]["widget"] == "Input"
     assert fields["stream_name"]["max_length"] == 100
-    assert fields["case_type"]["required"] is True
+    # ⚠️ **`case_type` 不是必填**（P10-F · 批末闸门实测到的上一批遗留）：
+    # ⇒ P10-B 评审 #26（commit `f22f3a9`）把 `StreamBase.case_type` 改成
+    # ⇒ **请求侧可省略**（DB 列可空 ⇒ 读写对称）⇒ ⇒ 表单契约必须同步
+    # ⇒ ⇒ 否则 `tests/services/test_ui_schema_drift.py` 的漂移守卫必红
+    # ⇒ ⇒ （这条断言原先写 `is True` ⇒ 与漂移守卫**互相打架** ⇒ 修的是它。）
+    assert fields["case_type"]["required"] is False
     assert fields["case_type"]["widget"] == "Select"
     assert fields["case_type"]["enum_group"] == "StreamCaseType"
     assert fields["data_mode"]["required"] is True
