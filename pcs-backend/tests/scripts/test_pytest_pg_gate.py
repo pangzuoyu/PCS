@@ -103,6 +103,35 @@ def test_fails_when_all_pg_tests_are_skipped(tmp_path):
     assert "没有实际执行任何测试" in (r.stdout + r.stderr)
 
 
+def test_fails_when_some_pg_tests_are_skipped(tmp_path):
+    """⚠️ **部分** skip ⇒ 也必须非零退出（P10-B 评审 #16 · P1）。
+
+    ⚠️ 原先第 ③ 条闸只要求「**≥1 passed**」⇒ ⇒ 「30 条里跑 1 条、29 条被
+    skip」也算**绿** ⇒ ⇒ 车道绿灯**不携带信息**（这正是「验证机制的失败模式
+    是假绿」）。
+
+    ⇒ ⇒ 用**假的 docker**（第 ① 步通过）+ **假的 uv**（收集报 3 个、
+    正式跑报「2 passed, 1 skipped」）走到第 ③ 条闸。
+    """
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "docker").write_text("#!/bin/sh\necho 'postgres-pgtest running'\nexit 0\n")
+    (fake_bin / "uv").write_text(
+        "#!/bin/sh\n"
+        'case "$*" in\n'
+        "  *--collect-only*) echo '3 tests collected in 0.01s' ;;\n"
+        "  *) echo '2 passed, 1 skipped in 0.02s' ;;\n"
+        "esac\n"
+        "exit 0\n"
+    )
+    for name in ("docker", "uv"):
+        (fake_bin / name).chmod(0o755)
+
+    r = _run({"PATH": f"{fake_bin}:{os.environ['PATH']}"})
+    assert r.returncode != 0, "有测试被 skip 却退出 0 ⇒ 假绿"
+    assert "skip" in (r.stdout + r.stderr)
+
+
 def test_script_does_not_teach_a_second_entry_point():
     """⚠️ 唯一入口：脚本里不得出现「直接 DATABASE_URL=... pytest」的第二条路。"""
     body = SCRIPT.read_text(encoding="utf-8")

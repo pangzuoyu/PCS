@@ -77,10 +77,20 @@ if [ "${collected:-0}" -eq 0 ]; then
   exit 1
 fi
 
-# ③ 正式执行；输出里必须有「至少 1 passed」
+# ③ 正式执行；输出里必须有「至少 1 passed」，且**不能有 skip**
 out="$(uv run pytest -m "$PG_PYTEST_MARK" -q 2>&1)" || { echo "$out"; exit 1; }
 echo "$out"
 if ! echo "$out" | grep -qE '[1-9][0-9]* passed'; then
   echo "FAIL: PG 车道没有实际执行任何测试（全部 skip？）" >&2
+  exit 1
+fi
+# ⚠️ **部分 skip 也算假绿**（P10-B 评审 #16 · P1）——
+# 原先只要求「≥1 passed」⇒ ⇒「30 条里跑 1 条、29 条被 skip」也是绿的
+# ⇒ ⇒ 车道绿灯**不携带信息**（验证机制的失败模式就是假绿）。
+# ⇒ ⇒ 只看**摘要行**（`tail -1`）⇒ 免得用例输出里的 "skipped" 字样误伤。
+# ⚠️ **deselected 不算 skip**（那是 marker 过滤掉的，不是 skip）。
+summary="$(echo "$out" | tail -1)"
+if echo "$summary" | grep -qE '[0-9]+ skipped'; then
+  echo "FAIL: PG 车道有测试被 skip ⇒ fail-closed（skip 的用例不算「跑过」）: $summary" >&2
   exit 1
 fi
