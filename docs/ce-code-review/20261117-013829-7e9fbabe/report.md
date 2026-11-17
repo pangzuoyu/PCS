@@ -14,7 +14,7 @@
 - api-contract -- 本批改了 OpenAPI schema 与响应载荷形状
 - learnings -- 仓库有 learnings 语料 (`docs/solutions/**`) 可交叉核对
 
----
+--
 
 ### 结论摘要
 
@@ -28,18 +28,18 @@
 
 车道与种子的**护栏也只立了一半**: 车道只凭 `PCS_E2E_LANE=1` 一个环境变量放行、只查 URL 协议不查库名（#8）; 隔离只覆盖 `get_db` 这一条路, 全局 session factory 仍指向 public schema（#19）; 「不写 public」守卫在种子跑**之后**才取基线、且只数 4 张表（#22）; 两条车道靠 flock 互斥, 但同一个库上的 compose `migrate`/`seed` 两个写者不受锁约束（#15）.
 
-**逐级条数**: P1 x 9 ,  P2 x 16 ,  P3 x 2（primary 27 条）+ pre-existing 1 条（不计入 verdict）.
-**校验器已运行**: 单批 21 条（全部 P0/P1 + 全部 actionable）=> 确认 20 ,  否掉 0 ,  未决 1（#6）,  畸形 0 ,  失败 0 ,  捷径跳过 0.
+**逐级条数**: P1 x 9 / P2 x 16 / P3 x 2（primary 27 条）+ pre-existing 1 条（不计入 verdict）.
+**校验器已运行**: 单批 21 条（全部 P0/P1 + 全部 actionable）=> 确认 20 / 否掉 0 / 未决 1（#6） / 畸形 0 / 失败 0 / 捷径跳过 0.
 **可执行队列**: 19 条（`gated_auto`/`manual` 且 owner = `downstream-resolver`）; 8 条 report-only（owner = `human` 或 `advisory`）; 其中 #6 是**核实闸门**, 任何修复者都不得在证据到手前把它当已确认缺陷去改.
 
----
+--
 
 ### Actionable Findings
 
 可执行队列 = `gated_auto`/`manual` 且 owner = `downstream-resolver`. 下面是完整 19 条, 每条已带 severity / file:line / 修法类型 / 校验状态.
 
 | # | Severity | File | Issue | Route | Notes |
-|---|---|---|---|---|---|
+|--|--|--|--|--|--|
 | 1 | P1 | `pcs-backend/app/services/pipe/pipe_chain_persist.py:112` | 占位管级先查后插无 savepoint => 并发首算撞主键 => 整条计算 500 | `gated_auto -> downstream-resolver` | suggested_fix present, validation: confirmed, confidence 100, mechanical, needs targeted verification |
 | 3 | P1 | `pcs-backend/app/workers/report_tasks.py:118` | data_version 赋值在 dup 早退之后永不可达 => 审计哈希端点仍恒返空串 | `gated_auto -> downstream-resolver` | suggested_fix present, validation: confirmed, confidence 100, mechanical, needs targeted verification |
 | 4 | P1 | `pcs-backend/tests/e2e_flows/test_e2e_report.py:91` | E2E-009 用命令式 pytest.xfail 中止用例 => 车道全绿且下载段从不执行 | `gated_auto -> downstream-resolver` | response stated in the detail line, validation: confirmed, confidence 100, mechanical, needs targeted verification |
@@ -65,12 +65,12 @@
 - **#2** (`manual -> human`) -- 占位管级到底归谁：改成一条数据迁移种一行, 还是允许运行时兜底但从公司列表里过滤掉. 这是产品/数据归属决策, 不是实现选择.
 - **#6** (`advisory -> human`, validation = unresolved) -- 名字错配已核实, 但「内置 `DEFAULT_RECORD_3_LEVEL` 那行在目标库里到底存不存在」没核实到. 它**不在**可执行队列里.
 
----
+--
 
 ### Triage Groups
 
 | Group | Findings | Context | Preferred Resolution | Why |
-|---|---|---|---|---|
+|--|--|--|--|--|
 | T1 -- 占位管级在运行时写全局配置主表 (decision-gate) | #1, #2 | 本批为了让链计算能落库，在请求路径上现场补一行 pipe_classes（source=COMPANY_STD）=> 同时踩到并发与数据归属两个面。 | 先裁 #2（占位行到底归谁：迁移里种一行，还是允许运行时兜底并从公司列表里过滤掉），再按裁决落 #1（savepoint + 重读赢家 / ON CONFLICT DO NOTHING）；#2 是设计裁决，#1 是可以照抄仓内 house pattern 的机械改。 | 两处同一个函数、同一个根因（运行时兜底代替配置流程）；先裁归属才不会把 #1 的修复做两遍。 |
 | T2 -- bug-2165 的审计哈希链路：修复是空操作 (apply-queue) | #3, #4, #12, #14 | 本批自称修好了审计哈希端点，但赋值落在 dup 早退之后不可达，E2E-009 又用命令式 xfail 把用例中止 => 「修好了」今天没有任何证据。 | 一次做完四步：① #3 把 data_version 落到真正存活的那一行（report_service._upsert_report_file 建行时一并写 + _finalize 的 dup 分支补写）；② #4 把命令式 pytest.xfail 换成只标记那一条断言或先红后绿的真断言；③ #12 与 #14 一起裁（data_version 与 record_hash_digest 的语义分开，老行/复用行的空串一并处理）。 | 四条是同一条需求（审计要拿到完整哈希）的四个断点；任何一条单独修，车道仍然全绿。 |
 | T3 -- 真后端前端通道的断言恒真 / 断错对象 (apply-queue) | #5, #6, #7 | 5 条真后端 UI 流里 3 条的断言结构上不可能失败：越权流比的是两个 403、矩阵流断的是内置全局矩阵、路由扫描断的是 #root 这个静态 div。 | 先 #5（改断项目守卫真正会走的那个分支）与 #7（断页面具体特征，或把 console error / 4xx 变成断言并把 TODO-159/160 那几个页面列成显式白名单）。#6 在验证阶段是**未决闸门**：名字错配已核实，但「内置那张矩阵在目标库里到底存不存在」没有核实到（迁移 p9_013 未读）=> 先查那一条证据再决定是改断言名字还是改种子名，**不要在证据到手前把它当成已确认的缺陷去改**。 | 三条同属一个通道、同一种失败形状（断言与被测行为脱钩）；修完这条通道才第一次具备「能证明」的资格。#6 需要的是一次证据查询，不是机械改。 |
@@ -81,26 +81,26 @@
 
 未进组的三条（彼此无关, 单独立组反而是装饰）: #10, #11, #25.
 
----
+--
 
 以下为**完整发现表**, 按严重度分组; 每条给出证据 / 为什么重要 / 建议修法 / 提出它的 reviewer / 校验状态.
 
 ### P1 -- High (9)
 
 | # | File | Issue | Reviewer | Confidence |
-|---|---|---|---|---|
+|--|--|--|--|--|
 | 1 | `pcs-backend/app/services/pipe/pipe_chain_persist.py:112` | 占位管级先查后插无 savepoint => 并发首算撞主键 => 整条计算 500 | reliability, correctness, adversarial | 100 |
-| 2 | `pcs-backend/app/services/pipe/pipe_chain_persist.py:95` | 计算端点在运行时往全局配置主表写占位管级（假公司标准 + 两套互斥定义） | maintainability, correctness, api-contract, security, maintainability | 100 |
+| 2 | `pcs-backend/app/services/pipe/pipe_chain_persist.py:95` | 计算端点在运行时往全局配置主表写占位管级（假公司标准 + 两套互斥定义） | maintainability, correctness, api-contract, security | 100 |
 | 3 | `pcs-backend/app/workers/report_tasks.py:118` | data_version 赋值在 dup 早退之后永不可达 => 审计哈希端点仍恒返空串 | reliability, correctness | 100 |
 | 4 | `pcs-backend/tests/e2e_flows/test_e2e_report.py:91` | E2E-009 用命令式 pytest.xfail 中止用例 => 车道全绿且下载段从不执行 | adversarial, testing | 100 |
 | 5 | `pcs-frontend/e2e/real_backend_flows.spec.ts:144` | 越权 UI 断言恒等：bob 被角色闸挡在项目守卫之前 => 跨项目 404 分支从未执行 | adversarial, learnings | 100 |
 | 6 | `pcs-frontend/e2e/real_backend_flows.spec.ts:41` | 签署矩阵 UI 流断的是全局内置矩阵，不是种子那张 | adversarial, correctness, maintainability | 100 |
 | 7 | `pcs-frontend/e2e/real_backend_route_sweep.spec.ts:56` | 路由扫描的『渲染出来了』断言恒真，且 console error / 4xx 只打印不断言 | adversarial, project-standards, learnings, testing | 100 |
-| 8 | `pcs-backend/tests/e2e_flows/conftest.py:93` | E2E 车道与种子脚本都没有目标库白名单 => 可在开发库上建 schema 并灌种子 | adversarial, testing, security, security, reliability | 75 |
+| 8 | `pcs-backend/tests/e2e_flows/conftest.py:93` | E2E 车道与种子脚本都没有目标库白名单 => 可在开发库上建 schema 并灌种子 | adversarial, testing, security, reliability | 75 |
 | 9 | `pcs-frontend/src/pages/routeWrappers.tsx:87` | useFetch 静默吞错且绕过 axios 401 拦截器 => token 过期后永久停在加载中 | reliability, maintainability | 75 |
 
 - **#1** -- `pcs-backend/app/services/pipe/pipe_chain_persist.py:112` -- 占位管级先查后插无 savepoint => 并发首算撞主键 => 整条计算 500
-  - Why it matters: 运行时兜底建占位管级用的是「先查后插」，**没有** `begin_nested()` + `IntegrityError` 兜底 ---- 与本仓自己的 house pattern（`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`，以及 `report_service._upsert_report_file` 的写法）相反。两个并发的 `POST /api/v1/pipe/calc-chain` 请求同时看到「CS-STD 不存在」=> 都 INSERT => 输家撞 `pipe_classes.class_id` 主键唯一约束 => IntegrityError。而 `calc_pipe_chain` 只 catch `PcsError`（pipe.py:213-216）=> IntegrityError 直接逃出去 => **整个端点 500**，且该事务已被 abort => 同请求后续语句一并失败。窗口虽窄（占位行一旦提交就长期存在），但正是「首次并发」或「上次事务回滚后」会命中，而那恰好是 E2E 车道首跑/重跑的时刻。
+  - Why it matters: 运行时兜底建占位管级用的是「先查后插」，**没有** `begin_nested()` + `IntegrityError` 兜底 -- 与本仓自己的 house pattern（`docs/solutions/database-issues/get-or-create-default-row-race-savepoint-reread.md`，以及 `report_service._upsert_report_file` 的写法）相反。两个并发的 `POST /api/v1/pipe/calc-chain` 请求同时看到「CS-STD 不存在」=> 都 INSERT => 输家撞 `pipe_classes.class_id` 主键唯一约束 => IntegrityError。而 `calc_pipe_chain` 只 catch `PcsError`（pipe.py:213-216）=> IntegrityError 直接逃出去 => **整个端点 500**，且该事务已被 abort => 同请求后续语句一并失败。窗口虽窄（占位行一旦提交就长期存在），但正是「首次并发」或「上次事务回滚后」会命中，而那恰好是 E2E 车道首跑/重跑的时刻。
   - Evidence:
     - pcs-backend/app/services/pipe/pipe_chain_persist.py:105-111 -- `    exists = (await db.execute(select(PipeClass.class_id).where(PipeClass.class_id == class_id))).scalar_one_or_none()` / `    if exists is not None:` / `        return`
     - pcs-backend/app/services/pipe/pipe_chain_persist.py:112-138 -- `    db.add(` / `        PipeClass(` / `            class_id=class_id,` ... `    )` / `    await db.flush()` => **裸 INSERT，没有 savepoint、没有 IntegrityError 分支**
@@ -126,7 +126,7 @@
     - pcs-backend/app/services/pipe/pipe_chain_persist.py:260 -- `await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` 位于 `persist_pipe_chain_result` 主路径（每次链计算都走）
     - pcs-backend/app/services/pipe_class_service.py:173-187 -- canonical 创建路径 `PipeClassService.create`（走 `PipeClassCreate` + `ConfigAsset` 版本链 + status=DRAFT），本 diff 的兜底**绕过**了它
     - pcs-backend/app/services/pipe_class_service.py:149 -- `stmt = select(PipeClass).where(PipeClass.source == "COMPANY_STD")` => 占位行必然出现在公司管级列表
-    - pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 -- `# WARNING `source="COMPANY_STD"` ---- 公司级管架列表**只列** `source == 'COMPANY_STD'` 的行` / `source="COMPANY_STD",`
+    - pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 -- `# WARNING `source="COMPANY_STD"` -- 公司级管架列表**只列** `source == 'COMPANY_STD'` 的行` / `source="COMPANY_STD",`
     - pcs-backend/app/services/pipe_class_service.py:149 -- `stmt = select(PipeClass).where(PipeClass.source == "COMPANY_STD")`（status 只在显式传参时过滤）
     - pcs-backend/app/api/v1/pipe_classes.py:112 -- `status: str | None = Query(None), keyword: str | None = Query(None),`（列表端点缺省不过滤状态 => DRAFT 的占位行也在列）
     - pcs-backend/app/models/config_domain.py:262-264 -- `status: Mapped[str] = mapped_column(String(20), default="DRAFT", ...)`（占位行落库即 DRAFT）
@@ -148,11 +148,11 @@
     - pcs-backend/app/services/pipe_class_service.py:149 `select(PipeClass).where(PipeClass.source == "COMPANY_STD")` => 种子的 E2E_SEED 行从不出现在列表端点 => 其形状错误当前不可见
   - Suggested fix / response: 删掉 `_ensure_placeholder_pipe_class` 与 `PLACEHOLDER_MATERIAL_CLASS`，改成一条**数据迁移**插 `CS-STD` 这行（形状照 `PipeClassService.create` 的 payload 语义：`source="COMPANY_STD"`、`dn_series_json={"min":...,"max":...}`、`sch_series_json` 用仓里既定的 DN->Sch 形状）；`persist_pipe_chain_result` 恢复成纯落库。若坚持运行时兜底，则至少改为调 `PipeClassService.create`（同一套版本/状态语义），而不是手写 ORM 行。
   - Validation: confirmed
-  - Reviewers: maintainability, correctness, api-contract, security, maintainability
+  - Reviewers: maintainability, correctness, api-contract, security
   - Route: `manual -> human`
 
 - **#3** -- `pcs-backend/app/workers/report_tasks.py:118` -- data_version 赋值在 dup 早退之后永不可达 => 审计哈希端点仍恒返空串
-  - Why it matters: 回答「为什么赋值执行了、库里仍是 NULL」：**对象没有与被 flush 的行脱钩** ---- 是这行赋值**根本走不到**。`_finalize` 的 `dup` 守卫在 107-111 行就 `return` 了，而 `dup` **必然存在**：`report_service.generate` -> `store_rendered` -> `_upsert_report_file` 已经在库里有了一行 `content_hash == digest` 且 `report_file_id` **不同于**占位行（report_service.py:612-618，新 uuid4）。于是 dup 分支命中 => 占位行被 `delete` => 活下来的那行是 `_upsert_report_file` 构造的、**从头到尾没有 `data_version` 字段** => 落库仍是 NULL => `GET /api/v1/report/{id}/hash` 的 `_expected_digest(row)`（report.py:308）继续返回 `""` => E2E-009 只能继续 `pytest.xfail`。=> 本批声称修好的「审计要完整哈希」实际没修好，而且 buglog 给 bug-2165 记的根因（对象与被 flush 的行脱钩）是错的，会把后来的人引到错误的方向。
+  - Why it matters: 回答「为什么赋值执行了、库里仍是 NULL」：**对象没有与被 flush 的行脱钩** -- 是这行赋值**根本走不到**。`_finalize` 的 `dup` 守卫在 107-111 行就 `return` 了，而 `dup` **必然存在**：`report_service.generate` -> `store_rendered` -> `_upsert_report_file` 已经在库里有了一行 `content_hash == digest` 且 `report_file_id` **不同于**占位行（report_service.py:612-618，新 uuid4）。于是 dup 分支命中 => 占位行被 `delete` => 活下来的那行是 `_upsert_report_file` 构造的、**从头到尾没有 `data_version` 字段** => 落库仍是 NULL => `GET /api/v1/report/{id}/hash` 的 `_expected_digest(row)`（report.py:308）继续返回 `""` => E2E-009 只能继续 `pytest.xfail`。=> 本批声称修好的「审计要完整哈希」实际没修好，而且 buglog 给 bug-2165 记的根因（对象与被 flush 的行脱钩）是错的，会把后来的人引到错误的方向。
   - Evidence:
     - pcs-backend/app/workers/report_tasks.py:107-111 -- `    if dup is not None:` / `        # 同内容已存在（bug-155 修好后的复用语义）：删掉自己的占位行，返回已有行。` / `        await db.delete(row)` / `        await db.flush()` / `        return str(dup.report_file_id)`
     - pcs-backend/app/workers/report_tasks.py:118 -- `    row.data_version = digest`（本批新增的 `+` 行，位于上面那个 `return` 之后 => 不可达）
@@ -163,7 +163,7 @@
     - pcs-backend/tests/e2e_flows/test_e2e_report.py -- E2E-009 仍是 `pytest.xfail`（条件是 `record_hash_digest` 为空）=> 车道自己记录着这条需求仍未满足
     - pcs-backend/app/workers/report_tasks.py:109-111 -- `await db.delete(row)` / `await db.flush()` / `return str(dup.report_file_id)`（dup 分支先于 data_version 赋值 return）
     - pcs-backend/app/workers/report_tasks.py:113-118 -- `row.content_hash = digest` ... `row.data_version = digest`（被上面那条 return 挡住，永不执行）
-    - pcs-backend/app/services/report/report_service.py:612-618 -- `row = ReportFile(report_file_id=..., project_id=..., content_hash=kw["content_hash"], file_path=kw["relpath"], file_format=kw["fmt"], size_bytes=kw["size"], status="SUCCEEDED", has_assumption_page=kw["has_assumption"])` ---- 真正存活的那一行没有 data_version
+    - pcs-backend/app/services/report/report_service.py:612-618 -- `row = ReportFile(report_file_id=..., project_id=..., content_hash=kw["content_hash"], file_path=kw["relpath"], file_format=kw["fmt"], size_bytes=kw["size"], status="SUCCEEDED", has_assumption_page=kw["has_assumption"])` -- 真正存活的那一行没有 data_version
     - pcs-backend/app/api/v1/report.py:494 -- `return row.data_version or ""`（端点读的仍是空串）
     - pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 -- `if not digest.json().get("record_hash_digest"): pytest.xfail("审计哈希端点在生成的报表上恒返回空串（bug-2165 ... 根因未完全隔离）")`（本批自己的用例仍 xfail）
     - MERGE-LEAF VERIFIED pcs-backend/app/workers/report_tasks.py:101-111 - the dup query runs first and `if dup is not None:` deletes the placeholder row and returns at line 111, so line 118 (`row.data_version = digest`) is unreachable on that path
@@ -180,12 +180,12 @@
     - pcs-backend/tests/e2e_flows/test_e2e_report.py:96-100 -- `download = await e2e_client.get(...); assert download.status_code == 200; assert len(download.content) > 0`（在 xfail 之后 => 空哈希时永不执行）
     - pcs-backend/scripts/pytest_pg.sh:83-86 -- 闸门只 grep `[1-9][0-9]* passed` => xfailed 不影响闸门结论
     - pcs-backend/app/workers/report_tasks.py:114-118 -- 本批的修复 `row.data_version = digest`（回归 => 回到 xfailed => 车道仍绿）
-    - pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 ---- `if not digest.json().get("record_hash_digest"): pytest.xfail("审计哈希端点在生成的报表上恒返回空串（bug-2165...）")`
-    - pcs-backend/app/workers/report_tasks.py:118 ---- `row.data_version = digest`（本批新增的唯一生产修复）
-    - .superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md:365 ---- 「WARNING **根因未完全隔离**（赋值执行、库里仍 NULL）=> E2E-009 标 `xfail` => **TODO-158**」
-    - pcs-backend/scripts/pytest_pg.sh:83 ---- 闸门③ 只 grep 「[1-9][0-9]* passed」，xfailed 不计入 => 少一条断言不会让车道变红
+    - pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 -- `if not digest.json().get("record_hash_digest"): pytest.xfail("审计哈希端点在生成的报表上恒返回空串（bug-2165...）")`
+    - pcs-backend/app/workers/report_tasks.py:118 -- `row.data_version = digest`（本批新增的唯一生产修复）
+    - .superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md:365 -- 「WARNING **根因未完全隔离**（赋值执行、库里仍 NULL）=> E2E-009 标 `xfail` => **TODO-158**」
+    - pcs-backend/scripts/pytest_pg.sh:83 -- 闸门③ 只 grep 「[1-9][0-9]* passed」，xfailed 不计入 => 少一条断言不会让车道变红
     - MERGE-LEAF VERIFIED pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 - `pytest.xfail(...)` is called imperatively inside the test body, so it raises and aborts the test; the download assertions at lines 96-100 never run when the hash is empty
-  - Suggested fix / response: 把命令式 `pytest.xfail()` 拆掉：把 E2E-009 拆成两条用例 ---- (a) `test_e2e_009_audit_hash_present` 对 `record_hash_digest` 做**硬断言**（今天应当是红的，红着才诚实）；(b) `test_e2e_009_download_non_empty` 断 `200` + `len(content) > 0`。这样车道在产品缺陷未修前会红，而不是带着一条没跑完的场景报绿。
+  - Suggested fix / response: 把命令式 `pytest.xfail()` 拆掉：把 E2E-009 拆成两条用例 -- (a) `test_e2e_009_audit_hash_present` 对 `record_hash_digest` 做**硬断言**（今天应当是红的，红着才诚实）；(b) `test_e2e_009_download_non_empty` 断 `200` + `len(content) > 0`。这样车道在产品缺陷未修前会红，而不是带着一条没跑完的场景报绿。
   - Validation: confirmed
   - Reviewers: adversarial, testing
   - Route: `gated_auto -> downstream-resolver`
@@ -237,15 +237,15 @@
     - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 -- 『WARNING **只断「路由可达」**...「控制台无 error / 无 4xx-5xx」**不作为断言**』
     - 构造：让 `/sim/streams` 页面渲染抛错 => React 卸载子树 => `#root` 仍在 DOM => root=true => 断言通过 => 扫描对该路由的失败完全无感
     - CLAUDE.md《Per-Batch QA Gate》流程步骤 2：「浏览器：login 200 + dashboard 渲染 + 各 Page 路由可达」「控制台：无 antd / React / TypeScript error」「网络：核心 mock 端点（mock-login、meta 5 端点）无 404」；步骤 4：「CRITICAL / HIGH 必修完才能开下一批；MEDIUM / LOW 登记到 TODOS.md 延后」
-    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:63-69（新增）----「WARNING **只断「路由可达」**（渲染了 + 没被弹回 /login）---- WARNING 「控制台无 error / 无 4xx-5xx」**不作为断言** => 因为仓里有一批 **前端调用了不存在端点**的页面（`/pipe/line-list` ,  `/pms` ,  `/bedd`）... => 改成**打印出来**（进 QA 报告）=> 等那些端点补齐后，**再把断言加回来**。」，其后仅剩 `expect(results.every((r) => r.root)).toBe(true)` 与「没被弹回 /login」两条断言
-    - TODOS.md（新增）TODO-159：「真后端通道（`--project=real-backend`）逐条走完 **44 条路由** => 三处请求 **404**」,  TODO-160：「`/common/properties` ,  `/common/stress` ,  `/common/toxicity` 三个页面**首屏**就发一个**空查询** => 后端 **422**」----两者均标注「归属：P10-C」延后，未按闸门做严重度分类
+    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:63-69（新增）--「WARNING **只断「路由可达」**（渲染了 + 没被弹回 /login）-- WARNING 「控制台无 error / 无 4xx-5xx」**不作为断言** => 因为仓里有一批 **前端调用了不存在端点**的页面（`/pipe/line-list` / `/pms` / `/bedd`）... => 改成**打印出来**（进 QA 报告）=> 等那些端点补齐后，**再把断言加回来**。」，其后仅剩 `expect(results.every((r) => r.root)).toBe(true)` 与「没被弹回 /login」两条断言
+    - TODOS.md（新增）TODO-159：「真后端通道（`--project=real-backend`）逐条走完 **44 条路由** => 三处请求 **404**」 / TODO-160：「`/common/properties` / `/common/stress` / `/common/toxicity` 三个页面**首屏**就发一个**空查询** => 后端 **422**」--两者均标注「归属：P10-C」延后，未按闸门做严重度分类
     - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 -- `// WARNING **只断「路由可达」**` ... `// => => 改成**打印出来**（进 QA 报告）=>` / `// => => 等那些端点补齐后，**再把断言加回来**。`
     - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-73 -- `  expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true);` => 控制台 error / 4xx 只被收集、未被断言
     - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:38-43 -- `  const consoleErrors: string[] = [];` / `  const badResponses: string[] = [];` => 收集了却不用
     - TODOS.md（diff）-- `## TODO-159: 前端调用了**不存在的端点**的 3 个页面（真后端下打不开数据） 🟠` => 「再断言」目前只登记在 TODO，无钉子
-    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-74 ---- `expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true); expect(results.filter((r) => r.redirected), ...).toEqual([]);`
-    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 ---- 注释自陈「『控制台无 error / 无 4xx-5xx』**不作为断言**」
-    - TODOS.md TODO-159 / TODO-160 ---- 三个页面调不存在的端点、三个 common 页首屏 422（扫描本该发现的正是这两类）
+    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-74 -- `expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true); expect(results.filter((r) => r.redirected), ...).toEqual([]);`
+    - pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 -- 注释自陈「『控制台无 error / 无 4xx-5xx』**不作为断言**」
+    - TODOS.md TODO-159 / TODO-160 -- 三个页面调不存在的端点、三个 common 页首屏 422（扫描本该发现的正是这两类）
   - Suggested fix / response: 把 `#root` 换成**页面专有特征**（种子里某个 id/标题出现在页面上），并把收集到的 console error 与 4xx/5xx **变成断言**：除显式白名单（TODO-159 的 3 个页面 + TODO-160 的 3 个 common 页）外，白名单之外必须为空；白名单条目要逐条写清是哪一页、哪个端点。
   - Validation: confirmed
   - Reviewers: adversarial, project-standards, learnings, testing
@@ -257,9 +257,9 @@
     - pcs-backend/tests/e2e_flows/conftest.py:95-100 -- `url = os.environ.get("DATABASE_URL", ""); if not url.startswith("postgres"): raise RuntimeError(...)` => 只查协议，不查库名
     - pcs-backend/scripts/pytest_e2e.sh:32-35 -- 正确做法只在薄封装里（`export PCS_E2E_LANE=1` + exec pytest_pg.sh，无条件覆写 DATABASE_URL 到 pcs_pgtest）=> 绕过脚本就没有这层保护
     - pcs-backend/tests/e2e_flows/conftest.py:164-187 -- 拿到 URL 就在那个库里 `CREATE SCHEMA` + 子进程 `alembic upgrade head`
-    - pcs-backend/tests/e2e_flows/conftest.py:93-101 ---- `url = os.environ.get("DATABASE_URL", "")` / `if not url.startswith("postgres"): raise RuntimeError(...)`（**只查协议，不查库名**）
-    - pcs-backend/tests/e2e_flows/conftest.py:168-191 ---- `CREATE SCHEMA` / `alembic upgrade head` / `DROP SCHEMA ... CASCADE` 全部作用在 `_lane_url()` 返回的那个库上
-    - pcs-backend/scripts/pytest_pg.sh:64-67 ---- 库名只在脚本层被钉死（`PG_DB_NAME="${PG_DB_NAME:-pcs_pgtest}"`）=> 车道自身无此断言
+    - pcs-backend/tests/e2e_flows/conftest.py:93-101 -- `url = os.environ.get("DATABASE_URL", "")` / `if not url.startswith("postgres"): raise RuntimeError(...)`（**只查协议，不查库名**）
+    - pcs-backend/tests/e2e_flows/conftest.py:168-191 -- `CREATE SCHEMA` / `alembic upgrade head` / `DROP SCHEMA ... CASCADE` 全部作用在 `_lane_url()` 返回的那个库上
+    - pcs-backend/scripts/pytest_pg.sh:64-67 -- 库名只在脚本层被钉死（`PG_DB_NAME="${PG_DB_NAME:-pcs_pgtest}"`）=> 车道自身无此断言
     - pcs-backend/scripts/seed_e2e_flows.py:751 -- `    factory = get_async_session_factory()` (no database-name check before writing)
     - pcs-backend/scripts/seed_e2e_flows.py:748 -- `async def _main(reset: bool) -> None:` / docstring usage lines 3729-3730 -- `    uv run python scripts/seed_e2e_flows.py            # 幂等灌种子` (the documented invocation)
     - pcs-backend/scripts/seed_e2e_flows.py:342 / 361 / 390 -- `            status="ACTIVE",` (seeded accounts are ACTIVE)
@@ -276,11 +276,11 @@
     - pcs-backend/scripts/seed_e2e_flows.py:293 -- `    project_ids = [FLOW_PROJECT_ID]` => `--reset` 只删自己那个项目，但**新写**的行照写不误
   - Suggested fix / response: 在车道与种子脚本里都加**目标库名白名单**：进入车道时读 `current_database()`，不在允许清单（默认 `pcs_pgtest`，可用 `PCS_E2E_ALLOWED_DB` 覆盖）里就**非零退出并打印实际库名**；`scripts/seed_e2e_flows.py` 在任何写入前做同一条检查。白名单必须落在**车道自己**里，不能只靠薄封装脚本。
   - Validation: confirmed / protected subject: data-loss / incidence NOT measured (code permits it, nobody showed it happens)
-  - Reviewers: adversarial, testing, security, security, reliability
+  - Reviewers: adversarial, testing, security, reliability
   - Route: `gated_auto -> downstream-resolver`
 
 - **#9** -- `pcs-frontend/src/pages/routeWrappers.tsx:87` -- useFetch 静默吞错且绕过 axios 401 拦截器 => token 过期后永久停在加载中
-  - Why it matters: 报错链路**不可靠**：非 2xx 被折叠成 `null`（`r.ok ? r.json() : null`），网络异常被 `.catch(() => {})` 吞掉 => `data` 永远停在 `initial` => `StreamDetailRoute` 永久渲染「加载中...」（routeWrappers.tsx:160），列表页则渲染成「空列表」---- 两者都与「加载中」/「真的没有数据」长得一样，用户没有任何提示。本批把假 token 换成真 token 后引入了一个**新的**静默失败窗口：access token 30 分钟过期（app/core/config.py:46 `access_token_expire_minutes: int = 30`）=> `useFetch` 的请求全部 401 => 而 `useFetch` 用的是裸 `fetch`，**绕过了 axios 的 401 拦截器**（client.ts:54-60：clearSession + 跳 /login）=> 用户既不会被踢回登录页、也看不到任何报错，只能手动刷新（刷新后 token 仍过期 => 还是坏的）。裸 `fetch` 还没有 timeout => 后端挂住时页面同样永远「加载中...」。
+  - Why it matters: 报错链路**不可靠**：非 2xx 被折叠成 `null`（`r.ok ? r.json() : null`），网络异常被 `.catch(() => {})` 吞掉 => `data` 永远停在 `initial` => `StreamDetailRoute` 永久渲染「加载中...」（routeWrappers.tsx:160），列表页则渲染成「空列表」-- 两者都与「加载中」/「真的没有数据」长得一样，用户没有任何提示。本批把假 token 换成真 token 后引入了一个**新的**静默失败窗口：access token 30 分钟过期（app/core/config.py:46 `access_token_expire_minutes: int = 30`）=> `useFetch` 的请求全部 401 => 而 `useFetch` 用的是裸 `fetch`，**绕过了 axios 的 401 拦截器**（client.ts:54-60：clearSession + 跳 /login）=> 用户既不会被踢回登录页、也看不到任何报错，只能手动刷新（刷新后 token 仍过期 => 还是坏的）。裸 `fetch` 还没有 timeout => 后端挂住时页面同样永远「加载中...」。
   - Evidence:
     - pcs-frontend/src/pages/routeWrappers.tsx:87-92 -- `    void fetch(path, { headers: { Authorization: authorization } })` / `      .then((r) => (r.ok ? r.json() : null))` / `      .then((j: T | null) => {` / `        if (!cancelled && j !== null) setData(j);` / `      })` / `      .catch(() => {/* offline / unhandled: keep empty fixtures */});` => 非 2xx 与网络异常都变成「什么都不发生」
     - pcs-frontend/src/pages/routeWrappers.tsx:159-160 -- `  const stream = useFetch<Stream | null>(`/api/v1/streams/${streamId}`, null);` / `  if (!stream) return <Typography.Text>加载中...</Typography.Text>;` => 失败态与加载态同形
@@ -300,7 +300,7 @@
 ### P2 -- Moderate (16)
 
 | # | File | Issue | Reviewer | Confidence |
-|---|---|---|---|---|
+|--|--|--|--|--|
 | 10 | `pcs-backend/app/core/errors.py:45` | RBAC 拒绝的审计写入在车道里被静默跳过 | adversarial | 100 |
 | 11 | `.wolf/STATUS.md:88` | 本批 4 条可复用解法没有回写 docs/solutions/，且 STATUS 自称已回写 | project-standards | 75 |
 | 12 | `pcs-backend/app/api/v1/report.py:494` | 审计哈希端点返回值随行龄不同（老行与复用行恒返空串） | api-contract | 75 |
@@ -330,12 +330,12 @@
   - Route: `manual -> human`
 
 - **#11** -- `.wolf/STATUS.md:88` -- 本批 4 条可复用解法没有回写 docs/solutions/，且 STATUS 自称已回写
-  - Why it matters: CLAUDE.md 的知识库条明确要求「新增解法后回写一份，别只留在提交信息里」----解法要落到 `docs/solutions/`（按 problem_type 分目录、带 YAML frontmatter）。本批修了 9 个真缺陷，其中至少 4 条是**可复用的新解法域**：车道驱动必须与生产一致（asyncpg vs psycopg 的类型严格性）、契约与 DB 可空性对齐（响应枚举必填 -> DB 可空 => 500）、前端两条取数通道（axios 拦截器 vs 裸 fetch）、守门测试必须与被守卫机制隔离（车道锁）。STATUS.md 自己宣称这三条教训「已进 cerebrum / docs/solutions」，但本批的改动文件清单里没有任何 `docs/solutions/**` 文件 => 那句断言不成立。后果：这些坑下一次仍会被踩（仓内既有先例：bug-2162 的修法写成了 `docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md`，bug-2170 与既有 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` 同形）。
+  - Why it matters: CLAUDE.md 的知识库条明确要求「新增解法后回写一份，别只留在提交信息里」--解法要落到 `docs/solutions/`（按 problem_type 分目录、带 YAML frontmatter）。本批修了 9 个真缺陷，其中至少 4 条是**可复用的新解法域**：车道驱动必须与生产一致（asyncpg vs psycopg 的类型严格性）、契约与 DB 可空性对齐（响应枚举必填 -> DB 可空 => 500）、前端两条取数通道（axios 拦截器 vs 裸 fetch）、守门测试必须与被守卫机制隔离（车道锁）。STATUS.md 自己宣称这三条教训「已进 cerebrum / docs/solutions」，但本批的改动文件清单里没有任何 `docs/solutions/**` 文件 => 那句断言不成立。后果：这些坑下一次仍会被踩（仓内既有先例：bug-2162 的修法写成了 `docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md`，bug-2170 与既有 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` 同形）。
   - Evidence:
     - CLAUDE.md《知识库》：「`docs/solutions/` -- 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type` 分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。在已记录领域做实现或排障时相关；**新增解法后回写一份，别只留在提交信息里**。」
-    - .wolf/STATUS.md:86-92（新增）----「## 教训（**已进 cerebrum / docs/solutions**，此处只留最新三条）」「- **车道的驱动必须与生产一致** => 否则「int 塞进 VARCHAR」这类缺陷**隐形**（bug-2166）。」「- **前端有两条取数通道**（axios 拦截器 vs 裸 `fetch`）=> 后者**默认没有 token** => 真后端通道才抓到（bug-2169）。」「- **守卫测试必须与被守卫的机制隔离** => 车道锁 => 守门测试抢同一把锁 => 测的不是它声称的东西（bug-2170）。」
+    - .wolf/STATUS.md:86-92（新增）--「## 教训（**已进 cerebrum / docs/solutions**，此处只留最新三条）」「- **车道的驱动必须与生产一致** => 否则「int 塞进 VARCHAR」这类缺陷**隐形**（bug-2166）。」「- **前端有两条取数通道**（axios 拦截器 vs 裸 `fetch`）=> 后者**默认没有 token** => 真后端通道才抓到（bug-2169）。」「- **守卫测试必须与被守卫的机制隔离** => 车道锁 => 守门测试抢同一把锁 => 测的不是它声称的东西（bug-2170）。」
     - 本批改动文件清单（files.txt）不含任何 `docs/solutions/**` 条目；对应内容只出现在 .wolf/buglog.json（新增 bug-2163~2170）与代码注释里
-    - pcs-backend/tests/e2e_flows/conftest.py:113-124（新增 `_async_url`）----「WARNING **为什么必须换**（2026-11-16 ,  T7 实测）：车道的 `DATABASE_URL` 是 `postgresql+psycopg://` => async 部分若也用 psycopg => => **驱动与生产不一致** => => **asyncpg 的类型严格性看不到**」（同款可复用解法）
+    - pcs-backend/tests/e2e_flows/conftest.py:113-124（新增 `_async_url`）--「WARNING **为什么必须换**（2026-11-16 / T7 实测）：车道的 `DATABASE_URL` 是 `postgresql+psycopg://` => async 部分若也用 psycopg => => **驱动与生产不一致** => => **asyncpg 的类型严格性看不到**」（同款可复用解法）
     - MERGE-LEAF VERIFIED .wolf/STATUS.md:86 - the section header claims the lessons are already in 'cerebrum / docs/solutions' and lists bug-2166 / bug-2169 / bug-2170, but `git diff d73d1ac..f3b35e5 -- docs/solutions` is empty and no file under docs/solutions/ mentions any of those three bug numbers
     - MERGE-LEAF VERIFIED .wolf/STATUS.md:50-51 - points at .gstack/qa-reports/qa-report-pcs-frontend-2026-11-16-p10b.md and says '本轮还没跑', while the report on disk is qa-report-pcs-frontend-2026-11-17-p10b.md (different date) and it does exist
   - Suggested fix / response: 按 problem_type 各回写一份：① `docs/solutions/testing-issues/test-lane-driver-must-match-production-driver.md`（asyncpg vs psycopg 的类型严格性差异 + 「单测照绿、真库炸」）；② `docs/solutions/database-issues/response-enum-nullable-must-match-db-nullability.md`（bug-2167：DB 可空列 => 响应枚举必填 => ResponseValidationError 500）；③ `docs/solutions/frontend-issues/raw-fetch-bypasses-axios-token-interceptor.md`（bug-2169）；④ `docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md`（bug-2170）。每份带 module / tags / problem_type / severity frontmatter，并让 STATUS.md 的「已进 docs/solutions」变成事实。
@@ -355,7 +355,7 @@
   - Route: `gated_auto -> downstream-resolver`
 
 - **#13** -- `pcs-backend/app/api/v1/sim_imports_query.py:325` -- preview-streams 无 response_model，契约未记录本批统一的形状；注释与事实相反
-  - Why it matters: 本批把 list 归一成 {"streams": [...]}，但端点只有 `-> dict` 注解、没有 response_model => OpenAPI 里 200 仍是 {"type": "object"}（前端生成类型是 {[key: string]: unknown}）=> 消费者无法从契约得知必须读 .streams，只能靠试。另外新增的代码注释说「SIM/Excel 导入存 dict」，与事实相反 ---- 两个写入点（import_service.py:496 PRO/II、:612 EXCEL）存的都存成 list => 归一的影响面比注释写的大（EXCEL 导入以前同样是 500）。
+  - Why it matters: 本批把 list 归一成 {"streams": [...]}，但端点只有 `-> dict` 注解、没有 response_model => OpenAPI 里 200 仍是 {"type": "object"}（前端生成类型是 {[key: string]: unknown}）=> 消费者无法从契约得知必须读 .streams，只能靠试。另外新增的代码注释说「SIM/Excel 导入存 dict」，与事实相反 -- 两个写入点（import_service.py:496 PRO/II、:612 EXCEL）存的都存成 list => 归一的影响面比注释写的大（EXCEL 导入以前同样是 500）。
   - Evidence:
     - pcs-backend/app/api/v1/sim_imports_query.py:325-330 -- @router.get("/{import_id}/preview-streams") ... ) -> dict:  （无 response_model => OpenAPI 200 = {"type": "object"}）
     - pcs-backend/app/api/v1/sim_imports_query.py:362-363 -- 「**PRO/II 导入**把 preview 存成 **list**（`preview_streams_json = [...]`），而 SIM/Excel 导入存 **dict**（`{"streams": [...]}`）」=> 与下面两个写入点相反
@@ -384,7 +384,7 @@
   - Route: `manual -> human`
 
 - **#15** -- `pcs-backend/scripts/pytest_pg.sh:56` -- flock 互斥只覆盖两条 pytest 车道，compose 迁移/种子裸奔
-  - Why it matters: 锁本身是对的（放在共享脚本里 => 两条车道都生效；`flock -n` 快速失败而不是排队；fd 9 被子进程继承 => 锁一直持有到 pytest 真正退出；进程退出即释放）。但覆盖面有缺口：**同一个 `pcs_pgtest` 库还有别的写者没进锁** ---- compose 的 `migrate` 服务（`alembic upgrade head`，docker-compose.yml:113，写 public schema）与 `seed` 服务（两个种子脚本，:153）都在这个库上跑 DDL/DML，却完全不受 flock 约束 => 开发者在车道运行时 `docker compose --profile test up` => 隔离 schema 里的 `CREATE SCHEMA`/`alembic upgrade head` 与 public schema 里的 DDL 并发 => 表现是 catalog 锁互相等待（脚本注释自己写的「偶发卡住」），排查成本极高。另有两处保真度问题：锁文件是固定的 `/tmp/pcs-pgtest-lane.lock`（被 tmp 清理删掉后新进程会拿到新 inode => 互斥静默失效；非本用户拥有时 `exec 9>` 直接报错而不是那句清晰的 FAIL），以及守卫测试用 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件 => **默认路径从未被测过**。
+  - Why it matters: 锁本身是对的（放在共享脚本里 => 两条车道都生效；`flock -n` 快速失败而不是排队；fd 9 被子进程继承 => 锁一直持有到 pytest 真正退出；进程退出即释放）。但覆盖面有缺口：**同一个 `pcs_pgtest` 库还有别的写者没进锁** -- compose 的 `migrate` 服务（`alembic upgrade head`，docker-compose.yml:113，写 public schema）与 `seed` 服务（两个种子脚本，:153）都在这个库上跑 DDL/DML，却完全不受 flock 约束 => 开发者在车道运行时 `docker compose --profile test up` => 隔离 schema 里的 `CREATE SCHEMA`/`alembic upgrade head` 与 public schema 里的 DDL 并发 => 表现是 catalog 锁互相等待（脚本注释自己写的「偶发卡住」），排查成本极高。另有两处保真度问题：锁文件是固定的 `/tmp/pcs-pgtest-lane.lock`（被 tmp 清理删掉后新进程会拿到新 inode => 互斥静默失效；非本用户拥有时 `exec 9>` 直接报错而不是那句清晰的 FAIL），以及守卫测试用 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件 => **默认路径从未被测过**。
   - Evidence:
     - pcs-backend/scripts/pytest_pg.sh:56-61 -- `LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}"` / `exec 9>"$LOCK_FILE"` / `if ! flock -n 9; then` / `  echo "FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 => 同一个库不能并发建 schema" >&2` / `  exit 1` / `fi` => 只约束走进这个脚本的进程
     - docker-compose.yml:113 -- `    command: ["uv", "run", "--frozen", "alembic", "upgrade", "head"]`（migrate 服务，对 `pcs_pgtest` public schema 做 DDL，无锁）
@@ -430,7 +430,7 @@
   - Route: `gated_auto -> downstream-resolver`
 
 - **#18** -- `pcs-backend/tests/e2e_flows/conftest.py:272` -- E2E 车道不跑 lifespan，注释称已补启动 seed 实测 0 处调用
-  - Why it matters: stand-in guard fidelity 破了：本批的规格是「真 app + 真库」「驱动必须与生产一致」，而生产 app 在 **lifespan** 里 seed 两样东西（`CoefficientService.seed_default_tables` 的 6 张 CATEGORY_3 默认系数表 + `seed_system_setting_defaults` 的 7 个系统参数，app/main.py:159-160）---- 车道刻意不跑 lifespan（httpx.ASGITransport 本来就不跑），而注释说「由 `e2e_seed` 显式补」；实测**两个种子脚本与 conftest 里都没有任何一处调用这两个 seed**（grep `coefficient|system_setting|Coefficient|SystemSetting|seed_default` 在 scripts/seed_e2e_flows.py、scripts/seed_e2e_data.py、tests/e2e_flows/conftest.py 上 0 命中）=> 隔离 schema 里没有系数表、也没有系统参数 => 任何碰到这两处默认值的场景看到的是「空的生产默认集」=> 车道可以在生产形状不同的上下文上绿过去。注释还主动掩盖了这个缺口（后来的人会以为已经补了）。
+  - Why it matters: stand-in guard fidelity 破了：本批的规格是「真 app + 真库」「驱动必须与生产一致」，而生产 app 在 **lifespan** 里 seed 两样东西（`CoefficientService.seed_default_tables` 的 6 张 CATEGORY_3 默认系数表 + `seed_system_setting_defaults` 的 7 个系统参数，app/main.py:159-160）-- 车道刻意不跑 lifespan（httpx.ASGITransport 本来就不跑），而注释说「由 `e2e_seed` 显式补」；实测**两个种子脚本与 conftest 里都没有任何一处调用这两个 seed**（grep `coefficient|system_setting|Coefficient|SystemSetting|seed_default` 在 scripts/seed_e2e_flows.py、scripts/seed_e2e_data.py、tests/e2e_flows/conftest.py 上 0 命中）=> 隔离 schema 里没有系数表、也没有系统参数 => 任何碰到这两处默认值的场景看到的是「空的生产默认集」=> 车道可以在生产形状不同的上下文上绿过去。注释还主动掩盖了这个缺口（后来的人会以为已经补了）。
   - Evidence:
     - pcs-backend/tests/e2e_flows/conftest.py:271-272 -- `    WARNING **不走 lifespan** => `httpx.ASGITransport` 本来就不跑 lifespan =>` / `    「只有 lifespan 才会做的那两处 seed」由 `e2e_seed` 显式补（T2 起）。` => 注释里的承诺
     - pcs-backend/app/main.py:157-160 -- `    factory = get_async_session_factory()` / `    async with factory() as session:` / `        await CoefficientService.seed_default_tables(session)` / `        await seed_system_setting_defaults(session)` => 这两处 seed **只在 lifespan 里**
@@ -454,24 +454,24 @@
   - Route: `gated_auto -> downstream-resolver`
 
 - **#20** -- `pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:57` -- schema 一致性检查塞进隔离车道且直连开发库 pcs / pcs_test
-  - Why it matters: 这条用例断的是 **`pcs` 与 `pcs_test` 两个开发库的 `alembic_version` 是否相同**----它既不用车道的隔离 schema，也不用车道自己的库（它从 `.env` 派 URL 连开发库）。它被标成 `@pytest.mark.e2e` => **只在 E2E 车道跑** => 而 E2E 车道是「批末跑一次」的 => 这条「两库版本一致」的发布前检查实际上**几乎不会执行**，可它偏偏占了 E2E 车道的一个名额；同时它让这条车道**不再 hermetic**（开发库不可达/未迁移 => 车道红，且红的理由与车道本身无关）。职责错位：这是发布前检查清单里的条目，不是端到端场景。
+  - Why it matters: 这条用例断的是 **`pcs` 与 `pcs_test` 两个开发库的 `alembic_version` 是否相同**--它既不用车道的隔离 schema，也不用车道自己的库（它从 `.env` 派 URL 连开发库）。它被标成 `@pytest.mark.e2e` => **只在 E2E 车道跑** => 而 E2E 车道是「批末跑一次」的 => 这条「两库版本一致」的发布前检查实际上**几乎不会执行**，可它偏偏占了 E2E 车道的一个名额；同时它让这条车道**不再 hermetic**（开发库不可达/未迁移 => 车道红，且红的理由与车道本身无关）。职责错位：这是发布前检查清单里的条目，不是端到端场景。
   - Evidence:
     - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:57-76 -- `@pytest.mark.e2e async def test_e2e_018_pcs_and_pcs_test_schema_versions_match()`，URL 来自 `dotenv_values(BACKEND_ROOT / ".env")` => 连的是开发库 `pcs`/`pcs_test`
-    - pcs-backend/tests/e2e_flows/conftest.py:1-19 -- 车道的定义是「**隔离 schema** ,  真 PG」，`e2e_schema` fixture 的隔离 schema 与这条用例无关
+    - pcs-backend/tests/e2e_flows/conftest.py:1-19 -- 车道的定义是「**隔离 schema** / 真 PG」，`e2e_schema` fixture 的隔离 schema 与这条用例无关
     - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:1-16 -- 文件自己的 docstring 承认这是「两库 schema 版本一致」的发布前性质检查
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:103-158 -- 同车道里的隔离守卫用例确实用的是隔离 schema => 两条用例的主题并不属于同一层
-    - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:65-71 ---- `dev_url = dotenv_values(BACKEND_ROOT / ".env").get("DATABASE_URL")` ... `test_url = re.sub(r"/pcs(\?|$)", r"/pcs_test\1", dev_url)` ... `pcs_rev = _revision_of(dev_url)`
-    - pcs-backend/tests/e2e_flows/conftest.py:93-101 ---- 车道其余部分只用 `_lane_url()`（= 车道导出的 pcs_pgtest），只有这条用例绕开它去连开发库
-    - pcs-backend/CLAUDE.md ---- 「WARNING **验多个库 => 一库一个进程**... `pcs_test` 实际还停在旧 revision」=> 两库 revision 不齐是本仓已发生过的常态
+    - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:65-71 -- `dev_url = dotenv_values(BACKEND_ROOT / ".env").get("DATABASE_URL")` ... `test_url = re.sub(r"/pcs(\?|$)", r"/pcs_test\1", dev_url)` ... `pcs_rev = _revision_of(dev_url)`
+    - pcs-backend/tests/e2e_flows/conftest.py:93-101 -- 车道其余部分只用 `_lane_url()`（= 车道导出的 pcs_pgtest），只有这条用例绕开它去连开发库
+    - pcs-backend/CLAUDE.md -- 「WARNING **验多个库 => 一库一个进程**... `pcs_test` 实际还停在旧 revision」=> 两库 revision 不齐是本仓已发生过的常态
   - Suggested fix / response: 把它从 `tests/e2e_flows/` 挪到 `tests/scripts/`（或发布前检查脚本 `scripts/gate_alembic_check.py` 附近），用**不带 e2e marker** 的方式在默认车道/发布检查里跑；E2E 车道只留「隔离 schema 内部」的用例 => 车道与发布检查各归其位，且这条检查真的会跑。
   - Validation: confirmed
   - Reviewers: maintainability, testing
   - Route: `manual -> downstream-resolver`
 
 - **#21** -- `pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:73` -- 两库 schema 一致闸只比彼此、不与代码 head 比 => 两库都落后也绿
-  - Why it matters: E2E-018 是本批唯一的「两库 schema 一致」闸（CLAUDE.md 发布前检查第 1 条），但它只断言 `pcs_rev == pcs_test_rev` ---- **从不与代码 head 比**。若 pcs 与 pcs_test 一起停在同一个旧 revision（CLAUDE.md 明确记过「pcs_test 长期停在 p7_s4_001 / p9_006」这类事故），该断言照样通过 => 假绿。而且它读的是**开发库**（`.env` 的 DATABASE_URL => pcs/pcs_test），把 E2E 车道的红绿绑在开发机的本地 DB 状态上：pcs_test 没对齐就必红（docstring 自己写了「不一致就登记（本批不修）=> 断言直接红」），pcs_test 与 pcs 都落后就假绿。
+  - Why it matters: E2E-018 是本批唯一的「两库 schema 一致」闸（CLAUDE.md 发布前检查第 1 条），但它只断言 `pcs_rev == pcs_test_rev` -- **从不与代码 head 比**。若 pcs 与 pcs_test 一起停在同一个旧 revision（CLAUDE.md 明确记过「pcs_test 长期停在 p7_s4_001 / p9_006」这类事故），该断言照样通过 => 假绿。而且它读的是**开发库**（`.env` 的 DATABASE_URL => pcs/pcs_test），把 E2E 车道的红绿绑在开发机的本地 DB 状态上：pcs_test 没对齐就必红（docstring 自己写了「不一致就登记（本批不修）=> 断言直接红」），pcs_test 与 pcs 都落后就假绿。
   - Evidence:
-    - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:70-76 -- `pcs_rev = _revision_of(dev_url)` / `pcs_test_rev = _revision_of(test_url)` / `assert pcs_rev == pcs_test_rev, ("两库 schema 版本不一致：pcs={pcs_rev} ,  pcs_test={pcs_test_rev}" "=> 登记偏离（本批不修）")`
+    - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:70-76 -- `pcs_rev = _revision_of(dev_url)` / `pcs_test_rev = _revision_of(test_url)` / `assert pcs_rev == pcs_test_rev, ("两库 schema 版本不一致：pcs={pcs_rev} / pcs_test={pcs_test_rev}" "=> 登记偏离（本批不修）")`
     - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:30-38 -- `print(conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one())`（只读各库当前 revision，没有 head 的概念）
     - pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py:65-68 -- `dev_url = dotenv_values(BACKEND_ROOT / ".env").get("DATABASE_URL")` / `test_url = re.sub(r"/pcs(\?|$)", r"/pcs_test\1", dev_url)`（断言对象是开发库，不是车道自己的隔离 schema）
   - Suggested fix / response: 再加一条与代码 head 的比较：子进程跑 `alembic heads` 取 head revision，断言 `pcs_rev == head and pcs_test_rev == head`（两条都要，不一致就分别报出是哪一库落后）；并把「pcs/pcs_test 落后」从「断言直接红」改成显式的 known-deviation 清单（现在这样会让 E2E 车道在干净机器上永远红）。
@@ -485,10 +485,10 @@
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:132 -- `before = _public_snapshot(public_engine)`（在 `e2e_seed` 之后 => 种子阶段的泄漏已被吸收进基线）
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-245 -- `_public_snapshot` 只数 `for table in ("users", "projects", "streams", "user_projects")`
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:134-149 -- 被验证的写路径只有 `POST /api/v1/projects` 一条
-    - pcs-backend/tests/e2e_flows/test_lane_smoke.py:105-114 -- docstring 自称『**「隔离」这句话必须被验** ---- E2E 的行**不能**出现在 public schema』=> 断言范围与宣称范围不一致
-    - pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-244 ---- `for table in ("users", "projects", "streams", "user_projects"): out[table] = int(conn.execute(text(f"SELECT count(*) FROM public.{table}")).scalar_one())`
-    - pcs-backend/tests/e2e_flows/conftest.py:283-294 ---- `app = create_app()`，`app.dependency_overrides[get_db] = _get_db` => **app 自己的 engine 仍指向 public**（只有被覆盖的依赖注入层走隔离 schema）
-    - pcs-backend/scripts/seed_e2e_flows.py:699-730 ---- 种子写 users/projects/user_projects/streams/signature_matrices/deliverables/piping_results/report_definitions/equipment ...（远多于四张表）
+    - pcs-backend/tests/e2e_flows/test_lane_smoke.py:105-114 -- docstring 自称『**「隔离」这句话必须被验** -- E2E 的行**不能**出现在 public schema』=> 断言范围与宣称范围不一致
+    - pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-244 -- `for table in ("users", "projects", "streams", "user_projects"): out[table] = int(conn.execute(text(f"SELECT count(*) FROM public.{table}")).scalar_one())`
+    - pcs-backend/tests/e2e_flows/conftest.py:283-294 -- `app = create_app()`，`app.dependency_overrides[get_db] = _get_db` => **app 自己的 engine 仍指向 public**（只有被覆盖的依赖注入层走隔离 schema）
+    - pcs-backend/scripts/seed_e2e_flows.py:699-730 -- 种子写 users/projects/user_projects/streams/signature_matrices/deliverables/piping_results/report_definitions/equipment ...（远多于四张表）
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:240 -- `        for table in ("users", "projects", "streams", "user_projects"):` => only 4 tables are snapshotted
     - pcs-backend/tests/e2e_flows/test_lane_smoke.py:245-247 -- `            out[table] = int(conn.execute(text(f"SELECT count(*) FROM public.{table}")).scalar_one())` => count(*) only, no `max(id)` (the plan required both)
     - pcs-backend/scripts/pytest_pg.sh:66 -- `  export DATABASE_URL="postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}"` => during the lane the app's global engine resolves to `pcs_pgtest` PUBLIC (no search_path), while only the `get_db` override is schema-scoped
@@ -501,10 +501,10 @@
 - **#23** -- `pcs-frontend/package.json:20` -- 真后端 UI 车道依赖 4 个仓库外环境变量 => 无法从仓库复现
   - Why it matters: 本批第二个主交付物（真后端通道的 5 条 UI 流）依赖四个**仓库里没有任何地方写出**的环境变量：后端的 `DATABASE_URL` 必须指向 pcs_pgtest（:5433）+ `PCS_ENABLE_MOCK_LOGIN=true`，前端的 `VITE_PROJECT_ID` 必须是 flows 项目 id + `VITE_API_PROXY_TARGET` 必须指向那个后端。`npm run e2e:real` 只设了后两个里的一个（`VITE_API_PROXY_TARGET`，默认还是 :8000 的**开发后端**）；`playwright.config.ts` 的真后端 webServer 只设了 `VITE_ENABLE_MOCK=false`。而 `src/constants/env.ts:13` 的 `PROJECT_ID` 默认值是占位 id `00000000-0000-0000-0000-000000000001` => 不显式注入时物流/交付物/签署矩阵三页查的是**另一个项目** => 空表。完整复现步骤只写在 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md`，而 `.gstack/` 是 gitignored（CLAUDE.md 自己承认「报告无法随仓库分发给同事或后续会话」）=> 换个机器/换个会话就再也跑不起来这条验收。更糟的是「路由扫描」与「越权用户看不到别人的项目」这两条在项目 id 错掉时**照样绿**（前者只断言 `#root` 存在，后者比较两个响应的状态码 => 两边都 404/403 就相等）=> 假绿。
   - Evidence:
-    - pcs-frontend/package.json:20 ---- `"e2e:real": "VITE_ENABLE_MOCK=false VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://localhost:8000} playwright test --project=real-backend"`（无 VITE_PROJECT_ID）
-    - pcs-frontend/playwright.config.ts 真后端 webServer ---- `command: `VITE_ENABLE_MOCK=false npm run dev -- --port ${REAL_PORT}``（无 VITE_PROJECT_ID）
-    - pcs-frontend/src/constants/env.ts:13 ---- `import.meta.env.VITE_PROJECT_ID ?? '00000000-0000-0000-0000-000000000001'`（占位 id => 页面查错项目）
-    - .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md「8. 复现方式」---- 唯一写出这四个变量与 flows 项目 id 的地方，而该目录被 gitignore
+    - pcs-frontend/package.json:20 -- `"e2e:real": "VITE_ENABLE_MOCK=false VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://localhost:8000} playwright test --project=real-backend"`（无 VITE_PROJECT_ID）
+    - pcs-frontend/playwright.config.ts 真后端 webServer -- `command: `VITE_ENABLE_MOCK=false npm run dev -- --port ${REAL_PORT}``（无 VITE_PROJECT_ID）
+    - pcs-frontend/src/constants/env.ts:13 -- `import.meta.env.VITE_PROJECT_ID ?? '00000000-0000-0000-0000-000000000001'`（占位 id => 页面查错项目）
+    - .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md「8. 复现方式」-- 唯一写出这四个变量与 flows 项目 id 的地方，而该目录被 gitignore
     - MERGE-LEAF VERIFIED pcs-frontend/src/constants/env.ts:12-13 - `import.meta.env.VITE_PROJECT_ID ?? '00000000-0000-0000-0000-000000000001'` => without an injected VITE_PROJECT_ID the pages query the placeholder project
     - MERGE-LEAF VERIFIED pcs-frontend/playwright.config.ts real-backend webServer - sets only VITE_ENABLE_MOCK=false (no VITE_PROJECT_ID); package.json:20 sets VITE_ENABLE_MOCK=false and VITE_API_PROXY_TARGET (default http://localhost:8000). Neither spec file reads any env var: the flow spec hardcodes FLOW_PROJECT_ID = '2488b011-14fc-584b-966e-1e2dfaeb9eb7', so the page under test and the seeded project can diverge
   - Suggested fix / response: 把复现条件写进仓库而不是 gitignored 报告：(a) 在 `pcs-frontend/playwright.config.ts` 的真后端 `webServer` 里加 `env: { VITE_PROJECT_ID: '<flows 项目 id>' }`（该 id 由 `scripts/seed_e2e_flows.py::FLOW_PROJECT_ID` 的 uuid5 派生，`uuid5(NAMESPACE_DNS,'pcs-e2e-flows-project')` 固定不变）；(b) 在 `pcs-frontend/package.json` 加 `e2e:real` 的完整前置（或新增 `pcs-backend/scripts/serve_e2e_backend.sh` 统一导出 DATABASE_URL=pcs_pgtest / PCS_ENABLE_MOCK_LOGIN=true / 端口）；(c) 加一条**可执行**的守卫：真后端通道启动时断言 `import.meta.env.VITE_PROJECT_ID` 非占位值，不等就 fail-fast，避免「查错项目 => 空表 => 假绿」。
@@ -525,7 +525,7 @@
   - Route: `gated_auto -> downstream-resolver`
 
 - **#25** -- `spec/P10 AI预留与测试部署开发规格说明书.md:666` -- 本批偏离登记写进非权威 SPEC 文件，D20 与本批自述互相矛盾
-  - Why it matters: 本批按 PCS-SPEC-P10 V1.3.1 的编号与口径实现（E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响 / E2E-015 自定义报表 / E2E-017 AI / E2E-018 schema 一致），却把 D23~D38 这批 §3.2.2 口径修订登记在 V1.0 那份文件里 ---- 而计划自己的文件清单写的是 Modify: spec/PCS-SPEC-P10 V1.3.1 ...（第五部分「偏离登记」）。同时仓库里对「哪份 SPEC 是准」有两条互相矛盾的裁决：V1.0 文件的 D20 说「PCS-SPEC-P10 V1.3.1 在仓库中不存在 => 以 V1.0 为准」，本批计划说「两个文件都在 => 本批以 V1.3.1 为准」。结果：权威那份的 §3.2.2 一条都没被修订（D26/D29/D33/D34/D35/D37/D38 都在另一份文件里），下一个按权威文件读 SPEC 的人拿到的是过期口径。
+  - Why it matters: 本批按 PCS-SPEC-P10 V1.3.1 的编号与口径实现（E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响 / E2E-015 自定义报表 / E2E-017 AI / E2E-018 schema 一致），却把 D23~D38 这批 §3.2.2 口径修订登记在 V1.0 那份文件里 -- 而计划自己的文件清单写的是 Modify: spec/PCS-SPEC-P10 V1.3.1 ...（第五部分「偏离登记」）。同时仓库里对「哪份 SPEC 是准」有两条互相矛盾的裁决：V1.0 文件的 D20 说「PCS-SPEC-P10 V1.3.1 在仓库中不存在 => 以 V1.0 为准」，本批计划说「两个文件都在 => 本批以 V1.3.1 为准」。结果：权威那份的 §3.2.2 一条都没被修订（D26/D29/D33/D34/D35/D37/D38 都在另一份文件里），下一个按权威文件读 SPEC 的人拿到的是过期口径。
   - Evidence:
     - spec/P10 AI预留与测试部署开发规格说明书.md:666-681 -- D23...D38（P10-B 批末增补）全部登记在这份 V1.0 文件里
     - spec/P10 AI预留与测试部署开发规格说明书.md:662 -- D20（文档治理）...「开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**」...「以**仓库里这份 V1.0** 为准」
@@ -533,10 +533,10 @@
     - docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:11 -- "**Spec:** `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md` §3.2.2"
     - spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md:718-725 -- E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响分析 / E2E-015 自定义报表执行 / E2E-016 用户权限验证 / E2E-017 AI 占位与审计 / E2E-018 Schema 一致性 => 实现口径来自这份
     - CLAUDE.md《前端 UI 规范》：「字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。」
-    - docs/superpowers/plans/2026-11-04-p10-master-plan.md:216-220（新增）----「=> WARNING **D20 的事实前提已变（2026-11-13 实测）**：**`spec/PCS-SPEC-P10 V1.3.1 ...md` 在仓库里存在**（59.3K ,  §3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条）=> => 「V1.3.1 不存在」**不成立** => => **以 V1.3.1 为准**... => 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）=> => **别拿 V1.0 那份当准**。」
-    - spec/P10 AI预留与测试部署开发规格说明书.md:662（未改动的上下文行）----「D20 （文档治理）本 SPEC 的文件名与版本 ... 开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在** ...」
+    - docs/superpowers/plans/2026-11-04-p10-master-plan.md:216-220（新增）--「=> WARNING **D20 的事实前提已变（2026-11-13 实测）**：**`spec/PCS-SPEC-P10 V1.3.1 ...md` 在仓库里存在**（59.3K / §3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条）=> => 「V1.3.1 不存在」**不成立** => => **以 V1.3.1 为准**... => 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）=> => **别拿 V1.0 那份当准**。」
+    - spec/P10 AI预留与测试部署开发规格说明书.md:662（未改动的上下文行）--「D20 （文档治理）本 SPEC 的文件名与版本 ... 开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在** ...」
     - spec/P10 AI预留与测试部署开发规格说明书.md:666-681（新增 D23~D38，每条末列引用 §3.2.2 / §3.2.0(2)，如 D26「18 场景「全部通过」」、D24「AUTH-E2E-11/12（`TEST_VIEWER` ...）」）
-    - .wolf/STATUS.md:41（新增）----「**SPEC 偏离登记 D23~D38 已回写**（该 SPEC 实际是 **V1.0** => D20）。」（与 master-plan 新写的「以 V1.3.1 为准」互相打架）
+    - .wolf/STATUS.md:41（新增）--「**SPEC 偏离登记 D23~D38 已回写**（该 SPEC 实际是 **V1.0** => D20）。」（与 master-plan 新写的「以 V1.3.1 为准」互相打架）
   - Suggested fix / response: 把 D23~D38 同步到权威文件 spec/PCS-SPEC-P10 V1.3.1 ...md 的第五部分（或把两份合并成一份并把 D20 的裁决改掉），并在两份文件顶部互相标注「本批以 V1.3.1 为准」，避免下批继续按 V1.0 口径写。
   - Validation: not validated (P2/P3 advisory; outside the validator batch)
   - Reviewers: api-contract, project-standards
@@ -545,9 +545,9 @@
 ### P3 -- Low (2)
 
 | # | File | Issue | Reviewer | Confidence |
-|---|---|---|---|---|
+|--|--|--|--|--|
 | 26 | `pcs-backend/app/schemas/stream.py:318` | 响应可空但请求仍必填：case_type 读写不对称 | api-contract | 75 |
-| 27 | `pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95` | flock 守卫测试用原文子串匹配（含注释）且不校验 -n；唯一入口守卫只数一个字面量 | learnings, testing, testing | 75 |
+| 27 | `pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95` | flock 守卫测试用原文子串匹配（含注释）且不校验 -n；唯一入口守卫只数一个字面量 | learnings, testing | 75 |
 
 - **#26** -- `pcs-backend/app/schemas/stream.py:318` -- 响应可空但请求仍必填：case_type 读写不对称
   - Why it matters: StreamResponse.case_type 改成可空（对齐 DB 的 Mapped[str | None]），但请求侧 StreamBase.case_type 仍必填 => 读到的 null 值无法原样写回（GET->POST 回写会 422），「拿响应当入参」的客户端会踩空。前端既有消费点（StreamBasicTab / StreamListPage）已全部加空值保护，本批不破坏任何现有消费者，契约侧只是同一字段的读写要求不一致。
@@ -562,33 +562,33 @@
   - Route: `advisory -> human`
 
 - **#27** -- `pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95` -- flock 守卫测试用原文子串匹配（含注释）且不校验 -n；唯一入口守卫只数一个字面量
-  - Why it matters: 同一文件里的另一个守卫专门写了 `_body()` 来剥掉注释，理由是「注释里提到 `uv run pytest` 是说明 => 断『脚本有没有做这件事』必须断可执行部分 => 否则注释就足以让守卫误红」----这正是 docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md 的教训。但同一个文件里的 flock 守卫却直接读**含注释的原文**做子串判断，且只断 `flock` 这个词存在，不断 `-n`（非阻塞）：`flock 9`（阻塞版）也能过，删掉 flock 代码而把这个词留在注释里也能过。=> 守卫证明的是「文件里出现过 flock 这个词」，不是「两条车道真的被互斥」。
+  - Why it matters: 同一文件里的另一个守卫专门写了 `_body()` 来剥掉注释，理由是「注释里提到 `uv run pytest` 是说明 => 断『脚本有没有做这件事』必须断可执行部分 => 否则注释就足以让守卫误红」--这正是 docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md 的教训。但同一个文件里的 flock 守卫却直接读**含注释的原文**做子串判断，且只断 `flock` 这个词存在，不断 `-n`（非阻塞）：`flock 9`（阻塞版）也能过，删掉 flock 代码而把这个词留在注释里也能过。=> 守卫证明的是「文件里出现过 flock 这个词」，不是「两条车道真的被互斥」。
   - Evidence:
     - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95-96 -- `    assert "flock" in pg_body, (` => 对**原文**（含注释）做子串判断
     - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:93 -- `    pg_body = PG_SCRIPT.read_text(encoding="utf-8")` => 未剥注释（与同文件 `_body()` 的做法相反）
     - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:49-50 -- `    WARNING 注释里提到 `uv run pytest` / `DATABASE_URL` 是**说明** => 断「脚本有没有做这件事」必须断**可执行部分**` => 同族教训已在本文件内
     - pcs-backend/scripts/pytest_pg.sh（diff）-- `if ! flock -n 9; then` => 真正被依赖的是 `-n`（抢不到就退出），守卫并不验证这一点
-    - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:94-98 ---- `pg_body = PG_SCRIPT.read_text(encoding="utf-8")` / `assert "flock" in pg_body` / `assert "pytest_pg.sh" in _body()`（**未剥注释**，且只断子串）
-    - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:32-43 ---- 同文件的 `_body()` 会剥掉注释 => 同一文件两套口径
-    - pcs-backend/scripts/pytest_pg.sh:56-61 ---- `exec 9>"$LOCK_FILE"` / `if ! flock -n 9; then ... exit 1; fi`（真正要守的是 `-n` 与 fd 持有）
-    - pcs-backend/tests/scripts/test_pytest_pg_gate.py:106-114 ---- `assert "pytest -m pg" in body` / `assert body.count("uv run pytest") == 2, "脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；多出来的说明有人加了第二条路径"`（只匹配 `uv run pytest` 一个字面量）
-    - pcs-backend/scripts/pytest_pg.sh:4-5 ---- 「WARNING **不得**在 README/CLAUDE.md 里教『也可以直接 DATABASE_URL=... pytest』---- 那会重新引入『多条路径做同一件事』的分叉」=> 该分叉是被承认的真实风险
+    - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:94-98 -- `pg_body = PG_SCRIPT.read_text(encoding="utf-8")` / `assert "flock" in pg_body` / `assert "pytest_pg.sh" in _body()`（**未剥注释**，且只断子串）
+    - pcs-backend/tests/scripts/test_pytest_e2e_gate.py:32-43 -- 同文件的 `_body()` 会剥掉注释 => 同一文件两套口径
+    - pcs-backend/scripts/pytest_pg.sh:56-61 -- `exec 9>"$LOCK_FILE"` / `if ! flock -n 9; then ... exit 1; fi`（真正要守的是 `-n` 与 fd 持有）
+    - pcs-backend/tests/scripts/test_pytest_pg_gate.py:106-114 -- `assert "pytest -m pg" in body` / `assert body.count("uv run pytest") == 2, "脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；多出来的说明有人加了第二条路径"`（只匹配 `uv run pytest` 一个字面量）
+    - pcs-backend/scripts/pytest_pg.sh:4-5 -- 「WARNING **不得**在 README/CLAUDE.md 里教『也可以直接 DATABASE_URL=... pytest』-- 那会重新引入『多条路径做同一件事』的分叉」=> 该分叉是被承认的真实风险
   - Suggested fix / response: 给 pytest_pg.sh 也写一个剥注释的 `_body()`，把断言改成 `assert "flock -n" in body`（并在同一条里断言 `exec 9>` 存在，即锁确实落在 fd 9 上）。
   - Validation: confirmed
-  - Reviewers: learnings, testing, testing
+  - Reviewers: learnings, testing
   - Route: `gated_auto -> downstream-resolver`
 
----
+--
 
 ### Requirements Completeness
 
 对照 `docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md` (explicit). 判定口径是**实质达成**, 不是文件存在.
 
 | Req | Plan 要求 | 判定 | 依据 |
-|---|---|---|---|
+|--|--|--|--|
 | R1 | E2E 车道跑在隔离 schema 的真 PG (CREATE SCHEMA -> alembic upgrade head -> DROP CASCADE); 默认车道跳过全部 e2e, 绝不写开发库 pcs/pcs_test | partially addressed | 车道形态与 skip 闸门都在 (`tests/e2e_flows/conftest.py`, `scripts/pytest_e2e.sh`, `pyproject.toml`); 但车道只查 URL 协议不查库名 (#8), skip 闸门只在 pytest 收集到 `tests/e2e_flows/` 时才注册 (testing gap #1), 「不写 public」守卫取基线太晚且只数 4 张表 (#22) |
 | R2 | 18 个 SPEC 场景 E2E-001..018 全部通过 (case count >= 18) | partially addressed | 场景文件齐备, `@pytest.mark.e2e` 共 30 条, 编号覆盖 E2E-001..018; 但 E2E-009 是 xfail (#4) 且闸门只要 1 条 passed 就算过 (#16) => 「全部通过」这个结论今天拿不到 |
-| R3 | 五类 WF-PATH 路由类 (01A..01E / 02 / 03 / 04) 覆盖 | met | `test_e2e_record_workflow.py` (01A/01B/01D/01E + E2E-010) ,  `test_e2e_change_impact.py` (01C) ,  `test_e2e_deliverable_rev.py` (02/03) ,  `test_e2e_permission_matrix.py` (04) |
+| R3 | 五类 WF-PATH 路由类 (01A..01E / 02 / 03 / 04) 覆盖 | met | `test_e2e_record_workflow.py` (01A/01B/01D/01E + E2E-010) / `test_e2e_change_impact.py` (01C) / `test_e2e_deliverable_rev.py` (02/03) / `test_e2e_permission_matrix.py` (04) |
 | R4 | 权限矩阵 AUTH-E2E-01..10 通过; 跨项目 => 404 且 body 与「不存在」同形; 角色不够 => 403 | partially addressed | 后端车道矩阵是四元组（角色 x 操作 x 状态码 x 错误码）, 钉住了 `APPROVAL_ROLE_MISMATCH` 这类真因, 是本批最扎实的一条断言纪律; 但同形只比到 code 不比 message 模板 (testing gap #3); 前端那条越权流被角色闸短路 (#5); 车道里 403 走的是「不留痕」分支 (#10) |
 | R5 | AI 审计 E2E-017: AI 关 => 零副作用; AI 开 => 审计行**真的**落进 ai_audit_log | met | `tests/e2e_flows/test_e2e_ai_audit.py` 直接断言审计行落库（不是只入队）; AI 关的副作用另有车道 smoke 覆盖 |
 | R6 | 两库 schema 一致 E2E-018: 比对 pcs 与 pcs_test 的 alembic_version, 不一致就登记不修 | partially addressed | 比对确实存在, 但它被塞进 E2E 车道并直连开发库 (#20), 且只比彼此、从不与代码 head 比 => 两库一起落后也是绿 (#21) |
@@ -599,10 +599,10 @@
 #### 实施单元
 
 | Unit | 判定 | 依据 |
-|---|---|---|
+|--|--|--|
 | T1 E2E 车道 + 隔离 schema + e2e_client + lane smoke + 默认车道 skip 闸门 | partially addressed | 文件齐备 (`tests/e2e_flows/conftest.py`, `test_lane_smoke.py`, `tests/scripts/test_pytest_e2e_gate.py`, `scripts/pytest_e2e.sh`); 车道与种子无目标库白名单 (#8), 隔离只覆盖 get_db (#19), 守卫覆盖面过窄 (#22) |
 | T2 进程级种子: 角色矩阵 / 起点态 / 幂等 | partially addressed | `scripts/seed_e2e_flows.py` 在; 幂等的 savepoint+重读赢家写法是对的; 但种子管级违反 `PipeClassResponse` 契约 => 按 id 查必 500 (#17); 车道不跑 lifespan, 注释承诺的启动 seed 实测 0 处调用 (#18) |
-| T3 记录与计算链 (E2E-001..006) | met | `test_e2e_project_config.py` (001) ,  `test_e2e_sim_import.py` (002) ,  `test_e2e_calc_chains.py` (003..006) 齐备; 计算链那条断言实际断的是占位行副作用（#2 的同一根因） |
+| T3 记录与计算链 (E2E-001..006) | met | `test_e2e_project_config.py` (001) / `test_e2e_sim_import.py` (002) / `test_e2e_calc_chains.py` (003..006) 齐备; 计算链那条断言实际断的是占位行副作用（#2 的同一根因） |
 | T4 汇总/报表/供应商 (E2E-007/008/009/014/015) | partially addressed | 用例齐备; E2E-009 被命令式 xfail 中止 (#4), 而它背后的产品修复是空操作 (#3) |
 | T5 记录层状态机 + 交付物 Rev (E2E-010..013 + WF-PATH) | met | `test_e2e_record_workflow.py` + `test_e2e_deliverable_rev.py` + `test_e2e_change_impact.py` 覆盖 01A..01E/02/03 与 010..013 |
 | T6 权限矩阵 + AI 审计 + schema 一致 (E2E-016/017/018 + AUTH-E2E) | partially addressed | 三块都有; 矩阵的 403 分支在车道里不留痕 (#10), schema 一致检查错位 (#20) 且只比彼此 (#21) |
@@ -619,7 +619,7 @@
 4. **docker-compose 的 `seed` 服务被改成跑两个种子脚本** (`docker-compose.yml:140-153`). 这给共享库 `pcs_pgtest` 增加了一个**不持锁**的写者, 而计划把「两条车道不并发」写成硬约束. 见 #15.
 5. **前端保留了第二条不经 axios 的 HTTP 通道** (`routeWrappers.tsx:85-92`). 计划授权改这个文件, 没授权引入一条绕过 401 拦截器、且静默吞错的取数路径. 见 #9.
 
----
+--
 
 ### Coverage
 
@@ -630,7 +630,7 @@
 
 **评审者 (9/9 全部收齐)**
 
-correctness ,  project-standards ,  testing ,  maintainability ,  learnings ,  security ,  api-contract ,  **reliability** ,  adversarial.
+correctness / project-standards / testing / maintainability / learnings / security / api-contract / **reliability** / adversarial.
 reliability 是晚到的一份, 已并入合并集; 本轮 9 份 persona artifact 全部在盘上, 无失败/超时的评审者.
 
 **跨模型 peer: 未启动**
@@ -639,7 +639,7 @@ reliability 是晚到的一份, 已并入合并集; 本轮 9 份 persona artifac
 
 **未选人士及理由**
 
-performance（生产代码改动极小, 性能面集中在测试种子, 无实质资源影响）,  data-migration（diff 内无迁移/模式产物, 无 backfill 可审）,  agent-native（diff 未暴露 agent 面向的能力或工具面）,  julik-frontend-races（前端是 React/TypeScript, 非 Stimulus/Turbo）,  swift-ios（diff 内无 Swift/iOS 文件）,  previous-comments（standalone 评审, 无 PR 与历史评论）,  deployment-verification（无高风险迁移产物需要上线前核验）.
+performance（生产代码改动极小, 性能面集中在测试种子, 无实质资源影响） / data-migration（diff 内无迁移/模式产物, 无 backfill 可审） / agent-native（diff 未暴露 agent 面向的能力或工具面） / julik-frontend-races（前端是 React/TypeScript, 非 Stimulus/Turbo） / swift-ios（diff 内无 Swift/iOS 文件） / previous-comments（standalone 评审, 无 PR 与历史评论） / deployment-verification（无高风险迁移产物需要上线前核验）.
 
 **合并机制**
 
@@ -654,7 +654,7 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 **校验器: 已运行**
 
 | Outcome | Count |
-|---|---|
+|--|--|
 | confirmed | 20 |
 | rejected | 0 |
 | unresolved | 1 |
@@ -665,22 +665,22 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 
 - 批次形态: **单批 21 条**（全部 P0/P1 + 全部 actionable）, 按严重度再按稳定 `#` 排序; 没有拆第二批, 没有跳过任何一条 => 捷径跳过数 = 0.
 - 唯一未决项 **#6**: 名字错配已核实, 但「内置 `DEFAULT_RECORD_3_LEVEL` 行在目标库是否存在」在预算内没核实到（迁移 p9_013 未读）=> 它留在报告里作为**核实闸门**（`validation_status: unresolved`, `owner: human`, `autofix_class: advisory`, `requires_verification: true`), **不在**可执行队列, 任何修复者都不得把它当已确认缺陷去改.
-- protected subject 复核: 合并 leaf 独立核对了 21 条的 `protected_subject`（8 个策略键）=> 全部是合法键或 null; 7 条带 protected subject（#1 concurrency ,  #3/#12/#13/#17 public-contract ,  #5/#9 authorization-authentication ,  #8 data-loss）. **没有任何一条被否掉**, 因此没有 protected-subject 重分类.
+- protected subject 复核: 合并 leaf 独立核对了 21 条的 `protected_subject`（8 个策略键）=> 全部是合法键或 null; 7 条带 protected subject（#1 concurrency / #3/#12/#13/#17 public-contract / #5/#9 authorization-authentication / #8 data-loss）. **没有任何一条被否掉**, 因此没有 protected-subject 重分类.
 - #1 与 #8 的确认附注「incidence not measured」: 代码允许该失败, 但没有测试或查询证明它真的发生过. 这两条在报告里按「已确认但发生率未知」呈现.
 - 没有任何 P0/P1 因校验器故障而处于 degraded 状态.
 
 **本批自认的债 与 本次发现的关系**
 
 | 本批自认的债 | 本次评审的结论 |
-|---|---|
+|--|--|
 | bug-2165 根因未闭环（`report_tasks._finalize` 赋值不落库 => E2E-009 标 xfail） | **根因被定位且被记错了**: 不是「对象与被 flush 的行脱钩」, 而是那行赋值位于 `dup` 早退 `return` 之后 => 永不可达 (#3). TODO-158 可以对着 #3 关, 而不是继续挂着. |
-| 运行时写配置表的占位管级, 并发下可能撞唯一约束 | **两条都成立且被确认**: 并发首算 500 是真的 (#1), 而且比自认的更重 ---- 它还让每个用户在公司管级列表里看到一条假公司标准 (#2). |
+| 运行时写配置表的占位管级, 并发下可能撞唯一约束 | **两条都成立且被确认**: 并发首算 500 是真的 (#1), 而且比自认的更重 -- 它还让每个用户在公司管级列表里看到一条假公司标准 (#2). |
 | 3 个前端页面调不存在的端点 + 3 个页面首屏 422 (TODO-159/160) | 这正是路由扫描该抓的, 而扫描只把它打印不断言 (#7); 两类问题在真后端通道里**没有守卫**. |
 | E2E 进 CI 延到 P10-F | 已裁决策, 不计为本批缺陷; 但「E2E 用例存在」与「E2E 被验过」之间仍有空转, 已登记为 residual risk. |
 
-**Removable surface:** 约 44 行 / 1 个文件（`pipe_chain_persist.py:95-138`, 来自 #2 的建议）---- 这是死重量信号, **不是**削减目标, 不为凑数而放大.
+**Removable surface:** 约 44 行 / 1 个文件（`pipe_chain_persist.py:95-138`, 来自 #2 的建议）-- 这是死重量信号, **不是**削减目标, 不为凑数而放大.
 
----
+--
 
 ### Testing Gaps
 
@@ -692,7 +692,7 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 
 3. [learnings] 同形断言只比状态码与 code，不比 message 模板 (pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:147) - 仓库已记录的死法是「无权」与「不存在」必须**逐字同形**（含 code 与 message），否则攻击者靠响应差异枚举 UUID；同一条记录还写了「同形测试必须用同一个 uuid 测两次......消息里本来就带着请求的 id => 拿两个不同的 uuid 比测不出同形性」。本批的两条同形断言都停在「状态码 + code」：后端比 `missing.json().get("code") == resp.json().get("code")`（uuid 还不一样：一个是种子项目 id，一个是 `uuid.uuid4()`），前端只比状态码。=> 只要有人把无权分支的 message 改成不同措辞（例如「无权访问项目 X」而「不存在」是「Project not found: X」），两条用例都仍绿，而枚举向量已经打开。守卫断的是**动作的投影**（两个字段相等），不是**逐字同形**这个后果。
 
----
+--
 
 ### Residual Risks
 
@@ -700,42 +700,42 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 
 1. [maintainability] seed_e2e_flows 逐字复制了 seed_e2e_data 的 get-or-create (pcs-backend/scripts/seed_e2e_flows.py:243) - 两个种子脚本现在各自持有一份**逐字相同**的 `_get_or_create`（含 savepoint + IntegrityError + 重读赢家的三步竞态处理），以及各自一份 `_delete_own_rows`（两份互不相同的 FK 删序清单）、`_ensure_workspace` / `_ensure_project` / `_ensure_users` / `_ensure_grants` / `_ensure_streams`（同构不同参）。两份真相源意味着：竞态处理被修好（这正是该 helper 存在的理由）时只改得了一边 => 另一边的种子在并发下仍会炸；新增实体时两份删序清单都要记得改 => 漏一份 => `--reset` 撞 FK。这不是「两个脚本各管一段业务」，而是同一个「幂等种子」的 house pattern 被抄了两遍。
 
-2. [maintainability] 批准链角色在 helpers 与种子之间有两份未钉住的副本 (pcs-backend/tests/e2e_flows/helpers.py:206) - `CHAIN_ROLES = ("CHECKER", "REVIEWER", "APPROVER")` 是种子里 `FLOW_MATRIX_STEPS` 的 `sign_role` 序列的**第二份副本**，注释还明说「与种子的签署矩阵一致」----但一致性**没有任何机制保证**：全仓 `FLOW_MATRIX_STEPS` 只出现在种子脚本里，`CHAIN_ROLES` 只出现在 helpers 与一个断言里，两边**没有一处比对**。矩阵一改（加一级、改角色、换顺序），`approve_record_steps` 仍按旧角色发请求 => 端点返 403 `APPROVAL_ROLE_MISMATCH` => 症状是「端点坏了 / 批准链卡住」，排查方向会跑到业务代码上。仓里已经有正确做法的样板：`ALLOWED_ROLES` 那份 copy 就被 `test_lane_smoke.py::t
+2. [maintainability] 批准链角色在 helpers 与种子之间有两份未钉住的副本 (pcs-backend/tests/e2e_flows/helpers.py:206) - `CHAIN_ROLES = ("CHECKER", "REVIEWER", "APPROVER")` 是种子里 `FLOW_MATRIX_STEPS` 的 `sign_role` 序列的**第二份副本**，注释还明说「与种子的签署矩阵一致」--但一致性**没有任何机制保证**：全仓 `FLOW_MATRIX_STEPS` 只出现在种子脚本里，`CHAIN_ROLES` 只出现在 helpers 与一个断言里，两边**没有一处比对**。矩阵一改（加一级、改角色、换顺序），`approve_record_steps` 仍按旧角色发请求 => 端点返 403 `APPROVAL_ROLE_MISMATCH` => 症状是「端点坏了 / 批准链卡住」，排查方向会跑到业务代码上。仓里已经有正确做法的样板：`ALLOWED_ROLES` 那份 copy 就被 `test_lane_smoke.py::t
 
 3. [maintainability] bump_record 在测试文件里被逐字重写了一遍 (pcs-backend/tests/e2e_flows/test_e2e_record_workflow.py:48) - `helpers.py:353 bump_record` 已经存在并且被 `test_e2e_change_impact.py` 正常使用；`test_e2e_record_workflow.py:48 _bump_record` 把它**逐字抄了一份**（同样的 `design_press + 0.1`、同样的 `compute_record_hash`、同样的 `await db.flush()` 后算哈希）。两份实现意味着「哈希怎么算、什么时候算」这条规则有两处；将来 CIA 的哈希判据变了（例如改成含更多列），改了 helpers 那份，record_workflow 的变更流仍按旧规则 => 那条用例会绿着验证一个已失效的判据。
 
-4. [maintainability] 会话工厂挂在 client 的私有属性上（14 处 type: ignore） (pcs-backend/tests/e2e_flows/conftest.py:294) - 车道把 `session_factory` 藏进 `httpx.AsyncClient` 实例的私有属性 `_e2e_session_factory`，于是「直查隔离 schema」这件事在 7 个文件里靠 `# type: ignore[attr-defined]` 维持（helpers.py 5 处 + 4 个测试文件 + conftest 1 处）。这是把 fixture 契约藏进一个约定俗成的私有属性里：类型检查器永远看不见它，属性名一改要靠全仓 grep 才能找齐 14 个点；更根本的是**「要一个 DB session」被迫先造一个 HTTP client**----这正是 Feature Envy：helpers 的 `make_record` / `bump_record` / `link_lineage` / `get_record_state` 只需要 session，却都
+4. [maintainability] 会话工厂挂在 client 的私有属性上（14 处 type: ignore） (pcs-backend/tests/e2e_flows/conftest.py:294) - 车道把 `session_factory` 藏进 `httpx.AsyncClient` 实例的私有属性 `_e2e_session_factory`，于是「直查隔离 schema」这件事在 7 个文件里靠 `# type: ignore[attr-defined]` 维持（helpers.py 5 处 + 4 个测试文件 + conftest 1 处）。这是把 fixture 契约藏进一个约定俗成的私有属性里：类型检查器永远看不见它，属性名一改要靠全仓 grep 才能找齐 14 个点；更根本的是**「要一个 DB session」被迫先造一个 HTTP client**--这正是 Feature Envy：helpers 的 `make_record` / `bump_record` / `link_lineage` / `get_record_state` 只需要 session，却都
 
-5. [maintainability] scripts/ 被当成测试 fixture 的公共库 (pcs-backend/tests/e2e_flows/helpers.py:228) - 测试层的 fixture 数据住在**CLI 脚本**里：`helpers.py` 从 `scripts.seed_e2e_flows` 取 `PIPING_RECORD_PAYLOAD`（造记录的 21 字段模板），`conftest.py` 从同一个脚本取全部 id 与角色映射。`scripts/` 是个装着 CLI 入口的目录，不是包（靠 namespace package 被 import 进来），现在却被当公共库用 => 后果是「测试夹具的真相源」与「一个运维脚本」耦合：这个脚本为了当库用而不断加 `__all__`（scripts/seed_e2e_flows.py:773-794 已经列了 20 个常量），脚本的重构会牵动测试，测试想加一个 fixture 字段就得改一个 CLI 脚本。分层上，生产/运维脚本是上层，测试夹具是下层----依赖方向反了。
+5. [maintainability] scripts/ 被当成测试 fixture 的公共库 (pcs-backend/tests/e2e_flows/helpers.py:228) - 测试层的 fixture 数据住在**CLI 脚本**里：`helpers.py` 从 `scripts.seed_e2e_flows` 取 `PIPING_RECORD_PAYLOAD`（造记录的 21 字段模板），`conftest.py` 从同一个脚本取全部 id 与角色映射。`scripts/` 是个装着 CLI 入口的目录，不是包（靠 namespace package 被 import 进来），现在却被当公共库用 => 后果是「测试夹具的真相源」与「一个运维脚本」耦合：这个脚本为了当库用而不断加 `__all__`（scripts/seed_e2e_flows.py:773-794 已经列了 20 个常量），脚本的重构会牵动测试，测试想加一个 fixture 字段就得改一个 CLI 脚本。分层上，生产/运维脚本是上层，测试夹具是下层--依赖方向反了。
 
-6. [maintainability] test_lane_smoke 里的 text_ 辅助函数是死代码 (pcs-backend/tests/e2e_flows/test_lane_smoke.py:247) - `text_()` 定义后全文件零引用（同文件的 SQL 都在函数体内直接 `from sqlalchemy import text`）----新文件里的死代码，读者会以为有一条「统一走 text_ 短别名」的约定。顺手删掉即可。
+6. [maintainability] test_lane_smoke 里的 text_ 辅助函数是死代码 (pcs-backend/tests/e2e_flows/test_lane_smoke.py:247) - `text_()` 定义后全文件零引用（同文件的 SQL 都在函数体内直接 `from sqlalchemy import text`）--新文件里的死代码，读者会以为有一条「统一走 text_ 短别名」的约定。顺手删掉即可。
 
 7. [reliability] 隔离 schema 清理只在 finally，进程被杀就永久留垃圾 (pcs-backend/tests/e2e_flows/conftest.py:191) - schema 生命周期是「建 -> 迁移 -> DROP CASCADE」，但**清理只挂在 fixture 的 `finally` 上**：SIGKILL / 容器被强杀 / DB 断连 / 机器重启 => `finally` 不跑 => 隔离 schema（含一整套被迁移过的表）永久留在共享的 `pcs_pgtest` 库里，而**没有任何 janitor/reaper**；下一轮跑的「起手 DROP」只针对**本轮那个随机名**（`e2e_<8hex>`，conftest.py:164）=> 旧残留一个都清不掉 => 垃圾无声累积（每轮一份全量 schema）。另外 `finally` 里的 `DROP SCHEMA ... CASCADE` 自己也可能抛（连接已断）=> 会**顶替掉真正的失败原因**，让排障看到的是一个无关的连接错误而不是真正的失败。
 
 8. [security] Predictable /tmp lock path opened with truncation (pcs-backend/scripts/pytest_pg.sh:57) - `exec 9>"$LOCK_FILE"` truncates the target path. The default is a fixed, world-writable-directory name (`/tmp/pcs-pgtest-lane.lock`), so on a shared host another local user can pre-create that path as a symlink to any file the developer can write; the next lane run then truncates that file (shell redirection follows symlinks) -- silent destruction of e.g. a source file or a shell rc, with the lane
 
-9. [learnings] 默认车道 skip 闸门只有「假 item」的动作断言 (pcs-backend/tests/e2e_flows/test_lane_smoke.py:194) - conftest 自己写明「这是本批最危险的一条：不加它，批末那句 `uv run pytest` 会把 E2E 场景跑到开发库 `pcs` 上」。守卫却只用一个 `_FakeItem` 断言 `add_marker` 被调过----断的是**动作**，不是**后果**（已记录的通则：守卫要断言后果，不要断言动作；动作可以空转，后果不会）。真正的后果是「默认车道里一个 e2e 用例都没被执行」：只要有人给 tests/e2e_flows/ 加一条忘了 `@pytest.mark.e2e` 的用例（或把 marker 改名），它就会在默认车道**真的连上开发库**跑隔离 schema + alembic + 种子，而当前守卫仍然绿（它只测闸门函数本身，对新用例零感知）。今天 13 个文件里 marker 是齐的（lane_smoke 的 7 条里有 2 条是故意不标 marker 的默认车道守卫
+9. [learnings] 默认车道 skip 闸门只有「假 item」的动作断言 (pcs-backend/tests/e2e_flows/test_lane_smoke.py:194) - conftest 自己写明「这是本批最危险的一条：不加它，批末那句 `uv run pytest` 会把 E2E 场景跑到开发库 `pcs` 上」。守卫却只用一个 `_FakeItem` 断言 `add_marker` 被调过--断的是**动作**，不是**后果**（已记录的通则：守卫要断言后果，不要断言动作；动作可以空转，后果不会）。真正的后果是「默认车道里一个 e2e 用例都没被执行」：只要有人给 tests/e2e_flows/ 加一条忘了 `@pytest.mark.e2e` 的用例（或把 marker 改名），它就会在默认车道**真的连上开发库**跑隔离 schema + alembic + 种子，而当前守卫仍然绿（它只测闸门函数本身，对新用例零感知）。今天 13 个文件里 marker 是齐的（lane_smoke 的 7 条里有 2 条是故意不标 marker 的默认车道守卫
 
----
+--
 
 ### Pre-existing Issues
 
 （不计入 verdict; 1 条）
 
 | # | File | Issue | Reviewer |
-|---|---|---|---|
+|--|--|--|--|
 | P1 | `pcs-backend/docs/openapi-baseline.json:1` | 契约基线只是『与当前一致』的同步锁，没有已发布契约锚点 | api-contract |
 
 - **P1** -- `pcs-backend/docs/openapi-baseline.json:1` -- 契约基线只是『与当前一致』的同步锁，没有已发布契约锚点
-  - Why it matters: 核实结论：基线漂移的主体确实是上一批的 AI 端点契约 ---- openapi.json 在 6292ca2（AI 契约去掉死分支 200 + 补 401/503）时更新而基线没跟，本批把基线滚到与 openapi.json 逐字相同（三个文件 blob 哈希同为 6663086）。但 gate_08 的第 4 阶段只是 `diff -q baseline openapi.json` => 基线必须永远等于当前规格 => 它不是「已发布/对外承诺过」的契约锚点 => 任何破坏性变更（如本批 StreamResponse.case_type 由必填改为可空）都能无版本、无弃用期、无迁移说明地进契约，客户端只能事后发现。
+  - Why it matters: 核实结论：基线漂移的主体确实是上一批的 AI 端点契约 -- openapi.json 在 6292ca2（AI 契约去掉死分支 200 + 补 401/503）时更新而基线没跟，本批把基线滚到与 openapi.json 逐字相同（三个文件 blob 哈希同为 6663086）。但 gate_08 的第 4 阶段只是 `diff -q baseline openapi.json` => 基线必须永远等于当前规格 => 它不是「已发布/对外承诺过」的契约锚点 => 任何破坏性变更（如本批 StreamResponse.case_type 由必填改为可空）都能无版本、无弃用期、无迁移说明地进契约，客户端只能事后发现。
   - Evidence:
     - pcs-backend/scripts/gate_08_openapi_contract.sh:71-80 -- if diff -q pcs-backend/docs/openapi-baseline.json pcs-backend/docs/openapi.json > /dev/null; then echo "OK baseline 与当前一致（无漂移）" => 基线是同步锁，不是发布锚点
     - pcs-backend/docs/openapi.json:41978-41985 -- "required": [ "stream_name", -"case_type", "data_mode", ... ] => 响应字段由必填变可空（对 1.0 契约是破坏性变更），全仓无版本号/弃用标记
-    - git 6292ca2 fix(P10-A): 评审 #12/#13/#19 ---- AI 契约去掉死分支 200 + 补 401/503 + 运行时出口守卫 => openapi.json 变了而 openapi-baseline.json 未变（基线漂移主体 = 上一批的 AI 契约）
+    - git 6292ca2 fix(P10-A): 评审 #12/#13/#19 -- AI 契约去掉死分支 200 + 补 401/503 + 运行时出口守卫 => openapi.json 变了而 openapi-baseline.json 未变（基线漂移主体 = 上一批的 AI 契约）
   - Suggested fix / response: 若要真正的契约稳定性闸门，另存一份「上次发布/对外承诺」的契约（例如 docs/openapi-released.json）并在批末用 openapi-diff 跑出 breaking 清单；当前 openapi-baseline.json 只能证明「后端规格 / 前端 snapshot / 前端类型三份同步」，不能证明「对外契约没破」。本批的 case_type 破坏性变更至少应在批末账簿里显式登记一条「响应字段放宽为可空」的对外说明。
   - Route: `advisory -> release` (pre-existing, 不计入 verdict)
 
----
+--
 
 ### Learnings & Past Solutions
 
@@ -753,14 +753,14 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 
 1. **给前端建第二个 Playwright project + tag 隔离, 断言必须断具体内容.** mock 的 MSW 不校验 token => 写死的假 token 与占位 projectId 这两类缺陷在 mock 通道永远隐形; 真后端通道一次性抓到 5 个. 配套纪律: 「页面渲染了」证明不了连的是被 seed 的库（因为 mock 登录不落 users 表, 后端回 404 不产生 console error）=> 必须断具体行内容. 延伸到 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` §4.
 2. **带互斥锁的测试车道, 守卫测试必须自带一份锁实例.** 否则守卫被真实车道挡在门外, 测的不是它声称的那几条闸门. 本批用 `PCS_PGTEST_LANE_LOCK` 解决, 代价是默认锁路径从未被测过（#15/#27）. 延伸到 `docs/solutions/testing-issues/guard-patched-definition-site-consumer-imported-by-value.md` §6.
-3. **隔离 schema 车道的四个必做校准**: async 引擎必须换成生产驱动（asyncpg, 否则 VARCHAR 塞 int 被 psycopg 悄悄转换而绿）,  asyncpg 不认 `options=-csearch_path=`（要用 `server_settings`）,  alembic 必须在子进程跑（pydantic-settings 缓存）,  两条车道共用一个库时锁要放在**共享**脚本里. 延伸到 `docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md`.
+3. **隔离 schema 车道的四个必做校准**: async 引擎必须换成生产驱动（asyncpg, 否则 VARCHAR 塞 int 被 psycopg 悄悄转换而绿） / asyncpg 不认 `options=-csearch_path=`（要用 `server_settings`） / alembic 必须在子进程跑（pydantic-settings 缓存） / 两条车道共用一个库时锁要放在**共享**脚本里. 延伸到 `docs/solutions/testing-issues/engine-level-migration-tests-skipif-pg.md`.
 4. **把「隔离」从注释变成可断的事实**: 写下「我会写哪些表」的清单, 守卫照单全收, 并且在种子**之前**取基线、同时断 `count(*)` 与 `max(id)`. 延伸到 `docs/solutions/sqlite-staticpool-hides-uncommitted.md`.
-5. **权限矩阵用四元组, 并给每条用例配一根「分支可达」的钉子.** 四元组（角色 x 操作 x 状态码 x 错误码）防的是「换个原因照样绿」, 但它**不**防「压根没走到那个分支」---- 本批的前端越权流就是四元组退化成「两个码相等」的实例（#5）. 延伸到 `docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md`.
+5. **权限矩阵用四元组, 并给每条用例配一根「分支可达」的钉子.** 四元组（角色 x 操作 x 状态码 x 错误码）防的是「换个原因照样绿」, 但它**不**防「压根没走到那个分支」-- 本批的前端越权流就是四元组退化成「两个码相等」的实例（#5）. 延伸到 `docs/solutions/security-issues/midflight-config-rebind-defeeds-one-shot-guards.md`.
 6. **目录级东西（conftest / marker 注册 / addopts）落笔前先 ls 住客.** 本批正确避开了 `tests/e2e/`（已被 12 条无 skip 用例占用）, 并把这个泛化写进了 conftest docstring.
 
 > 这 6 条**都没有**回写进 `docs/solutions/`, 而 `.wolf/STATUS.md` 自己写着「已进 cerebrum / docs/solutions」=> #11. 计划与仓库的规则要求「新增解法后回写一份」, 这条债是本批自己欠的.
 
----
+--
 
 ### 尚未解决的问题（需人裁决）
 
@@ -778,22 +778,22 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 
 - **#6（P1, validation = unresolved）** -- 先读 `alembic/versions/p9_013_bind_default_record_matrix.py` 并在目标库直查 `DEFAULT_RECORD_3_LEVEL` 是否存在. 存在 => 断言被内置矩阵满足 => 改断言名; 不存在 => 这条流是因为别的原因红 => 修种子/迁移. **证据到手前不要动代码.**
 
----
+--
 
 ### Verdict
 
 > **Verdict:** Not ready
 >
-> **Reasoning:** 按「人用这个软件拿到什么」重新分级 ---- 本批交付的是一条**验证车道**, 所以真正的验收标准是「这条车道能不能证明它声称的东西」. 答案今天是否定的, 而且**失败得安静**: 闸门只要 1 条 passed 就算过 (#16), E2E-009 用命令式 xfail 中止 (#4), 前端 5 条流里 3 条的断言结构上不可能失败 (#5/#6/#7) => 车道的绿灯不承载信息. 与此同时本批的显式计划要求 R2（18 场景全部通过）与 R7（6 条真后端 UI 流）**实质未达成**, 而计划是 explicit => 按规矩这已经不是「代码干净但少做」, 而是「验收本身没成立」. 再叠上 9 条未闭的 P1: 其中 #2 会让每个用户在公司管级列表里看到一条假的公司标准, #1 会让并发首次计算整条端点 500, #3 让本批唯一的生产修复变成空操作且 buglog 的根因记录是错的, #8/#19/#22 让「绝不碰开发库」这条本批最硬的约束只立了一半. 没有 P0, 所以问题不在于有东西被攻破, 而在于**这一批交付的东西不能被信任**. 1 条 P1 (#6) 还是未决核实闸门, 需要一次证据查询而不是一次改代码.
+> **Reasoning:** 按「人用这个软件拿到什么」重新分级 -- 本批交付的是一条**验证车道**, 所以真正的验收标准是「这条车道能不能证明它声称的东西」. 答案今天是否定的, 而且**失败得安静**: 闸门只要 1 条 passed 就算过 (#16), E2E-009 用命令式 xfail 中止 (#4), 前端 5 条流里 3 条的断言结构上不可能失败 (#5/#6/#7) => 车道的绿灯不承载信息. 与此同时本批的显式计划要求 R2（18 场景全部通过）与 R7（6 条真后端 UI 流）**实质未达成**, 而计划是 explicit => 按规矩这已经不是「代码干净但少做」, 而是「验收本身没成立」. 再叠上 9 条未闭的 P1: 其中 #2 会让每个用户在公司管级列表里看到一条假的公司标准, #1 会让并发首次计算整条端点 500, #3 让本批唯一的生产修复变成空操作且 buglog 的根因记录是错的, #8/#19/#22 让「绝不碰开发库」这条本批最硬的约束只立了一半. 没有 P0, 所以问题不在于有东西被攻破, 而在于**这一批交付的东西不能被信任**. 1 条 P1 (#6) 还是未决核实闸门, 需要一次证据查询而不是一次改代码.
 >
 > **Fix order:** ① **T1 裁决 + #1**（先裁占位管级归属, 再按裁决上 savepoint）-> ② **T2 全组 #3/#4/#12/#14**（审计哈希这条需求一次做完四步, 含 `data_version` 语义裁决）-> ③ **T4 护栏 #8/#19/#20/#18**（车道与种子的目标库白名单、隔离覆盖 session factory、把 schema 一致检查挪出场景车道、lifespan 或改注释）-> ④ **T3 前端断言 #5/#7**（#6 先查证再动）-> ⑤ **T7 闸门 #16/#22/#21/#27**（闸门本身先 fail-closed, 否则前面几条修完仍然测不出来）-> ⑥ **T5 #9/#23/#24 与 T6 #17/#13/#26**（种子那行按契约改是硬故障, 优先于契约漂移）-> ⑦ 决策项 #10/#11/#15/#25 与 pre-existing 的契约锚点登记.
 
----
+--
 
 ### Actionable Findings Recap（按优先级, 供直接消费）
 
 | # | Sev | File:line | What | Response |
-|---|---|---|---|---|
+|--|--|--|--|--|
 | 3 | P1 | `pcs-backend/app/workers/report_tasks.py:118` | data_version 赋值在 dup 早退之后永不可达 => 审计哈希端点仍恒返空串 | mechanical fix, validator confirmed |
 | 4 | P1 | `pcs-backend/tests/e2e_flows/test_e2e_report.py:91` | E2E-009 用命令式 pytest.xfail 中止用例 => 车道全绿且下载段从不执行 | mechanical fix, validator confirmed |
 | 1 | P1 | `pcs-backend/app/services/pipe/pipe_chain_persist.py:112` | 占位管级先查后插无 savepoint => 并发首算撞主键 => 整条计算 500 | mechanical fix, validator confirmed |
