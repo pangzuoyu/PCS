@@ -3689,3 +3689,14 @@
 | 18:10 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | added 2 import(s) | ~38 |
 | 18:10 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | expanded (+13 lines) | ~452 |
 | 18:35 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b-review-fixes.md | — | ~1259 |
+| 18:50 | Created docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | — | ~7459 |
+| 18:51 | Created docs/ce-code-review/20261117-013829-7e9fbabe/hermes-adjudication.md | — | ~7578 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | inline fix | ~73 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | 6→6 lines | ~607 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | added 1 condition(s) | ~1347 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_seed_pipe_class_row_matches_the_response_contract() | ~958 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_lane_script_serializes_with_nonblocking_flock() | ~990 |
+| 18:52 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_public_guard_detects_a_leaked_row() | ~915 |
+| 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_seeded_workspace_is_visible_to_its_owner() | ~970 |
+| 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+6 lines) | ~491 |
+| 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | 3→5 lines | ~180 |

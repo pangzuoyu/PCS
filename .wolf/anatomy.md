@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-17T10:35:45.987Z
-> Files: 1326 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-17T10:53:15.325Z
+> Files: 1328 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -529,6 +529,7 @@
 
 ## docs/ce-code-review/20261117-013829-7e9fbabe/
 
+- `hermes-adjudication.md` — 第三方裁决意见（hermes / learnings 人格）—— 6 条人未裁决的发现 (~7104 tok)
 - `report.md` — PCS ce-code-review — P10-B 批（全流程 E2E） (~3721 tok)
 
 ## docs/contracts/
@@ -611,6 +612,7 @@
 - `2026-11-13-p10-batch-b-fullflow-e2e.md` — P10-B 实施计划：全流程 E2E（10.2） (~16021 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
+- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~9759 tok)
 
 ## docs/superpowers/specs/
 
