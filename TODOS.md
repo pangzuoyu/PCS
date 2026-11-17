@@ -3856,20 +3856,30 @@ pub/sub 行为）⇒ ⇒ 这类测试**不该**在默认车道跑。
 
 **归属**：P10-F（F2-T5 的延伸）
 
-**2026-11-17 · F2-T5 落地时逐条判定的结果** ⇒ ⇒ **3 处**依赖真 Redis 语义：
+**2026-11-17 · F2-T5 落地时逐条判定的结果** ⇒ ⇒ **20 条用例（3 个文件）**
+依赖真 Redis 语义（⚠️ 2026-11-18 实测订正：先前写的「3 处」**低估了近 7 倍**
+⇒ ⇒ 两个 `real_redis` fixture 各门控**整个文件**）：
 
 | 位置 | 用例 | 依赖什么 |
 |---|---|---|
 | `tests/api/v1/test_ws_notifications.py` | `test_ws_accepts_a_valid_token` | WS 握手要**发**通知 ⇒ 要真 Redis 的 pub/sub |
 | `tests/api/v1/test_ws_notifications.py` | `test_ws_delivers_notification_published_by_another_worker` | 跨进程推送（ADR-0049 §⑤ 的唯一端到端证明） |
-| `tests/services/test_broadcaster.py` | `real_redis` fixture（整个文件的有效用例） | 跨进程推送 |
-| `tests/services/test_edit_lock.py` | `real_redis` fixture（整个文件的有效用例） | TTL / 续期 |
+| `tests/services/test_broadcaster.py` | `real_redis` fixture（**8 条**有效用例） | 跨进程推送 |
+| `tests/services/test_edit_lock.py` | `real_redis` fixture（**11 条**有效用例） | TTL / 续期 |
 
 ⇒ ⇒ 默认车道里它们**运行期 skip**（判据 = `settings.redis_url` 是否被隔离成
 不可路由端口 ⇒ `tests/lane_guards.py::require_real_redis`）⇒ ⇒
 ⇒ 迁到 `scripts/pytest_pg.sh` 车道时**要去掉那个 skip** ⇒ ⇒ 那一道里
 Redis 是**同一个 `localhost:6379`** ⇒ ⇒ 迁移时要先想清楚：Redis 要不要也进
 车道锁（编辑锁是短 TTL ⇒ ⇒ 与库隔离的诉求不同）⇒ ⇒ **交人裁决**。
+
+⚠️ **2026-11-18 · 整支评审 I1/I2 订正**：上面那条「迁过去时去掉 skip」
+**原先根本执行不了** —— 判据是「`redis_url` 是否被隔离」，而根 `conftest.py`
+的隔离 fixture 是 **autouse** ⇒ ⇒ 它对 `pytest -m pg` **同样生效**
+⇒ ⇒ 在车道里 `redis_url` 也被隔离 ⇒ ⇒ 去掉 skip 也没用。
+⇒ ⇒ **已修**：隔离**只作用于默认车道**（判据 = 车道脚本导出的
+`PCS_TEST_LANE`）⇒ ⇒ 现在「把用例标成 `pg` + 去掉 skip」是**可执行**的。
+⇒ ⇒ **本条仍未完成**：那 20 条用例**一条都没标 `pg`** ⇒ ⇒ 迁移本身还没做。
 
 ⇒ ⇒ ⚠️ **默认车道剩下的真 Redis 连接**：**0**（实测 `ss` 监控）⇒ ⇒
 ⇒ 那 2 条 Redis 依赖的用例在**默认车道**里被跳过 ⇒ ⇒ 它们的覆盖**由
@@ -3923,6 +3933,32 @@ PG 车道接管**（本批**尚未**迁 ⇒ ⇒ 迁之前这段时间它们是**
 - `src/pages/routeWrappers.tsx:331`（`PmsRoute`）
 - `src/pages/routeWrappers.tsx:335`（`BeddRoute`）
 
+⚠️ **2026-11-18 · 整支评审 I6 订正**：上面那份清单**严重低估**
+⇒ ⇒ 实测（`grep -rn PROJECT_ID src/`）⇒ ⇒ **12 个页面文件 · 24 处**：
+
+| 文件 | 处数 | 用法 |
+|---|---|---|
+| `src/pages/routeWrappers.tsx` | 6 | `StreamManualWizardRoute` · `StreamListRoute` · `PipeLineListRoute` · `PsvStandardProfileRoute` · `PmsRoute` · `BeddRoute` |
+| `src/pages/heat/HeatComputePage.tsx` | 4 | `listByProject` + `project_id` + `workspace_id`（同源占位） |
+| `src/pages/cv/CvComputePage.tsx` | 3 | `listByProject` + `project_id` + `workspace_id`（同源占位） |
+| `src/pages/deliverables/SignatureMatrixPage.tsx` | 2 | `bind` / `unbind` |
+| `src/pages/deliverables/DeliverableProgressPage.tsx` | 2 | `listProjectBindings` + 查询参数 |
+| `src/pages/vessel/VesselComputePage.tsx` | 1 | `listByProject` |
+| `src/pages/sim/StreamManualWizardPage.tsx` | 1 | props 默认值 |
+| `src/pages/sim/StreamListPage.tsx` | 1 | props 默认值 |
+| `src/pages/sep_equip/SepEquipComputePage.tsx` | 1 | `listByProject` |
+| `src/pages/results/ResultListPage.tsx` | 1 | 查询参数 |
+| `src/pages/util/EnergySummaryAggregatePage.tsx` | 1 | `project_id \|\| PROJECT_ID` |
+| `src/pages/util/CoolingWaterPage.tsx` | 1 | `project_id \|\| PROJECT_ID` |
+
+⚠️ **不算在内**：`src/mocks/seed/*.ts` 里那几个 `PROJECT_ID` 是**各文件自己
+定义的本地常量**（mock 项目的 id）⇒ ⇒ **不是** `env.ts` 的消费者；
+`src/vite-env.d.ts` 里的是 `VITE_PROJECT_ID`（另一个东西）。
+
+⇒ ⇒ **改名的收益目前是 0**（`PLACEHOLDER_PROJECT_ID` **零消费者** ⇒ ⇒
+新名字只是文档）⇒ ⇒ **改名的收益 = 让名字说真话** ⇒ ⇒ 真问题是
+「**拿哪个真 id**」⇒ ⇒ 归 TODO-159。
+
 ⇒ ⇒ 那 3 个页面的 404 是 **TODO-159**（前端调了**不存在**的端点）的
 **既有白名单项** ⇒ ⇒ **本批不顺手改**（改了 ⇒ 白名单失效 ⇒ 反而掩盖真缺口）。
 
@@ -3966,3 +4002,49 @@ Redis ⇒ 不可路由端口）⇒ ⇒ 实测（`ss -tnp` 监控整轮跑）**�
 **何时做**：下一批（**不阻塞** F2-T5 ⇒ ⇒ 因为是只读的 ⇒ ⇒ 没有污染）
 
 **归属**：P10-F（F2-T5 的延伸 · 残留）
+
+---
+
+## TODO-169: **FORMAL 工作区是否必然属于一个项目**？要不要 **PERSONAL 工作区**这种形态？ 🟡
+
+**现状**（2026-11-18 · P10-F 整支评审 I5 期间发现）：
+
+主计划的「尚未解决的问题」#3 写的是：**#24 的产品决定**（FORMAL 工作区
+**要不要**回填 `project_id`）⇒ ⇒ **交人裁决** ⇒ ⇒ **F2-T2 默认**只补
+`owner_id`（保留「无项目工作区」的形态供测）⇒ ⇒ **回填登记 TODO**。
+
+⚠️ **执行时选了执行者那一支**（账簿 Task 6 的 Ruling「本批**照做**」）
+⇒ ⇒ 于是「FORMAL 归属一个项目」这条**产品语义**被写进了种子脚本，
+⇒ ⇒ 而**计划要求的「回填登记 TODO」没做** ⇒ ⇒ 本条就是那个漏掉的登记。
+
+**现在的代码事实**（`scripts/seed_e2e_flows.py`）：
+
+| 工作区 | `workspace_type` | `project_id` | 归属 |
+|---|---|---|---|
+| `FLOW_WORKSPACE_ID` | `FORMAL` | ✅ 回填（种的项目） | 业主项目 |
+| `FLOW_PERSONAL_WORKSPACE_ID` | `PERSONAL` | ❌ 空（**无项目**） | alice 个人 |
+
+⇒ ⇒ 仪表盘那条「**选到没有项目的工作区 ⇒ 面板不渲染**」的路径
+⇒ ⇒ **靠 PERSONAL 这行才测得了** ⇒ ⇒ 这条路径**目前是被测到的**。
+
+**为什么必须人裁**（机器判不了）：
+
+① 真实产品里 **FORMAL 工作区是不是必然有项目**？⇒ ⇒ 如果「不是」，
+   ⇒ ⇒ 当前实现把种子里的 FORMAL **强制**绑到项目 ⇒ ⇒ 与真实语义不符
+   ⇒ ⇒ 真后端通道测出来的行为**不代表**真实产品。
+② **要不要引入 PERSONAL 这种工作区形态**（真实产品里存在吗）？
+   ⇒ ⇒ 如果不存在 ⇒ ⇒ 种子造它就是**造了一个假形态** ⇒ ⇒
+   ⇒ ⇒ 那条仪表盘路径**测不到真实形态**（测了个不存在的东西）。
+③ 两者都要「**没有项目的工作区**」这个形态吗？⇒ ⇒ 那是**第三种**形态。
+
+**建议处置**（**不代决**）：
+
+① 确认真实产品的工作区形态清单 ⇒ ⇒ 再决定种子造哪几种
+② 若「无项目工作区」只该是 **PERSONAL** ⇒ ⇒ 现在的实现**就是对的**
+   ⇒ ⇒ 本条改为「已确认 · 登记语义」并把结论写进 `CONCEPTS.md`
+③ 若 FORMAL 也允许无项目 ⇒ ⇒ 种子要**再造一个 FORMAL 且无项目**的工作区
+   ⇒ ⇒ 并让仪表盘那条断言覆盖**两种**形态
+
+**何时做**：产品裁决批（**不阻塞** P10-F ⇒ ⇒ 当前实现自洽且可测）
+
+**归属**：P10-F（F2-T2 的延伸 · **交人裁决** · 补主计划「尚未解决的问题」#3 的登记）
