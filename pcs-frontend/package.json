@@ -17,7 +17,7 @@
     "api:check": "bash scripts/check-api-drift.sh",
     "e2e": "playwright test --project=chromium",
     "e2e:install": "playwright install chromium",
-    "e2e:real": "VITE_ENABLE_MOCK=false VITE_API_PROXY_TARGET=${VITE_API_PROXY_TARGET:-http://localhost:8000} playwright test --project=real-backend"
+    "e2e:real": "VITE_ENABLE_MOCK=false playwright test --project=real-backend"
   },
   "dependencies": {
     "antd": "^5.20.0",

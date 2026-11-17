@@ -145,22 +145,25 @@ docker compose --profile test up -d
 docker compose --profile test run --rm migrate
 docker compose --profile test run --rm seed
 
-# ② 后端 ⚠️ mock 登录**默认关**（上面的「双闸」）⇒ 真后端 E2E 必须显式开
-#    ⚠️ **端口与 ③ 的 VITE_API_PROXY_TARGET 必须成对** —— 代理指错 ⇒ 打到别的服务
-#    ⇒ 症状是「登录失败」。
-#    ⚠️⚠️ **必须连「被 seed 的那个库」**（`pcs_pgtest` · **宿主端口 5433**）——
-#    不设 `DATABASE_URL` ⇒ 后端读 `.env` ⇒ 连的是**开发库 `pcs`**
-#    ⇒ 种子在 `pcs_pgtest`、后端在 `pcs` ⇒ **两边不是同一个库**
-#    ⇒ 项目守卫的端点全 404 ⇒ 而冒烟用例现在有**数据级断言**
-#    （读种子项目 ⇒ 必须 200）⇒ **通道会红**，不再是假绿。
-#    ⚠️ 口令**走环境变量**（不写进命令行 ⇒ 不进 shell 历史）：默认值是
-#    compose 里那个**仅限开发**的口令，生产由 env 注入。
-export DATABASE_URL="postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@localhost:5433/pcs_pgtest"
-cd pcs-backend && PCS_ENABLE_MOCK_LOGIN=true uv run uvicorn app.main:app --port 8000
+# ② 后端 —— ⚠️ **三件事必须同时对**（库 · mock 登录 · 端口），少一件的症状
+#    都是「登录失败」或「表格永远没行」⇒ **极难定位**
+#    ⇒ ⇒ 这三件**收进一个脚本**（P10-B 评审 #23）：
+#      · `DATABASE_URL` ⇒ **被 seed 的那个库**（`pcs_pgtest` · 宿主 5433）
+#        —— 不设 ⇒ 后端读 `.env` ⇒ 连的是**开发库 `pcs`** ⇒ 种子在 A 库、
+#          后端在 B 库 ⇒ **两边不是同一个库** ⇒ 项目守卫的端点全 404
+#      · `PCS_ENABLE_MOCK_LOGIN=true`（mock 登录**默认关** ⇒ 双闸）
+#      · 端口 **8001**（与前端默认代理**成对**）
+#    ⚠️ 口令**走环境变量**（`POSTGRES_PASSWORD`）⇒ 不写进命令行 ⇒ 不进 shell 历史
+cd pcs-backend && bash scripts/serve_e2e_backend.sh
 
-# ③ 跑真后端通道（默认代理到 8000；后端在别的端口就带上 VITE_API_PROXY_TARGET）
-cd pcs-frontend && VITE_API_PROXY_TARGET=http://localhost:8000 npm run e2e:real
+# ③ 跑真后端通道（前端默认代理到 **8001**、项目 id 默认 = flows 项目 ⇒
+#    不用手工 export；要覆盖才设 VITE_PROJECT_ID / VITE_API_PROXY_TARGET）
+cd pcs-frontend && npm run e2e:real
 ```
+
+⚠️ **占位项目 id ⇒ fail-fast**（`e2e/global-setup.ts`）—— 真后端通道若带着
+`00000000-…` 那个占位 id ⇒ 查一个不存在的项目 ⇒ 表格永远没行、axios 也不报错
+⇒ ⇒ **整条通道全绿而它从没碰过被 seed 的数据** ⇒ ⇒ 跑之前就拦住并打印跑法。
 
 ⚠️ **真后端通道固定用 5174 且 `reuseExistingServer: false`** ⇒ 5174 上已有进程 ⇒
 **硬失败**（宁可失败，也不要复用错配置的 server）⇒ 先停掉旧 vite。

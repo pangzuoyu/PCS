@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import {
+  DEFAULT_API_PROXY_TARGET,
+  FLOW_PROJECT_ID,
+  REAL_FRONTEND_PORT,
+} from './e2e/channel-config';
 
 /**
  * Playwright E2E 配置 (P7-6B frontend / R1 §7 闭环).
@@ -36,7 +41,7 @@ import { defineConfig, devices } from '@playwright/test';
  *   npm run e2e:real   # 真后端通道（需后端 + 种子数据）
  */
 const MOCK_PORT = 5173;
-const REAL_PORT = 5174;
+const REAL_PORT = REAL_FRONTEND_PORT;
 
 export default defineConfig({
   testDir: './e2e',
@@ -58,6 +63,10 @@ export default defineConfig({
       grep: /@real-backend/,
     },
   ],
+  // ⚠️ **fail-fast**（P10-B 评审 #23）—— 真后端通道带着**占位项目 id** 跑
+  // ⇒ 查一个不存在的项目 ⇒ 表格永远没行、axios 也不报错 ⇒ **绿灯是假的**
+  // ⇒ ⇒ 在跑之前就拦住（详见 `e2e/global-setup.ts`）。
+  globalSetup: './e2e/global-setup.ts',
   webServer: [
     {
       command: `npm run dev -- --port ${MOCK_PORT}`,
@@ -72,6 +81,19 @@ export default defineConfig({
       // ⚠️ **不复用** ⇒ 复用别人起的 server = 复用错配置（评审 H-3 的根因）。
       reuseExistingServer: false,
       timeout: 120_000,
+      // ⚠️ **真后端通道的三个变量放这里**（评审 #23）—— 它们是**测试配置**
+      // ⇒ ⇒ 归 `playwright.config.ts` 管 ⇒ 不用每次手工 export ⇒
+      // ⇒ 也不会「忘了设 ⇒ 静默查错项目」。
+      // ⚠️ **可被环境变量覆盖**（要看别的库/别的端口时）。
+      env: {
+        VITE_ENABLE_MOCK: 'false',
+        // ⚠️ 默认 = **flows 项目**（种子的那个）⇒ 不是占位 id
+        VITE_PROJECT_ID: process.env.VITE_PROJECT_ID ?? FLOW_PROJECT_ID,
+        // ⚠️ 默认指向 `scripts/serve_e2e_backend.sh` 起的那个后端
+        // （**不是** `:8000` 的开发后端 ⇒ 免得代理指错 ⇒ 症状是「登录失败」）
+        VITE_API_PROXY_TARGET:
+          process.env.VITE_API_PROXY_TARGET ?? DEFAULT_API_PROXY_TARGET,
+      },
     },
   ],
 });
