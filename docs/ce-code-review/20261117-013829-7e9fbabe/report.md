@@ -991,3 +991,52 @@ pcs_pgtest : signature_matrices = [DEFAULT_RECORD_3_LEVEL, E2E_FLOWS_RECORD_3_LE
 
 > **一句话**：先修「让车道可信」的**四条**（**#2 / #14 / #8 / #16**），再合；
 > UI 断言的 **#5 / #7** 紧随其后，**不得标 done**。
+
+---
+
+## 执行结果（2026-11-17 · 评审修复批落地）
+
+> 本节由**执行者**在落地后补写 ⇒ ⇒ 让这份报告**自包含**（哪条修了、怎么修的、
+> 哪条没修、为什么）⇒ ⇒ 账簿 `.superpowers/sdd/2026-11-17-p10b-review-fixes/progress.md`
+> · QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b-review-fixes.md`。
+
+### 已落地
+
+| 发现 | 处置 | commit |
+|---|---|---|
+| **A1 / #14**（+ #3 / #4 / #12 随之） | 审计端点读 `content_hash`；删掉 `dup` 早退后**永不可达**的 `data_version = digest` | `cebf48d` |
+| **#2**（⇒ #1 作废） | 迁移 `p10_002` 种 `CS-STD` + lifespan 幂等 ensure ⇒ **请求路径不再写配置主表** | `062110a` |
+| **#8** | 目标库白名单（判据 = **真实连接**的 `current_database()`）⇒ 开发库不再可能被污染 | `c75b505` |
+| **#16** | 闸门③ 不再接受「跑 1 条、skip 29 条」⇒ **部分 skip 也 fail-closed** | `7f394c1` |
+| **#19** | 车道的隔离扩到**进程级 session factory**（`ws.py` / `errors.py` 与请求路径同一个房间） | `832f9c0` |
+| **#10** | RBAC 审计早退 ⇒ 按**真实连接**判「车道隔离上下文」⇒ 车道里 403 **留痕** | `4bb6a79` |
+| **#5** | 越权断言换「**角色够、授权缺**」身份 ⇒ 断 **404** + `code`/`message` **模板**逐字相同 ⇒ **变异测试**证明敏感 | `0bf78fd` |
+| **#6** | 矩阵断言改断**种子那张**（`E2E_FLOWS_RECORD_3_LEVEL`），不再断**内置全局**那张 | `0bf78fd` |
+| **#7** | 路由扫描改真断言（页面标记 + 专有值 + 非白屏）⇒ **白名单外**的 4xx/console error **必须为空** | `c82a1e8` |
+| **#18** | 种子**显式调生产用的两个 seed 函数** ⇒ 隔离 schema 里有**生产默认数据**（9 张系数表 / 13 个系统参数 ⇒ SPEC 的 6/7 是旧数字 ⇒ D39） | `6718ab4` |
+| **#20 / #21** | 两库 schema 检查挪到**发布前闸门** `scripts/check_schema_parity.py` ⇒ 逐库**独立子进程** + 断「**每个库 == 代码 head**」 | `7a0737e` |
+| **#23** | 三个变量落到三层（后端起服脚本 / `playwright.config.ts` 的 `webServer.env` / README）+ **fail-fast**（占位项目 id ⇒ 拒绝） | `d29598a` |
+| **#11** | **5 份** `docs/solutions/` 回写（含 1 份新增形状：「断言必须对被它命名的缺陷敏感」） | `b95a463` |
+| **#25** | 偏离登记**同步到权威 V1.3.1**（新增「第六部分：偏离登记」D23~D40）· V1.0 顶部标「已过时」· **D20 裁决作废** | `e03889a` |
+| **#26** | 请求侧 `case_type` 改 Optional ⇒ 读写对称（⚠️ OpenAPI 无变化：请求体是裸 dict） | `f22f3a9` |
+| **#15**（②③） | 默认锁路径 ⇒ **项目内** `pcs-backend/.tmp/lane.lock`（`/tmp` 被清理 ⇒ inode 换新 ⇒ 互斥静默失效）+ 守门测试补「默认路径互斥」**子进程实测** | `1e27216` |
+
+### 部分落地（**留 TODO ⇒ 不标 done**）
+
+- **#15 ①**（compose 的 `migrate` / `seed` 进同一把锁）⇒ ⇒ 容器里要有 `flock`
+  ⇒ 需要可写挂载 + `util-linux` ⇒ **本机无外网** ⇒ 镜像既不能构建也不能运行时安装
+  ⇒ ⇒ **改完无法验证** ⇒ ⇒ 登记 **TODO-163**（P10-C）。
+
+### 未裁 / 未动（本批**不做**）
+
+**#9**（`useFetch` 改走 axios）· **#13**（preview-streams 补 `response_model`）·
+**#17**（种子管级按 `PipeClassResponse` 改）· **#22**（public 守卫覆盖全部表 +
+种子前基线）· **#24**（仪表盘 404 守卫条件）· **#27**（flock 守卫剥注释 + 校验 `-n`）
+⇒ ⇒ 这六条**人未裁决** ⇒ ⇒ 未动（⇒ 下批的入口）。
+
+### 闸门（落地后）
+
+默认车道 **5829 passed** · PG 车道 **7 passed**（无 skip）· E2E 车道 **31 passed**
+（0 xfailed）· 真后端 Playwright **7 passed** · mock 通道 **23 passed** ·
+vitest **1054 passed** · typecheck / lint clean · 两库 `p10_002 (head)` +
+`alembic check` 干净 · 幂等 48 迁移 0 violations · 裸载荷 42 ≤ 71。
