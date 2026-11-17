@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -746,10 +747,21 @@ async def seed_flows(db: AsyncSession, *, reset: bool = False) -> dict[str, int]
 
 
 async def _main(reset: bool) -> None:
+    from app.core.db_guard import (
+        assert_allowed_lane_database,
+        current_database_name,
+    )
     from app.db.session import get_async_session_factory
 
     factory = get_async_session_factory()
     async with factory() as session:
+        # ⚠️ **目标库白名单**（P10-B 评审 #8 · P1）——
+        # 种子会写用户 / 授权行 / 项目 / 物流 ⇒ ⇒ 落在**开发库 `pcs`** 上就是
+        # **污染开发数据** ⇒ ⇒ 判据是**真实连接**的库名（`current_database()`），
+        # **不是** `PCS_E2E_LANE` 那种环境变量（谁都能设）。
+        assert_allowed_lane_database(
+            await current_database_name(session), purpose="流程级种子脚本"
+        )
         counts = await seed_flows(session, reset=reset)
 
     summary: dict[str, Any] = counts
@@ -760,6 +772,8 @@ async def _main(reset: bool) -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover — 脚本入口
+    from app.core.db_guard import LaneDatabaseNotAllowed
+
     parser = argparse.ArgumentParser(description="灌流程级 E2E 种子数据（幂等）")
     parser.add_argument(
         "--reset",
@@ -767,7 +781,12 @@ if __name__ == "__main__":  # pragma: no cover — 脚本入口
         help="先删掉种子集合自己的行再重灌（不碰业务数据）",
     )
     args = parser.parse_args()
-    asyncio.run(_main(args.reset))
+    try:
+        asyncio.run(_main(args.reset))
+    except LaneDatabaseNotAllowed as exc:
+        # ⚠️ **fail-closed**（非零退出 + 说清拒的是哪个库 + 怎么改）
+        print(f"FAIL: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 __all__ = [

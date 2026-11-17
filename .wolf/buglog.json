@@ -6331,6 +6331,26 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-16"
+    },
+    {
+      "id": "bug-2171",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "E2E 车道与流程级种子脚本**没有目标库白名单** ⇒ `PCS_E2E_LANE=1` + 指向开发库 `pcs` 的 `DATABASE_URL` ⇒ 就会在**开发库**里 CREATE SCHEMA + 跑 alembic + 灌 7 个用户与授权行（P10-B ce-code-review #8 · P1）",
+      "file": "pcs-backend/app/core/db_guard.py",
+      "root_cause": "车道（`tests/e2e_flows/conftest.py::_lane_url`）只校验 URL **协议**是不是 postgres ⇒ 不校验**连上去的是哪个库** ⇒ ⇒ 种子脚本（`scripts/seed_e2e_flows.py`）同样没有闸门 ⇒ ⇒ 文档里那条「`uv run python scripts/seed_e2e_flows.py`」命令跟着 `.env` 走 ⇒ **静默灌进开发库**。\n⚠️ **不能用 `PCS_E2E_LANE` 当判据** —— 它只是环境变量 ⇒ 谁都能设 ⇒ 判据必须是**真实连接的库**。",
+      "fix": "新增 `app/core/db_guard.py`：① `ALLOWED_LANE_DATABASES = {pcs_pgtest, pcs_test}`（**显式枚举** ⇒ 开发库 `pcs` 与系统库都不在内）② `db_name_from_url`（**快速预筛**，连都不连就拒）③ `current_database_name`（**真判据**）④ `assert_allowed_lane_database`（fail-closed：取不到库名 ⇒ 当作拒绝）。\n⇒ 车道：`_lane_url()` 预筛 + `e2e_schema` fixture 在 `CREATE SCHEMA` **之前**查 `current_database()`；\n⇒ 种子脚本：`_main()` 里先查后写 ⇒ 不在白名单 ⇒ **exit 2** + 说清拒的是哪个库与怎么改。\n⇒ TDD：单测（10 条）先写（RED：模块不存在）⇒ 实现 ⇒ GREEN；另**实测**：对着开发库跑种子 ⇒ exit 2 且 `pcs` 里 `user_projects`/`data_lineage` **零新增**。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "E2E",
+        "守卫",
+        "fail-closed"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
     }
   ]
 }

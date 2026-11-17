@@ -35,6 +35,11 @@ from pathlib import Path
 
 import httpx
 import pytest
+
+from app.core.db_guard import (
+    assert_allowed_lane_database,
+    db_name_from_url,
+)
 import pytest_asyncio
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -98,6 +103,13 @@ def _lane_url() -> str:
             "不在 E2E 车道里（DATABASE_URL 不是 postgres URL）"
             "⇒ 须经 scripts/pytest_e2e.sh 跑（唯一入口）"
         )
+    # ⚠️ **目标库白名单**（P10-B 评审 #8 · P1）：车道会**建 schema + 跑迁移 + 灌种子**
+    # ⇒ ⇒ 指向开发库 `pcs` 就会**污染开发数据** ⇒ ⇒ 先按 URL 里的库名**快速拒**
+    # （连都不连 ⇒ 不给误操作留窗口）⇒ 真判据（`current_database()`）在
+    # `e2e_schema` fixture 里 —— 那才是「连上去的那个库」。
+    assert_allowed_lane_database(
+        db_name_from_url(url), purpose="E2E 车道（DATABASE_URL）"
+    )
     return url
 
 
@@ -164,6 +176,13 @@ def e2e_schema() -> str:
     schema = f"e2e_{uuid.uuid4().hex[:8]}"
     engine = create_engine(url)
     try:
+        # ⚠️ **真判据**（P10-B 评审 #8）：**真实连接**的库名（`current_database()`）
+        # ⇒ ⇒ 必须在白名单 ⇒ ⇒ 否则**连开发库 `pcs` 都会被建 schema**。
+        # ⚠️ 放在 `CREATE SCHEMA` **之前** ⇒ 拒绝时不留任何痕迹。
+        with engine.connect() as conn:
+            live_db = conn.execute(text("SELECT current_database()")).scalar_one()
+        assert_allowed_lane_database(live_db, purpose="E2E 车道（真实连接）")
+
         with engine.begin() as conn:
             conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
             conn.execute(text(f'CREATE SCHEMA "{schema}"'))
