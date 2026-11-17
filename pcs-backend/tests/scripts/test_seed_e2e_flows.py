@@ -269,6 +269,44 @@ async def test_seed_flows_reset_only_deletes_its_own_rows(db_session):
     ).scalar_one_or_none() is not None, "reset 删掉了别人的工作区"
 
 
+async def test_seed_flows_reset_restores_the_personal_workspace(db_session):
+    """⚠️ **reset 必须把 PERSONAL 工作区恢复原状** —— 删除步骤漏了它。
+
+    ⇒ ⇒ `_delete_own_rows` 只删 `FLOW_WORKSPACE_ID` ⇒ ⇒ PERSONAL 那行**活下来**
+    ⇒ ⇒ 而 `_correct_workspace` 只订正 `owner_id` / `project_id`
+    ⇒ ⇒ `workspace_type` / `name` / `status` **不会被订正**
+    ⇒ ⇒ 一行**半旧半新**的工作区长期留着 ⇒ ⇒ reset 名义上「恢复原状」，
+    ⇒ ⇒ 实际上这一行没恢复。
+    """
+    await seed_flows(db_session)
+    ws = (
+        await db_session.execute(
+            select(Workspace).where(Workspace.workspace_id == FLOW_PERSONAL_WORKSPACE_ID)
+        )
+    ).scalar_one()
+    # 破坏它（模拟「老行」：类型 / 名字 / 状态被改过）
+    ws.workspace_type = "FORMAL"
+    ws.name = "被改过的名字"
+    ws.status = "ARCHIVED"
+    await db_session.commit()
+
+    await seed_flows(db_session, reset=True)
+
+    row = (
+        await db_session.execute(
+            select(Workspace).where(Workspace.workspace_id == FLOW_PERSONAL_WORKSPACE_ID)
+        )
+    ).scalar_one()
+    assert (row.workspace_type, row.name, row.status) == (
+        "PERSONAL",
+        "E2E 无项目工作区",
+        "ACTIVE",
+    ), (
+        "reset 之后 PERSONAL 工作区没恢复原状 ⇒ reset 的删除步骤漏了它"
+        f"（当前：{row.workspace_type} / {row.name} / {row.status}）"
+    )
+
+
 async def test_seed_flows_reset_respects_foreign_key_order(db_session):
     """`--reset` 的删序遵守外键 ⇒ 反了就撞 FK ⇒ reset 直接炸。
 
@@ -413,8 +451,40 @@ async def test_seed_pipe_class_row_matches_the_response_contract(db_session):
         {c.name: getattr(row, c.name) for c in PipeClass.__table__.columns}
     )  # ← 违反契约时抛 ValidationError
     assert validated.dn_series_json == {"min": 150, "max": 150}
-    assert validated.sch_series_json == {"DN150": "40"}
+    assert validated.sch_series_json == {"150": "40"}
     assert validated.source == "COMPANY_STD"
+
+
+async def test_seed_pipe_class_sch_keys_are_bare_dn_numbers(db_session):
+    """⚠️ **SCH 的键必须是裸 DN 数字** —— 与 `dn_series_json` **同一口径**。
+
+    ⇒ ⇒ 仓内约定：`CS-STD` 占位行用的是 `"15"` / `"600"`（裸数字）
+    ⇒ ⇒ 前端 `dnNumeric`（`src/lib/pipeClassSch.ts`）**只认裸数字**
+    ⇒ ⇒ `Number("DN150")` = NaN ⇒ ⇒ 该键被排到所有数字键**之后**
+    ⇒ ⇒ 这一行 `source=COMPANY_STD` ⇒ ⇒ **会出现在公司管级列表里**
+    ⇒ ⇒ 于是前端按 DN 分档时它排错位 / 显示成「非数字键」。
+    ⇒ ⇒ 后端 `_parse_dn_key` 能剥 "DN" 前缀 ⇒ ⇒ **前后端口径不一致**。
+
+    ⚠️ **为什么这条不是「洁癖」**：种子的 docstring 自己写着「形状与
+    `CS-STD` 占位行**同款**」⇒ ⇒ 键写成 `"DN150"` 时那句话是**假的**。
+    """
+    from app.models.config_domain import PipeClass
+
+    await seed_flows(db_session)
+    row = (
+        await db_session.execute(
+            select(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID)
+        )
+    ).scalar_one()
+
+    keys = list(row.sch_series_json.keys())
+    assert keys == ["150"], (
+        f"SCH 的键是 {keys} ⇒ 应与 dn_series_json 的口径一致（裸 DN 数字）"
+        " ⇒ 前端 dnNumeric 只认裸数字 ⇒ 这行会排错位"
+    )
+    assert str(row.dn_series_json["min"]) in keys, (
+        f"SCH 的键 {keys} 与 dn_series_json {row.dn_series_json} 对不上"
+    )
 
 
 async def test_seed_corrects_an_existing_legacy_row(db_session):

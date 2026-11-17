@@ -332,7 +332,9 @@ async def _delete_own_rows(db: AsyncSession) -> None:
     await db.execute(delete(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID))
     await db.execute(delete(Project).where(Project.project_id.in_(project_ids)))
     await db.execute(
-        delete(Workspace).where(Workspace.workspace_id == FLOW_WORKSPACE_ID)
+        delete(Workspace).where(
+            Workspace.workspace_id.in_([FLOW_WORKSPACE_ID, FLOW_PERSONAL_WORKSPACE_ID])
+        )
     )
     await db.commit()
 
@@ -584,7 +586,11 @@ async def _ensure_pipe_class(db: AsyncSession) -> PipeClass:
     """
     target: dict[str, Any] = {
         "dn_series_json": {"min": 150, "max": 150},
-        "sch_series_json": {"DN150": "40"},
+        # ⚠️ **键必须是裸 DN 数字**（`"150"` 而不是 `"DN150"`）—— 与 `dn_series_json`
+        # **同一口径**，也与 `CS-STD` 占位行（`"15"` / `"600"`）同款
+        # ⇒ ⇒ 前端 `dnNumeric` 只认裸数字（`Number("DN150")` = NaN ⇒ 排到数字键之后）
+        # ⇒ ⇒ 后端 `_parse_dn_key` 能剥 "DN" 前缀 ⇒ ⇒ 前后端口径必须一致。
+        "sch_series_json": {"150": "40"},
         "source": "COMPANY_STD",
     }
     pc = await _get_or_create(
