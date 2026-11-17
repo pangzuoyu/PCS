@@ -29,14 +29,21 @@ from typing import Any
 __all__ = [
     "ALLOWED_LANE_DATABASES",
     "LaneDatabaseNotAllowed",
+    "PUBLIC_SCHEMA",
     "assert_allowed_lane_database",
     "current_database_name",
+    "current_schema_name",
     "db_name_from_url",
+    "factory_database_url",
+    "is_isolated_lane_context",
 ]
 
 
 #: **允许**的目标库（显式枚举 ⇒ 可审计 ⇒ 新库要么加进来要么就是拒绝）。
 ALLOWED_LANE_DATABASES: frozenset[str] = frozenset({"pcs_pgtest", "pcs_test"})
+
+#: `public` schema 名 —— 「当前 schema 就是 public」⇒ **不是**隔离上下文。
+PUBLIC_SCHEMA = "public"
 
 
 class LaneDatabaseNotAllowed(RuntimeError):
@@ -85,3 +92,45 @@ async def current_database_name(session: Any) -> str:
 
     result = await session.execute(text("SELECT current_database()"))
     return str(result.scalar_one())
+
+
+async def current_schema_name(session: Any) -> str:
+    """查**真实连接**的 schema 名（`current_schema()`）。
+
+    ⚠️ 隔离 schema 是靠 `search_path` 设的 ⇒ ⇒ `current_schema()` 返回的
+    就是那个隔离 schema 的名字 ⇒ ⇒ 它是「**是不是隔离上下文**」的判据。
+    """
+    from sqlalchemy import text
+
+    result = await session.execute(text("SELECT current_schema()"))
+    return str(result.scalar_one())
+
+
+async def is_isolated_lane_context(session: Any) -> bool:
+    """当前连接是不是**车道隔离上下文**（白名单库 + 非 public schema）。
+
+    ⚠️ **两条都要满足**（缺一条即拒绝 ⇒ fail-closed）：
+
+    ① `current_database()` ∈ `ALLOWED_LANE_DATABASES`（真判据：连上去的那个库）
+    ② `current_schema()` ≠ `public`（有人把 `search_path` 指到了专用 schema）
+
+    ⚠️ **为什么还要 ②** —— 两条车道**共用同一个库**（`pcs_pgtest`）⇒ ⇒
+    只看库名 ⇒ PG 车道（public schema）也会被当成「车道上下文」⇒ ⇒ 那条
+    ⇒ 车道写的是**共享** schema ⇒ ⇒ 用「schema 不是 public」把「隔离」认出来。
+    """
+    db_name = await current_database_name(session)
+    if db_name not in ALLOWED_LANE_DATABASES:
+        return False
+    return await current_schema_name(session) != PUBLIC_SCHEMA
+
+
+def factory_database_url(factory: Any) -> str | None:
+    """session factory **真正会连**的 URL（从它绑定的 engine 上取）。
+
+    ⚠️ 取不到 ⇒ `None` ⇒ 调用方按「不知道 ⇒ 拒绝」处理（fail-closed）。
+    ⚠️ **为什么要从 engine 取而不是从 settings 取** —— 判据必须是
+    「**这条连接**会去哪儿」，而不是「配置里写了什么」。
+    """
+    bind = getattr(factory, "kw", {}).get("bind")
+    url = getattr(bind, "url", None)
+    return str(url) if url is not None else None

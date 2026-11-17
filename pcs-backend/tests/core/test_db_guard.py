@@ -21,7 +21,10 @@ from app.core.db_guard import (
     LaneDatabaseNotAllowed,
     assert_allowed_lane_database,
     current_database_name,
+    current_schema_name,
     db_name_from_url,
+    factory_database_url,
+    is_isolated_lane_context,
 )
 
 
@@ -79,3 +82,64 @@ async def test_current_database_name_reads_the_live_connection():
     session = _Session()
     assert await current_database_name(session) == "pcs_pgtest"
     assert "current_database()" in session.statements[0]
+
+
+class _FakeResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one(self):
+        return self._value
+
+
+class _FakeSession:
+    """按 SQL 内容回答的假 session（只认两种探针）。"""
+
+    def __init__(self, db_name: str, schema: str):
+        self._db_name = db_name
+        self._schema = schema
+
+    async def execute(self, statement):
+        sql = str(statement)
+        if "current_database()" in sql:
+            return _FakeResult(self._db_name)
+        if "current_schema()" in sql:
+            return _FakeResult(self._schema)
+        raise AssertionError(f"意料之外的 SQL：{sql}")
+
+
+async def test_current_schema_name_reads_the_live_connection():
+    """隔离 schema 靠 `search_path` 设 ⇒ ⇒ `current_schema()` 就是它。"""
+    assert await current_schema_name(_FakeSession("pcs_pgtest", "e2e_ab12")) == (
+        "e2e_ab12"
+    )
+
+
+@pytest.mark.parametrize(
+    ("db_name", "schema", "want"),
+    [
+        ("pcs_pgtest", "e2e_ab12", True),  # 车道隔离上下文
+        ("pcs_test", "e2e_ab12", True),
+        ("pcs_pgtest", "public", False),  # 共享 schema ⇒ 不是隔离上下文
+        ("pcs", "e2e_ab12", False),  # 开发库 ⇒ 拒绝
+        ("pcs", "public", False),
+    ],
+)
+async def test_is_isolated_lane_context(db_name, schema, want):
+    """隔离上下文 = **白名单库** + **非 public schema**（两条都要满足）。"""
+    assert await is_isolated_lane_context(_FakeSession(db_name, schema)) is want
+
+
+def test_factory_database_url_reads_the_bound_engine():
+    """判据是「**这条连接**会去哪儿」⇒ 从 factory 绑的 engine 上取。"""
+
+    class _Bind:
+        url = "postgresql+asyncpg://pcs:***@localhost:5433/pcs_pgtest"
+
+    class _Factory:
+        kw = {"bind": _Bind()}
+
+    assert factory_database_url(_Factory()) == _Bind.url
+    # ⚠️ 取不到 ⇒ `None` ⇒ 调用方按「不知道 ⇒ 拒绝」处理（fail-closed）
+    assert factory_database_url(object()) is None
+    assert factory_database_url(object()) is None

@@ -32,17 +32,52 @@ _RBAC_DENIED_LIMIT = 5
 _RBAC_DENIED_WINDOW_S = 60.0
 
 
+async def _audit_target_is_lane() -> bool:
+    """pytest 下：审计行**只**写「车道隔离上下文」（P10-B 评审 #10）。
+
+    ⚠️ **判据 = 真实连接**（`current_database()` + `current_schema()`）
+    ⇒ ⇒ **不是** `PCS_E2E_LANE`（那只是个环境变量 ⇒ 谁都能设 ⇒ 不可信）。
+
+    ⚠️ **先做 URL 预筛** —— 单测车道的全局 factory 指**开发库** ⇒ ⇒ 直接
+    连库去问「我在哪个库」会把**单测**连到开发库 ⇒ ⇒ 先用 URL 拒掉
+    非白名单库（**连都不连**）⇒ 真判据在连上之后。
+
+    ⚠️ **任一步失败 ⇒ 当作「不是车道」⇒ 不写**（fail-closed）。
+    """
+    try:
+        from app.core.db_guard import (
+            ALLOWED_LANE_DATABASES,
+            db_name_from_url,
+            factory_database_url,
+            is_isolated_lane_context,
+        )
+        from app.db.session import get_async_session_factory
+
+        factory = get_async_session_factory()
+        url = factory_database_url(factory)
+        if url is None or db_name_from_url(url) not in ALLOWED_LANE_DATABASES:
+            return False
+        async with factory() as session:
+            return await is_isolated_lane_context(session)
+    except Exception:  # noqa: BLE001 — 判据失败 ⇒ 不写（不阻断错误响应）
+        logger.warning("RBAC_DENIED 审计目标判定失败 ⇒ 不写审计行", exc_info=True)
+        return False
+
+
 async def _write_rbac_audit_row(
     user_id: uuid.UUID | None, detail: dict[str, Any]
 ) -> None:
     """写一条 RBAC_DENIED audit_logs 行（独立 session, best-effort）.
 
     - 懒导入避免 core → services/models 循环依赖
-    - pytest 环境默认跳过（防测试写真实 DB; 单测 monkeypatch 本函数或
-      清 PYTEST_CURRENT_TEST + 注入测试 factory 走真路径）
+    - **非 pytest ⇒ 一律写**（生产行为不变）
+    - **pytest ⇒ 只在「车道隔离上下文」写**（白名单库 + 隔离 schema）
+      ⇒ 理由：早退是为了「防测试写真实 DB」⇒ ⇒ 而车道的库**已经是隔离
+      schema** ⇒ ⇒ 这条早退在车道里**没有理由** ⇒ ⇒ 不写 ⇒ 「越权 ⇒
+      留痕」这条合规语义在车道里是**空跑**（P10-B 评审 #10）
     - 失败仅 log warning, 不影响错误响应本身
     """
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    if os.environ.get("PYTEST_CURRENT_TEST") and not await _audit_target_is_lane():
         return
     try:
         from app.db.session import get_async_session_factory

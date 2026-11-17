@@ -206,3 +206,175 @@ async def test_write_rbac_audit_row_persists_via_own_session(
     assert rows[0].resource_type == "AUTHZ"
     assert rows[0].detail_json["path"] == "/api/v1/audit-logs"
     assert rows[0].detail_json["status"] == 403
+
+
+# ---------------------------------------------------------------------------
+# pytest 下的「写不写」判据（P10-B 评审 #10 · P2）
+#
+# ⚠️ 早退的理由是「防测试写真实 DB」⇒ ⇒ 而车道的库**已经是隔离 schema**
+# ⇒ ⇒ 早退在车道里**没有理由** ⇒ ⇒ 「越权 ⇒ 留痕」在车道里必须是**真跑**。
+#
+# ⚠️ **判据不能是环境变量**（`PCS_E2E_LANE` 谁都能设）⇒ ⇒ 判据是
+# **真实连接**（`current_database()` + `current_schema()`）。
+# ---------------------------------------------------------------------------
+
+
+class _StubResult:
+    """`session.execute(...).scalar_one()` 的假结果。"""
+
+    def __init__(self, value):
+        self._value = value
+
+    def scalar_one(self):
+        return self._value
+
+
+class _StubSession:
+    """只回答 `current_database()` / `current_schema()` 的假 session。"""
+
+    def __init__(self, db_name: str, schema: str):
+        self._db_name = db_name
+        self._schema = schema
+        self.committed = False
+
+    async def execute(self, statement):
+        sql = str(statement)
+        if "current_database()" in sql:
+            return _StubResult(self._db_name)
+        if "current_schema()" in sql:
+            return _StubResult(self._schema)
+        raise AssertionError(f"意料之外的 SQL：{sql}")
+
+    async def commit(self):
+        self.committed = True
+
+
+class _StubBind:
+    def __init__(self, url: str):
+        self.url = url
+
+
+class _StubFactory:
+    """假 session factory（`kw['bind'].url` = 它**真正会连**的库）。"""
+
+    def __init__(self, session: _StubSession, url: str):
+        self._session = session
+        self.kw = {"bind": _StubBind(url)}
+        self.opened = 0
+
+    def __call__(self) -> "_StubFactory":
+        return self
+
+    async def __aenter__(self) -> _StubSession:
+        self.opened += 1
+        return self._session
+
+    async def __aexit__(self, *exc) -> bool:
+        return False
+
+
+class _StubAuditService:
+    """记录 `write()` 调用（不真写库）。"""
+
+    calls: list[dict] = []
+
+    def __init__(self, session):
+        self.session = session
+
+    async def write(self, **kwargs):
+        _StubAuditService.calls.append(kwargs)
+        return object()
+
+
+@pytest.fixture
+def stub_audit_target(monkeypatch):
+    """装好「审计目标」的假上下文 ⇒ 返回装填器（返回假 factory）。"""
+    import app.db.session as db_session_mod
+    import app.services.audit_service as audit_service_mod
+
+    _StubAuditService.calls = []
+
+    def _install(*, url: str, db_name: str, schema: str) -> _StubFactory:
+        factory = _StubFactory(_StubSession(db_name, schema), url)
+        monkeypatch.setattr(
+            db_session_mod, "get_async_session_factory", lambda: factory
+        )
+        monkeypatch.setattr(audit_service_mod, "AuditService", _StubAuditService)
+        return factory
+
+    return _install
+
+
+async def test_under_pytest_a_non_lane_database_is_not_even_connected(
+    monkeypatch, stub_audit_target
+):
+    """pytest 下、目标库**不是**车道库 ⇒ 不写审计行，且**连都不连**。
+
+    ⚠️ 「连都不连」是关键 —— 单测车道的全局 factory 指**开发库** ⇒ ⇒
+    连上去问「我在哪个库」就等于**单测车道去碰开发库**。
+    """
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "unit (call)")
+    factory = stub_audit_target(
+        url="postgresql+psycopg://pcs:***@localhost:5432/pcs",
+        db_name="pcs",
+        schema="public",
+    )
+
+    await errors_mod._write_rbac_audit_row(user_id=None, detail={"path": "/x"})
+
+    assert _StubAuditService.calls == [], "非白名单库竟然写了审计行"
+    assert factory.opened == 0, "非白名单库竟然被连上了 ⇒ 单测车道会去碰开发库"
+
+
+async def test_under_pytest_the_lane_database_but_public_schema_is_not_written(
+    monkeypatch, stub_audit_target
+):
+    """pytest 下、白名单库但 **public schema** ⇒ 不写（共享 schema 不能被测试写）。"""
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "unit (call)")
+    factory = stub_audit_target(
+        url="postgresql+asyncpg://pcs:***@localhost:5433/pcs_pgtest",
+        db_name="pcs_pgtest",
+        schema="public",
+    )
+
+    await errors_mod._write_rbac_audit_row(user_id=None, detail={"path": "/x"})
+
+    assert _StubAuditService.calls == [], "public schema 竟然被写了审计行"
+    assert factory.opened == 1, "白名单库应当被连上再判定（真判据 = 真实连接）"
+
+
+async def test_under_pytest_an_isolated_lane_context_writes_the_audit_row(
+    monkeypatch, stub_audit_target
+):
+    """pytest 下、**隔离 schema** ⇒ 写审计行（P10-B 评审 #10 的落点）。"""
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "unit (call)")
+    stub_audit_target(
+        url="postgresql+asyncpg://pcs:***@localhost:5433/pcs_pgtest",
+        db_name="pcs_pgtest",
+        schema="e2e_ab12cd34",
+    )
+
+    detail = {"path": "/api/v1/audit-logs", "status": 403}
+    await errors_mod._write_rbac_audit_row(user_id=uuid.uuid4(), detail=detail)
+
+    assert len(_StubAuditService.calls) == 1, "隔离 schema 里竟然没写审计行"
+    call = _StubAuditService.calls[0]
+    assert call["action"] == "RBAC_DENIED"
+    assert call["resource_type"] == "AUTHZ"
+    assert call["detail"] == detail
+
+
+async def test_under_pytest_a_url_that_lies_about_the_lane_is_rejected(
+    monkeypatch, stub_audit_target
+):
+    """URL 说「车道库」、**真连**却是别的库 ⇒ 不写（fail-closed）。"""
+    monkeypatch.setenv("PYTEST_CURRENT_TEST", "unit (call)")
+    stub_audit_target(
+        url="postgresql+asyncpg://pcs:***@localhost:5433/pcs_pgtest",
+        db_name="pcs",  # ⚠️ URL 说车道库，真连接却不是
+        schema="e2e_ab12cd34",
+    )
+
+    await errors_mod._write_rbac_audit_row(user_id=None, detail={"path": "/x"})
+
+    assert _StubAuditService.calls == [], "真连接不在白名单却写了审计行"

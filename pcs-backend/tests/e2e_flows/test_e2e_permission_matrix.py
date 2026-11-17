@@ -121,6 +121,68 @@ async def test_permission_matrix(e2e_client, role_headers, e2e_seed):
 
 
 @pytest.mark.e2e
+async def test_rbac_denial_writes_an_audit_row(e2e_client, role_headers):
+    """⚠️ **403 ⇒ 审计行**（P10-B 评审 #10）⇒ 「越权 ⇒ 留痕」**不是空跑**。
+
+    ⚠️ **限流要先清** —— RBAC 拒绝是 per-IP 滑动窗口（>5/min ⇒ 429）⇒ ⇒
+    车道里已经有若干次拒绝 ⇒ 不清 ⇒ 这一条拿到的是 **429** 而不是 403。
+
+    ⚠️ **断「多了一行」而不是「有一行」** —— 车道里别的用例也会写审计
+    ⇒ ⇒ 断绝对数量会被别的用例带偏 ⇒ ⇒ 断**写前/写后的差**。
+    """
+    from sqlalchemy import select
+
+    from app.models.system import AuditLog
+    from app.services._sliding_window_rate_limit import clear_all_rate_limits
+    from app.services.token_issuer import derive_user_id
+
+    from scripts.seed_e2e_flows import ROLE_TO_USERNAME
+
+    clear_all_rate_limits()
+    try:
+        async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+            before = len(
+                (
+                    await session.execute(
+                        select(AuditLog).where(AuditLog.action == "RBAC_DENIED")
+                    )
+                ).scalars().all()
+            )
+
+        resp = await e2e_client.get(
+            "/api/v1/audit-logs", headers=role_headers("DESIGNER")
+        )
+        assert resp.status_code == 403, (
+            f"DESIGNER 访问 audit-logs 应 403，却拿到 {resp.status_code}"
+            "⇒ 本用例没走到 RBAC 拒绝路径"
+        )
+
+        async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
+            rows = (
+                await session.execute(
+                    select(AuditLog)
+                    .where(AuditLog.action == "RBAC_DENIED")
+                    .order_by(AuditLog.occurred_at.desc())
+                )
+            ).scalars().all()
+    finally:
+        # ⚠️ 还原 ⇒ 别把限流额度留给后面的用例（否则矩阵那条会拿到 429）
+        clear_all_rate_limits()
+
+    assert len(rows) == before + 1, (
+        f"403 之后审计行数 {before} → {len(rows)}（期望 +1）"
+        "⇒ RBAC 审计在车道里是空跑（评审 #10）"
+    )
+    latest = rows[0]
+    assert latest.resource_type == "AUTHZ"
+    assert latest.user_id == derive_user_id(ROLE_TO_USERNAME["DESIGNER"]), (
+        f"审计行的 user_id = {latest.user_id}，不是被测用户的派生 id"
+    )
+    assert latest.detail_json["path"] == "/api/v1/audit-logs"
+    assert latest.detail_json["status"] == 403
+
+
+@pytest.mark.e2e
 async def test_e2e_016_cross_project_access_is_404_not_403(
     e2e_client, role_headers, e2e_seed
 ):
