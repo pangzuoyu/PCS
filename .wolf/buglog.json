@@ -6540,6 +6540,28 @@
     "related_bugs": [],
     "occurrences": 1,
     "last_seen": "2026-11-17"
+  },
+  {
+    "id": "bug-2181",
+    "timestamp": "2026-11-17",
+    "severity": "medium",
+    "error_message": "默认车道全量跑红一条：`tests/services/test_ui_schema_drift.py::test_stream_required_matches_pydantic` ⇒ 「uiSchema 标记 required 但 Pydantic 非必填: {'case_type'}」⇒ ⇒ **默认车道不是绿的**（P10-F 批末闸门实测）",
+    "file": "pcs-backend/app/services/ui_schema_service.py",
+    "root_cause": "P10-B 的评审 #26（commit f22f3a9）把 `StreamBase.case_type` 改成**请求侧可省略**（DB 列 `streams.case_type` 可空 ⇒ 读写对称）⇒ ⇒ 但 `app/services/ui_schema_service.py` 里 stream 的 `case_type` 仍写 `\"required\": True` ⇒ ⇒ **表单契约与 API 契约分叉** ⇒ ⇒ 漂移守卫必红。⚠️ **本批未改这三个文件** ⇒ ⇒ 这条红**在 P10-B 批末就存在**（P10-B 的 STATUS 声称「默认车道全量绿」⇒ 那句不准确）。",
+    "fix": "`ui_schema_service.py` 的 stream `case_type` 改成 `\"required\": False` ⇒ ⇒ 方向唯一（漂移守卫判据是「uiSchema.required ⊆ Pydantic 必填」⇒ 而 #26 的人裁决是「请求侧可省略」）⇒ ⇒ **没有**改回 Pydantic（那会推翻 #26 的人裁决）。",
+    "fix_commit": "120677b",
+    "tags": [
+      "P10-F",
+      "P10-B遗留",
+      "契约漂移",
+      "uiSchema",
+      "批末闸门"
+    ],
+    "related_bugs": [
+      "bug-2173"
+    ],
+    "occurrences": 1,
+    "last_seen": "2026-11-17"
   }
   ]
 }

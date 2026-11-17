@@ -3700,3 +3700,53 @@
 | 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_seeded_workspace_is_visible_to_its_owner() | ~970 |
 | 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+6 lines) | ~491 |
 | 18:53 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | 3→5 lines | ~180 |
+| 19:08 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified fix() | ~698 |
+| 19:08 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_preview_streams_response_model_declares_the_streams_key() | ~782 |
+| 19:08 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_seed_corrects_an_existing_legacy_row() | ~311 |
+| 19:09 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_public_guard_detects_a_leaked_row() | ~971 |
+| 19:09 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+16 lines) | ~197 |
+| 19:09 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_compose_test_stack_takes_the_lane_lock_before_invoking_compose() | ~661 |
+| 19:09 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified fix() | ~656 |
+| 19:09 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+58 lines) | ~1375 |
+| 19:10 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+83 lines) | ~1388 |
+| 19:10 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | inline fix | ~65 |
+| 19:11 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | modified test_default_lane_never_connects_to_a_real_database_or_redis() | ~697 |
+| 19:11 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | 1→3 lines | ~21 |
+| 20:09 | Session end: 332 writes across 128 files (progress.md, test_compose_test_profile.py, docker-compose.yml, README.md, test_seed_e2e_data.py) | 290 reads | ~700080 tok |
+
+## Session: 2026-11-17 20:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 20:13 | Created pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | — | ~2561 |
+| 20:13 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | 5→8 lines | ~91 |
+| 20:13 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | 8→11 lines | ~95 |
+| 20:13 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | 2→3 lines | ~63 |
+| 20:14 | Edited pcs-frontend/src/api/client.ts | added 1 condition(s) | ~306 |
+| 20:14 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added optional chaining | ~820 |
+| 20:14 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~63 |
+| 20:14 | Edited pcs-frontend/src/pages/routeWrappers.tsx | CSS: data | ~105 |
+| 20:14 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | expanded (+6 lines) | ~169 |
+| 20:14 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | added 1 import(s) | ~27 |
+| 20:19 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t1.txt | — | ~401 |
+| 20:20 | Edited pcs-backend/app/api/v1/sim_imports_query.py | modified SimImportWarningListResponse() | ~181 |
+| 20:20 | Edited pcs-backend/app/api/v1/sim_imports_query.py | 4→4 lines | ~41 |
+| 20:21 | Edited pcs-backend/app/api/v1/sim_imports_query.py | modified get_preview_streams() | ~98 |
+| 20:21 | Edited pcs-backend/app/api/v1/sim_imports_query.py | modified isinstance() | ~178 |
+| 20:24 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | 10→11 lines | ~68 |
+| 20:24 | Edited pcs-backend/scripts/seed_e2e_flows.py | modified _ensure_pipe_class() | ~528 |
+| 20:25 | Created pcs-backend/tests/e2e_flows/test_e2e_pipe_class_lookup.py | — | ~565 |
+| 20:26 | Created pcs-backend/tests/scripts/test_lane_script_body.py | — | ~530 |
+| 20:26 | Created pcs-backend/tests/scripts/lane_script_body.py | — | ~419 |
+| 20:26 | Edited pcs-backend/tests/scripts/test_pytest_e2e_gate.py | added 1 import(s) | ~151 |
+| 20:26 | Edited pcs-backend/tests/scripts/test_pytest_e2e_gate.py | read_text() → lane_script_body() | ~156 |
+| 20:27 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | added 1 import(s) | ~43 |
+| 20:27 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | modified test_script_does_not_teach_a_second_entry_point() | ~678 |
+| 20:27 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | 2→7 lines | ~83 |
+| 20:35 | Edited pcs-backend/app/services/ui_schema_service.py | 9→14 lines | ~167 |
+| 20:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t2.txt | — | ~346 |
+| 20:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t3.txt | — | ~420 |
+| 20:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t4.txt | — | ~466 |
+| 20:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-drift-fix.txt | — | ~262 |
+| 20:43 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10f-f1.md | — | ~1206 |
+| 20:43 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-batch-end.txt | — | ~227 |

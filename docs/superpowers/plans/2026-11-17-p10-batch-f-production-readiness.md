@@ -209,7 +209,7 @@ P10-B 的「评审修复批」落地**（报告 `docs/ce-code-review/20261117-01
   - `handleSessionOver(status: number, code?: string): void` —— 导出于 `src/api/client.ts` ⇒ ⇒ **axios 通道与 `useFetch` 通道共用这一份** ⇒ ⇒ 401/会话过期 ⇒ 清会话 + 跳 `/login`
   - `useFetch<T>(path: string, initial: T): { data: T; error: string | null; loading: boolean }` —— **返回值从 `T` 改成对象** ⇒ ⇒ 9 个调用点全部改 ⇒ ⇒ **这是本任务唯一的跨文件契约** ⇒ ⇒ 后续任务（F2）若也要动 `useFetch`，一律用这个新签名。
 
-- [ ] **Step 1: 写失败测试**（`pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx`）
+- [x] **Step 1: 写失败测试**（`pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx`）
 
 ```ts
 it('fetch 500 ⇒ 页面显示「加载失败」而不是「加载中…」', async () => {
@@ -237,12 +237,12 @@ it('fetch 401 ⇒ 与 axios 通道同一份真相源（清会话 + 跳 /login）
 ⇒ ⇒ ⚠️ **第三条是本条的钉子**：它断的是「401 处理**只有一份**」⇒ ⇒ 删掉 `useFetch` 里的
 `handleSessionOver` 调用 ⇒ ⇒ 测试必须红（**变异敏感**）。
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/routeWrappers.fetch.test.tsx`
 Expected: FAIL（现在只有「加载中…」，找不到「加载失败」；401 分支也不清会话）
 
-- [ ] **Step 2b: 前置检查**（⚠️ 失败模式表里那条「⚠️ 依赖既有 axios 测试」⇒ ⇒ **开工前核**）
+- [x] **Step 2b: 前置检查**（⚠️ 失败模式表里那条「⚠️ 依赖既有 axios 测试」⇒ ⇒ **开工前核**）
 
 ```bash
 cd pcs-frontend && npm run test -- tests/api/session_over_codes.test.ts
@@ -255,13 +255,13 @@ cd pcs-frontend && npm run test -- tests/api/session_over_codes.test.ts
 ⇒ ⇒ **不存在** ⇒ ⇒ **停下**：先把那条测试补出来（它就是抽取函数的**回归网**）⇒ ⇒ 再抽
 ⇒ ⇒ **存在** ⇒ ⇒ 记录用例名（进提交信息）⇒ ⇒ 继续 Step 3
 
-- [ ] **Step 3: 抽出共享的 401 处理**（`src/api/client.ts:51-66`）
+- [x] **Step 3: 抽出共享的 401 处理**（`src/api/client.ts:51-66`）
 
 ⇒ 把现有 401 分支的逻辑原样搬进 `export function handleSessionOver(status: number, code?: string): void`
 ⇒ ⇒ **axios 拦截器改为调它** ⇒ ⇒ 行为**不变**（回归由既有 axios 测试守着）⇒ ⇒
 ⚠️ `SESSION_OVER_CODES` 白名单的语义**照搬**（有些 401 不该跳登录页 ⇒ 照现有实现，别改口径）。
 
-- [ ] **Step 4: 实现 `useFetch` 的失败态**（`src/pages/routeWrappers.tsx:76-99`）
+- [x] **Step 4: 实现 `useFetch` 的失败态**（`src/pages/routeWrappers.tsx:76-99`）
 
 ⇒ 签名改为 `{ data, error, loading }`；⇒ `fetch` 用 **`AbortController`**（cleanup 里 `abort()`）+
 **15s 超时**（`setTimeout` ⇒ cleanup 里 `clearTimeout`）；⇒ `!r.ok` ⇒
@@ -272,20 +272,20 @@ cd pcs-frontend && npm run test -- tests/api/session_over_codes.test.ts
 ⇒ `StreamDetailRoute`（`:159-161`）：`if (loading) return <Typography.Text>加载中…</Typography.Text>;`
 `if (error) return <Alert type="error" message={`加载失败：${error}`} />;`
 
-- [ ] **Step 5: 改 9 个调用点**（同一文件）⇒ ⇒ 每个写成
+- [x] **Step 5: 改 9 个调用点**（同一文件）⇒ ⇒ 每个写成
 `const { data, loading, error } = useFetch<T>(path, initial)` ⇒ ⇒ **不要**改各页面的渲染逻辑
 （只把 `data` 换成解构出来的 `data`）⇒ ⇒ ⚠️ `StreamDetailRoute` 额外加失败态（Step 4）。
 ⇒ ⇒ ⚠️ 其中 3 个（`:212` `:331` `:335`）用的是**占位** `PROJECT_ID` ⇒ ⇒ 那些页面的 404 是
 TODO-159/160 的既有白名单项，**不是本任务引入的** ⇒ ⇒ 不要在白名单里新增。
 
-- [ ] **Step 6: 换掉 `AssetListPage` 的写死 token**（`src/pages/config/AssetListPage.tsx:153-154`）
+- [x] **Step 6: 换掉 `AssetListPage` 的写死 token**（`src/pages/config/AssetListPage.tsx:153-154`）
 
 ⇒ `DEV_BEARER` ⇒ `useAuth.getState().accessToken`（照 `routeWrappers.tsx:85-86` 的写法）⇒ ⇒
 ⚠️ **该端点后端根本不存在**（`GET /api/v1/config/assets/{id}/revisions` ⇒ 今天 404）⇒ ⇒
 **这一步的行为不可观测** ⇒ ⇒ 必须靠 Step 7 的请求头断言把它变成可观测 ⇒ ⇒
 提交信息里写明：「端点补齐那天这条必须仍成立」。
 
-- [ ] **Step 7: 补齐四个边界测试**（⚖️ 评审 D11：四个都补）
+- [x] **Step 7: 补齐四个边界测试**（⚖️ 评审 D11：四个都补）
 
 | 测试 | 断什么 | 怎么断 |
 |---|---|---|
@@ -294,7 +294,7 @@ TODO-159/160 的既有白名单项，**不是本任务引入的** ⇒ ⇒ 不要
 | **9 个调用点回归** | 改签名后各页渲染不变（至少 3 个代表页：`/pipe-classes` · `/streams/{id}` · 一个 common 页） | 断关键行内容 ⇒ ⇒ **不是**断「渲染了」 |
 | **请求头** | `AssetListPage` 发出的请求带的是**会话 token**，不是写死的 `mock-jwt-token` | stub `fetch` ⇒ 断 `Authorization` 头 |
 
-- [ ] **Step 8: 跑测试确认通过 + 变异自证**
+- [x] **Step 8: 跑测试确认通过 + 变异自证**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/routeWrappers.fetch.test.tsx && npm run typecheck && npm run lint`
 Expected: 新测试 PASS · typecheck/lint clean
@@ -302,14 +302,14 @@ Expected: 新测试 PASS · typecheck/lint clean
 ⇒ ⇒ **变异自证**：临时删掉 Step 4 里的 `handleSessionOver(r.status)` 调用 ⇒ ⇒ 重跑 ⇒ ⇒
 「401 ⇒ 清会话」那条**必须红** ⇒ ⇒ 还原。
 
-- [ ] **Step 9: 跑真后端通道**（**白名单外必须为空**）
+- [x] **Step 9: 跑真后端通道**（**白名单外必须为空**）
 
 Run: `cd pcs-frontend && npm run e2e:real`
 Expected: 7+ passed（路由扫描的 4xx/console 白名单**不变** ⇒ ⇒ 本任务没引入新的 404）
 ⚠️ 跑法：**先**在终端 A 起后端 `cd pcs-backend && bash scripts/serve_e2e_backend.sh`
 ⇒ ⇒ **再**在终端 B 跑 `npm run e2e:real` ⇒ ⇒（否则通道起不来，报错与本任务无关）。
 
-- [ ] **Step 10: 提交**
+- [x] **Step 10: 提交**
 
 ```bash
 cd pcs-frontend && git add src/api/client.ts src/pages/routeWrappers.tsx \
@@ -330,7 +330,7 @@ git commit -m "fix(P10-F): useFetch 失败态 + 401 与 axios 共用真相源（
 - Consumes: 兄弟模型 `SimImportListResponse`（`:76`）· `SimImportDetailResponse`（`:85`）· `SimImportWarningListResponse`（`:118`）—— **都定义在本文件里**（全仓**没有** `app/schemas/sim_*.py`）⇒ ⇒ 新模型**紧跟它们**，**不新建 schemas 模块**（⚖️ 评审 D7）。
 - Produces: `SimImportPreviewStreamsResponse(streams: list[dict[str, Any]] = [])` ⇒ ⇒ **OpenAPI 里 200 的形状**从 `{"type":"object"}` 变成 `{"streams": [...]}` ⇒ ⇒ **契约破坏性变化**（前端生成类型变具体）⇒ ⇒ 批末**必须滚 baseline**。
 
-- [ ] **Step 1: 写失败测试**（加到 `tests/api/v1/test_sim_imports_query_endpoints.py`）
+- [x] **Step 1: 写失败测试**（加到 `tests/api/v1/test_sim_imports_query_endpoints.py`）
 
 ```python
 async def test_preview_streams_response_model_declares_the_streams_key(client, ...):
@@ -340,12 +340,12 @@ async def test_preview_streams_response_model_declares_the_streams_key(client, .
     assert ref.endswith("SimImportPreviewStreamsResponse")
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && uv run pytest tests/api/v1/test_sim_imports_query_endpoints.py -q`
 Expected: FAIL（现在 200 是 `{"type":"object"}` ⇒ 没有 `$ref`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ① 在 `sim_imports_query.py` 里（`:118` 的 `SimImportWarningListResponse` 之后）**新增**：
 
@@ -371,7 +371,7 @@ async def get_preview_streams(...) -> SimImportPreviewStreamsResponse:
 ③ **改注释**（`:360-367`）：「**PRO/II 与 EXCEL 两个写入点都存 list** ⇒ 读侧统一归一成 `{"streams": [...]}`」
 ⇒ ⇒ **删掉**「SIM/Excel 导入存 dict」那句（与事实相反）。
 
-- [ ] **Step 3b: 补「两种历史形状」的钉子**（⚖️ 评审 D9：两条都补）
+- [x] **Step 3b: 补「两种历史形状」的钉子**（⚖️ 评审 D9：两条都补）
 
 ```python
 async def test_preview_streams_reads_both_historical_shapes(client, ...):
@@ -383,12 +383,12 @@ async def test_preview_streams_reads_both_historical_shapes(client, ...):
 
 ⇒ ⇒ **两条历史形状各一行** ⇒ ⇒ 跑完确认 RED（现在没有 `response_model` ⇒ 第一条会因为返回体形状不对而红）。
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `cd pcs-backend && uv run pytest tests/api/v1/test_sim_imports_query_endpoints.py -q`
 Expected: PASS
 
-- [ ] **Step 5: 滚契约 + 同步前端类型**（**顺序不能反**）
+- [x] **Step 5: 滚契约 + 同步前端类型**（**顺序不能反**）
 
 ```bash
 cd pcs-frontend && npm run api:gen
@@ -408,7 +408,7 @@ git status --short pcs-backend/docs/openapi.json pcs-backend/docs/openapi-baseli
 ⇒ ⇒ 期望：**四个都有改动** ⇒ ⇒ 若 `openapi-baseline.json` 没变 ⇒ ⇒ 说明 baseline **没滚** ⇒ ⇒ 重跑
 ⇒ ⇒ 若 `api.d.ts` 没变 ⇒ ⇒ 说明 `npm run api:gen` 没生效 ⇒ ⇒ 重跑。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add pcs-backend/app/api/v1/sim_imports_query.py \
@@ -437,7 +437,7 @@ git commit -m "feat(P10-F): preview-streams 补 response_model（评审 #13）�
 - Consumes: `app/schemas/pipe_class.py::PipeClassResponse`（`dn_series_json: dict[str,int]` = **{"min","max"}** · `sch_series_json: dict[str,str]` = **DN→Sch 字符串** · `source: Literal["COMPANY_STD","PROJECT"]`）
 - Produces: 种子行的形状与 `alembic/versions/p10_002_seed_placeholder_pipe_class.py:41-55` 的 `CS-STD` **同款** ⇒ ⇒ 两处占位行形状一致（评审 #2 的纪律）。
 
-- [ ] **Step 1: 写失败测试**（`tests/scripts/test_seed_e2e_flows.py`）
+- [x] **Step 1: 写失败测试**（`tests/scripts/test_seed_e2e_flows.py`）
 
 ```python
 async def test_seed_pipe_class_row_matches_the_response_contract(db_session):
@@ -456,25 +456,25 @@ async def test_seed_pipe_class_row_matches_the_response_contract(db_session):
 ⇒ ⇒ ⚠️ **断的是契约本身**（`PipeClassResponse.model_validate`）⇒ ⇒ **不要**手写一份副本比对
 （副本会跟契约一起漂）⇒ ⇒ 依据 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` §4。
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_seed_e2e_flows.py -q`
 Expected: FAIL（`dn_series_json` 缺 `min`/`max` ⇒ `ValidationError`）
 
-- [ ] **Step 3: 改种子的行形状**（`scripts/seed_e2e_flows.py:504-531`）
+- [x] **Step 3: 改种子的行形状**（`scripts/seed_e2e_flows.py:504-531`）
 
 ⇒ `dn_series_json={"min": 150, "max": 150}`（**int**）· `sch_series_json={"DN150": "40"}`（**字符串**）
 · `source="COMPANY_STD"`（⚠️ **不扩 `Literal`** ⇒ 遵守 #2 裁决）
 
 ⇒ ⇒ ⚠️ **别把 `material_class` 改指 `CS-STD`**（会牵动 `FLOW_PIPE_CLASS_ID` 这个导出常量 ⇒ 改动面更大 ⇒ 不取）。
 
-- [ ] **Step 4: 订正已种下的老行**（同文件，**幂等**）
+- [x] **Step 4: 订正已种下的老行**（同文件，**幂等**）
 
 ⇒ `_ensure_pipe_class` 在 `_get_or_create` 命中已有行时 ⇒ ⇒ **也要把形状订正过来**
 （`dn_series_json` / `sch_series_json` / `source` 三列）⇒ ⇒ 否则 pcs_pgtest public 里那行**照旧 500**。
 ⇒ ⇒ 或等价做法：给脚本加 `--reset` 并把「批末重灌」写成动作 ⇒ ⇒ **二选一，写进提交信息**。
 
-- [ ] **Step 4b: 补「老行会被订正」的钉子**（⚖️ 评审 D9：**两条都补**）
+- [x] **Step 4b: 补「老行会被订正」的钉子**（⚖️ 评审 D9：**两条都补**）
 
 ```python
 async def test_seed_corrects_an_existing_legacy_row(db_session):
@@ -498,23 +498,23 @@ async def test_seed_corrects_an_existing_legacy_row(db_session):
 
 ⇒ ⇒ **必须先跑一次确认它红**（老形状不被订正 ⇒ `ValidationError`）⇒ ⇒ 再改实现 ⇒ ⇒ 再绿。
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_seed_e2e_flows.py -q`
 Expected: PASS
 
-- [ ] **Step 6: 加 PG 侧的「按 id 查不 500」**（`tests/e2e_flows/test_e2e_pipe_class_lookup.py`）
+- [x] **Step 6: 加 PG 侧的「按 id 查不 500」**（`tests/e2e_flows/test_e2e_pipe_class_lookup.py`）
 
 ⇒ `GET /api/v1/pipe-classes/E2E-SEED-CS`（**按 id**）⇒ **200** ⇒ ⇒ 且响应体的 `dn_series_json` 形状正确
 ⇒ ⇒ ⚠️ **这条必须在 E2E 车道跑**（SQLite 不强制 FK ⇒ 单测照绿 ⇒ 真库才炸 ⇒ 评审 #17 的形状）
 ⇒ ⇒ 顺带断 `GET /api/v1/pipe-classes`（列表）**仍 200**（改 `source` 后它**会**含这行 ⇒ ⇒ 断言它**在**列表里 ⇒ ⇒ 把行为钉死，不留给下一个人猜）。
 
-- [ ] **Step 7: 跑 E2E 车道**
+- [x] **Step 7: 跑 E2E 车道**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: 全绿（含新增两条）
 
-- [ ] **Step 8: 登记产品待决项 + 提交**
+- [x] **Step 8: 登记产品待决项 + 提交**
 
 ⇒ ⇒ `TODOS.md` 加一条：「公司管级列表里要不要出现『E2E 种子管级』（`source="COMPANY_STD"` 的副作用）？」（**交人裁决**）
 
@@ -547,7 +547,7 @@ git commit -m "fix(P10-F): 种子管级按 PipeClassResponse 造 + 订正老行�
 - Produces: `lane_script_body(script: Path) -> str` —— **剥掉注释后的可执行部分** ⇒ ⇒ 两个测试文件共用它
   ⇒ ⇒ 依据 `docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md` §4（「同一个文件里两套口径 ⇒ 至少要一致」）。
 
-- [ ] **Step 1: 写失败测试**（改 `test_pytest_pg_gate.py` 的 flock 守卫）
+- [x] **Step 1: 写失败测试**（改 `test_pytest_pg_gate.py` 的 flock 守卫）
 
 ```python
 def test_lane_script_serializes_with_nonblocking_flock():
@@ -572,12 +572,12 @@ def test_default_lock_path_is_inside_the_project_not_tmp():
 
 ⇒ ⇒ **唯一入口**那条（`:136-146`）也改成对**剥注释后**的文本计数（`body.count("uv run pytest") == 2` ⇒ **断言值不变**）。
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_pytest_pg_gate.py tests/scripts/test_pytest_e2e_gate.py -q`
 Expected: FAIL（当前读的是**原文** ⇒ 「`flock -n`」/「`exec 9>`」的断言拿不到）
 
-- [ ] **Step 3: 实现**（新建 `tests/scripts/lane_script_body.py`）
+- [x] **Step 3: 实现**（新建 `tests/scripts/lane_script_body.py`）
 
 ```python
 def lane_script_body(script: Path) -> str:
@@ -618,14 +618,14 @@ def lane_script_body(script: Path) -> str:
 ⇒ ⇒ `test_pytest_e2e_gate.py` 的本地 `_body()` **删掉** ⇒ ⇒ 改成 `from tests.scripts.lane_script_body import lane_script_body`
 ⇒ ⇒ ⚠️ `test_pytest_pg_gate.py` 里的 `_body()`（若已存在）也一并删 ⇒ ⇒ **一处真相源**。
 
-- [ ] **Step 4: 改名 + 改 docstring**（`test_pytest_pg_gate.py:165-218`）
+- [x] **Step 4: 改名 + 改 docstring**（`test_pytest_pg_gate.py:165-218`）
 
 ⇒ `test_two_lanes_are_mutually_exclusive_on_the_default_path` ⇒ ⇒
 **`test_two_lanes_are_mutually_exclusive_on_an_overridden_lock_path`**
 ⇒ ⇒ docstring 里那句「**默认路径**下两条车道真的互斥」⇒ ⇒ 改成「**覆盖路径**（`PCS_PGTEST_LANE_LOCK`）下互斥；
 **默认路径**只能静态断（不能真占默认锁 ⇒ 会与真车道抢锁）」。
 
-- [ ] **Step 5: 跑测试确认通过 + 变异自证**
+- [x] **Step 5: 跑测试确认通过 + 变异自证**
 
 Run: `cd pcs-backend && uv run pytest tests/scripts/test_pytest_pg_gate.py tests/scripts/test_pytest_e2e_gate.py -q`
 Expected: PASS
@@ -635,7 +635,7 @@ Expected: PASS
 ② 把 `.tmp/lane.lock` 改回 `/tmp/...` ⇒ ⇒ 守卫**必须红**
 ⇒ ⇒ 两条都还原后再进 Step 6。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add pcs-backend/tests/scripts/lane_script_body.py pcs-backend/tests/scripts/test_pytest_pg_gate.py \

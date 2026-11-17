@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-17T10:53:15.325Z",
-    "fileCount": 1328,
+    "lastScanned": "2026-11-17T12:43:30.992Z",
+    "fileCount": 1340,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e451c5a2add7b212a1ac873951c1ef2b36c50190d64017c442c90ce41a68b76d",
-    "storeUpdatedAt": "2026-11-17T10:53:15.337Z",
-    "rootHash": "f0cc9c96384d4434"
+    "renderedHash": "32954fc2a18975788de0baf32b3c2cfbf8be3fb2be1277168c2aa09b5c812230",
+    "storeUpdatedAt": "2026-11-17T12:43:31.004Z",
+    "rootHash": "15368fd9b18f98d1"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13590,222 +13590,222 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 4040,
-      "hash": "5af5b9e3937f011b",
-      "size": 16112,
-      "mtimeMs": 1794835556774.1792,
-      "updatedAt": "2026-11-16T13:25:56.824Z",
+      "tokens": 4701,
+      "hash": "9c3bc0ec259ece3a",
+      "size": 18982,
+      "mtimeMs": 1794917656991.7288,
+      "updatedAt": "2026-11-17T12:14:17.041Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "errorCodeOf",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 91,
+          "tokens": 68
+        },
+        {
+          "name": "FetchState",
+          "kind": "section",
+          "startLine": 92,
+          "endLine": 107,
+          "tokens": 121
+        },
+        {
           "name": "useFetch",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 98,
-          "tokens": 255
+          "startLine": 108,
+          "endLine": 175,
+          "tokens": 597
         },
         {
           "name": "ApprovalPanelRoute",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 101,
+          "startLine": 176,
+          "endLine": 178,
           "tokens": 28
         },
         {
           "name": "AssetListRoute",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 109,
-          "tokens": 102
+          "startLine": 179,
+          "endLine": 186,
+          "tokens": 105
         },
         {
           "name": "CoefficientEditorRoute",
           "kind": "fn",
-          "startLine": 110,
-          "endLine": 112,
+          "startLine": 187,
+          "endLine": 189,
           "tokens": 31
         },
         {
           "name": "FormulaEditorRoute",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 128,
+          "startLine": 190,
+          "endLine": 205,
           "tokens": 135
         },
         {
           "name": "TemplateFileRoute",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 134,
+          "startLine": 206,
+          "endLine": 211,
           "tokens": 53
         },
         {
           "name": "StreamManualWizardRoute",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 137,
+          "startLine": 212,
+          "endLine": 214,
           "tokens": 34
         },
         {
           "name": "StreamListRoute",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 142,
+          "startLine": 215,
+          "endLine": 219,
           "tokens": 61
         },
         {
           "name": "StreamDetailRoute",
           "kind": "fn",
-          "startLine": 143,
-          "endLine": 162,
-          "tokens": 276
+          "startLine": 220,
+          "endLine": 244,
+          "tokens": 327
         },
         {
           "name": "ImportWizardRoute",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 167,
+          "startLine": 245,
+          "endLine": 249,
           "tokens": 29
         },
         {
           "name": "PipeClassListRoute",
           "kind": "fn",
-          "startLine": 168,
-          "endLine": 171,
-          "tokens": 50
+          "startLine": 250,
+          "endLine": 253,
+          "tokens": 52
         },
         {
           "name": "SymbolTableRoute",
           "kind": "fn",
-          "startLine": 172,
-          "endLine": 174,
+          "startLine": 254,
+          "endLine": 256,
           "tokens": 28
         },
         {
           "name": "CodeFormatRoute",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 179,
+          "startLine": 257,
+          "endLine": 261,
           "tokens": 38
         },
         {
           "name": "PropertySearchRoute",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 183,
-          "tokens": 58
+          "startLine": 262,
+          "endLine": 265,
+          "tokens": 61
         },
         {
           "name": "AllowableStressRoute",
           "kind": "fn",
-          "startLine": 184,
-          "endLine": 187,
-          "tokens": 56
+          "startLine": 266,
+          "endLine": 269,
+          "tokens": 59
         },
         {
           "name": "ToxicityRoute",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 193,
-          "tokens": 56
+          "startLine": 270,
+          "endLine": 275,
+          "tokens": 59
         },
         {
           "name": "FlashRoute",
           "kind": "fn",
-          "startLine": 194,
-          "endLine": 201,
+          "startLine": 276,
+          "endLine": 283,
           "tokens": 54
         },
         {
           "name": "PipeRoute",
           "kind": "fn",
-          "startLine": 202,
-          "endLine": 210,
+          "startLine": 284,
+          "endLine": 292,
           "tokens": 60
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 211,
-          "endLine": 214,
-          "tokens": 55
+          "startLine": 293,
+          "endLine": 296,
+          "tokens": 58
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 215,
-          "endLine": 218,
+          "startLine": 297,
+          "endLine": 300,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 228,
+          "startLine": 301,
+          "endLine": 310,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 229,
-          "endLine": 234,
+          "startLine": 311,
+          "endLine": 316,
           "tokens": 63
         },
         {
           "name": "HeatingValueRoute",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 237,
+          "startLine": 317,
+          "endLine": 319,
           "tokens": 24
         },
         {
           "name": "SaturationWaterContentRoute",
           "kind": "fn",
-          "startLine": 238,
-          "endLine": 240,
+          "startLine": 320,
+          "endLine": 322,
           "tokens": 30
         },
         {
           "name": "CvRoute",
           "kind": "fn",
-          "startLine": 241,
-          "endLine": 246,
+          "startLine": 323,
+          "endLine": 328,
           "tokens": 38
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 247,
-          "endLine": 252,
+          "startLine": 329,
+          "endLine": 334,
           "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 253,
-          "endLine": 258,
+          "startLine": 335,
+          "endLine": 340,
           "tokens": 54
         },
         {
           "name": "HeatRoute",
           "kind": "fn",
-          "startLine": 259,
-          "endLine": 271,
-          "tokens": 146
-        },
-        {
-          "name": "ReportDefinitionListRoute",
-          "kind": "fn",
-          "startLine": 272,
-          "endLine": 275,
-          "tokens": 29
-        },
-        {
-          "name": "ReportDefinitionEditorRoute",
-          "kind": "fn",
-          "startLine": 276,
-          "endLine": 398,
-          "tokens": 1083
+          "startLine": 341,
+          "endLine": 480,
+          "tokens": 1263
         }
       ]
     },
@@ -15613,11 +15613,11 @@
     },
     "pcs-backend/app/api/v1/sim_imports_query.py": {
       "description": "P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。",
-      "tokens": 4193,
-      "hash": "aaad720a24b6b7a4",
-      "size": 15522,
-      "mtimeMs": 1790990331037.9006,
-      "updatedAt": "2026-10-03T01:18:51.083Z",
+      "tokens": 4438,
+      "hash": "26c4d92d744b2ced",
+      "size": 16731,
+      "mtimeMs": 1794918064080.116,
+      "updatedAt": "2026-11-17T12:21:04.130Z",
       "source": "hook",
       "symbols": [
         {
@@ -15652,57 +15652,64 @@
           "name": "SimImportWarningListResponse",
           "kind": "class",
           "startLine": 118,
-          "endLine": 132,
-          "tokens": 100
+          "endLine": 127,
+          "tokens": 52
+        },
+        {
+          "name": "SimImportPreviewStreamsResponse",
+          "kind": "class",
+          "startLine": 128,
+          "endLine": 146,
+          "tokens": 178
         },
         {
           "name": "_to_list_item",
           "kind": "fn",
-          "startLine": 133,
-          "endLine": 151,
+          "startLine": 147,
+          "endLine": 165,
           "tokens": 207
         },
         {
           "name": "_to_detail",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 178,
+          "startLine": 166,
+          "endLine": 192,
           "tokens": 311
         },
         {
           "name": "list_imports",
           "kind": "fn",
-          "startLine": 179,
-          "endLine": 262,
-          "tokens": 1004
+          "startLine": 193,
+          "endLine": 274,
+          "tokens": 985
         },
         {
           "name": "list_expired",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 294,
+          "startLine": 275,
+          "endLine": 306,
           "tokens": 359
         },
         {
           "name": "get_import_by_id",
           "kind": "fn",
-          "startLine": 295,
-          "endLine": 329,
-          "tokens": 367
+          "startLine": 307,
+          "endLine": 339,
+          "tokens": 362
         },
         {
           "name": "get_preview_streams",
           "kind": "fn",
-          "startLine": 330,
-          "endLine": 375,
-          "tokens": 484
+          "startLine": 340,
+          "endLine": 394,
+          "tokens": 640
         },
         {
           "name": "list_warnings_for_import",
           "kind": "fn",
-          "startLine": 376,
-          "endLine": 427,
-          "tokens": 481
+          "startLine": 395,
+          "endLine": 444,
+          "tokens": 462
         }
       ]
     },
@@ -28181,11 +28188,11 @@
     },
     "pcs-frontend/src/pages/config/AssetListPage.tsx": {
       "description": "AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。",
-      "tokens": 2590,
-      "hash": "e15cc158b557f703",
-      "size": 9713,
-      "mtimeMs": 1792376655276.8088,
-      "updatedAt": "2026-10-19T02:24:15.338Z",
+      "tokens": 2370,
+      "hash": "213810d4db59d113",
+      "size": 9021,
+      "mtimeMs": 1794917660728.8247,
+      "updatedAt": "2026-11-17T12:14:20.781Z",
       "source": "hook",
       "symbols": [
         {
@@ -28199,8 +28206,8 @@
           "name": "AssetListPage",
           "kind": "fn",
           "startLine": 60,
-          "endLine": 305,
-          "tokens": 2180
+          "endLine": 278,
+          "tokens": 1962
         }
       ]
     },
@@ -40702,75 +40709,82 @@
     },
     "pcs-backend/tests/scripts/test_pytest_pg_gate.py": {
       "description": "scripts/pytest_pg.sh 的 fail-closed 行为（T0 · TODO-099 · 裁决 4 约束 1）。",
-      "tokens": 1992,
-      "hash": "f6b11e54bcc968b1",
-      "size": 9294,
-      "mtimeMs": 1794910222159.2087,
-      "updatedAt": "2026-11-17T10:10:22.208Z",
+      "tokens": 2387,
+      "hash": "2837996e7921cc3e",
+      "size": 11504,
+      "mtimeMs": 1794918452998.7195,
+      "updatedAt": "2026-11-17T12:27:33.052Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_run",
           "kind": "fn",
-          "startLine": 24,
-          "endLine": 43,
+          "startLine": 26,
+          "endLine": 45,
           "tokens": 201
         },
         {
           "name": "test_script_exists_and_is_executable",
           "kind": "fn",
-          "startLine": 44,
-          "endLine": 48,
+          "startLine": 46,
+          "endLine": 50,
           "tokens": 39
         },
         {
           "name": "test_fails_when_pg_instance_is_not_running",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 55,
+          "startLine": 51,
+          "endLine": 57,
           "tokens": 79
         },
         {
           "name": "test_fails_when_zero_pg_tests_are_collected",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 79,
+          "startLine": 58,
+          "endLine": 81,
           "tokens": 214
         },
         {
           "name": "test_fails_when_all_pg_tests_are_skipped",
           "kind": "fn",
-          "startLine": 80,
-          "endLine": 108,
+          "startLine": 82,
+          "endLine": 110,
           "tokens": 275
         },
         {
           "name": "test_fails_when_some_pg_tests_are_skipped",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 137,
+          "startLine": 111,
+          "endLine": 139,
           "tokens": 272
         },
         {
           "name": "test_script_does_not_teach_a_second_entry_point",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 148,
-          "tokens": 104
+          "startLine": 140,
+          "endLine": 160,
+          "tokens": 197
+        },
+        {
+          "name": "test_lane_script_serializes_with_nonblocking_flock",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 176,
+          "tokens": 132
         },
         {
           "name": "test_default_lock_path_is_inside_the_project_not_tmp",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 164,
-          "tokens": 144
+          "startLine": 177,
+          "endLine": 200,
+          "tokens": 226
         },
         {
-          "name": "test_two_lanes_are_mutually_exclusive_on_the_default_path",
+          "name": "test_two_lanes_are_mutually_exclusive_on_an_overridden_lock_path",
           "kind": "fn",
-          "startLine": 165,
-          "endLine": 219,
-          "tokens": 514
+          "startLine": 201,
+          "endLine": 260,
+          "tokens": 584
         }
       ]
     },
@@ -44528,25 +44542,32 @@
     },
     "pcs-frontend/src/api/client.ts": {
       "description": "401 里**表示会话结束**的错误码。",
-      "tokens": 776,
-      "hash": "4c6afd742c323ec8",
-      "size": 3544,
-      "mtimeMs": 1794439928867.7502,
-      "updatedAt": "2026-11-11T23:32:08.916Z",
+      "tokens": 940,
+      "hash": "76c6ef45f10c197a",
+      "size": 4464,
+      "mtimeMs": 1794917644388.4016,
+      "updatedAt": "2026-11-17T12:14:04.436Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "handleSessionOver",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 86,
+          "tokens": 196
+        },
+        {
           "name": "TokenResponse",
           "kind": "section",
-          "startLine": 69,
-          "endLine": 78,
+          "startLine": 87,
+          "endLine": 96,
           "tokens": 75
         },
         {
           "name": "MeResponse",
           "kind": "section",
-          "startLine": 79,
-          "endLine": 94,
+          "startLine": 97,
+          "endLine": 112,
           "tokens": 129
         }
       ]
@@ -46771,54 +46792,54 @@
     },
     "pcs-backend/tests/scripts/test_pytest_e2e_gate.py": {
       "description": "`scripts/pytest_e2e.sh` 的形状守卫（P10-B · T1）。",
-      "tokens": 657,
-      "hash": "d12e3a0db87f6be0",
-      "size": 3466,
-      "mtimeMs": 1794796367639.4226,
-      "updatedAt": "2026-11-16T02:32:47.694Z",
+      "tokens": 875,
+      "hash": "7d8476d641dc5ddd",
+      "size": 4622,
+      "mtimeMs": 1794918419898.2964,
+      "updatedAt": "2026-11-17T12:26:59.943Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_body",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 34,
-          "tokens": 20
+          "startLine": 34,
+          "endLine": 43,
+          "tokens": 69
         },
         {
           "name": "test_script_exists_and_is_executable",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 39,
+          "startLine": 44,
+          "endLine": 48,
           "tokens": 40
         },
         {
           "name": "test_e2e_script_does_not_duplicate_the_fail_closed_gates",
           "kind": "fn",
-          "startLine": 40,
-          "endLine": 50,
+          "startLine": 49,
+          "endLine": 59,
           "tokens": 88
         },
         {
           "name": "test_e2e_script_delegates_to_the_pg_lane_script",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 62,
+          "startLine": 60,
+          "endLine": 71,
           "tokens": 134
         },
         {
           "name": "test_e2e_script_does_not_export_database_url",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 72,
+          "startLine": 72,
+          "endLine": 81,
           "tokens": 87
         },
         {
-          "name": "test_e2e_script_serializes_lanes_with_flock",
+          "name": "test_lane_scripts_serialize_with_flock",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 81,
-          "tokens": 71
+          "startLine": 82,
+          "endLine": 103,
+          "tokens": 200
         }
       ]
     },
@@ -46905,11 +46926,11 @@
     },
     "pcs-backend/scripts/seed_e2e_flows.py": {
       "description": "流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。",
-      "tokens": 8395,
-      "hash": "8e67a16386780df0",
-      "size": 36046,
-      "mtimeMs": 1794909646240.614,
-      "updatedAt": "2026-11-17T10:00:46.292Z",
+      "tokens": 8638,
+      "hash": "6f47977abe19d0cf",
+      "size": 37213,
+      "mtimeMs": 1794918295472.6301,
+      "updatedAt": "2026-11-17T12:24:55.525Z",
       "source": "hook",
       "symbols": [
         {
@@ -46979,98 +47000,98 @@
           "name": "_ensure_pipe_class",
           "kind": "fn",
           "startLine": 504,
-          "endLine": 533,
-          "tokens": 286
+          "endLine": 556,
+          "tokens": 529
         },
         {
           "name": "_ensure_equipment_type_code",
           "kind": "fn",
-          "startLine": 534,
-          "endLine": 558,
+          "startLine": 557,
+          "endLine": 581,
           "tokens": 214
         },
         {
           "name": "_ensure_equipment",
           "kind": "fn",
-          "startLine": 559,
-          "endLine": 584,
+          "startLine": 582,
+          "endLine": 607,
           "tokens": 258
         },
         {
           "name": "_ensure_matrix",
           "kind": "fn",
-          "startLine": 585,
-          "endLine": 601,
+          "startLine": 608,
+          "endLine": 624,
           "tokens": 156
         },
         {
           "name": "_ensure_matrix_binding",
           "kind": "fn",
-          "startLine": 602,
-          "endLine": 623,
+          "startLine": 625,
+          "endLine": 646,
           "tokens": 193
         },
         {
           "name": "_ensure_deliverable",
           "kind": "fn",
-          "startLine": 624,
-          "endLine": 651,
+          "startLine": 647,
+          "endLine": 674,
           "tokens": 256
         },
         {
           "name": "_ensure_record",
           "kind": "fn",
-          "startLine": 652,
-          "endLine": 671,
+          "startLine": 675,
+          "endLine": 694,
           "tokens": 169
         },
         {
           "name": "_ensure_report_definition",
           "kind": "fn",
-          "startLine": 672,
-          "endLine": 706,
+          "startLine": 695,
+          "endLine": 729,
           "tokens": 351
         },
         {
           "name": "seed_flows",
           "kind": "fn",
-          "startLine": 707,
-          "endLine": 767,
+          "startLine": 730,
+          "endLine": 790,
           "tokens": 563
         },
         {
           "name": "_seed_production_defaults",
           "kind": "fn",
-          "startLine": 768,
-          "endLine": 806,
+          "startLine": 791,
+          "endLine": 829,
           "tokens": 390
         },
         {
           "name": "_default_coefficient_tables",
           "kind": "fn",
-          "startLine": 807,
-          "endLine": 820,
+          "startLine": 830,
+          "endLine": 843,
           "tokens": 104
         },
         {
           "name": "_default_system_settings",
           "kind": "fn",
-          "startLine": 821,
-          "endLine": 827,
+          "startLine": 844,
+          "endLine": 850,
           "tokens": 58
         },
         {
           "name": "_count_rows",
           "kind": "fn",
-          "startLine": 828,
-          "endLine": 840,
+          "startLine": 851,
+          "endLine": 863,
           "tokens": 152
         },
         {
           "name": "_main",
           "kind": "fn",
-          "startLine": 841,
-          "endLine": 906,
+          "startLine": 864,
+          "endLine": 929,
           "tokens": 544
         }
       ]
@@ -47167,103 +47188,117 @@
     },
     "pcs-backend/tests/scripts/test_seed_e2e_flows.py": {
       "description": "流程级种子（P10-B · T2）的守卫。",
-      "tokens": 3333,
-      "hash": "3d4dac7895480676",
-      "size": 14841,
-      "mtimeMs": 1794909669930.0503,
-      "updatedAt": "2026-11-17T10:01:09.981Z",
+      "tokens": 4098,
+      "hash": "d0b9e5be5d22f9a1",
+      "size": 17956,
+      "mtimeMs": 1794918276334.3618,
+      "updatedAt": "2026-11-17T12:24:36.391Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_count",
           "kind": "fn",
-          "startLine": 45,
-          "endLine": 48,
+          "startLine": 46,
+          "endLine": 49,
           "tokens": 36
         },
         {
           "name": "test_seed_flows_is_idempotent",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 80,
+          "startLine": 50,
+          "endLine": 81,
           "tokens": 213
         },
         {
           "name": "test_seed_flows_creates_one_user_per_global_role",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 104,
+          "startLine": 82,
+          "endLine": 105,
           "tokens": 212
         },
         {
           "name": "test_seed_flows_grants_project_roles_except_the_outsider",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 138,
+          "startLine": 106,
+          "endLine": 139,
           "tokens": 336
         },
         {
           "name": "test_seed_flows_grants_alice_for_the_ui_lane",
           "kind": "fn",
-          "startLine": 139,
-          "endLine": 162,
+          "startLine": 140,
+          "endLine": 163,
           "tokens": 222
         },
         {
           "name": "test_seed_flows_binds_the_record_matrix_to_the_project",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 198,
+          "startLine": 164,
+          "endLine": 199,
           "tokens": 337
         },
         {
           "name": "test_seed_flows_only_creates_starting_states",
           "kind": "fn",
-          "startLine": 199,
-          "endLine": 223,
+          "startLine": 200,
+          "endLine": 224,
           "tokens": 214
         },
         {
           "name": "test_seed_flows_reset_only_deletes_its_own_rows",
           "kind": "fn",
-          "startLine": 224,
-          "endLine": 269,
+          "startLine": 225,
+          "endLine": 270,
           "tokens": 395
         },
         {
           "name": "test_seed_flows_reset_respects_foreign_key_order",
           "kind": "fn",
-          "startLine": 270,
-          "endLine": 290,
+          "startLine": 271,
+          "endLine": 291,
           "tokens": 186
         },
         {
           "name": "test_seed_flows_creates_the_pipe_class_the_record_points_to",
           "kind": "fn",
-          "startLine": 291,
-          "endLine": 314,
+          "startLine": 292,
+          "endLine": 315,
           "tokens": 219
         },
         {
           "name": "test_seed_flows_seeds_the_production_default_data",
           "kind": "fn",
-          "startLine": 315,
-          "endLine": 356,
+          "startLine": 316,
+          "endLine": 357,
           "tokens": 415
         },
         {
           "name": "test_record_payload_template_has_all_required_columns",
           "kind": "fn",
-          "startLine": 357,
-          "endLine": 374,
+          "startLine": 358,
+          "endLine": 375,
           "tokens": 170
         },
         {
           "name": "test_record_payload_template_is_not_shared_state",
           "kind": "fn",
-          "startLine": 375,
-          "endLine": 381,
-          "tokens": 75
+          "startLine": 376,
+          "endLine": 388,
+          "tokens": 130
+        },
+        {
+          "name": "test_seed_pipe_class_row_matches_the_response_contract",
+          "kind": "fn",
+          "startLine": 389,
+          "endLine": 418,
+          "tokens": 332
+        },
+        {
+          "name": "test_seed_corrects_an_existing_legacy_row",
+          "kind": "fn",
+          "startLine": 419,
+          "endLine": 458,
+          "tokens": 370
         }
       ]
     },
@@ -48411,11 +48446,11 @@
     },
     "docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md": {
       "description": "P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17",
-      "tokens": 9759,
-      "hash": "9edfd881f79e978c",
-      "size": 57773,
-      "mtimeMs": 1794912795271.098,
-      "updatedAt": "2026-11-17T10:53:15.325Z",
+      "tokens": 14587,
+      "hash": "3faafaeee790cec9",
+      "size": 87620,
+      "mtimeMs": 1794913884684.5427,
+      "updatedAt": "2026-11-17T11:11:24.746Z",
       "source": "hook"
     },
     "docs/ce-code-review/20261117-013829-7e9fbabe/hermes-adjudication.md": {
@@ -48425,6 +48460,241 @@
       "size": 46900,
       "mtimeMs": 1794912714565.141,
       "updatedAt": "2026-11-17T10:51:54.614Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx": {
+      "description": "`useFetch` 的失败态 + **401 与 axios 通道共用一份真相源**（P10-F · 评审 #9）。",
+      "tokens": 2661,
+      "hash": "a82bcb2cc878d189",
+      "size": 10763,
+      "mtimeMs": 1794917625755.9084,
+      "updatedAt": "2026-11-17T12:13:45.803Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "login",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 53,
+          "tokens": 84
+        },
+        {
+          "name": "response",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 62,
+          "tokens": 71
+        },
+        {
+          "name": "stubHangingFetch",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 78,
+          "tokens": 125
+        },
+        {
+          "name": "stubLocation",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 85,
+          "tokens": 76
+        },
+        {
+          "name": "renderAt",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 289,
+          "tokens": 1850
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t1.txt": {
+      "description": "",
+      "tokens": 376,
+      "hash": "451ab966a28fe37f",
+      "size": 2346,
+      "mtimeMs": 1794917967155.429,
+      "updatedAt": "2026-11-17T12:19:27.203Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/e2e_flows/test_e2e_pipe_class_lookup.py": {
+      "description": "种子管级「按 id 查不 500」（P10-F · 评审 #17）。",
+      "tokens": 565,
+      "hash": "9e2964c32aa0c468",
+      "size": 2508,
+      "mtimeMs": 1794918324455.0298,
+      "updatedAt": "2026-11-17T12:25:24.512Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_seed_pipe_class_is_readable_by_id",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 46,
+          "tokens": 164
+        },
+        {
+          "name": "test_seed_pipe_class_appears_in_the_company_list",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 57,
+          "tokens": 145
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_lane_script_body.py": {
+      "description": "`lane_script_body` 的**剥注释口径**（P10-F · 评审 #27）。",
+      "tokens": 530,
+      "hash": "808830dd7785c96e",
+      "size": 2182,
+      "mtimeMs": 1794918386305.859,
+      "updatedAt": "2026-11-17T12:26:26.351Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_write",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 27,
+          "tokens": 42
+        },
+        {
+          "name": "test_a_whole_line_comment_is_removed",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 34,
+          "tokens": 63
+        },
+        {
+          "name": "test_an_indented_whole_line_comment_is_removed",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 41,
+          "tokens": 68
+        },
+        {
+          "name": "test_an_inline_comment_after_whitespace_is_removed",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 48,
+          "tokens": 70
+        },
+        {
+          "name": "test_a_hash_inside_double_quotes_is_not_a_comment",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 53,
+          "tokens": 50
+        },
+        {
+          "name": "test_a_hash_inside_single_quotes_is_not_a_comment",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 58,
+          "tokens": 50
+        },
+        {
+          "name": "test_a_hash_without_preceding_whitespace_is_not_a_comment",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 62,
+          "tokens": 51
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/lane_script_body.py": {
+      "description": "脚本「可执行部分」的**一处真相源**（P10-F · 评审 #27）。",
+      "tokens": 419,
+      "hash": "955bd62d32d93294",
+      "size": 2128,
+      "mtimeMs": 1794918400833.0493,
+      "updatedAt": "2026-11-17T12:26:40.883Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/ui_schema_service.py": {
+      "description": "uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。",
+      "tokens": 2812,
+      "hash": "7c1045672f6ac4d8",
+      "size": 10660,
+      "mtimeMs": 1794918950390.3923,
+      "updatedAt": "2026-11-17T12:35:50.448Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Widget",
+          "kind": "class",
+          "startLine": 24,
+          "endLine": 335,
+          "tokens": 2422
+        },
+        {
+          "name": "list_resources",
+          "kind": "fn",
+          "startLine": 336,
+          "endLine": 340,
+          "tokens": 36
+        },
+        {
+          "name": "get_ui_schema",
+          "kind": "fn",
+          "startLine": 341,
+          "endLine": 359,
+          "tokens": 170
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t2.txt": {
+      "description": "",
+      "tokens": 325,
+      "hash": "a7721bae5be70061",
+      "size": 1881,
+      "mtimeMs": 1794918960625.4995,
+      "updatedAt": "2026-11-17T12:36:00.685Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t3.txt": {
+      "description": "",
+      "tokens": 394,
+      "hash": "63bc85363deeed33",
+      "size": 2367,
+      "mtimeMs": 1794918973408.6333,
+      "updatedAt": "2026-11-17T12:36:13.459Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-t4.txt": {
+      "description": "",
+      "tokens": 437,
+      "hash": "65f315fe41d34467",
+      "size": 2724,
+      "mtimeMs": 1794918980949.712,
+      "updatedAt": "2026-11-17T12:36:20.997Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-drift-fix.txt": {
+      "description": "",
+      "tokens": 245,
+      "hash": "3f2ea6232105fce3",
+      "size": 1459,
+      "mtimeMs": 1794918987192.7769,
+      "updatedAt": "2026-11-17T12:36:27.243Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10f-f1.md": {
+      "description": "QA 报告 —— PCS 前端 · P10-F 批 1（F1）",
+      "tokens": 1130,
+      "hash": "9df54e50c903d01d",
+      "size": 6576,
+      "mtimeMs": 1794919390216.9424,
+      "updatedAt": "2026-11-17T12:43:10.266Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-batch-end.txt": {
+      "description": "",
+      "tokens": 212,
+      "hash": "f55913f0ff7c84fc",
+      "size": 1274,
+      "mtimeMs": 1794919410938.4272,
+      "updatedAt": "2026-11-17T12:43:30.992Z",
       "source": "hook"
     }
   }
