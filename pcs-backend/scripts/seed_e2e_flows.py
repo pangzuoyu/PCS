@@ -122,13 +122,18 @@ FLOW_STREAM_IDS: tuple[uuid.UUID, ...] = tuple(
 # 角色矩阵
 # ---------------------------------------------------------------------------
 
-#: 种子用户（**7** 个）。
+#: 种子用户（**8** 个）。
 #:
 #: ⚠️ `alice` 是给**前端真后端通道**（T7）准备的：mock 登录只认
-#: `alice`/`bob`/`carol`/`dan`（`app/api/v1/mock_auth.py::MOCK_USERS`）
+#: `alice`/`bob`/`carol`/`dan`/`erin`（`app/api/v1/mock_auth.py::MOCK_USERS`）
 #: ⇒ 种子里的 `e2e-*` **一个都登不进去** ⇒ UI 流必须有一个能登录且有授权的人。
 #:
 #: ⚠️ `bob`/`carol`/`dan` **故意不授权** ⇒ 他们是 UI 通道里的「局外人」。
+#:
+#: ⚠️ `erin` = **角色够、授权缺**（P10-B 评审 #5）—— 前端要验「跨项目 ⇒ 404」
+#: ⇒ ⇒ 那条断言必须**走到项目守卫**（`check_project_access_or_404`）
+#: ⇒ ⇒ 身份得**过得了角色闸**且**没有**授权行 ⇒ ⇒ `erin` 是 DESIGNER
+#: ⇒ ⇒ 但 `USERNAME_TO_PROJECT_ROLE` 里**没有**它 ⇒ ⇒ 种子**故意不授权**。
 FLOW_USERNAMES: tuple[str, ...] = (
     "e2e-designer",
     "e2e-checker",
@@ -137,6 +142,7 @@ FLOW_USERNAMES: tuple[str, ...] = (
     "e2e-admin",
     "e2e-outsider",
     "alice",
+    "erin",
 )
 
 #: 用户名 → **全局**角色（JWT claim）。
@@ -153,6 +159,8 @@ USERNAME_TO_ROLE: dict[str, str] = {
     "e2e-outsider": "DESIGNER",
     # ⚠️ 为 UI 通道准备（mock 登录能登）⇒ 后端场景**不得**解析到它
     "alice": "DESIGNER",
+    # ⚠️ **角色够、授权缺**（评审 #5）⇒ UI 通道的「局外人」身份
+    "erin": "DESIGNER",
 }
 
 #: 全局角色 → **有授权**的种子用户（**唯一**映射 ⇒ `role_headers(<role>)` 用它）。

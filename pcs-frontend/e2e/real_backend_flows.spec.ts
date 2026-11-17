@@ -1,5 +1,5 @@
-import { test, expect, gotoViaMenu } from './fixtures';
-import type { Page } from '@playwright/test';
+import { test, expect, gotoViaMenu, loginViaUi } from './fixtures';
+import { FLOW_PROJECT_ID } from './channel-config';
 
 /**
  * 真后端通道的 **5 条 UI 流**（P10-B · Task T7）。
@@ -28,8 +28,9 @@ import type { Page } from '@playwright/test';
  * 物流/交付物/签署矩阵页都用 `constants/env.ts::PROJECT_ID` ⇒
  * ⇒ 真后端通道必须 `VITE_PROJECT_ID=<flows 项目 id>` 起 vite
  * ⇒ 否则页面查的是**另一个项目** ⇒ 空表 ⇒ 看着「页面正常」实则没数据。
+ * ⇒ ⇒ `playwright.config.ts` 的 webServer env **默认**就是 flows 项目 id
+ * （P10-B 评审 #23）⇒ 不用手工 export ⇒ ⇒ 也不会「忘了设」。
  */
-const FLOW_PROJECT_ID = '2488b011-14fc-584b-966e-1e2dfaeb9eb7';
 
 /** 种子物流名（`scripts/seed_e2e_flows.py::FLOW_STREAM_NAMES`）。 */
 const STREAM_NAME = 'E2E-FLOW-S-001';
@@ -37,44 +38,35 @@ const STREAM_NAME = 'E2E-FLOW-S-001';
 /** 种子交付物标题（`_ensure_deliverable`）。 */
 const DELIVERABLE_TITLE = 'E2E 流程级种子计算书';
 
-/** 种子签署矩阵名（`_ensure_matrix`）。 */
-const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';
+/**
+ * 种子签署矩阵名（`_ensure_matrix`）。
+ *
+ * ⚠️ **不是** `DEFAULT_RECORD_3_LEVEL` —— 那是迁移 `p9_013` 建的**全局内置**
+ * 矩阵（**任何**迁移过的库都有）⇒ ⇒ 断它 ⇒ 「种子没灌进去 / matrix_name 漂了
+ * / 项目绑定没生效」这条用例**照样绿** ⇒ ⇒ 断**种子那张**才有验证力。
+ */
+const MATRIX_NAME = 'E2E_FLOWS_RECORD_3_LEVEL';
+
+/** **压根不存在**的项目 id（用来与「存在但无授权」比形状）。 */
+const NONEXISTENT_PROJECT_ID = '99999999-9999-9999-9999-999999999999';
+
+/**
+ * 把消息里的项目 id **归一化** ⇒ 两个 404 的 **message 模板**才能逐字比。
+ *
+ * ⚠️ 后端的 404 消息是 `Project not found: <project_id>` ⇒ **带着 id**
+ * ⇒ ⇒ 两个响应的消息**本该不同**（id 不同）⇒ ⇒ 比「模板」（归一化后）
+ * ⇒ ⇒ 这才是「同形」的正确断法（不泄露存在性 = 连 id 都不该有差别之外的信息）。
+ */
+function normalizeProjectId(message: unknown, projectId: string): string {
+  return String(message ?? '').replaceAll(projectId, '<PROJECT_ID>');
+}
 
 /**
  * 走 UI 登录。
  *
- * ⚠️ **账号选择器**（`LoginPage` 的 antd `Select`）⇒ 选人再点「登 录」。
- * ⚠️ 按钮的可访问名是 **「登 录」**（antd 给两个汉字的按钮插空格）。
+ * ⚠️ **实现在 `e2e/fixtures.ts::loginViaUi`** —— 路由扫描那条也要用
+ * ⇒ ⇒ 一处真相源（antd 下拉那套坑只写一遍）。
  */
-async function loginViaUi(page: Page, mockUser: 'alice' | 'bob' = 'alice'): Promise<string> {
-  await page.goto('/login');
-  if (mockUser !== 'alice') {
-    // ⚠️ **用键盘展开下拉，不要点 `role=combobox` 的 input** ——
-    // antd 的 combobox input 被已选项的 span 盖住 ⇒ 点它 ⇒
-    // 「intercepts pointer events」⇒ 永远点不动；
-    // 而点 `.ant-select-selector` / `.ant-select` 也不稳（选项在动画里
-    // 「not stable / not visible」）⇒ ⇒ 点已选项的 title 最稳。
-    await page.getByTitle('alice (DESIGNER)').click();
-    // ⚠️ **别用 `getByRole('option')`** —— antd/rc-select 给无障碍留了一份
-    // `role="option"` 的**隐藏副本**（宽 0）⇒ Playwright 判它「不可见」
-    // ⇒ ⇒ 永远等不到 ⇒ ⇒ 用**可见的选项项**（`.ant-select-item-option`）。
-    // ⚠️ 下拉是**动画**展开的 ⇒ 选项此刻还没稳定 ⇒ 先等它可见。
-    const option = page.locator('.ant-select-item-option', { hasText: mockUser });
-    await option.waitFor({ state: 'visible' });
-    await option.click();
-  }
-  const [loginResponse] = await Promise.all([
-    page.waitForResponse(
-      (res) => res.url().includes('mock-login') && res.status() === 200,
-      { timeout: 15000 },
-    ),
-    page.getByRole('button', { name: '登 录' }).click(),
-  ]);
-  expect(loginResponse.status(), 'mock 登录失败 ⇒ 通道没通').toBe(200);
-  await page.waitForURL('/', { timeout: 15000 });
-  const { access_token: accessToken } = await loginResponse.json();
-  return accessToken;
-}
 
 test('@real-backend 物流一览：种子物流行可见', async ({ realPage }) => {
   await loginViaUi(realPage);
@@ -122,33 +114,54 @@ test('@real-backend 签署矩阵：项目绑定的矩阵与三级链可见', asy
   await expect(realPage.getByTestId('signature-matrix-page')).toContainText('APPROVER');
 });
 
-test('@real-backend 权限：越权用户看不到别人的项目', async ({ realPage }) => {
-  // ⚠️ `bob` **故意没有** flows 项目的授权行（种子里的「局外人」）
-  const token = await loginViaUi(realPage, 'bob');
+test('@real-backend 权限：角色够但无授权的用户看到的是「与不存在同形」的 404', async ({
+  realPage,
+}) => {
+  // ⚠️ **身份 = 角色够、授权缺**（`erin` · P10-B 评审 #5）——
+  //    ⇒ 请求**能过角色闸**（DESIGNER）⇒ ⇒ 真正落到**项目守卫**
+  //    （`check_project_access_or_404`）⇒ ⇒ 断的**就是那条分支**。
+  //
+  // ⚠️ **为什么不能用 `bob`**（CHECKER）—— 物流列表端点先跑角色闸
+  //    （`require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")`）
+  //    ⇒ bob **在项目守卫之前**就被 403 ⇒ ⇒ 两个请求都是**角色闸**给的 403
+  //    ⇒ ⇒ 断言退化成 `403 === 403` ⇒ ⇒ **把项目守卫整段删掉也照样绿**
+  //    ⇒ ⇒ 那条用例对它命名的缺陷**不敏感**（零覆盖）。
+  const token = await loginViaUi(realPage, 'erin');
 
-  // ⚠️ **断「同形」，不是断某个具体码** —— 「空表」有**两种**来源：
-  //   ① 跨项目（没授权行）· ② 有授权但角色不够
-  // ⇒ ⇒ 「存在但没授权」与「压根不存在」必须**同形**（同状态码）
-  //    ⇒ 否则枚举得出别人的项目 id ⇒ ⇒ 这才是要断的那件事。
-  // ⚠️ **具体码取决于闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ 403）
-  // ⇒ ⇒ 断「两个码相等」⇒ 既不钉死实现细节，又抓住「泄露存在性」。
   const auth = { headers: { Authorization: `Bearer ${token}` } };
   const unauthorized = await realPage.request.get(
     `/api/v1/projects/${FLOW_PROJECT_ID}/streams`,
     auth,
   );
   const nonexistent = await realPage.request.get(
-    `/api/v1/projects/99999999-9999-9999-9999-999999999999/streams`,
+    `/api/v1/projects/${NONEXISTENT_PROJECT_ID}/streams`,
     auth,
   );
+
+  // ⚠️ **存在但无授权 ⇒ 404**（不是 403 —— 403 会泄露存在性）
+  expect(
+    unauthorized.status(),
+    `跨项目访问返回 ${unauthorized.status()}（应为 404）`
+      + ' ⇒ 403 会泄露资源存在性',
+  ).toBe(404);
   expect(
     unauthorized.status(),
     `跨项目(${unauthorized.status()}) 与 真不存在(${nonexistent.status()}) 不同形`
       + ' ⇒ 泄露了别人的项目存在性',
   ).toBe(nonexistent.status());
 
+  // ⚠️ **code 逐字相同 + message 模板逐字相同** —— 只断状态码 ⇒
+  //    「换个原因」也照样绿（hermes 断言形状病 #3）
+  const unauthorizedBody = await unauthorized.json();
+  const nonexistentBody = await nonexistent.json();
+  expect(unauthorizedBody.code, '两个 404 的 code 不同形').toBe(nonexistentBody.code);
+  expect(
+    normalizeProjectId(unauthorizedBody.message, FLOW_PROJECT_ID),
+    '两个 404 的 message 模板不同形 ⇒ 消息里泄露了项目存在性',
+  ).toBe(normalizeProjectId(nonexistentBody.message, NONEXISTENT_PROJECT_ID));
+
+  // UI：越权用户**看不到**种子物流（页面渲染了，但表格里没有那行）
   await gotoViaMenu(realPage, '物流一览');
   await expect(realPage.getByTestId('stream-list-page')).toBeVisible();
-  await expect(realPage.getByTestId('stream-name')).toHaveCount(0);
   await expect(realPage.getByText(STREAM_NAME, { exact: false })).toHaveCount(0);
 });

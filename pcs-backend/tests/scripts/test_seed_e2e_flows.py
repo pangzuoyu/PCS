@@ -123,6 +123,13 @@ async def test_seed_flows_grants_project_roles_except_the_outsider(db_session):
     assert derive_user_id("e2e-outsider") not in granted_users, (
         "e2e-outsider 必须**没有**授权行 ⇒ 他才是「跨项目 ⇒ 404」的局外人"
     )
+    # ⚠️ `erin` = **角色够、授权缺**（P10-B 评审 #5）—— 前端真后端通道要验
+    # 「跨项目 ⇒ 404（与不存在同形）」⇒ ⇒ 那条断言必须**走到项目守卫**
+    # ⇒ ⇒ 身份得**过得了角色闸**（DESIGNER）**且没有**授权行。
+    assert derive_user_id("erin") not in granted_users, (
+        "erin 必须**没有**授权行 ⇒ 他才是前端那条「跨项目 ⇒ 404」的身份"
+        "（有授权 ⇒ 200 ⇒ 断言走不到项目守卫）"
+    )
     # 项目内角色必须**各异**（不能又一个「统一 DESIGNER」）
     assert len({g.role_in_project for g in grants}) >= 5, (
         f"项目内角色没铺开：{[g.role_in_project for g in grants]}"

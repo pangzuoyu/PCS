@@ -60,6 +60,21 @@ def test_mock_login_unknown_user_404(monkeypatch):
     assert r.json()["code"] == "UNKNOWN_MOCK_USER"
 
 
+def test_mock_login_erin_designer(monkeypatch):
+    """`erin` = **角色够、授权缺**（P10-B 评审 #5）⇒ 前端要验「跨项目 ⇒ 404」。
+
+    ⚠️ mock 登录**不落 `users` 表** ⇒ ⇒ 「授权缺」**不由 mock 决定**
+    ⇒ ⇒ 由**种子**决定（`scripts/seed_e2e_flows.py`：`erin` 不在
+    ⇒ ⇒ `USERNAME_TO_PROJECT_ROLE` 里 ⇒ ⇒ 故意不授权 ⇒ 见那边的测试）。
+    ⇒ ⇒ 本条只钉「erin 能登录 **且** 角色是 DESIGNER（过得了角色闸）」——
+    ⇒ ⇒ 角色不够 ⇒ 请求**走不到**项目守卫 ⇒ 前端那条断言就退化成 403===403。
+    """
+    _patch_settings(monkeypatch)
+    r = _client_with_mock().post("/auth/mock-login", json={"username": "erin"})
+    assert r.status_code == 200, r.text
+    assert r.json()["role"] == "DESIGNER"
+
+
 def test_mock_login_production_403(monkeypatch):
     """即使 mock 路由被强制挂载，生产环境内 endpoint 必须 self-disable。"""
     _patch_settings(monkeypatch, env="production")

@@ -9,6 +9,11 @@ const MOCK_ACCOUNTS = [
   { value: 'bob', label: 'bob (CHECKER)' },
   { value: 'carol', label: 'carol (APPROVER)' },
   { value: 'dan', label: 'dan (SYSTEM_ADMIN)' },
+  // ⚠️ **角色够、授权缺**（P10-B 评审 #5）—— 前端要验「跨项目 ⇒ 404
+  // （与『不存在』同形）」⇒ ⇒ 身份得**过得了角色闸**且**没有**项目授权行
+  // ⇒ ⇒ `alice`（有授权）/ `bob`·`carol`（角色不够）/ `dan`（全局 bypass）
+  // ⇒ ⇒ **四个都表达不了** ⇒ ⇒ 专门留一个。
+  { value: 'erin', label: 'erin (DESIGNER · 无项目授权)' },
 ];
 
 export default function LoginPage() {

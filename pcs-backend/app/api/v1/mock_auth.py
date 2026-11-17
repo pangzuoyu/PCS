@@ -16,6 +16,15 @@ MOCK_USERS: dict[str, str] = {
     "bob": "CHECKER",
     "carol": "APPROVER",
     "dan": "SYSTEM_ADMIN",
+    # ⚠️ **角色够、授权缺**（P10-B 评审 #5）—— 前端真后端通道要验
+    # 「跨项目 ⇒ 404（与『不存在』同形）」⇒ ⇒ 那条断言必须走**项目守卫**
+    # ⇒ ⇒ 身份得**过得了角色闸**（DESIGNER）**且没有** `UserProject` 行。
+    # ⇒ ⇒ 前面四个都**表达不了**这个身份：
+    #   · bob(CHECKER) / carol(APPROVER) ⇒ **角色闸**就 403 ⇒ 走不到项目守卫
+    #   · dan(SYSTEM_ADMIN) ⇒ 项目守卫**全局 bypass** ⇒ 拿得到 200
+    #   · alice ⇒ 种子给了 flows 项目的授权行 ⇒ 也有 200
+    # ⇒ ⇒ `erin` 在种子里**故意不授权**（`scripts/seed_e2e_flows.py`）。
+    "erin": "DESIGNER",
 }
 
 

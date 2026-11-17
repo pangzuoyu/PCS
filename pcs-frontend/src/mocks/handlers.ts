@@ -129,6 +129,9 @@ const ROLE_BY_USER: Record<string, string> = {
   bob: "CHECKER",
   carol: "APPROVER",
   dan: "SYSTEM_ADMIN",
+  // ⚠️ **角色够、授权缺**（P10-B 评审 #5）⇒ 前后端的「局外人」身份同名
+  // ⇒ ⇒ 后端 `app/api/v1/mock_auth.py::MOCK_USERS` 里也有它
+  erin: "DESIGNER",
 };
 
 /** V1 mock-only 端点：仅 dev 环境使用，不在 OpenAPI 中（QA fix / ISSUE-001 + 11 组件实例化） */
@@ -139,6 +142,7 @@ const MOCK_USER_IDS: Record<string, string> = {
   bob: '00000000-0000-0000-0000-0000000b0b01',
   carol: '00000000-0000-0000-0000-0000000ca201',
   dan: '00000000-0000-0000-0000-0000000da0001',
+  erin: '00000000-0000-0000-0000-0000000e0001',
 };
 
 /**
