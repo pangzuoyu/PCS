@@ -684,7 +684,7 @@ git commit -m "fix(P10-F): 守门测试统一断可执行部分 + 默认路径�
 - Produces: `public_snapshot(engine) -> dict[str, tuple[int, int]]`（每张表 **count(\*) + max(xmin)**）
   ⇒ ⇒ 断言「session 启动时 == session 结束时」⇒ ⇒ **逐张相等**
 
-- [ ] **Step 1: 写失败测试**（**先证伪现守卫**）
+- [x] **Step 1: 写失败测试**（**先证伪现守卫**）
 
 ⇒ ⇒ 加一条**自检**：故意往 public 写一行 / 改一行 / 删一行（用**独立连接**）⇒ ⇒ 守卫**必须红**
 ⇒ ⇒ 证明「它看得见泄漏」（守门测试自证 ⇒ 同族纪律：`docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md`）。
@@ -707,9 +707,9 @@ async def test_public_guard_detects_a_leaked_row(public_engine, public_snapshot)
 ⇒ ⇒ `audit_logs` 是候选（它不在现守卫的 4 张表 `users/projects/streams/user_projects` 里）
 ⇒ ⇒ 开工时确认它**在 public 里存在**且**有可插的最小列**。
 
-- [ ] **Step 2: 跑测试确认失败**（现快照只数 4 张表 ⇒ 探针写进别的表 ⇒ 看不见 ⇒ 失败）
+- [x] **Step 2: 跑测试确认失败**（现快照只数 4 张表 ⇒ 探针写进别的表 ⇒ 看不见 ⇒ 失败）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 ① `_public_snapshot` 改成：**从 `information_schema.tables` 枚举 `public` 的全部表**
 ⇒ ⇒ 每张表取 `SELECT count(*), coalesce(max(xmin::text::bigint), 0) FROM public.<t>`
 ⇒ ⇒ ⚠️ **这个守卫只能在 E2E 车道（真 PG）跑** —— `xmin` 是 **PG 专有列** ⇒ ⇒
@@ -738,7 +738,7 @@ db_session_mod._sync_engine = create_engine(
 ⇒ ⇒ 目的：堵住「将来有人写一条走 `get_engine()` 的路径」
 ④ 写路径仍断「必须 200/201」（断**后果**不断**动作** ⇒ 已有，不要改）
 
-- [ ] **Step 3b: 补「基线早于任何写入」的钉子**（⚖️ D10：双快照）
+- [x] **Step 3b: 补「基线早于任何写入」的钉子**（⚖️ D10：双快照）
 
 ```python
 @pytest.mark.e2e
@@ -751,7 +751,7 @@ async def test_public_baseline_is_taken_before_any_lane_write(first_snapshot, pu
 ⇒ ⇒ `first_snapshot` = session 里**第一个**跑的 fixture 取的快照；`public_baseline` = 基线 fixture 取的快照
 ⇒ ⇒ 两者相等 ⇒ ⇒ 中间没有写入 ⇒ ⇒ 顺序对。
 
-- [ ] **Step 4: 跑 E2E 车道 + 变异自证**
+- [x] **Step 4: 跑 E2E 车道 + 变异自证**
 
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Expected: 全绿
@@ -759,7 +759,7 @@ Expected: 全绿
 ⇒ ⇒ **变异自证**（三种都要红）：在 public 里手工插一行 / 删一行 / **改一行**（同表 UPDATE）
 ⇒ ⇒ ⚠️ **UPDATE 那条是本任务的核心**（`count` 不变 ⇒ 只有 `max(xmin)` 能看见）⇒ ⇒ 必须验过。
 
-- [ ] **Step 5: 提交**（`fix(P10-F): public 守卫快照全部表 + 补 _sync_engine + session 级基线（评审 #22）`）
+- [x] **Step 5: 提交**（`fix(P10-F): public 守卫快照全部表 + 补 _sync_engine + session 级基线（评审 #22）`）
 
 ---
 
@@ -790,7 +790,7 @@ Expected: 全绿
 | **前端永远带 `owner_id`** | `DashboardPage.tsx:28` ⇒ `<WorkspaceSwitcher ownerId={userId}>` ⇒ `WorkspaceSwitcher.tsx:55` ⇒ `workspaceApi.list(ownerId)` ⇒ `src/api/sprint1.ts:16` ⇒ `params: ownerId ? { owner_id: ownerId } : {}` | ⇒ ⇒ **dan 看不到 alice 的工作区**（后端 `owner_id=None` 才不过滤 ⇒ 但前端从不省略）⇒ ⇒ **E2E 必须用 alice 登录** |
 | **种子只有**一个**工作区，且是 FORMAL** | `seed_e2e_flows.py:338-352`（`_ensure_workspace` 建 `FLOW_WORKSPACE_ID` · `workspace_type="FORMAL"`） | ⇒ ⇒ FORMAL 按设计**归属一个项目** ⇒ ⇒ 回填 `project_id` 后它**有**项目 ⇒ ⇒ **真后端里今天没有「无项目工作区」这个形态** ⇒ ⇒ ⇒ 必须**另建一个 PERSONAL 工作区**（`project_id` 留空）才测得了 ⇒ ⇒ 那正是**真实产品里「无项目工作区」的形态**（PERSONAL / TEMPORARY）⇒ ⇒ **按真实语义建**
 
-- [ ] **Step 1: 写失败测试**（前端）
+- [x] **Step 1: 写失败测试**（前端）
 
 ```tsx
 it('选中的工作区没有 project_id ⇒ 不渲染清单面板（不产生 404）', async () => {
@@ -820,15 +820,15 @@ it('选中的工作区**有** project_id ⇒ 面板渲染且发出 2 个请求�
 ⇒ ⇒ ⚠️ **必须断 `projectId` 的值是「真项目 id」** ⇒ ⇒ 不是「渲染了」那种烟测 ⇒ ⇒
 ⇒ ⇒ 这条同时钉住「占位常量被当真值用」这个病（`src/constants/env.ts:13` 的 `PROJECT_ID`）。
 
-- [ ] **Step 2: 跑测试确认失败**（现在 `selected` truthy ⇒ 面板渲染 ⇒ 用了占位 id ⇒ 404）
+- [x] **Step 2: 跑测试确认失败**（现在 `selected` truthy ⇒ 面板渲染 ⇒ 用了占位 id ⇒ 404）
 
-- [ ] **Step 3: 实现前端**⇒ ⇒ `const effectiveProjectId = selected?.project_id ?? null;` ⇒ ⇒
+- [x] **Step 3: 实现前端**⇒ ⇒ `const effectiveProjectId = selected?.project_id ?? null;` ⇒ ⇒
 `{effectiveProjectId ? <InputChecklistPanel projectId={effectiveProjectId} /> : null}` ⇒ ⇒
 `workspaceProjectId()` **删掉**（它的占位兜底正是缺陷来源）⇒ ⇒ 卡片标题区分
 `selected ? (effectiveProjectId ? \`项目 ${effectiveProjectId.slice(0,8)}…\` : '该工作区未关联项目') : '选择工作区后查看清单'`
 ⇒ ⇒ `env.ts` 导出 `PLACEHOLDER_PROJECT_ID`，`env.ts` 的兜底与别处引用**统一引它**。
 
-- [ ] **Step 4: 写失败测试**（后端 · 「种子工作区可见」）
+- [x] **Step 4: 写失败测试**（后端 · 「种子工作区可见」）
 
 ```python
 @pytest.mark.e2e
@@ -841,9 +841,9 @@ async def test_seeded_workspace_is_visible_to_its_owner(client, ...):
 
 ⇒ ⇒ ⚠️ 断**后果**（「列表里有它」），不断**动作**（「我们调用了 seed」）。
 
-- [ ] **Step 5: 跑测试确认失败**（现在 `owner_id` 是 NULL ⇒ 列表为空）
+- [x] **Step 5: 跑测试确认失败**（现在 `owner_id` 是 NULL ⇒ 列表为空）
 
-- [ ] **Step 6: 实现种子侧**（`scripts/seed_e2e_flows.py:340-352` + 新增一个函数）
+- [x] **Step 6: 实现种子侧**（`scripts/seed_e2e_flows.py:340-352` + 新增一个函数）
 
 ① `_ensure_workspace`（FORMAL）填 `owner_id = derive_user_id("alice")`（**派生 id**）
 ② `_ensure_project` **之后**回填 `workspace.project_id = project.project_id` ⇒ ⇒
@@ -859,7 +859,7 @@ async def test_seeded_workspace_is_visible_to_its_owner(client, ...):
    ⇒ ⇒ 真后端要有这个形态可测 ⇒ ⇒ **按真实语义建一个** ⇒ ⇒ 不新增「第三种」工作区类型
    ⇒ ⇒ ⚠️ **不建 TEMPORARY**（一个就够 ⇒ ⇒ YAGNI）⇒ ⇒ ⚠️ 名字要**唯一**（`_get_or_create` 按 id 查 ⇒ ⇒ 给它一个常量 id）
 
-- [ ] **Step 6b: 加真后端 E2E 断言**（⚠️ **「保留无项目工作区供测」是意图，不是证据**）
+- [x] **Step 6b: 加真后端 E2E 断言**（⚠️ **「保留无项目工作区供测」是意图，不是证据**）
 
 ⇒ ⇒ ⚠️ **登录身份必须是 `alice`**（不是 `dan`）⇒ ⇒ 理由见上面「两条已核实的硬事实」：
 ⇒ ⇒ **前端永远带 `owner_id`** ⇒ ⇒ dan 看不到 alice 的工作区 ⇒ ⇒ 用 dan 会**选不中** ⇒ ⇒
@@ -893,14 +893,14 @@ test('真后端：选有项目的工作区 ⇒ 面板渲染且请求带真 proje
 ⇒ ⇒ ⇒ 理由：mock 的工作区种子**本来就**把 PERSONAL 的 `project_id` 设成 null ⇒ ⇒ mock 下第一条恒绿
 ⇒ ⇒ ⇒ 而 mock 的 FORMAL 工作区用的**就是占位 id** ⇒ ⇒ 第二条在 mock 下**会红**（这正是它该抓的病）。
 
-- [ ] **Step 7: 跑测试 + typecheck + lint**
+- [x] **Step 7: 跑测试 + typecheck + lint**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/DashboardPage.test.tsx && npm run typecheck && npm run lint`
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
 Run: `cd pcs-frontend && npm run e2e:real`      # ← Step 6b 那条在此跑
 Expected: 全绿
 
-- [ ] **Step 8: 提交**（`fix(P10-F): 仪表盘守卫条件改成「拿到了真 project_id」（评审 #24）`）
+- [x] **Step 8: 提交**（`fix(P10-F): 仪表盘守卫条件改成「拿到了真 project_id」（评审 #24）`）
 ⇒ ⇒ 顺带在 `TODOS.md` 登记：「**前端还有别处把占位常量当真值用**」（`env.ts:13` 的 `PROJECT_ID`
 被 `routeWrappers.tsx:136,212,331,335` 当**真 id** 用 ⇒ ⇒ 那是 TODO-159 那 3 个页面的根因之一）
 
@@ -916,7 +916,7 @@ Expected: 全绿
 - Consumes: `scripts/pytest_pg.sh` 的锁路径口径（`$BACKEND_DIR/.tmp/lane.lock`）⇒ ⇒ **同一把锁**
 - Produces: `compose_test_stack.sh` 在调用 compose **之前**抢锁 ⇒ ⇒ 抢不到 ⇒ **非零退出**并说清「另一条车道在跑」
 
-- [ ] **Step 1: 写失败测试**（`tests/scripts/test_compose_test_profile.py`）
+- [x] **Step 1: 写失败测试**（`tests/scripts/test_compose_test_profile.py`）
 
 ```python
 def test_compose_test_stack_takes_the_lane_lock_before_invoking_compose():
@@ -925,7 +925,7 @@ def test_compose_test_stack_takes_the_lane_lock_before_invoking_compose():
     assert body.index("lane.lock") < body.index("docker compose"), "锁必须在调 compose **之前**抢"
 ```
 
-- [ ] **Step 1b: 补「抢不到锁」的行为测试**（⚖️ 评审 D10：**静态断不够**）
+- [x] **Step 1b: 补「抢不到锁」的行为测试**（⚖️ 评审 D10：**静态断不够**）
 
 ⇒ ⇒ 照搬 `tests/scripts/test_pytest_pg_gate.py:165-218` 的现成做法（**假 docker** + **真占锁进程**）：
 
@@ -952,17 +952,17 @@ def test_compose_test_stack_fails_when_the_lane_lock_is_held(tmp_path):
 ⇒ ⇒ ⚠️ 脚本要支持 `PCS_PGTEST_LANE_LOCK` **覆盖**（守门测试不能抢真车道的锁 ⇒ 同
 `docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md`）。
 
-- [ ] **Step 2: 跑测试确认失败**
-- [ ] **Step 3: 实现**（`compose_test_stack.sh`）⇒ ⇒ 与 `pytest_pg.sh` **同款**的锁段
+- [x] **Step 2: 跑测试确认失败**
+- [x] **Step 3: 实现**（`compose_test_stack.sh`）⇒ ⇒ 与 `pytest_pg.sh` **同款**的锁段
 （`exec 9>"$LOCK_FILE"` + `flock -n 9` ⇒ 抢不到 ⇒ 退出码 1 + 「另一条车道正在跑」）⇒ ⇒
 ⚠️ **路径口径必须一致**（`${BACKEND_DIR}/.tmp/lane.lock`）⇒ ⇒ `mkdir -p` 也要有
 ⇒ ⇒ ⚠️ **支持 `PCS_PGTEST_LANE_LOCK` 覆盖**（Step 1b 要用）。
 ⇒ ⇒ `docker-compose.yml` 两个服务的注释补一句「**必须**经 `scripts/compose_test_stack.sh` 起（它抢车道锁）⇒ 直接 `docker compose run` 会绕过锁」。
-- [ ] **Step 4: 跑测试 + 手工验一次**（`bash scripts/compose_test_stack.sh` ⇒ 应正常跑完 ⇒ 且 `pcs-backend/.tmp/lane.lock` 被创建）
+- [x] **Step 4: 跑测试 + 手工验一次**（`bash scripts/compose_test_stack.sh` ⇒ 应正常跑完 ⇒ 且 `pcs-backend/.tmp/lane.lock` 被创建）
 ⇒ ⇒ ⚠️ **本机 docker registry 拉不动**（实测 `docker manifest inspect` 挂 >120s）⇒ ⇒
 **容器侧**的 flock 路线**不可验证** ⇒ ⇒ 本任务选**宿主侧**取锁（零镜像改动）⇒ ⇒
 ⇒ ⇒ 残留：直接 `docker compose run --rm seed` **仍能绕过锁** ⇒ ⇒ 登记 TODO（P10-C）。
-- [ ] **Step 5: 提交**（`fix(P10-F): 测试栈起服也进车道锁（评审 #15 第 ① 步）`）
+- [x] **Step 5: 提交**（`fix(P10-F): 测试栈起服也进车道锁（评审 #15 第 ① 步）`）
 ⇒ ⇒ ⚠️ **同时关闭 TODO-163**（在 `TODOS.md` 里标「2026-11-17 关闭 · `<commit>`」）
 
 ---
@@ -985,7 +985,7 @@ def test_compose_test_stack_fails_when_the_lane_lock_is_held(tmp_path):
 - Consumes: `rowKey_contract.test.ts` 已有的扫描机制（`readFileSync` + 正则遍历 `src/pages`）
 - Produces: 棘轮新增一条断言 —— **全仓不得存在「回调第二参是 `idx`/`index`」的 `rowKey`**
 
-- [ ] **Step 1: 写失败测试**（扩棘轮 ⇒ ⇒ **它必须先红**）
+- [x] **Step 1: 写失败测试**（扩棘轮 ⇒ ⇒ **它必须先红**）
 
 ```ts
 it('⚠️ 不得用 antd 回调的 **index** 参数当 rowKey（antd 5.29 起弃用 · TODO-162）', () => {
@@ -1003,24 +1003,24 @@ it('⚠️ 不得用 antd 回调的 **index** 参数当 rowKey（antd 5.29 起�
 
 ⇒ ⇒ ⚠️ **必须先跑一次确认它红**（现在命中 `FormulaEditorPage.tsx:241`）⇒ ⇒ 这就是 RED。
 
-- [ ] **Step 2: 改那一处**（`FormulaEditorPage.tsx:241`）⇒ ⇒ ⚠️ **不能**简单改成 `rowKey={(r) => r.name}`
+- [x] **Step 2: 改那一处**（`FormulaEditorPage.tsx:241`）⇒ ⇒ ⚠️ **不能**简单改成 `rowKey={(r) => r.name}`
 （参数名**允许空/重复** ⇒ antd 会报 Duplicate row key ⇒ 换成另一种告警）⇒ ⇒ **做法**：
 在 `FormulaEditorPage` 的 **draft 之外**维护一份「每行的稳定 key」（`useState<string[]>` ⇒ 新增行 ⇒
 `crypto.randomUUID()`）⇒ ⇒ `rowKey` 用那个字符串字段 ⇒ ⇒
 ⚠️ **key 不得进 `FormulaEditor` 公开形状**（会漏进保存的载荷）⇒ ⇒
 ⇒ 若实现发现必须改公开类型 ⇒ ⇒ **停下并登记 TODO**（契约面 ⇒ 属另一批）。
 
-- [ ] **Step 3: 跑测试确认通过**
+- [x] **Step 3: 跑测试确认通过**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/rowKey_contract.test.ts && npm run typecheck && npm run lint`
 Expected: 棘轮 PASS（禁 index 型）· typecheck/lint clean
 
-- [ ] **Step 4: 跑真后端通道**（**白名单删条目后仍全绿** ⇒ 这就是「组件修好后删白名单条目」的证据）
+- [x] **Step 4: 跑真后端通道**（**白名单删条目后仍全绿** ⇒ 这就是「组件修好后删白名单条目」的证据）
 
 Run: `cd pcs-frontend && npm run e2e:real`
 Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出现** ⇒ ⇒ 白名单里那条删掉）
 
-- [ ] **Step 5: 提交**（`fix(P10-F): rowKey 棘轮扩到函数形式 + 禁 index 型（TODO-162）`）
+- [x] **Step 5: 提交**（`fix(P10-F): rowKey 棘轮扩到函数形式 + 禁 index 型（TODO-162）`）
 ⇒ ⇒ ⚠️ 顺带在 `TODOS.md` 关闭 **TODO-162**（根因 = 棘轮的盲区 ⇒ 盲区已补 ⇒ 不是「页面改好了」而是「这类写法以后进不来」）。
 
 ---
@@ -1046,7 +1046,7 @@ Expected: 7+ passed（`/config/formula-editor` 的 antd 弃用告警**不再出�
 - Consumes: `app/db/session.py` 的三个单例（`_sync_engine` · `_async_engine` · `_async_session_factory`）· `app/core/config.py::settings.redis_url`
 - Produces: `assert_no_real_backends()` —— 一条**自证**断言：跑测试期间**不得**有到 5432/6379 的连接
 
-- [ ] **Step 1: 写失败测试**（**先证伪现状**）
+- [x] **Step 1: 写失败测试**（**先证伪现状**）
 
 ```python
 def test_default_lane_never_connects_to_a_real_database_or_redis():
@@ -1065,15 +1065,15 @@ def test_default_lane_never_connects_to_a_real_database_or_redis():
 ⇒ ⇒ 但需要把 `settings.redis_url` 与 `settings.database_url` 在 conftest 里**改掉** ⇒ ⇒
 ⚠️ `settings` 是 **pydantic 缓存实例** ⇒ ⇒ 改法照 `alembic/env.py` 的口径（**进程内**改环境变量 **在 import 之前**）
 
-- [ ] **Step 2: 跑测试确认失败**（现状必红 ⇒ ⇒ 证明「默认车道确实连了真库/真 Redis」）
-- [ ] **Step 3: 实现**
+- [x] **Step 2: 跑测试确认失败**（现状必红 ⇒ ⇒ 证明「默认车道确实连了真库/真 Redis」）
+- [x] **Step 3: 实现**
 ① `tests/conftest.py` 里把 `_sync_engine` 覆写成 **SQLite 同步引擎**（`sqlite:///:memory:`）⇒ ⇒
    ⇒ 与 `_async_engine` 的覆写**成对**（⇒ ⇒ 别再留第三个 singleton 裸奔）
 ② Redis：把 `settings.redis_url` 指向**不可路由的端口**（如 `redis://127.0.0.1:1/0`）⇒ ⇒
    ⇒ 或用 `fakeredis` 替身（⚠️ 若仓里没有 ⇒ ⇒ **不新增依赖** ⇒ ⇒ 选「不可路由端口」）
 ③ ⚠️ **副作用要评估**：若有测试**依赖**真 Redis（集成语义）⇒ ⇒ 那类测试应移到
    `scripts/pytest_pg.sh` 那条**真 PG 车道**里 ⇒ ⇒ 登记 TODO，不在本条硬改。
-- [ ] **Step 4: 跑默认车道**（**必须能跑完、不许挂**）
+- [x] **Step 4: 跑默认车道**（**必须能跑完、不许挂**）
 
 Run: `cd pcs-backend && uv run pytest -q`
 Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 33 分钟 ⇒ ⇒ **这条本身就是判据**
@@ -1092,7 +1092,7 @@ Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 
 
 ⇒ ⇒ **同时验**：跑完后 `ss -tnp | grep -E ":5432|:6379"` **不得**出现 pytest 的连接。
 
-- [ ] **Step 5: 提交**（`fix(P10-F): 默认车道隔离同步引擎与 Redis（评审期间新发现）`）
+- [x] **Step 5: 提交**（`fix(P10-F): 默认车道隔离同步引擎与 Redis（评审期间新发现）`）
 ⇒ ⇒ 顺带在 `.wolf/buglog.json` 记一条（bug-2181）⇒ ⇒ 在 `TODOS.md` 记「依赖真 Redis 的测试迁到真 PG 车道」
 
 ---

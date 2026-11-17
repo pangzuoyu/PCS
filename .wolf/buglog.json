@@ -6562,6 +6562,27 @@
     ],
     "occurrences": 1,
     "last_seen": "2026-11-17"
+  },
+  {
+    "id": "bug-2182",
+    "timestamp": "2026-11-17",
+    "severity": "high",
+    "error_message": "默认单测车道**碰开发库与真 Redis** ⇒ 进程 socket 里挂着 127.0.0.1:5432（开发库 `pcs`）与 127.0.0.1:6379（真 Redis）⇒ ⇒ 违反 `CLAUDE.md` 的「**单测车道绝不碰开发库**」⇒ ⇒ 而且整轮跑到 22% **挂死 33 分钟**（P10-F 评审期间实测 · F2-T5）",
+    "file": "pcs-backend/tests/conftest.py",
+    "root_cause": "① `app/db/session.py` 的**三个模块级单例**里，**同步**那个（`_sync_engine`）在默认车道**裸奔**（按 `settings.database_url` 建 ⇒ 那是开发库）⇒ ⇒ #19 只覆写了两个 async 的；② `app/services/edit_lock.py` · `app/services/broadcaster.py` 直接 `redis.asyncio.Redis.from_url(settings.redis_url)` ⇒ 默认车道连**真 Redis**（docker 的 6379 起着 ⇒ 连得上）。",
+    "fix": "① `tests/conftest.py` 加**函数级 autouse**的隔离 fixture：`_sync_engine` ⇒ SQLite（内存）**且每个用例都重申**（`dispose_sync_engine()` 会把它置回 `None` ⇒ 只在会话开始设一次 ⇒ 后面又裸奔）⇒ `settings.redis_url` ⇒ `redis://127.0.0.1:1/0`（**不可路由** ⇒ 「连了就炸」比「查到了再判」更硬）；② 依赖**真 Redis 语义**的 4 处用例改为**运行期 skip**（`tests/lane_guards.py::require_real_redis`）⇒ 登记 **TODO-165**（迁到 `scripts/pytest_pg.sh` 车道）；③ 新增 `tests/test_lane_isolation.py`（4 条守卫）。⚠️ **两个 async 单例本批不改**（跨事件循环 ⇒ 改它比不改更危险 · bug-2162 同形）⇒ ⇒ 改走「让每条路径都不去碰它」的路子。",
+    "fix_commit": "16ebcb6",
+    "tags": [
+      "P10-F",
+      "F2-T5",
+      "测试隔离",
+      "开发库",
+      "Redis",
+      "CLAUDE.md"
+    ],
+    "related_bugs": ["bug-2162", "bug-2170"],
+    "occurrences": 1,
+    "last_seen": "2026-11-17"
   }
   ]
 }

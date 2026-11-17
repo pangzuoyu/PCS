@@ -3856,6 +3856,26 @@ pub/sub 行为）⇒ ⇒ 这类测试**不该**在默认车道跑。
 
 **归属**：P10-F（F2-T5 的延伸）
 
+**2026-11-17 · F2-T5 落地时逐条判定的结果** ⇒ ⇒ **3 处**依赖真 Redis 语义：
+
+| 位置 | 用例 | 依赖什么 |
+|---|---|---|
+| `tests/api/v1/test_ws_notifications.py` | `test_ws_accepts_a_valid_token` | WS 握手要**发**通知 ⇒ 要真 Redis 的 pub/sub |
+| `tests/api/v1/test_ws_notifications.py` | `test_ws_delivers_notification_published_by_another_worker` | 跨进程推送（ADR-0049 §⑤ 的唯一端到端证明） |
+| `tests/services/test_broadcaster.py` | `real_redis` fixture（整个文件的有效用例） | 跨进程推送 |
+| `tests/services/test_edit_lock.py` | `real_redis` fixture（整个文件的有效用例） | TTL / 续期 |
+
+⇒ ⇒ 默认车道里它们**运行期 skip**（判据 = `settings.redis_url` 是否被隔离成
+不可路由端口 ⇒ `tests/lane_guards.py::require_real_redis`）⇒ ⇒
+⇒ 迁到 `scripts/pytest_pg.sh` 车道时**要去掉那个 skip** ⇒ ⇒ 那一道里
+Redis 是**同一个 `localhost:6379`** ⇒ ⇒ 迁移时要先想清楚：Redis 要不要也进
+车道锁（编辑锁是短 TTL ⇒ ⇒ 与库隔离的诉求不同）⇒ ⇒ **交人裁决**。
+
+⇒ ⇒ ⚠️ **默认车道剩下的真 Redis 连接**：**0**（实测 `ss` 监控）⇒ ⇒
+⇒ 那 2 条 Redis 依赖的用例在**默认车道**里被跳过 ⇒ ⇒ 它们的覆盖**由
+PG 车道接管**（本批**尚未**迁 ⇒ ⇒ 迁之前这段时间它们是**只跑不覆盖**的）⇒ ⇒
+⇒ **本条要迁** ⇒ ⇒ 别把它忘了。
+
 ---
 
 ## TODO-166: 公司管级列表里**要不要**出现「E2E 种子管级」 🟡
@@ -3914,3 +3934,35 @@ pub/sub 行为）⇒ ⇒ 这类测试**不该**在默认车道跑。
 **何时做**：TODO-159 那一批
 
 **归属**：P10-F（F2-T2 的延伸 · 与 TODO-159 绑定）
+
+---
+
+## TODO-168: 默认车道的**漂移守卫**仍连**开发库**（只读） 🟡
+
+**现状**（2026-11-17 · P10-F 的 F2-T5 实测）：
+
+F2-T5 把默认车道的**应用侧**连接全部隔离了（同步引擎单例 ⇒ SQLite ·
+Redis ⇒ 不可路由端口）⇒ ⇒ 实测（`ss -tnp` 监控整轮跑）**仍有 15 条**到
+`127.0.0.1:5432`（开发库 `pcs`）的连接 ⇒ ⇒ 来源是**一批「查真库 schema」的
+漂移守卫**：
+
+- `tests/models/test_sim_tower_model.py`（`create_engine(get_settings().database_url)`
+  ⇒ 查 FK）
+- `tests/models/test_streams_sim_fields.py`（查列）
+- `tests/models/test_sim_unit_op_model.py`
+- `tests/services/psychro/test_schema_drift.py`
+- `tests/test_sqlite_check_constraint_overrides.py`
+
+⚠️ **全是只读**（`information_schema` 查询）⇒ ⇒ **实测开发库没有被写入**：
+查 `pcs` 库里最新的 E2E 种子行与 `RBAC_DENIED` 审计行，时间戳都是
+**2026-11-12**（P10-A/P10-B 时代）⇒ ⇒ **本批（11-17/18）零写入** ✓。
+
+**建议改法**：这些守卫**本来就该**按 `CLAUDE.md` 的惯例跑在 **`pcs_test`**
+（对齐后的真库）⇒ ⇒ ① 加 `_ONLY_PCS_TEST` 跳过标记（与
+`tests/models/test_orm_db_drift.py` 同款）⇒ ⇒ ② 或者在默认车道里把
+`settings.database_url` 指向 `pcs_test`（**只读** ⇒ 安全）⇒ ⇒
+⇒ **二选一** ⇒ ⇒ 都会让默认车道**零**连开发库。
+
+**何时做**：下一批（**不阻塞** F2-T5 ⇒ ⇒ 因为是只读的 ⇒ ⇒ 没有污染）
+
+**归属**：P10-F（F2-T5 的延伸 · 残留）

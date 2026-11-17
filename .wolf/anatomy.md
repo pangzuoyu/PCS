@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-17T12:43:30.992Z
-> Files: 1340 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-17T23:38:22.771Z
+> Files: 1352 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -201,6 +201,7 @@
 - `qa-report-pcs-frontend-2026-11-17-p10b-review-fixes.md` — PCS Frontend QA Report — P10-B **评审修复批**（2026-11-17） (~1180 tok)
 - `qa-report-pcs-frontend-2026-11-17-p10b.md` — PCS Frontend QA Report — P10-B 全流程 E2E 批（2026-11-16 ~ 2026-11-17） (~1263 tok)
 - `qa-report-pcs-frontend-2026-11-17-p10f-f1.md` — QA 报告 —— PCS 前端 · P10-F 批 1（F1） (~1130 tok)
+- `qa-report-pcs-frontend-2026-11-18-p10f-f2.md` — QA 报告 —— PCS 前端 · P10-F 批 2（F2） (~809 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -260,6 +261,12 @@
 - `commit-f1-t2.txt` (~325 tok)
 - `commit-f1-t3.txt` (~394 tok)
 - `commit-f1-t4.txt` (~437 tok)
+- `commit-f2-batch-end.txt` (~237 tok)
+- `commit-f2-t1.txt` (~433 tok)
+- `commit-f2-t2.txt` (~513 tok)
+- `commit-f2-t3.txt` (~332 tok)
+- `commit-f2-t4.txt` (~370 tok)
+- `commit-f2-t5.txt` (~483 tok)
 
 ## .superpowers/sdd/PCS-PLAN-P4-CORE-ENGINE/
 
@@ -1553,7 +1560,7 @@
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
 - `check_report_font.py` — 部署侧报表字体自检（TODO-045）。 (~715 tok)
 - `check_schema_parity.py` — 两库 schema 版本**与代码 head** 对齐的发布前闸门 —— P10-B 评审 **#20 / #21**。 (~1644 tok)
-- `compose_test_stack.sh` — **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。 (~993 tok)
+- `compose_test_stack.sh` — **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。 (~1264 tok)
 - `gate_alembic_check.py` — alembic 漂移闸门（ORM ↔ 迁移漂移）—— P9-Prep PP-5。 (~638 tok)
 - `gen_compact_orm.py` — 从 ORM metadata 生成 `docs/schema_compact_orm.md`（TODO-103 · P9B-3 · T1）。 (~1644 tok)
 - `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
@@ -1565,18 +1572,20 @@
 - `report_heat_coverage.py` — c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。 (~6477 tok)
 - `run_gate.py` — 跑一条闸门命令并报告**它自己**的退出码（TODO-050）。 (~752 tok)
 - `seed_e2e_data.py` — E2E 种子数据（P10-A · Task T2）—— **幂等**。 (~2797 tok)
-- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~8638 tok)
+- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9439 tok)
 - `seed_user_project_access.py` — 给「指定用户名 × 指定项目」授权（幂等）—— P9B-4 紧急批次 T0。 (~1468 tok)
 - `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~450 tok)
 
 ## pcs-backend/tests/
 
 - `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~6998 tok)
+- `lane_guards.py` — **默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。 (~281 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
+- `test_lane_isolation.py` — **默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。 (~893 tok)
 - `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
 - `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~2399 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~3449 tok)
@@ -1690,8 +1699,8 @@
 
 ## pcs-backend/tests/e2e_flows/
 
-- `conftest.py` — E2E 车道（隔离 schema · 真 PG）的 fixture —— P10-B · T1。 (~3926 tok)
-- `helpers.py` — E2E 场景共用的调用 helper —— P10-B（T3）。 (~4551 tok)
+- `conftest.py` — E2E 车道（隔离 schema · 真 PG）的 fixture —— P10-B · T1。 (~4850 tok)
+- `helpers.py` — E2E 场景共用的调用 helper —— P10-B（T3）。 (~5001 tok)
 - `test_e2e_ai_audit.py` — E2E-017：AI 端点 501 + 审计行落库（P10-B · T6）。 (~792 tok)
 - `test_e2e_calc_chains.py` — E2E-003~006：计算链（管道 / 泵 / 安全阀 / 容器）—— P10-B · T3。 (~1115 tok)
 - `test_e2e_change_impact.py` — WF-PATH-01C + E2E-013：上游变更 ⇒ 下游 STALE ⇒ 确认重算（P10-B · T5 补做）。 (~1901 tok)
@@ -1706,7 +1715,8 @@
 - `test_e2e_schema_parity.py` — E2E-018：两库 schema 版本一致（P10-B · T6）。 (~614 tok)
 - `test_e2e_sim_import.py` — E2E-002：PRO/II 导入 → 物流 → 物性补全（P10-B · T3）。 (~914 tok)
 - `test_e2e_supplier.py` — E2E-014：供应商实际值 → 偏差报告（P10-B · T4）。 (~698 tok)
-- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~2405 tok)
+- `test_e2e_workspaces_visible.py` — 种子工作区在切换器里**可见**（P10-F · F2-T2 · 评审 #24）。 (~646 tok)
+- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~3584 tok)
 
 ## pcs-backend/tests/fixtures/report/
 
@@ -1732,7 +1742,7 @@
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
 - `test_check_report_font.py` — `scripts/check_report_font.py` —— 部署侧字体自检（TODO-045）。 (~870 tok)
 - `test_check_schema_parity.py` — `scripts/check_schema_parity.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~764 tok)
-- `test_compose_test_profile.py` — `docker-compose.yml` 的 **test profile** 守卫（P10-A · Task T1）。 (~1124 tok)
+- `test_compose_test_profile.py` — `docker-compose.yml` 的 **test profile** 守卫（P10-A · Task T1）。 (~2314 tok)
 - `test_compose_test_stack_pg.py` — **执行级**的测试栈守卫（评审 #22 · 2026-11-12）。 (~1330 tok)
 - `test_gate_alembic_check.py` — `scripts/gate_alembic_check.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~469 tok)
 - `test_gen_compact_orm.py` — `scripts/gen_compact_orm.py` 的行为（TODO-103 · P9B-3 · T1）。 (~901 tok)
@@ -1927,6 +1937,10 @@
 
 - `DeliverableSignDialog.tsx` — DeliverableSignDialog —— 交付物级签署**写面**（P9B-2 · T8 · SPEC §7.19）。 (~4149 tok)
 
+## pcs-frontend/src/constants/
+
+- `env.ts` — 前端常量统一来源（P5 frontend 收口 checklist 收口项 #1）。 (~294 tok)
+
 ## pcs-frontend/src/hooks/
 
 - `useEditBaseline.ts` — 三档并发基线判定（P9B-1 · SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑥）。 (~824 tok)
@@ -1962,7 +1976,7 @@
 
 ## pcs-frontend/src/pages/
 
-- `DashboardPage.tsx` — workspaceProjectId (~478 tok)
+- `DashboardPage.tsx` — DashboardPage (~584 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~808 tok)
 - `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~4701 tok)
 
@@ -2090,6 +2104,7 @@
 
 ## pcs-frontend/tests/pages/
 
+- `DashboardPage.test.tsx` — 仪表盘的**守卫条件**（评审 #24 · P10-F · F2-T2）。 (~1140 tok)
 - `routeWrappers.fetch.test.tsx` — `useFetch` 的失败态 + **401 与 axios 通道共用一份真相源**（P10-F · 评审 #9）。 (~2661 tok)
 - `rowKey_contract.test.ts` — **棘轮**：antd `Table` 的 `rowKey` 必须是**契约里真实存在的字段**。 (~1406 tok)
 

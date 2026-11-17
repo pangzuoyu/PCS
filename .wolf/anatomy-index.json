@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-17T12:43:30.992Z",
-    "fileCount": 1340,
+    "lastScanned": "2026-11-17T23:38:22.771Z",
+    "fileCount": 1352,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "32954fc2a18975788de0baf32b3c2cfbf8be3fb2be1277168c2aa09b5c812230",
-    "storeUpdatedAt": "2026-11-17T12:43:31.004Z",
-    "rootHash": "15368fd9b18f98d1"
+    "renderedHash": "fbe13ef7f0b410c381ed235e167e99a73d6e32ab948a876f501a82e39eea398e",
+    "storeUpdatedAt": "2026-11-17T23:38:22.783Z",
+    "rootHash": "8231969319d551f1"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -44911,68 +44911,103 @@
     },
     "pcs-backend/tests/scripts/test_compose_test_profile.py": {
       "description": "`docker-compose.yml` 的 **test profile** 守卫（P10-A · Task T1）。",
-      "tokens": 1124,
-      "hash": "37345963ef91bc7d",
-      "size": 4842,
-      "mtimeMs": 1794447209767.9854,
-      "updatedAt": "2026-11-12T01:33:29.812Z",
+      "tokens": 2314,
+      "hash": "c626c95ce9568fb0",
+      "size": 10048,
+      "mtimeMs": 1794922007118.89,
+      "updatedAt": "2026-11-17T13:26:47.169Z",
       "source": "hook",
       "symbols": [
         {
           "name": "compose",
           "kind": "fn",
-          "startLine": 28,
-          "endLine": 34,
+          "startLine": 35,
+          "endLine": 41,
           "tokens": 69
         },
         {
           "name": "_services",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 38,
+          "startLine": 42,
+          "endLine": 45,
           "tokens": 23
         },
         {
           "name": "test_seed_service_is_in_the_test_profile",
           "kind": "fn",
-          "startLine": 39,
-          "endLine": 48,
+          "startLine": 46,
+          "endLine": 55,
           "tokens": 100
         },
         {
           "name": "test_seed_service_mounts_the_backend_source",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 57,
+          "startLine": 56,
+          "endLine": 64,
           "tokens": 118
         },
         {
           "name": "test_seed_uses_the_frozen_uv_entrypoint",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 69,
+          "startLine": 65,
+          "endLine": 76,
           "tokens": 143
         },
         {
           "name": "test_seed_depends_only_on_services_reachable_with_the_test_profile",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 89,
+          "startLine": 77,
+          "endLine": 96,
           "tokens": 203
         },
         {
           "name": "test_seed_points_at_the_pgtest_database",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 100,
+          "startLine": 97,
+          "endLine": 107,
           "tokens": 104
         },
         {
           "name": "test_daily_dev_services_are_not_moved_into_a_profile",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 112,
+          "startLine": 108,
+          "endLine": 120,
           "tokens": 147
+        },
+        {
+          "name": "test_migrate_service_is_in_the_test_profile",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 131,
+          "tokens": 112
+        },
+        {
+          "name": "test_seed_runs_after_migrate",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 139,
+          "tokens": 95
+        },
+        {
+          "name": "test_migrate_points_at_the_pgtest_database",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 155,
+          "tokens": 152
+        },
+        {
+          "name": "test_compose_test_stack_takes_the_lane_lock_before_invoking_compose",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 174,
+          "tokens": 242
+        },
+        {
+          "name": "test_compose_test_stack_fails_when_the_lane_lock_is_held",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 228,
+          "tokens": 537
         }
       ]
     },
@@ -46710,11 +46745,11 @@
     },
     "pcs-backend/scripts/compose_test_stack.sh": {
       "description": "**真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。",
-      "tokens": 993,
-      "hash": "1158131047598c5d",
-      "size": 5126,
-      "mtimeMs": 1794542994575.483,
-      "updatedAt": "2026-11-13T04:09:54.631Z",
+      "tokens": 1264,
+      "hash": "5de6cc9b44da328e",
+      "size": 6661,
+      "mtimeMs": 1794921949046.6206,
+      "updatedAt": "2026-11-17T13:25:49.097Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_compose_test_stack_pg.py": {
@@ -46845,264 +46880,306 @@
     },
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py": {
       "description": "E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。",
-      "tokens": 2405,
-      "hash": "440c0a98c1e76d06",
-      "size": 10677,
-      "mtimeMs": 1794897664253.3237,
-      "updatedAt": "2026-11-17T06:41:04.302Z",
+      "tokens": 3584,
+      "hash": "abc0b74c7b51b384",
+      "size": 16309,
+      "mtimeMs": 1794920066923.504,
+      "updatedAt": "2026-11-17T12:54:26.985Z",
       "source": "hook",
       "symbols": [
         {
           "name": "test_lane_schema_is_migrated",
           "kind": "fn",
-          "startLine": 38,
-          "endLine": 62,
+          "startLine": 41,
+          "endLine": 65,
           "tokens": 244
         },
         {
           "name": "test_lane_seed_is_in_place",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 84,
+          "startLine": 66,
+          "endLine": 87,
           "tokens": 208
         },
         {
           "name": "test_lane_role_headers_map_to_seeded_users",
           "kind": "fn",
-          "startLine": 85,
-          "endLine": 102,
+          "startLine": 88,
+          "endLine": 105,
           "tokens": 206
         },
         {
           "name": "test_lane_never_writes_to_the_public_schema",
           "kind": "fn",
-          "startLine": 103,
-          "endLine": 164,
-          "tokens": 676
+          "startLine": 106,
+          "endLine": 168,
+          "tokens": 663
+        },
+        {
+          "name": "test_public_guard_detects_a_leaked_row",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 207,
+          "tokens": 374
+        },
+        {
+          "name": "test_public_guard_detects_an_updated_row",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 248,
+          "tokens": 407
+        },
+        {
+          "name": "test_public_baseline_is_taken_before_any_lane_write",
+          "kind": "fn",
+          "startLine": 249,
+          "endLine": 261,
+          "tokens": 91
+        },
+        {
+          "name": "test_sync_engine_singleton_is_bound_to_the_isolated_schema",
+          "kind": "fn",
+          "startLine": 262,
+          "endLine": 291,
+          "tokens": 292
         },
         {
           "name": "test_role_headers_rejects_an_unknown_role",
           "kind": "fn",
-          "startLine": 165,
-          "endLine": 170,
+          "startLine": 292,
+          "endLine": 297,
           "tokens": 55
         },
         {
           "name": "test_role_headers_rejects_a_role_outside_the_allowlist",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 192,
+          "startLine": 298,
+          "endLine": 319,
           "tokens": 225
         },
         {
           "name": "test_e2e_items_are_skipped_without_the_lane_flag",
           "kind": "fn",
-          "startLine": 193,
-          "endLine": 222,
+          "startLine": 320,
+          "endLine": 349,
           "tokens": 302
         },
         {
           "name": "_public_sync_url",
           "kind": "fn",
-          "startLine": 223,
-          "endLine": 233,
+          "startLine": 350,
+          "endLine": 360,
           "tokens": 83
         },
         {
-          "name": "_public_snapshot",
+          "name": "_purge_probe_rows",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 245,
-          "tokens": 105
+          "startLine": 361,
+          "endLine": 374,
+          "tokens": 110
         },
         {
           "name": "text_",
           "kind": "fn",
-          "startLine": 246,
-          "endLine": 253,
+          "startLine": 375,
+          "endLine": 382,
           "tokens": 37
         }
       ]
     },
     "pcs-backend/scripts/seed_e2e_flows.py": {
       "description": "流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。",
-      "tokens": 8638,
-      "hash": "6f47977abe19d0cf",
-      "size": 37213,
-      "mtimeMs": 1794918295472.6301,
-      "updatedAt": "2026-11-17T12:24:55.525Z",
+      "tokens": 9439,
+      "hash": "e320fdb2d9360f55",
+      "size": 41300,
+      "mtimeMs": 1794921575382.1965,
+      "updatedAt": "2026-11-17T13:19:35.432Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_uid",
           "kind": "fn",
           "startLine": 71,
-          "endLine": 107,
-          "tokens": 405
+          "endLine": 114,
+          "tokens": 495
         },
         {
           "name": "_stream_id",
           "kind": "fn",
-          "startLine": 108,
-          "endLine": 251,
+          "startLine": 115,
+          "endLine": 258,
           "tokens": 1297
         },
         {
           "name": "_get_or_create",
           "kind": "fn",
-          "startLine": 252,
-          "endLine": 286,
+          "startLine": 259,
+          "endLine": 293,
           "tokens": 345
         },
         {
           "name": "_delete_own_rows",
           "kind": "fn",
-          "startLine": 287,
-          "endLine": 337,
+          "startLine": 294,
+          "endLine": 344,
           "tokens": 580
+        },
+        {
+          "name": "_correct_workspace",
+          "kind": "fn",
+          "startLine": 345,
+          "endLine": 361,
+          "tokens": 143
         },
         {
           "name": "_ensure_workspace",
           "kind": "fn",
-          "startLine": 338,
-          "endLine": 355,
-          "tokens": 140
+          "startLine": 362,
+          "endLine": 388,
+          "tokens": 268
+        },
+        {
+          "name": "_ensure_personal_workspace",
+          "kind": "fn",
+          "startLine": 389,
+          "endLine": 416,
+          "tokens": 260
         },
         {
           "name": "_ensure_project",
           "kind": "fn",
-          "startLine": 356,
-          "endLine": 374,
+          "startLine": 417,
+          "endLine": 435,
           "tokens": 176
         },
         {
           "name": "_ensure_users",
           "kind": "fn",
-          "startLine": 375,
-          "endLine": 405,
+          "startLine": 436,
+          "endLine": 466,
           "tokens": 270
         },
         {
           "name": "_ensure_grants",
           "kind": "fn",
-          "startLine": 406,
-          "endLine": 432,
+          "startLine": 467,
+          "endLine": 493,
           "tokens": 251
         },
         {
           "name": "_ensure_streams",
           "kind": "fn",
-          "startLine": 433,
-          "endLine": 503,
+          "startLine": 494,
+          "endLine": 564,
           "tokens": 687
         },
         {
           "name": "_ensure_pipe_class",
           "kind": "fn",
-          "startLine": 504,
-          "endLine": 556,
+          "startLine": 565,
+          "endLine": 617,
           "tokens": 529
         },
         {
           "name": "_ensure_equipment_type_code",
           "kind": "fn",
-          "startLine": 557,
-          "endLine": 581,
+          "startLine": 618,
+          "endLine": 642,
           "tokens": 214
         },
         {
           "name": "_ensure_equipment",
           "kind": "fn",
-          "startLine": 582,
-          "endLine": 607,
+          "startLine": 643,
+          "endLine": 668,
           "tokens": 258
         },
         {
           "name": "_ensure_matrix",
           "kind": "fn",
-          "startLine": 608,
-          "endLine": 624,
+          "startLine": 669,
+          "endLine": 685,
           "tokens": 156
         },
         {
           "name": "_ensure_matrix_binding",
           "kind": "fn",
-          "startLine": 625,
-          "endLine": 646,
+          "startLine": 686,
+          "endLine": 707,
           "tokens": 193
         },
         {
           "name": "_ensure_deliverable",
           "kind": "fn",
-          "startLine": 647,
-          "endLine": 674,
+          "startLine": 708,
+          "endLine": 735,
           "tokens": 256
         },
         {
           "name": "_ensure_record",
           "kind": "fn",
-          "startLine": 675,
-          "endLine": 694,
+          "startLine": 736,
+          "endLine": 755,
           "tokens": 169
         },
         {
           "name": "_ensure_report_definition",
           "kind": "fn",
-          "startLine": 695,
-          "endLine": 729,
+          "startLine": 756,
+          "endLine": 790,
           "tokens": 351
         },
         {
           "name": "seed_flows",
           "kind": "fn",
-          "startLine": 730,
-          "endLine": 790,
-          "tokens": 563
+          "startLine": 791,
+          "endLine": 862,
+          "tokens": 743
         },
         {
           "name": "_seed_production_defaults",
           "kind": "fn",
-          "startLine": 791,
-          "endLine": 829,
+          "startLine": 863,
+          "endLine": 901,
           "tokens": 390
         },
         {
           "name": "_default_coefficient_tables",
           "kind": "fn",
-          "startLine": 830,
-          "endLine": 843,
+          "startLine": 902,
+          "endLine": 915,
           "tokens": 104
         },
         {
           "name": "_default_system_settings",
           "kind": "fn",
-          "startLine": 844,
-          "endLine": 850,
+          "startLine": 916,
+          "endLine": 922,
           "tokens": 58
         },
         {
           "name": "_count_rows",
           "kind": "fn",
-          "startLine": 851,
-          "endLine": 863,
+          "startLine": 923,
+          "endLine": 935,
           "tokens": 152
         },
         {
           "name": "_main",
           "kind": "fn",
-          "startLine": 864,
-          "endLine": 929,
+          "startLine": 936,
+          "endLine": 1001,
           "tokens": 544
         }
       ]
     },
     "pcs-backend/tests/e2e_flows/conftest.py": {
       "description": "E2E 车道（隔离 schema · 真 PG）的 fixture —— P10-B · T1。",
-      "tokens": 3926,
-      "hash": "5781c52a801c552a",
-      "size": 17382,
-      "mtimeMs": 1794909659099.852,
-      "updatedAt": "2026-11-17T10:00:59.151Z",
+      "tokens": 4850,
+      "hash": "a13eeb8c342476f7",
+      "size": 21588,
+      "mtimeMs": 1794919544336.634,
+      "updatedAt": "2026-11-17T12:45:44.382Z",
       "source": "hook",
       "symbols": [
         {
@@ -47165,14 +47242,42 @@
           "name": "e2e_client",
           "kind": "fn",
           "startLine": 285,
-          "endLine": 348,
-          "tokens": 697
+          "endLine": 371,
+          "tokens": 985
+        },
+        {
+          "name": "public_engine",
+          "kind": "fn",
+          "startLine": 372,
+          "endLine": 389,
+          "tokens": 123
+        },
+        {
+          "name": "public_first_snapshot",
+          "kind": "fn",
+          "startLine": 390,
+          "endLine": 407,
+          "tokens": 139
+        },
+        {
+          "name": "public_baseline",
+          "kind": "fn",
+          "startLine": 408,
+          "endLine": 434,
+          "tokens": 231
+        },
+        {
+          "name": "_diff_tables",
+          "kind": "fn",
+          "startLine": 435,
+          "endLine": 450,
+          "tokens": 144
         },
         {
           "name": "role_headers",
           "kind": "fn",
-          "startLine": 349,
-          "endLine": 385,
+          "startLine": 451,
+          "endLine": 487,
           "tokens": 442
         }
       ]
@@ -47304,11 +47409,11 @@
     },
     "pcs-backend/tests/e2e_flows/helpers.py": {
       "description": "E2E 场景共用的调用 helper —— P10-B（T3）。",
-      "tokens": 4551,
-      "hash": "d79b31fce9d84b9f",
-      "size": 18775,
-      "mtimeMs": 1794900971109.7847,
-      "updatedAt": "2026-11-17T07:36:11.163Z",
+      "tokens": 5001,
+      "hash": "df3b5b275aff4551",
+      "size": 20895,
+      "mtimeMs": 1794919526831.9534,
+      "updatedAt": "2026-11-17T12:45:26.877Z",
       "source": "hook",
       "symbols": [
         {
@@ -47354,80 +47459,87 @@
           "tokens": 140
         },
         {
-          "name": "advance_stream_to_checked",
+          "name": "public_snapshot",
           "kind": "fn",
           "startLine": 184,
-          "endLine": 225,
+          "endLine": 228,
+          "tokens": 450
+        },
+        {
+          "name": "advance_stream_to_checked",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 270,
           "tokens": 397
         },
         {
           "name": "make_record",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 261,
+          "startLine": 271,
+          "endLine": 306,
           "tokens": 328
         },
         {
           "name": "submit_for_approval",
           "kind": "fn",
-          "startLine": 262,
-          "endLine": 276,
+          "startLine": 307,
+          "endLine": 321,
           "tokens": 140
         },
         {
           "name": "approval_step",
           "kind": "fn",
-          "startLine": 277,
-          "endLine": 304,
+          "startLine": 322,
+          "endLine": 349,
           "tokens": 223
         },
         {
           "name": "approve_record_chain",
           "kind": "fn",
-          "startLine": 305,
-          "endLine": 336,
+          "startLine": 350,
+          "endLine": 381,
           "tokens": 253
         },
         {
           "name": "approve_record_steps",
           "kind": "fn",
-          "startLine": 337,
-          "endLine": 368,
+          "startLine": 382,
+          "endLine": 413,
           "tokens": 250
         },
         {
           "name": "bump_record",
           "kind": "fn",
-          "startLine": 369,
-          "endLine": 387,
+          "startLine": 414,
+          "endLine": 432,
           "tokens": 203
         },
         {
           "name": "link_lineage",
           "kind": "fn",
-          "startLine": 388,
-          "endLine": 436,
+          "startLine": 433,
+          "endLine": 481,
           "tokens": 489
         },
         {
           "name": "get_record_state",
           "kind": "fn",
-          "startLine": 437,
-          "endLine": 453,
+          "startLine": 482,
+          "endLine": 498,
           "tokens": 172
         },
         {
           "name": "run_report_task",
           "kind": "fn",
-          "startLine": 454,
-          "endLine": 488,
+          "startLine": 499,
+          "endLine": 533,
           "tokens": 311
         },
         {
           "name": "post_calc",
           "kind": "fn",
-          "startLine": 489,
-          "endLine": 523,
+          "startLine": 534,
+          "endLine": 568,
           "tokens": 239
         }
       ]
@@ -47793,13 +47905,22 @@
       ]
     },
     "pcs-frontend/src/pages/DashboardPage.tsx": {
-      "description": "workspaceProjectId",
-      "tokens": 478,
-      "hash": "a567d861b97daa54",
-      "size": 1958,
-      "mtimeMs": 1794835112963.2524,
-      "updatedAt": "2026-11-16T13:18:33.013Z",
-      "source": "hook"
+      "description": "DashboardPage",
+      "tokens": 584,
+      "hash": "7ad6c5ae4360e955",
+      "size": 2666,
+      "mtimeMs": 1794920295414.9158,
+      "updatedAt": "2026-11-17T12:58:15.478Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DashboardPage",
+          "kind": "fn",
+          "startLine": 8,
+          "endLine": 59,
+          "tokens": 488
+        }
+      ]
     },
     "pcs-frontend/e2e/tmp_debug.spec.ts": {
       "description": "Declares info",
@@ -48695,6 +48816,176 @@
       "size": 1274,
       "mtimeMs": 1794919410938.4272,
       "updatedAt": "2026-11-17T12:43:30.992Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t1.txt": {
+      "description": "",
+      "tokens": 433,
+      "hash": "e9651f5488ead5a0",
+      "size": 2907,
+      "mtimeMs": 1794920186647.1167,
+      "updatedAt": "2026-11-17T12:56:26.706Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/DashboardPage.test.tsx": {
+      "description": "仪表盘的**守卫条件**（评审 #24 · P10-F · F2-T2）。",
+      "tokens": 1140,
+      "hash": "0487abe5b2427fed",
+      "size": 4872,
+      "mtimeMs": 1794920261430.965,
+      "updatedAt": "2026-11-17T12:57:41.479Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "login",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 63,
+          "tokens": 81
+        },
+        {
+          "name": "selectWorkspace",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 126,
+          "tokens": 593
+        }
+      ]
+    },
+    "pcs-frontend/src/constants/env.ts": {
+      "description": "前端常量统一来源（P5 frontend 收口 checklist 收口项 #1）。",
+      "tokens": 294,
+      "hash": "0897a2f845e6ee66",
+      "size": 1478,
+      "mtimeMs": 1794920288804.9246,
+      "updatedAt": "2026-11-17T12:58:08.857Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/e2e_flows/test_e2e_workspaces_visible.py": {
+      "description": "种子工作区在切换器里**可见**（P10-F · F2-T2 · 评审 #24）。",
+      "tokens": 646,
+      "hash": "cccec0c27314ce55",
+      "size": 2948,
+      "mtimeMs": 1794920346659.8625,
+      "updatedAt": "2026-11-17T12:59:06.711Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_seeded_workspaces_are_visible_to_their_owner",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 48,
+          "tokens": 178
+        },
+        {
+          "name": "test_formal_workspace_has_a_project_and_personal_has_none",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 73,
+          "tokens": 245
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t2.txt": {
+      "description": "",
+      "tokens": 513,
+      "hash": "e26c671deade108e",
+      "size": 3475,
+      "mtimeMs": 1794921924257.951,
+      "updatedAt": "2026-11-17T13:25:24.316Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t3.txt": {
+      "description": "",
+      "tokens": 332,
+      "hash": "dbbeb9642e602f73",
+      "size": 2303,
+      "mtimeMs": 1794922065973.2065,
+      "updatedAt": "2026-11-17T13:27:46.018Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t4.txt": {
+      "description": "",
+      "tokens": 370,
+      "hash": "9612dadf80846790",
+      "size": 2315,
+      "mtimeMs": 1794922571988.9578,
+      "updatedAt": "2026-11-17T13:36:12.042Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/test_lane_isolation.py": {
+      "description": "**默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。",
+      "tokens": 893,
+      "hash": "65926b94b753541e",
+      "size": 4446,
+      "mtimeMs": 1794922612248.7043,
+      "updatedAt": "2026-11-17T13:36:52.304Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_sync_engine_singleton_never_points_at_a_real_database",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 55,
+          "tokens": 155
+        },
+        {
+          "name": "test_redis_url_points_at_an_unroutable_port",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 70,
+          "tokens": 147
+        },
+        {
+          "name": "test_connecting_to_the_configured_redis_url_fails_fast",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 95,
+          "tokens": 176
+        },
+        {
+          "name": "test_a_fresh_sqlite_sync_engine_can_be_created_without_a_real_db",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 108,
+          "tokens": 124
+        }
+      ]
+    },
+    "pcs-backend/tests/lane_guards.py": {
+      "description": "**默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。",
+      "tokens": 281,
+      "hash": "e57c7505c028ad4f",
+      "size": 1517,
+      "mtimeMs": 1794923583050.0918,
+      "updatedAt": "2026-11-17T13:53:03.099Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-18-p10f-f2.md": {
+      "description": "QA 报告 —— PCS 前端 · P10-F 批 2（F2）",
+      "tokens": 809,
+      "hash": "3f8e7775a98343a8",
+      "size": 4998,
+      "mtimeMs": 1794958089736.467,
+      "updatedAt": "2026-11-17T23:28:09.794Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t5.txt": {
+      "description": "",
+      "tokens": 483,
+      "hash": "658be568f31bddda",
+      "size": 3050,
+      "mtimeMs": 1794958106528.274,
+      "updatedAt": "2026-11-17T23:28:26.575Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-batch-end.txt": {
+      "description": "",
+      "tokens": 237,
+      "hash": "58664e53405fec98",
+      "size": 1535,
+      "mtimeMs": 1794958702722.3296,
+      "updatedAt": "2026-11-17T23:38:22.771Z",
       "source": "hook"
     }
   }

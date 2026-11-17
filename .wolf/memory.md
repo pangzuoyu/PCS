@@ -3750,3 +3750,36 @@
 | 20:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-drift-fix.txt | — | ~262 |
 | 20:43 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10f-f1.md | — | ~1206 |
 | 20:43 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f1-batch-end.txt | — | ~227 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_lane_never_writes_to_the_public_schema() | ~1508 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified _public_sync_url() | ~119 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | added 2 import(s) | ~52 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/helpers.py | modified public_snapshot() | ~461 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified public_engine() | ~1111 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified e2e_client() | ~44 |
+| 20:45 | Edited pcs-backend/tests/e2e_flows/conftest.py | 6→10 lines | ~108 |
+| 20:49 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_lane_never_writes_to_the_public_schema() | ~33 |
+| 20:51 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_public_baseline_is_taken_before_any_lane_write() | ~339 |
+| 20:54 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_public_guard_detects_a_leaked_row() | ~127 |
+| 20:54 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | 3→4 lines | ~39 |
+| 20:54 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified _public_sync_url() | ~192 |
+| 20:56 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t1.txt | — | ~462 |
+| 20:57 | Created pcs-frontend/tests/pages/DashboardPage.test.tsx | — | ~1140 |
+| 20:58 | Edited pcs-frontend/src/constants/env.ts | expanded (+17 lines) | ~207 |
+| 20:58 | Edited pcs-frontend/src/pages/DashboardPage.tsx | added optional chaining | ~488 |
+| 20:58 | Edited pcs-backend/scripts/seed_e2e_flows.py | expanded (+7 lines) | ~110 |
+| 20:58 | Edited pcs-backend/scripts/seed_e2e_flows.py | modified _ensure_workspace() | ~624 |
+| 20:58 | Edited pcs-backend/scripts/seed_e2e_flows.py | expanded (+10 lines) | ~198 |
+| 20:58 | Edited pcs-backend/scripts/seed_e2e_flows.py | 2→3 lines | ~31 |
+| 20:59 | Created pcs-backend/tests/e2e_flows/test_e2e_workspaces_visible.py | — | ~646 |
+| 21:19 | Edited pcs-backend/scripts/seed_e2e_flows.py | modified _correct_workspace() | ~671 |
+| 21:19 | Edited pcs-backend/scripts/seed_e2e_flows.py | inline fix | ~22 |
+| 21:25 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t2.txt | — | ~548 |
+| 21:25 | Edited pcs-backend/scripts/compose_test_stack.sh | expanded (+26 lines) | ~407 |
+| 21:26 | Edited pcs-backend/tests/scripts/test_compose_test_profile.py | 7→12 lines | ~178 |
+| 21:27 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t3.txt | — | ~355 |
+| 21:36 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t4.txt | — | ~395 |
+| 21:36 | Created pcs-backend/tests/test_lane_isolation.py | — | ~893 |
+| 21:53 | Created pcs-backend/tests/lane_guards.py | — | ~281 |
+| 07:28 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-18-p10f-f2.md | — | ~863 |
+| 07:28 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t5.txt | — | ~515 |
+| 07:38 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-batch-end.txt | — | ~253 |
