@@ -1,0 +1,131 @@
+{
+  "run_id": "20261117-013829-7e9fbabe",
+  "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe",
+  "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+  "docs_root": "docs",
+  "mode": {
+    "agent": false,
+    "apply_local": false,
+    "grouping": "auto",
+    "depth": "full"
+  },
+  "invocation": {
+    "arguments": "ce-code-review over the P10-B batch: base d73d1ac .. head f3b35e5 on branch main (full diff already on disk as full.diff), 9 personas dispatched (correctness, project-standards, testing, maintainability, learnings, security, api-contract, reliability, adversarial); report-only; the plan docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md is the explicit specification for this batch.",
+    "constraints": [
+      "report-only: this review does not apply fixes (mode.apply_local is false)",
+      "do not modify the repository working tree (repository root /home/pangzy/code_project/PCS; read and grep only)",
+      "the run directory is /tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe/; all artifacts go there",
+      "the plan docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md is the specification to check the diff against (plan_source=explicit)"
+    ]
+  },
+  "scope": {
+    "mode": "local-aligned",
+    "base": "d73d1ac",
+    "diff_a": "d73d1ac",
+    "diff_b": "f3b35e5",
+    "pr": {
+      "number": null,
+      "url": null,
+      "title": null,
+      "body": null,
+      "base_ref_name": null,
+      "head_ref_oid": null,
+      "head_ref": null,
+      "base_ref": null,
+      "has_prior_comments": false
+    },
+    "branch": "main",
+    "head_sha": "f3b35e5",
+    "files": "/tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe/files.txt",
+    "diff": "/tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe/full.diff",
+    "tree_is_reviewed_head": true,
+    "untracked_excluded": []
+  },
+  "intent": {
+    "summary": "P10-B batch: build a real-PostgreSQL isolated-schema end-to-end lane for the PCS backend so the SPEC's 18 scenarios, 5 WF-PATH routes and the permission matrix run against the real app and a real database (not SQLite), and get the 5 'real backend channel' frontend UI flows actually running (that channel had never really run before and caught 5 defects). Binding constraints from the intent: the lane uses an isolated schema (CREATE SCHEMA -> alembic upgrade head -> DROP CASCADE) and the default lane must skip e2e cases so it never touches the dev database pcs; the PG lane and the E2E lane share one database so they must be mutually excluded (flock); the lane must be able to catch the class of defect where unit tests (SQLite) are green but the real database explodes, so the driver must match production; the permission semantics are cross-project => 404 (same shape as 'not found') and insufficient role => 403. Only 8 product-code sites were changed in this batch; everything else is tests/docs.",
+    "confidence": "explicit"
+  },
+  "plan": {
+    "path": "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md",
+    "source": "explicit",
+    "requirements": [
+      "R1: E2E lane runs on an isolated schema in a real PostgreSQL database (CREATE SCHEMA -> alembic upgrade head -> DROP CASCADE) and the default lane (`uv run pytest`) skips every e2e case so it can never write to the dev database pcs / pcs_test",
+      "R2: all 18 SPEC scenarios E2E-001..E2E-018 pass in the E2E lane (case count >= 18)",
+      "R3: all five WF-PATH route classes (01A..01E / 02 / 03 / 04) are covered",
+      "R4: the permission matrix AUTH-E2E-01..10 passes; cross-project access is 404 with the same body shape as a non-existent resource; insufficient role is 403",
+      "R5: AI audit (E2E-017) - with AI off there are zero side effects, with AI on the audit row really lands in ai_audit_log (not merely enqueued)",
+      "R6: two-database schema parity (E2E-018) - pcs and pcs_test alembic_version compared, mismatch registered not fixed",
+      "R7: the frontend real-backend channel has 6 passing UI flows (5 new + 1 smoke) and the mock channel keeps its 23 passing tests with no regression",
+      "R8: contract write-back (roll the OpenAPI baseline, regenerate the frontend types) + SPEC deviation registration (D23..D38) + ledger update (STATUS.md / TODOS.md / buglog.json) + batch-end QA close-out",
+      "R9: the PG lane stays the single entry point (`scripts/pytest_pg.sh`), E2E is a separate lane (`scripts/pytest_e2e.sh`), and the two lanes are mutually excluded by a shared flock so they never run concurrently"
+    ],
+    "implementation_units": [
+      "T1: E2E lane + isolated schema + e2e_client + lane smoke tests + the default-lane skip gate (tests/e2e_flows/conftest.py, tests/e2e_flows/test_lane_smoke.py, tests/scripts/test_pytest_e2e_gate.py, scripts/pytest_e2e.sh)",
+      "T2: process-level seed - role matrix, starting states, idempotency (scripts/seed_e2e_flows.py)",
+      "T3: recording and calculation chains (E2E-001..006)",
+      "T4: summary / report / supplier (E2E-007 / 008 / 009 / 014 / 015)",
+      "T5: record-layer state machine + deliverable revisions (E2E-010..013 + WF-PATH)",
+      "T6: permission matrix + AI audit + schema parity (E2E-016 / 017 / 018 + AUTH-E2E)",
+      "T7: the 5 real-backend frontend UI flows (pcs-frontend/e2e/real_backend_flows.spec.ts, real_backend_route_sweep.spec.ts)",
+      "T8: contract / SPEC deviation write-back + ledger + QA close-out"
+    ],
+    "settled_decisions": [
+      "This batch does not create a CI pipeline (pre-existing ruling) - the SPEC requirement that E2E runs automatically in CI is not met in this batch; the deviation is registered (D25) and deferred to P10-F.",
+      "This batch does not touch alembic/versions/* (the seed only creates data, not schema).",
+      "The E2E lane lives in tests/e2e_flows/ (a new sibling directory), not tests/e2e/, because tests/e2e/ is already occupied by 12 unmarked cases that run for real.",
+      "The E2E lane does not start the ARQ worker; the audit write task is called directly so the lane depends on less.",
+      "AUTH-E2E-11/12 (TEST_VIEWER + the test-report page) are deferred to P10-C (D24).",
+      "E2E-018 compares the two databases and registers a mismatch, it does not fix it.",
+      "The two lanes share the pcs_pgtest database but each builds its own isolated schema, so they may live in one database yet must never run at the same time (flock).",
+      "The calculation-chain input uses synthetic data, not sample/ (sample/ is not in git, so the lane would not be portable)."
+    ]
+  },
+  "roster": {
+    "selected": [
+      { "reviewer": "correctness", "tier": "session", "reason": "always-on" },
+      { "reviewer": "project-standards", "tier": "session", "reason": "always-on; criteria = the repository-root CLAUDE.md, which governs every changed file" },
+      { "reviewer": "testing", "tier": "session", "reason": "always-on" },
+      { "reviewer": "maintainability", "tier": "session", "reason": "always-on" },
+      { "reviewer": "learnings", "tier": "session", "reason": "always-on; the repository has a learnings corpus (docs/solutions/**)" },
+      { "reviewer": "security", "tier": "session", "reason": "always-on" },
+      { "reviewer": "api-contract", "tier": "session", "reason": "always-on; the diff changes an OpenAPI schema and a response payload shape" },
+      { "reviewer": "reliability", "tier": "session", "reason": "always-on" },
+      { "reviewer": "adversarial", "tier": "session", "reason": "always-on; this in-process adversarial reviewer also covers the cross-model lens because no peer provider CLI is installed on this machine" }
+    ],
+    "standards": {
+      "criteria": ["/home/pangzy/code_project/PCS/CLAUDE.md"],
+      "fallback_named": false,
+      "not_run_reason": null
+    },
+    "packs": {
+      "roots": [],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "collection": {
+    "returns": "/tmp/compound-engineering-1000/ce-code-review/20261117-013829-7e9fbabe/raw-returns.json",
+    "unstructured_returns": [],
+    "failed_reviewers": [],
+    "bound_exceeded": [],
+    "fast_pass": { "emitted_preliminary": false, "candidates": [] }
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": null,
+    "outcome": "not-run",
+    "artifact": null,
+    "coverage": "Cross-model peer: NOT STARTED - no peer provider CLI allowed by the skill is installed on this machine (codex / grok / composer / cursor-agent are all absent from PATH; CROSS_MODEL_PEERS is unset) => the adversarial lens is carried only by the in-process `adversarial` persona, so this round has a single serving model behind every claim and no cross-model corroboration."
+  },
+  "coverage_notes": [
+    "Standards criteria: the repository-root CLAUDE.md (/home/pangzy/code_project/PCS/CLAUDE.md) governs every changed file; no fallback standards file had to be named.",
+    "Untracked files excluded: none. The diff is exactly `git diff -U10 d73d1ac..f3b35e5` (55 files, 8659 changed lines, 974 executable non-test lines => size_band=large => depth=full).",
+    "Scope-mode note: the working tree still contains the reviewed tree for every reviewed path. The branch has since advanced past the reviewed head f3b35e5 by three documentation-only commits (83031ce, 646229e, 9a98993) that touch only docs/ce-code-review/20261117-013829-7e9fbabe/ - no reviewed source path changed, so tree_is_reviewed_head stays true.",
+    "Cross-model peer skipped: no allowlisted peer provider CLI present (codex/grok/composer/cursor-agent absent; CROSS_MODEL_PEERS unset) => the in-process adversarial reviewer covers that lens; independence is weaker than a cross-model plus local pair.",
+    "Reviewers not selected, with reasons: performance (the product-code change is tiny and the performance surface sits in test seed data, no material production impact) - data-migration (the diff contains no migration or schema artifact, so there is no backfill or migration script to review) - agent-native (the diff exposes no agent-facing capability or tool surface) - julik-frontend-races (the frontend is React/TypeScript, not Stimulus/Turbo) - swift-ios (no Swift/iOS file in the diff) - previous-comments (standalone review, there is no PR and no prior comment) - deployment-verification (no high-risk migration artifact to verify before deploy).",
+    "Known debt this batch accepted on purpose (carried for cross-checking only, not as review conclusions): bug-2165's root cause was not closed (report_tasks._finalize assignment never lands, so E2E-009 is marked xfail) - the runtime write into the configuration table for the placeholder pipe class may hit a unique constraint under concurrency - three frontend pages call endpoints that do not exist and three pages get a 422 on first paint (already registered as TODO-159/160) - putting E2E into CI is deferred to P10-F.",
+    "Persona collection: nine personas are on disk under personas/ (correctness, project-standards, testing, maintainability, learnings, security, api-contract, reliability, adversarial). reliability arrived late (it is the ninth artifact); the merge leaf used whatever was on disk at merge time and did not wait on it."
+  ]
+}

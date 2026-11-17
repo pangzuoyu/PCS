@@ -1,0 +1,29 @@
+{
+  "run_id": "20261117-013829-7e9fbabe",
+  "branch": "main",
+  "head_sha": "f3b35e5",
+  "verdict": "Not ready",
+  "completed_at": "2026-11-17T00:05:57.606437+00:00",
+  "note": "报告由 report leaf 手工合并 9 份 persona JSON 产出（merge leaf 未产出）。校验器未运行 => 全部发现 validation_status=unverified。",
+  "scope_base": "d73d1ac",
+  "depth": "full",
+  "reviewers": [
+    "correctness",
+    "project-standards",
+    "testing",
+    "maintainability",
+    "learnings",
+    "security",
+    "api-contract",
+    "adversarial",
+    "reliability"
+  ],
+  "findings_total": 40,
+  "findings_p1": 10,
+  "findings_p2": 22,
+  "findings_p3": 8,
+  "pre_existing": 1,
+  "validator_status": "not_run",
+  "cross_model_peer": "not_started",
+  "merge_leaf_status": "no_output (synthesized-findings.json absent after 10-min poll)"
+}

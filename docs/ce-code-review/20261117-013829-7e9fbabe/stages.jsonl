@@ -3,3 +3,6 @@
 {"phase": "start", "stage": "select", "ts": "2026-11-16T17:42:33.501494+00:00"}
 {"candidates": 9, "note": "peer skipped: no allowlisted peer provider CLI present (codex/grok/composer/cursor-agent absent; CROSS_MODEL_PEERS unset) => in-process adversarial reviewer covers the lens", "phase": "end", "reviewers": 9, "stage": "dispatch", "ts": "2026-11-16T17:42:33.531325+00:00"}
 {"phase": "start", "stage": "select", "ts": "2026-11-16T17:42:33.531325+00:00"}
+{"phase": "start", "reviewers": 9, "stage": "merge", "ts": "2026-11-16T23:54:45.479885+00:00"}
+{"candidates": 40, "facts": {"cross_model_peer": "not_started", "findings_p1": 10, "findings_p2": 22, "findings_p3": 8, "findings_total": 40, "validator": "not_run", "verdict": "NotReady"}, "note": "report leaf: merge leaf \u672a\u4ea7\u51fa synthesized-findings.json\uff0810 \u5206\u949f\u8f6e\u8be2\u786e\u8ba4\uff09=> \u624b\u5de5\u5408\u5e76 9 \u4efd persona JSON => \u53bb\u91cd 61 -> 40 \u6761\u4e3b\u53d1\u73b0\uff1b\u6821\u9a8c\u5668\u672a\u8fd0\u884c", "phase": "end", "reviewers": 9, "stage": "report", "ts": "2026-11-17T00:05:52.720689+00:00"}
+{"phase": "start", "stage": "merge", "ts": "2026-11-17T00:05:52.720689+00:00"}
