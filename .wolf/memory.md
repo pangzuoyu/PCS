@@ -3540,3 +3540,152 @@
 | 12:08 | Edited pcs-backend/tests/scripts/test_compose_test_stack_pg.py | 2→1 lines | ~12 |
 | 12:08 | Edited pcs-backend/tests/scripts/test_compose_test_stack_pg.py | 5→6 lines | ~76 |
 | 12:09 | Edited pcs-backend/scripts/compose_test_stack.sh | expanded (+9 lines) | ~313 |
+| 12:19 | Created docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | — | ~6874 |
+| 12:19 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | 1→2 lines | ~47 |
+| 12:19 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | modified test_e2e_018_pcs_and_pcs_test_schema_versions_match() | ~99 |
+| 12:19 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | modified test() | ~159 |
+| 12:19 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | modified test() | ~224 |
+| 12:20 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | modified test() | ~203 |
+| 12:20 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | inline fix | ~52 |
+| 12:20 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | 1→2 lines | ~48 |
+| 13:37 | Session end: 169 writes across 72 files (progress.md, test_compose_test_profile.py, docker-compose.yml, README.md, test_seed_e2e_data.py) | 186 reads | ~470584 tok |
+| 10:05 | Created .superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md | — | ~804 |
+| 10:32 | Created pcs-backend/tests/scripts/test_pytest_e2e_gate.py | — | ~657 |
+| 10:33 | Created pcs-backend/tests/e2e_flows/test_lane_smoke.py | — | ~1986 |
+| 10:36 | Created pcs-backend/scripts/seed_e2e_flows.py | — | ~1082 |
+| 10:36 | Created pcs-backend/tests/e2e_flows/conftest.py | — | ~2580 |
+| 10:37 | Created pcs-backend/scripts/pytest_e2e.sh | — | ~246 |
+| 10:57 | Created pcs-backend/tests/scripts/test_seed_e2e_flows.py | — | ~2272 |
+| 11:00 | Created pcs-backend/scripts/seed_e2e_flows.py | — | ~5800 |
+| 16:57 | Created pcs-backend/tests/e2e_flows/helpers.py | — | ~1581 |
+| 16:58 | Created pcs-backend/tests/e2e_flows/test_e2e_project_config.py | — | ~848 |
+| 16:58 | Created pcs-backend/tests/e2e_flows/test_e2e_sim_import.py | — | ~914 |
+| 16:59 | Created pcs-backend/tests/e2e_flows/test_e2e_calc_chains.py | — | ~1115 |
+| 18:34 | Created pcs-backend/tests/e2e_flows/test_e2e_equipment_util.py | — | ~929 |
+| 18:34 | Created pcs-backend/tests/e2e_flows/test_e2e_report.py | — | ~1511 |
+| 18:35 | Created pcs-backend/tests/e2e_flows/test_e2e_supplier.py | — | ~698 |
+| 19:28 | Created pcs-backend/tests/e2e_flows/test_e2e_record_workflow.py | — | ~1754 |
+| 19:29 | Created pcs-backend/tests/e2e_flows/test_e2e_deliverable_rev.py | — | ~1301 |
+| 19:45 | Created pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | — | ~1584 |
+| 19:55 | Created pcs-backend/tests/e2e_flows/test_e2e_ai_audit.py | — | ~792 |
+| 19:55 | Created pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py | — | ~614 |
+| 20:06 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | 3→7 lines | ~138 |
+| 20:06 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | 2→5 lines | ~88 |
+| 20:06 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | expanded (+20 lines) | ~226 |
+| 20:06 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | inline fix | ~24 |
+| 20:23 | Edited pcs-backend/tests/e2e_flows/helpers.py | modified bump_record() | ~914 |
+| 20:23 | Created pcs-backend/tests/e2e_flows/test_e2e_change_impact.py | — | ~1901 |
+| 20:41 | Edited docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md | 1→4 lines | ~259 |
+| 20:45 | Edited docker-compose.yml | expanded (+13 lines) | ~166 |
+| 20:49 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified _scoped_url() | ~320 |
+| 20:51 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified _async_url() | ~382 |
+| 20:51 | Edited pcs-backend/scripts/seed_e2e_flows.py | 3→7 lines | ~106 |
+| 20:54 | Edited pcs-backend/app/schemas/stream.py | modified StreamResponse() | ~202 |
+| 21:15 | Created pcs-frontend/e2e/real_backend_flows.spec.ts | — | ~1280 |
+| 21:18 | Edited pcs-frontend/src/pages/DashboardPage.tsx | expanded (+7 lines) | ~162 |
+| 21:25 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified useFetch() | ~250 |
+| 21:25 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~44 |
+| 21:26 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | modified loginViaUi() | ~123 |
+| 21:31 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 5→7 lines | ~107 |
+| 21:31 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 5→9 lines | ~131 |
+| 21:39 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 9→11 lines | ~164 |
+| 21:40 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | "combobox" → "alice (DESIGNER)" | ~16 |
+| 21:43 | Created pcs-frontend/e2e/tmp_debug.spec.ts | — | ~256 |
+| 21:51 | Created pcs-frontend/e2e/tmp_debug.spec.ts | — | ~189 |
+| 21:52 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | RegExp() → locator() | ~126 |
+| 21:52 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | modified _run() | ~200 |
+| 21:52 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | added 1 import(s) | ~20 |
+| 22:03 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | expanded (+16 lines) | ~285 |
+| 22:05 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | modified loginViaUi() | ~372 |
+| 22:05 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 27→30 lines | ~333 |
+| 22:20 | Created pcs-frontend/e2e/tmp_route_sweep.spec.ts | — | ~801 |
+| 22:20 | Created pcs-frontend/e2e/tmp_route_sweep.spec.ts | — | ~765 |
+| 01:33 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md | — | ~1348 |
+| 03:06 | Created docs/ce-code-review/20261117-013829-7e9fbabe/report.md | — | ~3970 |
+| 13:40 | Edited pcs-backend/tests/api/v1/test_report.py | expanded (+8 lines) | ~146 |
+| 13:40 | Edited pcs-backend/app/api/v1/report.py | modified _expected_digest() | ~161 |
+| 13:41 | Edited pcs-backend/app/workers/report_tasks.py | 7→10 lines | ~152 |
+| 13:41 | Edited pcs-backend/tests/api/v1/test_report.py | 5→8 lines | ~132 |
+| 13:42 | Edited pcs-backend/app/api/v1/report.py | modified startswith() | ~140 |
+| 13:47 | Created pcs-backend/tests/core/test_db_guard.py | — | ~734 |
+| 13:47 | Created pcs-backend/app/core/db_guard.py | — | ~730 |
+| 13:47 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified _lane_url() | ~187 |
+| 14:40 | Created pcs-backend/tests/e2e_flows/test_e2e_global_session_isolation.py | — | ~1089 |
+| 14:40 | Edited pcs-backend/tests/e2e_flows/helpers.py | modified public_sync_url() | ~150 |
+| 14:40 | Edited pcs-backend/tests/e2e_flows/helpers.py | 2→3 lines | ~16 |
+| 14:40 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | added 1 import(s) | ~82 |
+| 14:41 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | 3→2 lines | ~10 |
+| 14:41 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified _get_db() | ~478 |
+| 14:41 | Edited pcs-backend/tests/e2e_flows/conftest.py | 4→4 lines | ~64 |
+| 15:31 | Edited pcs-backend/tests/e2e_flows/conftest.py | 4→4 lines | ~57 |
+| 15:33 | Edited pcs-backend/tests/e2e_flows/test_e2e_global_session_isolation.py | modified test_rows_written_through_the_global_factory_stay_in_the_isolated_schema() | ~671 |
+| 15:36 | Edited pcs-backend/tests/e2e_flows/conftest.py | 8→8 lines | ~40 |
+| 15:36 | Edited pcs-backend/tests/e2e_flows/helpers.py | 4→3 lines | ~42 |
+| 15:37 | Edited pcs-backend/app/core/db_guard.py | expanded (+7 lines) | ~138 |
+| 15:37 | Edited pcs-backend/app/core/db_guard.py | modified current_database_name() | ~466 |
+| 15:37 | Edited pcs-backend/app/core/errors.py | added error handling | ~478 |
+| 15:37 | Edited pcs-backend/tests/test_rbac_audit.py | modified __init__() | ~1588 |
+| 15:38 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | modified test_rbac_denial_writes_an_audit_row() | ~638 |
+| 15:39 | Edited pcs-backend/tests/core/test_db_guard.py | modified test_current_database_name_reads_the_live_connection() | ~684 |
+| 15:39 | Edited pcs-backend/tests/core/test_db_guard.py | 7→10 lines | ~73 |
+| 16:22 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | 9→7 lines | ~69 |
+| 16:22 | Edited pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py | 3→4 lines | ~40 |
+| 16:23 | Edited pcs-backend/tests/test_rbac_audit.py | inline fix | ~12 |
+| 16:33 | Created pcs-backend/scripts/serve_e2e_backend.sh | — | ~450 |
+| 16:33 | Created pcs-frontend/e2e/channel-config.ts | — | ~353 |
+| 16:33 | Created pcs-frontend/e2e/global-setup.ts | — | ~369 |
+| 16:33 | Edited pcs-frontend/playwright.config.ts | 2→7 lines | ~48 |
+| 16:33 | Edited pcs-frontend/playwright.config.ts | 3→3 lines | ~18 |
+| 16:33 | Edited pcs-frontend/playwright.config.ts | added nullish coalescing | ~361 |
+| 16:33 | Edited pcs-frontend/package.json | inline fix | ~23 |
+| 16:34 | Edited README.md | 16→19 lines | ~220 |
+| 16:34 | Edited pcs-backend/app/api/v1/mock_auth.py | expanded (+9 lines) | ~162 |
+| 16:34 | Edited pcs-backend/scripts/seed_e2e_flows.py | expanded (+8 lines) | ~347 |
+| 16:35 | Edited pcs-frontend/src/pages/LoginPage.tsx | 6→11 lines | ~132 |
+| 16:35 | Edited pcs-frontend/src/mocks/handlers.ts | 16→20 lines | ~217 |
+| 16:35 | Edited pcs-frontend/src/mocks/handlers.ts | "00000000-0000-0000-0000-0" → "00000000-0000-0000-0000-0" | ~14 |
+| 16:35 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | expanded (+21 lines) | ~552 |
+| 16:35 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | added 1 import(s) | ~44 |
+| 16:36 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | added nullish coalescing | ~376 |
+| 16:36 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 6→5 lines | ~51 |
+| 16:36 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | modified loginViaUi() | ~32 |
+| 16:38 | Edited pcs-backend/tests/test_mock_auth.py | modified test_mock_login_unknown_user_404() | ~239 |
+| 16:41 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | expanded (+7 lines) | ~121 |
+| 17:49 | Edited pcs-frontend/e2e/fixtures.ts | added 1 condition(s) | ~650 |
+| 17:49 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | removed 39 lines | ~32 |
+| 17:49 | Edited pcs-frontend/e2e/real_backend_flows.spec.ts | 4→3 lines | ~35 |
+| 17:49 | Created pcs-frontend/e2e/real_backend_route_sweep.spec.ts | — | ~2307 |
+| 17:49 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | modified if() | ~161 |
+| 17:50 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | added nullish coalescing | ~219 |
+| 17:50 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | added 1 condition(s) | ~149 |
+| 17:51 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | 6→5 lines | ~40 |
+| 17:58 | Edited pcs-frontend/e2e/fixtures.ts | 7→10 lines | ~114 |
+| 17:58 | Edited pcs-frontend/e2e/real_backend_smoke.spec.ts | 2→2 lines | ~16 |
+| 17:58 | Edited pcs-frontend/e2e/real_backend_smoke.spec.ts | reduced (-9 lines) | ~47 |
+| 18:00 | Edited pcs-backend/scripts/seed_e2e_flows.py | modified _seed_production_defaults() | ~910 |
+| 18:00 | Edited pcs-backend/scripts/seed_e2e_flows.py | 1→6 lines | ~40 |
+| 18:00 | Edited pcs-backend/scripts/seed_e2e_flows.py | modified _seed_production_defaults() | ~42 |
+| 18:00 | Edited pcs-backend/scripts/seed_e2e_flows.py | 4→8 lines | ~81 |
+| 18:00 | Edited pcs-backend/tests/e2e_flows/conftest.py | 3→8 lines | ~102 |
+| 18:01 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | modified test_record_payload_template_has_all_required_columns() | ~18 |
+| 18:01 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | modified test_seed_flows_seeds_the_production_default_data() | ~458 |
+| 18:02 | Created pcs-backend/scripts/check_schema_parity.py | — | ~1640 |
+| 18:02 | Created pcs-backend/tests/scripts/test_check_schema_parity.py | — | ~782 |
+| 18:02 | Edited pcs-backend/tests/scripts/test_check_schema_parity.py | 11→9 lines | ~85 |
+| 18:03 | Edited pcs-backend/scripts/check_schema_parity.py | 4→4 lines | ~55 |
+| 18:06 | Edited pcs-backend/tests/api/v1/test_streams_api.py | modified test_post_create_stream_without_case_type_201() | ~235 |
+| 18:06 | Edited pcs-backend/app/schemas/stream.py | modified StreamBase() | ~172 |
+| 18:07 | Edited spec/P10 AI预留与测试部署开发规格说明书.md | expanded (+14 lines) | ~182 |
+| 18:08 | Edited spec/P10 AI预留与测试部署开发规格说明书.md | inline fix | ~98 |
+| 18:08 | Edited spec/P10 AI预留与测试部署开发规格说明书.md | 2→7 lines | ~128 |
+| 18:08 | Created docs/solutions/testing-issues/test-lane-driver-must-match-production-driver.md | — | ~569 |
+| 18:08 | Created docs/solutions/database-issues/response-enum-nullable-must-match-db-nullability.md | — | ~522 |
+| 18:08 | Created docs/solutions/frontend-issues/raw-fetch-bypasses-axios-token-interceptor.md | — | ~537 |
+| 18:09 | Created docs/solutions/testing-issues/guard-test-must-use-its-own-lane-lock.md | — | ~466 |
+| 18:09 | Created docs/solutions/testing-issues/assertion-must-be-sensitive-to-named-defect.md | — | ~550 |
+| 18:09 | Edited pcs-backend/scripts/pytest_pg.sh | expanded (+10 lines) | ~170 |
+| 18:09 | Edited .gitignore | 4→7 lines | ~66 |
+| 18:10 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | modified test_script_does_not_teach_a_second_entry_point() | ~649 |
+| 18:10 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | added 2 import(s) | ~38 |
+| 18:10 | Edited pcs-backend/tests/scripts/test_pytest_pg_gate.py | expanded (+13 lines) | ~452 |
+| 18:35 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b-review-fixes.md | — | ~1259 |
