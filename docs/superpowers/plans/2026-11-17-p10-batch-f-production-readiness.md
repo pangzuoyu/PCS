@@ -64,6 +64,64 @@ cd pcs-frontend && npm run e2e:real && npm run e2e
 
 ---
 
+## ce review 队列的**完整去向**（一条不漏 —— 2026-11-17 评审后补）
+
+⇒ ⇒ **为什么要有这一节**：本计划开头的「8 条技术债」只列了 **F1/F2 要做的** ⇒ ⇒
+⇒ ⇒ 读者若只看本计划，会以为 ce review 的其余条目**没人管** ⇒ ⇒ 而实际上**大部分已由
+P10-B 的「评审修复批」落地**（报告 `docs/ce-code-review/20261117-013829-7e9fbabe/report.md`
+的「执行结果」节自带完整清单 + commit）⇒ ⇒ 这里**逐条摊开**，让「生产就绪」这个说法
+与「审计哈希 / 车道打错库 / 绿灯假绿」这三件事**不并存**。
+
+### ① 已由 P10-B 落地（**不在本批**）—— 证据在仓库里，不在记忆里
+
+| 发现 | 落地形状 | commit | **现在能核到的证据** |
+|---|---|---|---|
+| **A1 / #14**（+ #3 / #4 / #12 随之） | 审计端点读 `content_hash`；删掉 `dup` 早退后**永不可达**的 `data_version = digest` | `cebf48d` | `app/api/v1/report.py:486-495`（`_expected_digest` 读 `content_hash`）· `app/workers/report_tasks.py:114`（「不再写 `data_version`」）· `tests/e2e_flows/test_e2e_report.py:86`（「**不再 xfail**」+ 断「等于该文件的 sha256 · 64 位 hex」） |
+| **#2**（⇒ #1 作废） | 迁移 `p10_002` 种 `CS-STD` + lifespan 幂等 ensure ⇒ **请求路径不再写配置主表** | `062110a` | `alembic/versions/p10_002_seed_placeholder_pipe_class.py` **存在** · `app/main.py:164-166`（lifespan ensure）· `app/services/pipe_class_service.py:862-871`（幂等兜底，注释写明「**启动时**调 ⇒ 不在请求路径」） |
+| **#8** | 目标库白名单（判据 = **真实连接**的 `current_database()`） | `c75b505` | `app/core/db_guard.py:43`（`ALLOWED_LANE_DATABASES = {pcs_pgtest, pcs_test}`）· **调用点**：`tests/e2e_flows/conftest.py:110,184` + `scripts/seed_e2e_flows.py:854` ⇒ ⇒ **车道与种子脚本都过这道闸** ⇒ ⇒ 计划里「单测车道绝不碰开发库」这条约束**有代码背书** |
+| **#16** | 闸门③ 不再接受「跑 1 条、skip 29 条」 | `7f394c1` | `scripts/pytest_pg.sh:99-107`（摘要行里有 `skipped` ⇒ **FAIL**） |
+| **#19** | 隔离扩到**进程级 session factory** | `832f9c0` | `tests/e2e_flows/conftest.py:324-327` · ⚠️ **只覆写了两个 async 单例** ⇒ ⇒ 第三个（`_sync_engine`）由 **F2-T1** 补 |
+| **#10** | RBAC 审计早退 ⇒ 按**真实连接**判车道上下文 | `4bb6a79` | `app/core/errors.py:50`（`_audit_target_is_lane`） |
+| **#5** | 越权断言换「角色够、授权缺」身份 ⇒ 断 404 + code/message 模板 | `0bf78fd` | `pcs-frontend/e2e/real_backend_flows.spec.ts`（`erin` 身份）· 已做**变异实测** |
+| **#6** | 矩阵断言改断种子那张 | `0bf78fd` | `E2E_FLOWS_RECORD_3_LEVEL` |
+| **#7** | 路由扫描改真断言 ⇒ **白名单外**必须为空 | `c82a1e8` | `pcs-frontend/e2e/real_backend_route_sweep.spec.ts:99,208-219`（`ALLOWED_BAD_RESPONSES` + 「白名单外必须为空」） |
+| **#18** | 种子显式调生产用的两个 seed 函数 | `6718ab4` | `scripts/seed_e2e_flows.py::_seed_production_defaults`（9 / 13 ⇒ D39） |
+| **#20 / #21** | 两库 schema 检查挪到发布前闸门 | `7a0737e` | `pcs-backend/scripts/check_schema_parity.py`（逐库独立进程 + 断「== 代码 head」） |
+| **#23** | 三个变量落到三层各自的位置 + fail-fast | `d29598a` | `pcs-backend/scripts/serve_e2e_backend.sh` **存在** · `pcs-frontend/playwright.config.ts` 的 `webServer.env` · `pcs-frontend/e2e/global-setup.ts`（占位 id ⇒ 拒绝） |
+| **#11** | 5 份 `docs/solutions/` 回写 | `b95a463` | `docs/solutions/{testing,database,frontend,security}-issues/` |
+| **#25** | 偏离登记同步到权威 V1.3.1（D23~D40） | `e03889a` | `spec/PCS-SPEC-P10 V1.3.1 …md`「第六部分：偏离登记」 |
+| **#26** | 请求侧 `case_type` 可省略 | `f22f3a9` | `pcs-backend/app/schemas/stream.py` |
+| **#15**（②③） | 默认锁路径项目内 + 默认路径互斥**子进程实测** | `1e27216` | `pcs-backend/scripts/pytest_pg.sh` · `tests/scripts/test_pytest_pg_gate.py:149-218` |
+
+⇒ ⇒ **#1** 因 #2 落地而**作废**（不再单列）。
+
+### ② 本批要做（**F1 / F2 / F3**）
+
+| 发现 | 去向 |
+|---|---|
+| #9 · #13 · #17 · #22 · #24 · #27 | **F1** / **F2**（hermes 裁决后改写 ⇒ 逐条见对应 Task） |
+| **#15 ①**（compose 的 `migrate`/`seed` 进锁） | **F2-T3**（宿主侧取锁 ⇒ 容器侧路线见 ③） |
+| **F2-T5**（默认车道连开发库 + 真 Redis） | **F2-T5**（2026-11-17 评审期间**新发现** ⇒ 不在原 ce review 队列里） |
+| **TODO-129 / #131 / #137**（守卫审计 / 部署前置 / 遗留账号） | **F3** / **F6-T1** |
+
+### ③ 明确**延后**（附理由与归属）
+
+| 条目 | 延后到 | 理由 |
+|---|---|---|
+| **#15 ① 的容器侧路线**（容器内装 `flock`） | **P10-C** | 本机 docker registry 拉不动 ⇒ ⇒ 改完**无法验证** ⇒ ⇒ 本批只做宿主侧（残留登记 TODO-163） |
+| **TODO-159 / TODO-160**（3 个页面调不存在的端点 · 3 个 common 页首屏 422） | 独立批 | 与「生产就绪」无直接关系 ⇒ ⇒ 但它们是**真后端通道白名单**的 6 个条目 ⇒ ⇒ 白名单不空 ⇒ ⇒ **真后端通道的「白名单外为空」只能证明「没有新的」** ⇒ ⇒ 登记在 `TODOS.md` |
+| **TODO-154**（E2E 流程级数据落在 `pcs_pgtest` 的 public schema） | 独立批 | 与 **F2-T1** 的 session 基线相关（public 里有 E2E 数据）⇒ ⇒ F2-T1 的基线**在车道启动时取** ⇒ ⇒ 不受影响 ⇒ ⇒ 单独治 |
+| **前端 refresh 通路 / 裸 `fetch(` 静态守卫 / 「改动→该跑哪几个闸」索引** | 独立批 | 见「尚未解决的问题」表 #10~#12 |
+
+### ④ 判定**不需要修**（附理由）
+
+| 条目 | 理由 |
+|---|---|
+| **#1** | 因 #2 落地而作废（人裁决已明说） |
+| **#13 的「前端消费者」担忧** | 前端**零处**消费 `preview-streams` ⇒ ⇒ 不是功能坏 ⇒ ⇒ 但**契约债是真的** ⇒ ⇒ 故 F1-T2 仍修（形状写进 OpenAPI） |
+
+---
+
 ## 执行前置（**开工第一步 · 不是可选项**）
 
 - [x] **读 hermes 的第三方裁决**（`docs/ce-code-review/20261117-013829-7e9fbabe/hermes-adjudication.md`，**已落盘**）⇒ ⇒ 那是人**未裁决**的 6 条（#9 / #13 / #17 / #22 / #24 / #27）的第三方意见（**5 条改判 · 1 条修**）⇒ ⇒ **本计划 F1/F2 已按裁决改写**（改写处标「⚖️ hermes」）⇒ ⇒ 开工时若仍与裁决冲突 ⇒ ⇒ **改计划**（不是改实现去迁就计划）⇒ ⇒ 冲突逐条记进账簿。
@@ -177,6 +235,15 @@ it('fetch 401 ⇒ 与 axios 通道同一份真相源（清会话 + 跳 /login）
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/routeWrappers.fetch.test.tsx`
 Expected: FAIL（现在只有「加载中…」，找不到「加载失败」；401 分支也不清会话）
+
+- [ ] **Step 2b: 前置检查**（⚠️ 失败模式表里那条「⚠️ 依赖既有 axios 测试」⇒ ⇒ **开工前核**）
+
+```bash
+cd pcs-frontend && npm run test -- src/api
+```
+⇒ ⇒ 必须看到 **401 / 会话过期**相关的用例**存在且绿** ⇒ ⇒
+⇒ ⇒ **不存在** ⇒ ⇒ **停下**：先把那条测试补出来（它就是抽取函数的**回归网**）⇒ ⇒ 再抽
+⇒ ⇒ **存在** ⇒ ⇒ 记录用例名（进提交信息）⇒ ⇒ 继续 Step 3
 
 - [ ] **Step 3: 抽出共享的 401 处理**（`src/api/client.ts:51-66`）
 
@@ -325,7 +392,7 @@ uv run python scripts/check_openapi_payload_coverage.py        # 裸载荷不涨
 - [ ] **Step 6: 提交**
 
 ```bash
-git add pcs-backend/app/schemas/sim_import.py pcs-backend/app/api/v1/sim_imports_query.py \
+git add pcs-backend/app/api/v1/sim_imports_query.py \
         pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py \
         pcs-frontend/src/types/api.d.ts pcs-backend/docs/openapi.json \
         pcs-backend/docs/openapi-baseline.json pcs-frontend/openapi.snapshot.json
@@ -495,14 +562,36 @@ Expected: FAIL（当前读的是**原文** ⇒ 「`flock -n`」/「`exec 9>`」�
 
 ```python
 def lane_script_body(script: Path) -> str:
-    """脚本的**可执行部分**（去掉注释）—— 断「脚本有没有做这件事」必须断这里。"""
-    lines: list[str] = []
+    """脚本的**可执行部分**（去掉注释）—— 断「脚本有没有做这件事」必须断这里。
+
+    ⚠️ **按 shell 的词边界规则剥**：`#` 只有在**词首**（行首或前面是空白）才是注释
+    ⇒ ⇒ `echo "a # b"` 里的 `#` 是**字面量** ⇒ ⇒ `echo a#b` 里的 `#` 也是字面量
+    ⇒ ⇒ ⇒ 早先的 `line.split("#", 1)[0]` 会把这两类**一起剥掉** ⇒ ⇒ 守卫会在
+    「脚本里只剩注释」时**误判为可执行**（⇒ ⇒ 假绿）。
+    """
+    out: list[str] = []
     for line in script.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("#"):
+        if line.lstrip().startswith("#"):
             continue
-        lines.append(line.split("#", 1)[0])
-    return "\n".join(lines)
+        cut = len(line)
+        quote = ""
+        for i, ch in enumerate(line):
+            if quote:
+                if ch == quote:
+                    quote = ""
+                continue
+            if ch in "'\"":
+                quote = ch
+                continue
+            if ch == "#" and (i == 0 or line[i - 1].isspace()):
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
 ```
+
+⇒ ⇒ ⚠️ **docstring 里写明这个限制**：不支持「引号跨行」等边角 ⇒ ⇒
+⇒ ⇒ 守卫脚本自己不该写那种写法 ⇒ ⇒ 若将来要支持 ⇒ ⇒ 换 `shlex` 解析。
 
 ⇒ ⇒ `test_pytest_e2e_gate.py` 的本地 `_body()` **删掉** ⇒ ⇒ 改成 `from tests.scripts.lane_script_body import lane_script_body`
 ⇒ ⇒ ⚠️ `test_pytest_pg_gate.py` 里的 `_body()`（若已存在）也一并删 ⇒ ⇒ **一处真相源**。
@@ -598,6 +687,9 @@ async def test_public_guard_detects_a_leaked_row(public_engine, public_snapshot)
 - [ ] **Step 3: 实现**
 ① `_public_snapshot` 改成：**从 `information_schema.tables` 枚举 `public` 的全部表**
 ⇒ ⇒ 每张表取 `SELECT count(*), coalesce(max(xmin::text::bigint), 0) FROM public.<t>`
+⇒ ⇒ ⚠️ **这个守卫只能在 E2E 车道（真 PG）跑** —— `xmin` 是 **PG 专有列** ⇒ ⇒
+⇒ ⇒ 挪到默认车道（SQLite）会报 `no such column: xmin` ⇒ ⇒ 它的 `@pytest.mark.e2e`
+**不许摘掉** ⇒ ⇒ ⚠️ 写进注释（否则下一个人会「顺手把它改成单测」）。
 ⇒ ⇒ ⚠️ **`xmin` 的语义写进注释**：事务 id 单调增 ⇒ 插入/删除/更新都会让它变 ⇒ ⇒
 ⚠️ **VACUUM FREEZE ⇒ 误报**（车道库不会 freeze ⇒ 但要知道）
 ⇒ ⇒ ⚠️ `public.` **显式限定**（`information_schema` 不受 `search_path` 约束 ⇒ cerebrum:1651）
@@ -715,10 +807,32 @@ async def test_seeded_workspace_is_visible_to_its_owner(client, ...):
 （只补 `owner_id`）⇒ ⇒ 回填作为 **TODO** 登记 ⇒ ⇒ 理由：回填会让「无项目工作区」在真后端消失 ⇒ ⇒
 而那正是要测的形态 ⇒ ⇒ 保留 mock 通道提供「无项目工作区」的形态。
 
+- [ ] **Step 6b: 加真后端 E2E 断言**（⚠️ **「保留无项目工作区供测」是意图，不是证据**）
+
+⇒ ⇒ 补了 `owner_id` 之后 ⇒ ⇒ 这个工作区在**真后端的切换器里可见** ⇒ ⇒
+⇒ ⇒ 选中它 ⇒ ⇒ **面板必须不渲染** ⇒ ⇒ 且**不产生 404 / console error**
+⇒ ⇒ ⇒ 否则「无项目工作区」这个形态**只在 mock 里存在** ⇒ ⇒ 真后端通道根本验不到它。
+
+```ts
+// pcs-frontend/e2e/real_backend_flows.spec.ts（新增一条）
+test('真后端：选「无项目的工作区」⇒ 清单面板不渲染且无 404 / 无 console error', async ({ page }) => {
+  await loginViaUi(page, 'dan');
+  // 打开仪表盘 ⇒ 切到那个没有 project_id 的工作区
+  await page.getByRole('combobox').click();          // WorkspaceSwitcher
+  await page.locator('.ant-select-item-option', { hasText: '无项目' }).click();
+  await expect(page.getByTestId('input-checklist-panel')).toHaveCount(0);
+  // ⇒ 白名单外的 4xx / console error 必须为空（本仓既有断言会兜住）
+});
+```
+
+⇒ ⇒ ⚠️ **这条必须用真后端通道跑**（`npm run e2e:real`）⇒ ⇒ mock 通道**证明不了**它
+⇒ ⇒ ⇒ 理由：mock 的工作区种子**本来就**把 `project_id` 设成 null ⇒ ⇒ mock 下这条恒绿。
+
 - [ ] **Step 7: 跑测试 + typecheck + lint**
 
 Run: `cd pcs-frontend && npm run test -- tests/pages/DashboardPage.test.tsx && npm run typecheck && npm run lint`
 Run: `cd pcs-backend && bash scripts/pytest_e2e.sh`
+Run: `cd pcs-frontend && npm run e2e:real`      # ← Step 6b 那条在此跑
 Expected: 全绿
 
 - [ ] **Step 8: 提交**（`fix(P10-F): 仪表盘守卫条件改成「拿到了真 project_id」（评审 #24）`）
@@ -895,6 +1009,18 @@ def test_default_lane_never_connects_to_a_real_database_or_redis():
 Run: `cd pcs-backend && uv run pytest -q`
 Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 33 分钟 ⇒ ⇒ **这条本身就是判据**
 
+⇒ ⇒ ⚠️ **「要全绿」与「不许连真 Redis」之间的悖论怎么解**（执行者按此判，**不许卡住**）：
+若因为 Redis URL 指向不可路由端口而**有测试变红** ⇒ ⇒ **逐条分类**：
+
+| 现象 | 判据 | 处置 |
+|---|---|---|
+| 该测试**依赖真 Redis 的语义**（编辑锁 / pubsub 的行为） | 它的断言需要真 Redis 才有意义 | ⇒ 在**该测试**上标 `@pytest.mark.skip(reason="依赖真 Redis ⇒ 迁到 scripts/pytest_pg.sh 车道（TODO-165）")` ⇒ ⇒ **并登记 TODO** ⇒ ⇒ F2-T5 **不算失败** |
+| 该测试**只是碰巧连了真 Redis**（并不需要它的语义） | 断言与 Redis 无关 | ⇒ ⇒ **修它**（让它用替身/桩）⇒ ⇒ 这是本条要清的**真泄漏** ⇒ ⇒ **不许 skip** |
+| 整轮**挂住**（不结束） | 卡在等 Redis/PG | ⇒ ⇒ **本条判失败** ⇒ ⇒ 查是谁在等 ⇒ ⇒ 它的连接必须指向不可路由端口 |
+
+⇒ ⇒ **底线**：F2-T5 的完成判据 = 「默认车道**跑完且绿**」+「跑的过程中**没有**到 5432/6379 的连接」
+⇒ ⇒ **允许**为「依赖真 Redis 语义」的测试加 skip（且必须留 TODO）⇒ ⇒ **不允许**整轮挂住。
+
 ⇒ ⇒ **同时验**：跑完后 `ss -tnp | grep -E ":5432|:6379"` **不得**出现 pytest 的连接。
 
 - [ ] **Step 5: 提交**（`fix(P10-F): 默认车道隔离同步引擎与 Redis（评审期间新发现）`）
@@ -912,6 +1038,10 @@ Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 
 ⇒ ⇒ 候选模块：`app/api/v1/config.py`（12 端点）· `report_builder.py`（9）· `psychro.py`（13）· 其它
 非物流面模块 ⇒ ⇒ **范围由人裁决**（主计划 Q10）⇒ ⇒ **本任务的产出是「范围提案 + 每条候选的初判」**
 ⇒ ⇒ 提交给人 ⇒ ⇒ **不要**自己把范围定死。
+
+⇒ ⇒ ⚠️ **开工边界**（否则执行者第一步就卡在等人）：
+**T1 可以直接开工**（产出范围提案 + 初判 ⇒ 交人）⇒ ⇒
+**T2 / T3 等人批了范围再开** ⇒ ⇒ ⇒ 批次地图里「F3 现在能开」指的是 **T1** ⇒ ⇒ 不是整批。
 
 ### Task F3-T2 ~ T3: 逐模块**审计**（守卫覆盖面）
 
@@ -1048,7 +1178,8 @@ Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 
 | 15 | ⚖️ **升 pyjwt（29 条）要验 bug-091 的加固还在** | `options={'require': ['exp','iat','sub']}`（`app/core/security.py`）⇒ ⇒ 升级后**必须**有一条断言证明 `require` 仍在 ⇒ ⇒ 否则「修了漏洞、拆了加固」 | F4-T2 |
 | 16 | ⚖️ **`docker compose run --rm seed` 仍能绕过锁**（F2-T3 选了宿主侧取锁） | 本机 docker registry 拉不动 ⇒ ⇒ 容器侧装 flock **不可验证** ⇒ ⇒ 残留 ⇒ ⇒ P10-C 处理 | F2-T3 · 残留 |
 | 17 | ⚖️ **默认车道不隔离**（`_sync_engine` + 真 Redis）⇒ ⇒ 违反「单测车道绝不碰开发库」 | 🔎 2026-11-17 实测：跑默认车道时进程挂着 **5432** 与 **6379** 的连接 ⇒ ⇒ 且整轮跑到 22% **挂死 33 分钟** ⇒ ⇒ F2-T5 修 | F2-T5 |
-| 18 | ⚖️ **依赖真 Redis 的测试**（若存在）该迁到真 PG 车道 | F2-T5 先把 URL 指向不可路由端口 ⇒ ⇒ 若某测试因此红 ⇒ ⇒ 说明它**依赖**真 Redis ⇒ ⇒ 登记 TODO 迁到 `scripts/pytest_pg.sh` 车道 | F2-T5 · TODO |
+| 18 | ⚖️ **依赖真 Redis 的测试**（若存在）该迁到真 PG 车道 | F2-T5 先把 URL 指向不可路由端口 ⇒ ⇒ 若某测试因此红 ⇒ ⇒ 说明它**依赖**真 Redis ⇒ ⇒ 登记 TODO（TODO-165）迁到 `scripts/pytest_pg.sh` 车道 | F2-T5 · TODO |
+| 19 | ⚖️ **二维码载荷里的 `record_hash_digest` 是 `sha256('')`**（不是审计端点那个） | `app/services/report/qr.py:84-91`：`digest = sha256("|".join(sorted(record_hashes)))` ⇒ ⇒ 而 `record_hashes` 恒为空（`record_hash` 没进 `datasource_registry` ⇒ qr.py 的 docstring **明写**此事）⇒ ⇒ **审计端点那个已按 A1 裁决读 `content_hash`**（`app/api/v1/report.py:486-495`）⇒ ⇒ ⇒ **本条属 P9（报表）域**，P10 SPEC 未涉及二维码 ⇒ ⇒ **不在 P10-F 范围** ⇒ ⇒ 登记为跨批观察项 | 跨批观察 · 非 P10-F |
 
 ---
 
