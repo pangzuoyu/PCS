@@ -30,11 +30,7 @@
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)`（在 `db.add(row)` + flush 之前）",
     "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` ⇒ 撞主键即唯一约束违例",
     "pcs-backend/app/api/v1/pipe.py:213-216 — `    try:` / `        row, outlet = await persist_pipe_chain_result(db, chain_inp, chain_res)` / `    except PcsError as e:` / `        raise _to_http(e) from e` ⇒ IntegrityError 不在 catch 范围 ⇒ 500",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:105-111 — `exists = (await db.execute(select(PipeClass.class_id).where(PipeClass.class_id == class_id))).scalar_one_or_none()` / `if exists is not None: return`",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:112-138 — `db.add(PipeClass(class_id=class_id, ...))` / `await db.flush()`（无 savepoint、无 IntegrityError 兜底）",
     "pcs-backend/scripts/seed_e2e_flows.py:257-269 — 本批新脚本的house pattern：`async with db.begin_nested(): db.add(entity); await db.flush()` / `except IntegrityError: winner = (await db.execute(match)).scalar_one_or_none()`（产品代码这段没照抄）",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:95-133 — `exists = (await db.execute(select(PipeClass.class_id)...)).scalar_one_or_none(); if exists is not None: return; db.add(PipeClass(...)); await db.flush()`（无 savepoint、无 IntegrityError 处理）",
-    "pcs-backend/app/models/config_domain.py:237 — `class_id: Mapped[str] = mapped_column(String(50), primary_key=True)`（唯一约束来源）",
     "pcs-backend/scripts/seed_e2e_flows.py:243-270 — `_get_or_create` 的 house pattern（`async with db.begin_nested()` + IntegrityError 后重读）⇒ 同仓同批已有正确写法",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 — 注释自认 `source=\"COMPANY_STD\"` 是为了『在下游列表里看不见就断不了断言』；而 `app/services/pipe_class_service.py:136-148` 的 `list_company` 固定过滤 `source == 'COMPANY_STD'` ⇒ 该假标准会出现在产品列表里"
    ],
@@ -51,6 +47,9 @@
    ],
    "independent_reviewers": [],
    "group": "G06",
+   "fix_type": "mechanical",
+   "notes": "本条的修法与 #2 互斥依赖，先裁 #2 再动代码。",
+   "blocked_by": "#2 的裁决：若 #2 裁决为「改成数据迁移种一行」，本条（并发 savepoint）随之作废；只有当运行时兜底保留时才需要它。",
    "validation_status": "confirmed",
    "validation_reason": "pipe_chain_persist.py:105-138 performs a bare SELECT-then-INSERT of the CS-STD placeholder with no begin_nested()/IntegrityError branch, and pipe.py:213-216 catches only PcsError, so two concurrent first-time POST /api/v1/pipe/calc-chain requests would let the loser take a PK IntegrityError that escapes as a 500; the code is new in this batch and no savepoint guards it (precondition: concurrent requests before the placeholder row is committed; incidence not measured).",
    "protected_subject": "concurrency",
@@ -70,25 +69,18 @@
     "pcs-backend/app/services/pipe_class_service.py:173-187 — canonical 创建路径 `PipeClassService.create`（走 `PipeClassCreate` + `ConfigAsset` 版本链 + status=DRAFT），本 diff 的兜底**绕过**了它",
     "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 占位行必然出现在公司管级列表",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 — `# ⚠️ `source=\"COMPANY_STD\"` —— 公司级管架列表**只列** `source == 'COMPANY_STD'` 的行` / `source=\"COMPANY_STD\",`",
-    "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")`（status 只在显式传参时过滤）",
     "pcs-backend/app/api/v1/pipe_classes.py:112 — `status: str | None = Query(None), keyword: str | None = Query(None),`（列表端点缺省不过滤状态 ⇒ DRAFT 的占位行也在列）",
     "pcs-backend/app/models/config_domain.py:262-264 — `status: Mapped[str] = mapped_column(String(20), default=\"DRAFT\", ...)`（占位行落库即 DRAFT）",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — source=\"COMPANY_STD\",",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 — PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"",
     "pcs-backend/app/services/pipe_class_service.py:149 — stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")  ⇒ 占位行进公司列表",
     "pcs-backend/app/schemas/pipe_class.py:77 — source: Literal[\"COMPANY_STD\", \"PROJECT\"] ⇒ 契约里没有「占位」这一态",
     "pcs-backend/tests/e2e_flows/test_e2e_calc_chains.py:54-59 — assert after_count == before_count + 1（「管级表多了一行」）而计算结果落在 piping_results ⇒ 这条断言实际断的是占位行副作用",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` (call site inside the request-path persist function)",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — `            source=\"COMPANY_STD\",` (the injected row is deliberately a company-level standard)",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:95 — `async def _ensure_placeholder_pipe_class(db: AsyncSession, class_id: str) -> None:` (runtime insert of the shared row)",
     "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` / `:238 asset_id ... ForeignKey(\"config_assets.asset_id\")` ⇒ `pipe_classes` is global, not project-scoped",
-    "pcs-backend/app/services/pipe_class_service.py:149 — `        stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ the row is listed to every company-standard reader",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:3022-3024 (diff) — \"⚠️ 为什么不能靠「迁移里种一行」… 而这里是**运行时占位**\" ⇒ the choice of a request-time insert is deliberate",
     "pcs-backend/scripts/seed_e2e_flows.py:101 `FLOW_PIPE_CLASS_ID = \"E2E-SEED-CS\"` 与 515-517 `allowable_stress_json={\"20#\": 137.0}, dn_series_json={\"DN150\": 1.0}, sch_series_json={\"DN150\": 40.0}`",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 `PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"` 与 125-128 `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
     "pcs-backend/app/models/config_domain.py:249 `sch_series_json: Mapped[list] = mapped_column(JSONB)`（ORM 说 list）",
-    "pcs-backend/app/schemas/pipe_class.py:61-63 `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射…\")`（schema 说 dict[str,str]）",
-    "pcs-backend/app/services/pipe_class_service.py:149 `select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 种子的 E2E_SEED 行从不出现在列表端点 ⇒ 其形状错误当前不可见"
+    "pcs-backend/app/schemas/pipe_class.py:61-63 `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射…\")`（schema 说 dict[str,str]）"
    ],
    "first_evidence": "pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138 — 新增 `_ensure_placeholder_pipe_class`：手写 `PipeClass(...)` + `db.add` + `await db.flush()`，并写死 `source=\"COMPANY_STD\"` / `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
    "suggested_fix": "删掉 `_ensure_placeholder_pipe_class` 与 `PLACEHOLDER_MATERIAL_CLASS`，改成一条**数据迁移**插 `CS-STD` 这行（形状照 `PipeClassService.create` 的 payload 语义：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\":…,\"max\":…}`、`sch_series_json` 用仓里既定的 DN→Sch 形状）；`persist_pipe_chain_result` 恢复成纯落库。若坚持运行时兜底，则至少改为调 `PipeClassService.create`（同一套版本/状态语义），而不是手写 ORM 行。",
@@ -105,6 +97,9 @@
    ],
    "independent_reviewers": [],
    "group": "G07",
+   "fix_type": "design-input",
+   "notes": "本条是这一簇的根决策：占位行归谁（迁移种一行 / 允许运行时兜底）。#6 与 #17 的修法都随它变。",
+   "blocked_by": "#17 依赖本条的裁决方向（种子行是否也允许出现在公司管级列表）；#1 依赖本条（见 #1 的 blocked_by）。",
    "validation_status": "confirmed",
    "validation_reason": "The new _ensure_placeholder_pipe_class (pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138) is called on the main calc path (pipe_chain_persist.py:260) and writes a pipe_classes row with source='COMPANY_STD' directly via db.add/flush, so it surfaces in GET /api/v1/pipe-classes (list_company filters source=='COMPANY_STD', pipe_class_service.py:149) as a synthetic company standard with no ConfigAsset/ConfigVersion (the canonical path create_with_config_asset, pipe_class_service.py:371-379, is bypassed), and it stores sch_series_json as a {'min','max'} pair (pipe_chain_persist.py:128) that contradicts the DN-to-Sch mapping shape the canonical importer builds (pipe_class_service.py:351).",
    "protected_subject": null
@@ -125,16 +120,13 @@
     "pcs-backend/app/services/report/report_service.py:606-610 — `    existing = (await db.execute(select(ReportFile).where(ReportFile.content_hash == kw[\"content_hash\"]))).scalar_one_or_none()` ⇒ 即使命中旧行，`content_hash == digest` 的行照样存在 ⇒ dup 照样命中",
     "pcs-backend/app/api/v1/report.py:308 — `        record_hash_digest=_expected_digest(row),` ⇒ 审计端点读的是 `row.data_version or \"\"`",
     "pcs-backend/tests/e2e_flows/test_e2e_report.py — E2E-009 仍是 `pytest.xfail`（条件是 `record_hash_digest` 为空）⇒ 车道自己记录着这条需求仍未满足",
-    "pcs-backend/app/workers/report_tasks.py:109-111 — `await db.delete(row)` / `await db.flush()` / `return str(dup.report_file_id)`（dup 分支先于 data_version 赋值 return）",
-    "pcs-backend/app/workers/report_tasks.py:113-118 — `row.content_hash = digest` … `row.data_version = digest`（被上面那条 return 挡住，永不执行）",
-    "pcs-backend/app/services/report/report_service.py:612-618 — `row = ReportFile(report_file_id=..., project_id=..., content_hash=kw[\"content_hash\"], file_path=kw[\"relpath\"], file_format=kw[\"fmt\"], size_bytes=kw[\"size\"], status=\"SUCCEEDED\", has_assumption_page=kw[\"has_assumption\"])` —— 真正存活的那一行没有 data_version",
     "pcs-backend/app/api/v1/report.py:494 — `return row.data_version or \"\"`（端点读的仍是空串）",
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 — `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165 … 根因未完全隔离）\")`（本批自己的用例仍 xfail）",
     "MERGE-LEAF VERIFIED pcs-backend/app/workers/report_tasks.py:101-111 - the dup query runs first and `if dup is not None:` deletes the placeholder row and returns at line 111, so line 118 (`row.data_version = digest`) is unreachable on that path",
     "MERGE-LEAF VERIFIED pcs-backend/app/services/report/report_service.py:420 generate -> 428 store_rendered -> 513 _upsert_report_file -> 612-618 builds a ReportFile with content_hash=kw['content_hash'] and NO data_version; report_tasks.py:167-173 calls generate before _finalize, so the dup query always matches that row and the surviving row never gets data_version => GET /report/{id}/hash keeps returning an empty string"
    ],
    "first_evidence": "pcs-backend/app/workers/report_tasks.py:107-111 — `    if dup is not None:` / `        # 同内容已存在（bug-155 修好后的复用语义）：删掉自己的占位行，返回已有行。` / `        await db.delete(row)` / `        await db.flush()` / `        return str(dup.report_file_id)`",
-   "suggested_fix": "把 `data_version` 写到**活下来的那一行**上，而不是写占位行：`report_service._upsert_report_file`（report_service.py:612-618）构造 `ReportFile(...)` 时补 `data_version=kw[\"content_hash\"]`（同一处也修好 `report_builder_tasks.py:227` 那条路径）；同时在 `_finalize` 的 dup 分支里，于 `return str(dup.report_file_id)` 之前补 `dup.data_version = digest` 以覆盖「命中旧行」的情形。假设：`data_version` 的语义就是内容指纹（依 report.py:487-494 的 docstring）。验证：把 E2E-009 的 `pytest.xfail` 去掉并断言 `record_hash_digest == content_hash`。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`_expected_digest`（report.py:486-494）改读 `row.content_hash or \"\"`（report.py:480-483 已证明 content_hash 就是交付文件的 sha256），并删掉 report_tasks.py:118 那行不可达的 `row.data_version = digest`；同时把 report.py:487-492 的 docstring 改成与实现一致。若改选 A1 的替代方案，则改成把 digest 写到**存活的那一行**（report_service._upsert_report_file 建行时一并写 + _finalize 的 dup 分支补写），并明确标注那是临时兼容（老行需另补回填）。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -145,6 +137,8 @@
    ],
    "independent_reviewers": [],
    "group": "G01",
+   "fix_type": "mechanical",
+   "notes": "本条与 #12 同源（审计端点读哪一列）⇒ 先做裁决 A1，再按裁决改；本条自己的 suggested_fix 已写成与 #12 一致的版本，不要与旧版 #14 的改法混用。",
    "validation_status": "confirmed",
    "validation_reason": "report_service.py:513-517/612-618 already creates the row with content_hash=digest (no data_version), so report_tasks.py:101-111 always finds dup != None and returns at line 111, making the newly added `row.data_version = digest` at report_tasks.py:118 unreachable and leaving data_version NULL, so GET /report/{id}/hash (_expected_digest, report.py:494) keeps returning an empty string for generated reports.",
    "protected_subject": "public-contract"
@@ -162,14 +156,12 @@
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:96-100 — `download = await e2e_client.get(...); assert download.status_code == 200; assert len(download.content) > 0`（在 xfail 之后 ⇒ 空哈希时永不执行）",
     "pcs-backend/scripts/pytest_pg.sh:83-86 — 闸门只 grep `[1-9][0-9]* passed` ⇒ xfailed 不影响闸门结论",
     "pcs-backend/app/workers/report_tasks.py:114-118 — 本批的修复 `row.data_version = digest`（回归 ⇒ 回到 xfailed ⇒ 车道仍绿）",
-    "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 —— `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")`",
-    "pcs-backend/app/workers/report_tasks.py:118 —— `row.data_version = digest`（本批新增的唯一生产修复）",
     ".superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md:365 —— 「⚠️ **根因未完全隔离**（赋值执行、库里仍 NULL）⇒ E2E-009 标 `xfail` ⇒ **TODO-158**」",
     "pcs-backend/scripts/pytest_pg.sh:83 —— 闸门③ 只 grep 「[1-9][0-9]* passed」，xfailed 不计入 ⇒ 少一条断言不会让车道变红",
     "MERGE-LEAF VERIFIED pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 - `pytest.xfail(...)` is called imperatively inside the test body, so it raises and aborts the test; the download assertions at lines 96-100 never run when the hash is empty"
    ],
    "first_evidence": "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 — `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")`（命令式 xfail ⇒ 中止后续语句）",
-   "suggested_fix": null,
+   "suggested_fix": "把 E2E-009 拆成两条用例：(a) 对 record_hash_digest 做硬断言 —— 断言内容随裁决 A1 而定：若审计端点改读 content_hash，则断言 record_hash_digest == 该行的 content_hash（且非空）；若保留 data_version 承载，则断言它是非空的 64 位 hex；(b) 下载段（200 + 字节数 > 0）单独成用例，不再被上面的 xfail 一起中止。不要用命令式 `pytest.xfail()` 放在用例顶层（它会中止后续所有语句）。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -180,6 +172,8 @@
    ],
    "independent_reviewers": [],
    "group": "G02",
+   "fix_type": "mechanical",
+   "notes": "本条的硬断言断什么，取决于裁决 A1（见本条的 suggested_fix）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_report.py:90-94 calls imperative pytest.xfail() (which aborts the test) when record_hash_digest is falsy, so the download assertions at lines 96-100 never execute, while scripts/pytest_pg.sh:83 only greps for 'N passed' so an xfailed scenario leaves the lane green.",
    "protected_subject": null
@@ -199,7 +193,6 @@
     "pcs-backend/app/api/v1/mock_auth.py:14-18 — `MOCK_USERS = {\"alice\": \"DESIGNER\", \"bob\": \"CHECKER\", \"carol\": \"APPROVER\", \"dan\": \"SYSTEM_ADMIN\"}` ⇒ bob/carol 过不了角色闸，dan 走 SYSTEM_ADMIN bypass ⇒ mock 登录的四个用户**没有一个**能表达『角色够但没授权行』",
     "构造：删掉 streams.py:410 的项目守卫 → bob 请求 flows 项目仍返回 403（角色闸）→ nonexistent 仍 403 → 断言仍通过 ⇒ 用例对被它命名的缺陷不敏感",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:133-134 — `// ⚠️ **具体码取决于闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ 403）` / `// ⇒ ⇒ 断「两个码相等」` ⇒ 短路被观察到但被接受为合格断言",
-    "pcs-backend/app/api/v1/streams.py:407 — `    require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\")` ⇒ CHECKER 在项目守卫之前被 403 拦下",
     "pcs-backend/app/api/v1/config.py:96-98 — `        raise HTTPException(` / `            status_code=403,` ⇒ 角色闸的确抛 403",
     "pcs-backend/app/api/v1/mock_auth.py:15-18 — `    \"alice\": \"DESIGNER\",` / `    \"bob\": \"CHECKER\",` ⇒ 被测身份是 CHECKER",
     "pcs-backend/app/api/v1/streams.py:410-413 — `    await check_project_access_or_404(` ⇒ 该分支在这条用例里从未执行",
@@ -217,6 +210,8 @@
    ],
    "independent_reviewers": [],
    "group": "G03",
+   "fix_type": "design-input",
+   "notes": "autofix_class=manual：换账号还是换断言形状，要先定「越权用例该断 403 还是断 404」这一步的意图（按计划 §Review Focus 3，应断 404 ⇒ 需要一个能过角色闸但无授权行的账号）。",
    "validation_status": "confirmed",
    "validation_reason": "mock_auth.py:14-19 gives bob the CHECKER role and streams.py:407 runs require_roles(user, 'DESIGNER','PROCESS_CONTROLLER','SYSTEM_ADMIN') before check_project_access_or_404 at streams.py:410, so both the cross-project and the nonexistent-project requests return 403 and the assertion at real_backend_flows.spec.ts:144 compares 403 == 403, never exercising the cross-project 404 path.",
    "protected_subject": "authorization-authentication"
@@ -235,11 +230,8 @@
     "pcs-backend/app/services/signature_matrix_service.py:124 — `DEFAULT_RECORD_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"`（全局内置，任何迁移过的库都有）",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:118-122 — 断 `MATRIX_NAME` 可见 + 页面含 CHECKER/REVIEWER/APPROVER ⇒ 内置矩阵全部满足",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:113-123 — `@real-backend 签署矩阵：项目绑定的矩阵与三级链可见` … `await expect(realPage.getByText(MATRIX_NAME, { exact: false })).toBeVisible();`",
-    "pcs-backend/scripts/seed_e2e_flows.py:583 — `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\",`（种子矩阵的名字不是断言里那个）",
     "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"`（内置全局模板，恒存在）",
-    "pcs-frontend/e2e/real_backend_flows.spec.ts:32-41 — `const FLOW_PROJECT_ID = '2488b011-14fc-584b-966e-1e2dfaeb9eb7';` / `const STREAM_NAME = 'E2E-FLOW-S-001';` / `const DELIVERABLE_TITLE = 'E2E 流程级种子计算书';` / `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`，注释分别写着「（`scripts/seed_e2e_flows.py::FLOW_STREAM_NAMES`）」「（`_ensure_matrix`）」",
     "pcs-backend/scripts/seed_e2e_flows.py:583-584 — `_ensure_matrix` 造的是 `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\"` ⇒ 与 spec 的 `MATRIX_NAME` 不一致",
-    "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"` ⇒ spec 断的其实是迁移插入的内置矩阵，不是 E2E 种子那条",
     "pcs-backend/scripts/seed_e2e_flows.py:80-117 — 种子 id 全部由 `_uid(\"pcs-e2e-flows-*\")` 派生 ⇒ 前端那串 uuid 是手工反推出来的，没有生成链路"
    ],
    "first_evidence": "pcs-frontend/e2e/real_backend_flows.spec.ts:41 — `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`",
@@ -255,6 +247,8 @@
    ],
    "independent_reviewers": [],
    "group": "G05",
+   "fix_type": "mechanical",
+   "notes": "validation=unresolved ⇒ 这是**验证闸门**不是已确认缺陷：confidence 100 只覆盖「名字对不上」这个事实，不覆盖「内置矩阵在目标库里存不存在」。查迁移 p9_013 与目标库再决定是改断言名字还是改种子名；证据到手前不要当已确认缺陷去改。",
    "validation_status": "unresolved",
    "validation_reason": "The name mismatch is verified (real_backend_flows.spec.ts:41 asserts 'DEFAULT_RECORD_3_LEVEL' while scripts/seed_e2e_flows.py:583 creates 'E2E_FLOWS_RECORD_3_LEVEL', and the built-in name is defined at signature_matrix_service.py:124), but whether that built-in row actually exists in the target DB - which decides whether the flow is green-without-the-seed or red - could not be verified within budget (migration p9_013 not read).",
    "protected_subject": null
@@ -277,15 +271,13 @@
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:63-69（新增）——「⚠️ **只断「路由可达」**（渲染了 + 没被弹回 /login）—— ⚠️ 「控制台无 error / 无 4xx-5xx」**不作为断言** ⇒ 因为仓里有一批 **前端调用了不存在端点**的页面（`/pipe/line-list` · `/pms` · `/bedd`）… ⇒ 改成**打印出来**（进 QA 报告）⇒ 等那些端点补齐后，**再把断言加回来**。」，其后仅剩 `expect(results.every((r) => r.root)).toBe(true)` 与「没被弹回 /login」两条断言",
     "TODOS.md（新增）TODO-159：「真后端通道（`--project=real-backend`）逐条走完 **44 条路由** ⇒ 三处请求 **404**」· TODO-160：「`/common/properties` · `/common/stress` · `/common/toxicity` 三个页面**首屏**就发一个**空查询** ⇒ 后端 **422**」——两者均标注「归属：P10-C」延后，未按闸门做严重度分类",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 — `// ⚠️ **只断「路由可达」**` … `// ⇒ ⇒ 改成**打印出来**（进 QA 报告）⇒` / `// ⇒ ⇒ 等那些端点补齐后，**再把断言加回来**。`",
-    "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-73 — `  expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true);` ⇒ 控制台 error / 4xx 只被收集、未被断言",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:38-43 — `  const consoleErrors: string[] = [];` / `  const badResponses: string[] = [];` ⇒ 收集了却不用",
     "TODOS.md（diff）— `## TODO-159: 前端调用了**不存在的端点**的 3 个页面（真后端下打不开数据） 🟠` ⇒ 「再断言」目前只登记在 TODO，无钉子",
-    "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-74 —— `expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true); expect(results.filter((r) => r.redirected), …).toEqual([]);`",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 —— 注释自陈「『控制台无 error / 无 4xx-5xx』**不作为断言**」",
     "TODOS.md TODO-159 / TODO-160 —— 三个页面调不存在的端点、三个 common 页首屏 422（扫描本该发现的正是这两类）"
    ],
    "first_evidence": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:56 — `const root = (await realPage.locator('#root').count()) > 0;`",
-   "suggested_fix": null,
+   "suggested_fix": "把『#root 存在』换成页面专有特征，两条路径并用：(a) 有种子专有值的页面（物流一览 / 交付物 / 签署矩阵 / 设备一览 等 5 条 UI 流覆盖的页面）断「种子专有字符串出现在页面上」（项目 id、流名 E2E-FLOW-S-001、交付物标题 E2E 流程级种子计算书、矩阵名 E2E_FLOWS_RECORD_3_LEVEL）；(b) 其余页面断「页面标题或空态文案出现 且 #root 下有非空子节点」—— 这抓得到白屏，抓不到「渲染了但拿不到数据」，那一类留给 console error / 4xx 断言来兜。另加两条全局断言：整轮扫描下来 console error 为空、且 4xx/5xx 列表只包含显式白名单里的页面（TODO-159/160 的 6 个页面按页面清单写死，其余一律红）。白名单的页面清单要人裁定（因此本条是 manual）。",
    "autofix_class": "manual",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -298,6 +290,8 @@
    ],
    "independent_reviewers": [],
    "group": "G04",
+   "fix_type": "design-input",
+   "notes": "autofix_class=manual：45 条路由里哪些页面允许有 4xx（TODO-159/160 的既有缺口）要人裁定白名单。",
    "validation_status": "confirmed",
    "validation_reason": "real_backend_route_sweep.spec.ts:56 counts '#root', which index.html:9 renders as a static div always present, so the assertion at line 70 is vacuously true, and lines 60-69 only print console errors and 4xx/5xx responses instead of asserting them.",
    "protected_subject": null
@@ -314,8 +308,6 @@
     "pcs-backend/tests/e2e_flows/conftest.py:95-100 — `url = os.environ.get(\"DATABASE_URL\", \"\"); if not url.startswith(\"postgres\"): raise RuntimeError(...)` ⇒ 只查协议，不查库名",
     "pcs-backend/scripts/pytest_e2e.sh:32-35 — 正确做法只在薄封装里（`export PCS_E2E_LANE=1` + exec pytest_pg.sh，无条件覆写 DATABASE_URL 到 pcs_pgtest）⇒ 绕过脚本就没有这层保护",
     "pcs-backend/tests/e2e_flows/conftest.py:164-187 — 拿到 URL 就在那个库里 `CREATE SCHEMA` + 子进程 `alembic upgrade head`",
-    "pcs-backend/tests/e2e_flows/conftest.py:93-101 —— `url = os.environ.get(\"DATABASE_URL\", \"\")` / `if not url.startswith(\"postgres\"): raise RuntimeError(...)`（**只查协议，不查库名**）",
-    "pcs-backend/tests/e2e_flows/conftest.py:168-191 —— `CREATE SCHEMA` / `alembic upgrade head` / `DROP SCHEMA ... CASCADE` 全部作用在 `_lane_url()` 返回的那个库上",
     "pcs-backend/scripts/pytest_pg.sh:64-67 —— 库名只在脚本层被钉死（`PG_DB_NAME=\"${PG_DB_NAME:-pcs_pgtest}\"`）⇒ 车道自身无此断言",
     "pcs-backend/scripts/seed_e2e_flows.py:751 — `    factory = get_async_session_factory()` (no database-name check before writing)",
     "pcs-backend/scripts/seed_e2e_flows.py:748 — `async def _main(reset: bool) -> None:` / docstring usage lines 3729-3730 — `    uv run python scripts/seed_e2e_flows.py            # 幂等灌种子` (the documented invocation)",
@@ -323,9 +315,7 @@
     "pcs-backend/scripts/seed_e2e_flows.py:388-392 — `AUTHORIZED_USERNAMES` / `USERNAME_TO_PROJECT_ROLE` incl. `\"alice\": \"DESIGNER\"` ⇒ the seed writes project authorization rows",
     "pcs-backend/app/db/session.py:66 — `            get_settings().database_url,` ⇒ the factory resolves the env var, falling back to `.env` (the dev database `pcs` per repo CLAUDE.md)",
     "docker-compose.yml:765 — `       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest` ⇒ the URL is pinned only for the compose service, not inside the script",
-    "pcs-backend/tests/e2e_flows/conftest.py:93-101 — `def _lane_url() -> str:` … `    if not url.startswith(\"postgres\"):` / `        raise RuntimeError(` ⇒ only the URL scheme is checked; the database name is never inspected",
     "pcs-backend/tests/e2e_flows/conftest.py:76 — `    if os.environ.get(LANE_ENV_VAR) == \"1\":` ⇒ the whole 'don't touch a non-test DB' property is delegated to one env var (`PCS_E2E_LANE`)",
-    "pcs-backend/tests/e2e_flows/conftest.py:4719-4738 (diff) — the fixture runs `CREATE SCHEMA` and `subprocess.run([sys.executable, \"-m\", \"alembic\", \"upgrade\", \"head\"], … env={**os.environ, \"DATABASE_URL\": _scoped_url(url, schema)})` ⇒ DDL is executed against whatever database the URL names",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:7399-7421 — `def test_e2e_items_are_skipped_without_the_lane_flag():` ⇒ the only guard test asserts a skip marker is added; nothing asserts the lane refuses a non-test database",
     "pcs-backend/scripts/seed_e2e_flows.py:763 — `    parser = argparse.ArgumentParser(description=\"灌流程级 E2E 种子数据（幂等）\")` ⇒ 参数里没有任何数据库目标约束",
     "grep 结果：`DATABASE_URL|pcs_pgtest|pcs_test|current_database` 在 scripts/seed_e2e_flows.py 上 0 命中 ⇒ 脚本不检查自己连的是哪个库",
@@ -347,6 +337,8 @@
    ],
    "independent_reviewers": [],
    "group": "G09",
+   "fix_type": "mechanical",
+   "notes": "fail-closed：库名不在白名单 ⇒ 非零退出，不要 warning。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/conftest.py:93-101 accepts any DATABASE_URL whose scheme starts with 'postgres' and then (conftest.py:164-187) creates a schema, runs alembic upgrade head and seeds rows in that database, so a manually exported dev-DB URL would be migrated and seeded there; the whitelist exists only in scripts/pytest_pg.sh:66 (precondition: PCS_E2E_LANE=1 with DATABASE_URL pointing at a shared/dev database; incidence not measured).",
    "protected_subject": "data-loss",
@@ -366,7 +358,6 @@
     "pcs-frontend/src/api/client.ts:54-60 — `    if (err.response?.status === 401) {` … `        useAuth.getState().clearSession();` … `          window.location.href = '/login';` ⇒ 只有走 axios 的请求才有「401 ⇒ 回登录页」，`useFetch` 完全绕过",
     "pcs-backend/app/core/config.py:46 — `    access_token_expire_minutes: int = 30` ⇒ 过期是必然事件，不是边缘情况",
     "pcs-frontend/src/pages/routeWrappers.tsx:85-86 — `    const token = useAuth.getState().accessToken;` / `    const authorization = token ? `Bearer ${token}` : DEV_BEARER;` ⇒ 过期 token 仍被当作有效 token 发出",
-    "pcs-frontend/src/pages/routeWrappers.tsx:85-92 — `const token = useAuth.getState().accessToken; const authorization = token ? `Bearer ${token}` : DEV_BEARER; void fetch(path, { headers: { Authorization: authorization } }).then((r) => (r.ok ? r.json() : null)) … .catch(() => {/* offline / unhandled: keep empty fixtures */})`",
     "pcs-frontend/src/api/client.ts:6-14 — canonical 通道：`api = axios.create({ baseURL: '/api/v1' })` + 请求拦截器 `config.headers.Authorization = `Bearer ${token}``",
     "pcs-frontend/src/api/client.ts:51-66 — 响应拦截器：会话型 401 ⇒ `useAuth.getState().clearSession()` + `window.location.href = '/login'`（裸 fetch 通道完全没有这一段）",
     "pcs-frontend/src/pages/routeWrappers.tsx:107,159,169,181,185,189,212,331,335 — 9 个路由的取数都走这条裸 fetch 通道",
@@ -384,6 +375,8 @@
    ],
    "independent_reviewers": [],
    "group": "G08",
+   "fix_type": "mechanical",
+   "notes": "统一走 src/api/client.ts 的 axios（或至少区分 401 与其它错误并暴露错误态 + 超时）。",
    "validation_status": "confirmed",
    "validation_reason": "routeWrappers.tsx:87-92 folds any non-2xx into null and swallows rejections with .catch(() => {}), and routeWrappers.tsx:159-160 renders '加载中…' whenever the value is null, while the 401 handling (clearSession + redirect to /login) lives only in the axios interceptor at src/api/client.ts:51-66 that this raw fetch bypasses - so an expired 30-minute access token leaves the page stuck in the loading state with no error.",
    "protected_subject": "authorization-authentication"
@@ -402,7 +395,7 @@
     "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:31-46 — 矩阵里 5 条 403 用例（submit-approval/approval-step/audit-logs）⇒ 这些 403 在车道里都不留痕"
    ],
    "first_evidence": "pcs-backend/app/core/errors.py:45-46 — `if os.environ.get(\"PYTEST_CURRENT_TEST\"): return`",
-   "suggested_fix": null,
+   "suggested_fix": "等 #8 的目标库白名单落地之后，把 RBAC 审计的早退条件改成「当前连接的是隔离/测试库才写」（用 current_database() 或车道注入的 session factory 判定），而不是用 PCS_E2E_LANE 单点判定；在此之前不要把 PCS_E2E_LANE 当成唯一判据。车道里再加一条断言：一次 403 之后 audit_logs 里确实多了一行。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -412,6 +405,8 @@
    ],
    "independent_reviewers": [],
    "group": "G21",
+   "fix_type": "mechanical",
+   "notes": "本条依赖 #8：PCS_E2E_LANE 本身不可靠（#8 = 车道与种子没有目标库白名单），所以修法不能只把早退条件从 PYTEST_CURRENT_TEST 换成 PCS_E2E_LANE —— 那等于把审计留痕的开关绑在一个已知不可靠的变量上。",
    "protected_subject": null
   },
   {
@@ -441,6 +436,8 @@
    ],
    "independent_reviewers": [],
    "group": "G24",
+   "fix_type": "design-input",
+   "notes": "本批 4 条可复用解法要回写 docs/solutions/（CLAUDE.md 的要求），且 STATUS.md 里「已进 docs/solutions」与「本轮还没跑」这两句都要与事实一致（QA 报告其实已存在于 .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md，日期也不是 STATUS 写的 11-16）。",
    "protected_subject": null
   },
   {
@@ -457,7 +454,7 @@
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:6784-6788 — if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")"
    ],
    "first_evidence": "pcs-backend/app/api/v1/report.py:494 — return row.data_version or \"\"",
-   "suggested_fix": "让摘要有单一真源：_expected_digest 改为 `return row.data_version or (row.content_hash if not row.content_hash.startswith(PENDING_HASH_PREFIX) else \"\")`（content_hash 已是文件 sha256），或在 _finalize 的 dup 分支把 dup 的摘要一并补齐；同时把 E2E-009 的 xfail 分支改成硬断言（record_hash_digest 为 64 位 hex），并补一条「同内容复用后仍非空」的用例。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`_expected_digest` 改读 `row.content_hash or \"\"` ⇒ 老行（data_version 为 NULL）与复用行（data_version 从未写入）都直接有值，不需要回填、不需要按行龄分支。若改选 A1 的替代方案，则老行仍需一条回填或一条「读不到就明说缺失」的分支。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -467,6 +464,8 @@
    ],
    "independent_reviewers": [],
    "group": "G10",
+   "fix_type": "mechanical",
+   "notes": "与 #3 同源 ⇒ 见裁决 A1；本条的「随行龄不同」在推荐默认下自动消失（content_hash 每行都有）。",
    "validation_status": "confirmed",
    "validation_reason": "report.py:486-494 returns `row.data_version or \"\"` and report_tasks.py:107-111 returns the reused row without ever writing data_version (the same holds for the row built at report_service.py:612-618), so the externally consumed record_hash_digest field of GET /report/{id}/hash is an empty string rather than the report digest.",
    "protected_subject": "public-contract"
@@ -485,9 +484,7 @@
     "pcs-backend/app/services/import_service.py:496 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （PRO/II ⇒ list）",
     "pcs-backend/app/services/import_service.py:612 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （EXCEL ⇒ 也是 list）",
     "pcs-frontend/src/types/api.d.ts:32814-32822 — preview-streams 的 200 content 类型是 `{[key: string]: unknown}` ⇒ 生成客户端拿不到键名",
-    "pcs-backend/app/api/v1/sim_imports_query.py:360-367 — 注释「**PRO/II 导入**把 preview 存成 **list**… 而 **SIM/Excel 导入存 dict**（`{\"streams\": [...]}`）」+ `payload = imp.preview_streams_json` / `if isinstance(payload, list): return {\"streams\": payload}`",
     "pcs-backend/app/services/import_service.py:496 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**",
-    "pcs-backend/app/services/import_service.py:612 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**（两个写入方形状相同）",
     "pcs-backend/app/models/sim_import.py:95 — `preview_streams_json: Mapped[dict] = mapped_column(JSONB, default=dict)` ⇒ 注解与实际写入的 list 不符"
    ],
    "first_evidence": "pcs-backend/app/api/v1/sim_imports_query.py:325-330 — @router.get(\"/{import_id}/preview-streams\") … ) -> dict:  （无 response_model ⇒ OpenAPI 200 = {\"type\": \"object\"}）",
@@ -502,6 +499,8 @@
    ],
    "independent_reviewers": [],
    "group": "G12",
+   "fix_type": "mechanical",
+   "notes": "补 response_model（让本批统一的 {\"streams\":[...]} 形状进 OpenAPI）+ 修那句与事实相反的注释（import_service.py:496 与 :612 两处写的都是 list）。",
    "validation_status": "confirmed",
    "validation_reason": "sim_imports_query.py:325-330 declares the preview-streams endpoint with a bare `-> dict` and no response_model (so OpenAPI records only a generic object for the shape this batch normalised to {\"streams\": [...]}), and the comment at lines 361-366 is contradicted by the write sites: import_service.py:496 (PRO/II) and import_service.py:612 (EXCEL) both store a list.",
    "protected_subject": "public-contract"
@@ -521,7 +520,7 @@
     "pcs-backend/app/models/report.py:155,166 — content_hash: Mapped[str]（NOT NULL，文件哈希）vs data_version: Mapped[str | None] ⇒ 摘要本来已有专门的列"
    ],
    "first_evidence": "pcs-backend/app/workers/report_tasks.py:118 — row.data_version = digest",
-   "suggested_fix": "不要复用 data_version 装文件摘要：_expected_digest 改读 row.content_hash（PENDING 占位以 report_tasks.PENDING_HASH_PREFIX 开头则返回空串），删掉 report_tasks.py:118 的 row.data_version = digest，把 data_version 留给真正的数据版本；若审计确实需要「文件摘要 + 数据版本」两个值，则在 ReportHashResponse 上新增明确命名的字段（如 file_content_hash），而不是复用 data_version。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`row.data_version` 与 `record_hash_digest` 的语义分开 —— 审计端点改读 `row.content_hash`（report.py:480-483 已证明它等于交付文件的 sha256），`data_version` 留给「数据版本号」自己的语义，并把 report.py:487-492 的 docstring 改成与实现一致。若改选 A1 的替代方案，则必须在契约里写明「data_version 本表承载文件摘要」并登记这是临时语义。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -531,6 +530,8 @@
    ],
    "independent_reviewers": [],
    "group": "G11",
+   "fix_type": "design-input",
+   "notes": "本条是 A1 裁决要回答的问题本身：data_version 要不要承担文件摘要的语义。",
    "protected_subject": null
   },
   {
@@ -549,7 +550,7 @@
     "pcs-backend/tests/scripts/test_pytest_pg_gate.py — 守卫测试把 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件（bug-2170 的绕法）⇒ 默认的 `/tmp/pcs-pgtest-lane.lock` 路径没有被任何测试走到"
    ],
    "first_evidence": "pcs-backend/scripts/pytest_pg.sh:56-61 — `LOCK_FILE=\"${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}\"` / `exec 9>\"$LOCK_FILE\"` / `if ! flock -n 9; then` / `  echo \"FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema\" >&2` / `  exit 1` / `fi` ⇒ 只约束走进这个脚本的进程",
-   "suggested_fix": "把互斥从「脚本内的 flock」提升到「库级别的互斥」：① 让 compose 的 `migrate`/`seed` 服务也走同一个锁文件（在容器里 `flock` 同一个路径，或改成由 `scripts/pytest_pg.sh` 负责迁移）；② 锁文件移到不会被 tmp 清理的位置（如 `${TMPDIR:-/tmp}/pcs-pgtest-lane.lock` 之外的项目内路径 `.tmp/`），并在 `exec 9>` 失败时给出明确的 FAIL 而不是 shell 重定向错误；③ 守卫测试补一条「默认路径下的两条 lane 互斥」用例（用子进程实测），而不是只测覆盖后的临时路径。",
+   "suggested_fix": "把互斥从「脚本内的 flock」提升到「库级别的互斥」：① 让 compose 的 migrate/seed 服务也走同一个锁（或改成由 scripts/pytest_pg.sh 负责迁移）；② 锁文件放在每用户私有且不会被系统清理的位置（如 `${XDG_RUNTIME_DIR:-/tmp}/pcs-pgtest-lane.lock`，并先 `install -m 600 /dev/null` 建文件、拒绝符号链接），不要改用仓内 `.tmp/` —— 该目录既不在 .gitignore 里（当前 .gitignore 只有 __pycache__/.pytest_cache/.ruff_cache/.mypy_cache）也会出现在 git status 里；③ 在 `exec 9>` 失败时给出明确 FAIL 而不是 shell 重定向错误；④ 守卫测试补一条「默认路径下的两条 lane 互斥」用例（子进程实测），而不是只测覆盖后的临时路径。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -559,6 +560,8 @@
    ],
    "independent_reviewers": [],
    "group": "G22",
+   "fix_type": "design-input",
+   "notes": "锁的覆盖面要人定（compose 的 migrate/seed 能不能也走同一把锁）。",
    "protected_subject": null
   },
   {
@@ -586,6 +589,8 @@
    ],
    "independent_reviewers": [],
    "group": "G14",
+   "fix_type": "mechanical",
+   "notes": "闸门③改为「无 skip 且 passed 数 ≥ 场景数」；闸门②的收集数也可以一起断言。",
    "validation_status": "confirmed",
    "validation_reason": "scripts/pytest_pg.sh:81-86 fails the lane only when the output contains no 'N passed' at all, and scripts/pytest_e2e.sh:32-35 reuses that same gate with PG_PYTEST_MARK=e2e, so a lane where nearly all of the ~30 e2e scenarios are skipped but one passes still reports green.",
    "protected_subject": null
@@ -604,17 +609,12 @@
     "pcs-backend/app/schemas/pipe_class.py:62-63 — `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）\")`",
     "pcs-backend/app/schemas/pipe_class.py:91-93 — `mn, mx = self.dn_series_json.get(\"min\"), self.dn_series_json.get(\"max\")` / `if mn is None or mx is None or not (0 < mn <= mx): raise ValueError(\"dn_series_json 需 {min,max} 且 0<min<=max（单口径 min==max 合法）\")`",
     "pcs-backend/app/api/v1/pipe_classes.py:168-169 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)`",
-    "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `            dn_series_json={\"DN150\": 1.0},` / `            sch_series_json={\"DN150\": 40.0},` / `            source=\"E2E_SEED\",`",
-    "pcs-backend/app/schemas/pipe_class.py:77-78 — `    source: Literal[\"COMPANY_STD\", \"PROJECT\"] = Field(` ⇒ `E2E_SEED` 不在词表内",
-    "pcs-backend/app/schemas/pipe_class.py:84-93 — `    @model_validator(mode=\"after\")` / `    def _check_dn(self)` / `        if mn is None or mx is None or not (0 < mn <= max):` ⇒ 缺 {min,max} ⇒ ValueError",
-    "pcs-backend/app/schemas/pipe_class.py:65-66 — `    sch_series_json: dict[str, str] = Field(` ⇒ 值必须是字符串",
-    "pcs-backend/app/api/v1/pipe_classes.py:168 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)` ⇒ 按 id 取即序列化该行",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py（diff）— `dn_series_json={\"min\": 15.0, \"max\": 600.0},` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"},` ⇒ 产品代码那一侧刻意守住了契约，种子这一侧没有",
     "MERGE-LEAF VERIFIED pcs-backend/app/schemas/pipe_class.py:77 - `source: Literal[\"COMPANY_STD\", \"PROJECT\"]` while the seeded row uses source=\"E2E_SEED\"",
     "MERGE-LEAF VERIFIED pcs-backend/app/schemas/pipe_class.py:85-95 - the _check_dn model_validator raises unless dn_series_json carries {min,max} with 0<min<=max, and line 62 types sch_series_json as dict[str, str]; the seeded row has dn_series_json={\"DN150\": 1.0} and sch_series_json={\"DN150\": 40.0} => reading that row through PipeClassResponse raises => 500"
    ],
    "first_evidence": "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `dn_series_json={\"DN150\": 1.0},` / `sch_series_json={\"DN150\": 40.0},` / `flange_class=\"PN16\",` / `source=\"E2E_SEED\",`",
-   "suggested_fix": "把种子那一行改成契约内的形状：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\": 150, \"max\": 150}`、`sch_series_json={\"DN150\": \"40\"}`（值用字符串）；并在 tests/scripts/test_seed_e2e_flows.py 里加一条断言：种子的 PipeClass 行必须能通过 `PipeClassResponse.model_validate(row)`（这样以后 schema 一改就红）。",
+   "suggested_fix": "种子管级行按 PipeClassResponse 契约改：source 取字面量内的值（COMPANY_STD 或 PROJECT）、dn_series_json 带 {min,max} 且 0<min<=max、sch_series_json 用 dict[str, str]（契约里是 DN→Sch 壁厚映射），并在快车道加一条「按 id 取该行不 500」的断言。另见本条的 tension：改成 COMPANY_STD 会让它出现在公司管级列表（与 #2 同一个问题），需要连同列表可见性一起裁。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -625,6 +625,9 @@
    ],
    "independent_reviewers": [],
    "group": "G13",
+   "fix_type": "mechanical",
+   "notes": "本条的修法随 #2 的裁决变（种子行要不要出现在公司管级列表）⇒ 见本条的 tension。",
+   "tension": "与 #2 的张力：种子行若按 PipeClassResponse.source 的 Literal 改成 source=\"COMPANY_STD\"（契约里只有 COMPANY_STD / PROJECT），它同样会出现在公司管级列表里。测试数据出现在产品列表是否可接受需要一并裁决（种子只跑在隔离 schema / pcs_pgtest 上），可选：① 接受（隔离环境里可接受）；② 扩契约加一个 Literal（如 E2E_SEED）—— 契约面更大，且 list_company 的过滤要跟着改；③ 公司列表过滤掉种子行。不要只改种子形状而不管列表可见性。",
    "validation_status": "confirmed",
    "validation_reason": "scripts/seed_e2e_flows.py:516-519 seeds source='E2E_SEED' (not in the Literal at schemas/pipe_class.py:77-79), dn_series_json without min/max (fails _check_dn at schemas/pipe_class.py:84-93) and sch_series_json with float values against dict[str,str] (schemas/pipe_class.py:62-63), while GET /pipe-classes/{class_id} returns PipeClassResponse (api/v1/pipe_classes.py:168-185) - and the seed runs against pcs_pgtest public via docker-compose.yml:140-153 - so that id's GET must fail response validation rather than return the row.",
    "protected_subject": "public-contract"
@@ -654,6 +657,8 @@
    ],
    "independent_reviewers": [],
    "group": "G19",
+   "fix_type": "mechanical",
+   "notes": "补 lifespan 的两处启动 seed，或删掉那句撒谎的注释；两者选一，别留第三种状态。",
    "validation_status": "confirmed",
    "validation_reason": "The two production seeds live only in the lifespan at app/main.py:157-160, the lane never runs lifespan (conftest.py:265-272), and the fixture it does call (conftest.py:238 seed_flows -> scripts/seed_e2e_flows.py:698-730) contains no CoefficientService.seed_default_tables / seed_system_setting_defaults call, so the conftest comment at lines 271-272 promising the seeds are explicitly supplemented is false.",
    "protected_subject": null
@@ -683,6 +688,8 @@
    ],
    "independent_reviewers": [],
    "group": "G18",
+   "fix_type": "mechanical",
+   "notes": "隔离 session factory 要注入全局 session factory 的使用点（errors.py:51 / ws.py:77）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/conftest.py:285-289 overrides only get_db, while app/db/session.py:98-105 keeps a process-level session-factory singleton bound to settings.database_url, so non-get_db paths use a different schema than the isolated one; note the one verified such writer (app/core/errors.py:45-52) short-circuits under PYTEST_CURRENT_TEST and app/api/v1/ws.py:77 was not inspected.",
    "protected_subject": null
@@ -716,6 +723,8 @@
    ],
    "independent_reviewers": [],
    "group": "G16",
+   "fix_type": "mechanical",
+   "notes": "与 #21 同文件同主题（test_e2e_schema_parity.py），建议一次改完：把两库一致检查移出 E2E 车道（它是发布前检查），并加上「与 alembic head 比」这一条。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_schema_parity.py:57-76 is marked @pytest.mark.e2e yet derives its URLs from .env (pcs / pcs_test) rather than the lane's isolated schema, so a development-database parity check occupies an E2E lane slot and makes the lane's result depend on local dev DB state.",
    "protected_subject": null
@@ -744,6 +753,8 @@
    ],
    "independent_reviewers": [],
    "group": "G15",
+   "fix_type": "mechanical",
+   "notes": "与 #20 同文件同主题（test_e2e_schema_parity.py），建议一次改完；分在两个 triage 组只因为根因不同（一个是「比对基准不对」，一个是「不该在这个车道」）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_schema_parity.py:70-76 only asserts pcs_rev == pcs_test_rev (read via the read-only helper at lines 30-54) and never compares either against the code's head revision, so both development databases sitting on the same old revision passes the only schema gate in the lane.",
    "protected_subject": null
@@ -761,10 +772,8 @@
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-245 — `_public_snapshot` 只数 `for table in (\"users\", \"projects\", \"streams\", \"user_projects\")`",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:134-149 — 被验证的写路径只有 `POST /api/v1/projects` 一条",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:105-114 — docstring 自称『**「隔离」这句话必须被验** —— E2E 的行**不能**出现在 public schema』⇒ 断言范围与宣称范围不一致",
-    "pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-244 —— `for table in (\"users\", \"projects\", \"streams\", \"user_projects\"): out[table] = int(conn.execute(text(f\"SELECT count(*) FROM public.{table}\")).scalar_one())`",
     "pcs-backend/tests/e2e_flows/conftest.py:283-294 —— `app = create_app()`，`app.dependency_overrides[get_db] = _get_db` ⇒ **app 自己的 engine 仍指向 public**（只有被覆盖的依赖注入层走隔离 schema）",
     "pcs-backend/scripts/seed_e2e_flows.py:699-730 —— 种子写 users/projects/user_projects/streams/signature_matrices/deliverables/piping_results/report_definitions/equipment …（远多于四张表）",
-    "pcs-backend/tests/e2e_flows/test_lane_smoke.py:240 — `        for table in (\"users\", \"projects\", \"streams\", \"user_projects\"):` ⇒ only 4 tables are snapshotted",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:245-247 — `            out[table] = int(conn.execute(text(f\"SELECT count(*) FROM public.{table}\")).scalar_one())` ⇒ count(*) only, no `max(id)` (the plan required both)",
     "pcs-backend/scripts/pytest_pg.sh:66 — `  export DATABASE_URL=\"postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}\"` ⇒ during the lane the app's global engine resolves to `pcs_pgtest` PUBLIC (no search_path), while only the `get_db` override is schema-scoped",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` ⇒ a `pipe_classes` row is inserted on a request path, and `pipe_classes` is not in the guard's table list"
@@ -782,6 +791,8 @@
    ],
    "independent_reviewers": [],
    "group": "G17",
+   "fix_type": "mechanical",
+   "notes": "守卫要快照本批写的所有表，且基线取在种子**之前**。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_lane_smoke.py:130-158 takes its public-schema baseline only after the session-scoped e2e_seed fixture has already run (so seed-phase leakage is absorbed into the baseline) and exercises only POST /api/v1/projects, while _public_snapshot (lines 235-245) counts only users/projects/streams/user_projects - narrower than the docstring's claim.",
    "protected_subject": null
@@ -813,6 +824,8 @@
    ],
    "independent_reviewers": [],
    "group": "G25",
+   "fix_type": "mechanical",
+   "notes": "把跑法写进仓库（package.json 的 script 或 pcs-frontend/README），带默认值。",
    "validation_status": "confirmed",
    "validation_reason": "package.json:20 sets only VITE_ENABLE_MOCK and VITE_API_PROXY_TARGET (defaulting to the :8000 dev backend), playwright.config.ts:70 starts the real-backend server with only VITE_ENABLE_MOCK=false, and src/constants/env.ts:12-13 falls back to the placeholder project id, so VITE_PROJECT_ID is never supplied by the repository and the pages query a different project unless the runbook (kept only in the gitignored .gstack/qa-report) supplies it.",
    "protected_subject": null
@@ -842,6 +855,8 @@
    ],
    "independent_reviewers": [],
    "group": "G20",
+   "fix_type": "mechanical",
+   "notes": "守卫条件改成「拿到了非占位 project_id」而不是「选了工作区」。",
    "validation_status": "confirmed",
    "validation_reason": "DashboardPage.tsx:40 renders the panel whenever a workspace is selected and DashboardPage.tsx:8-10 still falls back to the placeholder id '00000000-0000-0000-0000-000000000001' when ws.project_id is null, so selecting a workspace without a project id reproduces exactly the 404/console-error condition the change set out to remove (precondition: a selectable workspace row with NULL project_id; the seed scripts' workspace rows were not inspected).",
    "protected_subject": null
@@ -858,7 +873,6 @@
     "spec/P10 AI预留与测试部署开发规格说明书.md:666-681 — D23…D38（P10-B 批末增补）全部登记在这份 V1.0 文件里",
     "spec/P10 AI预留与测试部署开发规格说明书.md:662 — D20（文档治理）…「开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**」…「以**仓库里这份 V1.0** 为准」",
     "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:956 — \"Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（第五部分「偏离登记」）\" ⇒ 计划要求改的是 V1.3.1 那份",
-    "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:11 — \"**Spec:** `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md` §3.2.2\"",
     "spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md:718-725 — E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响分析 / E2E-015 自定义报表执行 / E2E-016 用户权限验证 / E2E-017 AI 占位与审计 / E2E-018 Schema 一致性 ⇒ 实现口径来自这份",
     "CLAUDE.md《前端 UI 规范》：「字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。」",
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md:216-220（新增）——「⇒ ⚠️ **D20 的事实前提已变（2026-11-13 实测）**：**`spec/PCS-SPEC-P10 V1.3.1 …md` 在仓库里存在**（59.3K · §3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条）⇒ ⇒ 「V1.3.1 不存在」**不成立** ⇒ ⇒ **以 V1.3.1 为准**… ⇒ 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）⇒ ⇒ **别拿 V1.0 那份当准**。」",
@@ -878,6 +892,8 @@
    ],
    "independent_reviewers": [],
    "group": "G23",
+   "fix_type": "design-input",
+   "notes": "先裁「哪份 SPEC 是准」（仓里 V1.0 与 V1.3.1 两份都在，V1.0 的 D20 说 V1.3.1 不存在，本批说以 V1.3.1 为准），再把偏离登记写进权威那份。",
    "protected_subject": null
   },
   {
@@ -905,6 +921,8 @@
    ],
    "independent_reviewers": [],
    "group": "G27",
+   "fix_type": "advisory",
+   "notes": "advisory：读改写不对称目前没有现有消费者踩到（前端消费点已空值安全）⇒ 报告级登记即可。",
    "protected_subject": null
   },
   {
@@ -920,8 +938,6 @@
     "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:93 — `    pg_body = PG_SCRIPT.read_text(encoding=\"utf-8\")` ⇒ 未剥注释（与同文件 `_body()` 的做法相反）",
     "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:49-50 — `    ⚠️ 注释里提到 `uv run pytest` / `DATABASE_URL` 是**说明** ⇒ 断「脚本有没有做这件事」必须断**可执行部分**` ⇒ 同族教训已在本文件内",
     "pcs-backend/scripts/pytest_pg.sh（diff）— `if ! flock -n 9; then` ⇒ 真正被依赖的是 `-n`（抢不到就退出），守卫并不验证这一点",
-    "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:94-98 —— `pg_body = PG_SCRIPT.read_text(encoding=\"utf-8\")` / `assert \"flock\" in pg_body` / `assert \"pytest_pg.sh\" in _body()`（**未剥注释**，且只断子串）",
-    "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:32-43 —— 同文件的 `_body()` 会剥掉注释 ⇒ 同一文件两套口径",
     "pcs-backend/scripts/pytest_pg.sh:56-61 —— `exec 9>\"$LOCK_FILE\"` / `if ! flock -n 9; then … exit 1; fi`（真正要守的是 `-n` 与 fd 持有）",
     "pcs-backend/tests/scripts/test_pytest_pg_gate.py:106-114 —— `assert \"pytest -m pg\" in body` / `assert body.count(\"uv run pytest\") == 2, \"脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；多出来的说明有人加了第二条路径\"`（只匹配 `uv run pytest` 一个字面量）",
     "pcs-backend/scripts/pytest_pg.sh:4-5 —— 「⚠️ **不得**在 README/CLAUDE.md 里教『也可以直接 DATABASE_URL=... pytest』—— 那会重新引入『多条路径做同一件事』的分叉」⇒ 该分叉是被承认的真实风险"
@@ -939,6 +955,8 @@
    ],
    "independent_reviewers": [],
    "group": "G26",
+   "fix_type": "mechanical",
+   "notes": "守卫测试本身要改断言方式（剥注释 + 断命令形状），不是加新用例。",
    "validation_status": "confirmed",
    "validation_reason": "tests/scripts/test_pytest_e2e_gate.py:93-96 asserts on PG_SCRIPT.read_text() verbatim (the same file's _body() at lines 32-43 exists precisely to strip comments) and only checks for the substring 'flock', so a comment mentioning flock, or a blocking 'flock 9' without -n, would still satisfy the guard.",
    "protected_subject": null
@@ -946,7 +964,7 @@
  ],
  "pre_existing_findings": [
   {
-   "#": null,
+   "#": "PE-1",
    "title": "契约基线只是『与当前一致』的同步锁，没有已发布契约锚点",
    "severity": "P2",
    "confidence": 75,
@@ -969,7 +987,9 @@
    ],
    "independent_reviewers": [],
    "group": "G28",
-   "protected_subject": null
+   "fix_type": "advisory",
+   "protected_subject": null,
+   "excluded_from_verdict": "pre-existing: 这个形状在本批之前就存在（基线只是一道「与当前一致」的同步锁，不是已发布契约锚点）⇒ 不计入本批的 verdict；本批新增的破坏性契约变更（case_type 必填→可空）仍需要一次版本/弃用说明"
   }
  ],
  "rejected_findings": [],
@@ -1004,11 +1024,7 @@
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)`（在 `db.add(row)` + flush 之前）",
     "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` ⇒ 撞主键即唯一约束违例",
     "pcs-backend/app/api/v1/pipe.py:213-216 — `    try:` / `        row, outlet = await persist_pipe_chain_result(db, chain_inp, chain_res)` / `    except PcsError as e:` / `        raise _to_http(e) from e` ⇒ IntegrityError 不在 catch 范围 ⇒ 500",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:105-111 — `exists = (await db.execute(select(PipeClass.class_id).where(PipeClass.class_id == class_id))).scalar_one_or_none()` / `if exists is not None: return`",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:112-138 — `db.add(PipeClass(class_id=class_id, ...))` / `await db.flush()`（无 savepoint、无 IntegrityError 兜底）",
     "pcs-backend/scripts/seed_e2e_flows.py:257-269 — 本批新脚本的house pattern：`async with db.begin_nested(): db.add(entity); await db.flush()` / `except IntegrityError: winner = (await db.execute(match)).scalar_one_or_none()`（产品代码这段没照抄）",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:95-133 — `exists = (await db.execute(select(PipeClass.class_id)...)).scalar_one_or_none(); if exists is not None: return; db.add(PipeClass(...)); await db.flush()`（无 savepoint、无 IntegrityError 处理）",
-    "pcs-backend/app/models/config_domain.py:237 — `class_id: Mapped[str] = mapped_column(String(50), primary_key=True)`（唯一约束来源）",
     "pcs-backend/scripts/seed_e2e_flows.py:243-270 — `_get_or_create` 的 house pattern（`async with db.begin_nested()` + IntegrityError 后重读）⇒ 同仓同批已有正确写法",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 — 注释自认 `source=\"COMPANY_STD\"` 是为了『在下游列表里看不见就断不了断言』；而 `app/services/pipe_class_service.py:136-148` 的 `list_company` 固定过滤 `source == 'COMPANY_STD'` ⇒ 该假标准会出现在产品列表里"
    ],
@@ -1025,6 +1041,9 @@
    ],
    "independent_reviewers": [],
    "group": "G06",
+   "fix_type": "mechanical",
+   "notes": "本条的修法与 #2 互斥依赖，先裁 #2 再动代码。",
+   "blocked_by": "#2 的裁决：若 #2 裁决为「改成数据迁移种一行」，本条（并发 savepoint）随之作废；只有当运行时兜底保留时才需要它。",
    "validation_status": "confirmed",
    "validation_reason": "pipe_chain_persist.py:105-138 performs a bare SELECT-then-INSERT of the CS-STD placeholder with no begin_nested()/IntegrityError branch, and pipe.py:213-216 catches only PcsError, so two concurrent first-time POST /api/v1/pipe/calc-chain requests would let the loser take a PK IntegrityError that escapes as a 500; the code is new in this batch and no savepoint guards it (precondition: concurrent requests before the placeholder row is committed; incidence not measured).",
    "protected_subject": "concurrency",
@@ -1046,16 +1065,13 @@
     "pcs-backend/app/services/report/report_service.py:606-610 — `    existing = (await db.execute(select(ReportFile).where(ReportFile.content_hash == kw[\"content_hash\"]))).scalar_one_or_none()` ⇒ 即使命中旧行，`content_hash == digest` 的行照样存在 ⇒ dup 照样命中",
     "pcs-backend/app/api/v1/report.py:308 — `        record_hash_digest=_expected_digest(row),` ⇒ 审计端点读的是 `row.data_version or \"\"`",
     "pcs-backend/tests/e2e_flows/test_e2e_report.py — E2E-009 仍是 `pytest.xfail`（条件是 `record_hash_digest` 为空）⇒ 车道自己记录着这条需求仍未满足",
-    "pcs-backend/app/workers/report_tasks.py:109-111 — `await db.delete(row)` / `await db.flush()` / `return str(dup.report_file_id)`（dup 分支先于 data_version 赋值 return）",
-    "pcs-backend/app/workers/report_tasks.py:113-118 — `row.content_hash = digest` … `row.data_version = digest`（被上面那条 return 挡住，永不执行）",
-    "pcs-backend/app/services/report/report_service.py:612-618 — `row = ReportFile(report_file_id=..., project_id=..., content_hash=kw[\"content_hash\"], file_path=kw[\"relpath\"], file_format=kw[\"fmt\"], size_bytes=kw[\"size\"], status=\"SUCCEEDED\", has_assumption_page=kw[\"has_assumption\"])` —— 真正存活的那一行没有 data_version",
     "pcs-backend/app/api/v1/report.py:494 — `return row.data_version or \"\"`（端点读的仍是空串）",
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 — `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165 … 根因未完全隔离）\")`（本批自己的用例仍 xfail）",
     "MERGE-LEAF VERIFIED pcs-backend/app/workers/report_tasks.py:101-111 - the dup query runs first and `if dup is not None:` deletes the placeholder row and returns at line 111, so line 118 (`row.data_version = digest`) is unreachable on that path",
     "MERGE-LEAF VERIFIED pcs-backend/app/services/report/report_service.py:420 generate -> 428 store_rendered -> 513 _upsert_report_file -> 612-618 builds a ReportFile with content_hash=kw['content_hash'] and NO data_version; report_tasks.py:167-173 calls generate before _finalize, so the dup query always matches that row and the surviving row never gets data_version => GET /report/{id}/hash keeps returning an empty string"
    ],
    "first_evidence": "pcs-backend/app/workers/report_tasks.py:107-111 — `    if dup is not None:` / `        # 同内容已存在（bug-155 修好后的复用语义）：删掉自己的占位行，返回已有行。` / `        await db.delete(row)` / `        await db.flush()` / `        return str(dup.report_file_id)`",
-   "suggested_fix": "把 `data_version` 写到**活下来的那一行**上，而不是写占位行：`report_service._upsert_report_file`（report_service.py:612-618）构造 `ReportFile(...)` 时补 `data_version=kw[\"content_hash\"]`（同一处也修好 `report_builder_tasks.py:227` 那条路径）；同时在 `_finalize` 的 dup 分支里，于 `return str(dup.report_file_id)` 之前补 `dup.data_version = digest` 以覆盖「命中旧行」的情形。假设：`data_version` 的语义就是内容指纹（依 report.py:487-494 的 docstring）。验证：把 E2E-009 的 `pytest.xfail` 去掉并断言 `record_hash_digest == content_hash`。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`_expected_digest`（report.py:486-494）改读 `row.content_hash or \"\"`（report.py:480-483 已证明 content_hash 就是交付文件的 sha256），并删掉 report_tasks.py:118 那行不可达的 `row.data_version = digest`；同时把 report.py:487-492 的 docstring 改成与实现一致。若改选 A1 的替代方案，则改成把 digest 写到**存活的那一行**（report_service._upsert_report_file 建行时一并写 + _finalize 的 dup 分支补写），并明确标注那是临时兼容（老行需另补回填）。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -1066,6 +1082,8 @@
    ],
    "independent_reviewers": [],
    "group": "G01",
+   "fix_type": "mechanical",
+   "notes": "本条与 #12 同源（审计端点读哪一列）⇒ 先做裁决 A1，再按裁决改；本条自己的 suggested_fix 已写成与 #12 一致的版本，不要与旧版 #14 的改法混用。",
    "validation_status": "confirmed",
    "validation_reason": "report_service.py:513-517/612-618 already creates the row with content_hash=digest (no data_version), so report_tasks.py:101-111 always finds dup != None and returns at line 111, making the newly added `row.data_version = digest` at report_tasks.py:118 unreachable and leaving data_version NULL, so GET /report/{id}/hash (_expected_digest, report.py:494) keeps returning an empty string for generated reports.",
    "protected_subject": "public-contract"
@@ -1083,14 +1101,12 @@
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:96-100 — `download = await e2e_client.get(...); assert download.status_code == 200; assert len(download.content) > 0`（在 xfail 之后 ⇒ 空哈希时永不执行）",
     "pcs-backend/scripts/pytest_pg.sh:83-86 — 闸门只 grep `[1-9][0-9]* passed` ⇒ xfailed 不影响闸门结论",
     "pcs-backend/app/workers/report_tasks.py:114-118 — 本批的修复 `row.data_version = digest`（回归 ⇒ 回到 xfailed ⇒ 车道仍绿）",
-    "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 —— `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")`",
-    "pcs-backend/app/workers/report_tasks.py:118 —— `row.data_version = digest`（本批新增的唯一生产修复）",
     ".superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md:365 —— 「⚠️ **根因未完全隔离**（赋值执行、库里仍 NULL）⇒ E2E-009 标 `xfail` ⇒ **TODO-158**」",
     "pcs-backend/scripts/pytest_pg.sh:83 —— 闸门③ 只 grep 「[1-9][0-9]* passed」，xfailed 不计入 ⇒ 少一条断言不会让车道变红",
     "MERGE-LEAF VERIFIED pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 - `pytest.xfail(...)` is called imperatively inside the test body, so it raises and aborts the test; the download assertions at lines 96-100 never run when the hash is empty"
    ],
    "first_evidence": "pcs-backend/tests/e2e_flows/test_e2e_report.py:90-94 — `if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")`（命令式 xfail ⇒ 中止后续语句）",
-   "suggested_fix": null,
+   "suggested_fix": "把 E2E-009 拆成两条用例：(a) 对 record_hash_digest 做硬断言 —— 断言内容随裁决 A1 而定：若审计端点改读 content_hash，则断言 record_hash_digest == 该行的 content_hash（且非空）；若保留 data_version 承载，则断言它是非空的 64 位 hex；(b) 下载段（200 + 字节数 > 0）单独成用例，不再被上面的 xfail 一起中止。不要用命令式 `pytest.xfail()` 放在用例顶层（它会中止后续所有语句）。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -1101,6 +1117,8 @@
    ],
    "independent_reviewers": [],
    "group": "G02",
+   "fix_type": "mechanical",
+   "notes": "本条的硬断言断什么，取决于裁决 A1（见本条的 suggested_fix）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_report.py:90-94 calls imperative pytest.xfail() (which aborts the test) when record_hash_digest is falsy, so the download assertions at lines 96-100 never execute, while scripts/pytest_pg.sh:83 only greps for 'N passed' so an xfailed scenario leaves the lane green.",
    "protected_subject": null
@@ -1120,7 +1138,6 @@
     "pcs-backend/app/api/v1/mock_auth.py:14-18 — `MOCK_USERS = {\"alice\": \"DESIGNER\", \"bob\": \"CHECKER\", \"carol\": \"APPROVER\", \"dan\": \"SYSTEM_ADMIN\"}` ⇒ bob/carol 过不了角色闸，dan 走 SYSTEM_ADMIN bypass ⇒ mock 登录的四个用户**没有一个**能表达『角色够但没授权行』",
     "构造：删掉 streams.py:410 的项目守卫 → bob 请求 flows 项目仍返回 403（角色闸）→ nonexistent 仍 403 → 断言仍通过 ⇒ 用例对被它命名的缺陷不敏感",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:133-134 — `// ⚠️ **具体码取决于闸门顺序**（物流列表端点先过**角色闸** ⇒ CHECKER ⇒ 403）` / `// ⇒ ⇒ 断「两个码相等」` ⇒ 短路被观察到但被接受为合格断言",
-    "pcs-backend/app/api/v1/streams.py:407 — `    require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\")` ⇒ CHECKER 在项目守卫之前被 403 拦下",
     "pcs-backend/app/api/v1/config.py:96-98 — `        raise HTTPException(` / `            status_code=403,` ⇒ 角色闸的确抛 403",
     "pcs-backend/app/api/v1/mock_auth.py:15-18 — `    \"alice\": \"DESIGNER\",` / `    \"bob\": \"CHECKER\",` ⇒ 被测身份是 CHECKER",
     "pcs-backend/app/api/v1/streams.py:410-413 — `    await check_project_access_or_404(` ⇒ 该分支在这条用例里从未执行",
@@ -1138,6 +1155,8 @@
    ],
    "independent_reviewers": [],
    "group": "G03",
+   "fix_type": "design-input",
+   "notes": "autofix_class=manual：换账号还是换断言形状，要先定「越权用例该断 403 还是断 404」这一步的意图（按计划 §Review Focus 3，应断 404 ⇒ 需要一个能过角色闸但无授权行的账号）。",
    "validation_status": "confirmed",
    "validation_reason": "mock_auth.py:14-19 gives bob the CHECKER role and streams.py:407 runs require_roles(user, 'DESIGNER','PROCESS_CONTROLLER','SYSTEM_ADMIN') before check_project_access_or_404 at streams.py:410, so both the cross-project and the nonexistent-project requests return 403 and the assertion at real_backend_flows.spec.ts:144 compares 403 == 403, never exercising the cross-project 404 path.",
    "protected_subject": "authorization-authentication"
@@ -1160,15 +1179,13 @@
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:63-69（新增）——「⚠️ **只断「路由可达」**（渲染了 + 没被弹回 /login）—— ⚠️ 「控制台无 error / 无 4xx-5xx」**不作为断言** ⇒ 因为仓里有一批 **前端调用了不存在端点**的页面（`/pipe/line-list` · `/pms` · `/bedd`）… ⇒ 改成**打印出来**（进 QA 报告）⇒ 等那些端点补齐后，**再把断言加回来**。」，其后仅剩 `expect(results.every((r) => r.root)).toBe(true)` 与「没被弹回 /login」两条断言",
     "TODOS.md（新增）TODO-159：「真后端通道（`--project=real-backend`）逐条走完 **44 条路由** ⇒ 三处请求 **404**」· TODO-160：「`/common/properties` · `/common/stress` · `/common/toxicity` 三个页面**首屏**就发一个**空查询** ⇒ 后端 **422**」——两者均标注「归属：P10-C」延后，未按闸门做严重度分类",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 — `// ⚠️ **只断「路由可达」**` … `// ⇒ ⇒ 改成**打印出来**（进 QA 报告）⇒` / `// ⇒ ⇒ 等那些端点补齐后，**再把断言加回来**。`",
-    "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-73 — `  expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true);` ⇒ 控制台 error / 4xx 只被收集、未被断言",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:38-43 — `  const consoleErrors: string[] = [];` / `  const badResponses: string[] = [];` ⇒ 收集了却不用",
     "TODOS.md（diff）— `## TODO-159: 前端调用了**不存在的端点**的 3 个页面（真后端下打不开数据） 🟠` ⇒ 「再断言」目前只登记在 TODO，无钉子",
-    "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:70-74 —— `expect(results.every((r) => r.root), '有路由没渲染出来').toBe(true); expect(results.filter((r) => r.redirected), …).toEqual([]);`",
     "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:64-69 —— 注释自陈「『控制台无 error / 无 4xx-5xx』**不作为断言**」",
     "TODOS.md TODO-159 / TODO-160 —— 三个页面调不存在的端点、三个 common 页首屏 422（扫描本该发现的正是这两类）"
    ],
    "first_evidence": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts:56 — `const root = (await realPage.locator('#root').count()) > 0;`",
-   "suggested_fix": null,
+   "suggested_fix": "把『#root 存在』换成页面专有特征，两条路径并用：(a) 有种子专有值的页面（物流一览 / 交付物 / 签署矩阵 / 设备一览 等 5 条 UI 流覆盖的页面）断「种子专有字符串出现在页面上」（项目 id、流名 E2E-FLOW-S-001、交付物标题 E2E 流程级种子计算书、矩阵名 E2E_FLOWS_RECORD_3_LEVEL）；(b) 其余页面断「页面标题或空态文案出现 且 #root 下有非空子节点」—— 这抓得到白屏，抓不到「渲染了但拿不到数据」，那一类留给 console error / 4xx 断言来兜。另加两条全局断言：整轮扫描下来 console error 为空、且 4xx/5xx 列表只包含显式白名单里的页面（TODO-159/160 的 6 个页面按页面清单写死，其余一律红）。白名单的页面清单要人裁定（因此本条是 manual）。",
    "autofix_class": "manual",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -1181,6 +1198,8 @@
    ],
    "independent_reviewers": [],
    "group": "G04",
+   "fix_type": "design-input",
+   "notes": "autofix_class=manual：45 条路由里哪些页面允许有 4xx（TODO-159/160 的既有缺口）要人裁定白名单。",
    "validation_status": "confirmed",
    "validation_reason": "real_backend_route_sweep.spec.ts:56 counts '#root', which index.html:9 renders as a static div always present, so the assertion at line 70 is vacuously true, and lines 60-69 only print console errors and 4xx/5xx responses instead of asserting them.",
    "protected_subject": null
@@ -1197,8 +1216,6 @@
     "pcs-backend/tests/e2e_flows/conftest.py:95-100 — `url = os.environ.get(\"DATABASE_URL\", \"\"); if not url.startswith(\"postgres\"): raise RuntimeError(...)` ⇒ 只查协议，不查库名",
     "pcs-backend/scripts/pytest_e2e.sh:32-35 — 正确做法只在薄封装里（`export PCS_E2E_LANE=1` + exec pytest_pg.sh，无条件覆写 DATABASE_URL 到 pcs_pgtest）⇒ 绕过脚本就没有这层保护",
     "pcs-backend/tests/e2e_flows/conftest.py:164-187 — 拿到 URL 就在那个库里 `CREATE SCHEMA` + 子进程 `alembic upgrade head`",
-    "pcs-backend/tests/e2e_flows/conftest.py:93-101 —— `url = os.environ.get(\"DATABASE_URL\", \"\")` / `if not url.startswith(\"postgres\"): raise RuntimeError(...)`（**只查协议，不查库名**）",
-    "pcs-backend/tests/e2e_flows/conftest.py:168-191 —— `CREATE SCHEMA` / `alembic upgrade head` / `DROP SCHEMA ... CASCADE` 全部作用在 `_lane_url()` 返回的那个库上",
     "pcs-backend/scripts/pytest_pg.sh:64-67 —— 库名只在脚本层被钉死（`PG_DB_NAME=\"${PG_DB_NAME:-pcs_pgtest}\"`）⇒ 车道自身无此断言",
     "pcs-backend/scripts/seed_e2e_flows.py:751 — `    factory = get_async_session_factory()` (no database-name check before writing)",
     "pcs-backend/scripts/seed_e2e_flows.py:748 — `async def _main(reset: bool) -> None:` / docstring usage lines 3729-3730 — `    uv run python scripts/seed_e2e_flows.py            # 幂等灌种子` (the documented invocation)",
@@ -1206,9 +1223,7 @@
     "pcs-backend/scripts/seed_e2e_flows.py:388-392 — `AUTHORIZED_USERNAMES` / `USERNAME_TO_PROJECT_ROLE` incl. `\"alice\": \"DESIGNER\"` ⇒ the seed writes project authorization rows",
     "pcs-backend/app/db/session.py:66 — `            get_settings().database_url,` ⇒ the factory resolves the env var, falling back to `.env` (the dev database `pcs` per repo CLAUDE.md)",
     "docker-compose.yml:765 — `       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest` ⇒ the URL is pinned only for the compose service, not inside the script",
-    "pcs-backend/tests/e2e_flows/conftest.py:93-101 — `def _lane_url() -> str:` … `    if not url.startswith(\"postgres\"):` / `        raise RuntimeError(` ⇒ only the URL scheme is checked; the database name is never inspected",
     "pcs-backend/tests/e2e_flows/conftest.py:76 — `    if os.environ.get(LANE_ENV_VAR) == \"1\":` ⇒ the whole 'don't touch a non-test DB' property is delegated to one env var (`PCS_E2E_LANE`)",
-    "pcs-backend/tests/e2e_flows/conftest.py:4719-4738 (diff) — the fixture runs `CREATE SCHEMA` and `subprocess.run([sys.executable, \"-m\", \"alembic\", \"upgrade\", \"head\"], … env={**os.environ, \"DATABASE_URL\": _scoped_url(url, schema)})` ⇒ DDL is executed against whatever database the URL names",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:7399-7421 — `def test_e2e_items_are_skipped_without_the_lane_flag():` ⇒ the only guard test asserts a skip marker is added; nothing asserts the lane refuses a non-test database",
     "pcs-backend/scripts/seed_e2e_flows.py:763 — `    parser = argparse.ArgumentParser(description=\"灌流程级 E2E 种子数据（幂等）\")` ⇒ 参数里没有任何数据库目标约束",
     "grep 结果：`DATABASE_URL|pcs_pgtest|pcs_test|current_database` 在 scripts/seed_e2e_flows.py 上 0 命中 ⇒ 脚本不检查自己连的是哪个库",
@@ -1230,6 +1245,8 @@
    ],
    "independent_reviewers": [],
    "group": "G09",
+   "fix_type": "mechanical",
+   "notes": "fail-closed：库名不在白名单 ⇒ 非零退出，不要 warning。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/conftest.py:93-101 accepts any DATABASE_URL whose scheme starts with 'postgres' and then (conftest.py:164-187) creates a schema, runs alembic upgrade head and seeds rows in that database, so a manually exported dev-DB URL would be migrated and seeded there; the whitelist exists only in scripts/pytest_pg.sh:66 (precondition: PCS_E2E_LANE=1 with DATABASE_URL pointing at a shared/dev database; incidence not measured).",
    "protected_subject": "data-loss",
@@ -1249,7 +1266,6 @@
     "pcs-frontend/src/api/client.ts:54-60 — `    if (err.response?.status === 401) {` … `        useAuth.getState().clearSession();` … `          window.location.href = '/login';` ⇒ 只有走 axios 的请求才有「401 ⇒ 回登录页」，`useFetch` 完全绕过",
     "pcs-backend/app/core/config.py:46 — `    access_token_expire_minutes: int = 30` ⇒ 过期是必然事件，不是边缘情况",
     "pcs-frontend/src/pages/routeWrappers.tsx:85-86 — `    const token = useAuth.getState().accessToken;` / `    const authorization = token ? `Bearer ${token}` : DEV_BEARER;` ⇒ 过期 token 仍被当作有效 token 发出",
-    "pcs-frontend/src/pages/routeWrappers.tsx:85-92 — `const token = useAuth.getState().accessToken; const authorization = token ? `Bearer ${token}` : DEV_BEARER; void fetch(path, { headers: { Authorization: authorization } }).then((r) => (r.ok ? r.json() : null)) … .catch(() => {/* offline / unhandled: keep empty fixtures */})`",
     "pcs-frontend/src/api/client.ts:6-14 — canonical 通道：`api = axios.create({ baseURL: '/api/v1' })` + 请求拦截器 `config.headers.Authorization = `Bearer ${token}``",
     "pcs-frontend/src/api/client.ts:51-66 — 响应拦截器：会话型 401 ⇒ `useAuth.getState().clearSession()` + `window.location.href = '/login'`（裸 fetch 通道完全没有这一段）",
     "pcs-frontend/src/pages/routeWrappers.tsx:107,159,169,181,185,189,212,331,335 — 9 个路由的取数都走这条裸 fetch 通道",
@@ -1267,6 +1283,8 @@
    ],
    "independent_reviewers": [],
    "group": "G08",
+   "fix_type": "mechanical",
+   "notes": "统一走 src/api/client.ts 的 axios（或至少区分 401 与其它错误并暴露错误态 + 超时）。",
    "validation_status": "confirmed",
    "validation_reason": "routeWrappers.tsx:87-92 folds any non-2xx into null and swallows rejections with .catch(() => {}), and routeWrappers.tsx:159-160 renders '加载中…' whenever the value is null, while the 401 handling (clearSession + redirect to /login) lives only in the axios interceptor at src/api/client.ts:51-66 that this raw fetch bypasses - so an expired 30-minute access token leaves the page stuck in the loading state with no error.",
    "protected_subject": "authorization-authentication"
@@ -1285,7 +1303,7 @@
     "pcs-backend/tests/e2e_flows/test_e2e_report.py:6784-6788 — if not digest.json().get(\"record_hash_digest\"): pytest.xfail(\"审计哈希端点在生成的报表上恒返回空串（bug-2165…）\")"
    ],
    "first_evidence": "pcs-backend/app/api/v1/report.py:494 — return row.data_version or \"\"",
-   "suggested_fix": "让摘要有单一真源：_expected_digest 改为 `return row.data_version or (row.content_hash if not row.content_hash.startswith(PENDING_HASH_PREFIX) else \"\")`（content_hash 已是文件 sha256），或在 _finalize 的 dup 分支把 dup 的摘要一并补齐；同时把 E2E-009 的 xfail 分支改成硬断言（record_hash_digest 为 64 位 hex），并补一条「同内容复用后仍非空」的用例。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`_expected_digest` 改读 `row.content_hash or \"\"` ⇒ 老行（data_version 为 NULL）与复用行（data_version 从未写入）都直接有值，不需要回填、不需要按行龄分支。若改选 A1 的替代方案，则老行仍需一条回填或一条「读不到就明说缺失」的分支。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -1295,6 +1313,8 @@
    ],
    "independent_reviewers": [],
    "group": "G10",
+   "fix_type": "mechanical",
+   "notes": "与 #3 同源 ⇒ 见裁决 A1；本条的「随行龄不同」在推荐默认下自动消失（content_hash 每行都有）。",
    "validation_status": "confirmed",
    "validation_reason": "report.py:486-494 returns `row.data_version or \"\"` and report_tasks.py:107-111 returns the reused row without ever writing data_version (the same holds for the row built at report_service.py:612-618), so the externally consumed record_hash_digest field of GET /report/{id}/hash is an empty string rather than the report digest.",
    "protected_subject": "public-contract"
@@ -1313,9 +1333,7 @@
     "pcs-backend/app/services/import_service.py:496 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （PRO/II ⇒ list）",
     "pcs-backend/app/services/import_service.py:612 — preview_streams_json=preview_dict.get(\"preview_streams\", []), （EXCEL ⇒ 也是 list）",
     "pcs-frontend/src/types/api.d.ts:32814-32822 — preview-streams 的 200 content 类型是 `{[key: string]: unknown}` ⇒ 生成客户端拿不到键名",
-    "pcs-backend/app/api/v1/sim_imports_query.py:360-367 — 注释「**PRO/II 导入**把 preview 存成 **list**… 而 **SIM/Excel 导入存 dict**（`{\"streams\": [...]}`）」+ `payload = imp.preview_streams_json` / `if isinstance(payload, list): return {\"streams\": payload}`",
     "pcs-backend/app/services/import_service.py:496 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**",
-    "pcs-backend/app/services/import_service.py:612 — `preview_streams_json=preview_dict.get(\"preview_streams\", [])` ⇒ **list**（两个写入方形状相同）",
     "pcs-backend/app/models/sim_import.py:95 — `preview_streams_json: Mapped[dict] = mapped_column(JSONB, default=dict)` ⇒ 注解与实际写入的 list 不符"
    ],
    "first_evidence": "pcs-backend/app/api/v1/sim_imports_query.py:325-330 — @router.get(\"/{import_id}/preview-streams\") … ) -> dict:  （无 response_model ⇒ OpenAPI 200 = {\"type\": \"object\"}）",
@@ -1330,6 +1348,8 @@
    ],
    "independent_reviewers": [],
    "group": "G12",
+   "fix_type": "mechanical",
+   "notes": "补 response_model（让本批统一的 {\"streams\":[...]} 形状进 OpenAPI）+ 修那句与事实相反的注释（import_service.py:496 与 :612 两处写的都是 list）。",
    "validation_status": "confirmed",
    "validation_reason": "sim_imports_query.py:325-330 declares the preview-streams endpoint with a bare `-> dict` and no response_model (so OpenAPI records only a generic object for the shape this batch normalised to {\"streams\": [...]}), and the comment at lines 361-366 is contradicted by the write sites: import_service.py:496 (PRO/II) and import_service.py:612 (EXCEL) both store a list.",
    "protected_subject": "public-contract"
@@ -1359,6 +1379,8 @@
    ],
    "independent_reviewers": [],
    "group": "G14",
+   "fix_type": "mechanical",
+   "notes": "闸门③改为「无 skip 且 passed 数 ≥ 场景数」；闸门②的收集数也可以一起断言。",
    "validation_status": "confirmed",
    "validation_reason": "scripts/pytest_pg.sh:81-86 fails the lane only when the output contains no 'N passed' at all, and scripts/pytest_e2e.sh:32-35 reuses that same gate with PG_PYTEST_MARK=e2e, so a lane where nearly all of the ~30 e2e scenarios are skipped but one passes still reports green.",
    "protected_subject": null
@@ -1377,17 +1399,12 @@
     "pcs-backend/app/schemas/pipe_class.py:62-63 — `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）\")`",
     "pcs-backend/app/schemas/pipe_class.py:91-93 — `mn, mx = self.dn_series_json.get(\"min\"), self.dn_series_json.get(\"max\")` / `if mn is None or mx is None or not (0 < mn <= mx): raise ValueError(\"dn_series_json 需 {min,max} 且 0<min<=max（单口径 min==max 合法）\")`",
     "pcs-backend/app/api/v1/pipe_classes.py:168-169 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)`",
-    "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `            dn_series_json={\"DN150\": 1.0},` / `            sch_series_json={\"DN150\": 40.0},` / `            source=\"E2E_SEED\",`",
-    "pcs-backend/app/schemas/pipe_class.py:77-78 — `    source: Literal[\"COMPANY_STD\", \"PROJECT\"] = Field(` ⇒ `E2E_SEED` 不在词表内",
-    "pcs-backend/app/schemas/pipe_class.py:84-93 — `    @model_validator(mode=\"after\")` / `    def _check_dn(self)` / `        if mn is None or mx is None or not (0 < mn <= max):` ⇒ 缺 {min,max} ⇒ ValueError",
-    "pcs-backend/app/schemas/pipe_class.py:65-66 — `    sch_series_json: dict[str, str] = Field(` ⇒ 值必须是字符串",
-    "pcs-backend/app/api/v1/pipe_classes.py:168 — `@router.get(\"/pipe-classes/{class_id}\", response_model=PipeClassResponse)` ⇒ 按 id 取即序列化该行",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py（diff）— `dn_series_json={\"min\": 15.0, \"max\": 600.0},` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"},` ⇒ 产品代码那一侧刻意守住了契约，种子这一侧没有",
     "MERGE-LEAF VERIFIED pcs-backend/app/schemas/pipe_class.py:77 - `source: Literal[\"COMPANY_STD\", \"PROJECT\"]` while the seeded row uses source=\"E2E_SEED\"",
     "MERGE-LEAF VERIFIED pcs-backend/app/schemas/pipe_class.py:85-95 - the _check_dn model_validator raises unless dn_series_json carries {min,max} with 0<min<=max, and line 62 types sch_series_json as dict[str, str]; the seeded row has dn_series_json={\"DN150\": 1.0} and sch_series_json={\"DN150\": 40.0} => reading that row through PipeClassResponse raises => 500"
    ],
    "first_evidence": "pcs-backend/scripts/seed_e2e_flows.py:516-519 — `dn_series_json={\"DN150\": 1.0},` / `sch_series_json={\"DN150\": 40.0},` / `flange_class=\"PN16\",` / `source=\"E2E_SEED\",`",
-   "suggested_fix": "把种子那一行改成契约内的形状：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\": 150, \"max\": 150}`、`sch_series_json={\"DN150\": \"40\"}`（值用字符串）；并在 tests/scripts/test_seed_e2e_flows.py 里加一条断言：种子的 PipeClass 行必须能通过 `PipeClassResponse.model_validate(row)`（这样以后 schema 一改就红）。",
+   "suggested_fix": "种子管级行按 PipeClassResponse 契约改：source 取字面量内的值（COMPANY_STD 或 PROJECT）、dn_series_json 带 {min,max} 且 0<min<=max、sch_series_json 用 dict[str, str]（契约里是 DN→Sch 壁厚映射），并在快车道加一条「按 id 取该行不 500」的断言。另见本条的 tension：改成 COMPANY_STD 会让它出现在公司管级列表（与 #2 同一个问题），需要连同列表可见性一起裁。",
    "autofix_class": "gated_auto",
    "owner": "downstream-resolver",
    "requires_verification": true,
@@ -1398,6 +1415,9 @@
    ],
    "independent_reviewers": [],
    "group": "G13",
+   "fix_type": "mechanical",
+   "notes": "本条的修法随 #2 的裁决变（种子行要不要出现在公司管级列表）⇒ 见本条的 tension。",
+   "tension": "与 #2 的张力：种子行若按 PipeClassResponse.source 的 Literal 改成 source=\"COMPANY_STD\"（契约里只有 COMPANY_STD / PROJECT），它同样会出现在公司管级列表里。测试数据出现在产品列表是否可接受需要一并裁决（种子只跑在隔离 schema / pcs_pgtest 上），可选：① 接受（隔离环境里可接受）；② 扩契约加一个 Literal（如 E2E_SEED）—— 契约面更大，且 list_company 的过滤要跟着改；③ 公司列表过滤掉种子行。不要只改种子形状而不管列表可见性。",
    "validation_status": "confirmed",
    "validation_reason": "scripts/seed_e2e_flows.py:516-519 seeds source='E2E_SEED' (not in the Literal at schemas/pipe_class.py:77-79), dn_series_json without min/max (fails _check_dn at schemas/pipe_class.py:84-93) and sch_series_json with float values against dict[str,str] (schemas/pipe_class.py:62-63), while GET /pipe-classes/{class_id} returns PipeClassResponse (api/v1/pipe_classes.py:168-185) - and the seed runs against pcs_pgtest public via docker-compose.yml:140-153 - so that id's GET must fail response validation rather than return the row.",
    "protected_subject": "public-contract"
@@ -1427,6 +1447,8 @@
    ],
    "independent_reviewers": [],
    "group": "G19",
+   "fix_type": "mechanical",
+   "notes": "补 lifespan 的两处启动 seed，或删掉那句撒谎的注释；两者选一，别留第三种状态。",
    "validation_status": "confirmed",
    "validation_reason": "The two production seeds live only in the lifespan at app/main.py:157-160, the lane never runs lifespan (conftest.py:265-272), and the fixture it does call (conftest.py:238 seed_flows -> scripts/seed_e2e_flows.py:698-730) contains no CoefficientService.seed_default_tables / seed_system_setting_defaults call, so the conftest comment at lines 271-272 promising the seeds are explicitly supplemented is false.",
    "protected_subject": null
@@ -1456,6 +1478,8 @@
    ],
    "independent_reviewers": [],
    "group": "G18",
+   "fix_type": "mechanical",
+   "notes": "隔离 session factory 要注入全局 session factory 的使用点（errors.py:51 / ws.py:77）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/conftest.py:285-289 overrides only get_db, while app/db/session.py:98-105 keeps a process-level session-factory singleton bound to settings.database_url, so non-get_db paths use a different schema than the isolated one; note the one verified such writer (app/core/errors.py:45-52) short-circuits under PYTEST_CURRENT_TEST and app/api/v1/ws.py:77 was not inspected.",
    "protected_subject": null
@@ -1489,6 +1513,8 @@
    ],
    "independent_reviewers": [],
    "group": "G16",
+   "fix_type": "mechanical",
+   "notes": "与 #21 同文件同主题（test_e2e_schema_parity.py），建议一次改完：把两库一致检查移出 E2E 车道（它是发布前检查），并加上「与 alembic head 比」这一条。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_schema_parity.py:57-76 is marked @pytest.mark.e2e yet derives its URLs from .env (pcs / pcs_test) rather than the lane's isolated schema, so a development-database parity check occupies an E2E lane slot and makes the lane's result depend on local dev DB state.",
    "protected_subject": null
@@ -1517,6 +1543,8 @@
    ],
    "independent_reviewers": [],
    "group": "G15",
+   "fix_type": "mechanical",
+   "notes": "与 #20 同文件同主题（test_e2e_schema_parity.py），建议一次改完；分在两个 triage 组只因为根因不同（一个是「比对基准不对」，一个是「不该在这个车道」）。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_e2e_schema_parity.py:70-76 only asserts pcs_rev == pcs_test_rev (read via the read-only helper at lines 30-54) and never compares either against the code's head revision, so both development databases sitting on the same old revision passes the only schema gate in the lane.",
    "protected_subject": null
@@ -1534,10 +1562,8 @@
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-245 — `_public_snapshot` 只数 `for table in (\"users\", \"projects\", \"streams\", \"user_projects\")`",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:134-149 — 被验证的写路径只有 `POST /api/v1/projects` 一条",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:105-114 — docstring 自称『**「隔离」这句话必须被验** —— E2E 的行**不能**出现在 public schema』⇒ 断言范围与宣称范围不一致",
-    "pcs-backend/tests/e2e_flows/test_lane_smoke.py:235-244 —— `for table in (\"users\", \"projects\", \"streams\", \"user_projects\"): out[table] = int(conn.execute(text(f\"SELECT count(*) FROM public.{table}\")).scalar_one())`",
     "pcs-backend/tests/e2e_flows/conftest.py:283-294 —— `app = create_app()`，`app.dependency_overrides[get_db] = _get_db` ⇒ **app 自己的 engine 仍指向 public**（只有被覆盖的依赖注入层走隔离 schema）",
     "pcs-backend/scripts/seed_e2e_flows.py:699-730 —— 种子写 users/projects/user_projects/streams/signature_matrices/deliverables/piping_results/report_definitions/equipment …（远多于四张表）",
-    "pcs-backend/tests/e2e_flows/test_lane_smoke.py:240 — `        for table in (\"users\", \"projects\", \"streams\", \"user_projects\"):` ⇒ only 4 tables are snapshotted",
     "pcs-backend/tests/e2e_flows/test_lane_smoke.py:245-247 — `            out[table] = int(conn.execute(text(f\"SELECT count(*) FROM public.{table}\")).scalar_one())` ⇒ count(*) only, no `max(id)` (the plan required both)",
     "pcs-backend/scripts/pytest_pg.sh:66 — `  export DATABASE_URL=\"postgresql+psycopg://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB_NAME}\"` ⇒ during the lane the app's global engine resolves to `pcs_pgtest` PUBLIC (no search_path), while only the `get_db` override is schema-scoped",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` ⇒ a `pipe_classes` row is inserted on a request path, and `pipe_classes` is not in the guard's table list"
@@ -1555,6 +1581,8 @@
    ],
    "independent_reviewers": [],
    "group": "G17",
+   "fix_type": "mechanical",
+   "notes": "守卫要快照本批写的所有表，且基线取在种子**之前**。",
    "validation_status": "confirmed",
    "validation_reason": "tests/e2e_flows/test_lane_smoke.py:130-158 takes its public-schema baseline only after the session-scoped e2e_seed fixture has already run (so seed-phase leakage is absorbed into the baseline) and exercises only POST /api/v1/projects, while _public_snapshot (lines 235-245) counts only users/projects/streams/user_projects - narrower than the docstring's claim.",
    "protected_subject": null
@@ -1586,6 +1614,8 @@
    ],
    "independent_reviewers": [],
    "group": "G25",
+   "fix_type": "mechanical",
+   "notes": "把跑法写进仓库（package.json 的 script 或 pcs-frontend/README），带默认值。",
    "validation_status": "confirmed",
    "validation_reason": "package.json:20 sets only VITE_ENABLE_MOCK and VITE_API_PROXY_TARGET (defaulting to the :8000 dev backend), playwright.config.ts:70 starts the real-backend server with only VITE_ENABLE_MOCK=false, and src/constants/env.ts:12-13 falls back to the placeholder project id, so VITE_PROJECT_ID is never supplied by the repository and the pages query a different project unless the runbook (kept only in the gitignored .gstack/qa-report) supplies it.",
    "protected_subject": null
@@ -1615,6 +1645,8 @@
    ],
    "independent_reviewers": [],
    "group": "G20",
+   "fix_type": "mechanical",
+   "notes": "守卫条件改成「拿到了非占位 project_id」而不是「选了工作区」。",
    "validation_status": "confirmed",
    "validation_reason": "DashboardPage.tsx:40 renders the panel whenever a workspace is selected and DashboardPage.tsx:8-10 still falls back to the placeholder id '00000000-0000-0000-0000-000000000001' when ws.project_id is null, so selecting a workspace without a project id reproduces exactly the 404/console-error condition the change set out to remove (precondition: a selectable workspace row with NULL project_id; the seed scripts' workspace rows were not inspected).",
    "protected_subject": null
@@ -1632,8 +1664,6 @@
     "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:93 — `    pg_body = PG_SCRIPT.read_text(encoding=\"utf-8\")` ⇒ 未剥注释（与同文件 `_body()` 的做法相反）",
     "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:49-50 — `    ⚠️ 注释里提到 `uv run pytest` / `DATABASE_URL` 是**说明** ⇒ 断「脚本有没有做这件事」必须断**可执行部分**` ⇒ 同族教训已在本文件内",
     "pcs-backend/scripts/pytest_pg.sh（diff）— `if ! flock -n 9; then` ⇒ 真正被依赖的是 `-n`（抢不到就退出），守卫并不验证这一点",
-    "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:94-98 —— `pg_body = PG_SCRIPT.read_text(encoding=\"utf-8\")` / `assert \"flock\" in pg_body` / `assert \"pytest_pg.sh\" in _body()`（**未剥注释**，且只断子串）",
-    "pcs-backend/tests/scripts/test_pytest_e2e_gate.py:32-43 —— 同文件的 `_body()` 会剥掉注释 ⇒ 同一文件两套口径",
     "pcs-backend/scripts/pytest_pg.sh:56-61 —— `exec 9>\"$LOCK_FILE\"` / `if ! flock -n 9; then … exit 1; fi`（真正要守的是 `-n` 与 fd 持有）",
     "pcs-backend/tests/scripts/test_pytest_pg_gate.py:106-114 —— `assert \"pytest -m pg\" in body` / `assert body.count(\"uv run pytest\") == 2, \"脚本里应只有「收集计数」与「正式执行」两次 pytest 调用；多出来的说明有人加了第二条路径\"`（只匹配 `uv run pytest` 一个字面量）",
     "pcs-backend/scripts/pytest_pg.sh:4-5 —— 「⚠️ **不得**在 README/CLAUDE.md 里教『也可以直接 DATABASE_URL=... pytest』—— 那会重新引入『多条路径做同一件事』的分叉」⇒ 该分叉是被承认的真实风险"
@@ -1651,6 +1681,8 @@
    ],
    "independent_reviewers": [],
    "group": "G26",
+   "fix_type": "mechanical",
+   "notes": "守卫测试本身要改断言方式（剥注释 + 断命令形状），不是加新用例。",
    "validation_status": "confirmed",
    "validation_reason": "tests/scripts/test_pytest_e2e_gate.py:93-96 asserts on PG_SCRIPT.read_text() verbatim (the same file's _body() at lines 32-43 exists precisely to strip comments) and only checks for the substring 'flock', so a comment mentioning flock, or a blocking 'flock 9' without -n, would still satisfy the guard.",
    "protected_subject": null
@@ -1671,25 +1703,18 @@
     "pcs-backend/app/services/pipe_class_service.py:173-187 — canonical 创建路径 `PipeClassService.create`（走 `PipeClassCreate` + `ConfigAsset` 版本链 + status=DRAFT），本 diff 的兜底**绕过**了它",
     "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 占位行必然出现在公司管级列表",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:130-134 — `# ⚠️ `source=\"COMPANY_STD\"` —— 公司级管架列表**只列** `source == 'COMPANY_STD'` 的行` / `source=\"COMPANY_STD\",`",
-    "pcs-backend/app/services/pipe_class_service.py:149 — `stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")`（status 只在显式传参时过滤）",
     "pcs-backend/app/api/v1/pipe_classes.py:112 — `status: str | None = Query(None), keyword: str | None = Query(None),`（列表端点缺省不过滤状态 ⇒ DRAFT 的占位行也在列）",
     "pcs-backend/app/models/config_domain.py:262-264 — `status: Mapped[str] = mapped_column(String(20), default=\"DRAFT\", ...)`（占位行落库即 DRAFT）",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — source=\"COMPANY_STD\",",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 — PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"",
     "pcs-backend/app/services/pipe_class_service.py:149 — stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")  ⇒ 占位行进公司列表",
     "pcs-backend/app/schemas/pipe_class.py:77 — source: Literal[\"COMPANY_STD\", \"PROJECT\"] ⇒ 契约里没有「占位」这一态",
     "pcs-backend/tests/e2e_flows/test_e2e_calc_chains.py:54-59 — assert after_count == before_count + 1（「管级表多了一行」）而计算结果落在 piping_results ⇒ 这条断言实际断的是占位行副作用",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:260 — `    await _ensure_placeholder_pipe_class(db, PLACEHOLDER_MATERIAL_CLASS)` (call site inside the request-path persist function)",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:134 — `            source=\"COMPANY_STD\",` (the injected row is deliberately a company-level standard)",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:95 — `async def _ensure_placeholder_pipe_class(db: AsyncSession, class_id: str) -> None:` (runtime insert of the shared row)",
     "pcs-backend/app/models/config_domain.py:237 — `    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)` / `:238 asset_id ... ForeignKey(\"config_assets.asset_id\")` ⇒ `pipe_classes` is global, not project-scoped",
-    "pcs-backend/app/services/pipe_class_service.py:149 — `        stmt = select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ the row is listed to every company-standard reader",
     "pcs-backend/app/services/pipe/pipe_chain_persist.py:3022-3024 (diff) — \"⚠️ 为什么不能靠「迁移里种一行」… 而这里是**运行时占位**\" ⇒ the choice of a request-time insert is deliberate",
     "pcs-backend/scripts/seed_e2e_flows.py:101 `FLOW_PIPE_CLASS_ID = \"E2E-SEED-CS\"` 与 515-517 `allowable_stress_json={\"20#\": 137.0}, dn_series_json={\"DN150\": 1.0}, sch_series_json={\"DN150\": 40.0}`",
-    "pcs-backend/app/services/pipe/pipe_chain_persist.py:92 `PLACEHOLDER_MATERIAL_CLASS = \"CS-STD\"` 与 125-128 `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
     "pcs-backend/app/models/config_domain.py:249 `sch_series_json: Mapped[list] = mapped_column(JSONB)`（ORM 说 list）",
-    "pcs-backend/app/schemas/pipe_class.py:61-63 `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射…\")`（schema 说 dict[str,str]）",
-    "pcs-backend/app/services/pipe_class_service.py:149 `select(PipeClass).where(PipeClass.source == \"COMPANY_STD\")` ⇒ 种子的 E2E_SEED 行从不出现在列表端点 ⇒ 其形状错误当前不可见"
+    "pcs-backend/app/schemas/pipe_class.py:61-63 `sch_series_json: dict[str, str] = Field(..., description=\"DN → Sch 壁厚系列映射…\")`（schema 说 dict[str,str]）"
    ],
    "first_evidence": "pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138 — 新增 `_ensure_placeholder_pipe_class`：手写 `PipeClass(...)` + `db.add` + `await db.flush()`，并写死 `source=\"COMPANY_STD\"` / `dn_series_json={\"min\": 15.0, \"max\": 600.0}` / `sch_series_json={\"min\": \"0.5\", \"max\": \"1.2\"}`",
    "suggested_fix": "删掉 `_ensure_placeholder_pipe_class` 与 `PLACEHOLDER_MATERIAL_CLASS`，改成一条**数据迁移**插 `CS-STD` 这行（形状照 `PipeClassService.create` 的 payload 语义：`source=\"COMPANY_STD\"`、`dn_series_json={\"min\":…,\"max\":…}`、`sch_series_json` 用仓里既定的 DN→Sch 形状）；`persist_pipe_chain_result` 恢复成纯落库。若坚持运行时兜底，则至少改为调 `PipeClassService.create`（同一套版本/状态语义），而不是手写 ORM 行。",
@@ -1706,6 +1731,9 @@
    ],
    "independent_reviewers": [],
    "group": "G07",
+   "fix_type": "design-input",
+   "notes": "本条是这一簇的根决策：占位行归谁（迁移种一行 / 允许运行时兜底）。#6 与 #17 的修法都随它变。",
+   "blocked_by": "#17 依赖本条的裁决方向（种子行是否也允许出现在公司管级列表）；#1 依赖本条（见 #1 的 blocked_by）。",
    "validation_status": "confirmed",
    "validation_reason": "The new _ensure_placeholder_pipe_class (pcs-backend/app/services/pipe/pipe_chain_persist.py:95-138) is called on the main calc path (pipe_chain_persist.py:260) and writes a pipe_classes row with source='COMPANY_STD' directly via db.add/flush, so it surfaces in GET /api/v1/pipe-classes (list_company filters source=='COMPANY_STD', pipe_class_service.py:149) as a synthetic company standard with no ConfigAsset/ConfigVersion (the canonical path create_with_config_asset, pipe_class_service.py:371-379, is bypassed), and it stores sch_series_json as a {'min','max'} pair (pipe_chain_persist.py:128) that contradicts the DN-to-Sch mapping shape the canonical importer builds (pipe_class_service.py:351).",
    "protected_subject": null
@@ -1724,11 +1752,8 @@
     "pcs-backend/app/services/signature_matrix_service.py:124 — `DEFAULT_RECORD_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"`（全局内置，任何迁移过的库都有）",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:118-122 — 断 `MATRIX_NAME` 可见 + 页面含 CHECKER/REVIEWER/APPROVER ⇒ 内置矩阵全部满足",
     "pcs-frontend/e2e/real_backend_flows.spec.ts:113-123 — `@real-backend 签署矩阵：项目绑定的矩阵与三级链可见` … `await expect(realPage.getByText(MATRIX_NAME, { exact: false })).toBeVisible();`",
-    "pcs-backend/scripts/seed_e2e_flows.py:583 — `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\",`（种子矩阵的名字不是断言里那个）",
     "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"`（内置全局模板，恒存在）",
-    "pcs-frontend/e2e/real_backend_flows.spec.ts:32-41 — `const FLOW_PROJECT_ID = '2488b011-14fc-584b-966e-1e2dfaeb9eb7';` / `const STREAM_NAME = 'E2E-FLOW-S-001';` / `const DELIVERABLE_TITLE = 'E2E 流程级种子计算书';` / `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`，注释分别写着「（`scripts/seed_e2e_flows.py::FLOW_STREAM_NAMES`）」「（`_ensure_matrix`）」",
     "pcs-backend/scripts/seed_e2e_flows.py:583-584 — `_ensure_matrix` 造的是 `matrix_name=\"E2E_FLOWS_RECORD_3_LEVEL\"` ⇒ 与 spec 的 `MATRIX_NAME` 不一致",
-    "pcs-backend/alembic/versions/p9_013_bind_default_record_matrix.py:59 — `_MATRIX_NAME = \"DEFAULT_RECORD_3_LEVEL\"` ⇒ spec 断的其实是迁移插入的内置矩阵，不是 E2E 种子那条",
     "pcs-backend/scripts/seed_e2e_flows.py:80-117 — 种子 id 全部由 `_uid(\"pcs-e2e-flows-*\")` 派生 ⇒ 前端那串 uuid 是手工反推出来的，没有生成链路"
    ],
    "first_evidence": "pcs-frontend/e2e/real_backend_flows.spec.ts:41 — `const MATRIX_NAME = 'DEFAULT_RECORD_3_LEVEL';`",
@@ -1744,6 +1769,8 @@
    ],
    "independent_reviewers": [],
    "group": "G05",
+   "fix_type": "mechanical",
+   "notes": "validation=unresolved ⇒ 这是**验证闸门**不是已确认缺陷：confidence 100 只覆盖「名字对不上」这个事实，不覆盖「内置矩阵在目标库里存不存在」。查迁移 p9_013 与目标库再决定是改断言名字还是改种子名；证据到手前不要当已确认缺陷去改。",
    "validation_status": "unresolved",
    "validation_reason": "The name mismatch is verified (real_backend_flows.spec.ts:41 asserts 'DEFAULT_RECORD_3_LEVEL' while scripts/seed_e2e_flows.py:583 creates 'E2E_FLOWS_RECORD_3_LEVEL', and the built-in name is defined at signature_matrix_service.py:124), but whether that built-in row actually exists in the target DB - which decides whether the flow is green-without-the-seed or red - could not be verified within budget (migration p9_013 not read).",
    "protected_subject": null
@@ -1762,7 +1789,7 @@
     "pcs-backend/tests/e2e_flows/test_e2e_permission_matrix.py:31-46 — 矩阵里 5 条 403 用例（submit-approval/approval-step/audit-logs）⇒ 这些 403 在车道里都不留痕"
    ],
    "first_evidence": "pcs-backend/app/core/errors.py:45-46 — `if os.environ.get(\"PYTEST_CURRENT_TEST\"): return`",
-   "suggested_fix": null,
+   "suggested_fix": "等 #8 的目标库白名单落地之后，把 RBAC 审计的早退条件改成「当前连接的是隔离/测试库才写」（用 current_database() 或车道注入的 session factory 判定），而不是用 PCS_E2E_LANE 单点判定；在此之前不要把 PCS_E2E_LANE 当成唯一判据。车道里再加一条断言：一次 403 之后 audit_logs 里确实多了一行。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -1772,6 +1799,8 @@
    ],
    "independent_reviewers": [],
    "group": "G21",
+   "fix_type": "mechanical",
+   "notes": "本条依赖 #8：PCS_E2E_LANE 本身不可靠（#8 = 车道与种子没有目标库白名单），所以修法不能只把早退条件从 PYTEST_CURRENT_TEST 换成 PCS_E2E_LANE —— 那等于把审计留痕的开关绑在一个已知不可靠的变量上。",
    "protected_subject": null
   },
   {
@@ -1801,6 +1830,8 @@
    ],
    "independent_reviewers": [],
    "group": "G24",
+   "fix_type": "design-input",
+   "notes": "本批 4 条可复用解法要回写 docs/solutions/（CLAUDE.md 的要求），且 STATUS.md 里「已进 docs/solutions」与「本轮还没跑」这两句都要与事实一致（QA 报告其实已存在于 .gstack/qa-reports/qa-report-pcs-frontend-2026-11-17-p10b.md，日期也不是 STATUS 写的 11-16）。",
    "protected_subject": null
   },
   {
@@ -1818,7 +1849,7 @@
     "pcs-backend/app/models/report.py:155,166 — content_hash: Mapped[str]（NOT NULL，文件哈希）vs data_version: Mapped[str | None] ⇒ 摘要本来已有专门的列"
    ],
    "first_evidence": "pcs-backend/app/workers/report_tasks.py:118 — row.data_version = digest",
-   "suggested_fix": "不要复用 data_version 装文件摘要：_expected_digest 改读 row.content_hash（PENDING 占位以 report_tasks.PENDING_HASH_PREFIX 开头则返回空串），删掉 report_tasks.py:118 的 row.data_version = digest，把 data_version 留给真正的数据版本；若审计确实需要「文件摘要 + 数据版本」两个值，则在 ReportHashResponse 上新增明确命名的字段（如 file_content_hash），而不是复用 data_version。",
+   "suggested_fix": "按裁决 A1 落地（推荐默认）：`row.data_version` 与 `record_hash_digest` 的语义分开 —— 审计端点改读 `row.content_hash`（report.py:480-483 已证明它等于交付文件的 sha256），`data_version` 留给「数据版本号」自己的语义，并把 report.py:487-492 的 docstring 改成与实现一致。若改选 A1 的替代方案，则必须在契约里写明「data_version 本表承载文件摘要」并登记这是临时语义。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -1828,6 +1859,8 @@
    ],
    "independent_reviewers": [],
    "group": "G11",
+   "fix_type": "design-input",
+   "notes": "本条是 A1 裁决要回答的问题本身：data_version 要不要承担文件摘要的语义。",
    "protected_subject": null
   },
   {
@@ -1846,7 +1879,7 @@
     "pcs-backend/tests/scripts/test_pytest_pg_gate.py — 守卫测试把 `PCS_PGTEST_LANE_LOCK` 覆盖成 per-PID 临时文件（bug-2170 的绕法）⇒ 默认的 `/tmp/pcs-pgtest-lane.lock` 路径没有被任何测试走到"
    ],
    "first_evidence": "pcs-backend/scripts/pytest_pg.sh:56-61 — `LOCK_FILE=\"${PCS_PGTEST_LANE_LOCK:-/tmp/pcs-pgtest-lane.lock}\"` / `exec 9>\"$LOCK_FILE\"` / `if ! flock -n 9; then` / `  echo \"FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema\" >&2` / `  exit 1` / `fi` ⇒ 只约束走进这个脚本的进程",
-   "suggested_fix": "把互斥从「脚本内的 flock」提升到「库级别的互斥」：① 让 compose 的 `migrate`/`seed` 服务也走同一个锁文件（在容器里 `flock` 同一个路径，或改成由 `scripts/pytest_pg.sh` 负责迁移）；② 锁文件移到不会被 tmp 清理的位置（如 `${TMPDIR:-/tmp}/pcs-pgtest-lane.lock` 之外的项目内路径 `.tmp/`），并在 `exec 9>` 失败时给出明确的 FAIL 而不是 shell 重定向错误；③ 守卫测试补一条「默认路径下的两条 lane 互斥」用例（用子进程实测），而不是只测覆盖后的临时路径。",
+   "suggested_fix": "把互斥从「脚本内的 flock」提升到「库级别的互斥」：① 让 compose 的 migrate/seed 服务也走同一个锁（或改成由 scripts/pytest_pg.sh 负责迁移）；② 锁文件放在每用户私有且不会被系统清理的位置（如 `${XDG_RUNTIME_DIR:-/tmp}/pcs-pgtest-lane.lock`，并先 `install -m 600 /dev/null` 建文件、拒绝符号链接），不要改用仓内 `.tmp/` —— 该目录既不在 .gitignore 里（当前 .gitignore 只有 __pycache__/.pytest_cache/.ruff_cache/.mypy_cache）也会出现在 git status 里；③ 在 `exec 9>` 失败时给出明确 FAIL 而不是 shell 重定向错误；④ 守卫测试补一条「默认路径下的两条 lane 互斥」用例（子进程实测），而不是只测覆盖后的临时路径。",
    "autofix_class": "manual",
    "owner": "human",
    "requires_verification": true,
@@ -1856,6 +1889,8 @@
    ],
    "independent_reviewers": [],
    "group": "G22",
+   "fix_type": "design-input",
+   "notes": "锁的覆盖面要人定（compose 的 migrate/seed 能不能也走同一把锁）。",
    "protected_subject": null
   },
   {
@@ -1870,7 +1905,6 @@
     "spec/P10 AI预留与测试部署开发规格说明书.md:666-681 — D23…D38（P10-B 批末增补）全部登记在这份 V1.0 文件里",
     "spec/P10 AI预留与测试部署开发规格说明书.md:662 — D20（文档治理）…「开发计划里引用的「PCS-SPEC-P10 V1.3.1」在仓库中**不存在**」…「以**仓库里这份 V1.0** 为准」",
     "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:956 — \"Modify: `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md`（第五部分「偏离登记」）\" ⇒ 计划要求改的是 V1.3.1 那份",
-    "docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md:11 — \"**Spec:** `spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md` §3.2.2\"",
     "spec/PCS-SPEC-P10 V1.3.1 P10 AI预留与测试部署开发规格说明书.md:718-725 — E2E-011 交付物 Rev / E2E-012 签署矩阵与代录 / E2E-013 上游变更影响分析 / E2E-015 自定义报表执行 / E2E-016 用户权限验证 / E2E-017 AI 占位与审计 / E2E-018 Schema 一致性 ⇒ 实现口径来自这份",
     "CLAUDE.md《前端 UI 规范》：「字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。」",
     "docs/superpowers/plans/2026-11-04-p10-master-plan.md:216-220（新增）——「⇒ ⚠️ **D20 的事实前提已变（2026-11-13 实测）**：**`spec/PCS-SPEC-P10 V1.3.1 …md` 在仓库里存在**（59.3K · §3.2.2 有 18 场景 + WF-PATH 五类 + AUTH-E2E 12 条）⇒ ⇒ 「V1.3.1 不存在」**不成立** ⇒ ⇒ **以 V1.3.1 为准**… ⇒ 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`（29.3K）是 **V1.0**（只有 14 场景）⇒ ⇒ **别拿 V1.0 那份当准**。」",
@@ -1890,6 +1924,8 @@
    ],
    "independent_reviewers": [],
    "group": "G23",
+   "fix_type": "design-input",
+   "notes": "先裁「哪份 SPEC 是准」（仓里 V1.0 与 V1.3.1 两份都在，V1.0 的 D20 说 V1.3.1 不存在，本批说以 V1.3.1 为准），再把偏离登记写进权威那份。",
    "protected_subject": null
   },
   {
@@ -1917,6 +1953,8 @@
    ],
    "independent_reviewers": [],
    "group": "G27",
+   "fix_type": "advisory",
+   "notes": "advisory：读改写不对称目前没有现有消费者踩到（前端消费点已空值安全）⇒ 报告级登记即可。",
    "protected_subject": null
   }
  ],
@@ -1930,7 +1968,7 @@
    ],
    "kind": "decision-gate",
    "context": "本批为了让链计算能落库，在请求路径上现场补一行 pipe_classes（source=COMPANY_STD）⇒ 同时踩到并发与数据归属两个面。",
-   "preferred_resolution": "先裁 #2（占位行到底归谁：迁移里种一行，还是允许运行时兜底并从公司列表里过滤掉），再按裁决落 #1（savepoint + 重读赢家 / ON CONFLICT DO NOTHING）；#2 是设计裁决，#1 是可以照抄仓内 house pattern 的机械改。",
+   "preferred_resolution": "先裁 #2（占位行到底归谁：迁移里种一行，还是允许运行时兜底并从公司列表里过滤掉）—— 这是这一簇的根决策；再按裁决落 #1：**若 #2 裁为「迁移种一行」，#1 的 savepoint 随之作废**（没有运行时写就没有并发首次计算）；只有运行时兜底保留时才需要 #1。#17 也随 #2 变（种子行若改成 COMPANY_STD 同样进公司列表）。",
    "why": "两处同一个函数、同一个根因（运行时兜底代替配置流程）；先裁归属才不会把 #1 的修复做两遍。"
   },
   {
@@ -1942,10 +1980,10 @@
     "#12",
     "#14"
    ],
-   "kind": "apply-queue",
-   "context": "本批自称修好了审计哈希端点，但赋值落在 dup 早退之后不可达，E2E-009 又用命令式 xfail 把用例中止 ⇒ 「修好了」今天没有任何证据。",
-   "preferred_resolution": "一次做完四步：① #3 把 data_version 落到真正存活的那一行（report_service._upsert_report_file 建行时一并写 + _finalize 的 dup 分支补写）；② #4 把命令式 pytest.xfail 换成只标记那一条断言或先红后绿的真断言；③ #12 与 #14 一起裁（data_version 与 record_hash_digest 的语义分开，老行/复用行的空串一并处理）。",
-   "why": "四条是同一条需求（审计要拿到完整哈希）的四个断点；任何一条单独修，车道仍然全绿。"
+   "kind": "apply-queue + 1 human decision (#14)",
+   "context": "本批自称修好了审计哈希端点，但赋值落在 dup 早退之后不可达，E2E-009 又用命令式 xfail 把用例中止 ⇒ 「修好了」今天没有任何证据。⚠️ 四条里 #3 与 #14 曾给出**方向相反**的修法（同一行代码）：#3 说把 digest 写进 data_version，#14 说别把文件摘要塞进 data_version。裁决 A1（见 synthesized-findings.json 的 adjudications）已经裁定：先由人裁「审计端点读哪一列」，再按同一种语义统一改 #3 / #12 / #14，并让 #4 的硬断言跟着变。",
+   "preferred_resolution": "**先做裁决 A1**（human，一次决定，四个发现共用）⇒ 再按裁决统一改 #3 / #12 / #14（不要先按旧文案改其中一条）；然后 #4 拆成两条用例、去掉命令式 xfail ⇒ 最后把 E2E-009 的哈希断言变成真断言（断言内容随 A1 的裁决变）。推荐默认（可复核）：`_expected_digest` 改读 `row.content_hash`（report.py:480-483 已证明它等于交付文件的 sha256，每行都有值）⇒ 老行与复用行也一并有值，不需要回填，data_version 也不再被挪用。",
+   "why": "四条是同一条需求（审计要拿到完整哈希）的四个断点，任何一条单独修车道仍然全绿；而 #3/#14 的相反修法不裁决就执行，会把同一条代码改两遍。"
   },
   {
    "id": "T3",
@@ -1970,8 +2008,8 @@
     "#20"
    ],
    "kind": "apply-queue",
-   "context": "计划最硬的一条约束是「开发库 public schema 一个字节不动」，但车道只凭一个环境变量放行，且只隔离了 get_db 这一条路。",
-   "preferred_resolution": "先 #8（车道与种子脚本都加目标库名白名单，不匹配就非零退出），再 #19（把隔离 session factory 注入全局 session factory 的两个使用点），再 #20（把两库 schema 一致检查移出场景车道、它是发布前检查），最后 #18（补 lifespan 或删掉那句撒谎的注释）。",
+   "context": "计划最硬的一条约束是「开发库 public schema 一个字节不动」，但车道只凭一个环境变量放行，且只隔离了 get_db 这一条路。（本组的 #20 与 T7 的 #21 是同一个文件 test_e2e_schema_parity.py 的两个问题，建议一次改完。）",
+   "preferred_resolution": "先 #8（车道与种子脚本都加目标库名白名单，不匹配就非零退出），再 #19（把隔离 session factory 注入全局 session factory 的两个使用点），再 #20（把两库 schema 一致检查移出场景车道、它是发布前检查），最后 #18（补 lifespan 或删掉那句撒谎的注释）。 #20 与 T7 的 #21 同文件，建议合并成一次改动。",
    "why": "护栏要在最外层先立起来，否则后面三条的修复仍可能在开发库上执行。"
   },
   {
@@ -2010,8 +2048,8 @@
     "#27"
    ],
    "kind": "apply-queue",
-   "context": "闸门③只要求「至少 1 passed」、两库一致闸只比彼此不与代码 head 比、「不写 public」守卫只盯 4 张表、flock 守卫自身用子串匹配（含注释）。",
-   "preferred_resolution": "先 #16（闸门改为「无 skip 且 passed 数 ≥ 场景数」），再 #22（守卫快照覆盖本批写的所有表 + 种子前取基线），再 #21（加「与 alembic head 比」这一条），最后 #27（守卫剥注释后再匹配，入口守卫按命令形状匹配）。",
+   "context": "闸门③只要求「至少 1 passed」、两库一致闸只比彼此不与代码 head 比、「不写 public」守卫只盯 4 张表、flock 守卫自身用子串匹配（含注释）。（本组的 #21 与 T4 的 #20 同文件 test_e2e_schema_parity.py，建议一次改完。）",
+   "preferred_resolution": "先 #16（闸门改为「无 skip 且 passed 数 ≥ 场景数」），再 #22（守卫快照覆盖本批写的所有表 + 种子前取基线），再 #21（加「与 alembic head 比」这一条），最后 #27（守卫剥注释后再匹配，入口守卫按命令形状匹配）。 #21 与 T4 的 #20 同文件，建议合并成一次改动。",
    "why": "这四条是闸门本身不可信；它们全绿时，车道的绿灯不含任何信息。"
   }
  ],
@@ -2021,6 +2059,65 @@
   "#25"
  ],
  "grouping": "auto",
+ "adjudications": [
+  {
+   "id": "A1",
+   "topic": "GET /report/{id}/hash 的 record_hash_digest 到底该读哪一列（#3 / #4 / #12 / #14 共用）",
+   "decision_needed": "审计端点要的是「交付的报表文件的 sha256」还是「登记时冻结的数据版本」。本批把文件摘要塞进了 data_version，于是 #3 的修法（把 digest 写进 data_version）与 #14 的修法（别把文件摘要塞进 data_version）方向相反 —— 两条不能同时执行。",
+   "ground_truth": "pcs-backend/app/api/v1/report.py:480-483 自己就写着 `digest == row.content_hash`（那里算的就是交付文件的 sha256）⇒ content_hash 就是这一行交付文件的哈希，而且它在每一行上都有值（含本批之前的老行）；data_version 是通用的「数据版本」列，本批把它挪用成了文件摘要。",
+   "recommended_default": "_expected_digest（report.py:486-494）改读 `row.content_hash or \"\"`；删掉 report_tasks.py:118 那行 `row.data_version = digest`（它本来就在 dup 早退之后不可达）；data_version 留给它自己的语义。",
+   "why_this_default": "一处改动同时闭合三条：#3（端点不再恒返空串）· #12（老行与复用行也有值 ⇒ 不需要 backfill）· #14（两字段不再塌成同一个值）。代价：report.py:487-492 的 docstring（明说「任务体必须写 data_version」「端点语义不变」）必须一并改。",
+   "alternative": "`row.data_version or row.content_hash` + 把 digest 写到存活的那一行（#3 的原修法）。它保住了本批「端点语义不变」的原始意图，但它是临时兼容：老行仍返空串（除非另补一条回填），而且 data_version 继续承担文件摘要的语义（#14 的塌陷不解）⇒ 若选它，必须在契约里明确标注「临时方案，不是最终语义」。",
+   "affects": [
+    "#3",
+    "#4",
+    "#12",
+    "#14"
+   ],
+   "must_be_decided_by": "human —— 这是产品语义决定（审计要证明的是「报表文件」还是「记录集」）；merge leaf 不替人拍板，只保证四条发现互相不矛盾、且都指向同一个裁决。",
+   "not_allowed": "在裁决之前同时执行 #3 与 #14 两套相反的改法。"
+  }
+ ],
+ "verdict_inputs": {
+  "open_p1": [
+   1,
+   3,
+   4,
+   5,
+   7,
+   8,
+   9
+  ],
+  "open_p1_report_only": [
+   2,
+   6
+  ],
+  "open_p2": [
+   12,
+   13,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24
+  ],
+  "unresolved_gates": [
+   6
+  ],
+  "rule": "the verdict must be stated explicitly (merge / merge with fixes / do not merge) and must read severity across the WHOLE primary set, not the actionable queue alone: an open P0 forbids 'ready to merge' and an open P1 caps it at 'ready with fixes' - and an unresolved P1 gate still counts as an open P1 (withholding a gate from the actionable queue withholds apply authority, it never clears the blocker). With 7 open P1s in the actionable queue (#1, #3, #4, #5, #7, #8, #9) and 2 P1 report-only (#2, #6) plus 11 P2 actionable (#12, #13, #16, #17, #18, #19, #20, #21, #22, #23, #24), the batch cannot be called 'ready to merge' without an explicit human decision on the design items (#2, #6, #14) and the audit-digest adjudication A1.",
+  "format": "the verdict sentence must also name the minimum set to fix first (the P1s in the actionable queue) and, if a conditional merge is considered, say which TODOs may not be closed on the strength of it"
+ },
+ "rendering_contract": {
+  "evidence": "every finding carries first_evidence (a complete quote) plus the full evidence array. Render a SHORT label in the table cell and the complete evidence in the detail block. Never truncate an evidence string mid-sentence - a truncated quote reads like a production bug in the report.",
+  "pipes": "literal `|` inside any evidence or code fragment must be escaped as a backslash-pipe in a markdown table cell (e.g. `select(PipeClass).where(...)` has no pipe, but ORM/SQL fragments do).",
+  "actionable_table": "the Actionable table carries a Type column taken from each finding's fix_type (`mechanical` = 可以照着做；`design-input` = 需要人先裁一件事), so the mechanical fixes and the design decisions are not read as one homogeneous queue. Every finding also carries `blocked_by` / `notes` / `tension` where they apply - surface them in the Notes column rather than dropping them.",
+  "notes_column": "build the Notes column from ONE template for every row, e.g. `fix: yes/no | validation: <confirmed|unresolved|unvalidated> | type: <mechanical|design-input> | blocked_by: <...>` - do not let one row carry a free-text note while the others carry a formula.",
+  "confidence": "#6 carries confidence 100 together with validation=unresolved. The confidence covers the NAME MISMATCH only; the existence of the built-in matrix row in the target database was not established. Say that in the row itself, not only in the detail block - and explain that a P1+advisory+human combination means 'a person must resolve this gate', not 'it is only advisory'."
+ },
  "fold_in": {
   "peer_selected": false,
   "peer_outcome": "not-run",

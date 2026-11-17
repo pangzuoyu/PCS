@@ -815,3 +815,51 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 | 27 | P3 | `pcs-backend/tests/scripts/test_pytest_e2e_gate.py:95` | flock 守卫测试用原文子串匹配（含注释）且不校验 -n；唯一入口守卫只数一个字面量 | mechanical fix, validator confirmed |
 
 > Actionable 队列共 **19** 条（#1, #3, #4, #5, #7, #8, #9, #12, #13, #16, #17, #18, #19, #20, #21, #22, #23, #24, #27）; 另有 8 条 report-only（#2, #6, #10, #11, #14, #15, #25, #26）, 其中 **#2 / #10 / #11 / #14 / #15 / #25 / #26** 需要人先裁决, **#6** 需要一次证据查询. 报告路径: `docs/ce-code-review/20261117-013829-7e9fbabe/report.md`.
+---
+
+## 裁决补记（merge leaf 的 A1 · 报告渲染之后才产出 ⇒ 补在末尾）
+
+### A1：`GET /report/{id}/hash` 的 `record_hash_digest` 到底读哪一列（#3 / #4 / #12 / #14 共用）
+
+**冲突**：本批把**文件摘要**塞进了 `data_version` ⇒ ⇒ #3 的修法（「把 digest 写进
+`data_version`」）与 #14 的修法（「别把文件摘要塞进 `data_version`」）**方向相反**
+⇒ ⇒ **两条不能同时执行**。
+
+**ground truth**：`app/api/v1/report.py:480-483` 自己写着 `digest == row.content_hash`
+（那里算的就是**交付文件的 sha256**）⇒ `content_hash` 在**每一行**上都有值（含本批之前
+的老行）⇒ `data_version` 是通用的「数据版本」列，本批把它**挪用**成了文件摘要。
+
+**推荐默认（一条改动闭合三条）**：
+- `_expected_digest`（`report.py:486-494`）改读 `row.content_hash or ""`；
+- **删掉** `report_tasks.py:118` 那行 `row.data_version = digest`（它本来就在 `dup`
+  早退之后**不可达**）；
+- `data_version` 留给它自己的语义。
+⇒ ⇒ 闭合 #3（端点不再恒返空串）· #12（老行与复用行也有值 ⇒ **不需要 backfill**）·
+#14（两字段不再塌成同一个值）。
+⚠️ 代价：`report.py:487-492` 的 docstring（明说「任务体必须写 `data_version`」
+「端点语义不变」）**必须一并改**。
+⇒ **替代方案**（写 `data_version`）只是**临时兼容**，别与上面同时做。
+
+### verdict 口径（`verdict_inputs`）
+
+- **open P1（actionable）7 条**：#1 · #3 · #4 · #5 · #7 · #8 · #9
+- **open P1（report-only）2 条**：#2 · #6
+- **actionable P2 11 条**：#12 · #13 · #16 · #17 · #18 · #19 · #20 · #21 · #22 · #23 · #24
+- **未决闸门**：#6
+- ⇒ **规则**：verdict 要看**整个 primary 集**，不只看 actionable 队列 ⇒
+**一条 open P0 就禁止「ready to merge」，一条 open P1 把它压到「ready with fixes」**
+⇒ ⇒ **#6 虽被扣在队列外（只读闸门），它仍然是 open P1**
+（扣住闸门只是**不给 apply 权限**，不是**解掉阻塞**）。
+⇒ ⇒ **本批 verdict = Not ready**（7 条 open P1 + 1 条未决闸门）。
+
+### 其它必须随修复一起落地的约束
+
+- **#10 依赖 #8**：先落**库的 allowlist**（`current_database()`）⇒
+  ⚠️ **不要**拿 `PCS_E2E_LANE` 当唯一判据（它只是个环境变量 ⇒ 谁都能设）。
+- **#17 与 #2 的张力**：三个选项（接受现状 / 扩 `Literal` / 从列表里过滤）
+  ⇒ ⚠️ **不要只修种子那一侧的形状** —— 产品代码那侧是**刻意**守住契约的。
+- **fix_type**：actionable 里 **17 条 mechanical + 2 条 design-input**（#2 · #10
+  ⇒ 需人裁决）⇒ ⇒ 机械的那批可以直接按 suggested_fix 走。
+- **渲染契约**：表格单元格里**只放短标签**，完整引用放 detail ⇒ **不截断证据**。
+- **可复现的合并流水线**：同目录 `_merge2.py` + `_synth.py` ⇒ 可重跑复现本报告的
+  合并与校验（`_merge.py` 为旧版）。
