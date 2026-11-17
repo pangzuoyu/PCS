@@ -863,3 +863,131 @@ performance（生产代码改动极小, 性能面集中在测试种子, 无实�
 - **渲染契约**：表格单元格里**只放短标签**，完整引用放 detail ⇒ **不截断证据**。
 - **可复现的合并流水线**：同目录 `_merge2.py` + `_synth.py` ⇒ 可重跑复现本报告的
   合并与校验（`_merge.py` 为旧版）。
+
+---
+
+## 裁决与执行口径（2026-11-17 · 人裁决 · **取代本报告的原文建议**）
+
+> ⚠️ **本节优先级高于上面所有章节的 suggested_fix** —— 修复者**先读本节**。
+> ⚠️ **编号按本报告**（#10 = RBAC 审计早退 · 4 个环境变量那条是 **#23**）。
+
+### A1（正式裁决 · #14 赢）—— 审计端点读 `content_hash`，`data_version` 不填
+
+**决策**：`record_hash_digest` 读 `row.content_hash`；`data_version` **保留原义**
+（"登记时冻结的数据版本"）**不填摘要** ⇒ **删掉** `report_tasks.py:118` 的
+`row.data_version = digest`；`dup` 分支**不需要**补 `data_version`
+（复用行在 `_upsert_report_file` 里已设 `content_hash`）。
+
+**理由**：`ReportFile.content_hash` 是 **NOT NULL 的文件 sha256** ⇒ 现成的单一真源；
+本批没有真「数据版本」来源 ⇒ 填摘要 ⇒ 语义塌陷（#14 的核心论点）。
+
+**连锁**：
+- **#3 的修法改为**「读 `content_hash`」⇒ **此组取代 #3 原文建议**（原文是「写 `data_version`」）
+- **#12 随之解决**：老行/复用行的 `content_hash` 都有值 ⇒ 不再恒空串 ⇒ **不需要 backfill**
+- **#14 与 #12 合并为「`content_hash` 单一真源」**
+- **#4 的硬断言改为**：`record_hash_digest == content_hash` **且为 64 位 hex**（不再断言「非空」）
+- ⚠️ `report.py:487-492` 的 docstring（明说「任务体必须写 `data_version`」「端点语义不变」）**必须一并改**
+
+### T1 组加注 —— #2 裁决 ⇒ **#1 作废**
+
+**#2 裁决**：**迁移种子 + lifespan 幂等 ensure**，**删掉请求路径写入**
+- ① 数据迁移 `INSERT ... ON CONFLICT DO NOTHING` 种一行 `CS-STD`
+  （形状照 `PipeClassService.create`：`source="COMPANY_STD"` ·
+  `dn_series_json={"min":…,"max":…}` · `sch_series_json` 用 **DN->Sch 字符串**）
+- ② 删 `pipe_chain_persist.py:260` 的调用与 `_ensure_placeholder_pipe_class`
+- ③ **lifespan 启动时**做一次幂等 ensure（**不是请求路径**）⇒ 兜「迁移没跑 / 行被删」
+- **不做**：不扩 `Literal` 加 `SYSTEM_PLACEHOLDER`（扩散到 OpenAPI/前端类型/所有消费者，
+  收益不抵成本）· 不从公司列表过滤（治标）
+- **理由**：配置数据的 canonical 落点是**迁移**（先例：报告自己引的 `p9_013`）；
+  lifespan ensure 解决「行不存在」的运行时风险，而**不把主数据写在请求路径**
+- ⇒ **#1（并发首算撞主键）作废** —— 请求路径不再写 ⇒ 无并发窗口
+  ⇒ ⇒ 若有人坚持保留运行时兜底，才需要 #1 的 savepoint
+
+### #10（RBAC 审计早退）加 blocked-by
+
+⇒ **blocked-by #8**：不能用 `PCS_E2E_LANE` 作唯一判据（#8 已证其不可靠 ——
+谁都能设）⇒ 等 **#8 的 `current_database()` 库名白名单**落地后**用库名判断**。
+
+### #6 —— **已 resolved**（2026-11-17 实测证据）
+
+```
+pcs        : signature_matrices = [DEFAULT_RECORD_3_LEVEL]              （p9_013 内置）
+pcs_pgtest : signature_matrices = [DEFAULT_RECORD_3_LEVEL, E2E_FLOWS_RECORD_3_LEVEL]
+```
+⇒ **内置矩阵确实存在** ⇒ 前端那条流断的**确实是内置矩阵**（种子那张断不到）
+⇒ ⇒ 改断 **`E2E_FLOWS_RECORD_3_LEVEL`**（通道库里有 ⇒ 改后仍能过）
+⇒ ⇒ **#6 不再是未决闸门** ⇒ 不再计入 open P1。
+
+### 其余裁决（逐条）
+
+- **#23（4 个环境变量）—— 混合三层，不放 README 独占**
+  - **前端默认值 → `playwright.config.ts`**：`real-backend` 的 `webServer.env` 设
+    `VITE_PROJECT_ID`（固定 flows uuid5 派生值）· `VITE_ENABLE_MOCK=false` ·
+    `VITE_API_PROXY_TARGET` 默认指向**真后端测试端口**（建议 `:8001`，**不是** `:8000` 的开发后端）
+    ⇒ 可被环境变量覆盖
+  - **后端启动参数 → 新脚本 `pcs-backend/scripts/serve_e2e_backend.sh`**：
+    导出 `DATABASE_URL=…pcs_pgtest` · `PCS_ENABLE_MOCK_LOGIN=true` · 端口 `8001` ⇒ uvicorn
+    ⇒ **`DATABASE_URL` 与 mock-login 是后端进程的事** ⇒ 放前端 `package.json` 没意义
+  - **README 写编排**：两个终端（后端脚本 + `npm run e2e:real`）
+    ⇒ `package.json` 的 `e2e:real` 只保留 `VITE_ENABLE_MOCK=false`
+  - **加 fail-fast**：`real-backend` 的 `globalSetup` 断言 `VITE_PROJECT_ID`
+    **不是**占位 id `00000000-…` ⇒ 否则 **fail 并打印跑法**
+  - **理由**：前端默认值属**测试配置**（不是生产配置）⇒ 后端启动参数只能放后端脚本
+    ⇒ 一个 `package.json` script 管不了两个进程
+- **#5（越权 UI 断言）—— 换身份，断 404 + body 形状**
+  ⇒ 用**角色够、授权缺**的用户（alice 只给 flows 项目授权 ⇒ 跨项目访问走
+  `check_project_access_or_404`）⇒ 断**状态码 + `code`/`message` 模板逐字相同**
+  ⇒ mock 四个用户拿不到这种身份 ⇒ **在种子里补一个**「角色够、授权缺」的用户
+  ⇒ **理由**：报告已证明 bob 被**角色闸**挡在项目守卫之前 ⇒ `403 === 403`
+  对「删掉守卫」**不敏感**
+- **#7（路由扫描）—— 专有值 + 非白屏 + 白名单外 console/4xx 必须为空**
+  ⇒ 有种子专有值的页面断**专有值**；没有的断**非白屏 + 页面标题/空态文案**
+  ⇒ console error 与 4xx/5xx **收集后变断言** ⇒ 白名单（TODO-159 的 3 个 +
+    TODO-160 的 3 个 common 页）**之外必须为空** ⇒ 白名单逐条写
+    **页面 + 端点 + TODO 号** ⇒ 端点补齐后**删条目并加回断言**
+  ⇒ **理由**：`#root` 恒真是确定空转；完全不断 console error 等于放弃
+    CLAUDE.md 的 QA 闸门
+- **#18（lifespan）—— 选 (b)：在种子脚本里显式调两个 seed**
+  ⇒ `seed_e2e_flows.py` 里调 `CoefficientService.seed_default_tables(session)` 与
+  `seed_system_setting_defaults(session)` ⇒ 加断言（**6 张系数表 / 7 个系统参数**）
+  ⇒ 把 `conftest:272` 的注释改成**事实**
+  ⇒ **不跑 lifespan** —— 车道要的是「隔离 schema 有生产默认数据」，
+  不是完整跑一遍生产启动（ARQ/信号在测试进程里是噪音）
+  ⇒ **联动**：#19（全局 factory 指 public）与 #8（库名白名单）**必须先落地**，
+  否则种子脚本用全局 factory 会写到 public
+- **#20（schema parity）—— 挪出 E2E 车道到 `tests/scripts/`**
+  ⇒ 从 `tests/e2e_flows/` 移到 `tests/scripts/`（或 `scripts/gate_alembic_check.py`）
+  ⇒ **不带 e2e marker** ⇒ 在默认车道/发布前检查跑
+  ⇒ **理由**：它是**发布前检查** ⇒ 直连开发库还破坏车道的 hermetic 性
+  ⇒ #21 的「与 alembic head 比」**一并**在这条里做
+- **#15（flock 覆盖面）—— 最小可行三步**（不改锁机制本身）
+  ⇒ ① compose 的 `migrate`/`seed` 服务也进**同一把锁**（容器内 `flock -n` 同一路径 · 共享 volume）
+  ⇒ ② 锁文件从 `/tmp/…` 改**项目内** `pcs-backend/.tmp/lane.lock`（**确认 `.tmp/` 不被清理**）
+  ⇒ ③ 守卫测试补一条「**默认路径**下两 lane 互斥」的**子进程实测**
+- **#11（docs/solutions）—— 合并前必须回写 4 份，或把 STATUS 的「已回写」改成「待回写」**
+  ⇒ ⚠️ **这不是可延后的「小裁决」**：STATUS 自称已回写但 `git diff` 为空 ⇒
+  **是事实错误**，比其它 P2 严重 ⇒ ⇒ **二选一** —— 合并前回写，**或**把 STATUS
+  改成「TODO-xxx 待回写」⇒ **不要让 STATUS 撒谎**
+- **#25（SPEC 偏离）—— D23~D38 同步到 V1.3.1，V1.0 顶部标「已过时」**
+  ⇒ master-plan 已实测 **V1.3.1 存在** ⇒ **D20 的「不存在」是事实错误**
+  ⇒ 权威是 **V1.3.1** ⇒ V1.0 保留历史但**顶部标注** ⇒ **两份互相指向**
+- **#26（case_type 读写不对称）—— 请求侧改 Optional**
+  ⇒ DB 可空是事实、响应已对齐 ⇒ 请求侧必填会让 **GET→POST 回写 422**（真实客户端陷阱）
+  ⇒ 改 Optional **低风险**（前端消费点已空值安全）
+  ⇒ 若产品语义是「创建必填」⇒ 则在契约文档登记「读-改-写不走 POST/create」
+  ⇒ **但一致化更简单**
+
+### 合并判断（**conditional merge**）
+
+**车道本体**（隔离 schema + 真 PG + flock + 默认 skip）**可以合**，但**合并前必须**：
+
+1. 裁决 **#2**（迁移 + lifespan ensure ⇒ #1 作废）并落 T1 的修法
+2. 裁决 **#14**（读 `content_hash`）并落 T2 的修法（#3/#4/#12 随之）
+3. **#8** 库名白名单（`current_database()`）落地
+4. **#11** 的 STATUS **诚实化**（回写或改成「待回写」）
+
+**作为 follow-up，且对应 TODO 不得关闭**（这几条不修 ⇒ 车道的绿灯就是 #16 说的「空转」）：
+**#5** · **#7** · **#18** · **#20** · **#23**
+
+> **一句话**：先修「让车道可信」的**四条**（**#2 / #14 / #8 / #16**），再合；
+> UI 断言的 **#5 / #7** 紧随其后，**不得标 done**。
