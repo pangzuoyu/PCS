@@ -52,12 +52,17 @@ class StatePointCaseType(str, Enum):
 
 
 class StreamBase(BaseModel):
-    """Stream 基础字段。stream_name + case_type + data_mode 必填。"""
+    """Stream 基础字段。stream_name + data_mode 必填；case_type **可省略**。"""
 
     stream_name: str = Field(..., min_length=1, max_length=100, description="管段物流号")
-    case_type: StreamCaseType = Field(
-        ...,
-        description="物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN",
+    # ⚠️ **`case_type` 请求侧也可省略**（评审 #26 · 2026-11-17）——
+    # ⇒ DB 列 `streams.case_type` **可空**（`Mapped[str | None]`）⇒ 响应侧也已
+    # ⇒ 改成可空（bug-2167）⇒ ⇒ **读写不对称** ⇒ 「**拿响应当入参**」的客户端
+    # ⇒ ⇒（GET → POST 回写）读到 null 就 **422** ⇒ ⇒ 请求侧**同样**允许省略
+    # ⇒ ⇒ 省掉「回写时自己猜一个工况」的负担。
+    case_type: StreamCaseType | None = Field(
+        None,
+        description="物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（可省略 ⇒ 落库 NULL）",
     )
     # ⚠️ 以下四个字段 2026-10-19 从裸 `str` 改为枚举（TODO-042 / bug-191）。
     # 词表只写在 description 里的代价：客户端读到的是 `"type": "string"`，

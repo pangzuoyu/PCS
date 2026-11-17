@@ -105,6 +105,28 @@ async def test_post_create_stream_201(client, make_project, designer_headers):
 
 
 @pytest.mark.asyncio
+async def test_post_create_stream_without_case_type_201(client, make_project, designer_headers):
+    """⚠️ **请求侧 `case_type` 可省略**（评审 #26 · 读写对称）。
+
+    ⇒ DB 列 `streams.case_type` **可空** ⇒ 响应侧也已改成可空（bug-2167）
+    ⇒ ⇒ 「**拿响应当入参**」的客户端（GET→POST 回写）**不能**因为
+    ⇒ ⇒ 「读到的 null」而 422 ⇒ ⇒ 请求侧必须**同样允许省略**。
+    """
+    proj = await make_project()
+    payload = _stream_payload()
+    payload.pop("case_type")
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams",
+        json={"payload": payload},
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["case_type"] is None, (
+        "省略 case_type ⇒ 落库应是 NULL ⇒ 响应应是 null"
+    )
+
+
+@pytest.mark.asyncio
 async def test_post_create_stream_block_422(client, make_project, designer_headers):
     """触发 BLOCK 冲突（高温极端值）→ 422 SIM_STREAM_BLOCKED。"""
     proj = await make_project()
