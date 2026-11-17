@@ -83,15 +83,15 @@ async def test_e2e_009_report_generation_produces_a_hashed_report_file(
         f"读报表哈希失败：{digest.status_code} {digest.text[:300]}"
     )
     # ⚠️ 字段名是 **`record_hash_digest`**（不是 hash）
-    # ⚠️⚠️ **这条现在是 xfail** —— 审计端点
-    # （`GET /report/{id}/hash` ⇒ `_expected_digest` ⇒ 读 `data_version`）
-    # 在**生成的**报表上**恒返回空串**（已登记 bug-2165）。
-    # ⇒ 保留断言 ⇒ 一旦有人修好，这行会**自然变成真断言**（不靠人工记得改）。
-    if not digest.json().get("record_hash_digest"):
-        pytest.xfail(
-            "审计哈希端点在生成的报表上恒返回空串"
-            "（bug-2165：任务侧没把 data_version 落到库里 —— 根因未完全隔离）"
-        )
+    # ⚠️⚠️ **不再 xfail**（2026-11-17 · A1 裁决 + P10-B 评审 #3/#4/#12/#14）：
+    # 审计端点现在读 **`content_hash`**（交付文件的 sha256）⇒ 生成的报表**有值**
+    # ⇒ ⇒ 这里断的是**真断言**：等于该文件的 sha256 · 且是 **64 位 hex**。
+    # ⚠️ **64 位**：这里断的是**真生成的文件** ⇒ 全量 sha256（单测的 fixture 是
+    # 占位串 ⇒ 那边断「同长 + hex」⇒ 两处各断各的层）。
+    digest_value = digest.json()["record_hash_digest"]
+    assert digest_value, f"审计哈希端点在生成的报表上返空串：{digest.json()}"
+    assert len(digest_value) == 64, f"审计哈希不是 64 位 hex：{digest_value!r}"
+    assert all(c in "0123456789abcdef" for c in digest_value), digest_value
 
     download = await e2e_client.get(f"/api/v1/report/{file_id}/download", headers=headers)
     assert download.status_code == 200, (

@@ -6218,19 +6218,20 @@
       "severity": "medium",
       "error_message": "`GET /api/v1/report/{report_file_id}/hash` 在**生成的**报表上**恒返回空哈希**（`record_hash_digest: ''`，`data_version: None`）—— 审计端点拿不到哈希（P10-B 的 E2E-009 撞出来的）",
       "file": "pcs-backend/app/workers/report_tasks.py",
-      "root_cause": "端点 `GET /report/{id}/hash` 的 `_expected_digest(row)` **读 `row.data_version`**（既有单测 `tests/api/v1/test_report.py` 就断言 `record_hash_digest == data_version` ⇒ 端点语义**没错**）⇒ 而**任务侧只写 `content_hash`**、**从不写 `data_version`** ⇒ ⇒ 端点在**真实生成路径**上永远读到 NULL ⇒ 返回空串。\n⚠️ 既有单测之所以绿：它的 fixture **手工**填了 `data_version` ⇒ **生成路径从未被覆盖**。\n⚠️ **根因未完全隔离**：已在 `_finalize` 里补 `row.data_version = digest`（赋值确实执行、运行时源码可见）⇒ 但库里**仍是 NULL** ⇒ 说明该行对象与持久化行**不是同一个**（`_mark_pending` 的返回对象与 flush 的对象脱钩），**待继续查**。",
-      "fix": "**部分修复 + 诚实标记**：① 任务侧 `_finalize` 冻结 `data_version`（语义正确的补法）；② E2E-009 里那条断言**标 `pytest.xfail`**（不假装绿）⇒ 一旦有人修好根因，这行会**自然变成真断言**（不靠人工记得改）。\n⇒ ⚠️ **未闭环**：赋值不落库的原因还没定位 ⇒ 需要单独查 `_mark_pending` 返回的对象与被 flush 的行是不是同一个。",
-      "fix_commit": "f605ab9",
+      "root_cause": "**真根因（A1 裁决后定位）**：`report_tasks._finalize` 里那行 `row.data_version = digest` 写在 **`dup` 分支的 `return` 之后** ⇒ **永不可达** ⇒ ⇒ 真正存活的那行是 `report_service._upsert_report_file` 建的，**从没带过** `data_version` ⇒ ⇒ 端点 `_expected_digest`（读 `data_version`）**恒返空串**。\n⚠️ **不是**「对象与被 flush 的行脱钩」（那是我先前的猜测）⇒ 是**分支写错了**。\n⚠️ **为什么一直没人发现**：既有单测的 fixture **手工**填了 `data_version` ⇒ 「生成路径」从未被覆盖；E2E-009 用**命令式 `pytest.xfail()`** 中止了整条用例 ⇒ ⇒ 车道对这条**恒绿** ⇒ 「修好了」没有证据（ce-code-review #3/#4）。",
+      "fix": "**已闭环（A1 裁决 · 2026-11-17）**：① 端点 `_expected_digest` 改读 `row.content_hash`（= 交付文件的 sha256 · NOT NULL · 每行都有值 ⇒ 老行/复用行也有 ⇒ **不需要 backfill**）⇒ PENDING 占位行（`pending:<task_id>`）归一成空串；② **删掉** `report_tasks._finalize` 里那行 `row.data_version = digest`（`data_version` 保留「登记时冻结的数据版本」原义，不塞文件摘要 ⇒ 两字段不塌陷）；③ `report.py` 的 docstring 同步改；④ **E2E-009 的命令式 xfail 去掉** ⇒ 改成**真断言**（等于 sha256 且 64 位 hex）⇒ E2E 车道 **29 passed / 0 xfailed**。\n⇒ 单测新增一条「PENDING 行 ⇒ 空串」⇒ TDD RED→GREEN。",
+      "fix_commit": "PENDING",
       "tags": [
         "P10-B",
         "E2E",
         "report",
         "审计哈希",
-        "待查"
+        "A1",
+        "已闭环"
       ],
       "related_bugs": [],
       "occurrences": 1,
-      "last_seen": "2026-11-16"
+      "last_seen": "2026-11-17"
     },
     {
       "id": "bug-2166",

@@ -111,11 +111,14 @@ async def _finalize(db: AsyncSession, row: ReportFile, *, digest: str,
         return str(dup.report_file_id)
 
     row.content_hash = digest
-    # ⚠️ **必须冻结 `data_version`** —— 审计端点
-    # （`GET /report/{id}/hash` ⇒ `_expected_digest`）读的是**它**
-    # ⇒ 原来只写 `content_hash` ⇒ ⇒ 那个端点**恒返回空串**
-    # ⇒ ⇒ 「审计要完整哈希」这条需求实际是空的（P10-B 的 E2E-009 撞出来的）。
-    row.data_version = digest
+    # ⚠️ **不再写 `data_version`**（A1 裁决 · 2026-11-17 · P10-B 评审 #3/#14）：
+    # 审计端点（`GET /report/{id}/hash` ⇒ `_expected_digest`）现在读 **`content_hash`**
+    # —— 交付文件的 sha256（NOT NULL · 每行都有值 ⇒ 老行/复用行也有 ⇒ 不需要 backfill）
+    # ⇒ 而 `data_version` 的语义是「登记时冻结的**数据版本**」
+    # ⇒ ⇒ 把文件摘要塞进它 ⇒ 两字段语义塌陷 ⇒ `data_version` 留给它自己的语义。
+    # ⚠️ 附带修掉 bug-2165 的**真根因**：那行赋值原本在 `dup` 早退之后**永不可达**
+    # ⇒ 存活的行是 `_upsert_report_file` 建的那行 ⇒ 从没带过 `data_version`
+    # ⇒ ⇒ 端点恒返空串（E2E-009 撞出来的）。
     row.file_path = relpath
     row.file_format = fmt
     row.size_bytes = size

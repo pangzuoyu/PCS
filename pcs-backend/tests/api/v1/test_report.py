@@ -231,7 +231,18 @@ async def test_authenticated_hash_endpoint_returns_full_hash(client, auth_pc, re
     r = await client.get(f"/api/v1/report/{report_file.report_file_id}/hash",
                          headers=auth_pc)
     assert r.status_code == 200
-    assert r.json()["record_hash_digest"] == report_file.data_version
+    # ⚠️ **读 `content_hash`（不是 `data_version`）** —— A1 裁决（2026-11-17）：
+    # `content_hash` 是**交付文件的 sha256**（NOT NULL · 每行都有值 ⇒ 老行/复用行
+    # 也有 ⇒ 不需要 backfill）⇒ 而 `data_version` 是「登记时冻结的数据版本」
+    # ⇒ ⇒ 把文件摘要塞进它 ⇒ 两字段语义塌陷（#14）⇒ ⇒ 端点读 `content_hash`。
+    assert r.json()["record_hash_digest"] == report_file.content_hash
+    # ⚠️ **形状**：与 `content_hash` **同长**且是 hex（不是「非空」）。
+    # ⚠️ **为什么这里不断言「64 位」**：单测的 fixture `content_hash` 是**占位串**
+    # ⇒ 固定 64 会红在**fixture**上、不是红在产品上 ⇒ 真实的 64 位 sha256 形状
+    # 由 **E2E-009**（真生成的文件）断 ⇒ ⇒ 两处各断各的层。
+    digest = r.json()["record_hash_digest"]
+    assert len(digest) == len(report_file.content_hash), digest
+    assert all(c in "0123456789abcdef" for c in digest), digest
 
 
 async def test_hash_endpoint_requires_auth(client, report_file):
@@ -572,3 +583,20 @@ async def test_style_conflict_carries_semantic_code(client):
     r = await client.post("/api/v1/report/styles", headers=h, json=payload)
     assert r.status_code == 409
     assert r.json()["code"] == "REPORT_STYLE_CONFLICT", r.json()
+
+
+async def test_hash_endpoint_returns_empty_for_a_pending_row(client, auth_pc, report_file, db):
+    """**PENDING 行没有文件** ⇒ 没有摘要可给 ⇒ 返回 **空串**（不是占位串）。
+
+    ⚠️ PENDING 行的 `content_hash` 是 `"pending:<task_id>"`（占位）
+    ⇒ 若端点原样返回 ⇒ 审计拿到的「哈希」是 `pending:xxx`
+    ⇒ ⇒ **不是哈希**（也不是空）⇒ ⇒ 必须归一成空串。
+    """
+    report_file.content_hash = "pending:some-task-id"
+    await db.flush()
+
+    r = await client.get(
+        f"/api/v1/report/{report_file.report_file_id}/hash", headers=auth_pc
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["record_hash_digest"] == "", r.json()

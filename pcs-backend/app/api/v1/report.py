@@ -484,14 +484,27 @@ def _file_intact(row: ReportFile) -> bool:
 
 
 def _expected_digest(row: ReportFile) -> str:
-    """登记时冻结的数据版本（`data_version`），供审计端点查。
+    """**交付文件的 sha256**（`content_hash`），供审计端点查。
 
-    ⚠️ ⚠️ **任务体必须写 `data_version`** —— 原来**只写 `content_hash`**
-    ⇒ ⇒ 这个「取完整哈希」的审计端点**恒返回空串**
-    （P10-B 的 E2E-009 撞出来的：报表生成成功、但审计拿不到哈希）。
-    ⇒ ⇒ 修在**任务侧**（`report_tasks._finalize`）⇒ 端点语义不变。
+    ⚠️ **读 `content_hash`，不是 `data_version`**（A1 裁决 · 2026-11-17 · P10-B
+    评审 #3 / #12 / #14）：
+    `content_hash` 是**交付文件**的 sha256（NOT NULL · **每行都有值** ⇒ 老行与
+    复用行也有 ⇒ **不需要 backfill**）⇒ 而 `data_version` 的语义是「**登记时冻结的
+    数据版本**」⇒ 本批曾把文件摘要塞进它 ⇒ 两字段语义塌陷（#14）
+    ⇒ ⇒ 端点改读 `content_hash`，`data_version` 留给它自己的语义。
+    ⇒ ⇒ 相应地 `report_tasks._finalize` **不再**写 `data_version`
+    （那行赋值本来就在 `dup` 早退之后**永不可达** ⇒ bug-2165 的真根因）。
+
+    ⚠️ **PENDING 行返回空串** —— 占位行的 `content_hash` 是 `"pending:<task_id>"`
+    （行在**入队时**建、文件还没生成）⇒ ⇒ 原样返回 ⇒ 审计拿到的「哈希」是
+    `pending:xxx` ⇒ **既不是哈希也不是空** ⇒ ⇒ 归一成空串。
     """
-    return row.data_version or ""
+    from app.services.report.report_service import PENDING_HASH_PREFIX
+
+    content_hash = row.content_hash or ""
+    if content_hash.startswith(PENDING_HASH_PREFIX):
+        return ""
+    return content_hash
 
 
 __all__ = ["router", "Response"]
