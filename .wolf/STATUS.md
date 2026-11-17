@@ -4,57 +4,49 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-16（第 31 轮：
-> **P10-B（全流程 E2E）T1~T7 落地** —— 真 PG 隔离 schema 车道 + 18 场景 +
-> 权限矩阵 + 真后端 5 条 UI 流；**未 push**）。
+> Read this FIRST when starting a session. Last updated: 2026-11-17（第 32 轮：
+> **P10-B 评审修复批** —— ce-code-review 的 21 条发现按人裁决全部落地；
+> **未 push**）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done（第 31 轮：P10-B · 全流程 E2E）
+## ✅ Done（第 32 轮：P10-B · ce-code-review 评审修复批）
 
-计划：`docs/superpowers/plans/2026-11-13-p10-batch-b-fullflow-e2e.md` ·
-账簿 `.superpowers/sdd/2026-11-13-p10-batch-b-fullflow-e2e/progress.md`
-· commits `540dc9b` → `dd00d93`（**未 push**）。
+报告：`docs/ce-code-review/20261117-013829-7e9fbabe/report.md`（+ 末尾的人裁决节）
+· 账簿 `.superpowers/sdd/2026-11-17-p10b-review-fixes/progress.md`
+· commits `cebf48d` → `1e27216`（**未 push**）。
 
-**车道**：`scripts/pytest_e2e.sh`（薄封装 ⇒ 复用 `pytest_pg.sh` 的三道闸门）·
-隔离 schema（`CREATE SCHEMA` → `alembic upgrade head` → `DROP CASCADE`）·
-默认车道由 `PCS_E2E_LANE` 闸门**跳过** e2e 用例（否则会打到开发库 `pcs`）·
-两条车道**共用一把 flock**（同一个库不能并发建 schema）。
+**裁决落地**（21 条发现里人裁的 12 条 + 随裁决连带修的）：
+A1/#14（审计端点读 `content_hash` · #3/#4/#12 随之）· #2（迁移种子 +
+lifespan ensure ⇒ #1 作废）· **#8**（库名白名单 `current_database()`）·
+**#16**（闸门③ 不再接受「跑 1 条 skip 29 条」）· **#19**（隔离扩到**进程级
+session factory**）· **#10**（RBAC 审计早退 → 按**真实连接**判车道上下文）·
+**#5**（越权断言换「角色够、授权缺」身份 ⇒ 断 404 + code/message 模板）·
+**#6**（矩阵断言改断种子那张）· **#7**（路由扫描改真断言 + 白名单外为空）·
+**#18**（种子显式灌生产默认数据）· **#20/#21**（schema 一致性挪到发布前闸门
++ 断「与代码 head 对齐」）· **#23**（三个变量落到三层各自位置 + fail-fast）·
+**#11**（5 份 `docs/solutions/` 回写）· **#25**（偏离登记同步到权威 V1.3.1）·
+**#26**（请求侧 `case_type` 可省略）· **#15**（锁移项目内 + 默认路径互斥实测）。
 
-**覆盖**：E2E 车道 **28 passed + 1 xfailed**（18 个 SPEC 场景 + 5 条路径 +
-权限矩阵 + AI 审计 + 两库 schema 一致）· PG 车道 7 passed ·
-真后端 Playwright **6 passed**（5 条新 UI 流 + P10-A 冒烟）·
-mock 通道 23 passed · 前端 typecheck/lint clean · vitest 1054 passed。
+**闸门**：默认车道全量 · PG 车道 7 · E2E 车道 31 · 真后端 Playwright 7 ·
+mock 通道 23 · vitest 1054 · typecheck/lint clean · 两库 `p10_002 (head)` +
+`alembic check` 干净 · 幂等 48 迁移 0 violations · 裸载荷 42 ≤ 71。
 
-**抓到的真缺陷（9 个）**：bug-2163（预览响应形状）· 2164（管道等级占位行）·
-2165（报表审计哈希 · **根因未闭环 ⇒ TODO-158**）· **2166**（种子塞 int 进
-VARCHAR ⇒ 生产驱动 asyncpg 上必炸 ⇒ **根因是车道用了跟生产不同的驱动**
-⇒ 车道改 asyncpg）· **2167**（`GET /projects/{id}/streams` 500 ——
-`case_type` DB 可空而响应必填枚举 ⇒ 物流一览页打不开）·
-**2168**（仪表盘每次开 2 条 404）· **2169**（`useFetch` 发**写死的假 token**
-⇒ 真后端 401 ⇒ 详情页永远「加载中…」）· **2170**（PG 守门测试与车道锁打架）。
-
-**变异实测**（守卫不是空壳）：去掉 `parent_lineage_id` ⇒ 01C/E2E-013 同时红；
-给 bob 发一条 VIEWER 授权行 ⇒ 权限流红。
-
-**SPEC 偏离登记 D23~D38 已回写**（该 SPEC 实际是 **V1.0** ⇒ D20）。
+**新登记**：bug-2173~2180（8 条）· TODO-162（antd rowKey 弃用告警）·
+TODO-163（compose 的 migrate/seed 未进锁 ⇒ 无外网无法验证）。
 
 ---
 
 ## 🚀 Next quest
 
-1. **T8 收口**：批末闸门（`alembic check` 两库各一进程 · `scripts/pytest_pg.sh` ·
-   `check_openapi_payload_coverage.py` · `check_migration_idempotency.py` ·
-   前后端全量 · Playwright 两条通道）· **gstack-qa 浏览器回归报告**
-   （`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-16-p10b.md`）⇒
-   ⇒ **本轮还没跑**（T8 Step 2~5）。
+1. **推送本轮**（12 个提交未 push；用户此前要求过「推送远端」⇒ 需明确授权）。
 2. **P10-C/D/E/F** 仍未开工（部署可观测 / 压测 / 文档 / 生产就绪评审）。
-3. **本轮未 push**（用户未要求）。
-4. **新增 TODO**：155（真过 Redis + ARQ worker）· 156（PRO/II 不抽组成）·
-   **157**（前端**没有设备清单页** ⇒ `/equipment-list` 无页面）·
-   **158**（报表审计哈希根因未闭环 · bug-2165 残余）。
-5. **E2E 进 CI 延到 P10-F**（既有裁决「不新建流水线」⇒ D25）。
+3. **未落地的裁决项**（本批**未**处理，等下一批）：#9（`useFetch` 改走 axios）·
+   #13（preview-streams 补 response_model）· #17（种子管级按契约改）·
+   #22（public 守卫覆盖全部表 + 种子前基线）· #24（仪表盘 404 守卫条件）·
+   #27（flock 守卫剥注释 + 校验 `-n`）。
+4. **E2E 进 CI 延到 P10-F**（既有裁决「不新建流水线」⇒ D25）。
 
 ---
 
@@ -65,30 +57,28 @@ VARCHAR ⇒ 生产驱动 asyncpg 上必炸 ⇒ **根因是车道用了跟生产�
 - main。**不要建 worktree**（历史事故）· **不要 `git checkout <commit> --detach`**。
   **不得擅自 push**。`.wolf/*` 里 `anatomy.md` / `memory.md` / `anatomy-index.json` 由 hook 维护。
 - 提交约定：conventional commits，**带** `Co-Authored-By: Claude Code` 行；长消息写文件后 `git commit -F`。
-- ⚠️ **真后端通道的跑法**（T7 实测）：后端连 **`pcs_pgtest`（宿主 5433）**
-  （`DATABASE_URL` + `PCS_ENABLE_MOCK_LOGIN=true` ⇒ 起 uvicorn）
-  ⇒ 前端 `VITE_ENABLE_MOCK=false` + `VITE_PROJECT_ID=<flows 项目 id>`
-  + `VITE_API_PROXY_TARGET=http://127.0.0.1:<后端端口>`
-  ⇒ `npx playwright test --project=real-backend`。
-  ⇒ ⚠️ **后端端口不是 8000**（本机 8000 被别的服务占着）。
-- ⚠️ **`streams.case_type` 可空** ⇒ 任何物流列表的种子都要显式填（否则端点 500）。
+- ⚠️ **真后端通道现在有统一入口**（评审 #23）：后端 `bash pcs-backend/scripts/serve_e2e_backend.sh`
+  （库 `pcs_pgtest` · 端口 **8001** · mock 登录开）⇒ 前端 `npm run e2e:real`
+  ⇒ 三个变量由 `playwright.config.ts` 的 webServer.env **默认**给 ⇒ 不用手工 export。
+- ⚠️ **`.env` 的 `DATABASE_URL` 指向开发库 `pcs`** ⇒ 跑真后端通道必须**显式覆盖**
+  ⇒ 且 alembic 的 `settings` 是 pydantic **缓存实例** ⇒ **一库一个进程**
+  ⇒ 已有现成脚本：`uv run python scripts/check_schema_parity.py`（逐库独立进程 + 与代码 head 比）。
 - ⚠️ **antd 的 `role="option"` 是隐藏副本**（宽 0）⇒ Playwright 判「不可见」
   ⇒ 用 `.ant-select-item-option`；状态徽标上写的是**中文**（「已核验」）。
 - ⚠️ **跑 pytest 前先清掉残留进程**（本机多次出现上几轮遗留的 pytest）⇒ 满负载 ⇒
   Playwright 的 `locator.click` **30s 超时假红**。
 - ⚠️ **子代理 Bash 会挂起** ⇒ 派发审阅/实现子代理**只给 Read/Grep**。
-- ⚠️ **`.wolf/cerebrum.md` 已 ≈28k token** ⇒ 清退窗口已到 ⇒ 但**别机械搬最旧的**。
-- ⚠️ **`.env` 的 `DATABASE_URL` 指向开发库 `pcs`** ⇒ 跑真后端通道必须**显式覆盖**
-  ⇒ 且 alembic 的 `settings` 是 pydantic **缓存实例** ⇒ **一库一个进程**。
+- ⚠️ **`.env` 的口令不要写命令行** ⇒ 用 `dotenv_values('.env')` 在**进程内**派生 URL。
+- ⚠️ **本机无外网** ⇒ compose 的一次性服务（`seed` / `migrate`）**构建不了**
+  ⇒ ⇒ compose 侧改动**无法验证** ⇒ 别盲改（TODO-163 就是这么留下的）。
 
 ---
 
 ## 教训（**已进 cerebrum / docs/solutions**，此处只留最新三条）
 
-- **车道的驱动必须与生产一致** ⇒ 否则「int 塞进 VARCHAR」这类缺陷**隐形**（bug-2166）。
-- **前端有两条取数通道**（axios 拦截器 vs 裸 `fetch`）⇒ 后者**默认没有 token** ⇒
-  真后端通道才抓到（bug-2169）。
-- **守卫测试必须与被守卫的机制隔离** ⇒ 车道锁 ⇒ 守门测试抢同一把锁 ⇒
-  测的不是它声称的东西（bug-2170）。
+- **断言要断的分支必须先「到达」** ⇒ 身份不对 ⇒ 比较的是**另一个闸门**的码
+  ⇒ ⇒ 用**变异测试**证明敏感（删掉被守卫的代码 ⇒ 断言必须红）（bug-2174）。
+- **响应字段的可空性要从 DB 列推出来** ⇒ 窄声明 = 整个端点 500；请求侧要**对称**（bug-2167/2173）。
+- **车道的驱动必须与生产同一个** ⇒ 否则「int 塞进 VARCHAR」这类缺陷**隐形**（bug-2166）。
 ⇒ 其余历史教训查 `.wolf/cerebrum.md` 的 Do-Not-Repeat（**先查顶部索引表，别通读**）
    与 `docs/solutions/`。
