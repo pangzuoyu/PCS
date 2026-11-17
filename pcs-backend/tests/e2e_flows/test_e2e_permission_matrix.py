@@ -136,8 +136,6 @@ async def test_rbac_denial_writes_an_audit_row(e2e_client, role_headers):
     from app.services._sliding_window_rate_limit import clear_all_rate_limits
     from app.services.token_issuer import derive_user_id
 
-    from scripts.seed_e2e_flows import ROLE_TO_USERNAME
-
     clear_all_rate_limits()
     try:
         async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
@@ -233,8 +231,9 @@ async def test_wf_path_04_matrix_and_signature_matrix_agree(
         )
 
     # 且矩阵本身得是 ACTIVE + 有步骤（否则批准链是空的 ⇒ 送审直接 422）
-    from app.models.deliverable import SignatureMatrix
     from sqlalchemy import select
+
+    from app.models.deliverable import SignatureMatrix
 
     async with e2e_client._e2e_session_factory() as session:  # type: ignore[attr-defined]
         matrix = (

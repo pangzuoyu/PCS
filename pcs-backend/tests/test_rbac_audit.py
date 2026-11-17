@@ -262,7 +262,7 @@ class _StubFactory:
         self.kw = {"bind": _StubBind(url)}
         self.opened = 0
 
-    def __call__(self) -> "_StubFactory":
+    def __call__(self) -> _StubFactory:
         return self
 
     async def __aenter__(self) -> _StubSession:
