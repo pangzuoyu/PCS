@@ -1487,4 +1487,32 @@ JWT 验签、body hash、document_chunks 未来迁移、INTERNAL_CIDRS 解析、
 
 P10 SPEC V1.3.1 完。
 
+第六部分：偏离登记（实现与本 SPEC 的口径差异）
 
+⚠️ **本节是权威的那一份** —— 另一份 `spec/P10 AI预留与测试部署开发规格说明书.md`
+（**V1.0** · 2026-08-27 · 顶部已标注**过时**）⇒ ⇒ **本批（P10-B）起以本文件
+（V1.3.1）为准**（P10-B 评审 #25）⇒ ⇒ 下面 D23~D40 在此登记。
+
+⚠️ **D23~D38 的原始登记位置**是 V1.0 那份文件（2026-11-16 · P10-B 批末增补）
+⇒ ⇒ 此处**同步**一份 ⇒ 并按 P10-B 评审的裁决**更新**了 D26 / D33 / D37 / D38
+（2026-11-17 · 评审修复批）⇒ ⇒ **以本节为准**。
+
+编号	SPEC 原口径	代码/实现的实际情况	本批处置	章节
+D23	权限矩阵用 `SYSADMIN`	代码词表是 `SYSTEM_ADMIN`（`state_machine.TRANSITION_ROLES`）	**以代码为准** ⇒ SPEC 词表订正	§3.2.2
+D24	AUTH-E2E-11/12（`TEST_VIEWER` 看测试报告页）	`TEST_VIEWER` **不存在**（项目内角色 6 值里没有）· 测试报告页属 **P10-C**	**本批不做** ⇒ 角色登记随 P10-C 一并做	§3.2.2
+D25	「E2E 在 CI 中可自动执行」+「PR 跑关键 E2E；nightly 跑全量 E2E」	既有裁决「**不新建 CI 流水线**」	**本批只给本地车道脚本**（`scripts/pytest_e2e.sh` 跑全量）⇒ 「进 CI」与「PR/nightly 拆分」**一并延到 P10-F** ⇒ **本批不假装满足**	§3.2.0(2)
+D26	18 场景「全部通过」	本批（P10-B 批末 · 2026-11-17）：后端 18 条（E2E 车道 31 passed · 0 xfailed）+ 前端 5 条 UI 流（UI 不重复覆盖 18 条）	**后端为权威覆盖**，前端是**抽样 UI 复验**	§3.2.2
+D27	项目创建后输入清单**自动生成**	仓里**没有**任何建项目时碰清单的代码 ⇒ 真实流程是 `POST /api/v1/checklist/projects/{id}/seed` **显式** seed	**以代码为准** ⇒ E2E-001 断「显式 seed 后清单非空」⇒ SPEC 措辞修订	§3.2.2
+D28	AUTH-E2E-02「CHECKER 送审被拒（角色不够）」	代码里 `CHECKER` **过得了**粗闸（`SUBMIT_FOR_CHECK` 含 CHECKER）⇒ 403 的真因是**自审闸**（提交人角色出现在批准链里）⇒ 错误码 `APPROVAL_SELF_REVIEW_FORBIDDEN`	**以代码为准** ⇒ 矩阵断**错误码**而非只断状态码 ⇒ SPEC 的「角色不够」措辞修订	§3.2.2
+D29	报表生成是**异步**的（HTTP 202 + 轮询）	入队依赖 **Redis + ARQ worker** ⇒ 本批**不引 Redis/worker** ⇒ 队列不可达时端点**当场 503** ⇒ 轮询到 `SUCCESS` **不可达**	**本批用三段式**（HTTP 503 fail-closed + 直调 worker 任务体 + 产物断言）⇒ 「真过 Redis + worker」延到 **TODO-155**	§3.2.2
+D30	批准链走完后的状态词（若 SPEC 写 `APPROVED`）	9 态里**没有 `APPROVED`** ⇒ 链尾是 **`CHECKED`**（`IN_APPROVAL` 只在链中途）	**以代码为准** ⇒ 断言精确断 `CHECKED`	§3.2.2
+D31	导入 ⇒ 物性补全（E2E-002 一气呵成）	**PRO/II 解析器不抽组成**（`app/services/import_service.py`）⇒ 导入的物流 `composition_json is None` ⇒ **进不了计算链**	**E2E-002 拆两段** ⇒ 「导入的物流进不了计算链」是**产品缺口** ⇒ **TODO-156**	§3.2.2
+D32	容器计算返回**尺寸**（E2E-006）	尺寸要 `sizing_spec`（C-08 **V1.2** 的两相分离器尺寸，Souders-Brown）⇒ 那是 **P6-4 的遗留债**	**本批断「结果里有 `sizing` + `hydraulics` 两块」**，**不断尺寸数值** ⇒ 尺寸留给 P6-4 的 V1.2	§3.2.2
+D33	E2E-018「两库 schema 版本一致」	alembic 的 `settings` 是 **pydantic 缓存实例** ⇒ **同一进程内**第二次改 `DATABASE_URL` **不生效** ⇒ 两库实际只查了一个；且**只比彼此**⇒ 两库**都落后**也绿（评审 #21）	**一库一个进程**（独立子进程各读一次 `alembic_version`）⇒ 且判据改为「**每个库 == 代码 head**」（不止「两库彼此相同」）⇒ 实现在**发布前闸门** `scripts/check_schema_parity.py`（不在 E2E 车道，见 D38）	§3.2.2
+D34	01C 断「`marked_stale >= 1`」	响应里**两个计数器**：`marked_stale` = `scan_stale()`（**自己**哈希对不上基线）· `propagated` = **链式传播**（上游变了 ⇒ 下游 STALE）	**断 `propagated >= 1`** + **直查下游状态 = `STALE`** ⇒ 走的是传播那条路	§3.2.2
+D35	AUTH-E2E-05「APPROVER 批 ⇒ 200」	矩阵链是 **CHECKER → REVIEWER → APPROVER** ⇒ 第一步的「待批角色」是 CHECKER ⇒ APPROVER/REVIEWER 现在批 = **插队** ⇒ 403 `APPROVAL_ROLE_MISMATCH`	**拆两行**：① 插队 ⇒ 403 · ② **轮到你时**你批得动 ⇒ 200	§3.2.2
+D36	T7 的 5 条 UI 流（物流列表 · 记录详情 · 交付物 Rev 列表 · 设备表 · 权限）	前端**没有** PipingResult 详情页（`/results/*` 只有 6 类结果表）· **也没有**设备清单页（`/equipment-list` 只有生成的类型、无页面）	**改成前端实有的 5 条**：物流一览 · 物流详情 · 签署进度 · 签署矩阵 · 越权可见性 ⇒ 后端 18 场景**仍是权威覆盖**	§3.2.2
+D37	「权限：越权用户看不到别人的项目」⇒ 断某个具体错误码	身份若用**角色不够**的人（mock 登录的 `bob` = CHECKER）⇒ **角色闸**先挡 ⇒ 403 ⇒ ⇒ 断言退化成 `403 === 403` ⇒ ⇒ **把项目守卫整段删掉也照样绿**（评审 #5）	身份换成「**角色够、授权缺**」（`erin` = DESIGNER、种子**故意不授权**）⇒ 请求**能过角色闸** ⇒ ⇒ 真正落到项目守卫 `check_project_access_or_404` ⇒ ⇒ 断「**404**（不是 403）+ `code` **逐字相同** + `message` **模板逐字相同**」（模板 = 归一化项目 id 后）⇒ ⇒ 该断言对「删掉项目守卫」**敏感**（已用变异测试验证）	§3.2.2
+D38	「两库一致」这条检查的**位置**（E2E 车道 vs 发布前检查）	它断的是**两个开发库** ⇒ 放在 E2E 车道里 ⇒ ① 职责错位（那是发布前检查）② **几乎不会执行**（车道批末才跑一次）③ 让车道**不再 hermetic**（开发库不可达 ⇒ 车道红，理由与车道无关）（评审 #20）	**挪到发布前闸门** `scripts/check_schema_parity.py`（`scripts/gate_alembic_check.py` 旁边）⇒ 判据见 D33；E2E 车道只留「隔离 schema 内部」的用例 ⇒ 单测车道**绝不碰开发库**	§3.2.2
+D39	启动时 seed 的默认数据量（SPEC 正文写「CATEGORY_3 默认 **6 张**系数表」+「系统参数默认 **7 键**」）	代码里的**源清单**实际是 **9** 张系数表（`app/seeds/category3_defaults.json`）+ **13** 个系统参数（`app/services/system_setting_service.py::DEFAULT_SETTINGS`）⇒ ⇒ SPEC 的 6/7 是**旧数字**	**以代码为准** ⇒ P10-B 的 E2E 车道**不跑 lifespan** ⇒ 改为在种子脚本里**显式调生产用的那两个 seed 函数**（`CoefficientService.seed_default_tables` + `seed_system_setting_defaults`）⇒ 断言「行数 == 源清单的条数」⇒ ⇒ 车道验的是「生产同款」	§3.2.1
+D40	物流的 `case_type`：DB 列**可空** ⇒ 响应可空（bug-2167）	请求侧仍**必填** ⇒ ⇒ **读写不对称** ⇒ 「拿响应当入参」的客户端（GET→POST 回写）读到 null 就 **422**（评审 #26）	**请求侧也允许省略**（`StreamBase.case_type` ⇒ Optional，省略 ⇒ 落库 NULL）⇒ ⇒ 读写对称 ⇒ ⚠️ OpenAPI **无变化**（建物流的请求体在契约里是裸 dict）	§3.2.2
