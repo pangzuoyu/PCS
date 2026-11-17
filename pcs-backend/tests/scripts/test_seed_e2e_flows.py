@@ -33,6 +33,7 @@ from app.models.report import ReportDefinition
 from scripts.seed_e2e_flows import (
     AUTHORIZED_USERNAMES,
     FLOW_MATRIX_ID,
+    FLOW_PIPE_CLASS_ID,
     FLOW_PROJECT_ID,
     FLOW_USERNAMES,
     FLOW_WORKSPACE_ID,
@@ -378,3 +379,79 @@ def test_record_payload_template_is_not_shared_state():
     """
     assert isinstance(PIPING_RECORD_PAYLOAD, dict)
     assert PIPING_RECORD_PAYLOAD, "载荷模板不能是空的"
+
+
+# ---------------------------------------------------------------------------
+# 种子管级必须**能被契约校验**（P10-F · 评审 #17）
+# ---------------------------------------------------------------------------
+
+
+async def test_seed_pipe_class_row_matches_the_response_contract(db_session):
+    """种子管级必须**能被 `PipeClassResponse` 校验** ⇒ 否则按 id 查必 500。
+
+    ⚠️ 断的是**契约本身**（`PipeClassResponse.model_validate`）⇒ ⇒ 不要手写
+    一份副本比对（副本会跟契约一起漂）⇒ 依据
+    `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md` §4。
+
+    ⚠️ 形状事实（2026-11-17 核）：`PipeClassBase.dn_series_json` 是
+    `dict[str, int]` = **{"min","max"}**（`_check_dn` 会校验）·
+    `sch_series_json` 是 `dict[str, str]`（DN→Sch 字符串）·
+    `source` 是 `Literal["COMPANY_STD","PROJECT"]`。
+    """
+    from app.models.config_domain import PipeClass
+    from app.schemas.pipe_class import PipeClassResponse
+
+    await seed_flows(db_session)
+    row = (
+        await db_session.execute(
+            select(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID)
+        )
+    ).scalar_one()
+
+    validated = PipeClassResponse.model_validate(
+        {c.name: getattr(row, c.name) for c in PipeClass.__table__.columns}
+    )  # ← 违反契约时抛 ValidationError
+    assert validated.dn_series_json == {"min": 150, "max": 150}
+    assert validated.sch_series_json == {"DN150": "40"}
+    assert validated.source == "COMPANY_STD"
+
+
+async def test_seed_corrects_an_existing_legacy_row(db_session):
+    """库里**已存在**契约外形状的老行 ⇒ 重跑种子 ⇒ **老行被订正**。
+
+    ⚠️ 为什么必须钉这条：种子是 `_get_or_create` ⇒ **存在就不动**
+    ⇒ ⇒ 「改了脚本但现象照旧」（hermes 裁决：报告漏了这一步）。
+    """
+    from app.models.config_domain import PipeClass
+    from app.schemas.pipe_class import PipeClassResponse
+
+    db_session.add(
+        PipeClass(
+            class_id=FLOW_PIPE_CLASS_ID,
+            class_name="E2E 种子管级",
+            material_standard="GB/T 150",
+            base_material="20#",
+            corrosion_allowance=1.5,
+            design_pressure=1.0,
+            design_temperature=60.0,
+            allowable_stress_json={"20#": 137.0},
+            dn_series_json={"DN150": 1.0},  # ← 契约外的旧形状
+            sch_series_json={"DN150": 40.0},  # ← 契约外的旧形状（float）
+            flange_class="PN16",
+            source="E2E_SEED",  # ← 契约外的旧来源
+            version="1",
+            status="DRAFT",
+        )
+    )
+    await db_session.commit()
+
+    await seed_flows(db_session)  # ← 重跑
+
+    row = (
+        await db_session.execute(
+            select(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID)
+        )
+    ).scalar_one()
+    PipeClassResponse.model_validate(
+        {c.name: getattr(row, c.name) for c in PipeClass.__table__.columns}
+    )  # ← 不抛错 ⇒ 老行被订正过

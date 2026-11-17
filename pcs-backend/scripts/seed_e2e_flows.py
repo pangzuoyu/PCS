@@ -509,8 +509,24 @@ async def _ensure_pipe_class(db: AsyncSession) -> PipeClass:
     ⚠️ ⚠️ **SQLite 不强制 FK** ⇒ 单测（内存 SQLite）**照样绿** ⇒
     真 PG 上才炸 ⇒ 这正是「单测照绿、真库会炸」的形状 ⇒
     ⇒ 本行由 **PG 车道**兜住（`scripts/pytest_e2e.sh`）。
+
+    ⚠️ **形状必须与契约一致**（P10-F · 评审 #17）：`PipeClassResponse` 要求
+    `dn_series_json` = `{"min","max"}`（int · `_check_dn` 还会校验
+    `0 < min <= max`）· `sch_series_json` = `{DN: Sch 字符串}` ·
+    `source` = `COMPANY_STD` / `PROJECT` ⇒ 违反任意一条 ⇒
+    **按 id 查那一族**（`GET /api/v1/pipe-classes/{id}`）**整条 500**。
+    ⇒ ⇒ 形状与 `alembic/versions/p10_002_seed_placeholder_pipe_class.py`
+    的 `CS-STD` 占位行**同款**（评审 #2 的纪律：两处占位行形状一致）。
+
+    ⚠️ **存在即订正**（幂等）：`_get_or_create` 是「存在就不动」⇒ ⇒ 只改
+    工厂函数**不修已种下的老行** ⇒ ⇒ 现象照旧 ⇒ ⇒ 这里显式把三列订正回来。
     """
-    return await _get_or_create(
+    target: dict[str, Any] = {
+        "dn_series_json": {"min": 150, "max": 150},
+        "sch_series_json": {"DN150": "40"},
+        "source": "COMPANY_STD",
+    }
+    pc = await _get_or_create(
         db,
         select(PipeClass).where(PipeClass.class_id == FLOW_PIPE_CLASS_ID),
         lambda: PipeClass(
@@ -522,13 +538,20 @@ async def _ensure_pipe_class(db: AsyncSession) -> PipeClass:
             design_pressure=1.0,
             design_temperature=60.0,
             allowable_stress_json={"20#": 137.0},
-            dn_series_json={"DN150": 1.0},
-            sch_series_json={"DN150": 40.0},
+            **target,
             flange_class="PN16",
-            source="E2E_SEED",
             version="1",
         ),
     )
+    # ⚠️ **订正已种下的老行**（幂等 · 只在形状真的不对时才写）
+    corrected = False
+    for column, value in target.items():
+        if getattr(pc, column) != value:
+            setattr(pc, column, value)
+            corrected = True
+    if corrected:
+        await db.flush()
+    return pc
 
 
 async def _ensure_equipment_type_code(
