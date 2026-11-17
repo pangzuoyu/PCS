@@ -6351,6 +6351,28 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2172",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "管道链计算**在请求路径往全局 `pipe_classes` 主表写一行**（`source=\"COMPANY_STD\"` 的假公司标准）⇒ 每个用户都看得见；且「先查后插」在并发首算时撞主键 ⇒ IntegrityError 逃过 PcsError 兜底 ⇒ 整条链计算 500（P10-B ce-code-review #1/#2 · P1）",
+      "file": "pcs-backend/app/services/pipe/pipe_chain_persist.py",
+      "root_cause": "`persist_pipe_chain_result` 落库前调 `_ensure_placeholder_pipe_class`（P10-B 的 E2E-003 为绕开 FK 500 加的运行时兜底）⇒ ⇒ ① **计算端点写配置主表**（越权：普通项目请求改公司级标准目录）② **裸 SELECT-then-INSERT**（无 savepoint / 无 IntegrityError 兜底 ⇒ 并发首算撞 `pipe_classes` 主键）③ 配置数据的 canonical 落点应是**迁移**（先例 `p9_013`）。\n⚠️ 叠加 `PipingResult.material_class` 是指向 `pipe_classes.class_id` 的**外键** ⇒ SQLite **不强制 FK** ⇒ 单测照绿 ⇒ 真库每次都炸（bug-2164 的形状）。",
+      "fix": "**人裁决（2026-11-17）**：**迁移种子 + lifespan 幂等 ensure**，**删掉请求路径写入**。\n① 新迁移 `p10_002`（`ON CONFLICT (class_id) DO NOTHING`）种 `CS-STD`（形状照 `PipeClassService.create`：`dn_series_json` **int** · `sch_series_json` **DN→Sch 字符串** · `source=COMPANY_STD` · `status=DRAFT`）；\n② `app/services/pipe_class_service.py` 加 `ensure_placeholder_pipe_class()`（幂等）⇒ **lifespan 启动时**兜底；\n③ `pipe_chain_persist.py` **删掉** `_ensure_placeholder_pipe_class` 与调用点 ⇒ ⇒ **计算端点不再写配置主表** ⇒ ⇒ **#1（并发撞主键）随之作废**。\n⇒ TDD：单测先写（RED：函数不存在 → 再 RED：`allowable_stress_json` NOT NULL 漏了）⇒ GREEN；E2E-003 的断言**改成**「占位行**已存在**（迁移种的）+ 链计算后**行数不变**」⇒ 车道 29 passed。\n⇒ 两库 `alembic upgrade head` → `p10_002 (head)` + `alembic check` exit 0；幂等检查 48 迁移 0 violations；PG 车道 7 passed。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "配置主表",
+        "迁移",
+        "并发"
+      ],
+      "related_bugs": [
+        "bug-2164"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
     }
   ]
 }

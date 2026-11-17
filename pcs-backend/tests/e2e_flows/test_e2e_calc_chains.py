@@ -29,7 +29,13 @@ from tests.e2e_flows.helpers import (
 async def test_e2e_003_pipe_calc_chain_populates_the_pipe_class_table(
     e2e_client, role_headers, e2e_seed
 ):
-    """POST /pipe/calc-chain ⇒ 201 ⇒ **管级表多了一行**（落库 + 下游可见）。"""
+    """POST /pipe/calc-chain ⇒ 201 ⇒ **计算链不往配置表写行**（#2 裁决）。
+
+    ⚠️ **断言变了**：原先断「管级表**多了一行**」⇒ 那断的正是「**计算端点在
+    运行时写配置主表**」这个副作用（#2 · P1）⇒ ⇒ 现在断：
+    ① 占位管级 `CS-STD` **已经存在**（由**迁移**种 ⇒ 不是链计算种的）
+    ② 链计算之后**管级表行数不变**（⇒ 请求路径不再写配置表）
+    """
     headers = role_headers("DESIGNER")
 
     before = await e2e_client.get("/api/v1/pipe-classes", headers=headers)
@@ -51,11 +57,22 @@ async def test_e2e_003_pipe_calc_chain_populates_the_pipe_class_table(
     assert result.get("record_hash"), f"管道计算没产出记录哈希：{sorted(result)[:12]}"
     assert result.get("outlet_stream_id"), "管道计算没产出出口物流"
 
+    # ① 占位管级**已经存在**（迁移种的 ⇒ 不是链计算种的）
+    before_ids = {
+        r.get("class_id")
+        for r in (before_rows if isinstance(before_rows, list) else before_rows.get("items", []))
+    }
+    assert "CS-STD" in before_ids, (
+        f"占位管级 CS-STD 不存在（{sorted(before_ids)[:8]}）⇒ 迁移没种它"
+    )
+
     after = await e2e_client.get("/api/v1/pipe-classes", headers=headers)
     after_rows = after.json()
     after_count = len(after_rows if isinstance(after_rows, list) else after_rows.get("items", []))
-    assert after_count == before_count + 1, (
-        f"管级表没多出一行（{before_count} → {after_count}）⇒ 计算结果没落库"
+    # ② **行数不变** ⇒ 计算链**没有**往配置主表写行（#2）
+    assert after_count == before_count, (
+        f"计算链往配置表写了行（{before_count} → {after_count}）"
+        "⇒ 请求路径仍在写配置主表（#2 未修）"
     )
 
 

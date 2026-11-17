@@ -158,6 +158,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with factory() as session:
         await CoefficientService.seed_default_tables(session)
         await seed_system_setting_defaults(session)
+        # ⚠️ **占位管级兜底**（P10-B 评审 #2 · P1）—— 迁移 `p10_002` 已经种了
+        # ⇒ 这里只是**幂等兜底**（老库没跑迁移 / 行被人删）⇒
+        # ⇒ **计算端点不再在请求路径写配置主表**。
+        from app.services.pipe_class_service import ensure_placeholder_pipe_class
+
+        await ensure_placeholder_pipe_class(session)
         # ⚠️ **AI 启动校验**（SPEC §3.2.1(5)）：`ai_enabled` 为真时 endpoint
         #    必须存在、且必须解析到内网 CIDR ⇒ 否则**启动即失败**
         #    （而不是等到第一次调用才发现打到了公网 —— SPEC §2.5「私有化强制」）。

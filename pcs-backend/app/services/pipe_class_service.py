@@ -819,3 +819,56 @@ class PipeClassService:
         )
         await session.commit()
         return ppc
+
+
+# ---------------------------------------------------------------------------
+# 占位管级（链计算的 FK 目标）—— P10-B 评审 #2 · P1
+# ---------------------------------------------------------------------------
+
+#: 链计算写死进 `piping_results.material_class` 的**占位**管级 id。
+#:
+#: ⚠️ `piping_results.material_class` 是指向 `pipe_classes.class_id` 的外键
+#: ⇒ 该行**必须真的存在** ⇒ 否则真库上插记录撞 FK ⇒ 端点 500
+#: ⇒ ⚠️ SQLite **不强制 FK** ⇒ 单测照绿 ⇒ 真库每次都炸（bug-2164 的形状）。
+#:
+#: ⇒ **人裁决（2026-11-17）**：**迁移种子**（`p10_002`）+ 启动时**幂等 ensure**
+#: ⇒ ⇒ **计算端点不再写配置表**（请求路径写主数据 = 越权 + 并发撞主键）。
+PLACEHOLDER_MATERIAL_CLASS = "CS-STD"
+
+#: 占位管级那一行的字段（**与迁移 `p10_002` 逐字一致** ⇒ PG 车道有守卫）。
+PLACEHOLDER_PIPE_CLASS_FIELDS: dict[str, Any] = {
+    "class_id": PLACEHOLDER_MATERIAL_CLASS,
+    "class_name": "碳钢标准（链计算占位）",
+    "material_standard": "GB/T 150",
+    "base_material": "20#",
+    "corrosion_allowance": 1.5,
+    "design_pressure": 1.0,
+    "design_temperature": 60.0,
+    # ⚠️ **必须含 {min,max} 且是 int** —— `PipeClassBase._check_dn` 会校验
+    # ⇒ 缺失/越界 ⇒ `GET /pipe-classes` **整条 500**（E2E-003 撞出来的）。
+    "dn_series_json": {"min": 15, "max": 600},
+    # ⚠️ **DN → Sch 字符串映射**（`dict[str, str]`）⇒ 不是 `{min,max}`。
+    "sch_series_json": {"15": "0.5", "600": "1.2"},
+    "flange_class": "PN16",
+    # ⚠️ **NOT NULL**（`pipe_classes.allowable_stress_json`）⇒ 漏了 ⇒ 插入直接炸
+    "allowable_stress_json": {"20#": 137.0},
+    # ⚠️ `source="COMPANY_STD"` —— 公司管架列表只列它 ⇒ 不符 ⇒ 下游看不见。
+    "source": "COMPANY_STD",
+    "version": "1",
+    "status": "DRAFT",
+}
+
+
+async def ensure_placeholder_pipe_class(session: AsyncSession) -> None:
+    """**幂等**确保占位管级 `CS-STD` 在库里（**启动时**调 ⇒ 不在请求路径）。
+
+    ⚠️ 为什么还需要它（迁移已经种了）：① 迁移**没跑**（老库）② 行被人删了
+    ⇒ ⇒ 兜底一层，代价只是一次 `session.get`。
+    """
+    from app.models.config_domain import PipeClass
+
+    existing = await session.get(PipeClass, PLACEHOLDER_MATERIAL_CLASS)
+    if existing is not None:
+        return
+    session.add(PipeClass(**PLACEHOLDER_PIPE_CLASS_FIELDS))
+    await session.flush()
