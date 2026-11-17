@@ -245,9 +245,13 @@ Expected: FAIL（现在只有「加载中…」，找不到「加载失败」；
 - [ ] **Step 2b: 前置检查**（⚠️ 失败模式表里那条「⚠️ 依赖既有 axios 测试」⇒ ⇒ **开工前核**）
 
 ```bash
-cd pcs-frontend && npm run test -- src/api
+cd pcs-frontend && npm run test -- tests/api/session_over_codes.test.ts
 ```
 ⇒ ⇒ 必须看到 **401 / 会话过期**相关的用例**存在且绿** ⇒ ⇒
+⇒ ⇒ ⚠️ **路径在前端的 `tests/` 下，不在 `src/api/`**（`src/api/` 里**没有**测试文件 ⇒
+⇒ ⇒ `npm run test -- src/api` 会报「No test files found」⇒ ⇒ 那不是「测试不存在」的证据）
+⇒ ⇒ ⇒ 已核（2026-11-17）：`tests/api/session_over_codes.test.ts` **存在**（5 tests · MSW 打真 401
+⇒ ⇒ ⇒ 断拦截器的「清会话 + 跳 /login」**和**「不该登出的 code 白名单」）⇒ ⇒ **回归网已就位** ⇒ ⇒
 ⇒ ⇒ **不存在** ⇒ ⇒ **停下**：先把那条测试补出来（它就是抽取函数的**回归网**）⇒ ⇒ 再抽
 ⇒ ⇒ **存在** ⇒ ⇒ 记录用例名（进提交信息）⇒ ⇒ 继续 Step 3
 
