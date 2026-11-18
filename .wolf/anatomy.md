@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T00:12:40.710Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T00:56:25.309Z
 > Files: 1356 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -9,12 +9,12 @@
 - `.gitignore` — Git ignore rules (~296 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
 - `CLAUDE.md` — OpenWolf (~1926 tok)
-- `CONCEPTS.md` — Concepts (~1673 tok)
+- `CONCEPTS.md` — Concepts (~1991 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5974 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~37308 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~37986 tok)
 
 ## .claude/rules/
 
@@ -1575,7 +1575,7 @@
 - `report_heat_coverage.py` — c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。 (~6477 tok)
 - `run_gate.py` — 跑一条闸门命令并报告**它自己**的退出码（TODO-050）。 (~752 tok)
 - `seed_e2e_data.py` — E2E 种子数据（P10-A · Task T2）—— **幂等**。 (~2797 tok)
-- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9528 tok)
+- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9673 tok)
 - `seed_user_project_access.py` — 给「指定用户名 × 指定项目」授权（幂等）—— P9B-4 紧急批次 T0。 (~1468 tok)
 - `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~634 tok)
 

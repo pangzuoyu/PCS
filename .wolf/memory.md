@@ -3816,3 +3816,10 @@
 | 07:55 | Created docs/solutions/testing-issues/autouse-fixture-must-be-lane-scoped.md | — | ~689 |
 | 08:03 | Edited pcs-backend/tests/e2e_flows/test_e2e_pipe_class_lookup.py | 4→7 lines | ~100 |
 | 08:12 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-18-p10f-final-review.md | — | ~1061 |
+| 08:56 | Edited CONCEPTS.md | expanded (+28 lines) | ~418 |
+| 08:56 | Edited TODOS.md | expanded (+19 lines) | ~156 |
+| 08:56 | Edited TODOS.md | expanded (+21 lines) | ~212 |
+| 08:56 | Edited TODOS.md | 8→13 lines | ~130 |
+| 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | expanded (+6 lines) | ~103 |
+| 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | inline fix | ~15 |
+| 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | 3→8 lines | ~103 |

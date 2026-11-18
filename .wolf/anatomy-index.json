@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T00:12:40.710Z",
+    "lastScanned": "2026-11-18T00:56:25.309Z",
     "fileCount": 1356,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "0d896748a34cce67637523d3509d7d2cdc8591b136e09763fd7c3468de1a5aef",
-    "storeUpdatedAt": "2026-11-18T00:12:40.722Z",
-    "rootHash": "adae3caf08eea913"
+    "renderedHash": "fa3baad864e33370cda15174ede85583c50676dda079e5aa49badd22b4cc2e0b",
+    "storeUpdatedAt": "2026-11-18T00:56:25.322Z",
+    "rootHash": "fb778ac9f55182ca"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 37308,
-      "hash": "572f3f5ebc1eff31",
-      "size": 250579,
-      "mtimeMs": 1794959723443.1272,
-      "updatedAt": "2026-11-17T23:55:23.507Z",
+      "tokens": 37986,
+      "hash": "d1844e5a17e53785",
+      "size": 255849,
+      "mtimeMs": 1794963371414.038,
+      "updatedAt": "2026-11-18T00:56:11.470Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -21364,11 +21364,11 @@
     },
     "CONCEPTS.md": {
       "description": "Concepts",
-      "tokens": 1673,
-      "hash": "51c2094f48336c47",
-      "size": 6705,
-      "mtimeMs": 1791379598407.7825,
-      "updatedAt": "2026-10-07T13:26:38.462Z",
+      "tokens": 1991,
+      "hash": "cdf2c680a1784cd9",
+      "size": 7989,
+      "mtimeMs": 1794963361810.8972,
+      "updatedAt": "2026-11-18T00:56:01.857Z",
       "source": "hook"
     },
     "docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md": {
@@ -46996,11 +46996,11 @@
     },
     "pcs-backend/scripts/seed_e2e_flows.py": {
       "description": "流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。",
-      "tokens": 9528,
-      "hash": "4589160bfdaab1ad",
-      "size": 41749,
-      "mtimeMs": 1794959585713.3733,
-      "updatedAt": "2026-11-17T23:53:05.762Z",
+      "tokens": 9673,
+      "hash": "6930d5cc4759dd33",
+      "size": 42569,
+      "mtimeMs": 1794963385255.238,
+      "updatedAt": "2026-11-18T00:56:25.309Z",
       "source": "hook",
       "symbols": [
         {
@@ -47049,133 +47049,133 @@
           "name": "_ensure_personal_workspace",
           "kind": "fn",
           "startLine": 391,
-          "endLine": 418,
-          "tokens": 260
+          "endLine": 423,
+          "tokens": 333
         },
         {
           "name": "_ensure_project",
           "kind": "fn",
-          "startLine": 419,
-          "endLine": 437,
+          "startLine": 424,
+          "endLine": 442,
           "tokens": 176
         },
         {
           "name": "_ensure_users",
           "kind": "fn",
-          "startLine": 438,
-          "endLine": 468,
+          "startLine": 443,
+          "endLine": 473,
           "tokens": 270
         },
         {
           "name": "_ensure_grants",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 495,
+          "startLine": 474,
+          "endLine": 500,
           "tokens": 251
         },
         {
           "name": "_ensure_streams",
           "kind": "fn",
-          "startLine": 496,
-          "endLine": 566,
+          "startLine": 501,
+          "endLine": 571,
           "tokens": 687
         },
         {
           "name": "_ensure_pipe_class",
           "kind": "fn",
-          "startLine": 567,
-          "endLine": 623,
-          "tokens": 602
+          "startLine": 572,
+          "endLine": 634,
+          "tokens": 674
         },
         {
           "name": "_ensure_equipment_type_code",
           "kind": "fn",
-          "startLine": 624,
-          "endLine": 648,
+          "startLine": 635,
+          "endLine": 659,
           "tokens": 214
         },
         {
           "name": "_ensure_equipment",
           "kind": "fn",
-          "startLine": 649,
-          "endLine": 674,
+          "startLine": 660,
+          "endLine": 685,
           "tokens": 258
         },
         {
           "name": "_ensure_matrix",
           "kind": "fn",
-          "startLine": 675,
-          "endLine": 691,
+          "startLine": 686,
+          "endLine": 702,
           "tokens": 156
         },
         {
           "name": "_ensure_matrix_binding",
           "kind": "fn",
-          "startLine": 692,
-          "endLine": 713,
+          "startLine": 703,
+          "endLine": 724,
           "tokens": 193
         },
         {
           "name": "_ensure_deliverable",
           "kind": "fn",
-          "startLine": 714,
-          "endLine": 741,
+          "startLine": 725,
+          "endLine": 752,
           "tokens": 256
         },
         {
           "name": "_ensure_record",
           "kind": "fn",
-          "startLine": 742,
-          "endLine": 761,
+          "startLine": 753,
+          "endLine": 772,
           "tokens": 169
         },
         {
           "name": "_ensure_report_definition",
           "kind": "fn",
-          "startLine": 762,
-          "endLine": 796,
+          "startLine": 773,
+          "endLine": 807,
           "tokens": 351
         },
         {
           "name": "seed_flows",
           "kind": "fn",
-          "startLine": 797,
-          "endLine": 868,
+          "startLine": 808,
+          "endLine": 879,
           "tokens": 743
         },
         {
           "name": "_seed_production_defaults",
           "kind": "fn",
-          "startLine": 869,
-          "endLine": 907,
+          "startLine": 880,
+          "endLine": 918,
           "tokens": 390
         },
         {
           "name": "_default_coefficient_tables",
           "kind": "fn",
-          "startLine": 908,
-          "endLine": 921,
+          "startLine": 919,
+          "endLine": 932,
           "tokens": 104
         },
         {
           "name": "_default_system_settings",
           "kind": "fn",
-          "startLine": 922,
-          "endLine": 928,
+          "startLine": 933,
+          "endLine": 939,
           "tokens": 58
         },
         {
           "name": "_count_rows",
           "kind": "fn",
-          "startLine": 929,
-          "endLine": 941,
+          "startLine": 940,
+          "endLine": 952,
           "tokens": 152
         },
         {
           "name": "_main",
           "kind": "fn",
-          "startLine": 942,
-          "endLine": 1007,
+          "startLine": 953,
+          "endLine": 1018,
           "tokens": 544
         }
       ]
