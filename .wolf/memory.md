@@ -3855,3 +3855,4 @@
 | 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | expanded (+12 lines) | ~242 |
 | 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified classify() | ~84 |
 | 10:30 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3b.md | — | ~1816 |
+| 10:40 | Created docs/solutions/security-issues/guard-coverage-audit-logistics-adjacent-modules.md | — | ~5991 |

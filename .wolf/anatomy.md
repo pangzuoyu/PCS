@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:30:59.678Z
-> Files: 1368 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:40:44.522Z
+> Files: 1369 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -592,6 +592,7 @@
 
 ## docs/solutions/security-issues/
 
+- `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5616 tok)
 - `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
 

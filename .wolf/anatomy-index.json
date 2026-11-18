@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T02:30:59.678Z",
-    "fileCount": 1368,
+    "lastScanned": "2026-11-18T02:40:44.522Z",
+    "fileCount": 1369,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ddbeb1be7394116d6dc607becfabd41a60d734f6a5748bd3bd6f6438ac44671f",
-    "storeUpdatedAt": "2026-11-18T02:30:59.690Z",
-    "rootHash": "9cc8ec31a29dcc16"
+    "renderedHash": "01cd3bdde07fa086e60243f84c6bc6229effd3ec2d8dc5ef2aa660370e6588ce",
+    "storeUpdatedAt": "2026-11-18T02:40:44.534Z",
+    "rootHash": "4082695848f903ed"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -49506,6 +49506,15 @@
       "size": 10147,
       "mtimeMs": 1794969059623.4683,
       "updatedAt": "2026-11-18T02:30:59.678Z",
+      "source": "hook"
+    },
+    "docs/solutions/security-issues/guard-coverage-audit-logistics-adjacent-modules.md": {
+      "description": "守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答",
+      "tokens": 5616,
+      "hash": "61304774a47e7027",
+      "size": 31844,
+      "mtimeMs": 1794969644474.7585,
+      "updatedAt": "2026-11-18T02:40:44.522Z",
       "source": "hook"
     }
   }
