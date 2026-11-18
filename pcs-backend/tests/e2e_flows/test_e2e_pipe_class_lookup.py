@@ -39,7 +39,10 @@ async def test_seed_pipe_class_is_readable_by_id(e2e_client, role_headers):
     )
     body = resp.json()
     assert body["dn_series_json"] == {"min": 150, "max": 150}, body
-    assert body["sch_series_json"] == {"DN150": "40"}, body
+    # ⚠️ **SCH 的键是裸 DN 数字**（与 `dn_series_json` 同一口径 · 与 `CS-STD`
+    # 占位行同款）⇒ ⇒ 前端 `dnNumeric` 只认裸数字 ⇒ ⇒ `"DN150"` 会排到
+    # 数字键之后（P10-F · 整支评审 M1）。
+    assert body["sch_series_json"] == {"150": "40"}, body
     assert body["source"] == "COMPANY_STD", body
 
 
