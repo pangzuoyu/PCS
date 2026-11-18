@@ -5056,19 +5056,19 @@ learnings）⇒ ⇒ **51 条原始发现** ⇒ ⇒ 合并去重后 **1 P0 + 3 P1
 
 **剩下的**（⇒ ⇒ **一条一条登记** ⇒ ⇒ 与仓库既有风格一致）：
 
-| # | 严重度 | 缺口 | 位置 | 命中评审员 |
-|---|---|---|---|---|
-| 1 | 🔴 **P1** | **FORMAL 类型闸（403）排在工作区授权守卫（404）之前** ⇒ ⇒ 无权者拿到**可区分的 403** ⇒ ⇒ **存在性可枚举** | `app/api/v1/records.py:136` | adversarial + security |
-| 2 | 🔴 **P1** | **`DefinitionService.update` 改 `project_id` 不查项目授权**（`create` 查了 · `PUT` 没查）⇒ ⇒ 创建人可把定义改挂到无授权项目 | `app/services/report/definition_service.py:332` | **5 位独立命中** |
-| 3 | 🔴 **P1** | **工作区 owner 自动授权会造 `ws-owner-<uuid>` 的假用户名 `users` 行** ⇒ ⇒ 破坏「`user_id` = `uuid5(username)`」派生不变式 ⇒ ⇒ owner 之后真登录被 `USER_ID_CONFLICT` 挡住 | `app/api/v1/projects.py:245` | adversarial + project-standards |
-| 4 | 🟠 P2 | `obsolete()` **不查任何身份/项目** ⇒ ⇒ 任意审核角色可作废别人的定义 | `definition_service.py:430` | maintainability + security + correctness |
-| 5 | 🟠 P2 | 项目级定义的 `shared_with` **被静默忽略** ⇒ ⇒ `CREATOR_ONLY` 发布后对全体项目成员可见 ⇒ ⇒ **字段与实现不符** | `definition_service.py:218` | adversarial + api-contract + project-standards |
-| 6 | 🟠 P2 | 审计脚本 `AUTHZ_GUARDS` **漏了两个新 service 层守卫** ⇒ ⇒ 把新守卫判成「无守卫」⇒ ⇒ **假阴性** | `scripts/audit_list_endpoints.py:84` | maintainability + adversarial + correctness |
-| 7 | 🟠 P2 | 报表执行的 scope 授权在 `user_id is None` 时**整段跳过** ⇒ ⇒ **fail-open** | `app/services/report/builder_service.py:193` | reliability + security |
-| 8 | 🟠 P2 | `POST /workspaces` 收**任意 `project_id`** 且无项目授权（⚠️ **授权面影响已被 P0 修消除** ⇒ ⇒ 只剩「展示字段被污染」） | `app/api/v1/workspaces.py:73` | adversarial + security |
-| 9 | 🟠 P2 | 「无权」在**三层返回三种错误码** ⇒ ⇒ 逐字同形只做到「同层内」 | `user_project_service.py:372` | api-contract + maintainability |
-| 10 | 🟠 P2 | `visible_clause` 与 `require_project_access_or_404` **对 SYSTEM_ADMIN bypass 口径不一致** | `definition_service.py:169/198` | api-contract + maintainability |
-| 11 | 🟠 P2 | 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+ 条）⇒ ⇒ **永不触发** | `tests/conftest.py:301` | testing |
+| # | 严重度 | 缺口 | 位置 | 命中评审员 | 状态（2026-11-18） |
+|---|---|---|---|---|---|
+| 1 | 🔴 **P1** | **FORMAL 类型闸（403）排在工作区授权守卫（404）之前** ⇒ ⇒ 无权者拿到**可区分的 403** ⇒ ⇒ **存在性可枚举** | `app/api/v1/records.py:136` | adversarial + security | ✅ **已修** `2a77bd6`（类型闸拆成 `require_formal_workspace_type` ⇒ ⇒ 授权在前 404 · 类型在后 403）|
+| 2 | 🔴 **P1** | **`DefinitionService.update` 改 `project_id` 不查项目授权**（`create` 查了 · `PUT` 没查）⇒ ⇒ 创建人可把定义改挂到无授权项目 | `app/services/report/definition_service.py:332` | **5 位独立命中** | ✅ **已修** `2a77bd6`（`update()` 补 `require_project_access_or_404`）|
+| 3 | 🔴 **P1** | **工作区 owner 自动授权会造 `ws-owner-<uuid>` 的假用户名 `users` 行** ⇒ ⇒ 破坏「`user_id` = `uuid5(username)`」派生不变式 ⇒ ⇒ owner 之后真登录被 `USER_ID_CONFLICT` 挡住 | `app/api/v1/projects.py:245` | adversarial + project-standards | ✅ **已修** `2a77bd6`（不再造假用户名 ⇒ ⇒ owner 无 `users` 行 ⇒ ⇒ 跳过 + warning）|
+| 4 | 🟠 P2 | `obsolete()` **不查任何身份/项目** ⇒ ⇒ 任意审核角色可作废别人的定义 | `definition_service.py:430` | maintainability + security + correctness | ✅ **已修** `f4a3246`（补**项目授权** ⇒ ⇒ 无权 404；⚠️ **禁自审**不补 ⇒ ⇒ 仍归 TODO-190）|
+| 5 | 🟠 P2 | 项目级定义的 `shared_with` **被静默忽略** ⇒ ⇒ `CREATOR_ONLY` 发布后对全体项目成员可见 ⇒ ⇒ **字段与实现不符** | `definition_service.py:218` | adversarial + api-contract + project-standards | ⏸ **待人裁**（项目级定义「一律共享」还是「`CREATOR_ONLY` 仍有效」）|
+| 6 | 🟠 P2 | 审计脚本 `AUTHZ_GUARDS` **漏了两个新 service 层守卫** ⇒ ⇒ 把新守卫判成「无守卫」⇒ ⇒ **假阴性** | `scripts/audit_list_endpoints.py:84` | maintainability + adversarial + correctness | ✅ **已修** `f4a3246`（补两个 service 层守卫 + `interesting` 加 `TYPE_GUARDS`）|
+| 7 | 🟠 P2 | 报表执行的 scope 授权在 `user_id is None` 时**整段跳过** ⇒ ⇒ **fail-open** | `app/services/report/builder_service.py:193` | reliability + security | ✅ **已修** `f4a3246`（`user_id is None` ⇒ ⇒ **拒绝执行** · fail-closed）|
+| 8 | 🟠 P2 | `POST /workspaces` 收**任意 `project_id`** 且无项目授权（⚠️ **授权面影响已被 P0 修消除** ⇒ ⇒ 只剩「展示字段被污染」） | `app/api/v1/workspaces.py:73` | adversarial + security | ⏸ **待人裁**（⚠️ 授权面影响已被 P0 修消除 ⇒ ⇒ 只剩「展示字段被污染」）|
+| 9 | 🟠 P2 | 「无权」在**三层返回三种错误码** ⇒ ⇒ 逐字同形只做到「同层内」 | `user_project_service.py:372` | api-contract + maintainability | ⏸ **独立批**（要动 21+ 端点的错误信封）|
+| 10 | 🟠 P2 | `visible_clause` 与 `require_project_access_or_404` **对 SYSTEM_ADMIN bypass 口径不一致** | `definition_service.py:169/198` | api-contract + maintainability | ⏸ **待人裁**（admin 看得见全部 vs 只看得见别人看得见的 ⇒ ⇒ 现在 admin 能 publish 却 GET 不到）|
+| 11 | 🟠 P2 | 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+ 条）⇒ ⇒ **永不触发** | `tests/conftest.py:301` | testing | ✅ **已修** `f4a3246`（台账从**计数 2** 改成**路径清单** + 两条只增不减的下限）|
 
 ⇒ ⇒ **P3（18 条）** 登记在计划的「低优先」一节（前端 axios / MSW mock / 车道脚本 /
 ARQ / 索引 / 文档 frontmatter …）⇒ ⇒ 不逐条开 TODO。
