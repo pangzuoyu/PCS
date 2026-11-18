@@ -5040,3 +5040,41 @@ require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMI
 ⇒ ⇒ ⇒ 前端只是把「点一下才知道」变成「一开始就知道」。
 
 **归属**：P10-F 之外的独立批（**前端体验**）
+
+---
+
+## TODO-192: **ce-code-review（P10-F 整批 · 2026-11-18）的修复项** 🔴
+
+**来源**：`ce-code-review` 审 P10-F 整批（43 commit · base `2618f46`）⇒ ⇒
+**10 个评审员全部返回**（correctness · security · adversarial · testing ·
+api-contract · reliability · project-standards · maintainability · performance ·
+learnings）⇒ ⇒ **51 条原始发现** ⇒ ⇒ 合并去重后 **1 P0 + 3 P1 + 8 P2 + 18 P3**。
+
+⚠️ **P0 已修**（bug-2192 · commit `4b374b0`）：工作区守卫的真相源
+（`workspaces.project_id` **生产路径从来不写** ⇒ ⇒ FORMAL 被当成 PERSONAL ⇒ ⇒
+成员 404 + 写入恒 400）⇒ ⇒ 改成**反查 `projects.workspace_id`**。
+
+**剩下的**（⇒ ⇒ **一条一条登记** ⇒ ⇒ 与仓库既有风格一致）：
+
+| # | 严重度 | 缺口 | 位置 | 命中评审员 |
+|---|---|---|---|---|
+| 1 | 🔴 **P1** | **FORMAL 类型闸（403）排在工作区授权守卫（404）之前** ⇒ ⇒ 无权者拿到**可区分的 403** ⇒ ⇒ **存在性可枚举** | `app/api/v1/records.py:136` | adversarial + security |
+| 2 | 🔴 **P1** | **`DefinitionService.update` 改 `project_id` 不查项目授权**（`create` 查了 · `PUT` 没查）⇒ ⇒ 创建人可把定义改挂到无授权项目 | `app/services/report/definition_service.py:332` | **5 位独立命中** |
+| 3 | 🔴 **P1** | **工作区 owner 自动授权会造 `ws-owner-<uuid>` 的假用户名 `users` 行** ⇒ ⇒ 破坏「`user_id` = `uuid5(username)`」派生不变式 ⇒ ⇒ owner 之后真登录被 `USER_ID_CONFLICT` 挡住 | `app/api/v1/projects.py:245` | adversarial + project-standards |
+| 4 | 🟠 P2 | `obsolete()` **不查任何身份/项目** ⇒ ⇒ 任意审核角色可作废别人的定义 | `definition_service.py:430` | maintainability + security + correctness |
+| 5 | 🟠 P2 | 项目级定义的 `shared_with` **被静默忽略** ⇒ ⇒ `CREATOR_ONLY` 发布后对全体项目成员可见 ⇒ ⇒ **字段与实现不符** | `definition_service.py:218` | adversarial + api-contract + project-standards |
+| 6 | 🟠 P2 | 审计脚本 `AUTHZ_GUARDS` **漏了两个新 service 层守卫** ⇒ ⇒ 把新守卫判成「无守卫」⇒ ⇒ **假阴性** | `scripts/audit_list_endpoints.py:84` | maintainability + adversarial + correctness |
+| 7 | 🟠 P2 | 报表执行的 scope 授权在 `user_id is None` 时**整段跳过** ⇒ ⇒ **fail-open** | `app/services/report/builder_service.py:193` | reliability + security |
+| 8 | 🟠 P2 | `POST /workspaces` 收**任意 `project_id`** 且无项目授权（⚠️ **授权面影响已被 P0 修消除** ⇒ ⇒ 只剩「展示字段被污染」） | `app/api/v1/workspaces.py:73` | adversarial + security |
+| 9 | 🟠 P2 | 「无权」在**三层返回三种错误码** ⇒ ⇒ 逐字同形只做到「同层内」 | `user_project_service.py:372` | api-contract + maintainability |
+| 10 | 🟠 P2 | `visible_clause` 与 `require_project_access_or_404` **对 SYSTEM_ADMIN bypass 口径不一致** | `definition_service.py:169/198` | api-contract + maintainability |
+| 11 | 🟠 P2 | 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+ 条）⇒ ⇒ **永不触发** | `tests/conftest.py:301` | testing |
+
+⇒ ⇒ **P3（18 条）** 登记在计划的「低优先」一节（前端 axios / MSW mock / 车道脚本 /
+ARQ / 索引 / 文档 frontmatter …）⇒ ⇒ 不逐条开 TODO。
+
+⚠️ **误报（已实测排除）**：① 「审计脚本 `type_only` 档不可达」⇒ ⇒ 实测
+`interesting` **已含** `TYPE_GUARDS` ⇒ ⇒ 该发现基于旧版本文件；② 「`shared_with`
+被忽略」在公司级定义上**不成立**（公司级分支**有**该条件）⇒ ⇒ 只在项目级分支缺。
+
+**归属**：**P10-F · 「守卫补洞批」**（计划：`docs/superpowers/plans/2026-11-18-p10-f-guard-hole-batch.md`）
