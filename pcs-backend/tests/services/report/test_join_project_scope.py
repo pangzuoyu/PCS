@@ -117,7 +117,13 @@ async def _execute(db: AsyncSession, def_id, *, user_id, project_id):
     from app.services.report.builder_service import execute_definition
     from app.services.report.definition_service import DefinitionService
 
-    await DefinitionService(db).publish(def_id=def_id)
+    # ⚠️ **发布者不能是创建人**（TODO-172 裁决 ①）⇒ ⇒ ⇒ 换一个身份
+    # ⇒ ⇒ `actor_roles=SYSTEM_ADMIN` ⇒ ⇒ 全局 bypass ⇒ ⇒ 不用项目授权
+    await DefinitionService(db).publish(
+        def_id=def_id,
+        actor_user_id=uuid.uuid5(uuid.NAMESPACE_DNS, f"publisher-{user_id}"),
+        actor_roles=["SYSTEM_ADMIN"],
+    )
     await db.commit()
     # ⚠️ **roles=SYSTEM_ADMIN** —— `execute_definition` 里有那道「scope 项目要对
     # ⇒ ⇒ 执行者有授权」的判定（P10-F · TODO-174）⇒ ⇒ 本文件测的是**取数的
@@ -427,7 +433,12 @@ async def test_definition_sort_direction_reaches_the_query(db_session):
                             "direction": direction}],
                 "MaxRows": 100, "OutputFormat": "csv", "detailLevel": "BASIC",
             })
-        await defn.publish(def_id=d.def_id)
+        # ⚠️ **发布者不能是创建人**（TODO-172 裁决 ①）
+        await defn.publish(
+            def_id=d.def_id,
+            actor_user_id=uuid.uuid5(uuid.NAMESPACE_DNS, "publisher-sort"),
+            actor_roles=["SYSTEM_ADMIN"],
+        )
         await db_session.commit()
         out = await execute_definition(db_session, def_id=d.def_id,
                                        user_id=uuid.uuid4(), project_id=pid,

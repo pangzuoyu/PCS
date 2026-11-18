@@ -24,8 +24,10 @@ import pytest
 from app.core.security import create_access_token
 
 
-def _auth(role="DESIGNER"):
-    return {"Authorization": f"Bearer {create_access_token(subject='u', role=role)}"}
+def _auth(role="DESIGNER", *, subject="u"):
+    # ⚠️ **subject 也要能换**（TODO-172 裁决 ①：**禁自审**）⇒ ⇒ 同一
+    # ⇒ ⇒ `subject` 相同 ⇒ ⇒ `user_id` 相同 ⇒ ⇒ ⇒ 发布者 == 创建人 ⇒ ⇒ 403
+    return {"Authorization": f"Bearer {create_access_token(subject=subject, role=role)}"}
 
 
 #: 端点级执行日志带 `task_id` ↔ `report_file_id` 的映射
@@ -108,8 +110,9 @@ async def _published_def(client) -> str:
     r = await client.post("/api/v1/report-builder/definitions", headers=h, json=body)
     assert r.status_code == 201, r.text
     d = r.json()["def_id"]
+    # ⚠️ **发布者要是另一个人**（TODO-172 裁决 ①：创建人自己不能发布）
     p = await client.post(f"/api/v1/report-builder/definitions/{d}/publish",
-                          headers=_auth("REVIEWER"))
+                          headers=_auth("REVIEWER", subject="reviewer-u"))
     assert p.status_code == 200, p.text
     return d
 
