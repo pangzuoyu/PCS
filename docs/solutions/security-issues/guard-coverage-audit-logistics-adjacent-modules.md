@@ -200,6 +200,10 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 
 ⇒ ⇒ **10 处敏感 · 9 处无人应答** ⇒ ⇒ **无人应答的 9 处就是断言缺口本身**（TODO-181 等）。
 
+⚠️ **事后补记（2026-11-18 · 批 4/批 5 之后）**：变异 M3/M7/M10/M11 对应的
+端点中，**`records` 的三个读端点与 `workspaces` 的三个端点**已由批 4 补上
+`strict_client` 断言 ⇒ ⇒ ⇒ 「无人应答」从 9 处降到 **6 处**。
+
 ---
 
 ## 五 · 缺口清单（逐条 ⇒ 已在 `TODOS.md` 登记）
@@ -213,9 +217,9 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 | **TODO-182** | 🟠 high | `records.py` 状态机守卫在 `ws.project_id IS NULL` 时**整段跳过** | 代码审查（`records.py:189/243`） |
 | **TODO-170** | 🟠 medium | `report_definitions.project_id` 是**死字段**（数据模型说项目级 · 授权说创建人级）⇒ ⇒ **已裁决落地**（选项 ③ · `bc881fa`） | —— |
 | **TODO-171** | 🟡 medium | `DefinitionService.update` 的**写闸**没有独立断言（删掉 ⇒ 71 条全绿） | 变异 3 |
-| **TODO-172 / 178** | 🟡 medium | **publish 的职责分离未定义**（产品语义）+ 其断言不敏感于「自审自批」 | 探针：创建人自己是 REVIEWER ⇒ 发布自己的定义 ⇒ **200** |
+| **TODO-172 / 178** | 🟡 medium | **publish 的职责分离** ⇒ ⇒ **已裁决并落地**（`09c9282`）：禁自审 403 · 审核者需项目授权 404 · 公司级审核者例外 | 探针：创建人自己是 REVIEWER ⇒ 发布自己的定义 ⇒ **200**（**现已 403**） |
 | **TODO-173** | 🟡 medium | `config.py` 的 **8 个端点**的角色闸**没有 403 断言** | T2a |
-| **TODO-175** | 🟡 medium | `POST /projects` 能否替别人建项目（**产品语义**） | —— |
+| **TODO-175** | 🟡 medium | `POST /projects` 能否替别人建项目（**产品语义**）⇒ ⇒ **已裁决并落地**（`09c9282`）：只有 SYSTEM_ADMIN 能替别人建（**现状即满足**）+ **工作区 owner 自动获授权** | —— |
 | **TODO-176** | 🟠 high | 默认 `client` 把项目守卫 mock 成永远 True ⇒ ⇒ 「已覆盖」必须复核（**部分已做**：`strict_client` + 棘轮） | —— |
 | **TODO-177** | 🟡 medium | **公司级模板（`project_id IS NULL`）当前不可执行**（恒 400） | —— |
 | **TODO-187** | 🟡 medium | 两种 404 **文案不同** ⇒ ⇒ 存在性可枚举（跨 21+ 端点族） | 守卫 `Project not found: X` vs 端点 `X not found` |
