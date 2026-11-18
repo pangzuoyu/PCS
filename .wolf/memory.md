@@ -3873,3 +3873,61 @@
 | 11:01 | Edited CONCEPTS.md | expanded (+21 lines) | ~292 |
 | 11:43 | Created pcs-backend/tests/api/v1/test_report_definition_publish_duty.py | — | ~1815 |
 | 11:44 | Edited pcs-backend/app/services/report/definition_service.py | added error handling | ~703 |
+
+## Session: 2026-11-18 12:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-11-18 12:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-11-18 12:19
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:21 | Session end: 155 writes across 68 files (routeWrappers.fetch.test.tsx, client.ts, routeWrappers.tsx, AssetListPage.tsx, commit-f1-t1.txt) | 77 reads | ~110640 tok |
+
+## Session: 2026-11-18 12:21
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-11-18 13:12
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 15:28 | Created docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md | — | ~1093 |
+| 15:28 | Edited TODOS.md | 1→2 lines | ~41 |
+| 15:28 | Edited TODOS.md | 3→3 lines | ~41 |
+| 15:28 | Edited TODOS.md | 3→3 lines | ~42 |
+| 15:28 | Edited TODOS.md | 3→3 lines | ~41 |
+| 15:28 | Edited docs/superpowers/plans/2026-11-04-p10-master-plan.md | 1→2 lines | ~121 |
+| 15:32 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | 1→2 lines | ~58 |
+| 15:39 | Edited pcs-backend/app/services/workspace_service.py | added 1 import(s) | ~56 |
+| 15:39 | Edited pcs-backend/app/services/workspace_service.py | modified resolve_workspace_project() | ~962 |
+| 15:39 | Edited pcs-backend/app/api/v1/records.py | 13→16 lines | ~205 |
+| 15:40 | Edited pcs-backend/app/api/v1/projects.py | expanded (+20 lines) | ~329 |
+| 15:40 | Edited pcs-backend/app/api/v1/projects.py | expanded (+10 lines) | ~186 |
+| 15:40 | Created pcs-backend/alembic/versions/p10_003_backfill_workspace_project.py | — | ~626 |
+| 15:40 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | expanded (+11 lines) | ~183 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | modified _mk_ws() | ~353 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | _mk_project() → _mk_project_on() | ~57 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | _mk_project() → _mk_project_on() | ~137 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | _mk_project() → _mk_project_on() | ~51 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | _mk_project() → _mk_project_on() | ~50 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | 3→2 lines | ~28 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | 3→2 lines | ~29 |
+| 15:41 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | 4→4 lines | ~55 |
+| 15:42 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | 8→11 lines | ~113 |
+| 15:42 | Edited pcs-backend/app/api/v1/records.py | 6→10 lines | ~124 |
+| 15:43 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | modified _mk_project_on() | ~264 |
+| 15:44 | Edited pcs-backend/alembic/versions/p10_003_backfill_workspace_project.py | FROM() → AND() | ~315 |
+| 15:47 | Edited docs/solutions/security-issues/workspace-access-guard-project-or-owner.md | expanded (+37 lines) | ~446 |
+| 15:55 | Edited pcs-backend/tests/conftest.py | expanded (+25 lines) | ~478 |
+| 15:57 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified test_create_project_duplicate_no_is_409_not_500() | ~236 |
+| 15:57 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified test_create_project_duplicate_no_is_409_not_500() | ~269 |
+| 16:05 | P0 修（bug-2192）：工作区守卫真相源改成反查 `projects.workspace_id` + `POST /projects` 回填 + 迁移 `p10_003` + 71 条夹具改生产形状 + 契约 baseline 重滚（门禁 exit 1→0） | workspace_service.py · records.py · projects.py · alembic/versions/p10_003_*.py · tests/conftest.py · tests/test_records.py · tests/api/v1/test_{workspace_access_guard,project_creation}.py · docs/{openapi.json,openapi-baseline.json} · pcs-frontend/{openapi.snapshot.json,src/types/api.d.ts} · docs/solutions/security-issues/workspace-access-guard-project-or-owner.md | 待提交（变异 8 红 ⇒ 敏感；车道末轮 5888 passed） | ~46k |
+| 16:23 | Edited pcs-backend/tests/e2e_flows/test_e2e_project_config.py | modified test_e2e_001_project_creation_and_input_checklist() | ~398 |

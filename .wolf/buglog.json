@@ -6783,6 +6783,36 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-18"
+    },
+    {
+      "id": "bug-2192",
+      "timestamp": "2026-11-18",
+      "severity": "critical",
+      "error_message": "工作区访问守卫把 **FORMAL 工作区当成 PERSONAL**：① 项目的其他成员（**有 `user_projects` 授权行**）读管路记录 ⇒ ⇒ **404**；② `POST /records/piping` ⇒ ⇒ **恒 400** ⇒ ⇒ **整条写入路径死掉**（开发库实测：workspaces 1 行 · `project_id` **非空 0 行** · projects 1 行 ⇒ ⇒ 那列在生产上恒 NULL ⇒ ⇒ FORMAL 分支永远走不到）",
+      "file": "pcs-backend/app/services/workspace_service.py",
+      "root_cause": "守卫 `require_workspace_access_or_404` 把 **`workspaces.project_id` 这一列**当「FORMAL vs PERSONAL」的分档键 ⇒ ⇒ **而生产路径从来不写那一列** —— `POST /projects` 只写 `Project(workspace_id=...)`（`projects.py:138-149`），**从不回填**；只有 `POST /workspaces`（**客户端自填**）与占位方法 `import_records`（**无调用方**）会写 ⇒ ⇒ 无迁移回填 ⇒ ⇒ 那列恒 NULL ⇒ ⇒ 守卫**把所有工作区**判成 PERSONAL ⇒ ⇒ 只有 owner 本人能进 ⇒ ⇒ 成员 404；`records.py:156` 的「payload.project_id 必须等于工作区的 project_id」判定用**同一列** ⇒ ⇒ `workspace.project_id is None` ⇒ ⇒ **恒 400**。⚠️ **为什么全绿**：① 守卫测试的夹具 `_mk_ws(..., project_id=project)` **手造了生产不存在的形状**（填了列、却没有 Project 行）⇒ ⇒ 「替身比被测物更宽容」；② **E2E 种子 `seed_e2e_flows.py` 会回填那一列** ⇒ ⇒ 真后端通道造的是生产没有的形状 ⇒ ⇒ 车道全绿而生产是死的；③ 结论：**守卫的键不能是「只有夹具会填的列」** ⇒ ⇒ 「守卫代码是对的」≠「守卫能跑起来」。",
+      "fix": "**已修**（2026-11-18 · commit `4b374b0` · 人裁决 2026-11-18 选「A」）：① **真相源 = 反查 `projects.workspace_id`** ⇒ ⇒ 新增 `app/services/workspace_service.py::resolve_workspace_project()` ⇒ ⇒ `workspaces.project_id` 降级成**展示用的冗余副本**（守卫不再信任它 ⇒ ⇒ 客户端自填的那个值也污染不了授权）；② 守卫**返回解析出的项目** ⇒ ⇒ `records.py::create_piping` 用它做一致性判定**与落库**（写入路径复活）；③ `POST /projects` 建项目后**回填** `workspace.project_id`（副本不再过期）⇒ ⇒ 并**拒绝第二个项目**（409 `WORKSPACE_ALREADY_HAS_PROJECT`）⇒ ⇒ 提前挡住歧义状态；④ **歧义 fail-loud**：一个工作区挂两个项目 ⇒ ⇒ 409 `WORKSPACE_PROJECT_AMBIGUOUS`（不猜 ⇒ 挑一个会让「授权在 A 的人」因挑到 B 被拒）；⑤ 迁移 `p10_003` 把存量对齐（**只处理恰好挂一个项目的工作区** ⇒ ⇒ 歧义的留给运行时 409）⇒ ⇒ `pcs` 与 `pcs_test` 各跑一次（`pcs_test` **254/254** 回填）⇒ ⇒ 两库 `alembic check` 各 exit 0（**独立进程** + 直查库核对 revision）；⑥ **测试夹具照生产形状改**：`tests/conftest.py::workspace` 补建 **Project 行**（`workspace_id` 指向工作区）⇒ ⇒ `tests/test_records.py::_make_formal_ws` 改成「工作区先建 → Project 行后建」⇒ ⇒ 共 71 条既有测试由红转绿（它们此前把「工作区没有项目 ⇒ 写不进去」钉成了正常行为）；⑦ **变异自证**：把守卫改回「按 `workspaces.project_id` 判」⇒ ⇒ **8 条测试变红**（含两条新的 P0 回归钉子）⇒ ⇒ 还原后全绿 ⇒ ⇒ 断言**真的在守**。",
+      "fix_commit": "4b374b0",
+      "tags": [
+        "P10-F",
+        "F3",
+        "P0",
+        "workspace",
+        "project-scope",
+        "owner",
+        "authorization",
+        "records",
+        "ce-code-review",
+        "替身比被测物更宽容",
+        "critical"
+      ],
+      "related_bugs": [
+        "bug-2187",
+        "bug-2188",
+        "bug-2189"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
     }
   ]
 }
