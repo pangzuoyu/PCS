@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T02:40:44.522Z",
-    "fileCount": 1369,
+    "lastScanned": "2026-11-18T02:48:25.816Z",
+    "fileCount": 1372,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "01cd3bdde07fa086e60243f84c6bc6229effd3ec2d8dc5ef2aa660370e6588ce",
-    "storeUpdatedAt": "2026-11-18T02:40:44.534Z",
-    "rootHash": "4082695848f903ed"
+    "renderedHash": "bb1cf046ec6d53323ae7545fc3b1967081f4d9e2fe17fa831829ec07f5e415dd",
+    "storeUpdatedAt": "2026-11-18T02:48:25.830Z",
+    "rootHash": "eba140982bf099cb"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13055,39 +13055,39 @@
     },
     "pcs-backend/app/api/v1/workspaces.py": {
       "description": "Workspace API（Sprint 1）。",
-      "tokens": 1513,
-      "hash": "b2e4c6fd849db8ce",
-      "size": 5970,
-      "mtimeMs": 1791081250511.5098,
-      "updatedAt": "2026-10-04T02:34:10.560Z",
+      "tokens": 1977,
+      "hash": "cf38ab25718d68f6",
+      "size": 8208,
+      "mtimeMs": 1794969984315.2915,
+      "updatedAt": "2026-11-18T02:46:24.369Z",
       "source": "hook",
       "symbols": [
         {
           "name": "create_workspace",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 63,
-          "tokens": 302
+          "startLine": 39,
+          "endLine": 80,
+          "tokens": 432
         },
         {
           "name": "list_workspaces",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 84,
-          "tokens": 195
+          "startLine": 81,
+          "endLine": 116,
+          "tokens": 349
         },
         {
           "name": "get_workspace",
           "kind": "fn",
-          "startLine": 85,
-          "endLine": 109,
-          "tokens": 237
+          "startLine": 117,
+          "endLine": 149,
+          "tokens": 345
         },
         {
           "name": "archive_workspace",
           "kind": "fn",
-          "startLine": 110,
-          "endLine": 153,
+          "startLine": 150,
+          "endLine": 193,
           "tokens": 492
         }
       ]
@@ -14401,54 +14401,54 @@
     },
     "pcs-backend/app/api/v1/records.py": {
       "description": "Records API（Sprint 2）。",
-      "tokens": 3276,
-      "hash": "cf5d4d310535595f",
-      "size": 12352,
-      "mtimeMs": 1790987397805.9766,
-      "updatedAt": "2026-10-03T00:29:57.853Z",
+      "tokens": 3619,
+      "hash": "1d851091e491fbfe",
+      "size": 14377,
+      "mtimeMs": 1794969953510.2559,
+      "updatedAt": "2026-11-18T02:45:53.569Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_piping",
           "kind": "fn",
           "startLine": 41,
-          "endLine": 78,
-          "tokens": 350
+          "endLine": 87,
+          "tokens": 457
         },
         {
           "name": "get_piping",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 116,
-          "tokens": 347
+          "startLine": 88,
+          "endLine": 132,
+          "tokens": 432
         },
         {
           "name": "create_piping",
           "kind": "fn",
-          "startLine": 117,
-          "endLine": 169,
-          "tokens": 659
+          "startLine": 133,
+          "endLine": 193,
+          "tokens": 772
         },
         {
           "name": "transition_piping",
           "kind": "fn",
-          "startLine": 170,
-          "endLine": 223,
-          "tokens": 547
+          "startLine": 194,
+          "endLine": 244,
+          "tokens": 533
         },
         {
           "name": "obsolete_piping",
           "kind": "fn",
-          "startLine": 224,
-          "endLine": 276,
-          "tokens": 529
+          "startLine": 245,
+          "endLine": 292,
+          "tokens": 484
         },
         {
           "name": "list_snapshots",
           "kind": "fn",
-          "startLine": 277,
-          "endLine": 322,
-          "tokens": 452
+          "startLine": 293,
+          "endLine": 346,
+          "tokens": 544
         }
       ]
     },
@@ -49516,6 +49516,326 @@
       "mtimeMs": 1794969644474.7585,
       "updatedAt": "2026-11-18T02:40:44.522Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_workspace_access_guard.py": {
+      "description": "**工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。",
+      "tokens": 3714,
+      "hash": "b18718f5d8658d5f",
+      "size": 14715,
+      "mtimeMs": 1794969850694.121,
+      "updatedAt": "2026-11-18T02:44:10.742Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_tok",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 52,
+          "tokens": 67
+        },
+        {
+          "name": "_mk_ws",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 69,
+          "tokens": 127
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 82,
+          "tokens": 130
+        },
+        {
+          "name": "_mk_pipe",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 106,
+          "tokens": 266
+        },
+        {
+          "name": "test_workspaces_list_requires_authentication",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 113,
+          "tokens": 80
+        },
+        {
+          "name": "test_workspaces_list_without_owner_id_is_admin_only",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 128,
+          "tokens": 155
+        },
+        {
+          "name": "test_workspaces_list_of_another_user_is_forbidden",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 137,
+          "tokens": 103
+        },
+        {
+          "name": "test_workspaces_list_of_own_workspaces_is_allowed",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 147,
+          "tokens": 116
+        },
+        {
+          "name": "test_workspace_detail_of_another_users_workspace_is_404",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 166,
+          "tokens": 194
+        },
+        {
+          "name": "test_workspace_detail_of_own_workspace_is_200",
+          "kind": "fn",
+          "startLine": 167,
+          "endLine": 174,
+          "tokens": 84
+        },
+        {
+          "name": "test_workspace_create_requires_authentication",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 184,
+          "tokens": 103
+        },
+        {
+          "name": "test_workspace_create_cannot_impersonate_another_owner",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 207,
+          "tokens": 198
+        },
+        {
+          "name": "test_workspace_create_uses_the_token_identity",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 225,
+          "tokens": 180
+        },
+        {
+          "name": "test_records_list_requires_authentication",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 234,
+          "tokens": 94
+        },
+        {
+          "name": "test_records_list_of_another_projects_workspace_is_404",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 259,
+          "tokens": 260
+        },
+        {
+          "name": "test_records_list_of_authorized_project_is_200",
+          "kind": "fn",
+          "startLine": 260,
+          "endLine": 277,
+          "tokens": 185
+        },
+        {
+          "name": "test_records_list_of_own_personal_workspace_is_200",
+          "kind": "fn",
+          "startLine": 278,
+          "endLine": 290,
+          "tokens": 132
+        },
+        {
+          "name": "test_records_list_of_another_personal_workspace_is_404",
+          "kind": "fn",
+          "startLine": 291,
+          "endLine": 303,
+          "tokens": 134
+        },
+        {
+          "name": "test_records_detail_and_snapshots_of_another_project_are_404",
+          "kind": "fn",
+          "startLine": 304,
+          "endLine": 326,
+          "tokens": 256
+        },
+        {
+          "name": "test_records_detail_of_own_record_is_200",
+          "kind": "fn",
+          "startLine": 327,
+          "endLine": 344,
+          "tokens": 198
+        },
+        {
+          "name": "test_records_create_rejects_project_mismatch",
+          "kind": "fn",
+          "startLine": 345,
+          "endLine": 372,
+          "tokens": 301
+        }
+      ]
+    },
+    "pcs-backend/tests/test_workspace.py": {
+      "description": "Workspace API/服务测试。",
+      "tokens": 819,
+      "hash": "ff6616732bd45589",
+      "size": 3181,
+      "mtimeMs": 1794970087722.3972,
+      "updatedAt": "2026-11-18T02:48:07.777Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 29,
+          "tokens": 68
+        },
+        {
+          "name": "test_create_personal_workspace_default_retention",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 48,
+          "tokens": 175
+        },
+        {
+          "name": "test_create_formal_workspace_null_retention",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 59,
+          "tokens": 102
+        },
+        {
+          "name": "test_invalid_workspace_type_rejected",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 69,
+          "tokens": 84
+        },
+        {
+          "name": "test_get_workspace_touches_last_active",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 83,
+          "tokens": 140
+        },
+        {
+          "name": "test_get_nonexistent_returns_404",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 89,
+          "tokens": 55
+        },
+        {
+          "name": "test_anonymous_cannot_list_workspaces",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 94,
+          "tokens": 60
+        }
+      ]
+    },
+    "pcs-backend/tests/test_records.py": {
+      "description": "Records API 端到端（Sprint 2）。",
+      "tokens": 2260,
+      "hash": "2962b271338144e9",
+      "size": 8317,
+      "mtimeMs": 1794970105763.4136,
+      "updatedAt": "2026-11-18T02:48:25.816Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth_headers",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 33,
+          "tokens": 94
+        },
+        {
+          "name": "_make_formal_ws",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 50,
+          "tokens": 158
+        },
+        {
+          "name": "_make_personal_ws",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 62,
+          "tokens": 112
+        },
+        {
+          "name": "_create_piping",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 86,
+          "tokens": 226
+        },
+        {
+          "name": "test_create_piping_in_formal",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 92,
+          "tokens": 67
+        },
+        {
+          "name": "test_create_piping_in_personal_403",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 105,
+          "tokens": 115
+        },
+        {
+          "name": "test_transition_draft_to_in_approval",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 117,
+          "tokens": 150
+        },
+        {
+          "name": "test_transition_in_approval_to_checked",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 134,
+          "tokens": 205
+        },
+        {
+          "name": "test_transition_role_forbidden",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 150,
+          "tokens": 189
+        },
+        {
+          "name": "test_invalid_transition_409",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 161,
+          "tokens": 130
+        },
+        {
+          "name": "test_obsolete_piping",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 173,
+          "tokens": 137
+        },
+        {
+          "name": "test_list_piping",
+          "kind": "fn",
+          "startLine": 174,
+          "endLine": 185,
+          "tokens": 134
+        },
+        {
+          "name": "test_snapshot_created_for_apply_change",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 217,
+          "tokens": 356
+        }
+      ]
     }
   }
 }

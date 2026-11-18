@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:40:44.522Z
-> Files: 1369 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:48:25.816Z
+> Files: 1372 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1374,7 +1374,7 @@
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11088 tok)
-- `records.py` — Records API（Sprint 2）。 (~3276 tok)
+- `records.py` — Records API（Sprint 2）。 (~3619 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5474 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
@@ -1385,7 +1385,7 @@
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8840 tok)
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
-- `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
+- `workspaces.py` — Workspace API（Sprint 1）。 (~1977 tok)
 - `ws.py` — WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。 (~1864 tok)
 
 ## pcs-backend/app/api/v1/ai/
@@ -1604,11 +1604,13 @@
 - `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
 - `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~2399 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~3449 tok)
+- `test_records.py` — Records API 端到端（Sprint 2）。 (~2260 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3389 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
 - `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~2889 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
+- `test_workspace.py` — Workspace API/服务测试。 (~819 tok)
 
 ## pcs-backend/tests/alembic/
 
@@ -1683,6 +1685,7 @@
 - `test_todos.py` — P9A C4：待办实时计算（ADR-0049 §② / SPEC P9A-NOT-002）。 (~3325 tok)
 - `test_user_disabled_guard.py` — 禁用用户不得访问物流面 —— P9B-4 T0-B（TODO-132）。 (~2443 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
+- `test_workspace_access_guard.py` — **工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。 (~3714 tok)
 - `test_workspace_type_guard.py` — **工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。 (~2293 tok)
 - `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
 - `test_zz_demo_scope_gap.py` — ⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。 (~635 tok)

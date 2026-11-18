@@ -4525,6 +4525,15 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 
 **归属**：P10-F（F3-T2b · **critical** · 与 TODO-180 同族）
 
+### ✅ 已修（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ 三个 GET 端点**加 `current_actor`**（⇒ ⇒ 不带 token ⇒ ⇒ **401**）
+⇒ ⇒ **加工作区授权**（`require_workspace_access_or_404` ⇒ ⇒ 无权 ⇒ ⇒ **404**）
+⇒ ⇒ ⇒ 「无权」与「不存在」抛**同一个** `WorkspaceNotFoundError` ⇒ ⇒ 逐字同形。
+⇒ ⇒ 断言：`tests/api/v1/test_workspace_access_guard.py`（**全用 `strict_client`**）
+⇒ ⇒ 另：`tests/test_records.py` 此前**不带 token** ⇒ ⇒ 已改成带令牌。
+
+
 ---
 
 ## TODO-180: `records.py` 写面授权的 id 与落库的 id **不同源**（跨项目写入）🟠
@@ -4566,6 +4575,15 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 **何时做**：下一批（⇒ ⇒ 与 TODO-179 同批做最省事：都在 `records.py`）
 
 **归属**：P10-F（F3-T2b · **high** · 与 TODO-179 同族）
+
+### ✅ 已修（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ **授权对象统一成「工作区」** ⇒ ⇒ `create_piping` 判**工作区的项目**
+⇒ ⇒ 且 `payload["project_id"]` 必须与之一致 ⇒ ⇒ 否则 **400**（请求自相矛盾）。
+⇒ ⇒ ⇒ 顺序：**先授权（404）后一致性（400）** ⇒ ⇒ 否则无权者能靠 400
+⇒ ⇒ ⇒ 读出「这个工作区属于别的项目」。
+⇒ ⇒ 断言：`test_records_create_rejects_project_mismatch`（授权在 B、payload 写 A ⇒ ⇒ 400）。
+
 
 ---
 
@@ -4622,6 +4640,18 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 （2 + `records.py` 6 + `report.py` 4 + `psychro` 5 + `workspaces.archive` 1）
 ⇒ ⇒ ⇒ **抬棘轮与补断言必须同批**（否则要么红、要么假绿）。
 
+### ➕ F3 修复批的进展（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ `records.py` 的**三个读端点** + `workspaces.py` 的**三个端点**
+⇒ ⇒ **已补 `strict_client` 断言**（`tests/api/v1/test_workspace_access_guard.py`）
+⇒ ⇒ ⇒ 「无断言」端点从 9 降到 **6**（`report.py` 4 · `psychro` 1 ·
+`user_projects` 2 · `workspaces.archive` 1 ⇒ ⇒ 其中 `user_projects` 的两个是
+**角色闸** ⇒ ⇒ 不需要 `strict_client` ⇒ ⇒ ⇒ 真正要补 `strict_client` 的
+只剩 `report.py` 4 + `psychro` 1 + `workspaces.archive` 1 = **6 个**）。
+
+⇒ ⇒ ⚠️ **棘轮数仍未抬**（仍是 2）⇒ ⇒ **抬它与补断言必须同批**
+⇒ ⇒ ⇒ 否则要么红、要么假绿 ⇒ ⇒ ⇒ 留给下一批。
+
 ⇒ ⇒ ⚠️ **注意**：`user_projects` 的两个是**角色闸**（403）⇒ ⇒ 不需要 `strict_client`
 ⇒ ⇒ ⇒ 但**默认 `client` 不 mock `require_roles`** ⇒ ⇒ ⇒ 那两个的断言缺口
 是「**根本没写**」，不是「写了但 no-op」⇒ ⇒ ⇒ 补起来更便宜。
@@ -4652,6 +4682,13 @@ workspace 里记录的状态（`DRAFT → IN_APPROVAL → CHECKED → …`）
 **何时做**：随 TODO-179 / 180 一批
 
 **归属**：P10-F（F3-T2b · **high** · 与 TODO-180 同族 · 依赖 TODO-169 的裁决）
+
+### ✅ 已修（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ `transition_piping` / `obsolete_piping` 的 `if ws.project_id is not None:`
+⇒ ⇒ **整段删掉** ⇒ ⇒ 改用 `require_workspace_access_or_404`（工作区口径）
+⇒ ⇒ ⇒ **不再有「跳过」分支** ⇒ ⇒ 无项目的工作区 ⇒ ⇒ 走 **owner 口径**。
+
 
 ---
 
@@ -4732,6 +4769,14 @@ assert granted["value"], "根本没查项目访问权 —— 权限检查被绕�
 
 **归属**：P10-F（F3-T2b · 断言缺口 · **low** · 与 TODO-179 联动）
 
+### ✅ 已修（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ 详情端点此前**零测试** ⇒ ⇒ 新增
+`tests/api/v1/test_workspace_access_guard.py::test_records_detail_of_own_record_is_200`
+（正面路径）与 `::test_records_detail_and_snapshots_of_another_project_are_404`
+（越权路径）⇒ ⇒ **全部用 `strict_client`**。
+
+
 ---
 
 ---
@@ -4779,6 +4824,20 @@ assert granted["value"], "根本没查项目访问权 —— 权限检查被绕�
 **何时做**：**下一批优先**（⇒ ⇒ 与 TODO-179 同批 ⇒ ⇒ 两条是一条链）
 
 **归属**：P10-F（F3-T3a · **critical** · 与 TODO-179 联动）
+
+### ✅ 已修（2026-11-18 · commit `a2b9889`）
+
+⇒ ⇒ 三个端点**加 `current_actor`** + 授权：
+① `POST`：`owner_id` 必须是**令牌里的那个人** ⇒ ⇒ 否则 **403**
+（⇒ ⇒ 审计行不再记在别人名下 ⇒ ⇒ 审计污染断掉）；
+② `GET ""`：`owner_id` 不传（= admin 视图）⇒ ⇒ **仅 SYSTEM_ADMIN**；
+③ `GET /{id}`：无权 ⇒ ⇒ **404**，且 **`touch` 的写副作用只在授权通过后**做
+（⇒ ⇒ 匿名 GET = 匿名写库 ⇒ ⇒ 断掉）；
+④ 「不存在」与「无权」抛**同一个** `WorkspaceNotFoundError` ⇒ ⇒ 逐字同形。
+⇒ ⇒ 断言：`tests/api/v1/test_workspace_access_guard.py`（9 例 · 全 `strict_client`）。
+⚠️ **合同变更**：`GET /workspaces/{id}` 的「不存在」错误码由 `HTTP_404` 变成
+`WORKSPACE_NOT_FOUND`（与 `records.py` 的既有形状对齐）⇒ ⇒ 前端不依赖该码。
+
 
 ---
 

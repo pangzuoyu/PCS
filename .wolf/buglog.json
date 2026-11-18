@@ -6669,8 +6669,8 @@
       "error_message": "匿名调用方可以读走**任意项目**的管路记录与变更快照：`GET /api/v1/records/piping` / `GET /api/v1/records/piping/{pipe_id}` / `GET /api/v1/records/piping/{pipe_id}/snapshots` —— 实测：**不带 Authorization 头也 200**（P10-F · F3-T2b 审计取证）",
       "file": "pcs-backend/app/api/v1/records.py",
       "root_cause": "**两处缺失叠加**：① 三个读端点**没有 `current_actor` 依赖** ⇒ ⇒ **连「登录」都不要求**（`records.py:40-75` / `:78-113` / `:270-316`）；② 作用域 id（`workspace_id`）只过 `get_workspace`（`app/api/deps.py:20-40`）⇒ ⇒ 而它**只判存在性、零授权判定** ⇒ ⇒ ⇒ **没有任何 `user_projects` 判定** ⇒ ⇒ ⇒ 换成**任何一个**有 token 的用户也一样读到。\n\n⚠️ **放大链闭合**：`GET /api/v1/workspaces`（`app/api/v1/workspaces.py:63-81`）**同样不要求登录**，且 `owner_id` 不传即**返回全部** workspace（`workspace_service.py:86-100`：`owner_id=None` 视为不过滤）⇒ ⇒ **匿名可枚举 workspace_id** ⇒ ⇒ 再读管路记录。\n\n⚠️ **为什么单测抓不到**：`tests/test_records.py::test_list_piping` 与 `::test_snapshot_created_for_apply_change` **不带任何 token 就断言 200**（仓库自己的测试把「无认证可读」当成正常行为钉住了）；而 `tests/conftest.py` 的默认 `client` 又把项目守卫 mock 成永远 True ⇒ ⇒ 「端点缺项目守卫」这类缺陷在它上面**一个都测不出来**。",
-      "fix": "（**待修** ⇒ ⇒ 本批是只出结论的审计批 ⇒ ⇒ 不改生产代码）建议：① 三个端点加 `current_actor` 依赖（⇒ ⇒ 至少要登录）；② 按 `workspace.project_id` 做**项目授权判定** ⇒ ⇒ **无授权 ⇒ ⇒ 404**（与「不存在」同形 ⇒ ⇒ 不泄露存在性）；③ `workspace.project_id IS NULL` 时怎么办 ⇒ ⇒ **产品语义**（与 TODO-169 一起裁决）；④ `GET /workspaces` 的枚举面归 **F3-T3a** 复核（人裁决「工作区 id 令牌 ① 保留 · ② 关联项目数据必须审」⇒ ⇒ 「列表能枚举别的项目的 workspace」属「关联」）。⇒ ⇒ 登记为 **TODO-179**。",
-      "fix_commit": "",
+      "fix": "**已修**（2026-11-18 · commit `a2b9889`）⇒ ⇒ ① 三个端点加 `current_actor` 依赖（⇒ ⇒ 至少要登录）；② 按 `workspace.project_id` 做**项目授权判定** ⇒ ⇒ **无授权 ⇒ ⇒ 404**（与「不存在」同形 ⇒ ⇒ 不泄露存在性）；③ `workspace.project_id IS NULL` 时怎么办 ⇒ ⇒ **产品语义**（与 TODO-169 一起裁决）；④ `GET /workspaces` 的枚举面归 **F3-T3a** 复核（人裁决「工作区 id 令牌 ① 保留 · ② 关联项目数据必须审」⇒ ⇒ 「列表能枚举别的项目的 workspace」属「关联」）。⇒ ⇒ 登记为 **TODO-179**。",
+      "fix_commit": "a2b9889",
       "tags": [
         "P10-F",
         "F3-T2b",
@@ -6695,7 +6695,7 @@
       "file": "pcs-backend/app/api/v1/records.py",
       "root_cause": "**三个 id 互不相同、授权只认其中一个**：`create_piping` 授权 **payload 的 `project_id`**（`records.py:130-134` `check_project_access_or_404(... project_id=uuid.UUID(payload[\"project_id\"]))`），而行落在 **`workspace_id` 指向的 workspace**（`:137` `workspace_id=workspace.workspace_id`）⇒ ⇒ 两个 id 可以互不相同 ⇒ ⇒ 守卫查 A（过）⇒ ⇒ 行落进 B 的 workspace。\n\n⚠️ **同族**：`transition_piping`（`:189-193`）/ `obsolete_piping`（`:243-247`）授权的是 **`ws.project_id`**，而行自己的 `project_id` 可能是别的值；且两处都是 `if ws.project_id is not None:` ⇒ ⇒ **FORMAL 且未绑项目的 workspace ⇒ ⇒ 守卫整段跳过**。\n\n⚠️ **读面不看 project_id**：`GET /records/piping` 只按 `workspace_id` 过滤 ⇒ ⇒ 记录「属于哪个项目」与「谁能看见它」两处口径各不相同。",
       "fix": "（**待修** ⇒ ⇒ 审计批不改生产代码）建议：① `payload[\"project_id\"]` 必须与 `workspace.project_id` **一致** ⇒ ⇒ 不一致 ⇒ ⇒ **400**；或 ② 改用 **`workspace.project_id`** 作授权对象、`payload.project_id` 只作冗余校验；③ `transition` / `obsolete` 与 `create` 统一授权对象（同一个 id）；④ 「workspace 没有项目」时的口径 ⇒ ⇒ 与 TODO-169 / TODO-182 一起裁决。⇒ ⇒ 登记为 **TODO-180**（+ TODO-182）。",
-      "fix_commit": "",
+      "fix_commit": "a2b9889",
       "tags": [
         "P10-F",
         "F3-T2b",
@@ -6720,7 +6720,7 @@
       "file": "pcs-backend/app/api/v1/workspaces.py",
       "root_cause": "**守卫结构性缺失**：① `POST /workspaces`（`:30-35`）**没有 `current_actor`**，且 `owner_id` 是**客户端参数** ⇒ ⇒ 建的行的 `owner_id` = 客户端给的值；② `GET /workspaces`（`:63-81`）**没有 `current_actor`**，且 `owner_id` 不传 ⇒ `list_for_user(owner_id=None)` ⇒ **返回全部**（`workspace_service.py:86-100`）⇒ ⇒ ⚠️ **前端自己的注释说那是「admin 视图」**（`tests/e2e_flows/test_e2e_workspaces_visible.py:11-13`）⇒ ⇒ **admin 视图没有 admin 闸**；③ `GET /workspaces/{id}`（`:84-106`）**没有 `current_actor`**，且 **`svc.touch` + `session.commit()`**（`:104-105`）⇒ ⇒ **匿名 GET = 匿名写库**（改 `last_accessed_at`）。\n\n⚠️ **审计污染**：`WorkspaceService.create` 把 `user_id=owner_id` 写进 `AuditLog`（`workspace_service.py:68-74`）⇒ ⇒ **匿名可把审计行记在任意用户名下**。\n\n⚠️ **仓库自己的测试把「无认证可读可建」钉成了正常行为**：`tests/test_workspace.py:10-19`（无 token ⇒ 201）· `:45-53`（无 token ⇒ 200）⇒ ⇒ 修的时候那些测试要一起改。\n\n⚠️ **它同时是 bug-2187 的枚举放大器**：匿名枚举 workspace_id ⇒ ⇒ 匿名读走任意项目的管路记录 ⇒ ⇒ **一条完整链**。",
       "fix": "（**待修** ⇒ ⇒ 审计批不改生产代码）建议：① 三个端点加 `current_actor`；② `owner_id` 不再由客户端提供（取 `actor.user_id`，或不一致 ⇒ ⇒ 403）⇒ ⇒ 审计行自然也就记在正确的人名下；③ `GET /workspaces` 不传 `owner_id`（= admin 视图）⇒ ⇒ 要求 `SYSTEM_ADMIN`；④ `GET /workspaces/{id}` 按 `owner_id` 或项目授权判定（无授权 ⇒ ⇒ **404**，与「不存在」同形）；⑤ `touch` 的写副作用只在授权通过后做。⇒ ⇒ 登记为 **TODO-186**（与 TODO-179 同批修）。",
-      "fix_commit": "",
+      "fix_commit": "a2b9889",
       "tags": [
         "P10-F",
         "F3-T3a",

@@ -3856,3 +3856,15 @@
 | 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified classify() | ~84 |
 | 10:30 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3b.md | — | ~1816 |
 | 10:40 | Created docs/solutions/security-issues/guard-coverage-audit-logistics-adjacent-modules.md | — | ~5991 |
+| 10:44 | Created pcs-backend/tests/api/v1/test_workspace_access_guard.py | — | ~3714 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | 10→10 lines | ~150 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | modified list_piping() | ~274 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | modified get_piping() | ~234 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | modified list_snapshots() | ~282 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | expanded (+10 lines) | ~294 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | check_project_access_or_404() → require_workspace_access_or_404() | ~219 |
+| 10:45 | Edited pcs-backend/app/api/v1/records.py | check_project_access_or_404() → require_workspace_access_or_404() | ~193 |
+| 10:46 | Edited pcs-backend/app/api/v1/workspaces.py | expanded (+8 lines) | ~334 |
+| 10:46 | Edited pcs-backend/app/api/v1/workspaces.py | modified create_workspace() | ~1131 |
+| 10:48 | Created pcs-backend/tests/test_workspace.py | — | ~819 |
+| 10:48 | Created pcs-backend/tests/test_records.py | — | ~2260 |
