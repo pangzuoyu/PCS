@@ -126,26 +126,24 @@ I3/I4 车道锁与探针残留 · I5/I6 TODO-169 裁决 + TODO-167 清单订正�
    ⇒ ⇒ ⇒ ⇒ ⇒ **要么先开 P10-C，要么把 F4 缩到「不依赖镜像」的部分**
    （`bandit -r app/` + `uv audit` + `npm audit --production` ⇒ ⇒ **这三样
    不需要镜像** ⇒ ⇒ ⇒ ⇒ 可以先做）
-3. ⚠️ **ce-code-review 出的修复项**（2026-11-18 · 评审 P10-F 整批 · **10/10 评审员全回**）
-   ⇒ ⇒ **已修（bug-2192 · P0）**：工作区守卫拿 `workspaces.project_id`（**生产路径从来不写**
-   ⇒ ⇒ FORMAL 被当成 PERSONAL ⇒ ⇒ 成员 404 + 写入恒 400）⇒ ⇒ 真相源改成
-   **反查 `projects.workspace_id`** + `POST /projects` 回填 + 迁移 `p10_003` + 歧义 409
-   ⇒ ⇒ **71 条既有测试由红转绿**（夹具在造生产不存在的形状）⇒ ⇒ 变异自证 8 条红。
-   ⇒ ⇒ **已修**：OpenAPI 契约门禁 **exit 1 → 0**（批 4 的 baseline 没重滚）。
-   ⇒ ⇒ **待修（下一批「守卫补洞批」）**：
-   ① `records.py` 三个写端点：**FORMAL 类型闸（403）在工作区授权守卫（404）之前**
-   ⇒ ⇒ **存在性可枚举**（adversarial + security 独立命中）
-   ② `projects.py` 的 owner 自动授权**会造 `ws-owner-<uuid>` 的假用户名 users 行**
-   ⇒ ⇒ 破坏「`user_id` = `uuid5(username)`」派生不变式（adversarial + project-standards 独立命中）
-   ③ `DefinitionService.update` 改 `project_id` **不查项目授权**（POST 查了 · PUT 没查）
-   ④ `obsolete` **绕开**刚定的可见性规则（publish 严 · obsolete 不严）
-   ⑤ `POST /workspaces` 收**任意 `project_id`** ⇒ 无项目授权
-   ⑥ `shared_with` 的 `CREATOR_ONLY` 在项目级定义上被**静默忽略**（字段与实现不符）
-   ⑦ 前端「保存并发布」**只有创建人自己能点 ⇒ 永远 403**（+ MSW mock 返回 200 ⇒ 骗人）
-   ⑧ `PipingStatusPanel` 裸 axios ⇒ 新的鉴权端点它打不开（无 token）
-   ⑨ 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+）⇒ **永不触发**
-   ⑩ `export PCS_TEST_LANE=1` 无守卫（删掉即静默回退）· `user_id=None` 时报表执行授权 **fail-open**
-   ⑪ 审计脚本 `AUTHZ_GUARDS` 漏两个新守卫 ⇒ ⇒ 把新守卫判成「无守卫」⇒ ⇒ 假阴性
+3. ✅ **ce-code-review（P10-F 整批 · 10/10 评审员全回）⇒ ⇒ 「守卫补洞批」已开并做完大半**
+   ⇒ ⇒ **已修**：`4b374b0`（**P0** · bug-2192：工作区守卫的真相源改成**反查
+   `projects.workspace_id`** ⇒ ⇒ 此前生产路径**从来不写** `workspaces.project_id`
+   ⇒ ⇒ FORMAL 被当成 PERSONAL ⇒ ⇒ 成员 404 + 写入恒 400 · 迁移 `p10_003`
+   ⇒ ⇒ **254/254** 存量回填）· `2a77bd6`（**3 条 P1**：`records.py` **403 排在
+   404 前** ⇒ ⇒ 存在性可枚举 · `update()` 不查项目授权（**5 位评审员独立命中**）·
+   `ws-owner-<uuid>` 假用户名 users 行 ⇒ ⇒ 破坏 `uuid5(username)` 派生不变式）
+   · `f4a3246`（**4 条 P2**：`obsolete()` 无项目授权 · 审计脚本漏两个新守卫
+   ⇒ ⇒ **假阴性** · `user_id=None` 时报表执行 **fail-open** · 棘轮阈值 2 实际 109
+   ⇒ ⇒ **永不触发** ⇒ ⇒ 改成**路径清单** + 两条只增不减的下限）
+   ⇒ ⇒ **每条都做了「变异自证」**（改回去 ⇒ ⇒ 断言必须红）⇒ ⇒ 台账 `TODOS.md`
+   **TODO-192** 逐条标状态。
+   ⇒ ⇒ ⚠️ **待人裁（本批不擅自扩大裁决）**：⑤ `shared_with`（项目级定义「一律共享」
+   还是「`CREATOR_ONLY` 仍有效」？⇒ ⇒ 字段与实现现在**不符**）· ⑧ `POST /workspaces`
+   的 `project_id`（拒绝还是忽略？⇒ ⇒ 授权面影响已被 P0 修消除 ⇒ ⇒ 只剩展示字段）
+   · ⑩ admin bypass 口径（**现在 admin 能 publish 却 GET 不到** ⇒ ⇒ 要么给
+   `visible_clause` 加 bypass，要么撤掉 publish 的 bypass）· ⑨ 三种错误码统一
+   （要动 21+ 端点 ⇒ ⇒ 独立批）。
    ⇒ ⇒ 完整评审报告见 `/tmp/compound-engineering-1000/ce-code-review/20261118-151907-0f87af49/`。
 4. **推送本轮**（P10-B 12 个 + P10-F 18 个 + 本轮 1 个未 push ⇒ 需明确授权）。
 5. **待人裁决**：**TODO-190**（`obsolete` 不查 `created_by` · 产品语义）·
