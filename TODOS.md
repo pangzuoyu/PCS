@@ -4093,3 +4093,131 @@ Redis ⇒ 不可路由端口）⇒ ⇒ 实测（`ss -tnp` 监控整轮跑）**�
 ⇒ ⇒ 另两个选项**明确不取**：②（FORMAL 也可无项目）⇒ 要再造一行 FORMAL 无项目
 的工作区（改种子 + 改 E2E 断言）；③（另立第三种形态）⇒ 要改契约 Literal + 迁移 +
 前后端类型 ⇒ **属另一批**。
+
+---
+
+## TODO-170: `report_definitions.project_id` 是**死字段**（数据模型说项目级 · 授权说创建人级）🟠
+
+**现状**（2026-11-18 · P10-F 的 F3-T2a 审计发现）：
+
+`ReportDefinition` **有** `project_id` 列（可空 ⇒ 注释明写「`project_id IS NULL`
+= 公司级模板作用域」）⇒ ⇒ **看起来**是项目级资源 ⇒ ⇒ **但可见性规则
+完全不看它**：
+
+```python
+# app/services/report/definition_service.py::visible_clause
+(ReportDefinition.created_by == user_id) | (status == "PUBLISHED" & shared_with == "ALL_USERS")
+```
+
+⇒ ⇒ ⇒ **`project_id` 能填、能存、但不参与任何授权判定** ⇒ ⇒
+⇒ **数据模型说「项目级」、授权说「创建人级」** ⇒ ⇒ **口径不一致**。
+⚠️ `POST /report-builder/definitions` 的 body **直接暴露** `project_id`
+⇒ ⇒ 客户端可以把它**指向任意项目**（包括自己没有授权的项目）。
+
+⇒ ⇒ **不是「跨项目越权」**（可见性按创建人 ⇒ ⇒ 别人的私有定义看不见）
+⇒ ⇒ **是口径不一致**：数据模型承诺了「项目级」，授权却不按它 ⇒ ⇒
+⇒ 将来若有人把可见性改成「按项目可见」⇒ ⇒ **这个洞立刻开** ⇒ ⇒
+⇒ 而**没有任何断言**守着「可见性不按项目」这件事。
+
+**建议改法**（**两条路，要人选** —— 这是产品语义）：
+
+① **明确「报告定义不按项目隔离」** ⇒ ⇒ 把 `project_id` 从写入路径拿掉
+   （或只允许 `NULL`）⇒ ⇒ 数据模型与授权一致 ⇒ ⇒ **改动小**
+② **明确「按项目隔离」** ⇒ ⇒ `visible_clause` 加项目维度（谁的 `user_projects`
+   授权行在 ⇒ ⇒ 可见）⇒ ⇒ **改动大**（要动列表/详情/执行三处口径）
+
+⇒ ⇒ ⚠️ **不要「两边都留着」** ⇒ ⇒ 那正是现在这个状态。
+
+**何时做**：下一批（**不阻塞** T2a ⇒ ⇒ 当前实现**自洽且可测**）
+
+**归属**：P10-F（F3-T2a · G1 · **交人裁决**）
+
+---
+
+## TODO-171: `DefinitionService.update` 的**写闸**没有独立断言（删掉 ⇒ 71 条全绿）🟠
+
+**现状**（2026-11-18 · F3-T2a 的**抽样变异**抓到的）：
+
+`update()` 里有两道检查：
+
+1. **读闸**：`await self.get(def_id, user_id)` ⇒ ⇒ `visible_clause` ⇒ ⇒
+   非创建人**看不见** ⇒ ⇒ 404；
+2. **写闸**：`if row.created_by != user_id: raise 404`。
+
+⇒ ⇒ ⚠️ **变异实测**：把**写闸**整段删掉 ⇒ ⇒
+`tests/api/v1/test_report_builder.py` **71 条全绿** ⇒ ⇒
+⇒ `test_update_by_non_creator_gets_404` **挡的是读闸，不是写闸**
+⇒ ⇒ ⇒ **写闸没有任何断言**。
+
+⚠️ **为什么这不只是「冗余代码」**：写闸的注释写着「非创建人改 PUBLISHED 的
+定义 = 绕过审批」⇒ ⇒ 它是**纵深防御** ⇒ ⇒ 今天的 `visible_clause` 让它
+**碰不到** ⇒ ⇒ 但**可见性规则一旦放宽**（见 TODO-170 的 ②）⇒ ⇒ 它立刻
+变成**唯一**的那道闸 ⇒ ⇒ 而那时**没有断言**守着它。
+
+**建议改法**：补一条**只测写闸**的断言 ⇒ ⇒ 必须绕开读闸才能测到写闸
+（例如：直接调 `DefinitionService.update`（不经端点的 `get`），
+或用「`PUBLISHED` + `shared_with=ALL_USERS` ⇒ ⇒ 非创建人**能看见** ⇒ ⇒
+改它必须被拒」这一路）⇒ ⇒ 且该断言必须**对删掉写闸敏感**（变异自证）。
+
+**何时做**：下一批（**不阻塞** ⇒ ⇒ 现在读闸在挡 ⇒ ⇒ 无实际漏洞）
+
+**归属**：P10-F（F3-T2a · G2）
+
+---
+
+## TODO-172: `publish` / `obsolete` **不查 `created_by`** ⇒ PUBLISH 角色可操作别人的定义 🟡
+
+**现状**（2026-11-18 · F3-T2a）：
+
+`report_builder.py` 的 `publish` / `obsolete` **端点层**有
+`require_roles(actor, "REVIEWER", "APPROVER", "SYSTEM_ADMIN")` ⇒ ⇒
+但 service 层的 `publish(def_id=...)` / `obsolete(def_id=...)`
+**直接 `db.get(ReportDefinition, def_id)`** ⇒ ⇒ **不查 `created_by`**
+⇒ ⇒ ⇒ **有 PUBLISH 角色的用户可以发布/作废别人创建的草稿**。
+
+⚠️ **实际可利用性低**：别人的**私有**草稿的 `def_id` **拿不到**
+（`GET /definitions` 按 `visible_clause` 过滤 ⇒ ⇒ 私有草稿不出现在列表）
+⇒ ⇒ 要利用只能靠猜 uuid ⇒ ⇒ 不可行。
+
+⇒ ⇒ 但**缺一道「只能改自己的」防线** ⇒ ⇒ 且**没有断言**。
+
+**建议改法**：service 层加 `created_by` 判定（或端点层先 `get` 再判）
+⇒ ⇒ 并补断言（「PUBLISH 角色改别人的定义 ⇒ 404/403」）。
+
+**何时做**：下一批（低优先级 ⇒ ⇒ 不可利用）
+
+**归属**：P10-F（F3-T2a · G3）
+
+---
+
+## TODO-173: `config.py` 的 **8 个端点**的角色闸**没有 403 断言** 🟠
+
+**现状**（2026-11-18 · F3-T2a）：
+
+`config.py` 的 11 个端点**全部**有角色闸 `require_roles(...)` ⇒ ⇒
+且资源是**公司级**（`ConfigAsset` 无 `project_id` ⇒ ⇒ docstring 明写
+「公司级配置资产」）⇒ ⇒ **无跨项目越权面**（角色闸就是对的闸）✓
+
+⚠️ **但 8 个端点的角色闸没有 403 断言**（只有 `approve` 与
+`status-report` 有 ⇒ ⇒ 两条都**变异敏感** ✓）：
+
+| # | 端点 | 角色闸行号 | 角色要求 |
+|---|---|---|---|
+| 1 | `POST /config/assets` | `config.py:198` | DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN |
+| 2 | `POST /config/assets/{asset_id}/versions` | `:219` | 同上 |
+| 3 | `POST /config/assets/{asset_id}/fork` | `:253` | 同上 |
+| 4 | `POST /config/assets/{asset_id}/submit` | `:278` | 同上 |
+| 5 | `POST /config/assets/{asset_id}/publish` | `:335` | **PROCESS_CONTROLLER / SYSTEM_ADMIN** |
+| 6 | `POST /config/assets/{asset_id}/obsolete` | `:373` | **PROCESS_CONTROLLER / SYSTEM_ADMIN** |
+| 7 | `GET /config/assets/status-report/export` | `:414` | DESIGNER / PC / SA |
+| 8 | `GET /config/assets/{asset_id}/diff` | `:435` | 同上 |
+
+⇒ ⇒ **5 / 6 最要紧**（**发布 / 作废公司级配置**的审批闸）⇒ ⇒
+⇒ 删掉那两个 `require_roles` ⇒ ⇒ **测试全绿** ⇒ ⇒ 那道闸是**没有证据**的。
+
+**建议改法**：逐条补「角色不够 ⇒ 403」的断言 ⇒ ⇒ 每条都要**对删掉
+`require_roles` 敏感**（变异自证）⇒ ⇒ 建议先补 5 / 6（审批闸）。
+
+**何时做**：下一批（**不阻塞** ⇒ ⇒ 闸在代码里 ⇒ ⇒ 只是没证据）
+
+**归属**：P10-F（F3-T2a · A）

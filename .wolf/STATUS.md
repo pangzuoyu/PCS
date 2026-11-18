@@ -55,14 +55,19 @@ TODO-167（清单已订正）· TODO-168（漂移守卫仍连开发库 · 只读
 
 ## 🚀 Next quest
 
-1. **P10-F 批 3（F3）—— F3-T2a 可开**：`config.py`(11) + `report_builder.py`(9) = **20 端点**
+1. **P10-F 批 3（F3）—— F3-T2a 完成 ⇒ 下一批 = F3-T2b**（`report.py` 10 + `records.py` 6）
    ⇒ ⇒ 范围**已由人裁决**（2026-11-18 · A+B+D(敏感)，C 不审 ≈ 63 端点）
-   ⇒ ⇒ 提案在工作区 `.superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/proposals/`
-   ⇒ ⇒ ⚠️ **`config.py` 的 11 个端点 `authz` = 0**（只有角色闸）⇒ ⇒ 头号重灾区 ⇒ ⇒ 先开它。
+   ⇒ ⇒ 提案在工作区 `…/proposals/guard-coverage-scope-proposal.md` ·
+   T2a 结论在 `…/audit-f3-t2a.md`
+   ⇒ ⇒ ⚠️ **T2a 推翻了裁决的两个前提** ⇒ ⇒ 要报告给人：
+   **`config.py` 的资源是「公司级」**（`ConfigAsset` 无 `project_id`）⇒ ⇒
+   「跨项目越权」语义**不成立** ⇒ ⇒ **越权缺口 0**（只缺断言）·
+   **`report_builder` 的 `project_id` 是死字段**（可见性只看 `created_by`）
+   ⇒ ⇒ 真缺口是**口径不一致**（TODO-170 · 产品裁决）
 2. **推送本轮**（P10-B 12 个 + 本轮 8 个提交未 push ⇒ 需明确授权）。
 3. **P10-C / D / E** 未开工 ⇒ ⇒ F4（依赖漏洞/镜像扫描/回滚演练）与 F5（告警/备份/
    Go-No-Go）前置不满足 ⇒ ⇒ F6 收口要等 F4/F5。
-4. **待人裁决**：**F3 范围已裁决**（2026-11-18）⇒ ⇒ 剩 **1 个待确认项**：
+4. **待人裁决**：**TODO-170**（报告定义按不按项目隔离 · 两条路要人选）· 另 **1 个待确认项**：
    `projects.py` 的 `POST /projects`（自动授权创建者 = 授权写入的唯一入口）
    **不在**裁决的 B 档清单里 ⇒ ⇒ 要不要并入？
    另：TODO-166 / TODO-169 已裁决关闭。
