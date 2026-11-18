@@ -3868,3 +3868,6 @@
 | 10:46 | Edited pcs-backend/app/api/v1/workspaces.py | modified create_workspace() | ~1131 |
 | 10:48 | Created pcs-backend/tests/test_workspace.py | — | ~819 |
 | 10:48 | Created pcs-backend/tests/test_records.py | — | ~2260 |
+| 10:59 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | expanded (+7 lines) | ~100 |
+| 11:01 | Created docs/solutions/security-issues/workspace-access-guard-project-or-owner.md | — | ~1011 |
+| 11:01 | Edited CONCEPTS.md | expanded (+21 lines) | ~292 |

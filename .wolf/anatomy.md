@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:48:25.816Z
-> Files: 1372 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T03:01:34.788Z
+> Files: 1373 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -9,7 +9,7 @@
 - `.gitignore` — Git ignore rules (~296 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
 - `CLAUDE.md` — OpenWolf (~1926 tok)
-- `CONCEPTS.md` — Concepts (~1991 tok)
+- `CONCEPTS.md` — Concepts (~2240 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
@@ -595,6 +595,7 @@
 - `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5616 tok)
 - `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
+- `workspace-access-guard-project-or-owner.md` — 工作区访问权：项目授权 or owner —— 「登录」是下限，不是授权 (~947 tok)
 
 ## docs/solutions/testing-issues/
 
@@ -1685,7 +1686,7 @@
 - `test_todos.py` — P9A C4：待办实时计算（ADR-0049 §② / SPEC P9A-NOT-002）。 (~3325 tok)
 - `test_user_disabled_guard.py` — 禁用用户不得访问物流面 —— P9B-4 T0-B（TODO-132）。 (~2443 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
-- `test_workspace_access_guard.py` — **工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。 (~3714 tok)
+- `test_workspace_access_guard.py` — **工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。 (~3767 tok)
 - `test_workspace_type_guard.py` — **工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。 (~2293 tok)
 - `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
 - `test_zz_demo_scope_gap.py` — ⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。 (~635 tok)

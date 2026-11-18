@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T02:48:25.816Z",
-    "fileCount": 1372,
+    "lastScanned": "2026-11-18T03:01:34.788Z",
+    "fileCount": 1373,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "bb1cf046ec6d53323ae7545fc3b1967081f4d9e2fe17fa831829ec07f5e415dd",
-    "storeUpdatedAt": "2026-11-18T02:48:25.830Z",
-    "rootHash": "eba140982bf099cb"
+    "renderedHash": "e2a3eab1ee1d558b1f6ebf094867be44595fbdcb4ac9d24253f38552e0f2277c",
+    "storeUpdatedAt": "2026-11-18T03:01:34.801Z",
+    "rootHash": "7a58e6e2f404d7c4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21364,11 +21364,11 @@
     },
     "CONCEPTS.md": {
       "description": "Concepts",
-      "tokens": 1991,
-      "hash": "cdf2c680a1784cd9",
-      "size": 7989,
-      "mtimeMs": 1794963361810.8972,
-      "updatedAt": "2026-11-18T00:56:01.857Z",
+      "tokens": 2240,
+      "hash": "74f55009d85cdb5e",
+      "size": 8992,
+      "mtimeMs": 1794970894740.3618,
+      "updatedAt": "2026-11-18T03:01:34.788Z",
       "source": "hook"
     },
     "docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md": {
@@ -49519,159 +49519,159 @@
     },
     "pcs-backend/tests/api/v1/test_workspace_access_guard.py": {
       "description": "**工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。",
-      "tokens": 3714,
-      "hash": "b18718f5d8658d5f",
-      "size": 14715,
-      "mtimeMs": 1794969850694.121,
-      "updatedAt": "2026-11-18T02:44:10.742Z",
+      "tokens": 3767,
+      "hash": "f7c0dc60a6df5439",
+      "size": 14997,
+      "mtimeMs": 1794970773536.3591,
+      "updatedAt": "2026-11-18T02:59:33.607Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_tok",
           "kind": "fn",
-          "startLine": 46,
-          "endLine": 52,
+          "startLine": 53,
+          "endLine": 59,
           "tokens": 67
         },
         {
           "name": "_mk_ws",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 69,
+          "startLine": 60,
+          "endLine": 76,
           "tokens": 127
         },
         {
           "name": "_mk_project",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 82,
+          "startLine": 77,
+          "endLine": 89,
           "tokens": 130
         },
         {
           "name": "_mk_pipe",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 106,
+          "startLine": 90,
+          "endLine": 113,
           "tokens": 266
         },
         {
           "name": "test_workspaces_list_requires_authentication",
           "kind": "fn",
-          "startLine": 107,
-          "endLine": 113,
+          "startLine": 114,
+          "endLine": 120,
           "tokens": 80
         },
         {
           "name": "test_workspaces_list_without_owner_id_is_admin_only",
           "kind": "fn",
-          "startLine": 114,
-          "endLine": 128,
+          "startLine": 121,
+          "endLine": 135,
           "tokens": 155
         },
         {
           "name": "test_workspaces_list_of_another_user_is_forbidden",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 137,
+          "startLine": 136,
+          "endLine": 144,
           "tokens": 103
         },
         {
           "name": "test_workspaces_list_of_own_workspaces_is_allowed",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 147,
+          "startLine": 145,
+          "endLine": 154,
           "tokens": 116
         },
         {
           "name": "test_workspace_detail_of_another_users_workspace_is_404",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 166,
+          "startLine": 155,
+          "endLine": 173,
           "tokens": 194
         },
         {
           "name": "test_workspace_detail_of_own_workspace_is_200",
           "kind": "fn",
-          "startLine": 167,
-          "endLine": 174,
+          "startLine": 174,
+          "endLine": 181,
           "tokens": 84
         },
         {
           "name": "test_workspace_create_requires_authentication",
           "kind": "fn",
-          "startLine": 175,
-          "endLine": 184,
+          "startLine": 182,
+          "endLine": 191,
           "tokens": 103
         },
         {
           "name": "test_workspace_create_cannot_impersonate_another_owner",
           "kind": "fn",
-          "startLine": 185,
-          "endLine": 207,
+          "startLine": 192,
+          "endLine": 214,
           "tokens": 198
         },
         {
           "name": "test_workspace_create_uses_the_token_identity",
           "kind": "fn",
-          "startLine": 208,
-          "endLine": 225,
+          "startLine": 215,
+          "endLine": 232,
           "tokens": 180
         },
         {
           "name": "test_records_list_requires_authentication",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 234,
+          "startLine": 233,
+          "endLine": 241,
           "tokens": 94
         },
         {
           "name": "test_records_list_of_another_projects_workspace_is_404",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 259,
-          "tokens": 260
+          "startLine": 242,
+          "endLine": 267,
+          "tokens": 278
         },
         {
           "name": "test_records_list_of_authorized_project_is_200",
           "kind": "fn",
-          "startLine": 260,
-          "endLine": 277,
+          "startLine": 268,
+          "endLine": 285,
           "tokens": 185
         },
         {
           "name": "test_records_list_of_own_personal_workspace_is_200",
           "kind": "fn",
-          "startLine": 278,
-          "endLine": 290,
+          "startLine": 286,
+          "endLine": 298,
           "tokens": 132
         },
         {
           "name": "test_records_list_of_another_personal_workspace_is_404",
           "kind": "fn",
-          "startLine": 291,
-          "endLine": 303,
+          "startLine": 299,
+          "endLine": 311,
           "tokens": 134
         },
         {
           "name": "test_records_detail_and_snapshots_of_another_project_are_404",
           "kind": "fn",
-          "startLine": 304,
-          "endLine": 326,
-          "tokens": 256
+          "startLine": 312,
+          "endLine": 335,
+          "tokens": 267
         },
         {
           "name": "test_records_detail_of_own_record_is_200",
           "kind": "fn",
-          "startLine": 327,
-          "endLine": 344,
+          "startLine": 336,
+          "endLine": 353,
           "tokens": 198
         },
         {
           "name": "test_records_create_rejects_project_mismatch",
           "kind": "fn",
-          "startLine": 345,
-          "endLine": 372,
-          "tokens": 301
+          "startLine": 354,
+          "endLine": 382,
+          "tokens": 314
         }
       ]
     },
@@ -49836,6 +49836,15 @@
           "tokens": 356
         }
       ]
+    },
+    "docs/solutions/security-issues/workspace-access-guard-project-or-owner.md": {
+      "description": "工作区访问权：项目授权 or owner —— 「登录」是下限，不是授权",
+      "tokens": 947,
+      "hash": "400bd13a16873c8e",
+      "size": 6405,
+      "mtimeMs": 1794970869463.7285,
+      "updatedAt": "2026-11-18T03:01:09.520Z",
+      "source": "hook"
     }
   }
 }
