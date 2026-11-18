@@ -275,17 +275,19 @@ export function CodeFormatRoute(): JSX.Element {
 }
 
 // === 物性 / 许用应力 / 毒性爆炸 ===
+//
+// ⚠️ **P10-C · T1（TODO-160）**：这三页**不再由路由层发请求**。
+// 契约里三个端点的必填参数是 `keyword` / `material`+`temp_c` / `cas`
+// ⇒ ⇒ 此前路由层发**空查询** ⇒ 后端 **422** ⇒ 首屏错误态。
+// ⇒ ⇒ 现在**页面自取**（查询驱动 ⇒ 首屏零请求 ⇒ 没有 422）。
 export function PropertySearchRoute(): JSX.Element {
-  const { data: components } = useFetch<ComponentProperty[]>('/api/v1/common/materials/search', []);
-  return <PropertySearchPage components={components} />;
+  return <PropertySearchPage />;
 }
 export function AllowableStressRoute(): JSX.Element {
-  const { data: stresses } = useFetch<AllowableStress[]>('/api/v1/common/allowable-stress', []);
-  return <AllowableStressPage stresses={stresses} />;
+  return <AllowableStressPage />;
 }
 export function ToxicityRoute(): JSX.Element {
-  const { data: classes } = useFetch<ToxicityClass[]>('/api/v1/common/safety', []);
-  return <ToxicityExplosivityPage classes={classes} />;
+  return <ToxicityExplosivityPage />;
 }
 
 // === 工艺计算 ===

@@ -520,17 +520,111 @@ const devOnlyMockHandlers = [
   }),
 
   // === 物性 / 许用应力 / 毒性爆炸 ===
+  //
+  // ⚠️ **P10-C · T1（TODO-160）**：这三个 handler 现在**照抄契约的必填参数**
+  // 与**返回形状**。
+  //
+  // ⚠️ **为什么 mock 必须和契约一样严**（「替身比被测物更宽容」）：
+  // 此前这三个 handler **无视**参数、永远返整表 ⇒ ⇒ 前端漏传参数
+  // （真后端会 **422**）在 mock 通道里**完全看不出来** ⇒ ⇒ 那正是
+  // TODO-160 能在 mock 通道里一路绿灯的原因。
+  // ⇒ ⇒ mock 现在：**缺参数 ⇒ 422**（与后端同一形状）· 命中不到 ⇒ 404。
   http.get("/api/v1/common/materials/search", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedMaterials);
+    const keyword = (new URL(request.url).searchParams.get('keyword') ?? '').trim();
+    if (!keyword) {
+      return HttpResponse.json(
+        {
+          code: "COMMON_MISSING_KEYWORD",
+          message: "keyword 必填",
+          detail: null,
+          trace_id: "",
+        },
+        { status: 422 },
+      );
+    }
+    // ⚠️ 后端 `CommonService.search_material` 走 `chemicals.search_chemical`
+    // ⇒ **单命中**（最多 1 条）⇒ mock 也只返**第一条**命中。
+    const kw = keyword.toLowerCase();
+    const hit = seedMaterials.find(
+      (m) =>
+        m.name.toLowerCase().includes(kw) ||
+        (m.formula ?? '').toLowerCase().includes(kw) ||
+        m.cas.toLowerCase().includes(kw),
+    );
+    return HttpResponse.json(hit ? [hit] : []);
   }),
   http.get("/api/v1/common/allowable-stress", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedAllowableStress);
+    const params = new URL(request.url).searchParams;
+    const material = (params.get('material') ?? '').trim();
+    const tempRaw = params.get('temp_c');
+    const tempC = tempRaw === null ? NaN : Number(tempRaw);
+    if (!material || Number.isNaN(tempC)) {
+      return HttpResponse.json(
+        {
+          code: "COMMON_MISSING_MATERIAL",
+          message: "material 与 temp_c 必填",
+          detail: null,
+          trace_id: "",
+        },
+        { status: 422 },
+      );
+    }
+    // ⚠️ 后端返的是**单条**（节点间还会线性插值）⇒ mock 照抄那份语义。
+    const rows = seedAllowableStress.filter((s) => s.material === material);
+    const exact = rows.find((s) => s.temp_c === tempC);
+    if (exact) return HttpResponse.json(exact);
+    const below = rows.filter((s) => s.temp_c < tempC).sort((a, b) => b.temp_c - a.temp_c)[0];
+    const above = rows.filter((s) => s.temp_c > tempC).sort((a, b) => a.temp_c - b.temp_c)[0];
+    if (!below || !above) {
+      return HttpResponse.json(
+        {
+          code: "COMMON_MATERIAL_NOT_FOUND",
+          message: `材料 ${material} / ${tempC}°C 不在 ASME B31.3 Table A-1`,
+          detail: null,
+          trace_id: "",
+        },
+        { status: 404 },
+      );
+    }
+    const ratio = (tempC - below.temp_c) / (above.temp_c - below.temp_c);
+    return HttpResponse.json({
+      material,
+      temp_c: tempC,
+      stress_mpa: Number((below.stress_mpa + ratio * (above.stress_mpa - below.stress_mpa)).toFixed(3)),
+      interpolated: true,
+      source: 'ASME_B31.3_TABLE_A1',
+    });
   }),
   http.get("/api/v1/common/safety", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedToxicityClasses);
+    const cas = (new URL(request.url).searchParams.get('cas') ?? '').trim();
+    if (!cas) {
+      return HttpResponse.json(
+        {
+          code: "COMMON_MISSING_CAS",
+          message: "cas 必填",
+          detail: null,
+          trace_id: "",
+        },
+        { status: 422 },
+      );
+    }
+    // ⚠️ 后端返的是**单条**（`_SAFETY_DATA` 的一次命中）⇒ mock 同形。
+    const hit = seedToxicityClasses.find((c) => c.cas === cas);
+    if (!hit) {
+      return HttpResponse.json(
+        {
+          code: "COMMON_MATERIAL_NOT_FOUND",
+          message: `CAS ${cas} 未命中`,
+          detail: null,
+          trace_id: "",
+        },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(hit);
   }),
 
   // === 管道一览表 ===

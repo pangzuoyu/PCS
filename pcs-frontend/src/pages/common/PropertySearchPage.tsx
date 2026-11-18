@@ -1,40 +1,88 @@
 /**
- * PropertySearchPage — 组分物性查询（P45-3-3 / Task 30）。
+ * PropertySearchPage — 组分物性查询（P45-3-3 / Task 30 · **P10-C · T1 改：查询驱动**）。
  *
  * SPEC §7.8.1：
  * - 模糊查询：name / formula / CAS
  * - 物性卡片：MW / Tc / Pc / ω
  * - 收藏按钮 → onFavorite（V1 占位）
  *
- * Props：
- *   components: ComponentProperty[]
- *   onFavorite?: (cas: string) => void
+ * ## ⚠️ **P10-C · T1（TODO-160）**：本页改成「**填条件才查**」
+ *
+ * 此前首屏就发 `GET /api/v1/common/materials/search`（**无参数**）⇒ ⇒ 后端 **422**
+ * （契约里 `keyword` 必填 · `min_length=1`）⇒ ⇒ 页面首屏是错误态。
+ *
+ * ⇒ ⇒ 现在：**输入关键字才发请求**（300ms 防抖）⇒ 首屏**零请求**。
+ *
+ * ## ⚠️ 数据来源从「父组件注入」改成「本页自取」
+ *
+ * 关键字是**页面自己的输入** ⇒ 参数只能由本页决定 ⇒ ⇒ 请求必须由本页发起
+ * （父组件拿不到关键字）⇒ ⇒ 这是本页改成自取的原因，**不是**为了「统一风格」。
+ *
+ * ## ⚠️ 后端**最多命中 1 条**
+ *
+ * `CommonService.search_material` 走 `chemicals.search_chemical` ⇒ 单命中
+ * ⇒ ⇒ 真实后端下卡片网格**只有一张**（mock 通道给的是整表 ⇒ 那条漂移归 TODO-167）。
+ * ⇒ 卡片网格保留（契约没规定张数），但别把「网格」当成「列表」来承诺。
  */
-import { useMemo, useState } from 'react';
-import { Card, Empty, Input, Space, Tag, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { Alert, Card, Empty, Input, Space, Spin, Tag, Typography } from 'antd';
 import { StarOutlined } from '@ant-design/icons';
 
 import { NumericCell } from '../../components/common/NumericCell';
+import { commonQueryApi } from '../../api/common';
+import { errorText } from '../../api/errors';
 import type { ComponentProperty } from '../../types/common';
 
+/** 输入停止多久才发请求（ms）—— 避免每敲一个字母打一次后端。 */
+const QUERY_DEBOUNCE_MS = 300;
+
 interface Props {
-  components: ComponentProperty[];
   onFavorite?: (cas: string) => void;
 }
 
-export function PropertySearchPage({ components, onFavorite }: Props): JSX.Element {
-  const [query, setQuery] = useState('');
+export function PropertySearchPage({ onFavorite }: Props): JSX.Element {
+  const [keyword, setKeyword] = useState('');
+  const [components, setComponents] = useState<ComponentProperty[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /** 是否**已经查过一次**（区分「没查过」与「查了但没命中」）。 */
+  const [queried, setQueried] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return components;
-    return components.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.formula ?? '').toLowerCase().includes(q) ||
-        (c.cas.toLowerCase().includes(q)),
-    );
-  }, [components, query]);
+  useEffect(() => {
+    const kw = keyword.trim();
+    if (!kw) {
+      // ⚠️ **首屏走这条分支** ⇒ 零请求 ⇒ 没有 422。
+      setComponents([]);
+      setError(null);
+      setQueried(false);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      commonQueryApi
+        .searchMaterials(kw)
+        .then((rows) => {
+          if (cancelled) return;
+          setComponents(rows);
+          setError(null);
+          setQueried(true);
+          setLoading(false);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setComponents([]);
+          setError(errorText(err, '物性查询失败'));
+          setQueried(true);
+          setLoading(false);
+        });
+    }, QUERY_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [keyword]);
 
   return (
     <div data-testid="property-search-page">
@@ -42,21 +90,36 @@ export function PropertySearchPage({ components, onFavorite }: Props): JSX.Eleme
 
       <Input.Search
         data-testid="property-search-input"
-        placeholder="按 name / formula / CAS 过滤"
+        placeholder="按 name / formula / CAS 查询"
         allowClear
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        value={keyword}
+        onChange={(e) => setKeyword(e.target.value)}
         style={{ maxWidth: 360, marginBottom: 16 }}
       />
 
-      {filtered.length === 0 ? (
-        <Empty description="无组分" />
+      {error ? (
+        <Alert
+          type="error"
+          showIcon
+          message={error}
+          data-testid="property-search-error"
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
+
+      {loading ? (
+        <Spin data-testid="property-search-loading" />
+      ) : components.length === 0 ? (
+        <Empty
+          description={queried ? '无匹配组分' : '输入关键字后查询（name / formula / CAS）'}
+          data-testid="property-search-empty"
+        />
       ) : (
         <div
           data-testid="property-cards"
           style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}
         >
-          {filtered.map((c) => (
+          {components.map((c) => (
             <Card
               key={c.cas}
               size="small"

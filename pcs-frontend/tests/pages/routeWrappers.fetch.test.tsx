@@ -35,6 +35,13 @@ import type { Stream } from '../../src/types/stream';
 import type { PipeClass } from '../../src/types/pipeClass';
 import type { ConfigAsset } from '../../src/types/configAsset';
 
+// ⚠️ **P10-C · T1（TODO-160）**：物性页改走 axios 通道（`commonQueryApi`）
+// ⇒ ⇒ 本文件里只有那一条用例需要桩它 ⇒ ⇒ 用 `vi.hoisted` 把 mock 拿出来。
+const { searchMaterials } = vi.hoisted(() => ({ searchMaterials: vi.fn() }));
+vi.mock('../../src/api/common', () => ({
+  commonQueryApi: { searchMaterials },
+}));
+
 // ---------------------------------------------------------------------------
 // 夹具
 // ---------------------------------------------------------------------------
@@ -279,20 +286,22 @@ describe('useFetch 改签名后的调用点回归（9 个调用点 · 代表 3 �
   });
 
   it('/common/materials/search ⇒ 取到的组分真的渲染进卡片', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) =>
-        Promise.resolve(
-          url === '/api/v1/common/materials/search'
-            ? response([{ cas: '74-98-6', name: '苯', formula: 'C6H6', mw: 78.11, source: 'lib' }])
-            : response(null, { ok: false, status: 404 }),
-        ),
-      ),
-    );
+    // ⚠️ **P10-C · T1（TODO-160）**：物性页**不再走 `useFetch` 通道** ——
+    // 契约的 `keyword` 必填 ⇒ 首屏不能发空查询 ⇒ 改成「页面自取 + 填条件才查」
+    // ⇒ ⇒ 这条用例改断 **axios 通道**（`commonQueryApi`）。
+    searchMaterials.mockResolvedValue([
+      { cas: '74-98-6', name: '苯', formula: 'C6H6', mw: 78.11, source: 'lib' },
+    ]);
     renderAt('/common/materials', '/common/materials', <PropertySearchRoute />);
 
     expect(await screen.findByTestId('property-search-page')).toBeInTheDocument();
-    expect(screen.getByText('苯')).toBeInTheDocument();
+    // ⚠️ **首屏不发请求** ⇒ ⇒ 卡片此时**还不该在**。
+    expect(searchMaterials).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByTestId('property-search-input'), {
+      target: { value: '苯' },
+    });
+    expect(await screen.findByText('苯')).toBeInTheDocument();
+    expect(searchMaterials).toHaveBeenCalledWith('苯');
   });
 });
 

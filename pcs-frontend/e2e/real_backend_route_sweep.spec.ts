@@ -95,20 +95,17 @@ const ROUTES: RouteCase[] = [
  * 每条写「页面 + 端点（路径片段）+ TODO 号」⇒ 端点补齐后**删条目并加回断言**。
  *
  * ⚠️ **只列 4xx/5xx**（控制台错误另有一张表，见下）。
+ *
+ * ⚠️ **TODO-160 的三条已在 P10-C · T1 删掉**（2026-11-19）——
+ * 物性 / 许用应力 / 毒性三页改成「**填条件才查**」（契约的 `keyword` /
+ * `material`+`temp_c` / `cas` 都必填 ⇒ 首屏发空查询必 422）
+ * ⇒ ⇒ 首屏**零请求** ⇒ ⇒ 现在这三页**任何 4xx/5xx 都会红**。
  */
 const ALLOWED_BAD_RESPONSES: { page: string; pathFragment: string; todo: string }[] = [
   // TODO-159：前端调了**不存在**的端点（3 个页面）
   { page: '/pipe/line-list', pathFragment: '/pipe-line-list', todo: 'TODO-159' },
   { page: '/pms', pathFragment: '/pms', todo: 'TODO-159' },
   { page: '/bedd', pathFragment: '/bedd', todo: 'TODO-159' },
-  // TODO-160：三个 common 页首屏 **422**（请求参数不满足端点契约）
-  {
-    page: '/common/properties',
-    pathFragment: '/common/materials/search',
-    todo: 'TODO-160',
-  },
-  { page: '/common/stress', pathFragment: '/common/allowable-stress', todo: 'TODO-160' },
-  { page: '/common/toxicity', pathFragment: '/common/safety', todo: 'TODO-160' },
 ];
 
 /** ⚠️ 控制台 error 的白名单（每条写「页面 + 文本片段 + TODO 号」）。 */
