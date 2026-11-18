@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-17T23:38:22.771Z
-> Files: 1352 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T00:12:40.710Z
+> Files: 1356 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5974 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~32014 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~37308 tok)
 
 ## .claude/rules/
 
@@ -202,6 +202,7 @@
 - `qa-report-pcs-frontend-2026-11-17-p10b.md` — PCS Frontend QA Report — P10-B 全流程 E2E 批（2026-11-16 ~ 2026-11-17） (~1263 tok)
 - `qa-report-pcs-frontend-2026-11-17-p10f-f1.md` — QA 报告 —— PCS 前端 · P10-F 批 1（F1） (~1130 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-f2.md` — QA 报告 —— PCS 前端 · P10-F 批 2（F2） (~809 tok)
+- `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -581,11 +582,13 @@
 
 ## docs/solutions/security-issues/
 
+- `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
 
 ## docs/solutions/testing-issues/
 
 - `assertion-must-be-sensitive-to-named-defect.md` — 断言必须对它**命名的那个缺陷**敏感 —— 用变异测试证明 (~516 tok)
+- `autouse-fixture-must-be-lane-scoped.md` — autouse fixture 会作用于**所有**车道 ⇒ ⇒ 隔离必须**按车道限定** (~646 tok)
 - `engine-level-migration-tests-skipif-pg.md` — 引擎级迁移测试：隔离 schema + 子进程 alembic（本仓无自动化 PG 通道） (~736 tok)
 - `guard-patched-definition-site-consumer-imported-by-value.md` — 守卫 patch 了「定义处」，而消费者是「按值导入」的 ⇒ 守卫是空壳 (~981 tok)
 - `guard-test-fooled-by-lying-comment.md` — 守门测试会被它所守护的那行注释骗过 (~926 tok)
@@ -629,7 +632,7 @@
 - `2026-11-13-p10-batch-b-fullflow-e2e.md` — P10-B 实施计划：全流程 E2E（10.2） (~16021 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
-- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~14587 tok)
+- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~17600 tok)
 
 ## docs/superpowers/specs/
 
@@ -1568,24 +1571,24 @@
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
 - `p7_s3_003_backfill_config_audit.py` — F-P0-001 R1 audit backfill (P7 Sprint 3 / Issue 6). (~1249 tok)
 - `pytest_e2e.sh` — E2E 车道（隔离 schema · 真 PG）的唯一入口 —— P10-B。 (~246 tok)
-- `pytest_pg.sh` — 唯一的 PG 车道入口（TODO-099 · 委员会 2026-11-02 裁决 4）。 (~986 tok)
+- `pytest_pg.sh` — 唯一的 PG 车道入口（TODO-099 · 委员会 2026-11-02 裁决 4）。 (~1083 tok)
 - `report_heat_coverage.py` — c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。 (~6477 tok)
 - `run_gate.py` — 跑一条闸门命令并报告**它自己**的退出码（TODO-050）。 (~752 tok)
 - `seed_e2e_data.py` — E2E 种子数据（P10-A · Task T2）—— **幂等**。 (~2797 tok)
-- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9439 tok)
+- `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9528 tok)
 - `seed_user_project_access.py` — 给「指定用户名 × 指定项目」授权（幂等）—— P9B-4 紧急批次 T0。 (~1468 tok)
-- `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~450 tok)
+- `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~634 tok)
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~6998 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~7869 tok)
 - `lane_guards.py` — **默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。 (~281 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
-- `test_lane_isolation.py` — **默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。 (~893 tok)
+- `test_lane_isolation.py` — **默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。 (~1332 tok)
 - `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
 - `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~2399 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~3449 tok)
@@ -1699,8 +1702,8 @@
 
 ## pcs-backend/tests/e2e_flows/
 
-- `conftest.py` — E2E 车道（隔离 schema · 真 PG）的 fixture —— P10-B · T1。 (~4850 tok)
-- `helpers.py` — E2E 场景共用的调用 helper —— P10-B（T3）。 (~5001 tok)
+- `conftest.py` — E2E 车道（隔离 schema · 真 PG）的 fixture —— P10-B · T1。 (~4904 tok)
+- `helpers.py` — E2E 场景共用的调用 helper —— P10-B（T3）。 (~5326 tok)
 - `test_e2e_ai_audit.py` — E2E-017：AI 端点 501 + 审计行落库（P10-B · T6）。 (~792 tok)
 - `test_e2e_calc_chains.py` — E2E-003~006：计算链（管道 / 泵 / 安全阀 / 容器）—— P10-B · T3。 (~1115 tok)
 - `test_e2e_change_impact.py` — WF-PATH-01C + E2E-013：上游变更 ⇒ 下游 STALE ⇒ 确认重算（P10-B · T5 补做）。 (~1901 tok)
@@ -1708,7 +1711,7 @@
 - `test_e2e_equipment_util.py` — E2E-007/008：设备表 · 能耗汇总（P10-B · T4）。 (~929 tok)
 - `test_e2e_global_session_isolation.py` — 进程级 session factory 的隔离 —— P10-B 评审 **#19** · P1。 (~1171 tok)
 - `test_e2e_permission_matrix.py` — E2E-016 + AUTH-E2E-01~10 + WF-PATH-04：权限矩阵（P10-B · T6）。 (~2528 tok)
-- `test_e2e_pipe_class_lookup.py` — 种子管级「按 id 查不 500」（P10-F · 评审 #17）。 (~565 tok)
+- `test_e2e_pipe_class_lookup.py` — 种子管级「按 id 查不 500」（P10-F · 评审 #17）。 (~607 tok)
 - `test_e2e_project_config.py` — E2E-001：项目创建 → 输入清单（P10-B · T3）。 (~848 tok)
 - `test_e2e_record_workflow.py` — WF-PATH-01A/01B/01D/01E + E2E-010：记录层状态机（P10-B · T5）。 (~1754 tok)
 - `test_e2e_report.py` — E2E-009/015：计算书 · 自定义报表（P10-B · T4）。 (~1511 tok)
@@ -1716,7 +1719,7 @@
 - `test_e2e_sim_import.py` — E2E-002：PRO/II 导入 → 物流 → 物性补全（P10-B · T3）。 (~914 tok)
 - `test_e2e_supplier.py` — E2E-014：供应商实际值 → 偏差报告（P10-B · T4）。 (~698 tok)
 - `test_e2e_workspaces_visible.py` — 种子工作区在切换器里**可见**（P10-F · F2-T2 · 评审 #24）。 (~646 tok)
-- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~3584 tok)
+- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~3936 tok)
 
 ## pcs-backend/tests/fixtures/report/
 
@@ -1752,7 +1755,8 @@
 - `test_report_heat_coverage.py` — c4/c5：HEAT DETAIL 覆盖率工具的测试。 (~2226 tok)
 - `test_run_gate.py` — `scripts/run_gate.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~817 tok)
 - `test_seed_e2e_data.py` — `scripts/seed_e2e_data.py` 的测试 —— 核心是**幂等**（P10-A · Review Focus #4）。 (~966 tok)
-- `test_seed_e2e_flows.py` — 流程级种子（P10-B · T2）的守卫。 (~4098 tok)
+- `test_seed_e2e_flows.py` — 流程级种子（P10-B · T2）的守卫。 (~5278 tok)
+- `test_serve_e2e_backend_lock.py` — 真后端通道的**后端**也要进车道锁（P10-F · 整支评审 I3）。 (~930 tok)
 
 ## pcs-backend/tests/services/
 
@@ -1978,7 +1982,7 @@
 
 - `DashboardPage.tsx` — DashboardPage (~584 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~808 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~4701 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~4914 tok)
 
 ## pcs-frontend/src/pages/admin/
 
@@ -2105,7 +2109,7 @@
 ## pcs-frontend/tests/pages/
 
 - `DashboardPage.test.tsx` — 仪表盘的**守卫条件**（评审 #24 · P10-F · F2-T2）。 (~1140 tok)
-- `routeWrappers.fetch.test.tsx` — `useFetch` 的失败态 + **401 与 axios 通道共用一份真相源**（P10-F · 评审 #9）。 (~2661 tok)
+- `routeWrappers.fetch.test.tsx` — `useFetch` 的失败态 + **401 与 axios 通道共用一份真相源**（P10-F · 评审 #9）。 (~3429 tok)
 - `rowKey_contract.test.ts` — **棘轮**：antd `Table` 的 `rowKey` 必须是**契约里真实存在的字段**。 (~1406 tok)
 
 ## pcs-frontend/tests/pages/admin/

@@ -6374,215 +6374,273 @@
       "occurrences": 1,
       "last_seen": "2026-11-17"
     },
-  {
-    "id": "bug-2173",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "物流 `case_type`：**响应可空**（DB 列可空）但**请求必填** ⇒ 「拿响应当入参」的客户端（GET→POST 回写）读到 null 就 **422**（评审 #26 · P3）",
-    "file": "pcs-backend/app/schemas/stream.py",
-    "root_cause": "DB 列 `streams.case_type` 可空 ⇒ 响应改成可空（bug-2167）⇒ **请求侧**仍 `Field(..., …)` ⇒ 同一字段**读写要求不一致** ⇒ 「读得到 null」与「写不回去 null」并存。",
-    "fix": "请求侧改 Optional（省略 ⇒ 落库 NULL）⇒ 读写对称。PATCH 不受影响（StreamUpdate 独立模型）。⚠️ OpenAPI **无变化**（建物流的请求体在契约里是裸 dict）⇒ 没有 baseline 要滚。TDD：RED（422 Field required）→ GREEN（23 passed）。",
-    "fix_commit": "f22f3a9",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "契约漂移",
-      "可空性",
-      "读写对称"
-    ],
-    "related_bugs": [
-      "bug-2167"
-    ],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2174",
-    "timestamp": "2026-11-17",
-    "severity": "high",
-    "error_message": "真后端通道的「越权用户看不到别人的项目」断言**恒等**：比的两个码都是**角色闸**给的 403 ⇒ **把项目守卫整段删掉也照样绿**（评审 #5 · P1）",
-    "file": "pcs-frontend/e2e/real_backend_flows.spec.ts",
-    "root_cause": "被测身份 `bob`（CHECKER）⇒ 端点**先**跑角色闸 ⇒ bob **在项目守卫之前**就 403 ⇒ 断言退化成 `403 === 403`（同义反复）⇒ 项目守卫**一次都没执行**。四个 mock 账号都表达不了「角色够+授权缺」。",
-    "fix": "① 后端 mock 登录新增 `erin`（DESIGNER）⇒ 种子**故意不授权**；② 前端登录页 + MSW mock 同步；③ 断言改为 **404** + 与「压根不存在」同状态码 + `code` 逐字相同 + `message` 模板逐字相同。**变异测试**：删掉项目守卫 ⇒ 断言红 ⇒ 对被它命名的缺陷**敏感**。",
-    "fix_commit": "0bf78fd",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "假绿",
-      "断言形状",
-      "越权",
-      "变异测试"
-    ],
-    "related_bugs": [],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2175",
-    "timestamp": "2026-11-17",
-    "severity": "high",
-    "error_message": "真后端通道的**路由扫描**：「渲染出来了」断的是 `#root` 这个**静态 div**（**恒真**）⇒ 且 console error 与 4xx/5xx **只打印不断言** ⇒ 等于放弃 QA 闸门（评审 #7 · P1）",
-    "file": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts",
-    "root_cause": "只断 `locator('#root').count() > 0` ⇒ React 挂载点**永远在** ⇒ 白屏也算过 ⇒ 且错误只进 console.log ⇒ **没有任何东西会因为页面出错而红**。附带：响应**晚于切页**才到 ⇒ 按到达时间归属 ⇒ 记到**下一页**头上 ⇒ 白名单假红。",
-    "fix": "① 断**页面自己的 data-testid**；② 有种子的 3 页断**专有值**；③ 其余断「**非白屏**」；④ 身份改 dan（admin 页不该 403）；⑤ **白名单外**的 4xx/5xx 与 console error **必须为空**（白名单带 TODO 号）；⑥ 归属按**请求发起时**。",
-    "fix_commit": "c82a1e8",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "假绿",
-      "断言形状",
-      "QA闸门"
-    ],
-    "related_bugs": [],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2176",
-    "timestamp": "2026-11-17",
-    "severity": "high",
-    "error_message": "E2E 车道的隔离**只覆盖 get_db** ⇒ 全局 session factory（**模块级单例**）仍指 public schema ⇒ ws.py 与 errors.py 读写的是**另一个房间**（评审 #19 · P1）",
-    "file": "pcs-backend/tests/e2e_flows/conftest.py",
-    "root_cause": "车道靠 `dependency_overrides[get_db]` 隔离 ⇒ 但 `get_async_session_factory()` 是进程级单例（engine 来自 settings）⇒ 不经 get_db 的路径**绕开**隔离 ⇒ 而「不写 public」守卫看不见它们。",
-    "fix": "① fixture 把模块级 `_async_engine`/`_async_session_factory` 换成隔离 schema 的（测完还原）；② 新增用例：断 `current_schema()` **就是**隔离 schema；经全局 factory 写的探针行**只在**隔离 schema，public 写前/写后快照**不变**（用**独立连接**查 public ⇒ 否则恒绿）。",
-    "fix_commit": "832f9c0",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "隔离",
-      "E2E",
-      "假绿"
-    ],
-    "related_bugs": [
-      "bug-2171"
-    ],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2177",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "E2E 车道里**每一次 403 都不写 RBAC 审计行** ⇒ 「越权 ⇒ 留痕」在车道里是**空跑**（写失败/action 写错/user_id 取错都发现不了）（评审 #10 · P2）",
-    "file": "pcs-backend/app/core/errors.py",
-    "root_cause": "`_write_rbac_audit_row` 只认 `PYTEST_CURRENT_TEST` ⇒ pytest 下直接 return ⇒ 早退的理由（「防测试写真实 DB」）在**隔离 schema** 的车道里**不成立**。",
-    "fix": "早退判据改成「pytest **且** 目标**不是**车道隔离上下文」⇒ 判据 = **真实连接**（current_database + current_schema）⇒ 不是 PCS_E2E_LANE ⇒ 另加 URL 预筛 ⇒ 非白名单库**连都不连**。新增 db_guard 的 current_schema_name / is_isolated_lane_context / factory_database_url。",
-    "fix_commit": "4bb6a79",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "RBAC",
-      "审计",
-      "空跑"
-    ],
-    "related_bugs": [],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2178",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "车道互斥锁放在 **`/tmp`** ⇒ 被清理后 **inode 换新** ⇒ 正在跑的车道的锁对新车道**不可见** ⇒ 互斥**静默失效** ⇒ 两条车道并发建 schema（评审 #15 · P2）",
-    "file": "pcs-backend/scripts/pytest_pg.sh",
-    "root_cause": "锁文件路径写死 `/tmp/…` ⇒ `flock` 锁的是 **inode** ⇒ 文件被删/重建 ⇒ 另一条车道打开的是**另一个 inode** ⇒ `flock -n` 抢得到 ⇒ 症状是「偶发卡住」（DDL 互相等锁）⇒ 极难定位。",
-    "fix": "① 默认锁路径改**项目内** `pcs-backend/.tmp/lane.lock`（+ .gitignore）；② 守门测试补「**默认路径**下两 lane 互斥」的**子进程实测**（之前默认路径从没被测过）。⚠️ compose 的 migrate/seed 进同一把锁**本批做不了**（容器要 flock ⇒ 无外网 ⇒ 无法验证）⇒ TODO-163。",
-    "fix_commit": "1e27216",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "并发",
-      "锁",
-      "flock"
-    ],
-    "related_bugs": [
-      "bug-2170"
-    ],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2179",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "「两库 schema 版本一致」这条**发布前检查**塞在 **E2E 车道**里 ⇒ 几乎**不会执行** + 让车道**不再 hermetic** + 且**只比彼此** ⇒ **两库都落后也绿**（评审 #20 / #21 · P2）",
-    "file": "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py",
-    "root_cause": "职责错位（发布前检查挂在场景车道上）⇒ 且判据错（比彼此 ≠ 比代码 head）⇒ 两库都停在 p9_006、head 是 p10_002 ⇒ 「一致」⇒ 绿 ⇒ 其实**都落后**。",
-    "fix": "① 挪到 `scripts/check_schema_parity.py` ⇒ 逐库**独立子进程**（alembic 的 settings 是 pydantic 缓存）⇒ 直查 alembic_version + 跑 alembic check；② 判据改为「**每个库 == 代码 head**」，查不到 ⇒ fail-closed；③ 单测只测逻辑（探针注入）⇒ 默认车道**绝不碰开发库**；④ 删掉 E2E 车道里那条。",
-    "fix_commit": "7a0737e",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "职责错位",
-      "发布前检查",
-      "alembic"
-    ],
-    "related_bugs": [],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2180",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "E2E 车道**不跑 lifespan** ⇒ 生产在 lifespan 里 seed 的两处（**系数表** + **系统参数**）在隔离 schema 里**根本没有** ⇒ 车道里的系数/参数页是**空的** ⇒ 验的不是「生产同款」（评审 #18 · P2）",
-    "file": "pcs-backend/scripts/seed_e2e_flows.py",
-    "root_cause": "`httpx.ASGITransport` 不跑 lifespan ⇒ 那两处 seed 只在 lifespan 里 ⇒ conftest 的注释写「由 e2e_seed 显式补」⇒ **实测 0 处调用** ⇒ 注释与事实相反。",
-    "fix": "① 种子脚本**显式调生产用的那两个函数**（不是复制逻辑）；② 断言行数 **= 源清单的条数**（漏灌 ⇒ 红；源清单变了 ⇒ 断言自动跟着变）；③ conftest 注释改成事实。⚠️ SPEC 的「6 张系数表 / 7 个系统参数」是**旧数字**（实际 **9 / 13**）⇒ 偏离见 SPEC 的 D39。",
-    "fix_commit": "6718ab4",
-    "tags": [
-      "P10-B",
-      "评审修复",
-      "lifespan",
-      "种子",
-      "生产同款"
-    ],
-    "related_bugs": [],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2181",
-    "timestamp": "2026-11-17",
-    "severity": "medium",
-    "error_message": "默认车道全量跑红一条：`tests/services/test_ui_schema_drift.py::test_stream_required_matches_pydantic` ⇒ 「uiSchema 标记 required 但 Pydantic 非必填: {'case_type'}」⇒ ⇒ **默认车道不是绿的**（P10-F 批末闸门实测）",
-    "file": "pcs-backend/app/services/ui_schema_service.py",
-    "root_cause": "P10-B 的评审 #26（commit f22f3a9）把 `StreamBase.case_type` 改成**请求侧可省略**（DB 列 `streams.case_type` 可空 ⇒ 读写对称）⇒ ⇒ 但 `app/services/ui_schema_service.py` 里 stream 的 `case_type` 仍写 `\"required\": True` ⇒ ⇒ **表单契约与 API 契约分叉** ⇒ ⇒ 漂移守卫必红。⚠️ **本批未改这三个文件** ⇒ ⇒ 这条红**在 P10-B 批末就存在**（P10-B 的 STATUS 声称「默认车道全量绿」⇒ 那句不准确）。",
-    "fix": "`ui_schema_service.py` 的 stream `case_type` 改成 `\"required\": False` ⇒ ⇒ 方向唯一（漂移守卫判据是「uiSchema.required ⊆ Pydantic 必填」⇒ 而 #26 的人裁决是「请求侧可省略」）⇒ ⇒ **没有**改回 Pydantic（那会推翻 #26 的人裁决）。",
-    "fix_commit": "120677b",
-    "tags": [
-      "P10-F",
-      "P10-B遗留",
-      "契约漂移",
-      "uiSchema",
-      "批末闸门"
-    ],
-    "related_bugs": [
-      "bug-2173"
-    ],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  },
-  {
-    "id": "bug-2182",
-    "timestamp": "2026-11-17",
-    "severity": "high",
-    "error_message": "默认单测车道**碰开发库与真 Redis** ⇒ 进程 socket 里挂着 127.0.0.1:5432（开发库 `pcs`）与 127.0.0.1:6379（真 Redis）⇒ ⇒ 违反 `CLAUDE.md` 的「**单测车道绝不碰开发库**」⇒ ⇒ 而且整轮跑到 22% **挂死 33 分钟**（P10-F 评审期间实测 · F2-T5）",
-    "file": "pcs-backend/tests/conftest.py",
-    "root_cause": "① `app/db/session.py` 的**三个模块级单例**里，**同步**那个（`_sync_engine`）在默认车道**裸奔**（按 `settings.database_url` 建 ⇒ 那是开发库）⇒ ⇒ #19 只覆写了两个 async 的；② `app/services/edit_lock.py` · `app/services/broadcaster.py` 直接 `redis.asyncio.Redis.from_url(settings.redis_url)` ⇒ 默认车道连**真 Redis**（docker 的 6379 起着 ⇒ 连得上）。",
-    "fix": "① `tests/conftest.py` 加**函数级 autouse**的隔离 fixture：`_sync_engine` ⇒ SQLite（内存）**且每个用例都重申**（`dispose_sync_engine()` 会把它置回 `None` ⇒ 只在会话开始设一次 ⇒ 后面又裸奔）⇒ `settings.redis_url` ⇒ `redis://127.0.0.1:1/0`（**不可路由** ⇒ 「连了就炸」比「查到了再判」更硬）；② 依赖**真 Redis 语义**的 4 处用例改为**运行期 skip**（`tests/lane_guards.py::require_real_redis`）⇒ 登记 **TODO-165**（迁到 `scripts/pytest_pg.sh` 车道）；③ 新增 `tests/test_lane_isolation.py`（4 条守卫）。⚠️ **两个 async 单例本批不改**（跨事件循环 ⇒ 改它比不改更危险 · bug-2162 同形）⇒ ⇒ 改走「让每条路径都不去碰它」的路子。",
-    "fix_commit": "16ebcb6",
-    "tags": [
-      "P10-F",
-      "F2-T5",
-      "测试隔离",
-      "开发库",
-      "Redis",
-      "CLAUDE.md"
-    ],
-    "related_bugs": ["bug-2162", "bug-2170"],
-    "occurrences": 1,
-    "last_seen": "2026-11-17"
-  }
+    {
+      "id": "bug-2173",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "物流 `case_type`：**响应可空**（DB 列可空）但**请求必填** ⇒ 「拿响应当入参」的客户端（GET→POST 回写）读到 null 就 **422**（评审 #26 · P3）",
+      "file": "pcs-backend/app/schemas/stream.py",
+      "root_cause": "DB 列 `streams.case_type` 可空 ⇒ 响应改成可空（bug-2167）⇒ **请求侧**仍 `Field(..., …)` ⇒ 同一字段**读写要求不一致** ⇒ 「读得到 null」与「写不回去 null」并存。",
+      "fix": "请求侧改 Optional（省略 ⇒ 落库 NULL）⇒ 读写对称。PATCH 不受影响（StreamUpdate 独立模型）。⚠️ OpenAPI **无变化**（建物流的请求体在契约里是裸 dict）⇒ 没有 baseline 要滚。TDD：RED（422 Field required）→ GREEN（23 passed）。",
+      "fix_commit": "f22f3a9",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "契约漂移",
+        "可空性",
+        "读写对称"
+      ],
+      "related_bugs": [
+        "bug-2167"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2174",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "真后端通道的「越权用户看不到别人的项目」断言**恒等**：比的两个码都是**角色闸**给的 403 ⇒ **把项目守卫整段删掉也照样绿**（评审 #5 · P1）",
+      "file": "pcs-frontend/e2e/real_backend_flows.spec.ts",
+      "root_cause": "被测身份 `bob`（CHECKER）⇒ 端点**先**跑角色闸 ⇒ bob **在项目守卫之前**就 403 ⇒ 断言退化成 `403 === 403`（同义反复）⇒ 项目守卫**一次都没执行**。四个 mock 账号都表达不了「角色够+授权缺」。",
+      "fix": "① 后端 mock 登录新增 `erin`（DESIGNER）⇒ 种子**故意不授权**；② 前端登录页 + MSW mock 同步；③ 断言改为 **404** + 与「压根不存在」同状态码 + `code` 逐字相同 + `message` 模板逐字相同。**变异测试**：删掉项目守卫 ⇒ 断言红 ⇒ 对被它命名的缺陷**敏感**。",
+      "fix_commit": "0bf78fd",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "假绿",
+        "断言形状",
+        "越权",
+        "变异测试"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2175",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "真后端通道的**路由扫描**：「渲染出来了」断的是 `#root` 这个**静态 div**（**恒真**）⇒ 且 console error 与 4xx/5xx **只打印不断言** ⇒ 等于放弃 QA 闸门（评审 #7 · P1）",
+      "file": "pcs-frontend/e2e/real_backend_route_sweep.spec.ts",
+      "root_cause": "只断 `locator('#root').count() > 0` ⇒ React 挂载点**永远在** ⇒ 白屏也算过 ⇒ 且错误只进 console.log ⇒ **没有任何东西会因为页面出错而红**。附带：响应**晚于切页**才到 ⇒ 按到达时间归属 ⇒ 记到**下一页**头上 ⇒ 白名单假红。",
+      "fix": "① 断**页面自己的 data-testid**；② 有种子的 3 页断**专有值**；③ 其余断「**非白屏**」；④ 身份改 dan（admin 页不该 403）；⑤ **白名单外**的 4xx/5xx 与 console error **必须为空**（白名单带 TODO 号）；⑥ 归属按**请求发起时**。",
+      "fix_commit": "c82a1e8",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "假绿",
+        "断言形状",
+        "QA闸门"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2176",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "E2E 车道的隔离**只覆盖 get_db** ⇒ 全局 session factory（**模块级单例**）仍指 public schema ⇒ ws.py 与 errors.py 读写的是**另一个房间**（评审 #19 · P1）",
+      "file": "pcs-backend/tests/e2e_flows/conftest.py",
+      "root_cause": "车道靠 `dependency_overrides[get_db]` 隔离 ⇒ 但 `get_async_session_factory()` 是进程级单例（engine 来自 settings）⇒ 不经 get_db 的路径**绕开**隔离 ⇒ 而「不写 public」守卫看不见它们。",
+      "fix": "① fixture 把模块级 `_async_engine`/`_async_session_factory` 换成隔离 schema 的（测完还原）；② 新增用例：断 `current_schema()` **就是**隔离 schema；经全局 factory 写的探针行**只在**隔离 schema，public 写前/写后快照**不变**（用**独立连接**查 public ⇒ 否则恒绿）。",
+      "fix_commit": "832f9c0",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "隔离",
+        "E2E",
+        "假绿"
+      ],
+      "related_bugs": [
+        "bug-2171"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2177",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "E2E 车道里**每一次 403 都不写 RBAC 审计行** ⇒ 「越权 ⇒ 留痕」在车道里是**空跑**（写失败/action 写错/user_id 取错都发现不了）（评审 #10 · P2）",
+      "file": "pcs-backend/app/core/errors.py",
+      "root_cause": "`_write_rbac_audit_row` 只认 `PYTEST_CURRENT_TEST` ⇒ pytest 下直接 return ⇒ 早退的理由（「防测试写真实 DB」）在**隔离 schema** 的车道里**不成立**。",
+      "fix": "早退判据改成「pytest **且** 目标**不是**车道隔离上下文」⇒ 判据 = **真实连接**（current_database + current_schema）⇒ 不是 PCS_E2E_LANE ⇒ 另加 URL 预筛 ⇒ 非白名单库**连都不连**。新增 db_guard 的 current_schema_name / is_isolated_lane_context / factory_database_url。",
+      "fix_commit": "4bb6a79",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "RBAC",
+        "审计",
+        "空跑"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2178",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "车道互斥锁放在 **`/tmp`** ⇒ 被清理后 **inode 换新** ⇒ 正在跑的车道的锁对新车道**不可见** ⇒ 互斥**静默失效** ⇒ 两条车道并发建 schema（评审 #15 · P2）",
+      "file": "pcs-backend/scripts/pytest_pg.sh",
+      "root_cause": "锁文件路径写死 `/tmp/…` ⇒ `flock` 锁的是 **inode** ⇒ 文件被删/重建 ⇒ 另一条车道打开的是**另一个 inode** ⇒ `flock -n` 抢得到 ⇒ 症状是「偶发卡住」（DDL 互相等锁）⇒ 极难定位。",
+      "fix": "① 默认锁路径改**项目内** `pcs-backend/.tmp/lane.lock`（+ .gitignore）；② 守门测试补「**默认路径**下两 lane 互斥」的**子进程实测**（之前默认路径从没被测过）。⚠️ compose 的 migrate/seed 进同一把锁**本批做不了**（容器要 flock ⇒ 无外网 ⇒ 无法验证）⇒ TODO-163。",
+      "fix_commit": "1e27216",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "并发",
+        "锁",
+        "flock"
+      ],
+      "related_bugs": [
+        "bug-2170"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2179",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "「两库 schema 版本一致」这条**发布前检查**塞在 **E2E 车道**里 ⇒ 几乎**不会执行** + 让车道**不再 hermetic** + 且**只比彼此** ⇒ **两库都落后也绿**（评审 #20 / #21 · P2）",
+      "file": "pcs-backend/tests/e2e_flows/test_e2e_schema_parity.py",
+      "root_cause": "职责错位（发布前检查挂在场景车道上）⇒ 且判据错（比彼此 ≠ 比代码 head）⇒ 两库都停在 p9_006、head 是 p10_002 ⇒ 「一致」⇒ 绿 ⇒ 其实**都落后**。",
+      "fix": "① 挪到 `scripts/check_schema_parity.py` ⇒ 逐库**独立子进程**（alembic 的 settings 是 pydantic 缓存）⇒ 直查 alembic_version + 跑 alembic check；② 判据改为「**每个库 == 代码 head**」，查不到 ⇒ fail-closed；③ 单测只测逻辑（探针注入）⇒ 默认车道**绝不碰开发库**；④ 删掉 E2E 车道里那条。",
+      "fix_commit": "7a0737e",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "职责错位",
+        "发布前检查",
+        "alembic"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2180",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "E2E 车道**不跑 lifespan** ⇒ 生产在 lifespan 里 seed 的两处（**系数表** + **系统参数**）在隔离 schema 里**根本没有** ⇒ 车道里的系数/参数页是**空的** ⇒ 验的不是「生产同款」（评审 #18 · P2）",
+      "file": "pcs-backend/scripts/seed_e2e_flows.py",
+      "root_cause": "`httpx.ASGITransport` 不跑 lifespan ⇒ 那两处 seed 只在 lifespan 里 ⇒ conftest 的注释写「由 e2e_seed 显式补」⇒ **实测 0 处调用** ⇒ 注释与事实相反。",
+      "fix": "① 种子脚本**显式调生产用的那两个函数**（不是复制逻辑）；② 断言行数 **= 源清单的条数**（漏灌 ⇒ 红；源清单变了 ⇒ 断言自动跟着变）；③ conftest 注释改成事实。⚠️ SPEC 的「6 张系数表 / 7 个系统参数」是**旧数字**（实际 **9 / 13**）⇒ 偏离见 SPEC 的 D39。",
+      "fix_commit": "6718ab4",
+      "tags": [
+        "P10-B",
+        "评审修复",
+        "lifespan",
+        "种子",
+        "生产同款"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2181",
+      "timestamp": "2026-11-17",
+      "severity": "medium",
+      "error_message": "默认车道全量跑红一条：`tests/services/test_ui_schema_drift.py::test_stream_required_matches_pydantic` ⇒ 「uiSchema 标记 required 但 Pydantic 非必填: {'case_type'}」⇒ ⇒ **默认车道不是绿的**（P10-F 批末闸门实测）",
+      "file": "pcs-backend/app/services/ui_schema_service.py",
+      "root_cause": "P10-B 的评审 #26（commit f22f3a9）把 `StreamBase.case_type` 改成**请求侧可省略**（DB 列 `streams.case_type` 可空 ⇒ 读写对称）⇒ ⇒ 但 `app/services/ui_schema_service.py` 里 stream 的 `case_type` 仍写 `\"required\": True` ⇒ ⇒ **表单契约与 API 契约分叉** ⇒ ⇒ 漂移守卫必红。⚠️ **本批未改这三个文件** ⇒ ⇒ 这条红**在 P10-B 批末就存在**（P10-B 的 STATUS 声称「默认车道全量绿」⇒ 那句不准确）。",
+      "fix": "`ui_schema_service.py` 的 stream `case_type` 改成 `\"required\": False` ⇒ ⇒ 方向唯一（漂移守卫判据是「uiSchema.required ⊆ Pydantic 必填」⇒ 而 #26 的人裁决是「请求侧可省略」）⇒ ⇒ **没有**改回 Pydantic（那会推翻 #26 的人裁决）。",
+      "fix_commit": "120677b",
+      "tags": [
+        "P10-F",
+        "P10-B遗留",
+        "契约漂移",
+        "uiSchema",
+        "批末闸门"
+      ],
+      "related_bugs": [
+        "bug-2173"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2182",
+      "timestamp": "2026-11-17",
+      "severity": "high",
+      "error_message": "默认单测车道**碰开发库与真 Redis** ⇒ 进程 socket 里挂着 127.0.0.1:5432（开发库 `pcs`）与 127.0.0.1:6379（真 Redis）⇒ ⇒ 违反 `CLAUDE.md` 的「**单测车道绝不碰开发库**」⇒ ⇒ 而且整轮跑到 22% **挂死 33 分钟**（P10-F 评审期间实测 · F2-T5）",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "① `app/db/session.py` 的**三个模块级单例**里，**同步**那个（`_sync_engine`）在默认车道**裸奔**（按 `settings.database_url` 建 ⇒ 那是开发库）⇒ ⇒ #19 只覆写了两个 async 的；② `app/services/edit_lock.py` · `app/services/broadcaster.py` 直接 `redis.asyncio.Redis.from_url(settings.redis_url)` ⇒ 默认车道连**真 Redis**（docker 的 6379 起着 ⇒ 连得上）。",
+      "fix": "① `tests/conftest.py` 加**函数级 autouse**的隔离 fixture：`_sync_engine` ⇒ SQLite（内存）**且每个用例都重申**（`dispose_sync_engine()` 会把它置回 `None` ⇒ 只在会话开始设一次 ⇒ 后面又裸奔）⇒ `settings.redis_url` ⇒ `redis://127.0.0.1:1/0`（**不可路由** ⇒ 「连了就炸」比「查到了再判」更硬）；② 依赖**真 Redis 语义**的 4 处用例改为**运行期 skip**（`tests/lane_guards.py::require_real_redis`）⇒ 登记 **TODO-165**（迁到 `scripts/pytest_pg.sh` 车道）；③ 新增 `tests/test_lane_isolation.py`（4 条守卫）。⚠️ **两个 async 单例本批不改**（跨事件循环 ⇒ 改它比不改更危险 · bug-2162 同形）⇒ ⇒ 改走「让每条路径都不去碰它」的路子。",
+      "fix_commit": "16ebcb6",
+      "tags": [
+        "P10-F",
+        "F2-T5",
+        "测试隔离",
+        "开发库",
+        "Redis",
+        "CLAUDE.md"
+      ],
+      "related_bugs": [
+        "bug-2162",
+        "bug-2170"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-17"
+    },
+    {
+      "id": "bug-2183",
+      "timestamp": "2026-11-18",
+      "severity": "high",
+      "error_message": "真后端通道里从物流一览点进**另一条**物流 ⇒ ⇒ 详情页**停在上一次的失败提示上**（或显示**上一条**物流的数据）⇒ ⇒ 新数据永远不显示（`GET /api/v1/streams/{id}` 换了 id 也一样）⇒ ⇒ 与「加载中…」同形的失败态（P10-F 整支评审 C1）",
+      "file": "pcs-frontend/src/pages/routeWrappers.tsx",
+      "root_cause": "`useFetch` 的 effect 依赖是 `[path]` ⇒ ⇒ 换 path 时 effect 重跑 ⇒ ⇒ 但 **`useState` 不会自动重置** ⇒ ⇒ 上一条请求的 `error` / `loading` / `data` **粘住** ⇒ ⇒ `StreamDetailRoute` 的渲染顺序是 `loading` → `error` → `!stream` ⇒ ⇒ 旧的 `error` 让新数据永远走不到渲染分支。⚠️ React Router **复用同一个组件实例**（`/streams/:id` 换 id）⇒ ⇒ 与 bug-2043 同一形状。",
+      "fix": "effect 开头**重置** `error` / `loading` / `data`（`initial` 用 `useRef` 留住 ⇒ ⚠️ 不能进依赖 ⇒ 它多半是内联字面量 ⇒ 进依赖 ⇒ 每次渲染都重跑 ⇒ 无限请求）。⇒ 顺带把 `cancelled` 判断提到 `handleSessionOver` 之前（卸载后迟到的 401 不该清会话）。新增 2 条断言（path 变化 ⇒ 加载态 / 失败态 / 新数据三态 · 卸载后不清会话）。",
+      "fix_commit": "5da8bd2",
+      "tags": [
+        "P10-F",
+        "前端",
+        "useFetch",
+        "React Router",
+        "状态重置",
+        "C1"
+      ]
+    },
+    {
+      "id": "bug-2184",
+      "timestamp": "2026-11-18",
+      "severity": "high",
+      "error_message": "PG 车道里 `_sync_engine` 指向 **SQLite（内存）** ⇒ ⇒ 任何走 `get_engine()` 的路径**静默**查一个空库（**假绿**）⇒ ⇒ 且依赖真 Redis 的 **20 条**用例在**任何**车道都被跳过（覆盖全丢）⇒ ⇒ 且 E2E 车道的隔离 schema 被根 conftest 的 fixture **顺序依赖**地覆盖（P10-F 整支评审 I1/I2）",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "默认车道的隔离 fixture 是**函数级 autouse** ⇒ ⇒ **autouse 是全局作用域** ⇒ ⇒ 它对 `pytest -m pg` / `-m e2e` **同样生效** ⇒ ⇒ 车道自带隔离（真 PG · 隔离 schema）被盖掉。⚠️ 更隐蔽：`lane_guards.py::require_real_redis` 的判据是「`redis_url` 是否被隔离」⇒ ⇒ 在车道里**也**被隔离 ⇒ ⇒ TODO-165 写的「迁到 PG 车道时去掉那个 skip」**执行不了**。",
+      "fix": "判据 = **车道脚本自己导出的**环境变量（`scripts/pytest_pg.sh` ⇒ `export PCS_TEST_LANE=1` ⇒ E2E 车道 exec 进它）⇒ ⇒ `apply_default_lane_isolation()` 在**车道里直接返回** ⇒ ⇒ 隔离只作用于默认车道。⚠️ 判据放在**被调用的函数里**（守卫直接调它 ⇒ 断行为）⇒ ⇒ 守卫断的是「认得出来的值有没有被改写」。⇒ 顺带 `dispose()` 上一个引擎（M6）。",
+      "fix_commit": "77a12ab",
+      "tags": [
+        "P10-F",
+        "测试隔离",
+        "autouse",
+        "车道",
+        "PG 车道",
+        "E2E 车道",
+        "I1",
+        "I2"
+      ]
+    },
+    {
+      "id": "bug-2185",
+      "timestamp": "2026-11-18",
+      "severity": "medium",
+      "error_message": "上一次跑崩了（守卫真的抓到了泄漏 ⇒ 清理那步没跑到）⇒ ⇒ 探针行残留在 public ⇒ ⇒ **下一次**跑的 session 级基线把它们算进去 ⇒ ⇒ 探针用例把残留删掉 ⇒ ⇒ 会话结束时「基线 == 现状」**不等** ⇒ ⇒ **假红**（与车道行为无关）⇒ ⇒ **守卫抓漏的那一次，恰恰最容易把下一次跑带偏**（P10-F 整支评审 I4）",
+      "file": "pcs-backend/tests/e2e_flows/helpers.py",
+      "root_cause": "`public_baseline` 在**会话开始**取快照（含上一次的残留）⇒ ⇒ 而清理残留的 `_purge_probe_rows` 只在**探针用例内部**调（用例开始时）⇒ ⇒ 顺序反了 ⇒ ⇒ 基线含残留、终态不含 ⇒ ⇒ 必然不等。",
+      "fix": "取基线**之前**先清残留 ⇒ ⇒ 真相源挪到 `tests/e2e_flows/helpers.py::purge_probe_rows`（一处）⇒ ⇒ `take_public_baseline` = 先清再取 ⇒ ⇒ `public_first_snapshot` 也用它 ⇒ ⇒ 新增断言「基线清掉上一次留下的探针行」。",
+      "fix_commit": "77a12ab",
+      "tags": [
+        "P10-F",
+        "E2E 车道",
+        "public 守卫",
+        "假红",
+        "I4"
+      ]
+    }
   ]
 }

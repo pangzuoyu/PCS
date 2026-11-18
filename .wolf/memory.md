@@ -3783,3 +3783,36 @@
 | 07:28 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-18-p10f-f2.md | — | ~863 |
 | 07:28 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-t5.txt | — | ~515 |
 | 07:38 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/commit-f2-batch-end.txt | — | ~253 |
+| 07:39 | Created docs/solutions/security-issues/guard-coverage-audit-scope-proposal.md | — | ~1030 |
+| 07:41 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+6 lines) | ~150 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | inline fix | ~22 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | CSS: to | ~143 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | CSS: stream2, stream_id, stream_name | ~74 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | 2→1 lines | ~16 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | 1→2 lines | ~17 |
+| 07:49 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | expanded (+71 lines) | ~742 |
+| 07:50 | Edited pcs-frontend/src/pages/routeWrappers.tsx | inline fix | ~15 |
+| 07:50 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified useFetch() | ~803 |
+| 07:51 | Edited pcs-backend/tests/test_lane_isolation.py | modified test_isolation_does_not_apply_inside_a_lane() | ~450 |
+| 07:51 | Edited pcs-backend/tests/conftest.py | added 1 import(s) | ~10 |
+| 07:51 | Edited pcs-backend/tests/conftest.py | modified lane_is_active() | ~386 |
+| 07:51 | Edited pcs-backend/tests/conftest.py | reduced (-8 lines) | ~55 |
+| 07:51 | Edited pcs-backend/scripts/pytest_pg.sh | expanded (+9 lines) | ~136 |
+| 07:51 | Edited pcs-backend/scripts/serve_e2e_backend.sh | expanded (+20 lines) | ~255 |
+| 07:52 | Edited pcs-backend/scripts/serve_e2e_backend.sh | "FAIL: PG 车道 / E2E 车道正在跑（同" → "FAIL: 另一条车道（PG 车道 / E2E 车" | ~18 |
+| 07:52 | Created pcs-backend/tests/scripts/test_serve_e2e_backend_lock.py | — | ~930 |
+| 07:52 | Edited pcs-backend/tests/e2e_flows/helpers.py | modified purge_probe_rows() | ~641 |
+| 07:52 | Edited pcs-backend/tests/e2e_flows/conftest.py | modified public_first_snapshot() | ~433 |
+| 07:52 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | inline fix | ~26 |
+| 07:52 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified _purge_probe_rows() | ~62 |
+| 07:52 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_baseline_purges_probe_rows_left_by_a_crashed_run() | ~412 |
+| 07:52 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | modified test_seed_pipe_class_sch_keys_are_bare_dn_numbers() | ~408 |
+| 07:53 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | modified test_seed_flows_reset_deletes_the_personal_workspace_it_created() | ~293 |
+| 07:53 | Edited pcs-backend/scripts/seed_e2e_flows.py | 5→9 lines | ~120 |
+| 07:53 | Edited pcs-backend/scripts/seed_e2e_flows.py | 5→7 lines | ~75 |
+| 07:53 | Edited pcs-backend/tests/scripts/test_seed_e2e_flows.py | modified test_seed_flows_reset_restores_the_personal_workspace() | ~365 |
+| 07:55 | Edited TODOS.md | expanded (+10 lines) | ~328 |
+| 07:55 | Edited TODOS.md | expanded (+26 lines) | ~474 |
+| 07:55 | Created docs/solutions/testing-issues/autouse-fixture-must-be-lane-scoped.md | — | ~689 |
+| 08:03 | Edited pcs-backend/tests/e2e_flows/test_e2e_pipe_class_lookup.py | 4→7 lines | ~100 |
+| 08:12 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-18-p10f-final-review.md | — | ~1061 |
