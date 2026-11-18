@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T02:11:54.229Z",
-    "fileCount": 1365,
+    "lastScanned": "2026-11-18T02:22:32.393Z",
+    "fileCount": 1367,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a0841d14e5406d3f7e3a97a15ec54d00f8f3b7a43c19a652903d6730f0dba030",
-    "storeUpdatedAt": "2026-11-18T02:11:54.241Z",
-    "rootHash": "0fc6739561d28f03"
+    "renderedHash": "ca8e3097e9baca788322d105678e4ebd621d29334f976522723843d4a4da7b40",
+    "storeUpdatedAt": "2026-11-18T02:22:32.404Z",
+    "rootHash": "1bfe8f24cd9b3f45"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 37986,
-      "hash": "d1844e5a17e53785",
-      "size": 255849,
-      "mtimeMs": 1794963371414.038,
-      "updatedAt": "2026-11-18T00:56:11.470Z",
+      "tokens": 43909,
+      "hash": "c4b880eed1de7d8a",
+      "size": 294757,
+      "mtimeMs": 1794968552335.8252,
+      "updatedAt": "2026-11-18T02:22:32.393Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -49449,6 +49449,33 @@
       "size": 16770,
       "mtimeMs": 1794967914174.385,
       "updatedAt": "2026-11-18T02:11:54.228Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_zz_demo_t3a_gap.py": {
+      "description": "⚠️ **演示测试**（F3-T3a · 取证）—— **不是**仓库资产，用完移走。",
+      "tokens": 867,
+      "hash": "97c27f47959a7439",
+      "size": 3862,
+      "mtimeMs": 1794968193803.9624,
+      "updatedAt": "2026-11-18T02:16:33.851Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_demo_workspaces_need_no_auth",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 91,
+          "tokens": 643
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3a.md": {
+      "description": "F3-T3a 审计结论 —— `psychro.results`(5) + `workspaces`(4) + `user_projects`(4) + `admin_users`(3) = **16",
+      "tokens": 2412,
+      "hash": "fdf95ae77faa7a8e",
+      "size": 14228,
+      "mtimeMs": 1794968515248.152,
+      "updatedAt": "2026-11-18T02:21:55.297Z",
       "source": "hook"
     }
   }

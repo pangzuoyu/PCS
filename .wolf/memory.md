@@ -3846,3 +3846,6 @@
 | 10:05 | Created pcs-backend/tests/api/v1/test_zz_demo_t2b_gap.py | — | ~1622 |
 | 10:11 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md | — | ~2815 |
 | 10:11 | Edited .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md | expanded (+20 lines) | ~175 |
+| 10:16 | Created pcs-backend/tests/api/v1/test_zz_demo_t3a_gap.py | — | ~867 |
+| 10:21 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3a.md | — | ~2573 |
+| 10:22 | Edited TODOS.md | expanded (+20 lines) | ~252 |

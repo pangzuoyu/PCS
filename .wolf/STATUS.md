@@ -39,6 +39,19 @@ budget_tokens: 1200
 ⇒ ⇒ 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS` 仍是 2（**已低于实际审计面 ≈12**
 ⇒ ⇒ 留给 TODO-181 的修复批同批抬）。
 
+**F3-T3a**（`psychro.results` 5 + `workspaces` 4 + `user_projects` 4 +
+`admin_users` 3 = 16 端点）⇒ ⇒ 结论 `…/audit-f3-t3a.md` ⇒ ⇒ 抽查 6 个变异
+（M6~M11）⇒ ⇒ **只有 `admin_users` 与 `workspaces.archive` 的角色闸有断言**
+⇒ ⇒ 其余 4 个变异**全绿**（⇒ ⇒ 断言缺口，累计 9 个端点）⇒ ⇒ 新登记：
+
+| 编号 | 缺口 |
+|---|---|
+| **TODO-186** 🔴 | **`workspaces` 三个端点不要求登录** ⇒ ⇒ 匿名枚举**全部** workspace（admin 视图无 admin 闸）· 匿名 GET **写库**（touch）· 匿名 POST **任意 owner_id** + **审计行伪造**（bug-2189）⇒ ⇒ **它是 TODO-179 的放大器 ⇒ ⇒ 两条是一条链** |
+| **TODO-187** 🟡 | 两种 404 **文案不同**（`Project not found: X` vs `PsychroResult not found`）⇒ ⇒ 存在性可枚举（跨 21+ 端点族） |
+| **TODO-188** 🟡 | `GET /user-projects/me` 角色清单缺 `PROCESS_CONTROLLER`/`VIEWER`/`DATA_ADMIN` ⇒ ⇒ 合法用户 403（前端无消费者 ⇒ 潜伏） |
+
+⇒ ⇒ `admin_users` 3 个端点 **🟢 已覆盖**（403 断言在 · M8 变红）。
+
 ---
 
 ## ✅ Done（第 35 轮：P10-F · F1 + F2 + F3-T1 + **整支评审修复批**）
@@ -85,17 +98,16 @@ TODO-167（清单已订正）· TODO-168（漂移守卫仍连开发库 · 只读
 
 ## 🚀 Next quest
 
-1. **P10-F 批 3（F3）—— F3-T2a + T2b 完成 ⇒ 下一批 = F3-T3a**
-   （`psychro.results` 5 + `workspaces` 4 + `user_projects` 4 + `admin_users` 3）
+1. **P10-F 批 3（F3）—— T2a + T2b + T3a 完成 ⇒ 下一批 = F3-T3b**
+   （`audit` 3 + `system_settings` 2 + `meta` 6 = 11 端点）
    ⇒ ⇒ **4 问表 = ①/②a 资源 id/②b 作用域 id/③/④ + 「覆盖断言用的 client」列**
    ⇒ ⇒ ⚠️ **凡断「项目授权」的断言必须用 `strict_client`**（默认 client 把守卫
    mock 成永远 True ⇒ ⇒ 那类断言是 no-op ⇒ ⇒ TODO-176）
-   ⇒ ⇒ 结论模板与两个先例在工作区：`audit-f3-t2a.md` · `audit-f3-t2b.md`
-   ⇒ ⇒ ⚠️ **T2b 留给 T3a 的线索**：`workspaces.py` 的 `GET ""` **不要求登录**
-   且 `owner_id` 不传即返回**全部** ⇒ ⇒ 它是 TODO-179 的**枚举放大器**
-   ⇒ ⇒ T3a 必须把它算进「工作区 id 令牌」那一档（人裁决 ① 保留令牌 ·
-   ② **关联项目数据必须审**）⇒ ⇒ `POST /workspaces` 同样不要求登录且
-   `owner_id` 由客户端指定 ⇒ ⇒ 一并看。
+   ⇒ ⇒ 结论模板与三个先例在工作区：`audit-f3-t2a.md` · `audit-f3-t2b.md` ·
+   `audit-f3-t3a.md`
+   ⇒ ⇒ ⚠️ **T3a 的线索（给 T3b）**：`audit` 是**全局资源但敏感度高**
+   （人裁决：审计日志 = high）⇒ ⇒ `GET /audit` 的 `user_id`/`resource_id`
+   **是不是「按当前用户判定」**？⇒ ⇒ 审计面要不要**按项目**过滤 ⇒ ⇒ 要审。
 2. **推送本轮**（P10-B 12 个 + 本轮提交未 push ⇒ 需明确授权）。
 3. **P10-C / D / E** 未开工 ⇒ ⇒ F4（依赖漏洞/镜像扫描/回滚演练）与 F5（告警/备份/
    Go-No-Go）前置不满足 ⇒ ⇒ F6 收口要等 F4/F5。

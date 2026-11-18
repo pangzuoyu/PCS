@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:11:54.229Z
-> Files: 1365 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:22:32.393Z
+> Files: 1367 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5974 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~37986 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~43909 tok)
 
 ## .claude/rules/
 
@@ -258,6 +258,7 @@
 
 - `audit-f3-t2a.md` — F3-T2a 审计结论 —— `config.py`(11) + `report_builder.py`(9) = **20 端点** (~1732 tok)
 - `audit-f3-t2b.md` — F3-T2b 审计结论 —— `report.py`(10) + `records.py`(6) = **16 端点** (~2799 tok)
+- `audit-f3-t3a.md` — F3-T3a 审计结论 —— `psychro.results`(5) + `workspaces`(4) + `user_projects`(4) + `admin_users`(3) = **16 (~2412 tok)
 - `commit-drift-fix.txt` (~245 tok)
 - `commit-f1-batch-end.txt` (~212 tok)
 - `commit-f1-t1.txt` (~376 tok)
@@ -1684,6 +1685,7 @@
 - `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
 - `test_zz_demo_scope_gap.py` — ⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。 (~635 tok)
 - `test_zz_demo_t2b_gap.py` — ⚠️ **演示测试**（F3-T2b · 取证）—— **不是**仓库资产，用完移走。 (~1622 tok)
+- `test_zz_demo_t3a_gap.py` — ⚠️ **演示测试**（F3-T3a · 取证）—— **不是**仓库资产，用完移走。 (~867 tok)
 - `test_zz_probe_cross_project.py` — 临时探针（**不提交**）：验证 TODO-113 / TODO-114 的越权是否**真实可达**。 (~885 tok)
 
 ## pcs-backend/tests/architecture/

@@ -4606,6 +4606,26 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 
 **归属**：P10-F（F3-T2b · 断言缺口 · **high**）
 
+### ➕ F3-T3a 追加的端点（2026-11-18 · 同一族 · 同一批修）
+
+⇒ ⇒ T3a 又查出 **4 个**「代码里有守卫但没人守」的端点：
+
+| 端点 | 变异 | 结果 |
+|---|---|---|
+| `GET /psychro/results/{record_id}` 的项目守卫（`psychro.py:639`） | M6 | ⚪ 26 passed |
+| `POST /user-projects/grant` 的角色闸（`user_projects.py:86`） | M7 | ⚪ 15 passed |
+| `GET /user-projects/{user_id}` 的角色闸（`user_projects.py:136`） | M11 | ⚪ 15 passed |
+| `PATCH /workspaces/{id}/archive` 的**项目守卫**（`workspaces.py:139`） | M10 | ⚪ 6 passed |
+
+⇒ ⇒ ⇒ 累计「无断言」端点 = **9 个**（T2b 的 M3/M4/M5 + 上表 4 个）
+⇒ ⇒ ⇒ 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS` 的真实值 ≈ **18**
+（2 + `records.py` 6 + `report.py` 4 + `psychro` 5 + `workspaces.archive` 1）
+⇒ ⇒ ⇒ **抬棘轮与补断言必须同批**（否则要么红、要么假绿）。
+
+⇒ ⇒ ⚠️ **注意**：`user_projects` 的两个是**角色闸**（403）⇒ ⇒ 不需要 `strict_client`
+⇒ ⇒ ⇒ 但**默认 `client` 不 mock `require_roles`** ⇒ ⇒ ⇒ 那两个的断言缺口
+是「**根本没写**」，不是「写了但 no-op」⇒ ⇒ ⇒ 补起来更便宜。
+
 ---
 
 ## TODO-182: `records.py` 的状态机守卫在 `ws.project_id IS NULL` 时**整段跳过**🟡
@@ -4711,5 +4731,111 @@ assert granted["value"], "根本没查项目访问权 —— 权限检查被绕�
 **何时做**：随 TODO-179 一批
 
 **归属**：P10-F（F3-T2b · 断言缺口 · **low** · 与 TODO-179 联动）
+
+---
+
+---
+
+## TODO-186: `workspaces.py` 的三个端点**不要求登录**（匿名枚举 + 匿名写库 + 审计伪造）🔴
+
+**现状**（2026-11-18 · P10-F 的 F3-T3a 审计**实测取证**）：
+
+⚠️ **实测演示**（证据见 `.superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3a.md` §三-1
+⇒ ⇒ 演示文件**用完移走**，不进仓库）：
+
+```
+[演示·甲] 匿名 GET /workspaces ⇒ HTTP 200 · 1 个 · 受害者的在不在：True
+[演示·甲] 匿名 GET /workspaces/{id} ⇒ HTTP 200 · last_active_at: None → 2026-11-18 02:16:45
+[演示·甲] 匿名 POST /workspaces（owner_id=6352aa65-…）⇒ HTTP 201
+[演示·甲] 记在伪造 owner 名下的审计行：1 条 （action=['WORKSPACE_CREATED']）
+```
+
+| 端点 | 事实 | 位置 |
+|---|---|---|
+| `POST /workspaces` | **无 `current_actor`**；`owner_id` 是**客户端参数** ⇒ ⇒ 建的行的 `owner_id` = 客户端给的值 | `app/api/v1/workspaces.py:30-35` |
+| ⇒ ⇒ | 审计行 `WORKSPACE_CREATED` 的 `user_id` **也是那个 `owner_id`** ⇒ ⇒ **匿名可把审计行记在别人名下** | `workspaces.py:52-58` ⇒ `workspace_service.py:68-74` |
+| `GET /workspaces` | **无认证**；`owner_id` 不传 ⇒ `list_for_user(owner_id=None)` ⇒ **返回全部** | `workspaces.py:63-81` ⇒ `workspace_service.py:86-100` |
+| ⇒ ⇒ | ⚠️ **前端自己的注释说那是「admin 视图」** ⇒ ⇒ **admin 视图没有 admin 闸** | `tests/e2e_flows/test_e2e_workspaces_visible.py:11-13` |
+| `GET /workspaces/{id}` | **无认证** ⇒ ⇒ 可读任意 workspace；⚠️ **且 `svc.touch` + `commit`** ⇒ ⇒ **匿名 GET = 匿名写库**（改 `last_accessed_at`） | `workspaces.py:104-105` ⇒ `workspace_service.py:126-140` |
+
+⇒ ⇒ ⇒ **与 TODO-179 合起来是一条完整链**：
+**匿名枚举全部 workspace_id（这里）⇒ ⇒ 匿名读走任意项目的管路记录（那里）**。
+
+⚠️ **仓库自己的测试把「无认证可读可建」当成正常行为钉住了**
+（`tests/test_workspace.py:10-19` 无 token ⇒ 201 · `:45-53` 无 token ⇒ 200）
+⇒ ⇒ ⇒ 修的时候**那些测试要一起改**（否则它们会红 ⇒ ⇒ 而红是对的方向）。
+
+**建议改法**：
+
+① 三个端点加 `current_actor`；
+② `owner_id` **不再由客户端提供** ⇒ ⇒ 取 `actor.user_id`
+   （或不一致 ⇒ ⇒ 403）；
+③ `GET /workspaces` 不传 `owner_id`（= admin 视图）⇒ ⇒ 要求 `SYSTEM_ADMIN`
+   ⇒ ⇒ 与前端注释对齐；
+④ `GET /workspaces/{id}` ⇒ ⇒ 按 `owner_id` 或项目授权判定
+   （无授权 ⇒ ⇒ **404**，与「不存在」同形）；
+⑤ `touch` 的写副作用 ⇒ ⇒ **只在授权通过后**才做。
+
+**何时做**：**下一批优先**（⇒ ⇒ 与 TODO-179 同批 ⇒ ⇒ 两条是一条链）
+
+**归属**：P10-F（F3-T3a · **critical** · 与 TODO-179 联动）
+
+---
+
+## TODO-187: 两种 404 的**文案不同** ⇒ 记录/项目存在性可枚举 🟡
+
+**现状**（2026-11-18 · P10-F 的 F3-T3a 审计）：
+
+| 来源 | 文案 | 位置 |
+|---|---|---|
+| 项目守卫（无权） | `"Project not found: {project_id}"` | `app/api/v1/_guard.py:47-50` |
+| 端点自己的「记录不存在」 | `"PsychroResult not found"` | `app/api/v1/psychro.py:635`（PATCH `:688` · DELETE 同形） |
+
+⇒ ⇒ ⇒ 信封把 `detail` 放进 `message`（`app/core/errors.py:305-311`）
+⇒ ⇒ ⇒ 攻击者能靠 `message` **区分**「记录存在但我没权限」与「记录不存在」
+⇒ ⇒ ⇒ 与本仓自己的规矩（「无权 ≡ 不存在 ⇒ ⇒ **逐字同形**」）**冲突**。
+
+⚠️ **范围**：`check_project_access_or_404` 被 **21+ 端点**共用
+⇒ ⇒ 凡「先按 id 取记录 ⇒ 再判项目授权」的端点都有这个形状
+⇒ ⇒ `psychro.results` 是本批的代表 ⇒ ⇒ **不是单点问题**。
+
+**严重性**：**低**（要枚举 UUID）⇒ ⇒ 但它是**规则冲突**。
+
+**建议改法**：守卫与端点用**逐字相同**的 404 文案 ⇒ ⇒ 或统一走
+`PcsError(code=..., status=404)` 且 **code 也一致**
+（TODO-174 已记「同一失败在两层两种信封」⇒ ⇒ 本条是**同一层的两种文案**）。
+
+**何时做**：低优先（⇒ ⇒ 登记即可 ⇒ ⇒ 修的时候按端点族**一起**改）
+
+**归属**：P10-F（F3-T3a · **medium** · 跨端点族）
+
+---
+
+## TODO-188: `GET /user-projects/me` 的**角色清单不全** ⇒ 合法用户 403 🟡
+
+**现状**（2026-11-18 · P10-F 的 F3-T3a 审计）：
+
+`app/api/v1/user_projects.py:123`：
+
+```python
+require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMIN")
+```
+
+⇒ ⇒ ⇒ **缺 `PROCESS_CONTROLLER` / `VIEWER` / `DATA_ADMIN`**
+⇒ ⇒ ⇒ 真实 AD 用户里**存在** `PROCESS_CONTROLLER`
+（`app/api/v1/auth.py:267` 的注释列了它）
+⇒ ⇒ ⇒ **这类用户拿不到自己的项目列表**（403）。
+
+⚠️ **潜伏**：前端目前**没有消费者**
+（`grep "user-projects" pcs-frontend/src` 只命中生成的类型）
+⇒ ⇒ ⇒ 且 mock 账号的四种角色（DESIGNER/CHECKER/APPROVER/SYSTEM_ADMIN）
+**都在清单内** ⇒ ⇒ ⇒ mock 通道**测不出来**。
+
+**建议改法**：端点本来就是「**我有哪些项目**」⇒ ⇒ 不该被全局角色卡住
+⇒ ⇒ 要么清单补全 ⇒ ⇒ 要么改成「只要登录过就返回自己的清单」。
+
+**何时做**：低优先（⇒ ⇒ 但**改前先确认前端要不要用它**）
+
+**归属**：P10-F（F3-T3a · **medium**）
 
 ---

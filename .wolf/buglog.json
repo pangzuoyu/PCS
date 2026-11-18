@@ -6711,6 +6711,32 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-18"
+    },
+    {
+      "id": "bug-2189",
+      "timestamp": "2026-11-18",
+      "severity": "critical",
+      "error_message": "`workspaces.py` 的三个端点**不要求登录**：匿名可枚举**全部** workspace（admin 视图无 admin 闸）· 匿名 GET 带**写副作用**（touch）· 匿名 POST 可指定**任意 owner_id** 并把 `WORKSPACE_CREATED` 审计行**记在别人名下**（实测：201 + 1 条伪造审计行）（P10-F · F3-T3a 审计取证）",
+      "file": "pcs-backend/app/api/v1/workspaces.py",
+      "root_cause": "**守卫结构性缺失**：① `POST /workspaces`（`:30-35`）**没有 `current_actor`**，且 `owner_id` 是**客户端参数** ⇒ ⇒ 建的行的 `owner_id` = 客户端给的值；② `GET /workspaces`（`:63-81`）**没有 `current_actor`**，且 `owner_id` 不传 ⇒ `list_for_user(owner_id=None)` ⇒ **返回全部**（`workspace_service.py:86-100`）⇒ ⇒ ⚠️ **前端自己的注释说那是「admin 视图」**（`tests/e2e_flows/test_e2e_workspaces_visible.py:11-13`）⇒ ⇒ **admin 视图没有 admin 闸**；③ `GET /workspaces/{id}`（`:84-106`）**没有 `current_actor`**，且 **`svc.touch` + `session.commit()`**（`:104-105`）⇒ ⇒ **匿名 GET = 匿名写库**（改 `last_accessed_at`）。\n\n⚠️ **审计污染**：`WorkspaceService.create` 把 `user_id=owner_id` 写进 `AuditLog`（`workspace_service.py:68-74`）⇒ ⇒ **匿名可把审计行记在任意用户名下**。\n\n⚠️ **仓库自己的测试把「无认证可读可建」钉成了正常行为**：`tests/test_workspace.py:10-19`（无 token ⇒ 201）· `:45-53`（无 token ⇒ 200）⇒ ⇒ 修的时候那些测试要一起改。\n\n⚠️ **它同时是 bug-2187 的枚举放大器**：匿名枚举 workspace_id ⇒ ⇒ 匿名读走任意项目的管路记录 ⇒ ⇒ **一条完整链**。",
+      "fix": "（**待修** ⇒ ⇒ 审计批不改生产代码）建议：① 三个端点加 `current_actor`；② `owner_id` 不再由客户端提供（取 `actor.user_id`，或不一致 ⇒ ⇒ 403）⇒ ⇒ 审计行自然也就记在正确的人名下；③ `GET /workspaces` 不传 `owner_id`（= admin 视图）⇒ ⇒ 要求 `SYSTEM_ADMIN`；④ `GET /workspaces/{id}` 按 `owner_id` 或项目授权判定（无授权 ⇒ ⇒ **404**，与「不存在」同形）；⑤ `touch` 的写副作用只在授权通过后做。⇒ ⇒ 登记为 **TODO-186**（与 TODO-179 同批修）。",
+      "fix_commit": "",
+      "tags": [
+        "P10-F",
+        "F3-T3a",
+        "越权",
+        "未授权访问",
+        "workspaces",
+        "审计污染",
+        "枚举",
+        "TODO-186",
+        "critical"
+      ],
+      "related_bugs": [
+        "bug-2187"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
     }
   ]
 }
