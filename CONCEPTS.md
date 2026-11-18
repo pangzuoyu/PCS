@@ -120,3 +120,30 @@ columns* generally, which also cover update timestamps.
   are three independent texts. The first two are meant to describe the same thing and
   should agree; the third is owned by the migration toolchain and is not part of the
   description contract at all.
+
+## Workspaces
+
+### Workspace type
+The three kinds of workspace a user can hold: **FORMAL** (a project's official workspace),
+**PERSONAL** (one person's own), **TEMPORARY** (short-lived, with a retention window).
+The set is closed by the request contract — `^(FORMAL|PERSONAL|TEMPORARY)$` — so a fourth
+kind is a contract change, not a data change. PERSONAL and TEMPORARY are the two kinds a
+project's records can be *imported from*; FORMAL is the kind they are imported *into*.
+
+### Workspace project binding
+**A FORMAL workspace belongs to exactly one project; a workspace that belongs to no project
+is PERSONAL.** (Human ruling, 2026-11-18, P10-F / TODO-169.)
+
+This is structural, not a convention:
+
+- `Project.workspace_id` is NOT NULL ⇒ a workspace must exist *before* the project that
+  points at it;
+- `workspaces.project_id` is a foreign key onto `projects.project_id` ⇒ the binding can
+  only be written *after* that project exists.
+
+A workspace is therefore briefly project-less while it is being created, and permanently
+so only when it is PERSONAL. `WorkspaceCreate.project_id` stays nullable because of that
+creation window — not because FORMAL may stay unbound.
+
+*Avoid:* a FORMAL workspace bound to no project, a PERSONAL workspace treated as
+project-scoped

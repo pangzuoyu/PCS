@@ -398,6 +398,11 @@ async def _ensure_personal_workspace(db: AsyncSession) -> Workspace:
     ⚠️ **`project_id` 留空** ⇒ ⇒ 这就是「无项目工作区」的定义。
     ⚠️ **名字带「无项目」** ⇒ ⇒ E2E 按文本选它（antd 的 option 是**隐藏副本**
     ⇒ ⇒ 用 `.ant-select-item-option`）。
+
+    ⚠️ **2026-11-18 人裁决（TODO-169）**：**FORMAL 必然有项目；没有项目的工作区
+    就是 PERSONAL** ⇒ ⇒ 这个形态**不是为测试造的**（契约里 `workspace_type`
+    只有 FORMAL/PERSONAL/TEMPORARY 三类，且 `project_id` 只对 PERSONAL 写「可空」）
+    ⇒ ⇒ **保留**；语义已写进 `CONCEPTS.md` 的「Workspace project binding」。
     """
     ws = await _get_or_create(
         db,
@@ -583,6 +588,12 @@ async def _ensure_pipe_class(db: AsyncSession) -> PipeClass:
 
     ⚠️ **存在即订正**（幂等）：`_get_or_create` 是「存在就不动」⇒ ⇒ 只改
     工厂函数**不修已种下的老行** ⇒ ⇒ 现象照旧 ⇒ ⇒ 这里显式把三列订正回来。
+
+    ⚠️ **`source="COMPANY_STD"` ⇒ 这一行会出现在公司管级列表里**
+    （`list_company` 固定过滤 `source == 'COMPANY_STD'`）⇒ ⇒
+    ⇒ **2026-11-18 人裁决：接受现状**（TODO-166）⇒ ⇒ 理由：开发库 `pcs`
+    里**没有**这行 ⇒ 生产**零影响**；只有 `pcs_pgtest` 有 ⇒ ⇒ 且名字
+    自带「E2E」可辨 ⇒ ⇒ **不改代码**（别再重新讨论一遍）。
     """
     target: dict[str, Any] = {
         "dn_series_json": {"min": 150, "max": 150},
