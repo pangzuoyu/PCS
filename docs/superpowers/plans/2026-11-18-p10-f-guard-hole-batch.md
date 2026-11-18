@@ -30,27 +30,27 @@
 （`require_workspace_access_or_404` ⇒ ⇒ 无权 ⇒ ⇒ **404**）**再**判类型
 （`WorkspaceTypeNotAllowedError` ⇒ ⇒ **403**）。
 
-- [ ] 三个写端点（`create_piping` · `transition_piping` · `obsolete_piping`）改成
+- [x] 三个写端点（`create_piping` · `transition_piping` · `obsolete_piping`）改成
       `workspace: Workspace = Depends(get_workspace)` + 函数体里先授权后判类型
-- [ ] 断言：**无权访问别人的 PERSONAL 工作区 ⇒ ⇒ 404**（不是 403）⇒ ⇒ 且与
+- [x] 断言：**无权访问别人的 PERSONAL 工作区 ⇒ ⇒ 404**（不是 403）⇒ ⇒ 且与
       「不存在」的 `code` **逐字相同**
-- [ ] 断言：**有权的 PERSONAL 工作区 ⇒ ⇒ 403**（类型不允许）⇒ ⇒ 两种情形**可区分**
+- [x] 断言：**有权的 PERSONAL 工作区 ⇒ ⇒ 403**（类型不允许）⇒ ⇒ 两种情形**可区分**
       ⇒ ⇒ 且这个区分**不泄露存在性**（无权的 PERSONAL 与不存在的 PERSONAL 同形）
-- [ ] **变异自证**：把授权调用挪回类型闸之后 ⇒ ⇒ 上面那条 404 断言**必须变红**
+- [x] **变异自证**：把授权调用挪回类型闸之后 ⇒ ⇒ 上面那条 404 断言**必须变红**
 
 ### G2 · TODO-192 #2 —— `DefinitionService.update` 补项目授权 🔴 P1
 
 现状：`create()` 查 `require_project_access_or_404`，**`update()` 没查**
 ⇒ ⇒ 创建人可把定义改挂到**自己没有授权的项目**（5 位评审员独立命中）。
 
-- [ ] `update()` 加 `actor_roles: Sequence[str] | None = None`
-- [ ] `project_id` 非空 ⇒ ⇒ **赋值前**调 `require_project_access_or_404`
+- [x] `update()` 加 `actor_roles: Sequence[str] | None = None`
+- [x] `project_id` 非空 ⇒ ⇒ **赋值前**调 `require_project_access_or_404`
       （无授权 ⇒ ⇒ **404**，与「不存在」同形）
-- [ ] 端点 `report_builder.py::update_definition` 传 `actor_roles=list(actor.roles)`
-- [ ] 断言：把定义 `PUT` 到**无授权项目** ⇒ ⇒ **404**（当前是 200）
+- [x] 端点 `report_builder.py::update_definition` 传 `actor_roles=list(actor.roles)`
+- [x] 断言：把定义 `PUT` 到**无授权项目** ⇒ ⇒ **404**（当前是 200）
 - [ ] ⚠️ **口径待人裁**：`project_id` 从有项目改成**公司级**（`None`）算不算
       「放宽作用域」？⇒ ⇒ 本批**先只挡「改挂到无授权项目」**⇒ ⇒ 那条另登记
-- [ ] **变异自证**：删掉新增的授权调用 ⇒ ⇒ 断言**必须变红**
+- [x] **变异自证**：删掉新增的授权调用 ⇒ ⇒ 断言**必须变红**
 
 ### G3 · TODO-192 #3 —— `projects.py` 的 owner 自动授权不再造假用户名 🔴 P1
 
@@ -62,8 +62,8 @@
 ⇒ ⇒ 没有 ⇒ ⇒ **不建行**、**不自动授权**（跳过 ⇒ ⇒ 授权留给
 `scripts/seed_user_project_access.py` 那条**有据可查**的路径）⇒ ⇒ 且**明确记一笔**。
 
-- [ ] `owner` 分支改成「查 `users` 行 ⇒ ⇒ 命中 ⇒ ⇒ 用它的 username；未命中 ⇒ ⇒ 跳过授权 + 记审计/日志」
-- [ ] 断言：本端点**不创建**任何 `username` 以 `ws-owner-` 开头的 `users` 行
+- [x] `owner` 分支改成「查 `users` 行 ⇒ ⇒ 命中 ⇒ ⇒ 用它的 username；未命中 ⇒ ⇒ 跳过授权 + 记审计/日志」
+- [x] 断言：本端点**不创建**任何 `username` 以 `ws-owner-` 开头的 `users` 行
 - [ ] 断言：owner 之后走 `issue_tokens(persist_user=True)` ⇒ ⇒ **成功**（不再 409）
 - [ ] **变异自证**：把「不建假行」那段删掉 ⇒ ⇒ 断言**必须变红**
 

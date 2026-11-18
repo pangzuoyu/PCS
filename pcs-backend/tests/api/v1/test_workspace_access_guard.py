@@ -569,3 +569,82 @@ async def test_creating_a_second_project_in_one_workspace_is_409(
     second = await strict_client.post("/api/v1/projects", json=payload, headers=admin)
     assert second.status_code == 409, second.text
     assert second.json()["code"] == "WORKSPACE_ALREADY_HAS_PROJECT", second.text
+
+
+# ---------------------------------------------------------------------------
+# 「顺序也是防线」：授权（404）在前 · 类型闸（403）在后（TODO-192 #1）
+# ---------------------------------------------------------------------------
+
+
+async def test_write_to_another_users_personal_workspace_is_404_not_403(
+    strict_client, db_session
+):
+    """⚠️⚠️ **存在性可枚举**（ce-code-review · TODO-192 #1）。
+
+    ⇒ ⇒ 类型闸（`WORKSPACE_TYPE_NOT_ALLOWED` · **403**）若排在授权守卫
+    （**404**）**前面** ⇒ ⇒ 无权者拿到**可区分的 403** ⇒ ⇒ ⇒
+    **「这个工作区存在」就被泄露了** ⇒ ⇒ 与「无权 ≡ 不存在 ⇒ 逐字同形」相悖。
+
+    ⇒ ⇒ 这条断言**对顺序敏感**：把类型闸挪回依赖位 ⇒ ⇒ 它**必须变红**。
+    """
+    other = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=other, workspace_type="PERSONAL")
+
+    r = await strict_client.post(
+        f"/api/v1/records/piping?workspace_id={ws.workspace_id}",
+        json={"project_id": str(uuid.uuid4()), "line_no": "P-100"},
+        headers=_tok(uuid.uuid4()),
+    )
+    assert r.status_code == 404, (
+        f"无权访问 ⇒ ⇒ 必须是 404（与「不存在」同形）⇒ ⇒ 拿到了 {r.status_code} "
+        f"⇒ ⇒ 存在性可枚举：{r.text}"
+    )
+
+    missing = await strict_client.post(
+        f"/api/v1/records/piping?workspace_id={uuid.uuid4()}",
+        json={"project_id": str(uuid.uuid4()), "line_no": "P-100"},
+        headers=_tok(uuid.uuid4()),
+    )
+    assert missing.status_code == 404
+    assert r.json()["code"] == missing.json()["code"], (
+        "无权与不存在的错误码不同 ⇒ ⇒ 枚举得出 workspace 是否存在"
+    )
+
+
+async def test_write_to_own_personal_workspace_is_403(strict_client, db_session):
+    """⚠️ **正面路径**：**有权的** PERSONAL 工作区 ⇒ ⇒ **403**（类型不允许）。
+
+    ⇒ ⇒ 与上一条合起来 ⇒ ⇒ 「无权 ⇒ 404」+「有权但类型不对 ⇒ 403」
+    ⇒ ⇒ ⇒ 403 只在**你本来就有权**的时候出现 ⇒ ⇒ 不泄露存在性。
+    """
+    me = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=me, workspace_type="PERSONAL")
+
+    r = await strict_client.post(
+        f"/api/v1/records/piping?workspace_id={ws.workspace_id}",
+        json={"project_id": str(uuid.uuid4()), "line_no": "P-100"},
+        headers=_tok(me),
+    )
+    assert r.status_code == 403, r.text
+
+
+async def test_transition_and_obsolete_also_authorize_before_type_gate(
+    strict_client, db_session
+):
+    """⚠️ 另两个写端点**同样**要「先授权后判类型」⇒ ⇒ 否则是**同一个洞**。"""
+    other = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=other, workspace_type="PERSONAL")
+    pipe_id = uuid.uuid4()
+
+    transition = await strict_client.post(
+        f"/api/v1/records/piping/{pipe_id}/transition?workspace_id={ws.workspace_id}",
+        json={"transition": "SUBMIT_FOR_CHECK"},
+        headers=_tok(uuid.uuid4()),
+    )
+    assert transition.status_code == 404, transition.text
+
+    obsolete = await strict_client.delete(
+        f"/api/v1/records/piping/{pipe_id}?workspace_id={ws.workspace_id}",
+        headers=_tok(uuid.uuid4()),
+    )
+    assert obsolete.status_code == 404, obsolete.text

@@ -19,6 +19,7 @@ ACL: GET 需对该 project 有访问权 (或 SYSTEM_ADMIN);
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Annotated
 
@@ -32,7 +33,7 @@ from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
-from app.models.project import Project, Workspace
+from app.models.project import Project, User, Workspace
 from app.models.util import UtilityEnergySummary
 from app.schemas.project import ProductCategoryUpdate, ProjectCreate, ProjectOut
 from app.services.exceptions import WorkspaceNotFoundError
@@ -240,17 +241,43 @@ async def create_project(
     #
     # ⚠️ **owner_id 可空**（老工作区 / 系统建的）⇒ ⇒ ⇒ 空 ⇒ ⇒ 没人可授权
     # ⇒ ⇒ ⇒ 跳过（不报错）⇒ ⇒ ⇒ 不给「无主工作区」造幽灵授权行。
+    #
+    # ⚠️⚠️ **2026-11-18 · ce-code-review（TODO-192 #3 · P1）**：
+    # 此前这里 `ensure_user_row(user_id=owner_id, username=f"ws-owner-{owner_id}")`
+    # ⇒ ⇒ 建出一行 **`user_id` ≠ `uuid5(username)`** 的 `users` 行
+    # ⇒ ⇒ 破坏「`user_id` 是**派生值**」这个**全局**不变式
+    # ⇒ ⇒ ⇒ owner 之后走真实登录 ⇒ ⇒ `USER_ID_CONFLICT`（409）
+    # ⇒ ⇒ ⇒ **owner 进不去自己的项目**（而且那行 users 永远脏着）。
+    #
+    # ⇒ ⇒ 改成：**先查**那个 owner 有没有 `users` 行
+    # ⇒ ⇒ 有 ⇒ ⇒ 用**那一行的 username**（派生必然一致）⇒ ⇒ 授权
+    # ⇒ ⇒ 没有 ⇒ ⇒ **不建行、不授权**（没有真用户名 ⇒ ⇒ 造不出合法的派生行）
+    # ⇒ ⇒ ⇒ 授权留给 `scripts/seed_user_project_access.py --username <owner>`
+    # ⇒ ⇒ ⇒ （那条路径要**真用户名** ⇒ ⇒ ⇒ 有据可查 ⇒ ⇒ 不留幽灵账号）。
     if workspace.owner_id is not None and workspace.owner_id != user.user_id:
-        await ensure_user_row(
-            db, user_id=workspace.owner_id, username=f"ws-owner-{workspace.owner_id}",
-        )
-        await UserProjectService.grant_project_access(
-            db,
-            user_id=workspace.owner_id,
-            project_id=record.project_id,
-            role_in_project="PROJECT_LEAD",
-            granted_by=user.user_id,
-        )
+        owner_row = (
+            await db.execute(
+                select(User).where(User.user_id == workspace.owner_id)
+            )
+        ).scalar_one_or_none()
+        if owner_row is not None:
+            await UserProjectService.grant_project_access(
+                db,
+                user_id=workspace.owner_id,
+                project_id=record.project_id,
+                role_in_project="PROJECT_LEAD",
+                granted_by=user.user_id,
+            )
+        else:
+            # ⚠️ **不静默**：owner 没有 `users` 行 ⇒ ⇒ 他没有可登录的身份 ⇒ ⇒
+            # ⇒ ⇒ 也就无从「看见」这个项目 ⇒ ⇒ 但**必须留下痕迹**（否则
+            # ⇒ ⇒ 运维会以为「owner 自动授权了」⇒ ⇒ 排查不到「他看不见」）。
+            logging.getLogger(__name__).warning(
+                "工作区 %s 的 owner %s 没有 users 行 ⇒ ⇒ 跳过自动授权"
+                "（请用 scripts/seed_user_project_access.py --username <owner> 授权）",
+                workspace.workspace_id,
+                workspace.owner_id,
+            )
 
     await db.commit()
     await db.refresh(record)

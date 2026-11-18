@@ -54,6 +54,24 @@ def creator_user_id() -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_DNS, "admin-user")
 
 
+async def _mk_user(db_session, username: str) -> uuid.UUID:
+    """造一个**派生一致**的 `users` 行（`user_id` = `uuid5(NAMESPACE_DNS, username)`）。
+
+    ⚠️ **2026-11-18 · ce-code-review（TODO-192 #3）**：本端点**不再伪造用户名**
+    ⇒ ⇒ 「owner 没有 `users` 行」⇒ ⇒ **跳过自动授权**（并留 warning）
+    ⇒ ⇒ ⇒ 所以测试要照**生产形状**造 owner ⇒ ⇒ owner **必须有** `users` 行
+    ⇒ ⇒ ⇒ 而那个行必须**派生一致**（否则就是我们要修的那个脏行）。
+    """
+    from app.services.token_issuer import derive_user_id
+
+    uid = derive_user_id(username)
+    db_session.add(User(
+        user_id=uid, username=username, display_name=username, roles=[],
+    ))
+    await db_session.commit()
+    return uid
+
+
 async def _make_workspace(db_session, *, owner_id: uuid.UUID | None = None) -> uuid.UUID:
     from app.models.project import Workspace
 
@@ -257,7 +275,8 @@ async def test_creating_a_project_grants_the_workspace_owner_access(
     ⇒ ⇒ 授权角色 = **PROJECT_LEAD**（与创建者同档）⇒ ⇒ 理由：
     **工作区是他的**，项目住在**他的工作区**里 ⇒ ⇒ ⇒ 他就是这个项目的负责人。
     """
-    owner_id = uuid.uuid5(uuid.NAMESPACE_DNS, "ws-owner")
+    # ⚠️ **owner 必须有 `users` 行**（生产形状：owner 登录过 ⇒ ⇒ 行存在）
+    owner_id = await _mk_user(db_session, "ws-owner")
     workspace_id = await _make_workspace(db_session, owner_id=owner_id)
     resp = await client.post(
         "/api/v1/projects", json=_payload(workspace_id), headers=admin_headers
@@ -272,3 +291,49 @@ async def test_creating_a_project_grants_the_workspace_owner_access(
         "⇒ ⇒ 他看不见这个项目 ⇒ ⇒ 项目住在他的工作区里却不属于他"
     )
     assert granted[owner_id] == "PROJECT_LEAD", granted[owner_id]
+
+
+async def test_creating_a_project_never_mints_a_users_row_for_the_owner(
+    client, db_session, admin_headers
+):
+    """⚠️⚠️ **不造「假用户名」的 `users` 行**（2026-11-18 · ce-code-review · TODO-192 #3 · P1）。
+
+    ⇒ ⇒ 此前 `POST /projects` 给「工作区 owner」建 `users` 行时用的用户名是
+    ⇒ ⇒ `f"ws-owner-{owner_id}"` ⇒ ⇒ 那一行的 `user_id` **≠ `uuid5(username)`**
+    ⇒ ⇒ 破坏**全局**派生不变式 ⇒ ⇒ owner 之后走真实登录 ⇒ ⇒
+    ⇒ ⇒ `USER_ID_CONFLICT`（409）⇒ ⇒ ⇒ **owner 进不去自己的项目**。
+
+    ⇒ ⇒ 修法：**owner 没有 `users` 行 ⇒ ⇒ 不建行**（造不出派生一致的行 ⇒ ⇒
+    ⇒ ⇒ 没有真用户名）⇒ ⇒ 授权留给 `scripts/seed_user_project_access.py`
+    ⇒ ⇒ ⇒ 那条路径要**真用户名** ⇒ ⇒ ⇒ 有据可查。
+
+    ⇒ ⇒ 判据：**建项目前后 `users` 表一行都不许多** ⇒ ⇒ ⇒ 这条对
+    ⇒ ⇒ ⇒ 「造假用户名」**敏感**（旧行为会多出一行 ⇒ ⇒ 红）。
+    ⇒ ⇒ 另：**任何** `users` 行都必须满足 `derive_user_id(username) == user_id`。
+    """
+    from app.services.token_issuer import derive_user_id
+
+    # ⚠️ owner **故意没有** `users` 行 ⇒ ⇒ 生产里 owner 登录过 ⇒ ⇒ 行存在
+    # ⇒ ⇒ ⇒ 这个分支只覆盖「没有可登录身份」的 owner ⇒ ⇒ 不该给他造行。
+    owner_id = uuid.uuid4()
+    workspace_id = await _make_workspace(db_session, owner_id=owner_id)
+
+    resp = await client.post(
+        "/api/v1/projects", json=_payload(workspace_id), headers=admin_headers
+    )
+    assert resp.status_code == 201, resp.text
+
+    # ⚠️ 只断「**owner 那一行**」⇒ ⇒ 创建者自己的行（`admin-user`）是
+    # ⇒ ⇒ `ensure_user_row` 建的**合法行**（派生一致）⇒ ⇒ 不在禁止范围内。
+    after_users = (await db_session.execute(select(User))).scalars().all()
+    assert not [r for r in after_users if r.user_id == owner_id], (
+        "建项目给 owner 造了 `users` 行 ⇒ ⇒ 那是**假用户名** ⇒ ⇒ "
+        "`user_id` 不是派生值 ⇒ ⇒ owner 之后真登录会 409"
+    )
+    assert not [r for r in after_users if r.username.startswith("ws-owner-")], (
+        "本端点造出了 `ws-owner-<uuid>` 这种假用户名 ⇒ ⇒ 派生不变式被破坏"
+    )
+    for row in (await db_session.execute(select(User))).scalars().all():
+        assert derive_user_id(row.username) == row.user_id, (
+            f"users 行 {row.username!r} 的 user_id 不是派生值"
+        )

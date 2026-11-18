@@ -664,7 +664,7 @@ export interface paths {
          * Obsolete Piping
          * @description 管路记录作废（DELETE，状态机迁移至 OBSOLETE）。
          *
-         *     - 仅允许 FORMAL workspace
+         *     - 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）
          *     - workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
          *     - 调 StateMachineService.transition(OBSOLETE)，失败 → 409
          *     - reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯
@@ -695,7 +695,7 @@ export interface paths {
          * @description 管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。
          *
          *     约束：
-         *     1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）
+         *     1. 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）
          *     2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
          *     3. 调 StateMachineService.transition，非法迁移 → 409
          *     4. 提交由本端点负责（session.commit()）

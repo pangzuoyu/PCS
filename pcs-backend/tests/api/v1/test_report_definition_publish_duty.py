@@ -190,3 +190,39 @@ async def test_company_level_definition_creator_still_cannot_publish(
         headers=_auth("author-1", "REVIEWER", user_id=creator),
     )
     assert r.status_code == 403, r.text
+
+
+# ---------------------------------------------------------------------------
+# `update` 的项目授权（2026-11-18 · ce-code-review · TODO-192 #2 · P1）
+# ---------------------------------------------------------------------------
+
+
+async def test_update_cannot_repoint_a_definition_to_an_ungranted_project(
+    strict_client, db_session, grant_project
+):
+    """⚠️⚠️ **创建人可把自己的定义改挂到没有授权的项目**（跨项目读的另一半）。
+
+    ⇒ ⇒ `create()` 有 `require_project_access_or_404`（新建时不能挂到别人项目）
+    ⇒ ⇒ **`update()` 此前没有** ⇒ ⇒ 创建人把自己 DRAFT 的定义
+    ⇒ ⇒ **`PUT` 到一个自己没有授权的项目** ⇒ ⇒ 执行时 scope 就是那个项目
+    ⇒ ⇒ ⇒ **跨项目读**（与 `create` 堵掉的是**同一条链**的两端）。
+
+    ⇒ ⇒ 修法：与 `create` **对称** ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形）。
+    """
+    creator = uuid.uuid4()
+    my_project = await _mk_project(db_session, "我的项目")
+    await grant_project(creator, my_project.project_id)
+    d = await _mk_def(strict_client, subject="creator-2", user_id=creator,
+                      project_id=my_project.project_id)
+
+    other_project = await _mk_project(db_session, "别人的项目")
+
+    r = await strict_client.put(
+        f"/api/v1/report-builder/definitions/{d['def_id']}",
+        headers=_auth("creator-2", "DESIGNER", user_id=creator),
+        json=_body(project_id=str(other_project.project_id)),
+    )
+    assert r.status_code == 404, (
+        f"改挂到无授权项目必须是 404（与「不存在」同形）⇒ ⇒ 拿到了 {r.status_code}"
+        f" ⇒ ⇒ 跨项目读：{r.text}"
+    )

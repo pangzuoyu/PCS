@@ -1556,7 +1556,7 @@
           "records"
         ],
         "summary": "Obsolete Piping",
-        "description": "管路记录作废（DELETE，状态机迁移至 OBSOLETE）。\n\n- 仅允许 FORMAL workspace\n- workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n- 调 StateMachineService.transition(OBSOLETE)，失败 → 409\n- reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯\n- 提交由本端点负责（session.commit()）\n\n与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是\n\"软删除\"，不真删 PipingResult 行（保留审计快照）。\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。",
+        "description": "管路记录作废（DELETE，状态机迁移至 OBSOLETE）。\n\n- 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）\n- workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n- 调 StateMachineService.transition(OBSOLETE)，失败 → 409\n- reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯\n- 提交由本端点负责（session.commit()）\n\n与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是\n\"软删除\"，不真删 PipingResult 行（保留审计快照）。\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。",
         "operationId": "obsolete_piping_api_v1_records_piping__pipe_id__delete",
         "parameters": [
           {
@@ -1638,7 +1638,7 @@
           "records"
         ],
         "summary": "Transition Piping",
-        "description": "管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。\n\n约束：\n1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）\n2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n3. 调 StateMachineService.transition，非法迁移 → 409\n4. 提交由本端点负责（session.commit()）\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param\n（修复 IDOR + role 伪造）。",
+        "description": "管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。\n\n约束：\n1. 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）\n2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n3. 调 StateMachineService.transition，非法迁移 → 409\n4. 提交由本端点负责（session.commit()）\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param\n（修复 IDOR + role 伪造）。",
         "operationId": "transition_piping_api_v1_records_piping__pipe_id__transition_post",
         "parameters": [
           {

@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_workspace, require_formal_workspace
+from app.api.deps import get_workspace, require_formal_workspace_type
 from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.models.calc import PipingResult
@@ -133,7 +133,7 @@ async def get_piping(
 async def create_piping(
     payload: dict,
     user: Annotated[_Actor, Depends(current_actor)],
-    workspace: Workspace = Depends(require_formal_workspace),
+    workspace: Workspace = Depends(get_workspace),
     session: AsyncSession = Depends(get_db),
 ):
     """Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。
@@ -159,6 +159,12 @@ async def create_piping(
         session, workspace=workspace, user_id=user.user_id,
         actor_roles=list(user.roles),
     )
+    # ⚠️⚠️ **类型闸在授权之后**（2026-11-18 · ce-code-review · TODO-192 #1）：
+    #    此前类型闸是**依赖**（`Depends(require_formal_workspace)`）⇒ ⇒ 它在
+    #    **函数体之前**执行 ⇒ ⇒ **403 先于 404** ⇒ ⇒ 无权者拿到**可区分的 403**
+    #    ⇒ ⇒ ⇒ **工作区存在性可枚举**（adversarial + security 独立命中）。
+    #    ⇒ ⇒ ⇒ 现在：**先授权（404）→ 再判类型（403）**。
+    require_formal_workspace_type(workspace)
     body_project_id = uuid.UUID(payload["project_id"])
     if project is None or body_project_id != project.project_id:
         raise HTTPException(
@@ -208,7 +214,7 @@ async def transition_piping(
     """管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。
 
     约束：
-    1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）
+    1. 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）
     2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
     3. 调 StateMachineService.transition，非法迁移 → 409
     4. 提交由本端点负责（session.commit()）
@@ -216,13 +222,19 @@ async def transition_piping(
     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param
     （修复 IDOR + role 伪造）。
     """
-    ws = await require_formal_workspace(await get_workspace(workspace_id, session))
+    ws = await get_workspace(workspace_id, session)
     # ⚠️ **P10-F · F3（TODO-182）**：授权对象 = **工作区**（不是 `ws.project_id` 的
     # 「非空才判」分支）⇒ ⇒ FORMAL 工作区 ⇒ ⇒ 必然有项目（TODO-169）
     # ⇒ ⇒ ⇒ PERSONAL（无项目）⇒ ⇒ 只认 owner 本人 ⇒ ⇒ ⇒ **不再有「跳过」分支**。
     await require_workspace_access_or_404(
         session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
     )
+    # ⚠️⚠️ **类型闸在授权之后**（2026-11-18 · ce-code-review · TODO-192 #1）：
+    #    此前类型闸是**依赖**（`Depends(require_formal_workspace)`）⇒ ⇒ 它在
+    #    **函数体之前**执行 ⇒ ⇒ **403 先于 404** ⇒ ⇒ 无权者拿到**可区分的 403**
+    #    ⇒ ⇒ ⇒ **工作区存在性可枚举**（adversarial + security 独立命中）。
+    #    ⇒ ⇒ ⇒ 现在：**先授权（404）→ 再判类型（403）**。
+    require_formal_workspace_type(ws)
     rec = (
         await session.execute(
             select(PipingResult).where(
@@ -258,7 +270,7 @@ async def obsolete_piping(
 ):
     """管路记录作废（DELETE，状态机迁移至 OBSOLETE）。
 
-    - 仅允许 FORMAL workspace
+    - 仅允许 FORMAL workspace（**授权在前（404）· 类型闸在后（403）**）
     - workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
     - 调 StateMachineService.transition(OBSOLETE)，失败 → 409
     - reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯
@@ -269,11 +281,13 @@ async def obsolete_piping(
 
     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。
     """
-    ws = await require_formal_workspace(await get_workspace(workspace_id, session))
+    ws = await get_workspace(workspace_id, session)
     # ⚠️ **P10-F · F3（TODO-182）**：同 `transition_piping` ⇒ ⇒ 授权对象 = **工作区**
     await require_workspace_access_or_404(
         session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
     )
+    # ⚠️⚠️ **类型闸在授权之后**（TODO-192 #1）⇒ ⇒ 同 `transition_piping`
+    require_formal_workspace_type(ws)
     rec = (
         await session.execute(
             select(PipingResult).where(

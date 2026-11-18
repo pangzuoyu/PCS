@@ -312,12 +312,35 @@ class DefinitionService:
                      name: str, category: str, description: str,
                      output_format: str, definition_json: dict[str, Any],
                      shared_with: str, max_rows: int = 10000,
-                     project_id: uuid.UUID | None = None) -> ReportDefinition:
+                     project_id: uuid.UUID | None = None,
+                     actor_roles: Sequence[str] | None = None) -> ReportDefinition:
+        """改定义（**只有创建人能改** · 改完回到 DRAFT）。
+
+        ⚠️⚠️ **2026-11-18 · ce-code-review（TODO-192 #2 · P1）**：
+        `create()` 有 `require_project_access_or_404`（新建时不能挂到别人项目），
+        **`update()` 此前没有** ⇒ ⇒ 创建人可以把自己的定义**改挂到**
+        ⇒ ⇒ **自己没有授权的项目** ⇒ ⇒ 执行时 scope 就是那个项目
+        ⇒ ⇒ ⇒ **跨项目读**（与 create 堵掉的是**同一条链**的两端）。
+
+        ⇒ ⇒ ⇒ 这里补上**与 create 同款**的判定（无权 ⇒ ⇒ **404**，与
+        「不存在」同形 ⇒ ⇒ 不泄露项目存在性）⇒ ⇒ ⇒ **两条路径口径必须一致**
+        ⇒ ⇒ ⇒ 「一个查一个不查」= 洞。
+
+        ⚠️ **口径待人裁**：`project_id` 从「有项目」改成**公司级**（`None`）
+        算不算「放宽作用域」？⇒ ⇒ 本批**只挡「改挂到无授权项目」**
+        ⇒ ⇒ 那一条另登记（`TODOS.md` TODO-192 的「未解决的问题」）。
+        """
         row = await self.get(def_id=def_id, user_id=user_id)
         if row.created_by != user_id:
             # 非创建人改 PUBLISHED 的定义 = 绕过审批（见模块 docstring 裁决 2）
             raise PcsError(f"报表定义不存在：{def_id}",
                            code="REPORT_DEFINITION_NOT_FOUND", status=404)
+        # ⚠️ **与 `create()` 对称**：改挂到哪个项目 ⇒ ⇒ 就要对那个项目有授权。
+        if project_id is not None:
+            await require_project_access_or_404(
+                self.db, user_id=user_id, project_id=project_id,
+                actor_roles=actor_roles,
+            )
         if shared_with not in SUPPORTED_SHARED_WITH:
             raise PcsError(
                 f"shared_with 只支持 {sorted(SUPPORTED_SHARED_WITH)}",

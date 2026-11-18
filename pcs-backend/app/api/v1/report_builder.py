@@ -188,6 +188,10 @@ async def update_definition(
         output_format=body.output_format, definition_json=body.definition_json.model_dump(),
         shared_with=body.shared_with, max_rows=body.max_rows,
         project_id=body.project_id,
+        # ⚠️ **2026-11-18 · ce-code-review（TODO-192 #2）**：把**角色**传下去
+        # ⇒ ⇒ service 层判「改挂到那个项目有没有授权」时，SYSTEM_ADMIN 的
+        # ⇒ ⇒ **全局 bypass** 才生效 ⇒ ⇒ 与 `create` / `publish` **同口径**。
+        actor_roles=list(actor.roles),
     )
     payload = _as_dict(row)   # 见 create_definition 的注释：先序列化再 commit
     await db.commit()
