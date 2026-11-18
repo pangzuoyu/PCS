@@ -6641,6 +6641,26 @@
         "假红",
         "I4"
       ]
+    },
+    {
+      "id": "bug-2186",
+      "timestamp": "2026-11-18",
+      "severity": "high",
+      "error_message": "真后端通道里，**任何一个有 REVIEWER+ 的用户**都能借一份「别人项目」的报表定义，把**那个项目的数据**导出来（跨项目读）—— 实测：执行者对目标项目**零授权**却取到 **2 行**（P10-F · F3-T2a 审计取证）",
+      "file": "pcs-backend/app/services/report/builder_service.py",
+      "root_cause": "**三步链路的每一步都独立成立**：① `POST /report-builder/definitions` 的 body **直接暴露 `project_id`** ⇒ ⇒ `DefinitionService.create` **只查重名、不验授权** ⇒ ⇒ 任何人都能把定义挂到别人项目上；② `publish` / `obsolete` **不查 `created_by`** ⇒ ⇒ 别人也能发布它；③ `POST /definitions/{id}/execute` ⇒ ⇒ `scope = project_id or row.project_id` ⇒ ⇒ **scope = 定义里那个项目** ⇒ ⇒ 而 `execute_definition` 的 `user_id` **只写进执行日志**（`executed_by=user_id`）⇒ ⇒ ⇒ **没有任何一处把「执行者」与「scope 项目」做授权判定**。⚠️ **4 问表第 ② 问只问了「资源的 id」（def_id）⇒ ⇒ 漏了「作用域的 id」** ⇒ ⇒ 定义**可见** ≠ **能取它的 scope 项目的数据**。",
+      "fix": "① `DefinitionService.create`：`project_id` 非空 ⇒ ⇒ 验 `require_project_access_or_404` ⇒ ⇒ **404**（与「不存在」同形）；③ **端点层**（`execute_definition_endpoint`：落日志/入队之前 ⇒ ⇒ POST 直接 404）+ **service 层**（`execute_definition`：**`scope` 算出来之后、任何取数之前** ⇒ ⇒ 任务体也挡住）⇒ ⇒ **404**。⚠️ 位置是硬要求（bug-172 的教训：早一点就是「先取数再判无权」）。⇒ ⇒ 新增服务层判定 `app/services/user_project_service.py::require_project_access_or_404`（**不**让 service 依赖 api 层）⇒ ⇒ SYSTEM_ADMIN bypass 的判据是角色 ⇒ ⇒ `actor_roles` 一路传到队列与任务体。⇒ ⇒ 测试钉子 4 条（用 `strict_client` ⇒ ⇒ 默认 client 把守卫 mock 成永远 True ⇒ ⇒ 测不出来）：填别人项目建定义 ⇒ 404 · 无 scope 授权执行 ⇒ 404 **且取数函数一次没被调用** · service 层也挡 · **正面路径**（有授权 ⇒ 执行得下去）。",
+      "fix_commit": "c7da7b6",
+      "tags": [
+        "P10-F",
+        "F3-T2a",
+        "越权",
+        "跨项目读",
+        "report_builder",
+        "作用域授权",
+        "TODO-174",
+        "high"
+      ]
     }
   ]
 }
