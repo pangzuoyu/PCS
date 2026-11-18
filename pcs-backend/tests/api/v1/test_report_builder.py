@@ -1867,7 +1867,7 @@ async def test_create_definition_rejects_a_project_the_creator_cannot_access(
 
 @pytest.mark.asyncio
 async def test_execute_definition_rejects_executor_without_scope_access(
-    strict_client, db_session, monkeypatch
+    strict_client, db_session, monkeypatch, grant_project
 ):
     """⚠️ 执行者对 **scope 项目**无授权 ⇒ ⇒ **404**（不是 200 空列表，不是 403）。
 
@@ -1894,9 +1894,14 @@ async def test_execute_definition_rejects_executor_without_scope_access(
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
 
-    # ② 发布（SYSTEM_ADMIN ∈ PUBLISH_ROLES）
+    # ② 发布（**另一个人**发布 —— TODO-172 裁决 ①：**禁自审**）
+    #    ⚠️ 审核者**还要对该项目有授权**（裁决 ②）⇒ ⇒ ⇒ 给它一条授权行。
+    from app.services.token_issuer import derive_user_id
+
+    publisher_id = derive_user_id("publisher-rejects")
+    await grant_project(publisher_id, proj_a.project_id)
     ok = await strict_client.post(
-        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+        PUBLISH.format(d=def_id), headers=_auth("publisher-rejects", "REVIEWER")
     )
     assert ok.status_code in (200, 201), f"发布失败：{ok.status_code} {ok.text[:200]}"
 
@@ -1941,6 +1946,7 @@ async def test_execute_definition_service_also_rejects_an_unauthorized_scope(
     from app.core.errors import PcsError
     from app.services.report.builder_service import execute_definition
     from app.services.report.definition_service import DefinitionService
+    from app.services.user_project_service import UserProjectService
 
     proj = await _make_project(db_session, "服务层项目")
     created = await strict_client.post(
@@ -1952,7 +1958,21 @@ async def test_execute_definition_service_also_rejects_an_unauthorized_scope(
     )
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
-    await DefinitionService(db_session).publish(def_id=_uuid.UUID(def_id))
+    # ⚠️ **service 层直调 publish** ⇒ ⇒ 也要给 actor（TODO-172 裁决 ①/②）
+    # ⇒ ⇒ 且**不能是创建人**（创建人是 "admin"）⇒ ⇒ ⇒ 用另一个有授权的人。
+    from app.services.token_issuer import derive_user_id
+
+    publisher_id = derive_user_id("publisher-service")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=publisher_id, project_id=proj.project_id,
+        role_in_project="REVIEWER", granted_by=publisher_id,
+    )
+    await db_session.commit()
+    await DefinitionService(db_session).publish(
+        def_id=_uuid.UUID(def_id),
+        actor_user_id=publisher_id,
+        actor_roles=["REVIEWER"],
+    )
 
     with pytest.raises(PcsError) as exc:
         await execute_definition(
@@ -2001,7 +2021,19 @@ async def test_execute_definition_allows_an_executor_with_scope_access(
     )
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
-    await DefinitionService(db_session).publish(def_id=uuid.UUID(def_id))
+    # ⚠️ **service 层直调 publish** ⇒ ⇒ 给 actor（TODO-172 裁决 ①/②）
+    # ⇒ ⇒ 且不能是创建人（"admin"）⇒ ⇒ ⇒ 用另一个有授权的审核者。
+    publisher_id = derive_user_id("publisher-allows")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=publisher_id, project_id=proj.project_id,
+        role_in_project="REVIEWER", granted_by=publisher_id,
+    )
+    await db_session.commit()
+    await DefinitionService(db_session).publish(
+        def_id=uuid.UUID(def_id),
+        actor_user_id=publisher_id,
+        actor_roles=["REVIEWER"],
+    )
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
 
     # ③ 执行者有授权 ⇒ ⇒ **不是 404**
@@ -2044,8 +2076,18 @@ async def test_project_scoped_definition_is_invisible_without_project_access(
     )
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
+    # ⚠️ **发布者不是创建人**（TODO-172 裁决 ①）且**对该项目有授权**（裁决 ②）
+    from app.services.token_issuer import derive_user_id
+    from app.services.user_project_service import UserProjectService
+
+    publisher_id = derive_user_id("publisher-scope")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=publisher_id, project_id=proj.project_id,
+        role_in_project="REVIEWER", granted_by=publisher_id,
+    )
+    await db_session.commit()
     ok = await strict_client.post(
-        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+        PUBLISH.format(d=def_id), headers=_auth("publisher-scope", "REVIEWER")
     )
     assert ok.status_code in (200, 201), ok.text[:200]
 
@@ -2092,8 +2134,18 @@ async def test_project_scoped_definition_is_visible_with_project_access(
     )
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
+    # ⚠️ **发布者不是创建人**（TODO-172 裁决 ①）且**对该项目有授权**（裁决 ②）
+    from app.services.token_issuer import derive_user_id
+    from app.services.user_project_service import UserProjectService
+
+    publisher_id = derive_user_id("publisher-scope")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=publisher_id, project_id=proj.project_id,
+        role_in_project="REVIEWER", granted_by=publisher_id,
+    )
+    await db_session.commit()
     ok = await strict_client.post(
-        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+        PUBLISH.format(d=def_id), headers=_auth("publisher-scope", "REVIEWER")
     )
     assert ok.status_code in (200, 201), ok.text[:200]
 
@@ -2119,8 +2171,10 @@ async def test_company_level_definition_stays_visible_to_everyone(
     )
     assert created.status_code == 201, created.text[:300]
     def_id = created.json()["def_id"]
+    # ⚠️ **公司级模板** ⇒ ⇒ 审核者**不需要**项目授权（裁决 ③）
+    # ⇒ ⇒ 但**仍不能是创建人**（裁决 ①）
     ok = await strict_client.post(
-        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+        PUBLISH.format(d=def_id), headers=_auth("company-reviewer", "REVIEWER")
     )
     assert ok.status_code in (200, 201), ok.text[:200]
 

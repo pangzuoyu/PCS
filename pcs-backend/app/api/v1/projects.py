@@ -198,6 +198,30 @@ async def create_project(
         granted_by=user.user_id,
     )
 
+    # ⚠️ **工作区 owner 自动获得授权**（人裁决 2026-11-18 · TODO-175）。
+    #
+    # 裁决：「**只有系统管理员可以替别人建项目**」⇒ ⇒ ⇒ 「替别人建」=
+    # 在**别人的工作区**里建 ⇒ ⇒ ⇒ 那个工作区的 owner **必须**看得见
+    # 这个项目 ⇒ ⇒ ⇒ 否则项目「**住在**别人的工作区里**却不属于他**」
+    # ⇒ ⇒ ⇒ 而可见性按 `user_projects` ⇒ ⇒ ⇒ ⇒ 他**永远看不见**。
+    #
+    # 角色 = **PROJECT_LEAD**（与创建者同档）⇒ ⇒ 理由：**工作区是他的**，
+    # 项目住在**他的工作区**里 ⇒ ⇒ ⇒ 他就是这个项目的负责人。
+    #
+    # ⚠️ **owner_id 可空**（老工作区 / 系统建的）⇒ ⇒ ⇒ 空 ⇒ ⇒ 没人可授权
+    # ⇒ ⇒ ⇒ 跳过（不报错）⇒ ⇒ ⇒ 不给「无主工作区」造幽灵授权行。
+    if workspace.owner_id is not None and workspace.owner_id != user.user_id:
+        await ensure_user_row(
+            db, user_id=workspace.owner_id, username=f"ws-owner-{workspace.owner_id}",
+        )
+        await UserProjectService.grant_project_access(
+            db,
+            user_id=workspace.owner_id,
+            project_id=record.project_id,
+            role_in_project="PROJECT_LEAD",
+            granted_by=user.user_id,
+        )
+
     await db.commit()
     await db.refresh(record)
     return _to_out(record)

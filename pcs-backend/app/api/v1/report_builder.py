@@ -235,7 +235,15 @@ async def publish_definition(
     角色检查在**查行之前**：审核角色不该靠「哪些定义存在」来试探。
     """
     require_roles(actor, *PUBLISH_ROLES)
-    row = await DefinitionService(db).publish(def_id=def_id)
+    # ⚠️ **职责分离在 service 层**（人裁决 2026-11-18 · TODO-172）：
+    # ① **禁自审**（创建人自己是 REVIEWER 也不行）② **审核者要对定义的项目
+    # 有授权** ③ **公司级模板不做项目判定**（否则永远没人能审）
+    # ⇒ ⇒ 端点只负责**角色闸**；判定在 service ⇒ ⇒ 端点漏调也绕不过。
+    row = await DefinitionService(db).publish(
+        def_id=def_id,
+        actor_user_id=actor.user_id,
+        actor_roles=list(actor.roles),
+    )
     payload = _as_dict(row)
     await db.commit()
     return ReportDefinitionOut(**payload)

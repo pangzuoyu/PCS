@@ -357,8 +357,28 @@ class DefinitionService:
         await self.db.refresh(row)
         return row
 
-    async def publish(self, *, def_id: uuid.UUID) -> ReportDefinition:
-        """DRAFT → PUBLISHED。权限在**端点层**用 `require_roles` 判。
+    async def publish(self, *, def_id: uuid.UUID,
+                      actor_user_id: uuid.UUID,
+                      actor_roles: Sequence[str] | None = None) -> ReportDefinition:
+        """DRAFT → PUBLISHED。
+
+        ## 职责分离（**人裁决 2026-11-18 · TODO-172 / TODO-178**）
+
+        | # | 裁决 | 这里怎么落 |
+        |---|---|---|
+        | ① | **审核者不能审自己创建的** | `created_by == actor` ⇒ ⇒ **403** `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN` |
+        | ② | **审核者需要对定义的项目有授权** | `project_id` 非空 ⇒ ⇒ 查 `user_projects` ⇒ ⇒ 无授权 ⇒ ⇒ **404** |
+        | ③ | **允许公司级审核者** | `project_id IS NULL`（公司级模板）⇒ ⇒ **不做项目判定** ⇒ ⇒ 任何审核角色（且非创建人）都能审 |
+
+        ⚠️ **① 放在 service 层**（不是端点层）⇒ ⇒ 端点漏调一次就绕过
+        ⇒ ⇒ ⇒ 而这正是 TODO-178 的根因（断言在、但不敏感于缺陷）。
+
+        ⚠️ **② 的 404 要与「不存在」**逐字同形** ⇒ ⇒ 「无权审」与
+        「没有这条定义」返回**同一个** `REPORT_DEFINITION_NOT_FOUND`
+        ⇒ ⇒ ⇒ 否则能靠错误码区分「这条草稿存在」⇒ ⇒ ⇒ 枚举得出。
+
+        ⚠️ **③ 是 ② 的例外**：公司级模板**没有项目可授权**
+        ⇒ ⇒ ⇒ 若把 ② 无脑套上去 ⇒ ⇒ 公司级模板**永远没人能审**。
 
         幂等不做：重复发布是 409 而不是静默成功 —— 调用方（前端重试、
         脚本重复执行）需要知道这次到底改没改状态。
@@ -367,6 +387,28 @@ class DefinitionService:
         if row is None:
             raise PcsError(f"报表定义不存在：{def_id}",
                            code="REPORT_DEFINITION_NOT_FOUND", status=404)
+        # ⚠️ **① 禁自审**（职责分离）—— 先于状态判定 ⇒ ⇒ 不让无权者
+        # 靠「这条已发布了吗」探状态。
+        if row.created_by is not None and row.created_by == actor_user_id:
+            raise PcsError(
+                "不能审核自己创建的报表定义（发布须由他人审核）",
+                code="REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN", status=403,
+            )
+        # ⚠️ **② 审核者要对定义的项目有授权**（③：公司级模板除外）
+        if row.project_id is not None:
+            try:
+                await require_project_access_or_404(
+                    self.db, user_id=actor_user_id, project_id=row.project_id,
+                    actor_roles=actor_roles,
+                )
+            except PcsError as exc:
+                if exc.status == 404:
+                    # ⚠️ **逐字同形**：无权审 ⇒ ⇒ 与「没有这条定义」**同一个**错误
+                    raise PcsError(
+                        f"报表定义不存在：{def_id}",
+                        code="REPORT_DEFINITION_NOT_FOUND", status=404,
+                    ) from exc
+                raise
         if row.status == "PUBLISHED":
             raise PcsError("该定义已发布", code="REPORT_DEFINITION_STATE", status=409)
         if row.status == "OBSOLETE":

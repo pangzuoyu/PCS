@@ -54,7 +54,7 @@ def creator_user_id() -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_DNS, "admin-user")
 
 
-async def _make_workspace(db_session) -> uuid.UUID:
+async def _make_workspace(db_session, *, owner_id: uuid.UUID | None = None) -> uuid.UUID:
     from app.models.project import Workspace
 
     workspace_id = uuid.uuid4()
@@ -63,6 +63,7 @@ async def _make_workspace(db_session) -> uuid.UUID:
             workspace_id=workspace_id,
             workspace_type="FORMAL",
             name="WS",
+            owner_id=owner_id,
             status="ACTIVE",
         )
     )
@@ -241,3 +242,33 @@ async def test_seed_is_idempotent(client, db_session, admin_headers):
         )
     ).scalars().all()
     assert len(rows) == 1
+
+
+async def test_creating_a_project_grants_the_workspace_owner_access(
+    client, db_session, admin_headers
+):
+    """⚠️ **工作区 owner 自动获得授权**（人裁决 2026-11-18 · TODO-175）。
+
+    ⇒ ⇒ 裁决：「**只有系统管理员可以替别人建项目**」⇒ ⇒ ⇒ 「替别人建」
+    = 在**别人的工作区**里建 ⇒ ⇒ ⇒ 那个人（owner）**必须**看得见这个项目
+    ⇒ ⇒ ⇒ 否则项目「**住在**别人的工作区里**却不属于他**」
+    ⇒ ⇒ ⇒ ⇒ 而可见性按 `user_projects` ⇒ ⇒ ⇒ ⇒ 他**永远看不见**。
+
+    ⇒ ⇒ 授权角色 = **PROJECT_LEAD**（与创建者同档）⇒ ⇒ 理由：
+    **工作区是他的**，项目住在**他的工作区**里 ⇒ ⇒ ⇒ 他就是这个项目的负责人。
+    """
+    owner_id = uuid.uuid5(uuid.NAMESPACE_DNS, "ws-owner")
+    workspace_id = await _make_workspace(db_session, owner_id=owner_id)
+    resp = await client.post(
+        "/api/v1/projects", json=_payload(workspace_id), headers=admin_headers
+    )
+    assert resp.status_code == 201, resp.text
+    project_id = uuid.UUID(resp.json()["project_id"])
+
+    rows = await _grants(db_session, project_id)
+    granted = {r.user_id: r.role_in_project for r in rows}
+    assert owner_id in granted, (
+        f"工作区 owner 没被授权（授权给了：{sorted(str(u) for u in granted)}）"
+        "⇒ ⇒ 他看不见这个项目 ⇒ ⇒ 项目住在他的工作区里却不属于他"
+    )
+    assert granted[owner_id] == "PROJECT_LEAD", granted[owner_id]
