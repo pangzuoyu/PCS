@@ -53,12 +53,28 @@ import type { ColumnType } from 'antd/es/table';
  * ⇒ 索引签名容器**不贡献任何 key**（`never`）。代价：无法对 JSONB 列的
  * 子键做路径检查（`['allowable_stress_json', '250']` 会红）—— 那本来就不该
  * 出现在表格 dataIndex 里，需要时用 `render` 显式取。
+ *
+ * ⚠️⚠️ **数组也当叶子**（2026-11-19 · P10-C · T2 暴露）：
+ *
+ * `keyof string[]` = `number | "length" | "push" | "map" | … | [Symbol.iterator]`
+ * ⇒ ⇒ 递归进**数组**字段 ⇒ ⇒ `DeepKeys<T>` 里混进 `number`、一堆数组方法名
+ * ⇒ ⇒ **还有 `unique symbol`** ⇒ ⇒
+ * ⇒ ⇒ ① 闸**失效**（`dataIndex: 'push'` 居然合法）；
+ * ⇒ ⇒ ② 更糟：`StrictColumn<T>` **不再可赋值给** antd 的 `ColumnType<T>`
+ * （`dataIndex` 的类型对不上）⇒ ⇒ 用 `StrictColumns` 的页面**编译不过**。
+ *
+ * ⇒ ⇒ 数组**不贡献任何 key**（`never`）⇒ ⇒ 数组字段的**字段名本身**
+ * 仍可用（`keyof T` 那一支管着）⇒ ⇒ 只是不递归进它的下标与方法名。
+ *
+ * 实测触发者：`PipeLineListRow.cleaning_method`（`string[]`）。
  */
-export type DeepKeys<T> = T extends object
-  ? string extends keyof T
-    ? never
-    : keyof T | { [K in keyof T]-?: DeepKeys<T[K]> }[keyof T]
-  : never;
+export type DeepKeys<T> = T extends readonly unknown[]
+  ? never
+  : T extends object
+    ? string extends keyof T
+      ? never
+      : keyof T | { [K in keyof T]-?: DeepKeys<T[K]> }[keyof T]
+    : never;
 
 /** `dataIndex` 收窄到「行类型的 key 或由 key 组成的路径」的列定义。 */
 export type StrictColumn<T> = Omit<ColumnType<T>, 'dataIndex'> & {

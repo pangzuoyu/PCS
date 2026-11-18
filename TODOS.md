@@ -3653,6 +3653,35 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
 
+### ✅ **已关闭 · 2026-11-19 · P10-C · T2**
+
+**查契约的结论**（`pcs-backend/docs/openapi.json`）⇒ **三个端点都不存在**
+⇒ ⇒ 「改前端指向」这条路走不通（`GET /records/piping` 只返 5 字段，
+管道一览表要 43 列）⇒ ⇒ 分两种处置：
+
+| 页面 | 处置 | 依据 |
+|---|---|---|
+| `/pipe/line-list` | **补后端端点** `GET /projects/{project_id}/pipe-line-list` | 数据**确实存在**：`piping_results`（管道记录的**唯一真相源**）⇒ ⇒ 列清单 = **SPEC §7.11.2 的 43 列**逐条对应 ⇒ ⇒ 不再是「前端编的一份形状」 |
+| `/pms` | **明确占位**（不发请求） | 后端**没有** PMS 实体与端点 ⇒ ⇒ 最接近的 `pipe_classes`（管道等级）**是另一个东西** ⇒ ⇒ 拿它冒充 = 答非所问 |
+| `/bedd` | **明确占位**（不发请求） | `projects.bedd_json` 这一列**存在**，但**没有任何写入路径**（全仓只有建表迁移提到它）⇒ ⇒ 补出来的端点**永远返回空** ⇒ ⇒ 「看起来有、其实永远空」比没有更坏 |
+
+⇒ ⇒ **前端同时改了**：
+1. 新增 `useProjectScope` hook ⇒ 从 `GET /workspaces` 解析**真** project id
+   （**不再用**占位常量 `00000000-…-0001` ⇒ 那**不是真项目**）
+2. `PipeLineListRow` 改成**契约类型**（此前是前端手写的 25 列，
+   含 4 个**后端根本没有**的列 ⇒ 幽灵字段）
+3. PMS / BEDD 两页**明写**「数据源尚未接入」（占位说明 + 依据）
+4. 真后端扫描的**白名单删掉 TODO-159 那三条** ⇒ ⇒ 白名单现在**是空的**
+
+⇒ ⇒ **证据**：后端 5 例新测试（含变异自证：删授权 ⇒ 2 例红）·
+前端 5 例路由测试 + 4 例 hook 测试 · vitest 1082/1082 · typecheck / lint clean。
+
+⇒ ⇒ **连带修掉一个三年前的洞**：`tests/mocks/handlers.test.ts` 的
+「devOnly ∩ 契约」棘轮**直接拿 MSW 的 `:param` 路径**比契约的 `{param}` 路径
+⇒ ⇒ **永远不相等** ⇒ ⇒ 凡是用 `:param` 写的 mock 端点，**这条棘轮看不见**
+⇒ ⇒ 补了路径归一化 ⇒ ⇒ **多出 14 条**「已进契约却没 ajv 校验」的端点
+⇒ ⇒ 登记为 **TODO-193**（欠账不许悄悄消失：清单里少一条就红）。
+
 ## TODO-160: 物性/许用应力/毒性三页**首屏 422**（空查询打后端） 🟡
 
 **现状**（2026-11-16 · 同一次扫描）：
@@ -3671,6 +3700,34 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 要么前端按契约补参数（⇒ 先对 OpenAPI）。
 
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
+
+### ✅ **已关闭 · 2026-11-19 · P10-C · T1**
+
+**对 OpenAPI 的结论**（`pcs-backend/docs/openapi.json`）⇒ 三个端点的
+必填参数是：
+
+| 端点 | 必填参数 | 返**单个**还是**数组** |
+|---|---|---|
+| `GET /common/materials/search` | `keyword`（min_length=1） | 数组（但后端 `search_chemical` **单命中** ⇒ 最多 1 条） |
+| `GET /common/allowable-stress` | `material` + `temp_c` | **单个对象**（插值结果） |
+| `GET /common/safety` | `cas` | **单个对象** |
+
+⇒ ⇒ 走「**首屏不发请求**」那条（= TODO-160 的第一个选项）⇒ ⇒ 三页改成
+「**填条件才查**」（300ms 防抖）⇒ ⇒ 首屏**零请求** ⇒ ⇒ 没有 422。
+
+⇒ ⇒ **顺带发现两处形状错**（此前没被发现，因为请求**从来没成功过**）：
+`allowable-stress` 与 `safety` 返的是**单个对象**，而前端当**数组**用
+⇒ ⇒ 页面把单条包成 1 行喂给同一张表 / 同一张分组卡片。
+
+⇒ ⇒ **MSW mock 同步收紧**（此前它**无视**参数、永远返整表 ⇒
+「替身比被测物更宽容」⇒ ⇒ 前端漏传参数在 mock 通道里**看不出来**）
+⇒ ⇒ 现在：缺参数 ⇒ **422**、命中不到 ⇒ **404**、许用应力照抄后端的
+**线性插值** ⇒ ⇒ mock 不再比真后端宽容。
+
+⇒ ⇒ **证据**：3 个页面测试重写（断言**调用参数** ⇒ 漏参数必红）
++ **变异自证**（删早退 / 改参数 ⇒ 6 条断言转红）· vitest 1082/1082。
+
+⇒ ⇒ **SPEC 修订已登记**：`docs/PCS-NOTE-SPEC-7.8-三查询页改为查询驱动-2026-11-19.md`
 
 ## TODO-161: 管道链计算**在运行时写配置表**（占位管级 `CS-STD`） 🟡
 
@@ -5078,3 +5135,99 @@ ARQ / 索引 / 文档 frontmatter …）⇒ ⇒ 不逐条开 TODO。
 被忽略」在公司级定义上**不成立**（公司级分支**有**该条件）⇒ ⇒ 只在项目级分支缺。
 
 **归属**：**P10-F · 「守卫补洞批」**（计划：`docs/superpowers/plans/2026-11-18-p10-f-guard-hole-batch.md`）
+
+---
+
+## TODO-193: mock ↔ 契约的漂移棘轮**看不见 `:param` 写法的端点**（14 条欠账） 🟡
+
+**现状**（2026-11-19 · P10-C · T2 暴露）：
+
+`pcs-frontend/tests/mocks/handlers.test.ts` 的棘轮
+「devOnly ∩ 契约 的端点清单」**直接拿 MSW 的路径**去比契约的路径：
+
+```
+MSW    : /api/v1/projects/:project_id/pipe-line-list
+契约   : /api/v1/projects/{project_id}/pipe-line-list
+```
+
+⇒ ⇒ **永远不相等** ⇒ ⇒ 凡是用 `:param` 写的 mock 端点，
+**这条棘轮根本看不见它** ⇒ ⇒ 「已进契约却没 ajv 校验」的洞一直敞着
+⇒ ⇒ （管道一览表那个端点就是靠这个躲过了三年）。
+
+⇒ ⇒ **已修一部分**（2026-11-19 · P10-C · T2）：路径**归一化**
+（`:name` → `{name}`）⇒ ⇒ 棘轮**看得见**了 ⇒ ⇒ 代价是**多出 14 条**欠账。
+
+**欠账清单**（**已进契约、但 mock 响应体还没有 ajv 校验**）：
+
+```
+/api/v1/checklist/projects/{project_id}
+/api/v1/checklist/projects/{project_id}/completeness
+/api/v1/heat/{heat_id}
+/api/v1/heat/{heat_id}/weight-estimate
+/api/v1/lineage/{record_type}/{record_id}/graph
+/api/v1/projects/{project_id}/psv/standard-profile
+/api/v1/projects/{project_id}/streams
+/api/v1/projects/{project_id}/streams/validate
+/api/v1/streams/{stream_id}
+/api/v1/streams/{stream_id}/properties
+/api/v1/streams/{stream_id}/properties/estimate
+/api/v1/streams/{stream_id}/review-log
+/api/v1/streams/{stream_id}/state-points
+/api/v1/streams/{stream_id}/submit
+```
+
+⇒ ⇒ 清单**写在测试文件里**（`CONTRACT_ENDPOINTS_NOT_YET_VALIDATED`）
+⇒ ⇒ 且有一条断言盯着「**欠账不许悄悄消失**」（端点若从 mock 删了 ⇒ 这里红）
+⇒ ⇒ **补完一条就从清单里删一条**（并加进 ajv 校验用例）。
+
+**为什么先登记不一次还完**：这 14 条**每条**都要按契约形状逐字段核
+（含 POST 端点的 201/207 响应）⇒ ⇒ 体量超出「P10-C 前端收口」这一批的范围
+⇒ ⇒ 单开一批做。
+
+**归属**：**下一批 · mock 漂移棘轮补债**
+
+---
+
+## TODO-194: 前端**没有项目选择器** ⇒ 「项目作用域」只能取**第一个**有项目的工作区 🟡
+
+**现状**（2026-11-19 · P10-C · T2 引入）：
+
+`useProjectScope`（`pcs-frontend/src/hooks/useProjectScope.ts`）从
+`GET /workspaces` 里取**第一个** `project_id` 非空的工作区 ⇒ ⇒ **没有选择器**。
+
+⇒ ⇒ **后果**：一个用户被授权了**多个**项目时 ⇒ ⇒ 前端**只能看到其中一个**
+⇒ ⇒ 且是「列表里的第一个」⇒ ⇒ 与用户当前想看的项目**可能无关**。
+
+⇒ ⇒ **为什么先这样**：`GET /workspaces` 对普通用户**只返回自己的**
+⇒ ⇒ 「我有授权但不是我拥有的项目」**根本不在列表里**
+⇒ ⇒ 真解法是走 `GET /user-projects/me`（**我的全部授权**）⇒ ⇒ 那要配
+一个**项目选择器**（UI + 状态）⇒ ⇒ 是独立功能 ⇒ ⇒ 不塞本批。
+
+⇒ ⇒ **本批的临时口径**：管道一览表等页面对**第一个**项目作用域取数
+⇒ ⇒ 用户看得见的是「某个项目」⇒ ⇒ **不是**完整的多项目体验。
+
+**归属**：**下一批 · 项目上下文 / 选择器**
+
+---
+
+## TODO-195: PMS / BEDD **后端没有实体** ⇒ 两页只能是占位（产品语义） 🔴
+
+**现状**（2026-11-19 · P10-C · T2 查明）：
+
+| 前端页 | SPEC 里的对应物 | 后端实况 |
+|---|---|---|
+| `/pms`「PMS 管道材料规格」 | §7.5 的**项目创建向导**第 2 步「PMS」 | **没有** PMS 表 / 端点；最接近的是 `pipe_classes`（管道等级）⇒ ⇒ **不是同一件事** |
+| `/bedd`「BEDD 文档」 | §7.5 的**向导**第 3 步「BEDD 录入」+「分组 Tab 编辑」 | `projects.bedd_json` 这一列**存在**，但**没有任何写入路径**（全仓只有建表迁移提到它）⇒ ⇒ **没有数据** |
+
+⇒ ⇒ 这两页**是前端超前实现**（P45-3-8 Task 35）⇒ ⇒ SPEC 里**没有**
+「独立的 PMS 列表页 / BEDD 文档页」⇒ ⇒ **两页与 SPEC 对不上**。
+
+⇒ ⇒ 本批的处置（**保守**，不是产品裁决）：**不发请求** + 页面明写
+「数据源尚未接入」+ 给出依据 ⇒ ⇒ 不再 404，但**功能仍是空的**。
+
+⇒ ⇒ **待人裁**（产品语义 ⇒ 执行者不代裁）：
+① 删掉这两页（按 SPEC §7.5 归到**向导**里）
+② 补后端实体（PMS 表 / BEDD 录入与 SchemaForm）⇒ ⇒ 那是**新功能**（体量大）
+③ 保留占位（现状）
+
+**归属**：**待人裁**（⚠️ 与 TODO-157 的 ①/② 一并裁更好）

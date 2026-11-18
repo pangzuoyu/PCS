@@ -56,6 +56,7 @@ import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/
 import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
 import { seedBeddSections, seedPmsItems } from "./seed/pms";
+import { seedEquipmentList } from "./seed/equipment";
 import {
   seedStreams,
 } from "./seed/streams";
@@ -1380,6 +1381,30 @@ export const handlers = [
       database: "up",
       realtime: "available",
       realtime_reason: null,
+    });
+  }),
+
+  // === 设备台账（P10-C · T3 · TODO-157）===
+  // ⚠️ 放**契约组**：`/equipment-list` **本来就在契约里** ⇒ ⇒ 形状必须照抄
+  //    `EquipListListResponse`（`{items, total, limit, offset}`）
+  //    ⇒ ⇒ 否则 mock 与契约漂移（= 页面在生产上读不到数的成因之一）。
+  http.get("/api/v1/equipment-list", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const q = new URL(request.url).searchParams;
+    let items = seedEquipmentList;
+    const projectId = q.get("project_id");
+    if (projectId) items = items.filter((e) => e.project_id === projectId);
+    const sourceModule = q.get("source_module");
+    if (sourceModule) items = items.filter((e) => e.source_module === sourceModule);
+    const equipmentStatus = q.get("equipment_status");
+    if (equipmentStatus) items = items.filter((e) => e.equipment_status === equipmentStatus);
+    const limit = Number(q.get("limit") ?? "100");
+    const offset = Number(q.get("offset") ?? "0");
+    return HttpResponse.json({
+      items: items.slice(offset, offset + limit),
+      total: items.length,
+      limit,
+      offset,
     });
   }),
 

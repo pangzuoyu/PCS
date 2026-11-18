@@ -96,17 +96,21 @@ const ROUTES: RouteCase[] = [
  *
  * ⚠️ **只列 4xx/5xx**（控制台错误另有一张表，见下）。
  *
+ * ⚠️ **TODO-159 的三条已在 P10-C · T2 删掉**（2026-11-19）：
+ * - `/pipe/line-list` ⇒ ⇒ 端点**补上了**（`GET /projects/{id}/pipe-line-list`
+ *   ⇒ 数据源 = `piping_results`）⇒ ⇒ 前端改用**真** project id
+ *   （走 `GET /workspaces` 解析）⇒ ⇒ 不再 404。
+ * - `/pms` · `/bedd` ⇒ ⇒ 后端**确实没有**那两个实体 ⇒ ⇒ 前端**不发请求**，
+ *   页面明说「数据源尚未接入」（占位页）⇒ ⇒ 不再 404。
+ *
  * ⚠️ **TODO-160 的三条已在 P10-C · T1 删掉**（2026-11-19）——
  * 物性 / 许用应力 / 毒性三页改成「**填条件才查**」（契约的 `keyword` /
  * `material`+`temp_c` / `cas` 都必填 ⇒ 首屏发空查询必 422）
  * ⇒ ⇒ 首屏**零请求** ⇒ ⇒ 现在这三页**任何 4xx/5xx 都会红**。
+ *
+ * ⇒ ⇒ **白名单现在是空的** ⇒ ⇒ 本扫描里**任何** 4xx/5xx 都会红。
  */
-const ALLOWED_BAD_RESPONSES: { page: string; pathFragment: string; todo: string }[] = [
-  // TODO-159：前端调了**不存在**的端点（3 个页面）
-  { page: '/pipe/line-list', pathFragment: '/pipe-line-list', todo: 'TODO-159' },
-  { page: '/pms', pathFragment: '/pms', todo: 'TODO-159' },
-  { page: '/bedd', pathFragment: '/bedd', todo: 'TODO-159' },
-];
+const ALLOWED_BAD_RESPONSES: { page: string; pathFragment: string; todo: string }[] = [];
 
 /** ⚠️ 控制台 error 的白名单（每条写「页面 + 文本片段 + TODO 号」）。 */
 /**

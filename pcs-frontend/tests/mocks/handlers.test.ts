@@ -19,6 +19,7 @@ import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { signFlowHandlers } from "../../src/mocks/signFlow";
 import { metaSeed } from "../../src/mocks/seed/meta";
+import { seedPipeLineRows } from "../../src/mocks/seed/pipe-line";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
 import {
@@ -394,9 +395,45 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     //
     // ⇒ 本清单是**棘轮**：devOnly 里出现**新的**契约端点 ⇒ 本条红 ⇒
     // 作者必须给它的响应体加契约类型标注 / ajv 校验，然后才更新本清单。
+    //
+    // ⚠️⚠️ **路径要归一化**（2026-11-19 · P10-C · T2 才暴露出来的洞）：
+    // MSW 的路径写 `:project_id`，契约写 `{project_id}` ⇒ ⇒ **直接比不相等**
+    // ⇒ ⇒ 凡是用 `:param` 写的 mock 端点，**这条棘轮根本看不见它**
+    // ⇒ ⇒ （`/projects/:project_id/pipe-line-list` 就是这样躲过三年的）
+    // ⇒ ⇒ 现在把 `:name` 归一成 `{name}` 再比。
     const paths = [...new Set(devOnlyMockHandlers.map((h) =>
       (h as { info?: { path?: string } }).info?.path))];
-    const inContract = paths.filter((p) => p && openapi.paths[p]).sort();
+    const normalised = paths.map((p) =>
+      p ? p.replace(/:([A-Za-z0-9_]+)/g, "{$1}") : p);
+    const inContract = normalised.filter((p) => p && openapi.paths[p]).sort();
+
+    // ⚠️ **已进契约、但 mock 响应体还没有 ajv 校验**的端点（**欠账**）。
+    //
+    // ⚠️⚠️ **这 14 条是被「路径写法」藏了三年的**（2026-11-19 · P10-C · T2 暴露）：
+    // 这条棘轮原先**直接拿 MSW 的 `:param` 路径**去比契约的 `{param}` 路径
+    // ⇒ ⇒ **永远不相等** ⇒ ⇒ 凡是用 `:param` 写的 mock 端点，
+    // 这条棘轮**根本看不见它** ⇒ ⇒ 「有契约可漂移却没校验」的洞一直敞着。
+    // ⇒ ⇒ 现在路径**归一化**了 ⇒ ⇒ 洞被看见 ⇒ ⇒ 欠账登记在下面。
+    //
+    // ⇒ ⇒ **补完一条就从这里删一条**（并加进上面的 ajv 校验用例）。
+    // ⇒ ⇒ 债可以还，但**不许悄悄消失**（下面那条断言盯着）。
+    const CONTRACT_ENDPOINTS_NOT_YET_VALIDATED = [
+      "/api/v1/checklist/projects/{project_id}",
+      "/api/v1/checklist/projects/{project_id}/completeness",
+      "/api/v1/heat/{heat_id}",
+      "/api/v1/heat/{heat_id}/weight-estimate",
+      "/api/v1/lineage/{record_type}/{record_id}/graph",
+      "/api/v1/projects/{project_id}/psv/standard-profile",
+      "/api/v1/projects/{project_id}/streams",
+      "/api/v1/projects/{project_id}/streams/validate",
+      "/api/v1/streams/{stream_id}",
+      "/api/v1/streams/{stream_id}/properties",
+      "/api/v1/streams/{stream_id}/properties/estimate",
+      "/api/v1/streams/{stream_id}/review-log",
+      "/api/v1/streams/{stream_id}/state-points",
+      "/api/v1/streams/{stream_id}/submit",
+    ];
+
     expect(inContract).toEqual([
       "/api/v1/audit-logs",
       "/api/v1/auth/me",
@@ -419,6 +456,9 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/notifications",
       "/api/v1/open-channel/results",
       "/api/v1/pipe-classes",
+      // P10-C · T2（2026-11-19）：管道一览表端点进了契约 ⇒ 棘轮同步
+      // ⚠️ **它此前用 `:project_id` 写路径 ⇒ 这条棘轮看不见它** ⇒ 现在归一化后可见。
+      "/api/v1/projects/{project_id}/pipe-line-list",
       "/api/v1/psv/calculate",
       "/api/v1/psychro/results",
       "/api/v1/psychro/saturation-water-content/calculate",
@@ -430,7 +470,20 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/util/heat-exchange-items",
       "/api/v1/vessel/calculate",
       "/api/v1/workspaces",
-    ]);
+      ...CONTRACT_ENDPOINTS_NOT_YET_VALIDATED,
+    ].sort());
+
+    // ⚠️ **欠账不许悄悄消失**：端点若从 mock 里删了 ⇒ 这条红 ⇒ 必须同步改清单。
+    expect(
+      CONTRACT_ENDPOINTS_NOT_YET_VALIDATED.filter((p) => inContract.includes(p)),
+    ).toEqual(CONTRACT_ENDPOINTS_NOT_YET_VALIDATED);
+  });
+
+  it("GET /api/v1/projects/{project_id}/pipe-line-list 的响应体符合契约（P10-C · T2）", () => {
+    // ⚠️ 端点进契约 ⇒ 必须**一并**加 ajv 校验（否则 mock 与契约漂移被藏住）。
+    // ⚠️ 这条尤其重要：此前这条 mock 的形状是**前端手写的 25 列**
+    // （含 4 个后端没有的列）⇒ ⇒ 真后端上线后 mock 仍在遮着漂移。
+    validatePath("/api/v1/projects/{project_id}/pipe-line-list", seedPipeLineRows);
   });
 
   it("6 类结果记录的列表 mock 响应体符合契约（P9B-1）", () => {

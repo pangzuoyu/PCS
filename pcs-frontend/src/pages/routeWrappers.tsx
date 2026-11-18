@@ -15,6 +15,7 @@ import { Alert, Typography } from 'antd';
 import { useParams } from 'react-router-dom';
 
 import { handleSessionOver } from '../api/client';
+import { useProjectScope } from '../hooks/useProjectScope';
 
 import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types/common';
 import type { Stream } from '../types/stream';
@@ -105,7 +106,14 @@ interface FetchState<T> {
  * - 失败态**与加载态长得不一样** ⇒ 后端 500 / 网络断了 / 超时，都有话说。
  * - 请求带 **`AbortSignal`** + 15s 超时 ⇒ 卸载时能取消，定时器会清。
  */
-function useFetch<T>(path: string, initial: T): FetchState<T> {
+/**
+ * @param enabled 条件未满足时**不发请求**（P10-C · T2）。
+ *
+ * ⚠️ **为什么需要它**：有些端点的 URL **依赖另一个请求的结果**
+ * （如「先解析项目 id ⇒ 再按项目取管道一览表」）⇒ ⇒ 在 id 还没拿到时
+ * 发请求 ⇒ 只会拿到 404（占位 id）或空路径 ⇒ ⇒ 不如**不发**。
+ */
+function useFetch<T>(path: string, initial: T, enabled = true): FetchState<T> {
   const [data, setData] = useState<T>(initial);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,6 +122,13 @@ function useFetch<T>(path: string, initial: T): FetchState<T> {
   // ⇒ ⇒ 用 ref 留住**第一次**的那份（重置时也用它）。
   const initialRef = useRef(initial);
   useEffect(() => {
+    // ⚠️ **条件不满足 ⇒ 零请求**（且状态回落到「没加载过」的初始态）。
+    if (!enabled) {
+      setError(null);
+      setLoading(false);
+      setData(initialRef.current);
+      return;
+    }
     let cancelled = false;
     let timedOut = false;
     const controller = new AbortController();
@@ -184,7 +199,7 @@ function useFetch<T>(path: string, initial: T): FetchState<T> {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [path]);
+  }, [path, enabled]);
   return { data, error, loading };
 }
 
@@ -309,7 +324,41 @@ export function PipeRoute(): JSX.Element {
   );
 }
 export function PipeLineListRoute(): JSX.Element {
-  const { data: rows } = useFetch<PipeLineListRow[]>(`/api/v1/projects/${PROJECT_ID}/pipe-line-list`, []);
+  // ⚠️ **P10-C · T2（TODO-159）**：此前这里拿**占位** project id 去调
+  // `GET /projects/{id}/pipe-line-list` ⇒ ⇒ **那个端点根本不存在** ⇒ ⇒ 404
+  // （mock 通道有 MSW handler ⇒ 一路绿灯 ⇒ 只有真后端通道抓得到）。
+  //
+  // ⇒ ⇒ 现在：① **先解析真项目 id**（`useProjectScope` ⇒ 走 `GET /workspaces`）
+  // ⇒ ⇒ ② 再按项目取一览表（端点是 P10-C 补的 `GET /projects/{id}/pipe-line-list`
+  // ⇒ ⇒ 数据源 = `piping_results`）。
+  const { projectId, error: scopeError } = useProjectScope();
+  const { data: rows, error: rowsError } = useFetch<PipeLineListRow[]>(
+    projectId ? `/api/v1/projects/${projectId}/pipe-line-list` : '',
+    [],
+    Boolean(projectId),
+  );
+  if (scopeError) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="没有可用的项目作用域"
+        description={scopeError}
+        data-testid="pipe-line-list-scope-error"
+      />
+    );
+  }
+  if (rowsError) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="管道一览表加载失败"
+        description={rowsError}
+        data-testid="pipe-line-list-error"
+      />
+    );
+  }
   return <PipeLineListPage rows={rows} />;
 }
 export function PipeNetRoute(): JSX.Element {
@@ -427,13 +476,22 @@ export function SystemSettingsRoute(): JSX.Element {
 }
 
 // === 项目文档 / 向导 ===
+//
+// ⚠️ **P10-C · T2（TODO-159）**：PMS / BEDD 两页此前调**不存在**的端点
+// （`GET /projects/{id}/pms` · `GET /projects/{id}/bedd`）⇒ ⇒ 真后端 404。
+//
+// ⇒ ⇒ 现在：**不发请求**，页面**明说数据源尚未接入**（占位页）。
+// ⇒ ⇒ 理由（不是「懒得做」，是**后端确实没有那两个实体**）：
+//   · **PMS**（管道材料规格）：后端**没有**对应表/端点；最接近的是
+//     `pipe_classes`（管道等级）⇒ ⇒ 那是**另一个东西**，不能拿来冒充。
+//   · **BEDD**：`projects.bedd_json` 这一列**存在**，但**没有任何写入路径**
+//     （全仓只有建表迁移提到它）⇒ ⇒ 没有数据可读 ⇒ ⇒ 补一个端点也只能
+//     永远返回空 ⇒ ⇒ **不补**（免得造一个「看起来有、其实永远空」的端点）。
 export function PmsRoute(): JSX.Element {
-  const { data: items } = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);
-  return <PmsPage items={items} />;
+  return <PmsPage items={[]} />;
 }
 export function BeddRoute(): JSX.Element {
-  const { data: sections } = useFetch<BeddSection[]>(`/api/v1/projects/${PROJECT_ID}/bedd`, []);
-  return <BeddPage sections={sections} />;
+  return <BeddPage sections={[]} />;
 }
 export function WizardRoute(): JSX.Element {
   return (

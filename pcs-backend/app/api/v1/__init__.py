@@ -28,6 +28,7 @@ from app.api.v1.open_channel import router as open_channel_router  # P6-3 Task 3
 from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
+from app.api.v1.pipe_line_list import router as pipe_line_list_router  # P10-C · T2（TODO-159）
 from app.api.v1.pipe_net import router as pipe_net_router
 from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.psv import router as psv_router  # P5-3-6
@@ -98,6 +99,7 @@ api_router.include_router(restriction_router)  # P6-1 Task 14
 api_router.include_router(thermosiphon_router)  # P5-0-1b T1
 api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
 api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
+api_router.include_router(pipe_line_list_router)  # P10-C · T2（TODO-159）管道一览表
 api_router.include_router(user_projects_router)  # P7-7+ BLOCKER-3 admin
 api_router.include_router(deliverables_router)  # P1-7+ D 模块读面（P8 REPORT 依赖）
 api_router.include_router(signature_matrices_router)  # TODO-070 签署矩阵管理面

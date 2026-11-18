@@ -4545,6 +4545,30 @@ export interface paths {
         patch: operations["set_product_category_api_v1_projects__project_id__product_category_patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/pipe-line-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pipe Line List
+         * @description 列出某项目的管道一览表（分页：默认 limit=200 / offset=0）。
+         *
+         *     - **项目隔离**：只返回 `project_id` 下的 `PipingResult`
+         *     - **排序**：`seq_no` asc（序号）
+         *     - 列清单 = SPEC §7.11.2「管道一览表列（完整）」
+         */
+        get: operations["list_pipe_line_list_api_v1_projects__project_id__pipe_line_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user-projects/grant": {
         parameters: {
             query?: never;
@@ -14736,6 +14760,237 @@ export interface components {
              * @default DRAFT
              */
             status: components["schemas"]["ConfigStatus"];
+        };
+        /**
+         * PipeLineListRow
+         * @description 管道一览表的一行（SPEC §7.11.2 的列清单 · 逐条对应）。
+         */
+        PipeLineListRow: {
+            /**
+             * Seq
+             * @description 序号
+             */
+            seq: number;
+            /**
+             * Pipe No
+             * @description 管道号
+             */
+            pipe_no: string;
+            /**
+             * Size
+             * @description 尺寸
+             */
+            size: string;
+            /**
+             * Material
+             * @description 材料等级
+             */
+            material: string;
+            /**
+             * Fluid Code
+             * @description 介质代号
+             */
+            fluid_code: string;
+            /**
+             * Fluid Name
+             * @description 介质名称
+             */
+            fluid_name: string;
+            /**
+             * Phase
+             * @description 相态
+             */
+            phase: string;
+            /**
+             * Fluid Class
+             * @description 流体分类（D/M/NORMAL）
+             */
+            fluid_class: string;
+            /**
+             * Toxicity
+             * @description 毒性级别
+             */
+            toxicity?: string | null;
+            /**
+             * Pipe Class
+             * @description 管道级别
+             */
+            pipe_class?: string | null;
+            /**
+             * Insulation Code
+             * @description 绝热代号
+             */
+            insulation_code?: string | null;
+            /**
+             * Insulation Thickness
+             * @description 绝热厚度（mm）
+             */
+            insulation_thickness?: number | null;
+            /**
+             * Paint Code
+             * @description 涂漆代号
+             */
+            paint_code?: string | null;
+            /**
+             * Tracing Type
+             * @description 伴管类型（J/T/TE/NONE）
+             */
+            tracing_type?: string | null;
+            /**
+             * Holding Temp
+             * @description 维持温度（°C）
+             */
+            holding_temp?: number | null;
+            /**
+             * Pid Ref
+             * @description PID 图号
+             */
+            pid_ref: string;
+            /**
+             * Start Point
+             * @description 起点
+             */
+            start_point: string;
+            /**
+             * End Point
+             * @description 终点
+             */
+            end_point: string;
+            /**
+             * Norm Oper Press
+             * @description 正常操作压力（MPaG）
+             */
+            norm_oper_press: number;
+            /**
+             * Max Oper Press
+             * @description 最大操作压力（MPa）
+             */
+            max_oper_press: number;
+            /**
+             * Norm Oper Temp
+             * @description 正常操作温度（°C）
+             */
+            norm_oper_temp: number;
+            /**
+             * Max Oper Temp
+             * @description 最大操作温度（°C）
+             */
+            max_oper_temp: number;
+            /**
+             * Alt Norm Oper Press
+             * @description 备用工况 · 正常操作压力
+             */
+            alt_norm_oper_press?: number | null;
+            /**
+             * Alt Max Oper Press
+             * @description 备用工况 · 最大操作压力
+             */
+            alt_max_oper_press?: number | null;
+            /**
+             * Alt Norm Oper Temp
+             * @description 备用工况 · 正常操作温度
+             */
+            alt_norm_oper_temp?: number | null;
+            /**
+             * Alt Max Oper Temp
+             * @description 备用工况 · 最大操作温度
+             */
+            alt_max_oper_temp?: number | null;
+            /**
+             * Design Pressure Mpa
+             * @description 设计压力（MPaG）
+             */
+            design_pressure_mpa: number;
+            /**
+             * Design Vacuum
+             * @description 设计真空
+             */
+            design_vacuum?: number | null;
+            /**
+             * Design Temperature C
+             * @description 设计温度（°C）
+             */
+            design_temperature_c: number;
+            /**
+             * Design Min Temperature C
+             * @description 设计最小温度（°C）
+             */
+            design_min_temperature_c?: number | null;
+            /**
+             * Piping Category
+             * @description 压力管道类别（GC1/GC2/GC3）
+             */
+            piping_category: string;
+            /**
+             * Pressure Test Medium
+             * @description 压力试验介质（WATER/AIR）
+             */
+            pressure_test_medium: string;
+            /**
+             * Pressure Test Press
+             * @description 压力试验压力
+             */
+            pressure_test_press: number;
+            /**
+             * Ndt Method
+             * @description NDT 方法（RT/UT/MT/PT/NONE）
+             */
+            ndt_method?: string | null;
+            /**
+             * Ndt Ratio
+             * @description NDT 比例（%）
+             */
+            ndt_ratio?: number | null;
+            /**
+             * Ndt Tech Level
+             * @description NDT 技术等级
+             */
+            ndt_tech_level?: string | null;
+            /**
+             * Leak Test Medium
+             * @description 泄漏试验介质（AIR/WATER）
+             */
+            leak_test_medium?: string | null;
+            /**
+             * Leak Test Press
+             * @description 泄漏试验压力
+             */
+            leak_test_press?: number | null;
+            /**
+             * Check Class
+             * @description 检查等级（I~V）
+             */
+            check_class: string;
+            /**
+             * Cleaning Method
+             * @description 清洗方法（PI/PA/DG/SO 多选）
+             */
+            cleaning_method?: string[] | null;
+            /**
+             * Stress Analysis Level
+             * @description 应力分析级别
+             */
+            stress_analysis_level?: string | null;
+            /**
+             * Remark
+             * @description 备注
+             */
+            remark?: string | null;
+            /**
+             * Sign Status
+             * @description 记录门禁 9 态
+             */
+            sign_status: string;
+            /**
+             * Updated By
+             * @description 更新人（用户 ID）
+             */
+            updated_by?: string | null;
+            /**
+             * Updated At
+             * @description 更新时间
+             */
+            updated_at?: string | null;
         };
         /**
          * PipeNetSolveRequest
@@ -29117,6 +29372,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pipe_line_list_api_v1_projects__project_id__pipe_line_list_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipeLineListRow"][];
                 };
             };
             /** @description Validation Error */

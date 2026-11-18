@@ -11,6 +11,8 @@
  * 端点（P5-1）冻结后由 src/types/api.d.ts 替换。
  */
 
+import type { components } from './api';
+
 export type PipeDesignStage = 'BASIC' | 'DETAIL';
 
 /** 管件（弯头/三通/大小头等）：类型 + 数量 + 尺寸（DN 字符串）。 */
@@ -61,30 +63,15 @@ export interface PipeResult {
 }
 
 /** 管道一览表行（V1 极简：BASIC 15 列 / DETAIL 扩展至 25 列）。 */
-export interface PipeLineListRow {
-  seq: number;
-  pipe_no: string;
-  size: string;
-  material: string;
-  fluid_code: string;
-  fluid_name: string;
-  phase: string;
-  fluid_class: string;
-  toxicity: string;
-  pipe_class: string;
-  /** BASIC 截止 */
-  design_pressure_mpa: number;
-  design_temperature_c: number;
-  /** DETAIL 扩展 */
-  length_m?: number;
-  dp_kpa?: number;
-  velocity_m_s?: number;
-  pipe_class_detail?: string;
-  insulation_code?: string;
-  start_point?: string;
-  end_point?: string;
-  pid_ref?: string;
-  sign_status?: string;
-  updated_by?: string;
-  updated_at?: string;
-}
+/**
+ * 管道一览表的一行 = **契约类型**（2026-11-19 · P10-C · T2 · TODO-159）。
+ *
+ * ⚠️ **此前这里手写了一份 25 列**（含 `length_m` / `dp_kpa` / `velocity_m_s` /
+ * `pipe_class_detail` 四个**后端根本没有的列**）⇒ ⇒ 页面在真后端下那四列
+ * 永远是 `undefined` ⇒ ⇒ 「幽灵字段」。
+ *
+ * ⇒ ⇒ 现在：**契约类型**（`GET /projects/{project_id}/pipe-line-list` 的响应）
+ * ⇒ ⇒ 列清单 = **SPEC §7.11.2「管道一览表列（完整）」43 列**逐条对应
+ * `piping_results` ⇒ ⇒ 契约变 ⇒ `tsc` 立刻红，不会再有第二份。
+ */
+export type PipeLineListRow = components['schemas']['PipeLineListRow'];
