@@ -4114,10 +4114,13 @@ Redis ⇒ 不可路由端口）⇒ ⇒ 实测（`ss -tnp` 监控整轮跑）**�
 ⚠️ `POST /report-builder/definitions` 的 body **直接暴露** `project_id`
 ⇒ ⇒ 客户端可以把它**指向任意项目**（包括自己没有授权的项目）。
 
-⇒ ⇒ **不是「跨项目越权」**（可见性按创建人 ⇒ ⇒ 别人的私有定义看不见）
-⇒ ⇒ **是口径不一致**：数据模型承诺了「项目级」，授权却不按它 ⇒ ⇒
-⇒ 将来若有人把可见性改成「按项目可见」⇒ ⇒ **这个洞立刻开** ⇒ ⇒
-⇒ 而**没有任何断言**守着「可见性不按项目」这件事。
+⇒ ⇒ ⚠️ **2026-11-18 追记**：初判说它「**不参与授权**」是**只对了一半**
+⇒ ⇒ 它**不参与「定义的可见性」判定**（那是 `created_by` / `shared_with`）
+⇒ ⇒ **但它决定「报表取哪个项目的数据」** ⇒ ⇒
+`builder_service.py:176`：**`scope = project_id or row.project_id`**
+⇒ ⇒ ⇒ **所以它不是死字段** ⇒ ⇒ ⇒ **真缺口的严重度因此升级 ⇒ ⇒
+⇒ ⇒ 见 TODO-174（**high** · 跨项目读 · **实测取证**）**。
+⇒ ⇒ ⇒ 本条的「口径不一致」是**成因** ⇒ ⇒ ⇒ 两条要一起修。
 
 **建议改法**（**两条路，要人选** —— 这是产品语义）：
 
@@ -4221,3 +4224,55 @@ Redis ⇒ 不可路由端口）⇒ ⇒ 实测（`ss -tnp` 监控整轮跑）**�
 **何时做**：下一批（**不阻塞** ⇒ ⇒ 闸在代码里 ⇒ ⇒ 只是没证据）
 
 **归属**：P10-F（F3-T2a · A）
+
+---
+
+## TODO-174: 报表执行的**项目作用域**从不对执行者做授权判定（跨项目读 · **high**）🔴
+
+**现状**（2026-11-18 · P10-F 的 F3-T2a 审计**实测取证**）：
+
+⚠️ **实测演示**（证据在 `.superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/demo-scope-gap.py`
+⇒ ⇒ 跑它 ⇒ ⇒ **绿** ⇒ ⇒ 越权成立）：
+
+```
+[演示] 执行者对目标项目无授权，却取到 2 行
+        （定义 project_id=259a677c-… ，目标项目=259a677c-…）
+```
+
+**链路（三步，每步都实测过）**：
+
+| # | 步骤 | 代码事实 |
+|---|---|---|
+| 1 | `POST /report-builder/definitions`，body 里 **`project_id` 客户端可填任意值** | `DefinitionService.create`（`definition_service.py:186-210`）**只查重名**（`_reject_duplicate`）⇒ ⇒ **不验授权** |
+| 2 | `POST /definitions/{id}/publish`（需 REVIEWER / APPROVER / SYSTEM_ADMIN） | service 层 `publish()` **不查 `created_by`** ⇒ ⇒ **任何 REVIEWER 都能发布别人的草稿**（= TODO-172） |
+| 3 | `POST /definitions/{id}/execute` | `builder_service.py:176`：**`scope = project_id or row.project_id`** ⇒ ⇒ **scope = 定义里那个项目** ⇒ ⇒ 报表引擎按它取数 |
+
+⇒ ⇒ ⇒ **而 `execute_definition` 的 `user_id` 只写进执行日志**
+（`executed_by=user_id` · `builder_service.py:270,281`）
+⇒ ⇒ ⇒ **没有任何一处把「执行者」与「scope 项目」做授权判定**
+⇒ ⇒ ⇒ **执行者拿到了他没有任何 `user_projects` 授权行的项目的行**。
+
+⚠️ **这与 bug-172 是同一族**（固定 10 类报表导出**不按项目隔离** ⇒ ⇒ 当时的修法是
+「项目作用域 ∩ `record_ids`，**两者都是必需项**」）⇒ ⇒ ⇒ **同一个团队以前抓过
+这类病** ⇒ ⇒ ⇒ 这条是**同一个洞的另一条路** ⇒ ⇒ ⇒ 修法应当照抄那条：
+**scope 项目必须是执行者有授权的项目**。
+
+⚠️ **`test_execution_never_crosses_project_boundary` 断的不是这条**
+⇒ ⇒ 它断的是「**A 项目的定义**执行时不返回 B 项目的行」（= scope 的隔离）
+⇒ ⇒ **没有**断「执行者对 scope 项目有授权」⇒ ⇒ ⇒ **断言缺口与越权缺口并存**。
+
+**建议改法**：
+
+① `execute_definition` 拿到 `user_id` ⇒ ⇒ 查 `user_projects`（或调
+   `check_project_access_or_404`）⇒ ⇒ **scope 项目无授权 ⇒ ⇒ 403/404**
+   ⇒ ⇒ ⚠️ ARQ 任务体里也有 `session_factory` ⇒ ⇒ 查得了；
+② 或者在**端点层**（`execute_definition_endpoint`）就查 ⇒ ⇒ 早失败、
+   错误码更准（任务体里失败 ⇒ ⇒ 用户只看到「执行失败」）；
+③ **顺带**：`publish` / `obsolete` 补 `created_by` 判定（= TODO-172）
+   ⇒ ⇒ 否则第 2 步仍可被利用。
+
+**何时做**：**下一批优先**（⇒ ⇒ 这是**读**越权 ⇒ ⇒ 数据泄露面）
+
+**归属**：P10-F（F3-T2a · **high** · 与 TODO-170 同源 · 与 TODO-172 联动）
+
+---
