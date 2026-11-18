@@ -2013,3 +2013,122 @@ async def test_execute_definition_allows_an_executor_with_scope_access(
     assert r.status_code != 404, (
         f"实得 404：{r.text[:200]} ⇒ ⇒ 有授权的执行者也被拒了"
     )
+
+
+# ---------------------------------------------------------------------------
+# ⚠️ **可见性三态**（P10-F · TODO-170 选项 ③ · 2026-11-18 人裁决）
+# ---------------------------------------------------------------------------
+#
+# | 条件 | 可见 |
+# |---|---|
+# | `created_by == 我` | ✓（自己的定义） |
+# | `project_id IS NULL` ∧ `PUBLISHED` ∧ `shared_with == ALL_USERS` | ✓（**公司级模板**，全公司可见） |
+# | `project_id IS NOT NULL` ∧ `PUBLISHED` ∧ **我在该项目有授权** | ✓（**项目级模板**，项目内有授权者可见） |
+# | 其余 | ✗ |
+#
+# ⚠️ **这三条测试全部用 `strict_client`** ⇒ ⇒ 默认 `client` 把
+# `check_user_project_access` mock 成**永远 True** ⇒ ⇒ 「项目内有授权者」
+# 这一条在默认 client 下**恒真** ⇒ ⇒ ⇒ 测不出「无授权者看不见」。
+
+
+@pytest.mark.asyncio
+async def test_project_scoped_definition_is_invisible_without_project_access(
+    strict_client, db_session
+):
+    """⚠️ 项目级模板：**没有该项目授权**的人**看不见**（哪怕 `ALL_USERS`）。"""
+    proj = await _make_project(db_session, "有边界的项目")
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(project_id=str(proj.project_id)),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+    ok = await strict_client.post(
+        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+    )
+    assert ok.status_code in (200, 201), ok.text[:200]
+
+    # ① 详情：看不见 ⇒ ⇒ 404
+    r = await strict_client.get(
+        f"/api/v1/report-builder/definitions/{def_id}",
+        headers=_auth("outsider"),
+    )
+    assert r.status_code == 404, (
+        f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
+        "项目级模板对**无该项目授权**的人可见 ⇒ ⇒ 越权"
+    )
+    # ② 列表：也不该出现
+    lst = await strict_client.get(
+        "/api/v1/report-builder/definitions", headers=_auth("outsider")
+    )
+    assert lst.status_code == 200, lst.text[:200]
+    listed = [d["def_id"] for d in lst.json()["items"]]
+    assert def_id not in listed, (
+        "列表里出现了无授权的项目级模板 ⇒ ⇒ 列表与详情两份规则漂了"
+    )
+
+
+@pytest.mark.asyncio
+async def test_project_scoped_definition_is_visible_with_project_access(
+    strict_client, db_session
+):
+    """⚠️ 项目级模板：**有该项目授权**的人**看得见**（正向路径）。"""
+    from app.services.token_issuer import derive_user_id
+    from app.services.user_project_service import UserProjectService
+
+    proj = await _make_project(db_session, "有授权者的项目")
+    member_id = derive_user_id("member")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=member_id, project_id=proj.project_id,
+        role_in_project="DESIGNER", granted_by=member_id,
+    )
+    await db_session.commit()
+
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(project_id=str(proj.project_id)),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+    ok = await strict_client.post(
+        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+    )
+    assert ok.status_code in (200, 201), ok.text[:200]
+
+    r = await strict_client.get(
+        f"/api/v1/report-builder/definitions/{def_id}",
+        headers=_auth("member"),
+    )
+    assert r.status_code == 200, (
+        f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
+        "项目级模板对**有该项目授权**的人不可见 ⇒ ⇒ 规则实现错了"
+    )
+
+
+@pytest.mark.asyncio
+async def test_company_level_definition_stays_visible_to_everyone(
+    strict_client, db_session
+):
+    """⚠️ **公司级模板**（`project_id IS NULL`）⇒ ⇒ `ALL_USERS` = **全公司**。"""
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(project_id=None),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+    ok = await strict_client.post(
+        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+    )
+    assert ok.status_code in (200, 201), ok.text[:200]
+
+    r = await strict_client.get(
+        f"/api/v1/report-builder/definitions/{def_id}",
+        headers=_auth("outsider"),
+    )
+    assert r.status_code == 200, (
+        f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
+        "公司级模板对所有人不可见 ⇒ ⇒ `ALL_USERS` 的语义变了"
+    )

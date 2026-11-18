@@ -287,6 +287,19 @@ async def client(db_engine, monkeypatch) -> AsyncIterator[AsyncClient]:
 # P9B-4 紧急批次 T1：`strict_client` —— **不** mock 项目守卫的客户端
 # ---------------------------------------------------------------------------
 #
+#: **F3 审计台账**：已审端点里「**带项目维度**」的个数。
+#:
+#: ⚠️ **棘轮用**（`tests/test_strict_client_ratchet.py`）⇒ ⇒
+#: ⇒ 「用到 `strict_client` 的测试函数数 ≥ 本数」⇒ ⇒
+#: ⇒ 审计每推进一个带项目维度的端点 ⇒ ⇒ **必须**补一条 `strict_client` 断言
+#: ⇒ ⇒ ⇒ 这就是「默认 client 测不出守卫缺陷」那条纪律的**可执行**形态。
+#:
+#: ⚠️ 计数口径：**端点级**，不是模块级（一个模块里可能只有 1 个端点带项目维度）。
+#: ⚠️ 2026-11-18：F3-T2a 审完 `config.py`(11) + `report_builder.py`(9)
+#: ⇒ ⇒ 其中**带项目维度**的端点 = 2（`report_builder` 的 create 与 execute）
+#: ⇒ ⇒ ⇒ 其余 18 个端点要么是公司级资源（无项目维度）⇒ ⇒ 要么是纯计算。
+AUDITED_PROJECT_SCOPED_ENDPOINTS = 2
+
 #: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
 #:
 #: ⚠️ **为什么必须在模块导入时取**：`client` fixture 的 monkeypatch 会把

@@ -119,8 +119,12 @@ async def _execute(db: AsyncSession, def_id, *, user_id, project_id):
 
     await DefinitionService(db).publish(def_id=def_id)
     await db.commit()
+    # ⚠️ **roles=SYSTEM_ADMIN** —— `execute_definition` 里有那道「scope 项目要对
+    # ⇒ ⇒ 执行者有授权」的判定（P10-F · TODO-174）⇒ ⇒ 本文件测的是**取数的
+    # ⇒ ⇒ 项目作用域**，不是授权 ⇒ ⇒ 走全局 bypass 最省事。
     return await execute_definition(db, def_id=def_id, user_id=user_id,
-                                    project_id=project_id)
+                                    project_id=project_id,
+                                    actor_roles=["SYSTEM_ADMIN"])
 
 
 async def _definition(db: AsyncSession, *, project_id, user_id):
@@ -130,6 +134,9 @@ async def _definition(db: AsyncSession, *, project_id, user_id):
         name=f"JOIN 项目隔离 {uuid.uuid4().hex[:6]}", category="测试",
         description="", output_format="csv", shared_with="ALL_USERS",
         project_id=project_id, user_id=user_id,
+        # ⚠️ **roles=SYSTEM_ADMIN** —— 同上：建定义时也要判「对 project_id
+        # ⇒ ⇒ 有授权」（P10-F · TODO-174）⇒ ⇒ 本文件测的是取数作用域。
+        actor_roles=["SYSTEM_ADMIN"],
         definition_json={
             "DataSources": [{"source": "EQUIP_LIST"},
                             {"source": "PUMP_RESULTS"}],
@@ -409,6 +416,7 @@ async def test_definition_sort_direction_reaches_the_query(db_session):
             name=f"排序方向 {direction} {uuid.uuid4().hex[:6]}", category="测试",
             description="", output_format="csv", shared_with="ALL_USERS",
             project_id=pid, user_id=uuid.uuid4(),
+            actor_roles=["SYSTEM_ADMIN"],  # 同上：测排序，不是授权
             definition_json={
                 "DataSources": [{"source": "EQUIP_LIST"}],
                 "SelectedFields": [
@@ -422,7 +430,8 @@ async def test_definition_sort_direction_reaches_the_query(db_session):
         await defn.publish(def_id=d.def_id)
         await db_session.commit()
         out = await execute_definition(db_session, def_id=d.def_id,
-                                       user_id=uuid.uuid4(), project_id=pid)
+                                       user_id=uuid.uuid4(), project_id=pid,
+                                       actor_roles=["SYSTEM_ADMIN"])  # 同上：测排序
         # rows 是 list[list]，第 0 列就是位号（SelectedFields 唯一一项）
         # headers 用的是**别名**（SelectedFields 里的 "位号"），不是字段名
         col = out.headers.index("位号")

@@ -185,6 +185,25 @@ class ReportDefinition(TimestampMixin, Base):
     `definition_json` 承载 SPEC §3.2.2(2) 的 DataSources / SelectedFields /
     FilterConditions / SortBy。**JOIN 只能取 datasource_registry 白名单**，
     不接受任意关联键（SPEC §1.3）。
+
+    ## ⚠️ `shared_with == "ALL_USERS"` 的语义**随 `project_id` 变**
+
+    （2026-11-18 人裁决 · P10-F · TODO-170 选项 ③）
+
+    | `project_id` | 作用域 | `ALL_USERS` 的含义 |
+    |---|---|---|
+    | `NULL` | **公司级模板** | **全公司**（任何已认证用户都可见） |
+    | 非 `NULL` | **项目级模板** | **项目内所有有授权者**（不是全公司！） |
+
+    ⚠️ **项目级模板上，`ALL_USERS` 不再表示「全公司」** ⇒ ⇒ 实现上那一档
+    由「**我在该项目有授权**」这条**取代** ⇒ ⇒ ⇒
+    ⇒ 可见性规则见 `app/services/report/definition_service.py::visible_clause`
+    （**唯一一份** ⇒ 列表与详情共用）。
+
+    ⚠️ **「项目级模板」对**没有该项目授权**的人是**不可见**的**
+    ⇒ ⇒ 包括 `ALL_USERS` 的定义在内 ⇒ ⇒ ⇒ 这是「可见性」与
+    ⇒ ⇒ 「**作用域授权**」两件事 ⇒ ⇒ ⇒ 后者在执行路径上再判一次
+    ⇒ ⇒ （`execute_definition` ⇒ ⇒ scope 项目要对执行者有授权 ⇒ ⇒ TODO-174）。
     """
 
     __tablename__ = "report_definitions"

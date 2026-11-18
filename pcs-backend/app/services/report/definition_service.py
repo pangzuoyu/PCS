@@ -36,6 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.models.project import UserProject
 from app.models.report import ReportDefinition
 from app.services.exceptions import PcsError
 from app.services.report.datasource_registry import DATASOURCES
@@ -166,16 +167,57 @@ def _to_dict(row: ReportDefinition) -> dict[str, Any]:
 
 
 def visible_clause(user_id: uuid.UUID):
-    """SQL 侧的可见性过滤 —— 与 `is_visible` 保持同一套规则。
+    """SQL 侧的可见性过滤 —— **唯一一份**规则（列表与详情共用）。
 
-    ⚠️ 列表和详情**必须用同一个规则**：列表过滤掉、详情却能按 ID 取到，
-    等于没有过滤。所以规则写在这里，两处共用，不各写一遍。
+    ⚠️ **列表和详情必须用同一个规则**：列表过滤掉、详情却能按 ID 取到，
+    等于没有过滤。⇒ ⇒ 规则写在这里，两处**共用这一份**
+    ⇒ ⇒ （此前详情走的是另一份 Python 规则 `_can_see` ⇒ ⇒ **两份会漂**
+    ⇒ ⇒ 现已合并 ⇒ ⇒ `_can_see` 删掉。）
+
+    ## 规则（2026-11-18 人裁决 · TODO-170 选项 ③）
+
+    | 条件 | 可见 |
+    |---|---|
+    | `created_by == 我` | ✓（自己的定义） |
+    | `project_id IS NULL` ∧ `PUBLISHED` ∧ `shared_with == ALL_USERS` | ✓（**公司级模板**，全公司可见） |
+    | `project_id IS NOT NULL` ∧ `PUBLISHED` ∧ **我在该项目有授权** | ✓（**项目级模板**，项目内有授权者可见） |
+    | 其余 | ✗ |
+
+    ⚠️ **`shared_with == ALL_USERS` 的语义随 `project_id` 变**：
+
+    - `project_id IS NULL` ⇒ ⇒ `ALL_USERS` = **全公司**；
+    - `project_id IS NOT NULL` ⇒ ⇒ `ALL_USERS` = **项目内所有有授权者**
+      ⇒ ⇒ ⇒ 实现上这一档**不再看 `shared_with`** ⇒ ⇒ 由「我在该项目
+      ⇒ ⇒ 有授权」**取代** ⇒ ⇒ ⇒ 语义写在 `ReportDefinition` 的 docstring。
+
+    ⚠️ **「我在该项目有授权」的口径**必须与
+    `UserProjectService.check_user_project_access` **一致**
+    ⇒ ⇒ 即 `user_projects` 有行 **且 `revoked_at IS NULL`**
+    ⇒ ⇒ ⇒ 这里用 EXISTS 子查询（⇒ ⇒ 不需要 await ⇒ ⇒ 仍是**纯 SQL 表达式**）。
     """
+    project_member = (
+        select(UserProject.id)
+        .where(
+            UserProject.user_id == user_id,
+            UserProject.project_id == ReportDefinition.project_id,
+            UserProject.revoked_at.is_(None),
+        )
+        .exists()
+    )
     return (
         (ReportDefinition.created_by == user_id)
         | (
             (ReportDefinition.status == "PUBLISHED")
-            & (ReportDefinition.shared_with == "ALL_USERS")
+            & (
+                (
+                    ReportDefinition.project_id.is_(None)
+                    & (ReportDefinition.shared_with == "ALL_USERS")
+                )
+                | (
+                    ReportDefinition.project_id.is_not(None)
+                    & project_member
+                )
+            )
         )
     )
 
@@ -225,8 +267,20 @@ class DefinitionService:
         return row
 
     async def get(self, *, def_id: uuid.UUID, user_id: uuid.UUID) -> ReportDefinition:
-        row = await self.db.get(ReportDefinition, def_id)
-        if row is None or not self._can_see(row, user_id):
+        """按 id 取定义 —— **可见性判定与列表共用同一份规则**（`visible_clause`）。
+
+        ⚠️ 此前这里是 `db.get` + 另一份 Python 规则（`_can_see`）⇒ ⇒
+        ⇒ **两份规则会漂** ⇒ ⇒ 「列表过滤掉、详情却能按 ID 取到」就等于没过滤
+        ⇒ ⇒ ⇒ 现已合并成**一份**。
+        """
+        row = (
+            await self.db.execute(
+                select(ReportDefinition)
+                .where(ReportDefinition.def_id == def_id)
+                .where(visible_clause(user_id))
+            )
+        ).scalar_one_or_none()
+        if row is None:
             raise PcsError(f"报表定义不存在：{def_id}",
                            code="REPORT_DEFINITION_NOT_FOUND", status=404)
         return row
@@ -368,12 +422,6 @@ class DefinitionService:
         if (await self.db.execute(stmt)).scalars().first() is not None:
             raise PcsError(f"同名报表定义已存在：{name}",
                            code="REPORT_DEFINITION_DUPLICATE", status=409)
-
-    @staticmethod
-    def _can_see(row: ReportDefinition, user_id: uuid.UUID) -> bool:
-        if row.created_by == user_id:
-            return True
-        return row.status == "PUBLISHED" and row.shared_with == "ALL_USERS"
 
 
 __all__ = ["DefinitionService", "DEFINITION_STATUSES", "SUPPORTED_SHARED_WITH",
