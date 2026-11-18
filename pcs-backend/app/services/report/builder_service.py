@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Sequence
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +33,7 @@ from app.models.report import ReportDefinition, ReportExecutionLog
 from app.services.exceptions import PcsError
 from app.services.report import query_engine as qe
 from app.services.report.datasource_registry import DATASOURCES, join_key_for
+from app.services.user_project_service import require_project_access_or_404
 
 #: 从源批量查询的分批大小。IN 列表过长会让语句膨胀到不可用。
 _BATCH_SIZE = 5000
@@ -152,6 +153,7 @@ async def execute_definition(
     temporary_max_rows: int | None = None,
     output_format: str | None = None,
     task_id: str | None = None,
+    actor_roles: Sequence[str] | None = None,
 ) -> ExecutionResult:
     """执行一份定义并写执行日志。**纯查询 + 审计，不写 report_files**。
 
@@ -180,6 +182,17 @@ async def execute_definition(
             "该报表定义未绑定项目（公司级模板），执行时必须指定 project_id。"
             "**不能默认全库查询** —— 那会把别的项目的数据一起导出去。",
             code="REPORT_PROJECT_SCOPE_REQUIRED", status=400,
+        )
+
+    # ⚠️⚠️ **scope 项目必须对执行者有授权**（P10-F · TODO-174 · 跨项目读 · high）
+    # ⇒ ⇒ 位置**必须**在这里：`scope` 算出来之后、**任何取数之前**
+    # ⇒ ⇒ 早一点就是「先取数再判无权」⇒ ⇒ 那等于没判。
+    # ⇒ ⇒ 为什么需要：定义**可见**（②a 资源 id）≠ **能取它的 scope 项目的数据**
+    # ⇒ ⇒ （②b 作用域 id）⇒ ⇒ 两者都要授权判定。
+    # ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形 ⇒ ⇒ 不泄露项目存在性）。
+    if scope is not None and user_id is not None:
+        await require_project_access_or_404(
+            db, user_id=user_id, project_id=scope, actor_roles=actor_roles,
         )
 
     defn = dict(row.definition_json or {})

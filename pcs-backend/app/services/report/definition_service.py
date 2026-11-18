@@ -30,7 +30,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +39,7 @@ from app.core.config import get_settings
 from app.models.report import ReportDefinition
 from app.services.exceptions import PcsError
 from app.services.report.datasource_registry import DATASOURCES
+from app.services.user_project_service import require_project_access_or_404
 
 # 状态集 —— SPEC §3.2.2(2) 的 `Status enum 草稿/已发布/已作废`。
 #
@@ -187,7 +188,18 @@ class DefinitionService:
                      description: str, output_format: str,
                      definition_json: dict[str, Any], shared_with: str,
                      project_id: uuid.UUID | None = None,
-                     max_rows: int = 10000) -> ReportDefinition:
+                     max_rows: int = 10000,
+                     actor_roles: Sequence[str] | None = None) -> ReportDefinition:
+        # ⚠️ **project_id 非空 ⇒ ⇒ 执行者对该项目必须有授权**（P10-F · TODO-174）
+        # ⇒ ⇒ 缺陷：`project_id` 是**客户端可填**的 ⇒ ⇒ 此前任何人都能把定义
+        # ⇒ ⇒ 挂到**别人项目**上 ⇒ ⇒ 执行时 scope 就是那个项目 ⇒ ⇒
+        # ⇒ ⇒ **跨项目读**（三步链路的第 ① 步 ⇒ ⇒ 这里堵住）。
+        # ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形 ⇒ ⇒ 不泄露项目存在性）。
+        if project_id is not None:
+            await require_project_access_or_404(
+                self.db, user_id=user_id, project_id=project_id,
+                actor_roles=actor_roles,
+            )
         if shared_with not in SUPPORTED_SHARED_WITH:
             raise PcsError(
                 f"shared_with 只支持 {sorted(SUPPORTED_SHARED_WITH)}。"

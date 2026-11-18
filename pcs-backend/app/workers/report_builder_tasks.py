@@ -39,6 +39,7 @@ async def execute_definition_task(
     filters: dict[str, Any] | None = None,
     max_rows: int | None = None,
     output_format: str | None = None,
+    roles: list[str] | None = None,
 ) -> str:
     """ARQ 任务体。返回 `report_file_id` 字符串。"""
     # ⚠️ 原本写的是 `ctx["db"]` —— 而 worker 的 `on_startup` 注入的是
@@ -89,6 +90,9 @@ async def execute_definition_task(
                 temporary_filters=filters, temporary_max_rows=max_rows,
                 output_format=output_format,
                 task_id=job_id,
+                # ⚠️ **roles 要带进来** —— service 层那道 scope 授权判定要判
+                # ⇒ ⇒ SYSTEM_ADMIN bypass（判据是角色）⇒ ⇒ 没有角色就误伤超级用户。
+                actor_roles=roles,
             )
             file_id = await _render_and_store(
                 db, out=out, project_id=pid, job_id=job_id, task_id=job_id,

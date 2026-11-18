@@ -864,6 +864,10 @@ async def test_builder_task_renders_a_file_and_audits(db_session, monkeypatch):
         _ctx_with(db_session, job_id="job-x"),
         def_id=str(d.def_id), project_id=str(proj.project_id),
         user_id=str(uuid.uuid4()), output_format="pdf",
+        # ⚠️ **roles=SYSTEM_ADMIN** —— 任务体里有那道「scope 项目要对执行者
+        # ⇒ ⇒ 有授权」的判定（P10-F · TODO-174）⇒ ⇒ 本用例测的是**渲染**，
+        # ⇒ ⇒ 不是授权 ⇒ ⇒ 走 SYSTEM_ADMIN 的全局 bypass 最省事。
+        roles=["SYSTEM_ADMIN"],
     )
 
     row = (await db_session.execute(
@@ -1091,7 +1095,8 @@ async def test_builder_export_actually_carries_the_watermark(db_session):
     file_id = await tasks.execute_definition_task(
         _ctx_with(db_session, job_id="job-wm"),
         def_id=str(d.def_id), project_id=str(proj.project_id),
-        user_id=str(_uuid.uuid4()), output_format="pdf")
+        user_id=str(_uuid.uuid4()), output_format="pdf",
+        roles=["SYSTEM_ADMIN"])  # 同上：测的是水印，不是授权
     row = (await db_session.execute(select(ReportFile).where(
         ReportFile.report_file_id == _uuid.UUID(file_id)))).scalar_one()
     assert NON_ISSUED_PREFIX in _pdf_text(paths.resolve_path(row.file_path)), \
@@ -1317,6 +1322,7 @@ async def test_task_closes_the_session_it_opened(db_session, monkeypatch):
         {"session_factory": _RecordingSession, "job_id": "job-close", "job_try": 1},
         def_id=str(d.def_id), project_id=str(proj.project_id),
         user_id=str(uuid.uuid4()), output_format="pdf",
+        roles=["SYSTEM_ADMIN"],  # 同上：测的是会话关闭，不是授权
     )
     assert closed, (
         "任务体开了 session 却从不 close —— 每个 job 泄漏一条连接，"
@@ -1822,3 +1828,188 @@ async def test_no_status_parameter_returns_everything(client):
     assert pub.json()["status"] == "PUBLISHED"
     r = await client.get("/api/v1/report-builder/definitions", headers=_auth("author-1"))
     assert {d["status"] for d in r.json()["items"]} == {"DRAFT", "PUBLISHED"}
+
+
+# ---------------------------------------------------------------------------
+# ⚠️ **作用域授权**（P10-F · TODO-174 · 跨项目读 · high）
+# ---------------------------------------------------------------------------
+#
+# ⚠️ **为什么这组测试用 `strict_client` 而不是默认 `client`** ——
+# 默认 `client` 把项目守卫 mock 成**永远 True** ⇒ ⇒ 「端点缺项目守卫」
+# 这类缺陷在它上面**一个都测不出来** ⇒ ⇒ 这组断言必须走真守卫。
+#
+# ⚠️ **4 问表第 ② 问要分 ②a（资源 id）/ ②b（作用域 id）** ——
+# `def_id` 是**资源 id**（定义本身的可见性）⇒ ⇒ `scope` 的那个
+# `project_id` 是**作用域 id**（取哪个项目的数据）⇒ ⇒ 两者都要授权判定。
+
+
+@pytest.mark.asyncio
+async def test_create_definition_rejects_a_project_the_creator_cannot_access(
+    strict_client, db_session
+):
+    """⚠️ 填**别人项目**的 `project_id` 建定义 ⇒ ⇒ **404**（不泄露项目存在性）。
+
+    ⇒ ⇒ 这条堵的是**攻击链的第 ① 步**：定义挂到谁的项目上，
+    ⇒ ⇒ 后面执行时就能取谁的数据（见下面那条）。
+    """
+    target = await _make_project(db_session, "别人的项目")
+
+    r = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("attacker"),
+        json=_definition_body(project_id=str(target.project_id)),
+    )
+    assert r.status_code == 404, (
+        f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
+        "建定义时**没验** project_id 的授权 ⇒ ⇒ 可以把定义挂到别人的项目上"
+    )
+
+
+@pytest.mark.asyncio
+async def test_execute_definition_rejects_executor_without_scope_access(
+    strict_client, db_session, monkeypatch
+):
+    """⚠️ 执行者对 **scope 项目**无授权 ⇒ ⇒ **404**（不是 200 空列表，不是 403）。
+
+    ⚠️ **为什么不是 403**：403 会泄露「这个项目存在」⇒ ⇒ 与「不存在」同形
+    ⇒ ⇒ 404（与 `check_project_access_or_404` 的口径一致）。
+
+    ⚠️ **为什么执行者「看得见」这份定义**：定义是 `PUBLISHED` + `ALL_USERS`
+    ⇒ ⇒ 可见性（**②a 资源 id**）**放行** ⇒ ⇒ ⇒ 唯一能拦住的就是
+    ⇒ ⇒ **②b 作用域 id** 的授权判定 ⇒ ⇒ ⇒ 这条断言精确命中它。
+    """
+    from app.services.report import builder_service
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj_a = await _make_project(db_session, "项目甲")
+
+    # ① SYSTEM_ADMIN 建一份**指向项目甲**的定义（bypass ⇒ 建得过）
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(
+            project_id=str(proj_a.project_id), definition_json=DEF_JSON_EQUIP
+        ),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+
+    # ② 发布（SYSTEM_ADMIN ∈ PUBLISH_ROLES）
+    ok = await strict_client.post(
+        PUBLISH.format(d=def_id), headers=_auth("admin", "SYSTEM_ADMIN")
+    )
+    assert ok.status_code in (200, 201), f"发布失败：{ok.status_code} {ok.text[:200]}"
+
+    # ③ 造点数据 ⇒ ⇒「有数据可取」⇒ ⇒ 404 不是因为「本来就没数据」
+    await make_report_seed(db_session, proj_a.project_id, "EQUIPMENT_LIST")
+
+    # ④ **取数函数**被调就记下来
+    calls: list[str] = []
+    real_fetch = builder_service._fetch_source
+
+    async def _spy(*args, **kwargs):
+        calls.append("fetch")
+        return await real_fetch(*args, **kwargs)
+
+    monkeypatch.setattr(builder_service, "_fetch_source", _spy)
+
+    # ⑤ 执行者对项目甲**没有任何授权** ⇒ ⇒ 404
+    r = await strict_client.post(
+        f"/api/v1/report-builder/definitions/{def_id}/execute",
+        headers=_auth("attacker"),
+        json={},
+    )
+    assert r.status_code == 404, (
+        f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
+        "scope 项目**没对执行者**验授权 ⇒ ⇒ 跨项目读"
+    )
+    # ⑥ 且**一行都没取**（不是「取完再判无权」）
+    assert calls == [], f"取数函数被调用了 {len(calls)} 次 ⇒ ⇒ 先取数后判授权"
+
+
+@pytest.mark.asyncio
+async def test_execute_definition_service_also_rejects_an_unauthorized_scope(
+    strict_client, db_session
+):
+    """⚠️ **service 层也要验**（纵深防御）—— 端点挡住了不代表 service 挡住了。
+
+    ⇒ ⇒ ARQ 任务体直接调 `execute_definition` ⇒ ⇒ 端点那一道**绕得过去**
+    ⇒ ⇒ service 里必须再有一道。
+    """
+    import uuid as _uuid
+
+    from app.core.errors import PcsError
+    from app.services.report.builder_service import execute_definition
+    from app.services.report.definition_service import DefinitionService
+
+    proj = await _make_project(db_session, "服务层项目")
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(
+            project_id=str(proj.project_id), definition_json=DEF_JSON_EQUIP
+        ),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+    await DefinitionService(db_session).publish(def_id=_uuid.UUID(def_id))
+
+    with pytest.raises(PcsError) as exc:
+        await execute_definition(
+            db_session, def_id=_uuid.UUID(def_id), user_id=_uuid.uuid4()
+        )
+    assert exc.value.status == 404, (
+        f"service 层没挡住无授权的执行者（status={exc.value.status}）"
+    )
+
+
+@pytest.mark.asyncio
+async def test_execute_definition_allows_an_executor_with_scope_access(
+    strict_client, db_session
+):
+    """⚠️ **正面路径**：执行者**对 scope 项目有授权** ⇒ ⇒ 执行得下去。
+
+    ⇒ ⇒ 与上面那条（无授权 ⇒ 404）**成对** ⇒ ⇒ 只钉「拒绝」不钉「允许」
+    ⇒ ⇒ 就可能把「所有人都被拒」当成「修好了」。
+    """
+    from app.services.report.definition_service import DefinitionService
+    from app.services.user_project_service import UserProjectService
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session, "有授权的项目")
+
+    # ① 执行者（普通 DESIGNER）**对项目甲有授权**
+    # ⚠️ **授权行必须挂在「令牌算出的那个 user_id」上** ⇒ ⇒ 令牌里的 subject
+    # ⇒ ⇒ 派生出 user_id（`uuid5(NAMESPACE_DNS, subject)`）⇒ ⇒ 授权给别的
+    # ⇒ ⇒ uuid 就等于「授权给了别人」⇒ ⇒ 端点仍会 404。
+    from app.services.token_issuer import derive_user_id
+
+    actor_user_id = derive_user_id("designer-with-access")
+    await UserProjectService.grant_project_access(
+        db_session, user_id=actor_user_id, project_id=proj.project_id,
+        role_in_project="DESIGNER", granted_by=actor_user_id,
+    )
+    await db_session.commit()
+
+    # ② 定义指向该项目，且对所有人可见
+    created = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("admin", "SYSTEM_ADMIN"),
+        json=_definition_body(
+            project_id=str(proj.project_id), definition_json=DEF_JSON_EQUIP
+        ),
+    )
+    assert created.status_code == 201, created.text[:300]
+    def_id = created.json()["def_id"]
+    await DefinitionService(db_session).publish(def_id=uuid.UUID(def_id))
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    # ③ 执行者有授权 ⇒ ⇒ **不是 404**
+    r = await strict_client.post(
+        f"/api/v1/report-builder/definitions/{def_id}/execute",
+        headers=_auth("designer-with-access"),
+        json={},
+    )
+    assert r.status_code != 404, (
+        f"实得 404：{r.text[:200]} ⇒ ⇒ 有授权的执行者也被拒了"
+    )

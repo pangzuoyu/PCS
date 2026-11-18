@@ -40,6 +40,7 @@ from app.schemas.report_builder import (
 from app.services.exceptions import PcsError
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
+from app.services.user_project_service import require_project_access_or_404
 from app.services.report.definition_service import (
     DEFINITION_STATUSES,
     MAX_ROWS_CEILING,
@@ -123,6 +124,9 @@ async def create_definition(
         description=body.description, output_format=body.output_format,
         definition_json=body.definition_json.model_dump(), shared_with=body.shared_with,
         project_id=body.project_id, max_rows=body.max_rows,
+        # ⚠️ **roles 要传下去** —— service 层要判「这个人对 `project_id`
+        # 有没有授权」⇒ ⇒ 而 SYSTEM_ADMIN 是全局 bypass ⇒ ⇒ 判据是角色。
+        actor_roles=list(actor.roles),
     )
     # ⚠️ **先序列化再 commit**，不是反过来。
     # UPDATE flush 之后，`updated_at`（onupdate=func.now()，服务端生成）
@@ -348,6 +352,20 @@ async def execute_definition_endpoint(
 
     svc = DefinitionService(db)
     row = await svc.get(def_id=def_id, user_id=actor.user_id)
+
+    # ⚠️⚠️ **scope 项目的授权判定（早失败）**（P10-F · TODO-174 · high）
+    # ⇒ ⇒ 位置：`row` 取到之后、**落执行日志 / 入队之前**
+    # ⇒ ⇒ ⇒ 端点直接 **404**（而不是 202 之后任务失败 ⇒ ⇒ 用户只看到
+    # ⇒ ⇒ 「执行失败」⇒ ⇒ 说不清是「没权限」还是「系统坏了」）。
+    # ⇒ ⇒ ⚠️ `ReportExecuteRequest` **没有** `project_id` 字段 ⇒ ⇒
+    # ⇒ ⇒ scope 只能来自定义 ⇒ ⇒ 与 `execute_definition` 里的算法一致。
+    # ⇒ ⇒ 无权 ⇒ ⇒ 404（与「不存在」同形 ⇒ ⇒ 不泄露项目存在性）。
+    if row.project_id is not None:
+        await require_project_access_or_404(
+            db, user_id=actor.user_id, project_id=row.project_id,
+            actor_roles=list(actor.roles),
+        )
+
     if row.status != "PUBLISHED":
         # 409 而不是 404：调用方已经通过 `get` 确认自己看得见这个定义，
         # 再用 404 说不存在是撒谎。状态码要说真话。
@@ -409,6 +427,9 @@ async def execute_definition_endpoint(
         await arq_queue.enqueue_definition_execution(
             def_id=str(row.def_id), project_id=str(row.project_id or ""),
             user_id=str(actor.user_id),
+            # ⚠️ **roles 也要进队列** —— 任务体里那道 scope 授权判定要判
+            # ⇒ ⇒ SYSTEM_ADMIN bypass（判据是角色）⇒ ⇒ 没有角色就误伤超级用户。
+            roles=list(actor.roles),
             filters=body.filters.model_dump() if body.filters else None,
             max_rows=body.max_rows, output_format=body.output_format,
             job_id=task_id,

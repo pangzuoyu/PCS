@@ -61,7 +61,8 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
                                        filters: dict | None = None,
                                        max_rows: int | None = None,
                                        output_format: str | None = None,
-                                       job_id: str | None = None) -> str:
+                                       job_id: str | None = None,
+                                       roles: list[str] | None = None) -> str:
     """入队一次自定义报表定义执行（b7）。
 
     ⚠️ `job_id` 让**调用方自选** ARQ job id（2026-10-14，评审 P1 #3）。
@@ -94,6 +95,9 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
         "execute_definition_task",
         def_id=def_id, project_id=project_id, user_id=user_id,
         filters=filters, max_rows=max_rows, output_format=output_format,
+        # ⚠️ **roles 要进任务体** —— 任务里那道 scope 授权判定要判
+        # ⇒ ⇒ SYSTEM_ADMIN bypass（判据是角色）⇒ ⇒ 没有角色就误伤超级用户。
+        roles=roles,
         **extra,
     )
 

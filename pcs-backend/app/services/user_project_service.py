@@ -342,3 +342,55 @@ async def ensure_user_row(
             )
         return winner
     return row
+
+
+# ---------------------------------------------------------------------------
+# 服务层的「项目访问权」判定（**一份**真相源）
+# ---------------------------------------------------------------------------
+
+
+async def require_project_access_or_404(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    actor_roles: Sequence[str] | None = None,
+) -> None:
+    """无权访问 `project_id` ⇒ ⇒ **404**（与「不存在」同形）。
+
+    ## 为什么服务层要有一份
+
+    ⚠️ **API 层已有同名的一份**（`app/api/v1/_guard.py::check_project_access_or_404`
+    ⇒ ⇒ 抛 `HTTPException`）⇒ ⇒ 但**服务层不能 import API 层**
+    （`app/services/**` 从来不依赖 `app/api/**` ⇒ ⇒ 反向依赖会把
+    「层」这个概念废掉）⇒ ⇒ ⇒ 这里给服务层一份**同语义**的实现。
+
+    ⇒ ⇒ **语义必须一致**（这是它存在的理由）：
+
+    | | API 层那份 | 本份（服务层） |
+    |---|---|---|
+    | 无权 | `HTTPException(404, "Project not found: …")` | `PcsError("项目不存在：…", code="PROJECT_NOT_FOUND", status=404)` |
+    | SYSTEM_ADMIN | **全局 bypass** | **全局 bypass** |
+    | 存在性 | **不泄露**（404 与「不存在」同形） | **不泄露** |
+
+    ⇒ ⇒ 403 **不行** ⇒ ⇒ 403 会泄露「这个项目存在」。
+
+    ## 什么时候用哪一份
+
+    ⇒ ⇒ **端点层**用 API 那份（HTTPException 是 FastAPI 的原生形状）；
+    ⇒ ⇒ **service / worker 层**用本份（`PcsError` 是本仓的业务错误信封）
+    ⇒ ⇒ ⇒ **同一个失败在两层是两种信封** ⇒ ⇒ 这是**已知的不一致**
+    ⇒ ⇒ 记在 TODO-174 的备注里 ⇒ ⇒ 将来若要统一 ⇒ ⇒ 改这一处即可
+    （端点层改用本份 ⇒ ⇒ 形状一致 ⇒ ⇒ 但会动 21+ 端点的错误信封 ⇒ ⇒ 属另一批）。
+    """
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return  # SYSTEM_ADMIN 全局访问权（与 API 层那份同口径）
+    has_access = await UserProjectService.check_user_project_access(
+        session, user_id=user_id, project_id=project_id
+    )
+    if not has_access:
+        raise PcsError(
+            f"项目不存在：{project_id}",
+            code="PROJECT_NOT_FOUND",
+            status=404,
+        )
