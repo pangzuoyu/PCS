@@ -226,9 +226,19 @@ async def workspace(db_session, workspace_id, project_id):
     没有测试用它（fixture 写于 P1-2，之后的测试各自造 workspace）。
     同时补 ``project_id`` —— ``check_project_access_or_404`` 依赖它，
     否则 workspace 侧的项目归属恒为 None，项目守卫会被静默跳过。
+
+    ⚠️⚠️ **2026-11-18 · P10-F 评审的 P0 修**：光填 ``workspaces.project_id``
+    **不够** —— 那是**冗余副本**，生产路径由 ``POST /projects`` 回填，
+    而**真相源 = ``projects.workspace_id``（反查）**
+    ⇒ ⇒ 只填列、不建 Project 行 ⇒ ⇒ 工作区在守卫眼里**没有项目**
+    ⇒ ⇒ ⇒ 守卫把它当 PERSONAL ⇒ ⇒ ⇒ 写管路记录恒 400。
+    ⇒ ⇒ **本 fixture 现在照生产形状造**：工作区先建 → **Project 行**
+    （``workspace_id`` 指向它）→ 回填 ``workspace.project_id``。
+    ⇒ ⇒ 这也补上了另一个「替身比被测物更宽容」：``project_id`` fixture
+    只建**授权行**、**不建 Project 行** ⇒ ⇒ SQLite 不强制 FK ⇒ ⇒ 绿灯。
     """
     from app.models.enums import WorkspaceType
-    from app.models.project import Workspace
+    from app.models.project import Project, Workspace
 
     ws = Workspace(
         workspace_id=workspace_id,
@@ -238,6 +248,21 @@ async def workspace(db_session, workspace_id, project_id):
         status="ACTIVE",
     )
     db_session.add(ws)
+    await db_session.flush()
+    # ⚠️ **Project 行**（`workspace_id` 指向该工作区）⇒ ⇒ 守卫的反查能找到它。
+    #    ⚠️ `project_id` fixture 只建了授权行、**没建 Project 行** ⇒ ⇒ 这里补上。
+    db_session.add(Project(
+        project_id=project_id,
+        project_no=f"T-{project_id.hex[:12]}",
+        project_name="Test Project",
+        owner_company="PCS",
+        location="test",
+        project_type="test",
+        design_phase="BASIC",
+        unit_system="SI",
+        status="ACTIVE",
+        workspace_id=workspace_id,
+    ))
     await db_session.commit()
     await db_session.refresh(ws)
     return ws

@@ -14,8 +14,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import PcsError
 from app.models.enums import AuditAction, WorkspaceType
-from app.models.project import Workspace
+from app.models.project import Project, Workspace
 from app.services.audit_service import AuditService
 
 
@@ -177,14 +178,56 @@ class WorkspaceService:
 # ---------------------------------------------------------------------------
 
 
+async def resolve_workspace_project(
+    session: AsyncSession, workspace: Workspace
+) -> Project | None:
+    """这个工作区**实际挂的项目**（**真相源 = `projects.workspace_id`**）。
+
+    ## 为什么不看 `workspaces.project_id`（⚠️ 2026-11-18 · P10-F 评审查出的 P0）
+
+    `workspaces.project_id` 这一列**生产路径从来不写** ——
+    `POST /projects` 只写 `Project(workspace_id=...)`，**从不回填**
+    `workspace.project_id` ⇒ ⇒ 那列在真实库里恒为 NULL ⇒ ⇒
+    任何以它为分档键的守卫都会**把 FORMAL 工作区当成 PERSONAL** ⇒ ⇒
+    授权退化成「只有 owner 本人」+ 写管路记录恒 400。
+
+    ⇒ ⇒ **真相源只能是反查 `projects.workspace_id`**（谁真的挂在上面）
+    ⇒ ⇒ `workspaces.project_id` 降级成**展示用的冗余副本**
+    （由 `POST /projects` 回填 + 迁移对齐存量）。
+
+    ## 歧义 ⇒ ⇒ **fail-loud**
+
+    「一个工作区挂两个项目」违反 TODO-169 的口径（FORMAL 恰好一个项目）
+    ⇒ ⇒ **不猜** ⇒ ⇒ 抛 409（可定位、可修）⇒ ⇒ 而不是随便挑一个
+    ⇒ ⇒ （挑一个 ⇒ 「授权在 A 的人」可能因为挑到 B 被拒，或反之 ⇒ ⇒ 更糟）。
+    """
+    rows = (
+        await session.execute(
+            select(Project).where(Project.workspace_id == workspace.workspace_id)
+        )
+    ).scalars().all()
+    if not rows:
+        return None
+    if len(rows) > 1:
+        raise PcsError(
+            f"工作区挂了多个项目（workspace_id={workspace.workspace_id}）",
+            code="WORKSPACE_PROJECT_AMBIGUOUS",
+            status=409,
+        )
+    return rows[0]
+
+
 async def require_workspace_access_or_404(
     session: AsyncSession,
     *,
     workspace: Workspace,
     user_id: uuid.UUID,
     actor_roles: list[str] | None = None,
-) -> None:
+) -> Project | None:
     """无权访问该工作区 ⇒ ⇒ **404**（与「不存在」**逐字同形**）。
+
+    ⇒ ⇒ **返回该工作区实际挂的项目**（`None` = PERSONAL 无项目）
+    ⇒ ⇒ 调用方（写入类端点）**拿它做一致性判定与落库** ⇒ ⇒ 不用再查一次。
 
     ## 口径（**人裁决 2026-11-18 · TODO-169** · `CONCEPTS.md` §Workspaces）
 
@@ -216,11 +259,13 @@ async def require_workspace_access_or_404(
     from app.services.exceptions import WorkspaceNotFoundError
     from app.services.user_project_service import UserProjectService
 
+    # ⚠️ **先解析项目**（即使 admin 也要）⇒ ⇒ 调用方拿到的返回值一致。
+    project = await resolve_workspace_project(session, workspace)
     if actor_roles and "SYSTEM_ADMIN" in actor_roles:
-        return  # SYSTEM_ADMIN 全局访问权（与 API 层那份同口径）
-    if workspace.project_id is not None:
+        return project  # SYSTEM_ADMIN 全局访问权（与 API 层那份同口径）
+    if project is not None:
         has_access = await UserProjectService.check_user_project_access(
-            session, user_id=user_id, project_id=workspace.project_id
+            session, user_id=user_id, project_id=project.project_id
         )
     else:
         # PERSONAL（无项目）⇒ ⇒ 只认 owner 本人
@@ -230,3 +275,4 @@ async def require_workspace_access_or_404(
             f"workspace_id={workspace.workspace_id} not found",
             details={"workspace_id": str(workspace.workspace_id)},
         )
+    return project

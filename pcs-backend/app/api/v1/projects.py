@@ -135,6 +135,26 @@ async def create_project(
             ),
             status=422,
         )
+    # ⚠️ **2026-11-18 · P10-F 评审（ce-code-review）的 P0 修** ——
+    #    「一个工作区挂两个项目」违反 TODO-169 的口径（FORMAL 恰好一个项目）
+    #    ⇒ ⇒ 而 `workspaces.project_id` 是**单值列** ⇒ ⇒ 数据模型一直是 1:1
+    #    ⇒ ⇒ 这里**提前挡住**第二个项目（否则守卫的「歧义 ⇒ 409」会变成常态）
+    existing = (
+        await db.execute(
+            select(Project)
+            .where(Project.workspace_id == payload.workspace_id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise PcsError(
+            code="WORKSPACE_ALREADY_HAS_PROJECT",
+            message=(
+                f"工作区 {payload.workspace_id} 已经挂了项目 "
+                f"{existing.project_id}（一个工作区只挂一个项目）"
+            ),
+            status=409,
+        )
     record = Project(
         project_no=payload.project_no,
         project_name=payload.project_name,
@@ -166,6 +186,16 @@ async def create_project(
             message=f"项目编号 {payload.project_no} 已存在（全局唯一），请换一个",
             status=409,
         ) from exc
+    # ⚠️ **回填 `workspaces.project_id`**（2026-11-18 · P10-F 评审的 P0 修）
+    #    ⇒ ⇒ **建项目的人，才是把「工作区 ↔ 项目」这条绑定建起来的人**
+    #    ⇒ ⇒ 此前 `POST /projects` 只写 `Project(workspace_id=...)`，
+    #    ⇒ ⇒ `workspaces.project_id` **生产路径从来不写** ⇒ ⇒ 那列恒 NULL
+    #    ⇒ ⇒ ⇒ 以它为分档键的守卫把 FORMAL 工作区当成 PERSONAL（见
+    #    `app/services/workspace_service.py::resolve_workspace_project`）。
+    #    ⚠️ **顺序约束**：工作区**先于**项目存在 ⇒ ⇒ 回填**必须在 flush 之后**
+    #    ⇒ ⇒ 否则撞 FK（`workspaces.project_id` → `projects.project_id`）。
+    workspace.project_id = record.project_id
+
     await SignatureMatrixService.ensure_default_record_matrix(
         db, project_id=record.project_id
     )

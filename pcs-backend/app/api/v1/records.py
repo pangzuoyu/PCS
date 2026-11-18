@@ -142,24 +142,31 @@ async def create_piping(
     （修复 IDOR：user_id 不再可由客户端伪造）。
 
     ⚠️ **P10-F · F3（TODO-180）**：授权对象**从「payload 的 project_id」改成
-    「工作区的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
+    「工作区实际挂的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
     ⇒ ⇒ 「授权在项目 A 的人把记录写进项目 B 的工作区」（实测 200）
-    ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与 `workspace.project_id` **一致**
+    ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与**该工作区实际挂的项目**一致
     ⇒ ⇒ ⇒ 不一致 ⇒ ⇒ **400**（不是授权失败 ⇒ ⇒ 是**请求自相矛盾**）。
+
+    ⚠️ **2026-11-18 · P10-F 评审修**：那个「工作区实际挂的项目」= **反查
+    `projects.workspace_id`**（不是 `workspaces.project_id` ⇒ ⇒ 那一列
+    **生产路径从来不写** ⇒ ⇒ 拿它判 ⇒ ⇒ 写路径恒 400）。
     """
-    # ⚠️ **授权对象 = 工作区的项目**（FORMAL 工作区 ⇒ ⇒ 必然有项目 · TODO-169）
-    await require_workspace_access_or_404(
+    # ⚠️ **授权对象 = 工作区实际挂的项目**（FORMAL 工作区 ⇒ ⇒ 必然有项目 · TODO-169）
+    # ⚠️ **2026-11-18 · P10-F 评审（ce-code-review）修**：`workspace.project_id`
+    # 这一列**生产路径从来不写** ⇒ ⇒ 拿它做分档键 ⇒ ⇒ 恒 400 ⇒ ⇒
+    # ⇒ ⇒ 现在用**反查 `projects.workspace_id`** 的真相源（守卫返回它）。
+    project = await require_workspace_access_or_404(
         session, workspace=workspace, user_id=user.user_id,
         actor_roles=list(user.roles),
     )
     body_project_id = uuid.UUID(payload["project_id"])
-    if workspace.project_id is None or body_project_id != workspace.project_id:
+    if project is None or body_project_id != project.project_id:
         raise HTTPException(
             400,
-            "payload.project_id must match the workspace's project_id",
+            "payload.project_id must match the project bound to the workspace",
         )
     rec = PipingResult(
-        project_id=workspace.project_id,
+        project_id=project.project_id,
         workspace_id=workspace.workspace_id,
         seq_no=payload.get("seq_no", 0),
         line_no=payload["line_no"],

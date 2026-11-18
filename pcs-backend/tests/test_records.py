@@ -14,6 +14,8 @@ P7-7+ BLOCKER-3 集成后:
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from app.core.security import create_access_token
@@ -31,21 +33,43 @@ def _auth_headers(user_id: str, role: str = "DESIGNER") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _make_formal_ws(client, user_id: str, project_id: str) -> str:
-    """建一个**属于该项目**的 FORMAL 工作区。
+async def _make_formal_ws(client, db_session, user_id: str, project_id: str) -> str:
+    """建一个**属于该项目**的 FORMAL 工作区（**生产形状**）。
 
-    ⚠️ `project_id` 必须给：`POST /records/piping` 现在要求 payload 的
-    `project_id` 与工作区的 `project_id` **一致**（TODO-180）。
+    ⚠️ **2026-11-18 · P10-F 评审的 P0 修**：工作区与项目的绑定真相源 =
+    **反查 `projects.workspace_id`** ⇒ ⇒ 只填 `workspaces.project_id`
+    那一列**不算数** ⇒ ⇒ 必须**真有 Project 行**挂在这个工作区上。
+
+    ⇒ ⇒ 顺序：**工作区先建**（`project_id` 留空）→ **Project 行后建**
+    （`workspace_id` 指向它）⇒ ⇒ 与 `POST /projects` 的顺序一致
+    ⇒ ⇒ 也不会撞 FK（`workspaces.project_id` → `projects.project_id`）。
     """
     r = await client.post(
         "/api/v1/workspaces",
         params={"owner_id": user_id},
-        json={"workspace_type": "FORMAL", "name": "formal",
-              "project_id": project_id},
+        json={"workspace_type": "FORMAL", "name": "formal"},
         headers=_auth_headers(user_id),
     )
     assert r.status_code == 201, r.text
-    return r.json()["workspace_id"]
+    ws_id = r.json()["workspace_id"]
+
+    from app.models.project import Project
+
+    pid = uuid.UUID(project_id)
+    db_session.add(Project(
+        project_id=pid,
+        project_no=f"T-{pid.hex[:12]}",
+        project_name="records-test",
+        owner_company="PCS",
+        location="test",
+        project_type="test",
+        design_phase="BASIC",
+        unit_system="SI",
+        status="ACTIVE",
+        workspace_id=uuid.UUID(ws_id),
+    ))
+    await db_session.commit()
+    return ws_id
 
 
 async def _make_personal_ws(client, user_id: str) -> str:
@@ -84,8 +108,8 @@ async def _create_piping(client, ws_id: str, user_id: str, project_id: str,
     return r.json()["pipe_id"]
 
 
-async def test_create_piping_in_formal(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_create_piping_in_formal(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     assert pipe_id
 
@@ -103,8 +127,8 @@ async def test_create_piping_in_personal_403(client, user_id):
     assert r.status_code == 403
 
 
-async def test_transition_draft_to_in_approval(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_transition_draft_to_in_approval(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     r = await client.post(
         f"/api/v1/records/piping/{pipe_id}/transition?workspace_id={ws_id}",
@@ -115,8 +139,8 @@ async def test_transition_draft_to_in_approval(client, user_id, project_id):
     assert r.json()["sign_status"] == "IN_APPROVAL"
 
 
-async def test_transition_in_approval_to_checked(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_transition_in_approval_to_checked(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     await client.post(
         f"/api/v1/records/piping/{pipe_id}/transition?workspace_id={ws_id}",
@@ -132,8 +156,8 @@ async def test_transition_in_approval_to_checked(client, user_id, project_id):
     assert r.json()["sign_status"] == "CHECKED"
 
 
-async def test_transition_role_forbidden(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_transition_role_forbidden(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     await client.post(
         f"/api/v1/records/piping/{pipe_id}/transition?workspace_id={ws_id}",
@@ -148,8 +172,8 @@ async def test_transition_role_forbidden(client, user_id, project_id):
     assert r.status_code == 409
 
 
-async def test_invalid_transition_409(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_invalid_transition_409(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     r = await client.post(
         f"/api/v1/records/piping/{pipe_id}/transition?workspace_id={ws_id}",
@@ -159,8 +183,8 @@ async def test_invalid_transition_409(client, user_id, project_id):
     assert r.status_code == 409
 
 
-async def test_obsolete_piping(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_obsolete_piping(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     r = await client.request(
         "DELETE",
@@ -171,8 +195,8 @@ async def test_obsolete_piping(client, user_id, project_id):
     assert r.json()["sign_status"] == "OBSOLETE"
 
 
-async def test_list_piping(client, user_id, project_id):
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+async def test_list_piping(client, user_id, project_id, db_session):
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     await _create_piping(client, ws_id, user_id, str(project_id), "P-100")
     await _create_piping(client, ws_id, user_id, str(project_id), "P-101")
     r = await client.get(
@@ -183,10 +207,10 @@ async def test_list_piping(client, user_id, project_id):
     assert len(r.json()) == 2
 
 
-async def test_snapshot_created_for_apply_change(client, user_id, project_id):
+async def test_snapshot_created_for_apply_change(client, user_id, project_id, db_session):
     """apply_change 触发快照创建。"""
 
-    ws_id = await _make_formal_ws(client, user_id, str(project_id))
+    ws_id = await _make_formal_ws(client, db_session, user_id, str(project_id))
     pipe_id = await _create_piping(client, ws_id, user_id, str(project_id))
     # 推进到 CHECKED
     await client.post(

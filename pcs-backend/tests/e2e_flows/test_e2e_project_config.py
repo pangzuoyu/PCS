@@ -43,6 +43,22 @@ async def test_e2e_001_project_creation_and_input_checklist(
     """POST /projects ⇒ 201 ⇒ **显式** seed 输入清单 ⇒ 清单**非空** + 形状正确。"""
     headers = role_headers("SYSTEM_ADMIN")
 
+    # ⓪ **自己的 FORMAL 工作区**（2026-11-18 · P10-F 评审的 P0 修）
+    #    ⇒ ⇒ 「一个工作区只挂一个项目」（TODO-169 的口径）⇒ ⇒ 种子那个工作区
+    #    ⇒ ⇒ **已经挂了种子项目** ⇒ ⇒ 在它上面再建 ⇒ ⇒ 409
+    #    ⇒ ⇒ ⇒ 真后端里「建项目」的真实前置就是「先有一个**空**的 FORMAL 工作区」。
+    from app.services.token_issuer import derive_user_id
+
+    admin_id = derive_user_id("e2e-admin")
+    ws_resp = await e2e_client.post(
+        "/api/v1/workspaces",
+        params={"owner_id": str(admin_id)},
+        json={"workspace_type": "FORMAL", "name": "E2E-001 工作区"},
+        headers=headers,
+    )
+    assert ws_resp.status_code == 201, ws_resp.text
+    workspace_id = ws_resp.json()["workspace_id"]
+
     # ① 建项目
     resp = await e2e_client.post(
         "/api/v1/projects",
@@ -54,9 +70,9 @@ async def test_e2e_001_project_creation_and_input_checklist(
             "project_type": "REFINERY",
             "design_phase": "DESIGN",
             "unit_system": "SI",
-            # ⚠️ **必须是存在的 FORMAL 工作区** ⇒ 用种子的那个
+            # ⚠️ **必须是存在的 FORMAL 工作区** ⇒ 用刚建的那个
             # （随手编的 UUID ⇒ 404 ⇒ 症状看着像「端点坏了」）
-            "workspace_id": str(e2e_seed["workspace_id"]),
+            "workspace_id": str(workspace_id),
         },
         headers=headers,
     )

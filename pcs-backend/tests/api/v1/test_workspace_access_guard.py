@@ -30,9 +30,20 @@ F3 守卫覆盖审计查出**两条 critical**，它们是**同一条链的两�
 |---|---|
 | 有项目（FORMAL） | 对该项目**有 `user_projects` 授权行**的人（SYSTEM_ADMIN 全局 bypass） |
 | 无项目（PERSONAL） | **owner 本人** |
-| 不属于任何人 | **403**（登录了也不行）⇒ ⇒ ⇒ 「登录」是**下限**，不是授权 |
+| 不属于任何人 | **404**（登录了也不行）⇒ ⇒ ⇒ 「登录」是**下限**，不是授权 |
 
 ⇒ ⇒ **无权 ⇒ ⇒ 404**（与「不存在」**逐字同形** ⇒ ⇒ 枚举不出 UUID）。
+
+## ⚠️ 「有项目」怎么判定（**2026-11-18 · P10-F 评审的 P0 修**）
+
+**真相源 = `projects.workspace_id`（反查）**，**不是** `workspaces.project_id` ——
+后者在生产路径上**从来不写**（`POST /projects` 只写 `Project(workspace_id=...)`）
+⇒ ⇒ 拿它当分档键 ⇒ ⇒ **把 FORMAL 工作区当成 PERSONAL** ⇒ ⇒
+项目的其他成员读管路记录 ⇒ **404**；`POST /records/piping` ⇒ **恒 400**。
+
+⇒ ⇒ 本文件的夹具**照生产形状造**（工作区先建、项目后建、**再回填**
+`workspace.project_id`）⇒ ⇒ **不再手造「生产不存在的形状」**
+⇒ ⇒ 这正是「替身比被测物更宽容」那条教训。
 
 ## 为什么用 `strict_client`
 
@@ -57,14 +68,14 @@ def _tok(user_id: uuid.UUID, role: str = "DESIGNER") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _mk_ws(db_session, *, owner_id, project_id=None, workspace_type="FORMAL"):
+async def _mk_ws(db_session, *, owner_id, workspace_type="FORMAL"):
+    """建一个工作区（**生产形状**：此时**还没有项目** ⇒ `project_id` 留空）。"""
     from app.models.project import Workspace
 
     ws = Workspace(
         workspace_id=uuid.uuid4(),
         workspace_type=workspace_type,
         owner_id=owner_id,
-        project_id=project_id,
         name="guard-test",
         status="ACTIVE",
     )
@@ -72,6 +83,32 @@ async def _mk_ws(db_session, *, owner_id, project_id=None, workspace_type="FORMA
     await db_session.commit()
     await db_session.refresh(ws)
     return ws
+
+
+async def _mk_project_on(db_session, ws, label: str = "P") -> uuid.UUID:
+    """在 `ws` 上建一个项目（**生产形状**：`Project.workspace_id` 指向该工作区）。
+
+    ⚠️ **故意**不填 `workspaces.project_id` ⇒ ⇒ 守卫**不许依赖那一列的冗余副本**
+    ⇒ ⇒ 真相源只能是**反查 `projects.workspace_id`**。
+
+    ⚠️ **为什么不是「照生产填上」**：`POST /projects` 现在会回填那一列
+    （`test_creating_a_project_binds_the_workspace_to_it` 钉着它）
+    ⇒ ⇒ 但守卫**不能因此就依赖它** ⇒ ⇒ 存量数据、人工改动、迁移漏跑
+    ⇒ ⇒ 都会让那一列与真相不一致 ⇒ ⇒ **夹具故意造出「列没跟上」的样子**
+    ⇒ ⇒ 这样「把守卫改回按那一列判」的变异**必须变红**（变异敏感）。
+
+    ⇒ ⇒ 「夹具比被测物宽容」这条教训的反面：**夹具要能证伪守卫**。
+    """
+    from app.models.project import Project
+
+    pid = uuid.uuid4()
+    db_session.add(Project(
+        project_id=pid, project_no=f"P-{label}-{pid.hex[:6]}", project_name=label,
+        owner_company="t", location="t", project_type="test",
+        design_phase="BASIC", unit_system="SI", status="ACTIVE",
+        workspace_id=ws.workspace_id))
+    await db_session.commit()
+    return pid
 
 
 async def _mk_project(db_session, label: str = "P") -> uuid.UUID:
@@ -244,8 +281,8 @@ async def test_records_list_of_another_projects_workspace_is_404(
 ):
     """⚠️ **对别人项目的 FORMAL 工作区 ⇒ ⇒ 404**（与「不存在」同形）。"""
     owner = uuid.uuid4()
-    project = await _mk_project(db_session, "victim")
-    ws = await _mk_ws(db_session, owner_id=owner, project_id=project)
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "victim")
     await grant_project(owner, project)   # owner 有授权 ⇒ ⇒ 能建记录
     await _mk_pipe(strict_client, db_session, ws=ws, project_id=project,
                    user_id=owner)
@@ -270,8 +307,8 @@ async def test_records_list_of_authorized_project_is_200(
 ):
     """⚠️ **正面路径**：对该项目有授权 ⇒ ⇒ 200 + 看到行。"""
     owner = uuid.uuid4()
-    project = await _mk_project(db_session, "mine")
-    ws = await _mk_ws(db_session, owner_id=owner, project_id=project)
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "mine")
     await grant_project(owner, project)
     await _mk_pipe(strict_client, db_session, ws=ws, project_id=project,
                    user_id=owner)
@@ -288,8 +325,7 @@ async def test_records_list_of_own_personal_workspace_is_200(
 ):
     """⚠️ **PERSONAL 工作区（无项目）⇒ ⇒ owner 本人可读**（TODO-169 的口径）。"""
     me = uuid.uuid4()
-    ws = await _mk_ws(db_session, owner_id=me, project_id=None,
-                      workspace_type="PERSONAL")
+    ws = await _mk_ws(db_session, owner_id=me, workspace_type="PERSONAL")
     r = await strict_client.get(
         f"/api/v1/records/piping?workspace_id={ws.workspace_id}",
         headers=_tok(me))
@@ -301,8 +337,7 @@ async def test_records_list_of_another_personal_workspace_is_404(
 ):
     """⚠️ **PERSONAL 工作区也不是公共的** ⇒ ⇒ 别人的 ⇒ ⇒ 404。"""
     other = uuid.uuid4()
-    ws = await _mk_ws(db_session, owner_id=other, project_id=None,
-                      workspace_type="PERSONAL")
+    ws = await _mk_ws(db_session, owner_id=other, workspace_type="PERSONAL")
     r = await strict_client.get(
         f"/api/v1/records/piping?workspace_id={ws.workspace_id}",
         headers=_tok(uuid.uuid4()))
@@ -314,8 +349,8 @@ async def test_records_detail_and_snapshots_of_another_project_are_404(
 ):
     """⚠️ **详情与快照端点同样要守**（TODO-185：详情端点此前**零测试**）。"""
     owner = uuid.uuid4()
-    project = await _mk_project(db_session, "victim2")
-    ws = await _mk_ws(db_session, owner_id=owner, project_id=project)
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "victim2")
     await grant_project(owner, project)
     pipe_id = await _mk_pipe(strict_client, db_session, ws=ws,
                              project_id=project, user_id=owner)
@@ -338,8 +373,8 @@ async def test_records_detail_of_own_record_is_200(
 ):
     """⚠️ **正面路径**：详情端点对有权者 ⇒ ⇒ 200（**补上零测试的洞**）。"""
     owner = uuid.uuid4()
-    project = await _mk_project(db_session, "mine2")
-    ws = await _mk_ws(db_session, owner_id=owner, project_id=project)
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "mine2")
     await grant_project(owner, project)
     pipe_id = await _mk_pipe(strict_client, db_session, ws=ws,
                              project_id=project, user_id=owner)
@@ -360,8 +395,8 @@ async def test_records_create_rejects_project_mismatch(
     """
     me = uuid.uuid4()
     project_a = await _mk_project(db_session, "A")
-    project_b = await _mk_project(db_session, "B")
-    ws_b = await _mk_ws(db_session, owner_id=uuid.uuid4(), project_id=project_b)
+    ws_b = await _mk_ws(db_session, owner_id=uuid.uuid4())
+    project_b = await _mk_project_on(db_session, ws_b, "B")
     # ⚠️ **对 B 有授权**（否则先吃 404 ⇒ ⇒ 那是**授权**问题，不是**一致性**问题）
     await grant_project(me, project_b)
 
@@ -379,3 +414,158 @@ async def test_records_create_rejects_project_mismatch(
         headers=_tok(me),
     )
     assert r.status_code == 400, r.text
+
+
+# ---------------------------------------------------------------------------
+# 「工作区 ↔ 项目」的绑定（2026-11-18 · P10-F 评审的 **P0** 修）
+# ---------------------------------------------------------------------------
+
+
+async def test_records_list_of_authorized_project_member_is_200(
+    strict_client, db_session, grant_project
+):
+    """⚠️⚠️ **回归钉子（P0）**：**项目的其他成员**（有 `user_projects` 授权行）
+    ⇒ ⇒ 读**别人 owner 的 FORMAL 工作区**里的管路记录 ⇒ ⇒ **200**。
+
+    ⚠️ **这条在修之前是 404** ⇒ ⇒ 因为守卫拿 `workspaces.project_id` 当分档键
+    ⇒ ⇒ 而那一列**生产路径从来不写** ⇒ ⇒ FORMAL 工作区被当成 PERSONAL
+    ⇒ ⇒ 只有 owner 本人能进 ⇒ ⇒ **项目的其他成员被挡在门外**。
+
+    ⇒ ⇒ 这条测试的意义：**走生产形状**（工作区 → 项目 → 回填）⇒ ⇒
+    ⇒ ⇒ 断言的是「成员能读到」而不是「夹具凑出来的形状能读到」。
+    """
+    owner = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "shared")
+    await grant_project(owner, project)
+    await _mk_pipe(strict_client, db_session, ws=ws, project_id=project,
+                   user_id=owner)
+
+    member = uuid.uuid4()
+    await grant_project(member, project)   # 成员：对项目有授权
+
+    r = await strict_client.get(
+        f"/api/v1/records/piping?workspace_id={ws.workspace_id}",
+        headers=_tok(member))
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+
+
+async def test_workspace_detail_of_authorized_project_member_is_200(
+    strict_client, db_session, grant_project
+):
+    """⚠️⚠️ **同一条 P0** 的另一面：工作区详情端点对**项目成员**也要放行。"""
+    owner = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=owner)
+    project = await _mk_project_on(db_session, ws, "shared2")
+    await grant_project(owner, project)
+
+    member = uuid.uuid4()
+    await grant_project(member, project)
+
+    r = await strict_client.get(
+        f"/api/v1/workspaces/{ws.workspace_id}", headers=_tok(member))
+    assert r.status_code == 200, r.text
+
+
+async def test_workspace_with_two_projects_is_409(strict_client, db_session):
+    """⚠️ **歧义 ⇒ ⇒ fail-loud（409）**，不是随便挑一个项目。
+
+    ⇒ ⇒ 「一个工作区挂两个项目」违反 TODO-169 的口径（FORMAL 恰好一个）
+    ⇒ ⇒ 挑一个 ⇒ 「授权在 A 的人」可能因为挑到 B 被拒（或反之）⇒ ⇒ 更糟。
+    """
+    from app.models.project import Project
+
+    owner = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=owner)
+    await _mk_project_on(db_session, ws, "amb1")
+    db_session.add(Project(
+        project_id=uuid.uuid4(), project_no=f"P-amb2-{uuid.uuid4().hex[:6]}",
+        project_name="amb2", owner_company="t", location="t",
+        project_type="test", design_phase="BASIC", unit_system="SI",
+        status="ACTIVE", workspace_id=ws.workspace_id))
+    await db_session.commit()
+
+    r = await strict_client.get(
+        f"/api/v1/workspaces/{ws.workspace_id}", headers=_tok(owner))
+    assert r.status_code == 409, r.text
+    assert r.json()["code"] == "WORKSPACE_PROJECT_AMBIGUOUS", r.text
+
+
+async def test_creating_a_project_binds_the_workspace_to_it(
+    strict_client, db_session
+):
+    """⚠️⚠️ **P0 的根因钉子**：**建项目的人**才把「工作区 ↔ 项目」绑起来。
+
+    ⇒ ⇒ 此前 `POST /projects` 只写 `Project(workspace_id=...)` ⇒ ⇒
+    ⇒ ⇒ `workspaces.project_id` **生产路径从来不写** ⇒ ⇒ 守卫的 FORMAL 分支
+    ⇒ ⇒ **在生产上永远走不到**。
+
+    ⇒ ⇒ 这条测试**走真实端点** ⇒ ⇒ 不靠夹具凑形状。
+    """
+    from sqlalchemy import select
+
+    from app.models.project import Workspace as WsModel
+
+    admin = _tok(uuid.uuid4(), "SYSTEM_ADMIN")
+    owner = uuid.uuid4()
+    ws = await _mk_ws(db_session, owner_id=owner)
+    assert ws.project_id is None, "建项目之前，工作区本来就没有项目"
+
+    r = await strict_client.post(
+        "/api/v1/projects",
+        json={
+            "project_no": f"P-{uuid.uuid4().hex[:8]}",
+            "project_name": "绑定测试",
+            "owner_company": "PCS",
+            "location": "惠州",
+            "project_type": "PETROLEUM",
+            "design_phase": "EXECUTIVE_DESIGN",
+            "unit_system": "SI",
+            "workspace_id": str(ws.workspace_id),
+        },
+        headers=admin,
+    )
+    assert r.status_code == 201, r.text
+    project_id = uuid.UUID(r.json()["project_id"])
+
+    row = (
+        await db_session.execute(
+            select(WsModel).where(WsModel.workspace_id == ws.workspace_id)
+        )
+    ).scalar_one()
+    # ⚠️ 端点用的是**另一个 session**（请求作用域）⇒ ⇒ 本 session 的 identity map
+    # 里那份是**旧值** ⇒ ⇒ 先 expire 再查（否则读到的是缓存，不是库里的）。
+    await db_session.refresh(row)
+    assert row.project_id == project_id, (
+        "建项目后工作区没有绑定到那个项目 ⇒ ⇒ 守卫的 FORMAL 分支走不到"
+    )
+
+
+async def test_creating_a_second_project_in_one_workspace_is_409(
+    strict_client, db_session
+):
+    """⚠️ **1:1 的前置**：一个工作区**只挂一个项目** ⇒ ⇒ 第二个 ⇒ ⇒ 409。
+
+    ⇒ ⇒ 否则会造出「歧义」⇒ ⇒ 那个工作区随后所有请求都 409（fail-loud）。
+    """
+    admin = _tok(uuid.uuid4(), "SYSTEM_ADMIN")
+    ws = await _mk_ws(db_session, owner_id=uuid.uuid4())
+    payload = {
+        "project_no": f"P-{uuid.uuid4().hex[:8]}",
+        "project_name": "第一个",
+        "owner_company": "PCS",
+        "location": "惠州",
+        "project_type": "PETROLEUM",
+        "design_phase": "EXECUTIVE_DESIGN",
+        "unit_system": "SI",
+        "workspace_id": str(ws.workspace_id),
+    }
+    first = await strict_client.post("/api/v1/projects", json=payload, headers=admin)
+    assert first.status_code == 201, first.text
+
+    payload["project_no"] = f"P-{uuid.uuid4().hex[:8]}"
+    payload["project_name"] = "第二个"
+    second = await strict_client.post("/api/v1/projects", json=payload, headers=admin)
+    assert second.status_code == 409, second.text
+    assert second.json()["code"] == "WORKSPACE_ALREADY_HAS_PROJECT", second.text

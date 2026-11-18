@@ -488,13 +488,26 @@ async def test_create_project_in_personal_workspace_is_rejected(
 
 
 async def test_create_project_duplicate_no_is_409_not_500(
-    client, admin_headers, db_session, workspace
+    client, admin_headers, db_session
 ):
-    """project_no 全局唯一 ⇒ 重复 POST ⇒ 409（可操作），不是裸 500。"""
-    payload = _payload(workspace.workspace_id)
+    """project_no 全局唯一 ⇒ 重复 POST ⇒ 409（可操作），不是裸 500。
+
+    ⚠️ **两次 POST 换两个工作区**（2026-11-18 · P10-F 评审的 P0 修）：
+    一个工作区**只挂一个项目** ⇒ ⇒ 同工作区第二次建 ⇒ ⇒ 那是
+    `WORKSPACE_ALREADY_HAS_PROJECT`（另一个 409）⇒ ⇒ 要测「编号重复」这条
+    ⇒ ⇒ 必须换一个工作区 ⇒ ⇒ 只让 `project_no` 唯一约束生效。
+
+    ⚠️ 也不共用 `workspace` fixture ⇒ ⇒ 那个 fixture 现在**自带一个挂着的项目**
+    ⇒ ⇒ 用它建项目会先吃 409。
+    """
+    workspace_id = await _make_workspace(db_session)
+    payload = _payload(workspace_id)
 
     r1 = await client.post("/api/v1/projects", headers=admin_headers, json=payload)
     assert r1.status_code == 201, r1.text
+
+    other_ws = await _make_workspace(db_session)
+    payload["workspace_id"] = str(other_ws)
     r2 = await client.post("/api/v1/projects", headers=admin_headers, json=payload)
 
     assert r2.status_code == 409, r2.text
@@ -502,7 +515,7 @@ async def test_create_project_duplicate_no_is_409_not_500(
 
 
 async def test_create_project_other_integrity_error_is_not_409(
-    db_engine, db_session, admin_headers, workspace
+    db_engine, db_session, admin_headers
 ):
     """⚠️ **别的**约束违约 ⇒ 不能说成「项目编号已存在」（TODO-102）。
 
@@ -536,11 +549,16 @@ async def test_create_project_other_integrity_error_is_not_409(
     )
     await db_session.commit()
 
+    # ⚠️ **自己的空工作区**（2026-11-18 · P10-F 评审的 P0 修）：共用 fixture
+    # 那个工作区**自带一个挂着的项目** ⇒ ⇒ 建项目会先吃
+    # `WORKSPACE_ALREADY_HAS_PROJECT`（另一个 409）⇒ ⇒ 测不到本条要测的东西。
+    workspace_id = await _make_workspace(db_session)
+
     async with _guard_client(db_engine, raise_server_exceptions=False) as ac:
         resp = await ac.post(
             "/api/v1/projects",
             headers=admin_headers,
-            json=_payload(workspace.workspace_id, project_no="P-TRIGGER-FAIL"),
+            json=_payload(workspace_id, project_no="P-TRIGGER-FAIL"),
         )
 
     assert resp.status_code != 409, (

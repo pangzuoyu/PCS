@@ -621,10 +621,14 @@ export interface paths {
          *     （修复 IDOR：user_id 不再可由客户端伪造）。
          *
          *     ⚠️ **P10-F · F3（TODO-180）**：授权对象**从「payload 的 project_id」改成
-         *     「工作区的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
+         *     「工作区实际挂的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
          *     ⇒ ⇒ 「授权在项目 A 的人把记录写进项目 B 的工作区」（实测 200）
-         *     ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与 `workspace.project_id` **一致**
+         *     ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与**该工作区实际挂的项目**一致
          *     ⇒ ⇒ ⇒ 不一致 ⇒ ⇒ **400**（不是授权失败 ⇒ ⇒ 是**请求自相矛盾**）。
+         *
+         *     ⚠️ **2026-11-18 · P10-F 评审修**：那个「工作区实际挂的项目」= **反查
+         *     `projects.workspace_id`**（不是 `workspaces.project_id` ⇒ ⇒ 那一列
+         *     **生产路径从来不写** ⇒ ⇒ 拿它判 ⇒ ⇒ 写路径恒 400）。
          */
         post: operations["create_piping_api_v1_records_piping_post"];
         delete?: never;
