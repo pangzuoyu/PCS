@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T03:01:34.788Z",
-    "fileCount": 1373,
+    "lastScanned": "2026-11-18T03:44:59.437Z",
+    "fileCount": 1374,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e2a3eab1ee1d558b1f6ebf094867be44595fbdcb4ac9d24253f38552e0f2277c",
-    "storeUpdatedAt": "2026-11-18T03:01:34.801Z",
-    "rootHash": "7a58e6e2f404d7c4"
+    "renderedHash": "3131094827bbe6ac3020b9621dbc454b8de9cb521ec199b8476c7369de11375e",
+    "storeUpdatedAt": "2026-11-18T03:44:59.450Z",
+    "rootHash": "1894179b561a3726"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25149,54 +25149,54 @@
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 3781,
-      "hash": "f10ce19d9ad667ca",
-      "size": 16901,
-      "mtimeMs": 1791943623919.8066,
-      "updatedAt": "2026-10-14T02:07:03.973Z",
+      "tokens": 5046,
+      "hash": "49407bf319433e6b",
+      "size": 23202,
+      "mtimeMs": 1794973499387.0232,
+      "updatedAt": "2026-11-18T03:44:59.437Z",
       "source": "hook",
       "symbols": [
         {
           "name": "bump_patch",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 90,
+          "startLine": 75,
+          "endLine": 92,
           "tokens": 128
         },
         {
           "name": "validate_definition_json",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 130,
+          "startLine": 93,
+          "endLine": 132,
           "tokens": 421
         },
         {
           "name": "align_with_columns",
           "kind": "fn",
-          "startLine": 131,
-          "endLine": 147,
+          "startLine": 133,
+          "endLine": 149,
           "tokens": 149
         },
         {
           "name": "_to_dict",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 166,
+          "startLine": 150,
+          "endLine": 168,
           "tokens": 168
         },
         {
           "name": "visible_clause",
           "kind": "fn",
-          "startLine": 167,
-          "endLine": 181,
-          "tokens": 108
+          "startLine": 169,
+          "endLine": 224,
+          "tokens": 513
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 182,
-          "endLine": 356,
-          "tokens": 2181
+          "startLine": 225,
+          "endLine": 471,
+          "tokens": 3004
         }
       ]
     },
@@ -49845,6 +49845,80 @@
       "mtimeMs": 1794970869463.7285,
       "updatedAt": "2026-11-18T03:01:09.520Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_report_definition_publish_duty.py": {
+      "description": "**publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。",
+      "tokens": 1815,
+      "hash": "963d757012c02a1a",
+      "size": 7430,
+      "mtimeMs": 1794973402794.8638,
+      "updatedAt": "2026-11-18T03:43:22.843Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 38,
+          "tokens": 77
+        },
+        {
+          "name": "_body",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 61,
+          "tokens": 180
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 75,
+          "tokens": 114
+        },
+        {
+          "name": "_mk_def",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 91,
+          "tokens": 160
+        },
+        {
+          "name": "test_creator_who_is_a_reviewer_cannot_publish_own_definition",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 119,
+          "tokens": 300
+        },
+        {
+          "name": "test_reviewer_without_project_grant_cannot_publish",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 137,
+          "tokens": 190
+        },
+        {
+          "name": "test_reviewer_with_project_grant_can_publish",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 162,
+          "tokens": 263
+        },
+        {
+          "name": "test_company_level_definition_can_be_published_by_a_reviewer",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 182,
+          "tokens": 183
+        },
+        {
+          "name": "test_company_level_definition_creator_still_cannot_publish",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 195,
+          "tokens": 133
+        }
+      ]
     }
   }
 }

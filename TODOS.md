@@ -4437,6 +4437,20 @@ if scope is None:
 
 **归属**：P10-F（F3-T2a · 断言缺口 · 依赖 TODO-172）
 
+
+### ✅ 已修（2026-11-18 · commit `09c9282` · TODO-172 裁决落地）
+
+⇒ ⇒ 人裁决「**审核者不能审自己创建的**」⇒ ⇒ ⇒ 实现加「`created_by != 发布人`」
+⇒ ⇒ ⇒ **403** `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN`（在 **service 层**
+⇒ ⇒ ⇒ ⇒ 端点漏调也绕不过）。
+⇒ ⇒ ⇒ 新增**敏感**断言：`tests/api/v1/test_report_definition_publish_duty.py::
+test_creator_who_is_a_reviewer_cannot_publish_own_definition`
+⇒ ⇒ ⇒ ⇒ （**创建人自己是 REVIEWER** ⇒ ⇒ ⇒ ⇒ 此前是 **HTTP 200** ⇒ ⇒ ⇒
+⇒ ⇒ ⇒ 现在 **403**）。
+⇒ ⇒ ⇒ 既有那条 `test_publish_requires_reviewer_role` **保留** ⇒ ⇒ ⇒ 它断的
+「角色不够 ⇒ ⇒ 403」是**另一件事** ⇒ ⇒ ⇒ 两条各断各的。
+
+
 ---
 
 ## TODO-175: `POST /projects` 允许 SYSTEM_ADMIN 在**别人**的 FORMAL 工作区里建项目（产品语义待定）🟡
@@ -4933,3 +4947,95 @@ require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMI
 **归属**：P10-F（F3-T3b · 断言基础设施 · **low**）
 
 ---
+
+---
+
+## ✅ TODO-172: **已裁决并落地**（2026-11-18 · commit `09c9282`）
+
+**人裁决（三条）**：
+
+| # | 裁决 | 落点 |
+|---|---|---|
+| ① | **审核者不能审自己创建的** | `created_by == actor` ⇒ ⇒ **403** `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN` |
+| ② | **审核者需要对定义的项目有授权** | `project_id` 非空 ⇒ ⇒ 查 `user_projects` ⇒ ⇒ 无授权 ⇒ ⇒ **404** |
+| ③ | **允许公司级审核者** | `project_id IS NULL` ⇒ ⇒ **不做项目判定** ⇒ ⇒ 任何审核角色（且非创建人）都能审 |
+
+⇒ ⇒ 判定落在 **service 层**（`DefinitionService.publish`）⇒ ⇒ 端点漏调也绕不过
+⇒ ⇒ ⇒ 这正是 TODO-178 的根因（断言在、但不敏感于缺陷）。
+⇒ ⇒ ② 的 404 与「不存在」**逐字同形**（同一个 `REPORT_DEFINITION_NOT_FOUND`）。
+⇒ ⇒ ③ 是 ② 的例外（否则公司级模板**永远没人能审**）。
+
+⇒ ⇒ 测试：`tests/api/v1/test_report_definition_publish_duty.py`（5 例 · 全
+`strict_client`）⇒ ⇒ 三条裁决各有用例 + 两条**正面路径**。
+
+⇒ ⇒ ⚠️ **裁决未覆盖的一处** ⇒ ⇒ `obsolete`（作废）**仍不查 `created_by`**
+⇒ ⇒ ⇒ **别人发布的定义，任意审核角色都能作废** ⇒ ⇒ ⇒ 登记 **TODO-190**。
+
+---
+
+## ✅ TODO-175: **已裁决并落地**（2026-11-18 · commit `09c9282`）
+
+**人裁决**：「**只有系统管理员可以替别人建项目**」+「**工作区的 owner
+自动获得授权**」。
+
+⇒ ⇒ ① `POST /projects` 本来就**只允许 SYSTEM_ADMIN** ⇒ ⇒ 现状即满足。
+⇒ ⇒ ② **工作区 owner 自动获得授权**（`PROJECT_LEAD`）⇒ ⇒ 理由：工作区是他的，
+项目住在**他的工作区**里 ⇒ ⇒ ⇒ 否则项目「住在别人的工作区里却不属于他」
+⇒ ⇒ ⇒ 而可见性按 `user_projects` ⇒ ⇒ ⇒ 他**永远看不见**。
+⇒ ⇒ ⚠️ `owner_id` 可空（老工作区）⇒ ⇒ ⇒ 空 ⇒ ⇒ 跳过（不造幽灵授权行）。
+
+⇒ ⇒ 测试：`tests/api/v1/test_project_owner_access.py::test_creating_a_project_grants_the_workspace_owner_access`。
+
+---
+
+## TODO-190: `obsolete`（作废报表定义）**不查 `created_by`** ⇒ ⇒ 任意审核角色都能作废别人的定义 🟡
+
+**现状**（2026-11-18 · P10-F 的 TODO-172 裁决落地时**顺带查出来**）：
+
+`DefinitionService.obsolete(def_id)`（`app/services/report/definition_service.py`）
+⇒ ⇒ 与 `publish` 同款形状 ⇒ ⇒ **只查状态**（DRAFT/PUBLISHED ⇒ 可作废）
+⇒ ⇒ ⇒ **不查 `created_by`** ⇒ ⇒ ⇒ 任何 `PUBLISH_ROLES`
+（REVIEWER / APPROVER / SYSTEM_ADMIN）都能**作废别人发布的定义**。
+
+⇒ ⇒ ⚠️ **为什么本次没顺手修**：TODO-172 的裁决是「**审核者**不能**审**自己
+创建的」⇒ ⇒ 「作废」≠「审」⇒ ⇒ ⇒ 裁决**没有**覆盖它
+⇒ ⇒ ⇒ 要不要一并禁（作废也算「治理动作」）是**产品语义** ⇒ ⇒ ⇒ 单独登记。
+
+⇒ ⇒ **实际可利用性**：低 ⇒ ⇒ 作废一个**别人**的定义 ⇒ ⇒ 对方的工作流被打断
+⇒ ⇒ ⇒ 但作废是**可逆的**（重新发布需要 REVIEWER ⇒ ⇒ 前提是那条定义还能被
+看到 ⇒ ⇒ PUBLISHED + ALL_USERS ⇒ ⇒ 可见 ⇒ ⇒ ⇒ 可以重新发布回来）
+⇒ ⇒ ⇒ ⇒ 属「可用性」而非「数据泄露」。
+
+⇒ ⇒ **建议改法**：与 publish 同款 ⇒ ⇒ `created_by == actor` ⇒ ⇒ 403
+（**除非**该定义本来就是他建的 ⇒ ⇒ 那时他作废自己的当然可以）。
+
+**何时做**：低优先（⇒ ⇒ 但改的时候**别忘了 publish 那条已经落地** ⇒ ⇒
+⇒ ⇒ 两边口径应当一致 ⇒ ⇒ ⇒ 一起改才不分裂）
+
+**归属**：P10-F 之外的独立批（**产品语义**）
+
+---
+
+## TODO-191: 前端「保存并发布」对**创建人自己**没有提示 ⇒ ⇒ 点了才吃 403 🟢
+
+**现状**（2026-11-18 · TODO-172 裁决落地时查出来）：
+
+`pcs-frontend/src/pages/report/ReportDefinitionEditorPage.tsx:242` 的
+「保存并发布」（`thenPublish`）⇒ ⇒ 直接调 `reportBuilderApi.publish(def_id)`
+⇒ ⇒ ⇒ 创建人**自己**是 REVIEWER 时 ⇒ ⇒ ⇒ 后端现在返 **403**
+`REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN` ⇒ ⇒ ⇒ 前端只在
+`setError(errorMessage(err))` 里**显示错误** ⇒ ⇒ ⇒ 用户要**点一次**才知道
+「发布须由他人审核」。
+
+⇒ ⇒ ⇒ **功能不算坏**（错误码 + 文案都到位）⇒ ⇒ ⇒ 只是**提示晚了一步**。
+
+**建议改法**（**前端小改 · 属产品体验**）：
+
+① 编辑器页在「当前用户就是创建人」时 ⇒ ⇒ 「保存并发布」按钮
+**改成「仅保存草稿」** + Tooltip「**发布须由他人审核**」；
+② 或者保留按钮 ⇒ ⇒ 但在点击前就提示「你是创建人，发布需要另一位审核者」。
+
+⚠️ **要不要做**：由人定（**不影响正确性**）⇒ ⇒ ⇒ 后端语义已钉死（TODO-172）
+⇒ ⇒ ⇒ 前端只是把「点一下才知道」变成「一开始就知道」。
+
+**归属**：P10-F 之外的独立批（**前端体验**）

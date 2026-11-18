@@ -6759,6 +6759,30 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-11-18"
+    },
+    {
+      "id": "bug-2191",
+      "timestamp": "2026-11-18",
+      "severity": "medium",
+      "error_message": "报表定义的**审核职责未分离**：创建人**自己**就能发布自己创建的定义（只要他的角色是 REVIEWER/APPROVER）—— 实测 HTTP 200；且审核者**不需要**对定义所属项目有授权",
+      "file": "pcs-backend/app/services/report/definition_service.py",
+      "root_cause": "`DefinitionService.publish()`（P10-F 之前）**只查状态**，不查 `created_by`、不查项目授权 ⇒ ⇒ 端点层的 `require_roles(PUBLISH_ROLES)` 只判「你是什么角色」⇒ ⇒ ⇒ 任何 REVIEWER 都能发布**别人**的草稿 ⇒ ⇒ ⇒ 而「自审自批」这条**意图**（既有测试 docstring 写着「创建人自己不能发布」）**没有任何断言守着**（既有用例的创建人是 DESIGNER ⇒ ⇒ 挡的是角色闸 ⇒ ⇒ ⇒ 断言**不敏感于**它命名的缺陷）。⚠️ **4 问表第 ② 问只问了「资源的 id」（def_id）** ⇒ ⇒ 漏了「作用域的 id」（定义所属的项目）⇒ ⇒ ⇒ 两者都没判。",
+      "fix": "**已修**（2026-11-18 · commit `09c9282` · TODO-172 人裁决三条）：① **禁自审** ⇒ ⇒ `created_by == actor` ⇒ ⇒ **403** `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN`；② **审核者要对定义的项目有授权** ⇒ ⇒ 查 `user_projects` ⇒ ⇒ 无授权 ⇒ ⇒ **404**（与「不存在」**逐字同形** ⇒ ⇒ 不泄露草稿存在性）；③ **允许公司级审核者** ⇒ ⇒ `project_id IS NULL` ⇒ ⇒ 不做项目判定（否则公司级模板永远没人能审）。⇒ ⇒ 判定在 **service 层** ⇒ ⇒ 端点漏调也绕不过。⇒ ⇒ 新增 `tests/api/v1/test_report_definition_publish_duty.py`（5 例 · 全 `strict_client`）⇒ ⇒ 含两条**正面路径**（有授权的审核者 / 公司级审核者）⇒ ⇒ 防「所有人都被拒」被当成修好了。⚠️ `obsolete`（作废）**未**覆盖 ⇒ ⇒ 登记 TODO-190。",
+      "fix_commit": "09c9282",
+      "tags": [
+        "P10-F",
+        "F3-T2a",
+        "职责分离",
+        "自审自批",
+        "report_builder",
+        "TODO-172",
+        "medium"
+      ],
+      "related_bugs": [
+        "bug-2186"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
     }
   ]
 }

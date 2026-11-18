@@ -3871,3 +3871,5 @@
 | 10:59 | Edited pcs-backend/tests/api/v1/test_workspace_access_guard.py | expanded (+7 lines) | ~100 |
 | 11:01 | Created docs/solutions/security-issues/workspace-access-guard-project-or-owner.md | — | ~1011 |
 | 11:01 | Edited CONCEPTS.md | expanded (+21 lines) | ~292 |
+| 11:43 | Created pcs-backend/tests/api/v1/test_report_definition_publish_duty.py | — | ~1815 |
+| 11:44 | Edited pcs-backend/app/services/report/definition_service.py | added error handling | ~703 |

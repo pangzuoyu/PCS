@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T03:01:34.788Z
-> Files: 1373 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T03:44:59.437Z
+> Files: 1374 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1540,7 +1540,7 @@
 - `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3146 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
-- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3781 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~5046 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
@@ -1667,6 +1667,7 @@
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~5118 tok)
 - `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
+- `test_report_definition_publish_duty.py` — **publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。 (~1815 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~5966 tok)
 - `test_signature_matrix_api.py` — 签署矩阵管理面端点测试（TODO-070 · P9A-DLV-011 T3）。 (~2526 tok)
