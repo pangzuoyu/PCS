@@ -3,6 +3,11 @@
 POST /workspaces/import 已推迟到 P1.2（设计缺陷6裁决）。
 
 F-P3-003 Sprint 3: PATCH /workspaces/{workspace_id}/archive 端点（SYSTEM_ADMIN）。
+
+⚠️ **P10-F · F3（TODO-186）**：本模块的三个端点此前**不要求登录**
+⇒ ⇒ 匿名可枚举**全部**工作区（`owner_id` 不传即全量）⇒ ⇒ 匿名 GET 还**写库**
+（`touch`）⇒ ⇒ 匿名 POST 可指定**任意 `owner_id`** ⇒ ⇒ **审计行也记在那个
+owner 名下**（审计污染）⇒ ⇒ ⇒ 现在：**要登录** + **要授权**。
 """
 
 from __future__ import annotations
@@ -22,7 +27,11 @@ from app.models.enums import WorkspaceStatus, WorkspaceType
 from app.models.project import Workspace
 from app.schemas.workspace import WorkspaceCreate, WorkspaceOut
 from app.services.advisory_lock import acquire_record_lock
-from app.services.workspace_service import WorkspaceService
+from app.services.exceptions import WorkspaceNotFoundError
+from app.services.workspace_service import (
+    WorkspaceService,
+    require_workspace_access_or_404,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -30,6 +39,7 @@ router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 @router.post("", response_model=WorkspaceOut, status_code=http_status.HTTP_201_CREATED)
 async def create_workspace(
     payload: WorkspaceCreate,
+    user: Annotated[_Actor, Depends(current_actor)],
     owner_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> WorkspaceOut:
@@ -44,17 +54,25 @@ async def create_workspace(
     4. 转 WorkspaceOut 返回（含 id/name/type/project_id/retention_days/
        created_by/created_at 等字段）
 
-    owner_id 来自 Depends（认证中间件注入），user_id 复用 owner_id：
-    工作区拥有者即创建者。
+    ⚠️ **P10-F · F3（TODO-186）**：**要登录** + **`owner_id` 必须是令牌里的那个人**
+    ⇒ ⇒ 理由：原来 `owner_id` 由客户端任意填 ⇒ ⇒ 建的行的 owner 是别人
+    ⇒ ⇒ ⇒ 而 `WorkspaceService.create` 把 `user_id=owner_id` 写进
+    **`WORKSPACE_CREATED` 审计行** ⇒ ⇒ ⇒ **匿名可把审计行记在别人名下**
+    ⇒ ⇒ ⇒ 「替别人建工作区」这件事**不在**这里开放
+    （⇒ ⇒ 那是 `POST /projects` 的产品语义 · TODO-175）。
     """
+    if owner_id != user.user_id:
+        raise HTTPException(
+            status_code=403, detail="owner_id must match the current user"
+        )
     svc = WorkspaceService(session)
     ws = await svc.create(
-        owner_id=owner_id,
+        owner_id=user.user_id,
         workspace_type=WorkspaceType(payload.workspace_type),
         name=payload.name,
         project_id=payload.project_id,
         retention_days=payload.retention_days,
-        user_id=owner_id,
+        user_id=user.user_id,
     )
     await session.commit()
     return WorkspaceOut.model_validate(ws)
@@ -62,20 +80,35 @@ async def create_workspace(
 
 @router.get("", response_model=list[WorkspaceOut])
 async def list_workspaces(
+    user: Annotated[_Actor, Depends(current_actor)],
     owner_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db),
 ) -> list[WorkspaceOut]:
     """GET 列出工作区。
 
     步骤：
-    1. 可选 query: owner_id（按 owner 过滤；不传 → 全部）
+    1. 可选 query: owner_id（按 owner 过滤）
     2. 转发 WorkspaceService.list_for_user → 按 owner_id 过滤 + 分页
     3. ORM 行 → WorkspaceOut 序列化（FastAPI response_model 控制）
 
-    无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制。
-    与 /workspaces/{workspace_id}（get_workspace）区别：本端点列表；
-    get_workspace 单条 + touch + 404。
+    ⚠️ **P10-F · F3（TODO-186）**：**要登录** + **两种模式**：
+
+    | `owner_id` | 谁能调 |
+    |---|---|
+    | **= 令牌里的那个人** | 任何人（列**自己的**） |
+    | **别人的 / 不传** | **仅 `SYSTEM_ADMIN`**（= 前端注释里说的「admin 视图」） |
+
+    ⇒ ⇒ 理由：原来**不传 `owner_id` 就是全量**、且**不要求登录**
+    ⇒ ⇒ ⇒ 匿名可枚举**全部**工作区 ⇒ ⇒ 而 `workspace_id` 正是
+    `records.py` 读端点的钥匙（TODO-179）⇒ ⇒ ⇒ 两条是一条链。
     """
+    is_admin = "SYSTEM_ADMIN" in list(user.roles)
+    if owner_id is None or owner_id != user.user_id:
+        if not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="listing other users' workspaces requires SYSTEM_ADMIN",
+            )
     svc = WorkspaceService(session)
     rows = await svc.list_for_user(owner_id=owner_id)
     return [WorkspaceOut.model_validate(r) for r in rows]
@@ -84,23 +117,37 @@ async def list_workspaces(
 @router.get("/{workspace_id}", response_model=WorkspaceOut)
 async def get_workspace(
     workspace_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     session: AsyncSession = Depends(get_db),
 ) -> WorkspaceOut:
     """GET 单个 workspace（按 ID）+ 更新 last_accessed_at。
 
     步骤：
     1. WorkspaceService.get 取行；不存在 → 404 workspace not found
-    2. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
-    3. session.commit() 落库
-    4. ORM 行经 WorkspaceOut.model_validate 转响应 schema
+    2. **授权判定**（TODO-186）⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形）
+    3. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
+    4. session.commit() 落库
+    5. ORM 行经 WorkspaceOut.model_validate 转响应 schema
 
-    注意：本端点不要求 ACL（workspace_id 自身是访问令牌语义）；
-    业务写操作请改用 api/deps.py require_formal_workspace 依赖。
+    ⚠️ **P10-F · F3（TODO-186）**：本端点此前**不要求登录、也没有 ACL**
+    ⇒ ⇒ **且 `touch` 是写副作用** ⇒ ⇒ 匿名 GET ⇒ ⇒ **匿名写库**
+    ⇒ ⇒ ⇒ 现在：**要登录** + **要对该工作区有访问权**
+    ⇒ ⇒ ⇒ 「无权」与「不存在」抛**同一个** `WorkspaceNotFoundError`
+    ⇒ ⇒ ⇒ 响应**逐字相同** ⇒ ⇒ ⇒ 枚举不出 UUID。
     """
     svc = WorkspaceService(session)
     ws = await svc.get(workspace_id)
     if ws is None:
-        raise HTTPException(status_code=404, detail="workspace not found")
+        # ⚠️ **与「无权」抛的是同一个异常**（`WorkspaceNotFoundError`）
+        # ⇒ ⇒ 「不存在」与「无权」⇒ ⇒ **逐字同形** ⇒ ⇒ 枚举不出 UUID
+        # ⇒ ⇒ （此前这里是 `HTTPException` ⇒ ⇒ code 与守卫那份不同 ⇒ ⇒ 可区分）
+        raise WorkspaceNotFoundError(
+            f"workspace_id={workspace_id} not found",
+            details={"workspace_id": str(workspace_id)},
+        )
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     await svc.touch(workspace_id)
     await session.commit()
     return WorkspaceOut.model_validate(ws)

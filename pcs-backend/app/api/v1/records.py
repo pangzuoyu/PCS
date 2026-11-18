@@ -24,7 +24,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_workspace, require_formal_workspace
-from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.models.calc import PipingResult
@@ -33,12 +32,14 @@ from app.models.enums import StateTransition
 from app.models.project import Workspace
 from app.schemas.records import RecordTransitionRequest
 from app.services.state_machine import StateMachineService
+from app.services.workspace_service import require_workspace_access_or_404
 
 router = APIRouter(prefix="/records", tags=["records"])
 
 
 @router.get("/piping", response_model=list[dict])
 async def list_piping(
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace_id: uuid.UUID = Query(...),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -50,8 +51,16 @@ async def list_piping(
     - 排序：seq_no asc（管号序号）
     - sign_status 返回 enum value（兼容历史字符串）
     - 返回 5 字段：pipe_id / line_no / sign_status / approval_step / locked_by_deliverable
+
+    ⚠️ **P10-F · F3（TODO-179）**：本端点此前**既不要求登录也不做项目授权**
+    ⇒ ⇒ 匿名可读走**任意项目**的管路记录 ⇒ ⇒ 现在：
+    ① **要登录**（`current_actor`）② **要对工作区有访问权**
+    ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形 ⇒ ⇒ 枚举不出 workspace）。
     """
     ws = await get_workspace(workspace_id, session)
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     rows = (
         await session.execute(
             select(PipingResult)
@@ -78,6 +87,7 @@ async def list_piping(
 @router.get("/piping/{pipe_id}", response_model=dict)
 async def get_piping(
     pipe_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace_id: uuid.UUID = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
@@ -88,8 +98,14 @@ async def get_piping(
 
     返回字段：pipe_id / line_no / sign_status / approval_step /
     locked_by_deliverable / seq_no / source_pid。
+
+    ⚠️ **P10-F · F3（TODO-179 / 185）**：本端点此前**不要求登录、不做项目授权**
+    ⇒ ⇒ 且**零测试** ⇒ ⇒ 现在：要登录 + 要对工作区有访问权（否则 **404**）。
     """
     ws = await get_workspace(workspace_id, session)
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     rec = (
         await session.execute(
             select(PipingResult).where(
@@ -124,16 +140,26 @@ async def create_piping(
 
     BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
     （修复 IDOR：user_id 不再可由客户端伪造）。
+
+    ⚠️ **P10-F · F3（TODO-180）**：授权对象**从「payload 的 project_id」改成
+    「工作区的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
+    ⇒ ⇒ 「授权在项目 A 的人把记录写进项目 B 的工作区」（实测 200）
+    ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与 `workspace.project_id` **一致**
+    ⇒ ⇒ ⇒ 不一致 ⇒ ⇒ **400**（不是授权失败 ⇒ ⇒ 是**请求自相矛盾**）。
     """
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
-    actor_roles_list = list(user.roles)
-    await check_project_access_or_404(
-        session, user_id=user.user_id,
-        project_id=uuid.UUID(payload["project_id"]),
-        actor_roles=actor_roles_list,
+    # ⚠️ **授权对象 = 工作区的项目**（FORMAL 工作区 ⇒ ⇒ 必然有项目 · TODO-169）
+    await require_workspace_access_or_404(
+        session, workspace=workspace, user_id=user.user_id,
+        actor_roles=list(user.roles),
     )
+    body_project_id = uuid.UUID(payload["project_id"])
+    if workspace.project_id is None or body_project_id != workspace.project_id:
+        raise HTTPException(
+            400,
+            "payload.project_id must match the workspace's project_id",
+        )
     rec = PipingResult(
-        project_id=uuid.UUID(payload["project_id"]),
+        project_id=workspace.project_id,
         workspace_id=workspace.workspace_id,
         seq_no=payload.get("seq_no", 0),
         line_no=payload["line_no"],
@@ -184,13 +210,12 @@ async def transition_piping(
     （修复 IDOR + role 伪造）。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
-    actor_roles_list = list(user.roles)
-    if ws.project_id is not None:
-        await check_project_access_or_404(
-            session, user_id=user.user_id, project_id=ws.project_id,
-            actor_roles=actor_roles_list,
-        )
+    # ⚠️ **P10-F · F3（TODO-182）**：授权对象 = **工作区**（不是 `ws.project_id` 的
+    # 「非空才判」分支）⇒ ⇒ FORMAL 工作区 ⇒ ⇒ 必然有项目（TODO-169）
+    # ⇒ ⇒ ⇒ PERSONAL（无项目）⇒ ⇒ 只认 owner 本人 ⇒ ⇒ ⇒ **不再有「跳过」分支**。
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     rec = (
         await session.execute(
             select(PipingResult).where(
@@ -238,13 +263,10 @@ async def obsolete_piping(
     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
-    actor_roles_list = list(user.roles)
-    if ws.project_id is not None:
-        await check_project_access_or_404(
-            session, user_id=user.user_id, project_id=ws.project_id,
-            actor_roles=actor_roles_list,
-        )
+    # ⚠️ **P10-F · F3（TODO-182）**：同 `transition_piping` ⇒ ⇒ 授权对象 = **工作区**
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     rec = (
         await session.execute(
             select(PipingResult).where(
@@ -270,6 +292,7 @@ async def obsolete_piping(
 @router.get("/piping/{pipe_id}/snapshots", response_model=list[dict])
 async def list_snapshots(
     pipe_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace_id: uuid.UUID = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
@@ -282,8 +305,15 @@ async def list_snapshots(
        snapshot_source, created_at} 列表
 
     workspace 隔离：仅查询 workspace_id 下的 PipingResult，越权访问 → 404。
+
+    ⚠️ **P10-F · F3（TODO-179）**：本端点此前**不要求登录、不做项目授权**
+    ⇒ ⇒ 快照是**审计轨迹** ⇒ ⇒ 泄露它等于泄露「谁在什么时候改了什么」
+    ⇒ ⇒ 现在：要登录 + 要对工作区有访问权（否则 **404**）。
     """
     ws = await get_workspace(workspace_id, session)
+    await require_workspace_access_or_404(
+        session, workspace=ws, user_id=user.user_id, actor_roles=list(user.roles)
+    )
     rec = (
         await session.execute(
             select(PipingResult).where(

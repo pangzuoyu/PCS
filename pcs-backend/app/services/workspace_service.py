@@ -171,3 +171,62 @@ class WorkspaceService:
                 count += 1
         await self.session.flush()
         return count
+
+# ---------------------------------------------------------------------------
+# 工作区的**访问权**判定（**一份**真相源）
+# ---------------------------------------------------------------------------
+
+
+async def require_workspace_access_or_404(
+    session: AsyncSession,
+    *,
+    workspace: Workspace,
+    user_id: uuid.UUID,
+    actor_roles: list[str] | None = None,
+) -> None:
+    """无权访问该工作区 ⇒ ⇒ **404**（与「不存在」**逐字同形**）。
+
+    ## 口径（**人裁决 2026-11-18 · TODO-169** · `CONCEPTS.md` §Workspaces）
+
+    > **A FORMAL workspace belongs to exactly one project; a workspace that
+    > belongs to no project is PERSONAL.**
+
+    ⇒ ⇒ ⇒ **两类工作区，两种授权**：
+
+    | 工作区 | 谁能访问 |
+    |---|---|
+    | **有项目**（FORMAL） | 对该项目**有 `user_projects` 授权行**的人 |
+    | **无项目**（PERSONAL） | **owner 本人** |
+
+    ⇒ ⇒ 「登录」是**下限**，**不是**授权 ⇒ ⇒ 一个登录用户对别人的
+    PERSONAL 工作区**同样无权**。
+
+    ## 为什么是 404 而不是 403
+
+    ⇒ ⇒ 403 会泄露「这个工作区**存在**」⇒ ⇒ 本仓的规矩是
+    **「无权 ≡ 不存在 ⇒ ⇒ 逐字同形」** ⇒ ⇒ ⇒ 这里抛的
+    `WorkspaceNotFoundError` 与 `get_workspace` 取不到行时抛的是**同一个**
+    ⇒ ⇒ ⇒ 响应**逐字相同**（`code` 与 `message` 都一样）。
+
+    ## SYSTEM_ADMIN
+
+    ⇒ ⇒ 全局 bypass（与 `check_project_access_or_404` 同口径）⇒ ⇒
+    **运维/测试用** ⇒ ⇒ 生产上应通过 `POST /user-projects/grant` 显式授权。
+    """
+    from app.services.exceptions import WorkspaceNotFoundError
+    from app.services.user_project_service import UserProjectService
+
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return  # SYSTEM_ADMIN 全局访问权（与 API 层那份同口径）
+    if workspace.project_id is not None:
+        has_access = await UserProjectService.check_user_project_access(
+            session, user_id=user_id, project_id=workspace.project_id
+        )
+    else:
+        # PERSONAL（无项目）⇒ ⇒ 只认 owner 本人
+        has_access = workspace.owner_id == user_id
+    if not has_access:
+        raise WorkspaceNotFoundError(
+            f"workspace_id={workspace.workspace_id} not found",
+            details={"workspace_id": str(workspace.workspace_id)},
+        )
