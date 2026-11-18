@@ -147,3 +147,24 @@ creation window — not because FORMAL may stay unbound.
 
 *Avoid:* a FORMAL workspace bound to no project, a PERSONAL workspace treated as
 project-scoped
+
+### Workspace access
+**Who may reach a workspace** (ruling 2026-11-18, P10-F / F3):
+
+| Workspace | Who may access it |
+|---|---|
+| **bound to a project** (FORMAL) | whoever holds a live `user_projects` grant for that project |
+| **bound to no project** (PERSONAL) | the **owner** only |
+
+Two consequences worth naming:
+
+- **Authentication is a floor, not authorization.** Being logged in says *who you
+  are*; it says nothing about *whose* workspace. A logged-in user with no grant
+  is refused a FORMAL workspace, and refused another person's PERSONAL one.
+- **Refusal must be indistinguishable from absence.** No access ⇒ `404`, raised
+  as the *same* error the "does not exist" path raises ⇒ ⇒ a caller cannot tell
+  a foreign UUID from a non-existent one, so the UUID space cannot be enumerated.
+
+*Avoid:* a workspace readable by "any authenticated user", a workspace whose
+access is decided by a client-supplied owner id, and a 404 whose wording differs
+between "not yours" and "not there".
