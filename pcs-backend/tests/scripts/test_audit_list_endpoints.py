@@ -64,8 +64,8 @@ def test_paths_carry_the_router_prefix(api_dir: Path) -> None:
     assert "/demo/things/{thing_id}" in paths, f"前缀丢了：{sorted(paths)}"
 
 
-def test_guard_state_has_three_states(api_dir: Path) -> None:
-    """⚠️ **三态**（授权闸 / 角色闸·只认证 / 无任何调用）——不是「5 个调用任一出现」。"""
+def test_guard_state_has_four_states(api_dir: Path) -> None:
+    """⚠️ **四态**（授权闸 / 角色闸·只认证 / 工作区**类型**闸 / 无任何调用）。"""
     by_func = {r["func"]: r for r in enumerate_endpoints(api_dir)}
     assert by_func["get_thing_ro"]["state"] == "authz", "项目授权闸必须认出来"
     assert by_func["create_thing"]["state"] == "role_only", "角色闸**不是**项目授权闸"
@@ -78,9 +78,49 @@ def test_role_gate_is_not_project_authorization() -> None:
     assert classify(["require_roles"]) == "role_only"
     assert classify(["current_actor"]) == "role_only"
     assert classify(["check_project_access_or_404"]) == "authz"
-    assert classify(["require_formal_project_workspace"]) == "authz"
     assert classify(["require_roles", "check_project_access"]) == "authz"
     assert classify([]) == "none"
+
+
+def test_current_user_counts_as_authentication() -> None:
+    """⚠️ **`current_user` 也是「只认证」**（F3-T3b 实测踩到的假阴性）。
+
+    `app/api/v1/auth.py::current_user` ⇒ ⇒ 无 Bearer 头 ⇒ **401**
+    ⇒ ⇒ 它与 `current_actor` 同属「只认证」这一档。
+
+    ⚠️ **为什么这条重要**：`meta.py` 的 6 个端点**全部**用 `Depends(current_user)`
+    ⇒ ⇒ 不认它 ⇒ ⇒ 端点表把它们判成 `none`（看着像「无任何守卫」）
+    ⇒ ⇒ ⇒ 审计者会以为 `GET /meta/enums` 是匿名可读的 ⇒ ⇒ **结论整个是错的**。
+    """
+    assert classify(["current_user"]) == "role_only"
+
+
+def test_workspace_type_gate_is_not_project_authorization() -> None:
+    """⚠️ **工作区「类型」闸 ≠ 项目授权闸**（F3-T3b 实测踩到的假阳性）。
+
+    `app/api/v1/_guard.py::require_formal_project_workspace` 只判
+    「这个项目所在的工作区是不是 FORMAL」⇒ ⇒ **它一次也没查 `user_projects`**
+    ⇒ ⇒ 而且它是 **fail-open** 的（项目没挂工作区 ⇒ ⇒ 直接放行）
+    ⇒ ⇒ ⇒ 把它算成「项目授权闸」⇒ ⇒ 端点表说「已覆盖」⇒ ⇒ **结论是错的**。
+
+    ⇒ ⇒ 它自己单独一档（`type_only`）⇒ ⇒ 既不是「授权闸」也不是「无任何守卫」。
+    """
+    assert classify(["require_formal_project_workspace"]) == "type_only"
+    assert classify(["require_formal_workspace"]) == "type_only"
+
+
+def test_meta_endpoints_are_not_reported_as_unauthenticated() -> None:
+    """⚠️ **真模块回归**：`meta.py` 的端点**有认证** ⇒ ⇒ 不许判成 `none`。
+
+    ⇒ ⇒ 这是 F3-T3b 的**真实教训**：脚本不认 `current_user`
+    ⇒ ⇒ ⇒ 6 个端点被误判 ⇒ ⇒ ⇒ 用真模块钉住它。
+    """
+    rows = [r for r in enumerate_endpoints() if r["module"] == "meta"]
+    assert rows, "meta 模块没被枚举到"
+    for row in rows:
+        assert row["state"] != "none", (
+            f"{row['path']} 被判成「无任何守卫」⇒ ⇒ 它其实有 `current_user` 认证"
+        )
 
 
 def test_dependency_style_guards_are_seen(api_dir: Path) -> None:
@@ -181,7 +221,7 @@ async def get_x(actor: ActorDep):
 
 
 def test_every_row_has_a_state_and_a_method() -> None:
-    """每个端点都必须有**方法**与**三态**⇒ ⇒ 表里不许有空格。"""
+    """每个端点都必须有**方法**与**四态**⇒ ⇒ 表里不许有空格。"""
     for row in enumerate_endpoints():
         assert row["method"] in {"GET", "POST", "PUT", "PATCH", "DELETE"}
-        assert row["state"] in {"authz", "role_only", "none"}
+        assert row["state"] in {"authz", "role_only", "type_only", "none"}

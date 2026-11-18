@@ -10,23 +10,39 @@ F3-T1 的范围提案说「端点清单可复跑」⇒ ⇒ **可复跑**就得�
 F3-T2/T3 的「4 问表」的第 ② 问（该 id 是否按当前用户/项目做授权判定）
 **可以从这个输出里直接取初判** ⇒ ⇒ 免得每个端点都靠人眼重扫一遍。
 
-## ⚠️ **守卫三态**（2026-11-18 裁决 · 修的是初判口径）
+## ⚠️ **守卫四态**（2026-11-18 裁决 · 修的是初判口径 · **F3-T3b 又修了一次**）
 
 | 态 | 判据（端点体 / 签名里出现的调用） | 含义 | 后续 |
 |---|---|---|---|
-| `authz` | `check_project_access_or_404` · `check_project_access` · `require_formal_project_workspace` | 判「**这个 id 是不是你的**」 | 候选「已覆盖」⇒ F3-T2 核**断言行** |
-| `role_only` | `require_roles`（角色闸）· `current_actor`（只认证） | 只判「你是什么角色 / 你是谁」⇒ **不判项目归属** | ⚠️ **优先审** —— ce review #5 的形状 |
-| `none` | 三个都没出现 | 端点里看不到任何守卫调用 | 候选缺口（**守卫可能在 service 层** ⇒ 不等于真缺口） |
+| `authz` | `check_project_access_or_404` · `check_project_access` | 判「**这个 id 是不是你的**」 | 候选「已覆盖」⇒ F3-T2 核**断言行** |
+| `role_only` | `require_roles`（角色闸）· `current_actor`（只认证）· `current_user`（只认证） | 只判「你是什么角色 / 你是谁」⇒ **不判项目归属** | ⚠️ **优先审** —— ce review #5 的形状 |
+| `type_only` | `require_formal_workspace` · `require_formal_project_workspace` | 判「**这个工作区是不是 FORMAL**」⇒ ⇒ **既不判项目归属、也不判身份** | ⚠️ **不是授权闸**（见下） |
+| `none` | 四个都没出现 | 端点里看不到任何守卫调用 | 候选缺口（**守卫可能在 service 层** ⇒ 不等于真缺口） |
 
 ⚠️ **为什么不能合成一档**（裁决前的失真）：
 
-- `current_actor` 是「**拿到当前用户**」，**不是**「判断授权」；
+- `current_actor` / `current_user` 是「**拿到当前用户**」，**不是**「判断授权」；
 - `require_roles` 是**角色闸**，**不是**项目级授权。
 
 把它们算成「有守卫」⇒ ⇒ **假阴性**：一个端点调了 `current_actor` 但没
 `check_project_access` ⇒ ⇒ 被判「有守卫」⇒ ⇒ **不进候选缺口**
 ⇒ ⇒ **真缺口被漏掉** ⇒ ⇒ 漏掉的缺口**不会**进入后续审计
 ⇒ ⇒ 比假阳性危险。
+
+⚠️ ⚠️ **F3-T3b 实测踩到的两个分类错误**（⇒ ⇒ 都有守卫测试钉着）：
+
+1. **`current_user` 不在「只认证」那一档** ⇒ ⇒ `meta.py` 的 6 个端点
+   （**全部**用 `Depends(current_user)`）被误判成 `none`
+   ⇒ ⇒ 审计者会以为它们「匿名可读」⇒ ⇒ **结论整个是错的**
+   ⇒ ⇒ ⇒ `current_user` 无 Bearer 头 ⇒ ⇒ **401** ⇒ ⇒ 它与 `current_actor` 同档。
+2. **`require_formal_project_workspace` 被算成「项目授权闸」** ⇒ ⇒ **假阳性**
+   ⇒ ⇒ 它只判「工作区是不是 FORMAL」⇒ ⇒ **一次也没查 `user_projects`**
+   ⇒ ⇒ 而且它是 **fail-open** 的（项目没挂工作区 ⇒ ⇒ 直接放行）
+   ⇒ ⇒ ⇒ 算成 `authz` ⇒ ⇒ 端点表说「已覆盖」⇒ ⇒ **结论是错的**
+   ⇒ ⇒ ⇒ 它自己单独一档（`type_only`）。
+
+⚠️ **教训**：**分类表本身也要被审** ⇒ ⇒ 否则「工具给的初判」会把
+**工具的错**带进**审计的结论**⇒ ⇒ ⇒ 工具的每个分类都要有守卫测试。
 
 ## 用法
 
@@ -60,17 +76,29 @@ BACKEND = Path(__file__).resolve().parents[1]
 API_DIR = BACKEND / "app" / "api" / "v1"
 
 #: **项目级授权闸** —— 判「这个 id 是不是你的」。
+#:
+#: ⚠️ **这里不能放 `require_formal_project_workspace`**（F3-T3b 实测踩过）：
+#: 它只判「项目所在的工作区是不是 FORMAL」⇒ ⇒ **一次也没查 `user_projects`**
+#: ⇒ ⇒ 而且 **fail-open**（项目没挂工作区 ⇒ ⇒ 直接放行）
+#: ⇒ ⇒ 算成授权闸 ⇒ ⇒ 端点表说「已覆盖」⇒ ⇒ **结论是错的**。
 AUTHZ_GUARDS = frozenset(
     {
         "check_project_access_or_404",
         "check_project_access",
-        "require_formal_project_workspace",
     }
 )
 #: **角色闸** —— 判「你是什么角色」⇒ **不判项目归属**。
 ROLE_GUARDS = frozenset({"require_roles"})
 #: **只认证** —— 判「你是谁」⇒ **不判任何归属**。
-WHOAMI_GUARDS = frozenset({"current_actor"})
+#:
+#: ⚠️ **`current_user` 也在这一档**（F3-T3b 实测踩过）：`app/api/v1/auth.py`
+#: 里的它无 Bearer 头 ⇒ ⇒ **401** ⇒ ⇒ 与 `current_actor` 同档
+#: ⇒ ⇒ 不认它 ⇒ ⇒ `meta.py` 的 6 个端点被误判成「无任何守卫」。
+WHOAMI_GUARDS = frozenset({"current_actor", "current_user"})
+#: **工作区类型闸** —— 判「这个工作区是不是 FORMAL」⇒ ⇒ **既不判身份、也不判归属**。
+TYPE_GUARDS = frozenset(
+    {"require_formal_workspace", "require_formal_project_workspace"}
+)
 
 #: HTTP 方法（FastAPI 路由装饰器名）。
 METHODS = ("get", "post", "put", "patch", "delete", "head", "options")
@@ -175,7 +203,7 @@ def _alias_guards(tree: ast.Module) -> dict[str, set[str]]:
     ⇒ ⇒ **假阴性**（端点其实**有**认证）。
     """
     out: dict[str, set[str]] = {}
-    interesting = AUTHZ_GUARDS | ROLE_GUARDS | WHOAMI_GUARDS
+    interesting = AUTHZ_GUARDS | ROLE_GUARDS | WHOAMI_GUARDS | TYPE_GUARDS
     for node in tree.body:
         if not isinstance(node, ast.Assign):
             continue
@@ -221,11 +249,13 @@ def _guard_calls(func: ast.FunctionDef, aliases: dict[str, set[str]] | None = No
 
 
 def classify(guards: list[str]) -> str:
-    """守卫**三态**（见文件头）。"""
+    """守卫**四态**（见文件头）。"""
     if AUTHZ_GUARDS & set(guards):
         return "authz"
     if ROLE_GUARDS & set(guards) or WHOAMI_GUARDS & set(guards):
         return "role_only"
+    if TYPE_GUARDS & set(guards):
+        return "type_only"
     return "none"
 
 
@@ -304,7 +334,10 @@ def _counts(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
     """按模块统计：端点数 + 三态分布。"""
     out: dict[str, dict[str, int]] = {}
     for row in rows:
-        mod = out.setdefault(row["module"], {"total": 0, "authz": 0, "role_only": 0, "none": 0})
+        mod = out.setdefault(
+            row["module"],
+            {"total": 0, "authz": 0, "role_only": 0, "type_only": 0, "none": 0},
+        )
         mod["total"] += 1
         mod[row["state"]] += 1
     return out
@@ -331,7 +364,8 @@ def main(argv: list[str] | None = None) -> int:
             c = counts[mod]
             print(
                 f"{mod:28s} total={c['total']:3d}  authz={c['authz']:3d}  "
-                f"role_only={c['role_only']:3d}  none={c['none']:3d}"
+                f"role_only={c['role_only']:3d}  type_only={c['type_only']:3d}  "
+                f"none={c['none']:3d}"
             )
         print(f"\n合计 {len(rows)} 个端点")
         return 0
