@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T02:22:32.393Z",
-    "fileCount": 1367,
+    "lastScanned": "2026-11-18T02:30:59.678Z",
+    "fileCount": 1368,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ca8e3097e9baca788322d105678e4ebd621d29334f976522723843d4a4da7b40",
-    "storeUpdatedAt": "2026-11-18T02:22:32.404Z",
-    "rootHash": "1bfe8f24cd9b3f45"
+    "renderedHash": "ddbeb1be7394116d6dc607becfabd41a60d734f6a5748bd3bd6f6438ac44671f",
+    "storeUpdatedAt": "2026-11-18T02:30:59.690Z",
+    "rootHash": "9cc8ec31a29dcc16"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -49098,120 +49098,120 @@
     },
     "pcs-backend/scripts/audit_list_endpoints.py": {
       "description": "**守卫覆盖审计**的端点枚举（P10-F · F3）。",
-      "tokens": 3250,
-      "hash": "a030ac5c8303d128",
-      "size": 14170,
-      "mtimeMs": 1794963808892.9797,
-      "updatedAt": "2026-11-18T01:03:28.943Z",
+      "tokens": 3639,
+      "hash": "d89c8cef7b3d1e72",
+      "size": 16438,
+      "mtimeMs": 1794968754060.7449,
+      "updatedAt": "2026-11-18T02:25:54.107Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_call_tail",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 89,
+          "startLine": 107,
+          "endLine": 117,
           "tokens": 93
         },
         {
           "name": "_router_prefix",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 128,
+          "startLine": 118,
+          "endLine": 156,
           "tokens": 428
         },
         {
           "name": "_decorator_route",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 151,
+          "startLine": 157,
+          "endLine": 179,
           "tokens": 229
         },
         {
           "name": "_path_params",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 160,
+          "startLine": 180,
+          "endLine": 188,
           "tokens": 57
         },
         {
           "name": "_signature_params",
           "kind": "fn",
-          "startLine": 161,
-          "endLine": 167,
+          "startLine": 189,
+          "endLine": 195,
           "tokens": 62
         },
         {
           "name": "_alias_guards",
           "kind": "fn",
-          "startLine": 168,
-          "endLine": 191,
+          "startLine": 196,
+          "endLine": 219,
           "tokens": 234
         },
         {
           "name": "_guard_calls",
           "kind": "fn",
-          "startLine": 192,
-          "endLine": 222,
+          "startLine": 220,
+          "endLine": 250,
           "tokens": 334
         },
         {
           "name": "classify",
           "kind": "fn",
-          "startLine": 223,
-          "endLine": 231,
-          "tokens": 68
+          "startLine": 251,
+          "endLine": 261,
+          "tokens": 85
         },
         {
           "name": "_rel",
           "kind": "fn",
-          "startLine": 232,
-          "endLine": 239,
+          "startLine": 262,
+          "endLine": 269,
           "tokens": 52
         },
         {
           "name": "_module_local_funcs",
           "kind": "fn",
-          "startLine": 240,
-          "endLine": 248,
+          "startLine": 270,
+          "endLine": 278,
           "tokens": 67
         },
         {
           "name": "_local_calls",
           "kind": "fn",
-          "startLine": 249,
-          "endLine": 265,
+          "startLine": 279,
+          "endLine": 295,
           "tokens": 158
         },
         {
           "name": "enumerate_endpoints",
           "kind": "fn",
-          "startLine": 266,
-          "endLine": 301,
-          "tokens": 382
+          "startLine": 296,
+          "endLine": 332,
+          "tokens": 396
         },
         {
           "name": "_counts",
           "kind": "fn",
-          "startLine": 302,
-          "endLine": 311,
+          "startLine": 333,
+          "endLine": 342,
           "tokens": 94
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 312,
-          "endLine": 351,
+          "startLine": 343,
+          "endLine": 382,
           "tokens": 381
         }
       ]
     },
     "pcs-backend/tests/scripts/test_audit_list_endpoints.py": {
       "description": "守卫覆盖审计的端点枚举脚本（P10-F · F3）的守卫。",
-      "tokens": 1563,
-      "hash": "87cf98b7b8f5fef3",
-      "size": 6861,
-      "mtimeMs": 1794963818629.0652,
-      "updatedAt": "2026-11-18T01:03:38.677Z",
+      "tokens": 1961,
+      "hash": "422ff6fa907b12f9",
+      "size": 8896,
+      "mtimeMs": 1794968715771.2751,
+      "updatedAt": "2026-11-18T02:25:15.817Z",
       "source": "hook",
       "symbols": [
         {
@@ -49257,81 +49257,102 @@
           "tokens": 75
         },
         {
-          "name": "test_guard_state_has_three_states",
+          "name": "test_guard_state_has_four_states",
           "kind": "fn",
           "startLine": 67,
           "endLine": 75,
-          "tokens": 132
+          "tokens": 131
         },
         {
           "name": "test_role_gate_is_not_project_authorization",
           "kind": "fn",
           "startLine": 76,
-          "endLine": 85,
-          "tokens": 133
+          "endLine": 84,
+          "tokens": 113
+        },
+        {
+          "name": "test_current_user_counts_as_authentication",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 97,
+          "tokens": 129
+        },
+        {
+          "name": "test_workspace_type_gate_is_not_project_authorization",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 111,
+          "tokens": 154
+        },
+        {
+          "name": "test_meta_endpoints_are_not_reported_as_unauthenticated",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 125,
+          "tokens": 132
         },
         {
           "name": "test_dependency_style_guards_are_seen",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 95,
+          "startLine": 126,
+          "endLine": 135,
           "tokens": 102
         },
         {
           "name": "test_real_modules_have_the_endpoint_counts_the_plan_snapshotted",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 124,
+          "startLine": 136,
+          "endLine": 164,
           "tokens": 268
         },
         {
           "name": "test_local_wrapper_calls_are_reported",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 133,
+          "startLine": 165,
+          "endLine": 173,
           "tokens": 77
         },
         {
           "name": "_guard_project",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 138,
+          "startLine": 174,
+          "endLine": 178,
           "tokens": 25
         },
         {
           "name": "guarded",
           "kind": "fn",
-          "startLine": 139,
-          "endLine": 149,
+          "startLine": 179,
+          "endLine": 189,
           "tokens": 93
         },
         {
           "name": "test_type_alias_dependencies_are_unwrapped",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 164,
+          "startLine": 190,
+          "endLine": 204,
           "tokens": 122
         },
         {
           "name": "_Actor",
           "kind": "class",
-          "startLine": 165,
-          "endLine": 172,
+          "startLine": 205,
+          "endLine": 212,
           "tokens": 28
         },
         {
           "name": "get_x",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 182,
+          "startLine": 213,
+          "endLine": 222,
           "tokens": 87
         },
         {
           "name": "test_every_row_has_a_state_and_a_method",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 188,
-          "tokens": 78
+          "startLine": 223,
+          "endLine": 228,
+          "tokens": 82
         }
       ]
     },
@@ -49476,6 +49497,15 @@
       "size": 14228,
       "mtimeMs": 1794968515248.152,
       "updatedAt": "2026-11-18T02:21:55.297Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3b.md": {
+      "description": "F3-T3b 审计结论 —— `audit`(3) + `system_settings`(2) + `meta`(6) = **11 端点**",
+      "tokens": 1702,
+      "hash": "fa156de22b84e3bd",
+      "size": 10147,
+      "mtimeMs": 1794969059623.4683,
+      "updatedAt": "2026-11-18T02:30:59.678Z",
       "source": "hook"
     }
   }

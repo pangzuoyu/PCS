@@ -4839,3 +4839,38 @@ require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMI
 **归属**：P10-F（F3-T3a · **medium**）
 
 ---
+
+---
+
+## TODO-189: 仓库里有**两个**「不 mock 项目守卫」的 client ⇒ ⇒ 棘轮看不见其中一个 🟢
+
+**现状**（2026-11-18 · P10-F 的 F3-T3b 审计发现）：
+
+| fixture | 位置 | 引入时间 |
+|---|---|---|
+| `strict_client` | `pcs-backend/tests/conftest.py:339` | P9B-4 T0/T1 |
+| `real_user_project_client` | `pcs-backend/tests/test_audit_guard.py:32` | 更早（该文件**自己写**的独立 fixture） |
+
+⇒ ⇒ ⇒ **两者做的是同一件事**（不 mock `check_user_project_access` ⇒ ⇒ 让守卫真跑）
+⇒ ⇒ ⇒ 而 `tests/test_strict_client_ratchet.py`（TODO-176 的可执行形态）
+**只数 `strict_client`** ⇒ ⇒ ⇒ **`real_user_project_client` 的用例对棘轮是隐形的**
+⇒ ⇒ ⇒ 「已审面」的计数**偏小** ⇒ ⇒ ⇒ 棘轮说「≥ N」时，实际覆盖可能更少。
+
+⚠️ **顺带**：`real_user_project_client` 是**第三个**「守卫要真跑」的写法之前
+（P9B-4 之前还有别的文件各写各的）⇒ ⇒ 分散 ⇒ ⇒ 下一个还会再写一个。
+
+**建议改法**：
+
+① `tests/test_audit_guard.py` 改用 `conftest.py` 的 **`strict_client`**
+   （⚠️ 它比本地的那个多做一件事：**每次请求前**还原守卫 ⇒ ⇒ 不会被
+   `client` 的 monkeypatch 抢在前面 ⇒ ⇒ **更稳**）；
+② 或者：把棘轮改成「**数两种 client**」⇒ ⇒ 但那等于承认分散 ⇒ ⇒ 不推荐；
+③ 补一条**架构测试**：全仓**只允许一处**定义「不 mock 项目守卫的 client」
+   ⇒ ⇒ 防止第三个再出现。
+
+**何时做**：低优先（⇒ ⇒ 随手可做 ⇒ ⇒ 但**做的时候要把那条 404 断言跑一遍**
+⇒ ⇒ 确认换成 `strict_client` 后它还红）
+
+**归属**：P10-F（F3-T3b · 断言基础设施 · **low**）
+
+---

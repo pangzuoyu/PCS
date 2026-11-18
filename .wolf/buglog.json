@@ -6737,6 +6737,28 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-11-18"
+    },
+    {
+      "id": "bug-2190",
+      "timestamp": "2026-11-18",
+      "severity": "high",
+      "error_message": "守卫枚举脚本 `scripts/audit_list_endpoints.py` 的**分类表有两处错** ⇒ ⇒ `meta.py` 的 6 个端点（有 `current_user` 认证）被误判成「无任何守卫」（假阴性）· `require_formal_project_workspace`（**只判工作区类型、fail-open、从不查 `user_projects`**）被误算成「项目授权闸」（假阳性）",
+      "file": "pcs-backend/scripts/audit_list_endpoints.py",
+      "root_cause": "① `WHOAMI_GUARDS = {\"current_actor\"}` ⇒ ⇒ **漏了 `current_user`**（`app/api/v1/auth.py:150`）⇒ ⇒ 而 `meta.py` 的 6 个端点**全部**用 `Depends(current_user)`（无 Bearer 头 ⇒ ⇒ 401）⇒ ⇒ 端点表把它们判成 `none` ⇒ ⇒ 审计者会以为「匿名可读」⇒ ⇒ **结论整个是错的**；② `AUTHZ_GUARDS` 里放了 `require_formal_project_workspace` ⇒ ⇒ 但它只判「项目所在工作区是不是 FORMAL」（`app/api/v1/_guard.py:74-125`）⇒ ⇒ **一次也没查 `user_projects`** ⇒ ⇒ 而且 **fail-open**（项目没挂工作区 ⇒ ⇒ 直接放行）⇒ ⇒ 算成授权闸 ⇒ ⇒ 端点表说「已覆盖」⇒ ⇒ **结论也是错的**（受影响：`deliverables.py` 3 个 + `records_actions.py` 3 个端点）。\n\n⚠️ **根因不是笔误，是「分类表没有守卫」** ⇒ ⇒ ⇒ 工具的每个分类都要有守卫测试。",
+      "fix": "① `WHOAMI_GUARDS` 加 `current_user`（与 `current_actor` 同档：只认证）；② `require_formal_project_workspace` 挪出 `AUTHZ_GUARDS` ⇒ ⇒ 新开一档 `type_only`（工作区**类型**闸）⇒ ⇒ 状态机由三态改四态（`authz` / `role_only` / `type_only` / `none`）；③ 脚本头 docstring 改写（写明两个分类错误与各自的形状）；④ **守卫测试补 3 条**（`current_user` 算认证 · 类型闸不算授权 · **真模块回归**：meta 的端点不许判成 `none`）⇒ ⇒ RED 3 条 → GREEN 11 条。\n\n⚠️ **影响面已逐模块核对**：在审范围内的模块（config / report_builder / report / records / psychro / workspaces / user_projects / admin_users）**结论全部不变** ⇒ ⇒ 只有 `meta` 的判定被修正（⇒ ⇒ F3-T3b 的结论）⇒ ⇒ `deliverables` / `records_actions`（不在范围）由假阳性纠正。",
+      "fix_commit": "b275e73",
+      "tags": [
+        "P10-F",
+        "F3-T3b",
+        "审计工具",
+        "假阴性",
+        "假阳性",
+        "守卫分类",
+        "枚举脚本"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
     }
   ]
 }

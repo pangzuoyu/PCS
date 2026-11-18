@@ -3849,3 +3849,9 @@
 | 10:16 | Created pcs-backend/tests/api/v1/test_zz_demo_t3a_gap.py | — | ~867 |
 | 10:21 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3a.md | — | ~2573 |
 | 10:22 | Edited TODOS.md | expanded (+20 lines) | ~252 |
+| 10:25 | Edited pcs-backend/tests/scripts/test_audit_list_endpoints.py | modified test_guard_state_has_four_states() | ~658 |
+| 10:25 | Edited pcs-backend/tests/scripts/test_audit_list_endpoints.py | modified test_every_row_has_a_state_and_a_method() | ~82 |
+| 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | expanded (+16 lines) | ~418 |
+| 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | expanded (+12 lines) | ~242 |
+| 10:25 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified classify() | ~84 |
+| 10:30 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t3b.md | — | ~1816 |

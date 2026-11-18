@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:22:32.393Z
-> Files: 1367 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:30:59.678Z
+> Files: 1368 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -259,6 +259,7 @@
 - `audit-f3-t2a.md` — F3-T2a 审计结论 —— `config.py`(11) + `report_builder.py`(9) = **20 端点** (~1732 tok)
 - `audit-f3-t2b.md` — F3-T2b 审计结论 —— `report.py`(10) + `records.py`(6) = **16 端点** (~2799 tok)
 - `audit-f3-t3a.md` — F3-T3a 审计结论 —— `psychro.results`(5) + `workspaces`(4) + `user_projects`(4) + `admin_users`(3) = **16 (~2412 tok)
+- `audit-f3-t3b.md` — F3-T3b 审计结论 —— `audit`(3) + `system_settings`(2) + `meta`(6) = **11 端点** (~1702 tok)
 - `commit-drift-fix.txt` (~245 tok)
 - `commit-f1-batch-end.txt` (~212 tok)
 - `commit-f1-t1.txt` (~376 tok)
@@ -1566,7 +1567,7 @@
 
 ## pcs-backend/scripts/
 
-- `audit_list_endpoints.py` — **守卫覆盖审计**的端点枚举（P10-F · F3）。 (~3250 tok)
+- `audit_list_endpoints.py` — **守卫覆盖审计**的端点枚举（P10-F · F3）。 (~3639 tok)
 - `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1778 tok)
 - `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1243 tok)
@@ -1753,7 +1754,7 @@
 ## pcs-backend/tests/scripts/
 
 - `lane_script_body.py` — 脚本「可执行部分」的**一处真相源**（P10-F · 评审 #27）。 (~419 tok)
-- `test_audit_list_endpoints.py` — 守卫覆盖审计的端点枚举脚本（P10-F · F3）的守卫。 (~1563 tok)
+- `test_audit_list_endpoints.py` — 守卫覆盖审计的端点枚举脚本（P10-F · F3）的守卫。 (~1961 tok)
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
 - `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
