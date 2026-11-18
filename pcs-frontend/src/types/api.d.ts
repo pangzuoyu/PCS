@@ -365,13 +365,20 @@ export interface paths {
          * @description GET 列出工作区。
          *
          *     步骤：
-         *     1. 可选 query: owner_id（按 owner 过滤；不传 → 全部）
+         *     1. 可选 query: owner_id（按 owner 过滤）
          *     2. 转发 WorkspaceService.list_for_user → 按 owner_id 过滤 + 分页
          *     3. ORM 行 → WorkspaceOut 序列化（FastAPI response_model 控制）
          *
-         *     无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制。
-         *     与 /workspaces/{workspace_id}（get_workspace）区别：本端点列表；
-         *     get_workspace 单条 + touch + 404。
+         *     ⚠️ **P10-F · F3（TODO-186）**：**要登录** + **两种模式**：
+         *
+         *     | `owner_id` | 谁能调 |
+         *     |---|---|
+         *     | **= 令牌里的那个人** | 任何人（列**自己的**） |
+         *     | **别人的 / 不传** | **仅 `SYSTEM_ADMIN`**（= 前端注释里说的「admin 视图」） |
+         *
+         *     ⇒ ⇒ 理由：原来**不传 `owner_id` 就是全量**、且**不要求登录**
+         *     ⇒ ⇒ ⇒ 匿名可枚举**全部**工作区 ⇒ ⇒ 而 `workspace_id` 正是
+         *     `records.py` 读端点的钥匙（TODO-179）⇒ ⇒ ⇒ 两条是一条链。
          */
         get: operations["list_workspaces_api_v1_workspaces_get"];
         put?: never;
@@ -388,8 +395,12 @@ export interface paths {
          *     4. 转 WorkspaceOut 返回（含 id/name/type/project_id/retention_days/
          *        created_by/created_at 等字段）
          *
-         *     owner_id 来自 Depends（认证中间件注入），user_id 复用 owner_id：
-         *     工作区拥有者即创建者。
+         *     ⚠️ **P10-F · F3（TODO-186）**：**要登录** + **`owner_id` 必须是令牌里的那个人**
+         *     ⇒ ⇒ 理由：原来 `owner_id` 由客户端任意填 ⇒ ⇒ 建的行的 owner 是别人
+         *     ⇒ ⇒ ⇒ 而 `WorkspaceService.create` 把 `user_id=owner_id` 写进
+         *     **`WORKSPACE_CREATED` 审计行** ⇒ ⇒ ⇒ **匿名可把审计行记在别人名下**
+         *     ⇒ ⇒ ⇒ 「替别人建工作区」这件事**不在**这里开放
+         *     （⇒ ⇒ 那是 `POST /projects` 的产品语义 · TODO-175）。
          */
         post: operations["create_workspace_api_v1_workspaces_post"];
         delete?: never;
@@ -411,12 +422,16 @@ export interface paths {
          *
          *     步骤：
          *     1. WorkspaceService.get 取行；不存在 → 404 workspace not found
-         *     2. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
-         *     3. session.commit() 落库
-         *     4. ORM 行经 WorkspaceOut.model_validate 转响应 schema
+         *     2. **授权判定**（TODO-186）⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形）
+         *     3. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
+         *     4. session.commit() 落库
+         *     5. ORM 行经 WorkspaceOut.model_validate 转响应 schema
          *
-         *     注意：本端点不要求 ACL（workspace_id 自身是访问令牌语义）；
-         *     业务写操作请改用 api/deps.py require_formal_workspace 依赖。
+         *     ⚠️ **P10-F · F3（TODO-186）**：本端点此前**不要求登录、也没有 ACL**
+         *     ⇒ ⇒ **且 `touch` 是写副作用** ⇒ ⇒ 匿名 GET ⇒ ⇒ **匿名写库**
+         *     ⇒ ⇒ ⇒ 现在：**要登录** + **要对该工作区有访问权**
+         *     ⇒ ⇒ ⇒ 「无权」与「不存在」抛**同一个** `WorkspaceNotFoundError`
+         *     ⇒ ⇒ ⇒ 响应**逐字相同** ⇒ ⇒ ⇒ 枚举不出 UUID。
          */
         get: operations["get_workspace_api_v1_workspaces__workspace_id__get"];
         put?: never;
@@ -590,6 +605,11 @@ export interface paths {
          *     - 排序：seq_no asc（管号序号）
          *     - sign_status 返回 enum value（兼容历史字符串）
          *     - 返回 5 字段：pipe_id / line_no / sign_status / approval_step / locked_by_deliverable
+         *
+         *     ⚠️ **P10-F · F3（TODO-179）**：本端点此前**既不要求登录也不做项目授权**
+         *     ⇒ ⇒ 匿名可读走**任意项目**的管路记录 ⇒ ⇒ 现在：
+         *     ① **要登录**（`current_actor`）② **要对工作区有访问权**
+         *     ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形 ⇒ ⇒ 枚举不出 workspace）。
          */
         get: operations["list_piping_api_v1_records_piping_get"];
         put?: never;
@@ -599,6 +619,12 @@ export interface paths {
          *
          *     BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
          *     （修复 IDOR：user_id 不再可由客户端伪造）。
+         *
+         *     ⚠️ **P10-F · F3（TODO-180）**：授权对象**从「payload 的 project_id」改成
+         *     「工作区的项目」** ⇒ ⇒ 理由：原来判的 id 与落库的 id **可以不同源**
+         *     ⇒ ⇒ 「授权在项目 A 的人把记录写进项目 B 的工作区」（实测 200）
+         *     ⇒ ⇒ ⇒ 现在：`payload["project_id"]` 必须与 `workspace.project_id` **一致**
+         *     ⇒ ⇒ ⇒ 不一致 ⇒ ⇒ **400**（不是授权失败 ⇒ ⇒ 是**请求自相矛盾**）。
          */
         post: operations["create_piping_api_v1_records_piping_post"];
         delete?: never;
@@ -623,6 +649,9 @@ export interface paths {
          *
          *     返回字段：pipe_id / line_no / sign_status / approval_step /
          *     locked_by_deliverable / seq_no / source_pid。
+         *
+         *     ⚠️ **P10-F · F3（TODO-179 / 185）**：本端点此前**不要求登录、不做项目授权**
+         *     ⇒ ⇒ 且**零测试** ⇒ ⇒ 现在：要登录 + 要对工作区有访问权（否则 **404**）。
          */
         get: operations["get_piping_api_v1_records_piping__pipe_id__get"];
         put?: never;
@@ -695,6 +724,10 @@ export interface paths {
          *        snapshot_source, created_at} 列表
          *
          *     workspace 隔离：仅查询 workspace_id 下的 PipingResult，越权访问 → 404。
+         *
+         *     ⚠️ **P10-F · F3（TODO-179）**：本端点此前**不要求登录、不做项目授权**
+         *     ⇒ ⇒ 快照是**审计轨迹** ⇒ ⇒ 泄露它等于泄露「谁在什么时候改了什么」
+         *     ⇒ ⇒ 现在：要登录 + 要对工作区有访问权（否则 **404**）。
          */
         get: operations["list_snapshots_api_v1_records_piping__pipe_id__snapshots_get"];
         put?: never;
@@ -22337,7 +22370,9 @@ export interface operations {
             query?: {
                 owner_id?: string | null;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22368,7 +22403,9 @@ export interface operations {
             query: {
                 owner_id: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22401,7 +22438,9 @@ export interface operations {
     get_workspace_api_v1_workspaces__workspace_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 workspace_id: string;
             };
@@ -22609,7 +22648,9 @@ export interface operations {
                 limit?: number;
                 offset?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22683,7 +22724,9 @@ export interface operations {
             query: {
                 workspace_id: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 pipe_id: string;
             };
@@ -22797,7 +22840,9 @@ export interface operations {
             query: {
                 workspace_id: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 pipe_id: string;
             };
