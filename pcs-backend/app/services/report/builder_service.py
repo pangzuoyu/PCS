@@ -190,10 +190,20 @@ async def execute_definition(
     # ⇒ ⇒ 为什么需要：定义**可见**（②a 资源 id）≠ **能取它的 scope 项目的数据**
     # ⇒ ⇒ （②b 作用域 id）⇒ ⇒ 两者都要授权判定。
     # ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形 ⇒ ⇒ 不泄露项目存在性）。
-    if scope is not None and user_id is not None:
-        await require_project_access_or_404(
-            db, user_id=user_id, project_id=scope, actor_roles=actor_roles,
+    #
+    # ⚠️⚠️ **fail-closed**（2026-11-18 · ce-code-review · TODO-192 #7）：
+    # 此前是 `if scope is not None and user_id is not None:` ⇒ ⇒ `user_id` 为
+    # **None** 时 ⇒ ⇒ **整段授权判定被跳过** ⇒ ⇒ ⇒ 执行照跑 ⇒ ⇒
+    # ⇒ ⇒ **跨项目读**（fail-open）⇒ ⇒ 方向与本批的守卫口径相反。
+    # ⇒ ⇒ ⇒ 现在：**不知道执行者是谁 ⇒ ⇒ 拒绝执行**（不取任何数）。
+    if user_id is None:
+        raise PcsError(
+            "执行者身份未知 ⇒ ⇒ 拒绝执行（否则会跳过项目授权判定 ⇒ ⇒ 跨项目读）",
+            code="REPORT_EXECUTOR_UNKNOWN", status=400,
         )
+    await require_project_access_or_404(
+        db, user_id=user_id, project_id=scope, actor_roles=actor_roles,
+    )
 
     defn = dict(row.definition_json or {})
     selected = _visible_fields(defn)

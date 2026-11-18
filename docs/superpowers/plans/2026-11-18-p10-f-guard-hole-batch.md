@@ -69,17 +69,19 @@
 
 ### G4 · TODO-192 #4~#7 —— 服务层与守卫的四处对称性 🟠 P2
 
-- [ ] **#4 `obsolete()`**：`publish()` 有身份判定（禁自审 + 项目授权）⇒ ⇒ `obsolete()`
+- [x] **#4 `obsolete()`**：`publish()` 有身份判定（禁自审 + 项目授权）⇒ ⇒ `obsolete()`
       **一样没有** ⇒ ⇒ 给它同款参数（`actor_user_id` · `actor_roles`）⇒ ⇒ 无权 ⇒ ⇒
       **404**（与「不存在」同形）⇒ ⇒ ⚠️ 「作废算不算审」**是产品语义**（TODO-190）⇒ ⇒
-      本批**先按「算」实现**（与 publish 对称）⇒ ⇒ 若人裁「不算」⇒ ⇒ 改回一行
+      ⇒ ⇒ **落地**：只补**项目授权**（与 publish 同款）⇒ ⇒ **不**补「禁自审」
+      ⇒ ⇒ ⇒ 「人裁决（TODO-190）明写 obsolete **不**跟 publish 一起禁自审」
+      ⇒ ⇒ ⇒ ⇒ ⇒ 所以**只**补项目授权 ⇒ ⇒ 禁自审仍归 TODO-190（未裁决）
 - [ ] **#5 `shared_with`**：项目级分支现在**不看** `shared_with` ⇒ ⇒ `CREATOR_ONLY`
       发布后对全体项目成员可见 ⇒ ⇒ ⚠️ **口径待人裁**（是「项目级一律共享」还是
       「CREATOR_ONLY 仍有效」）⇒ ⇒ **本批先把口径写进代码与文档**（消除「字段与实现不符」）
       ⇒ ⇒ 具体语义等人裁
-- [ ] **#6 审计脚本**：`AUTHZ_GUARDS` 补 `require_project_access_or_404` ·
+- [x] **#6 审计脚本**：`AUTHZ_GUARDS` 补 `require_project_access_or_404` ·
       `require_workspace_access_or_404` ⇒ ⇒ + 一条断言（只挂新守卫的端点 ⇒ ⇒ 判成 `authz`）
-- [ ] **#7 `builder_service.py`**：`if scope is not None and user_id is not None:`
+- [x] **#7 `builder_service.py`**：`if scope is not None and user_id is not None:`
       ⇒ ⇒ `user_id is None` 时**整段跳过授权**（fail-open）⇒ ⇒ 改成
       **`user_id` 缺失 ⇒ ⇒ 拒绝执行**（fail-closed）⇒ ⇒ 更新那些传 `user_id=None` 的既有测试
 
@@ -94,7 +96,7 @@
 - [ ] **#10 admin bypass 口径**：`visible_clause`（SQL 侧）与
       `require_project_access_or_404`（service 侧）对 SYSTEM_ADMIN **不一致** ⇒ ⇒
       统一成一个口径
-- [ ] **#11 棘轮**：`AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+）⇒ ⇒ 改成
+- [x] **#11 棘轮**：`AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+）⇒ ⇒ 改成
       **已审端点清单**（不是计数）⇒ ⇒ 让棘轮真能咬（与 **F4-PRE 的 FP-T2** 同一件事
       ⇒ ⇒ **同一处改，别做两遍**）
 

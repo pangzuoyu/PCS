@@ -259,7 +259,12 @@ async def obsolete_definition(
 ) -> ReportDefinitionOut:
     """作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。"""
     require_roles(actor, *PUBLISH_ROLES)
-    row = await DefinitionService(db).obsolete(def_id=def_id)
+    # ⚠️ **2026-11-18 · ce-code-review（TODO-192 #4）**：把**身份**传下去
+    # ⇒ ⇒ service 层判「作废者对该定义的项目有没有授权」（无权 ⇒ ⇒ 404）
+    # ⇒ ⇒ ⇒ 与 `publish()` 的项目授权**同口径**。
+    row = await DefinitionService(db).obsolete(
+        def_id=def_id, actor_user_id=actor.user_id, actor_roles=list(actor.roles),
+    )
     payload = _as_dict(row)
     await db.commit()
     return ReportDefinitionOut(**payload)

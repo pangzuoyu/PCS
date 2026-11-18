@@ -312,18 +312,43 @@ async def client(db_engine, monkeypatch) -> AsyncIterator[AsyncClient]:
 # P9B-4 紧急批次 T1：`strict_client` —— **不** mock 项目守卫的客户端
 # ---------------------------------------------------------------------------
 #
-#: **F3 审计台账**：已审端点里「**带项目维度**」的个数。
+#: **F3 审计台账**：已审端点里「**带项目维度**」的**清单**（路径模板）。
 #:
 #: ⚠️ **棘轮用**（`tests/test_strict_client_ratchet.py`）⇒ ⇒
-#: ⇒ 「用到 `strict_client` 的测试函数数 ≥ 本数」⇒ ⇒
-#: ⇒ 审计每推进一个带项目维度的端点 ⇒ ⇒ **必须**补一条 `strict_client` 断言
+#: ⇒ 「**清单里的每一条**都必须有 `strict_client` 断言」⇒ ⇒
+#: ⇒ ⇒ 审计每推进一个带项目维度的端点 ⇒ ⇒ **必须**补一条断言**并登记进本清单**
 #: ⇒ ⇒ ⇒ 这就是「默认 client 测不出守卫缺陷」那条纪律的**可执行**形态。
 #:
-#: ⚠️ 计数口径：**端点级**，不是模块级（一个模块里可能只有 1 个端点带项目维度）。
-#: ⚠️ 2026-11-18：F3-T2a 审完 `config.py`(11) + `report_builder.py`(9)
-#: ⇒ ⇒ 其中**带项目维度**的端点 = 2（`report_builder` 的 create 与 execute）
-#: ⇒ ⇒ ⇒ 其余 18 个端点要么是公司级资源（无项目维度）⇒ ⇒ 要么是纯计算。
-AUDITED_PROJECT_SCOPED_ENDPOINTS = 2
+#: ⚠️⚠️ **2026-11-18 · ce-code-review（TODO-192 #11）**：此前这里是**一个计数**
+#: ⇒ ⇒ `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2` ⇒ ⇒ 而仓里 `strict_client` 测试
+#: ⇒ ⇒ 早已 17+ 条 ⇒ ⇒ ⇒ **棘轮永远不会红** ⇒ ⇒ ⇒ 形同虚设。
+#: ⇒ ⇒ ⇒ 现在改成**清单** ⇒ ⇒ 逐条查 ⇒ ⇒ ⇒ 删掉一条断言 ⇒ ⇒ ⇒ 立刻红。
+#:
+#: ⚠️ 口径：**端点级**路径模板（不是模块级）⇒ ⇒ `{...}` 部分由棘轮归一化
+#: ⇒ ⇒ （测试里的 f-string 是 `{ws.workspace_id}` 这种 ⇒ ⇒ 归一化后才可比）。
+#:
+#: ⚠️ 2026-11-18 的来源：F3-T2a（`config.py` + `report_builder.py`）+ 批 4 修复批
+#: ⇒ ⇒ （`records.py` 三个读 + 三个写 · `workspaces.py` 三个端点）+ 批 5
+#: ⇒ ⇒ （`publish` 职责分离）+ 评审修复批（`records` 写端点的顺序）。
+AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
+    "/api/v1/records/piping",
+    "/api/v1/records/piping/{pipe_id}",
+    "/api/v1/records/piping/{pipe_id}/snapshots",
+    "/api/v1/records/piping/{pipe_id}/transition",
+    "/api/v1/workspaces",
+    "/api/v1/workspaces/{workspace_id}",
+    "/api/v1/report-builder/definitions",
+    "/api/v1/report-builder/definitions/{def_id}/publish",
+)
+
+#: 台账的**下限**（**只增不减**）⇒ ⇒ 防止有人「悄悄把一条从清单里删掉」
+#: ⇒ ⇒ ⇒ 清单条目变少 ⇒ ⇒ 这里红。
+AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 8
+
+#: `strict_client` 测试函数数的**下限**（**只增不减**）⇒ ⇒ 防止
+#: ⇒ ⇒ 「把断言一条条删掉」⇒ ⇒ ⇒ 逐条路径检查只看「这个端点**还有没有**断言」
+#: ⇒ ⇒ ⇒ 同一个端点有 3 条断言时删 1 条，它看不出来 ⇒ ⇒ ⇒ 这个下限看得出来。
+STRICT_CLIENT_TEST_MIN = 109
 
 #: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
 #:

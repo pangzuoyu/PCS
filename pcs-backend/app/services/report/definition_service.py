@@ -442,18 +442,38 @@ class DefinitionService:
         await self.db.refresh(row)   # 见 update() 的同款注释
         return row
 
-    async def obsolete(self, *, def_id: uuid.UUID) -> ReportDefinition:
+    async def obsolete(self, *, def_id: uuid.UUID,
+                       actor_user_id: uuid.UUID | None = None,
+                       actor_roles: Sequence[str] | None = None) -> ReportDefinition:
         """PUBLISHED → OBSOLETE（作废）。
 
         作废后仍可按 ID 查到（审计追溯），但不在默认列表、不再可执行。
         DRAFT 直接作废是允许的：草稿只有创建人看得见，直接删更合理，
         但统一走一个状态机比「DRAFT 就得删、PUBLISHED 就得作废」两套规则
         少一类边界。
+
+        ⚠️⚠️ **项目授权**（2026-11-18 · ce-code-review · TODO-192 #4）：
+        此前 `obsolete()` **一个身份判定都没有** ⇒ ⇒ 任何有审核角色的人
+        ⇒ ⇒ 都能作废**别人**的定义（哪怕他对该定义的项目**毫无授权**）
+        ⇒ ⇒ ⇒ 与 `publish()` 的口径**不一致**。
+
+        ⇒ ⇒ 现在：**项目级定义 ⇒ ⇒ 作废者必须对该项目有授权**
+        （无权 ⇒ ⇒ **404**，与「不存在」同形 ⇒ ⇒ 不泄露定义存在性）。
+
+        ⚠️ **不扩到「禁自审」**：人裁决（2026-11-18 · TODO-190）明写
+        ⇒ ⇒ 「`obsolete` **不**跟 publish 一起禁自审」⇒ ⇒ 「作废」≠「审」
+        ⇒ ⇒ ⇒ 本条**只补项目授权**，禁自审仍归 TODO-190（未裁决）。
         """
         row = await self.db.get(ReportDefinition, def_id)
         if row is None:
             raise PcsError(f"报表定义不存在：{def_id}",
                            code="REPORT_DEFINITION_NOT_FOUND", status=404)
+        # ⚠️ **与 `publish()` 同款的项目授权**（公司级定义没有项目可授权 ⇒ 不判）
+        if row.project_id is not None and actor_user_id is not None:
+            await require_project_access_or_404(
+                self.db, user_id=actor_user_id, project_id=row.project_id,
+                actor_roles=actor_roles,
+            )
         if row.status == "OBSOLETE":
             raise PcsError("该定义已作废", code="REPORT_DEFINITION_STATE", status=409)
         row.status = "OBSOLETE"

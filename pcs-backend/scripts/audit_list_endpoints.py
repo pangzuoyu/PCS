@@ -85,6 +85,11 @@ AUTHZ_GUARDS = frozenset(
     {
         "check_project_access_or_404",
         "check_project_access",
+        # ⚠️ **2026-11-18 · ce-code-review（TODO-192 #6）**：**service 层**那两份
+        # ⇒ ⇒ 也是「项目/工作区授权闸」⇒ ⇒ 此前**没登记** ⇒ ⇒ ⇒ 端点表把
+        # ⇒ ⇒ 「只调了 service 层守卫」的端点判成「无守卫」⇒ ⇒ **假阴性**。
+        "require_project_access_or_404",
+        "require_workspace_access_or_404",
     }
 )
 #: **角色闸** —— 判「你是什么角色」⇒ **不判项目归属**。
@@ -97,7 +102,13 @@ ROLE_GUARDS = frozenset({"require_roles"})
 WHOAMI_GUARDS = frozenset({"current_actor", "current_user"})
 #: **工作区类型闸** —— 判「这个工作区是不是 FORMAL」⇒ ⇒ **既不判身份、也不判归属**。
 TYPE_GUARDS = frozenset(
-    {"require_formal_workspace", "require_formal_project_workspace"}
+    {
+        "require_formal_workspace",
+        "require_formal_project_workspace",
+        # ⚠️ **2026-11-18**：`require_formal_workspace_type`（从依赖里拆出来的
+        # ⇒ ⇒ **同一份**类型闸实现 ⇒ ⇒ 要跟依赖版**同档**。
+        "require_formal_workspace_type",
+    }
 )
 
 #: HTTP 方法（FastAPI 路由装饰器名）。
@@ -220,13 +231,17 @@ def _alias_guards(tree: ast.Module) -> dict[str, set[str]]:
 def _guard_calls(func: ast.FunctionDef, aliases: dict[str, set[str]] | None = None) -> list[str]:
     """端点体 + 签名默认值里出现的**守卫**调用名（去重、保序）。
 
-    ⚠️ **只留三类守卫**（授权闸 / 角色闸 / 只认证）⇒ ⇒ 其余调用名
+    ⚠️ **只留四类守卫**（授权闸 / 角色闸 / 只认证 / 类型闸）⇒ ⇒ 其余调用名
     （`select` / `commit` / `model_validate` …）不进表 ⇒ ⇒ 表读得懂。
     ⚠️ **签名里的 `Depends(current_actor)` 也要算** ⇒ ⇒ 多数端点是用
     依赖注入拿当前用户的 ⇒ ⇒ 只扫函数体 ⇒ ⇒ 会误判成「无任何调用」。
     ⚠️ **别名（`ActorDep`）也要解开** ⇒ ⇒ 否则「有认证」会被判成「没有」。
     """
-    interesting = AUTHZ_GUARDS | ROLE_GUARDS | WHOAMI_GUARDS
+    # ⚠️⚠️ **2026-11-18 · ce-code-review（TODO-192 #6）**：**类型闸也要收**
+    # ⇒ ⇒ 此前 `interesting` **不含** `TYPE_GUARDS` ⇒ ⇒ 函数体里的类型闸
+    # ⇒ ⇒ **一个都收不到** ⇒ ⇒ ⇒ `type_only` 这一档**不可达**
+    # ⇒ ⇒ ⇒ 「三态 → 四态」那次修复（bug-2190）**没做完** ⇒ ⇒ 四态里有一态是空的。
+    interesting = AUTHZ_GUARDS | ROLE_GUARDS | WHOAMI_GUARDS | TYPE_GUARDS
     aliases = aliases or {}
     found: list[str] = []
 

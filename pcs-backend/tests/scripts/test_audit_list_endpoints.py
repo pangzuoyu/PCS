@@ -225,3 +225,50 @@ def test_every_row_has_a_state_and_a_method() -> None:
     for row in enumerate_endpoints():
         assert row["method"] in {"GET", "POST", "PUT", "PATCH", "DELETE"}
         assert row["state"] in {"authz", "role_only", "type_only", "none"}
+
+
+def test_service_layer_guards_count_as_project_authorization() -> None:
+    """⚠️⚠️ **service 层**那两份守卫**也是**项目/工作区授权闸（TODO-192 #6）。
+
+    ⇒ ⇒ `require_project_access_or_404`（service 层）与
+    ⇒ ⇒ `require_workspace_access_or_404`（service 层）⇒ ⇒ **判「这个 id 是不是你的」**
+    ⇒ ⇒ ⇒ 此前**没登记** ⇒ ⇒ ⇒ 端点表把「只调了 service 层守卫」的端点
+    ⇒ ⇒ ⇒ 判成「无守卫」⇒ ⇒ ⇒ **假阴性**（审计结论说「未审即没问题」）。
+
+    ⇒ ⇒ 真实后果：`workspaces` 模块的 authz 端点数由 **1** 变 **2**
+    ⇒ ⇒ ⇒ 这正是批 4 修掉的那个 critical（匿名可读）所在的端点。
+    """
+    assert classify(["require_project_access_or_404"]) == "authz"
+    assert classify(["require_workspace_access_or_404"]) == "authz"
+
+
+def test_workspaces_module_is_reported_as_authorized() -> None:
+    """⚠️ **真模块回归**：`workspaces.py` 的读端点**有**工作区授权守卫。
+
+    ⇒ ⇒ 此前脚本不认 service 层的守卫名 ⇒ ⇒ ⇒ 把它判成「无授权闸」
+    ⇒ ⇒ ⇒ **审计结论是错的**（bug-2192 的那个洞就住在这里）。
+    """
+    # ⚠️ **不带 `api_dir`** ⇒ ⇒ 扫**真实**的 `app/api/v1`（合成夹具里没有 workspaces 模块）
+    rows = [r for r in enumerate_endpoints() if r["module"] == "workspaces"]
+    authz = [r for r in rows if r["state"] == "authz"]
+    assert authz, (
+        f"workspaces 模块没有一个端点被判成 authz ⇒ ⇒ service 层守卫没被认出来："
+        f"{[(r['func'], r['guards'], r['state']) for r in rows]}"
+    )
+
+
+def test_type_guards_are_collected_from_the_endpoint_body() -> None:
+    """⚠️ **类型闸要能被收到**（TODO-192 #6）⇒ ⇒ 否则「四态」里有一态是空的。
+
+    ⇒ ⇒ 此前 `_guard_calls` 的 `interesting` **不含** `TYPE_GUARDS`
+    ⇒ ⇒ ⇒ 函数体里的类型闸**一个都收不到** ⇒ ⇒ ⇒ `type_only` 那一档
+    ⇒ ⇒ ⇒ **不可达** ⇒ ⇒ ⇒ 「三态 → 四态」那次修复**没做完**。
+    """
+    rows = enumerate_endpoints()
+    with_type = [
+        r for r in rows
+        if any("require_formal_workspace" in g for g in r["guards"])
+    ]
+    assert with_type, (
+        "端点表里一个类型闸都收不到 ⇒ ⇒ `interesting` 漏了 TYPE_GUARDS"
+    )

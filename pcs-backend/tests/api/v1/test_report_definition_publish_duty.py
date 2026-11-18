@@ -226,3 +226,35 @@ async def test_update_cannot_repoint_a_definition_to_an_ungranted_project(
         f"改挂到无授权项目必须是 404（与「不存在」同形）⇒ ⇒ 拿到了 {r.status_code}"
         f" ⇒ ⇒ 跨项目读：{r.text}"
     )
+
+
+async def test_obsolete_requires_project_authorization(
+    strict_client, db_session, grant_project
+):
+    """⚠️ **作废也要项目授权**（2026-11-18 · ce-code-review · TODO-192 #4）。
+
+    ⇒ ⇒ 此前 `obsolete()` **一个身份判定都没有** ⇒ ⇒ 任何有审核角色的人
+    ⇒ ⇒ ⇒ 都能作废**别人**的定义（哪怕他对该定义的项目**毫无授权**）
+    ⇒ ⇒ ⇒ 与 `publish()` 的口径**不一致**（publish 查项目授权 · obsolete 不查）。
+
+    ⇒ ⇒ 现在：项目级定义 ⇒ ⇒ 作废者必须对该项目有授权 ⇒ ⇒ 无权 ⇒ ⇒ **404**
+    （与「不存在」同形 ⇒ ⇒ 不泄露定义存在性）。
+
+    ⚠️ **不扩到「禁自审」**：人裁决（TODO-190）明写「`obsolete` **不**跟 publish
+    一起禁自审」⇒ ⇒ 本条**只**补项目授权。
+    """
+    creator = uuid.uuid4()
+    project = await _mk_project(db_session, "作废目标项目")
+    await grant_project(creator, project.project_id)
+    d = await _mk_def(strict_client, subject="author-3", user_id=creator,
+                      project_id=project.project_id)
+
+    stranger = uuid.uuid4()
+    r = await strict_client.post(
+        f"/api/v1/report-builder/definitions/{d['def_id']}/obsolete",
+        headers=_auth("stranger-1", "REVIEWER", user_id=stranger),
+    )
+    assert r.status_code == 404, (
+        f"无项目授权的人作废项目级定义必须是 404（与「不存在」同形）⇒ ⇒ "
+        f"拿到了 {r.status_code}：{r.text}"
+    )

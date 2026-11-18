@@ -17,18 +17,39 @@
 ⇒ ⇒ **棘轮**：审计每推进一个「带项目维度」的端点 ⇒ ⇒ 就得补一条
 `strict_client` 断言 ⇒ ⇒ ⇒ 本测试让这件事**可执行、可检查**。
 
-⚠️ **本测试不检查「每条已覆盖结论都有 strict_client 断言」** ⇒ ⇒ 那需要
-审计结论表进仓库 ⇒ ⇒ 属 F3-T5 的产出 ⇒ ⇒ ⇒ 本棘轮只管**数量**
-⇒ ⇒ 数量只增不减 ⇒ ⇒ ⇒ 审计推进时它会拦住「只审不补断言」。
+## ⚠️ **从「计数」改成「清单」**（2026-11-18 · ce-code-review · TODO-192 #11）
+
+此前台账是**一个数**（`AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`）⇒ ⇒ 棘轮拿它跟
+「`strict_client` 测试函数数」比 ⇒ ⇒ 而仓里那条数早已 17+ ⇒ ⇒ ⇒
+**棘轮永远不会红** ⇒ ⇒ ⇒ 形同虚设（评审员实测：阈值 2 · 实际 17+）。
+
+⇒ ⇒ 现在台账是**路径清单**（`tests/conftest.py`）⇒ ⇒ 棘轮**逐条**查：
+⇒ ⇒ **清单里的每一条路径，都必须有一个 `strict_client` 测试真的提到它**
+⇒ ⇒ ⇒ 删掉那条断言 ⇒ ⇒ ⇒ 立刻红。
+⇒ ⇒ 另有一条**下限**（`AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN`）⇒ ⇒ 防止
+「悄悄把一条从清单里删掉」⇒ ⇒ ⇒ 只增不减。
 """
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
-from tests.conftest import AUDITED_PROJECT_SCOPED_ENDPOINTS
+from tests.conftest import (
+    AUDITED_PROJECT_SCOPED_ENDPOINTS,
+    AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN,
+    STRICT_CLIENT_TEST_MIN,
+)
 
 TESTS_DIR = Path(__file__).resolve().parent
+
+#: 测试里出现的 URL（f-string 里的 `{...}` 归一化成 `{}` ⇒ ⇒ 才可比）
+_URL_RE = re.compile(r"/api/v1/[A-Za-z0-9_\-/\{\}\[\]'\.\(\):]*")
+
+
+def _normalise(path: str) -> str:
+    """路径模板归一化：`{ws.workspace_id}` ⇒ ⇒ `{}` ⇒ ⇒ 与 `{workspace_id}` 可比。"""
+    return re.sub(r"\{[^}]*\}", "{}", path)
 
 
 def _strict_client_test_count() -> int:
@@ -54,15 +75,86 @@ def _strict_client_test_count() -> int:
     return count
 
 
-def test_strict_client_coverage_keeps_up_with_the_audit() -> None:
-    """⚠️ **棘轮**：`strict_client` 的测试数 ≥ 已审的「带项目维度」端点数。
+def _strict_client_urls() -> set[str]:
+    """**所有** `strict_client` 测试里出现过的 URL（已归一化）。
 
-    ⇒ ⇒ 审计推进 ⇒ ⇒ 必须补断言 ⇒ ⇒ 否则这里红。
+    ⚠️ 扫**整个测试函数体**（不是只扫字符串常量）⇒ ⇒ f-string 拼接出来的
+    URL（`f"/api/v1/records/piping/{pipe_id}"`）也算 ⇒ ⇒ ⇒ 不会漏。
+    """
+    urls: set[str] = set()
+    for path in TESTS_DIR.rglob("test_*.py"):
+        try:
+            source = path.read_text(encoding="utf-8")
+            tree = ast.parse(source)
+        except SyntaxError:  # pragma: no cover — 解析不了的测试文件跳过
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            args = node.args
+            names = {
+                a.arg
+                for a in (args.posonlyargs + args.args + args.kwonlyargs)
+            }
+            if "strict_client" not in names:
+                continue
+            segment = ast.get_source_segment(source, node) or ""
+            for match in _URL_RE.finditer(segment):
+                urls.add(_normalise(match.group(0)))
+    return urls
+
+
+def test_every_audited_project_scoped_endpoint_has_a_strict_client_assertion() -> None:
+    """⚠️ **棘轮（逐条）**：清单里的每个端点 ⇒ ⇒ 都要有 `strict_client` 断言。
+
+    ⇒ ⇒ 删掉那条断言 ⇒ ⇒ 这里红 ⇒ ⇒ ⇒ 「台账说有、其实没有」不可能发生。
+    """
+    urls = _strict_client_urls()
+    missing = [
+        path for path in AUDITED_PROJECT_SCOPED_ENDPOINTS
+        if not any(url.startswith(_normalise(path)) for url in urls)
+    ]
+    assert not missing, (
+        f"台账里这些端点**没有** strict_client 断言：{missing}"
+        " ⇒ ⇒ 默认 client 把守卫 mock 成永远 True ⇒ ⇒ 那类断言是 no-op"
+        f"（现有 strict_client 测试函数：{_strict_client_test_count()} 个）"
+    )
+
+
+def test_the_audited_list_never_shrinks() -> None:
+    """⚠️ **只增不减**：台账条目变少 ⇒ ⇒ 这里红（防止「悄悄删一条」）。"""
+    assert len(AUDITED_PROJECT_SCOPED_ENDPOINTS) >= AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN, (
+        f"台账只剩 {len(AUDITED_PROJECT_SCOPED_ENDPOINTS)} 条，"
+        f"下限是 {AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN} 条 ⇒ ⇒ 有人把条目删了"
+    )
+
+
+def test_strict_client_coverage_keeps_up_with_the_audit() -> None:
+    """⚠️ **数量版**（保留）：`strict_client` 的测试数 ≥ 台账条目数。
+
+    ⇒ ⇒ 逐条那版（上面）是**主力**；这版防的是「台账加了条目、却把别处的
+    ⇒ ⇒ 断言删了凑数」。
     """
     count = _strict_client_test_count()
-    assert count >= AUDITED_PROJECT_SCOPED_ENDPOINTS, (
+    assert count >= len(AUDITED_PROJECT_SCOPED_ENDPOINTS), (
         f"用到 strict_client 的测试只有 {count} 个，"
-        f"而已审的「带项目维度」端点有 {AUDITED_PROJECT_SCOPED_ENDPOINTS} 个"
+        f"而已审的「带项目维度」端点有 {len(AUDITED_PROJECT_SCOPED_ENDPOINTS)} 个"
         " ⇒ ⇒ 审计推进了却没补 strict_client 断言"
-        " ⇒ ⇒ 默认 client 把守卫 mock 成永远 True ⇒ ⇒ 那类断言是 no-op"
+    )
+
+
+def test_the_number_of_strict_client_tests_never_shrinks() -> None:
+    """⚠️ **断言数只增不减**（防止「一条条删断言」）。
+
+    ⇒ ⇒ 逐条路径检查只看「这个端点**还有没有** `strict_client` 断言」
+    ⇒ ⇒ ⇒ 同一个端点有 3 条断言时删掉 1 条 ⇒ ⇒ 它**看不出来**
+    ⇒ ⇒ ⇒ 所以另有一条**数量下限** ⇒ ⇒ ⇒ 删一条 ⇒ ⇒ ⇒ 这里红。
+    """
+    count = _strict_client_test_count()
+    assert count >= STRICT_CLIENT_TEST_MIN, (
+        f"strict_client 测试只有 {count} 个，下限是 {STRICT_CLIENT_TEST_MIN} 个"
+        " ⇒ ⇒ 有人删了守卫断言 ⇒ ⇒ 默认 client 把守卫 mock 成永远 True"
+        " ⇒ ⇒ 那些断言是 no-op"
     )

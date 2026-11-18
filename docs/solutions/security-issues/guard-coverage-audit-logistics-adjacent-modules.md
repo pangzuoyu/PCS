@@ -324,6 +324,19 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 ## 十 · 复现方式
 
 ```bash
+## ⚠️ **2026-11-18 补记**：审计脚本修了两处 ⇒ ⇒ 本表的 `guards` 列是**旧口径**
+
+⇒ ⇒ `ce-code-review`（TODO-192 #6）查出脚本自身两处问题：
+
+| # | 问题 | 后果 | 修法 |
+|---|---|---|---|
+| ① | `AUTHZ_GUARDS` **没登记** service 层的两份守卫（`require_project_access_or_404` · `require_workspace_access_or_404`） | 「只调了 service 层守卫」的端点被判成「**无守卫**」⇒ ⇒ **假阴性** | 补进 `AUTHZ_GUARDS` ⇒ ⇒ `workspaces` 模块的 authz 端点数由 **1 变 2** |
+| ② | `_guard_calls` 的 `interesting` **不含** `TYPE_GUARDS` | 函数体里的**类型闸一个都收不到** ⇒ ⇒ `type_only` 那一档**不可达** ⇒ ⇒ 「三态 → 四态」那次修复**没做完** | `interesting` 加上 `TYPE_GUARDS` ⇒ ⇒ 类型闸出现在 `guards` 列 |
+
+⇒ ⇒ ⇒ **本表的逐端点结论不变**（缺口清单与「已覆盖」结论都是**人读**出来的，
+⇒ ⇒ ⇒ 不由脚本的 `state` 列生成）⇒ ⇒ ⇒ **但 `guards` 列已过期**
+⇒ ⇒ ⇒ 重跑 `uv run python scripts/audit_list_endpoints.py` 取当前口径。
+
 # 端点枚举（可复跑 · 守卫测试 11 条）
 cd pcs-backend
 uv run python scripts/audit_list_endpoints.py --module config      # 其余模块同理

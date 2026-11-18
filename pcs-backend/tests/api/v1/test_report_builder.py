@@ -671,7 +671,7 @@ async def test_execute_writes_execution_log_with_snapshot(client, db_session):
 
     row = await _load_def(db_session, d["def_id"])
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
-    out = await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    out = await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     await db_session.commit()
 
     logs = (await db_session.execute(select(ReportExecutionLog))).scalars().all()
@@ -705,7 +705,7 @@ async def test_temporary_filter_adjustment_does_not_touch_the_definition(client,
     row = await _load_def(db_session, d["def_id"])
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
     await execute_definition(
-        db_session, def_id=row.def_id, user_id=None,
+        db_session, def_id=row.def_id, user_id=row.created_by,
         temporary_filters={"operator": "AND", "conditions": [
             {"operator": "EQ", "source": "EQUIP_LIST",
              "field": "vendor", "value": "ACME"}]})
@@ -733,7 +733,7 @@ async def test_execution_respects_max_rows_and_says_so(client, db_session):
 
     row = await _load_def(db_session, d["def_id"])
     await make_bulk_seed(db_session, proj.project_id, "EQUIPMENT_LIST", 200)
-    out = await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    out = await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     assert out.row_count <= 50, f"实得 {out.row_count} 行，MaxRows=50 形同虚设"
     assert out.truncated is True, "截断了必须明说，不能静默"
 
@@ -759,7 +759,7 @@ async def test_hidden_fields_are_not_rendered_but_are_still_stored(client, db_se
 
     row = await _load_def(db_session, d["def_id"])
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
-    out = await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    out = await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     assert out.headers == ["位号"], f"实得表头 {out.headers} —— 隐藏列漏进输出了"
 
 
@@ -780,7 +780,7 @@ async def test_alias_overrides_registry_label(client, db_session):
 
     row = await _load_def(db_session, d["def_id"])
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
-    out = await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    out = await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     assert out.headers == ["我的位号"]
 
 
@@ -801,7 +801,7 @@ async def test_company_level_definition_cannot_execute_without_a_project(client,
     row = await _load_def(db_session, d["def_id"])
 
     with pytest.raises(PcsError) as exc:
-        await execute_definition(db_session, def_id=row.def_id, user_id=None)
+        await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     assert exc.value.code == "REPORT_PROJECT_SCOPE_REQUIRED"
 
 
@@ -826,7 +826,7 @@ async def test_execution_never_crosses_project_boundary(client, db_session):
     await make_report_seed(db_session, proj_b.project_id, "EQUIPMENT_LIST")
 
     row = await _load_def(db_session, d["def_id"])
-    out = await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    out = await execute_definition(db_session, def_id=row.def_id, user_id=row.created_by)
     assert out.row_count == 2, f"实得 {out.row_count} 行：甲乙两项目各 2 行，期望只出甲的 2 行"
 
 
@@ -1360,7 +1360,7 @@ async def test_worker_updates_the_queued_log_row_instead_of_adding_a_second(
     await tasks.execute_definition_task(
         {"session_factory": lambda: db_session, "job_id": task_id, "job_try": 1},
         def_id=d["def_id"], project_id=str(proj.project_id),
-        user_id=None, output_format="csv")
+        user_id=str(uuid.uuid4()), output_format="csv")
     await db_session.commit()
 
     n = await db_session.scalar(
@@ -1412,7 +1412,7 @@ async def test_successful_builder_execution_marks_the_log_row_FINISHED(
     await tasks.execute_definition_task(
         {"session_factory": lambda: db_session, "job_id": task_id, "job_try": 1},
         def_id=d["def_id"], project_id=str(proj.project_id),
-        user_id=None, output_format="csv")
+        user_id=str(uuid.uuid4()), output_format="csv")
     await db_session.commit()
 
     row = (await db_session.execute(
@@ -1463,7 +1463,7 @@ async def test_builder_failure_writes_one_audit_row_per_attempt(
                 {"session_factory": lambda: db_session,
                  "job_id": f"job-audit-{attempt}", "job_try": attempt},
                 def_id=d["def_id"], project_id=str(proj.project_id),
-                user_id=None, output_format="pdf")
+                user_id=str(uuid.uuid4()), output_format="pdf")
     await db_session.commit()
 
     rows = (await db_session.execute(select(AuditLog).where(
@@ -1511,7 +1511,7 @@ async def test_builder_intermediate_failure_does_not_end_the_execution(
             {"session_factory": lambda: db_session,
              "job_id": task_id, "job_try": 1},
             def_id=d["def_id"], project_id=str(proj.project_id),
-            user_id=None, output_format="pdf")
+            user_id=str(uuid.uuid4()), output_format="pdf")
     await db_session.commit()
 
     row = (await db_session.execute(select(ReportExecutionLog).where(
@@ -1532,7 +1532,7 @@ async def test_builder_intermediate_failure_does_not_end_the_execution(
             {"session_factory": lambda: db_session,
              "job_id": task_id, "job_try": MAX_TRIES},
             def_id=d["def_id"], project_id=str(proj.project_id),
-            user_id=None, output_format="pdf")
+            user_id=str(uuid.uuid4()), output_format="pdf")
     await db_session.commit()
     # ⚠️ **重新查**而不是 `refresh(row)`：失败路径的 `rollback()` 已把那个
     # ORM 实例踢出本 session，`refresh` 会抛
@@ -1581,14 +1581,14 @@ async def test_builder_failure_asks_arq_to_retry(client, fake_queue, db_session,
     with pytest.raises(Retry):
         await tasks.execute_definition_task(
             {**ctx, "job_try": 1}, def_id=d["def_id"],
-            project_id=str(proj.project_id), user_id=None, output_format="pdf")
+            project_id=str(proj.project_id), user_id=str(uuid.uuid4()), output_format="pdf")
 
     # 最后一次必须抛原始异常：否则 ARQ 会再排一次，
     # 于是「重试已经用完」这件事永远传不出去。
     with pytest.raises(RuntimeError):
         await tasks.execute_definition_task(
             {**ctx, "job_try": MAX_TRIES}, def_id=d["def_id"],
-            project_id=str(proj.project_id), user_id=None, output_format="pdf")
+            project_id=str(proj.project_id), user_id=str(uuid.uuid4()), output_format="pdf")
 
 
 # --- #5：对外承诺的 max_rows 上限必须等于引擎真能跑的上限 ----------------------
@@ -2185,4 +2185,32 @@ async def test_company_level_definition_stays_visible_to_everyone(
     assert r.status_code == 200, (
         f"实得 {r.status_code}：{r.text[:200]} ⇒ ⇒ "
         "公司级模板对所有人不可见 ⇒ ⇒ `ALL_USERS` 的语义变了"
+    )
+
+
+async def test_execution_without_a_known_executor_is_refused(client, db_session):
+    """⚠️⚠️ **fail-closed**（2026-11-18 · ce-code-review · TODO-192 #7）。
+
+    ⇒ ⇒ 此前 `execute_definition` 里是
+    ⇒ ⇒ `if scope is not None and user_id is not None:` ⇒ ⇒ **`user_id` 为 None 时**
+    ⇒ ⇒ ⇒ **整段项目授权判定被跳过** ⇒ ⇒ ⇒ 执行照跑 ⇒ ⇒ ⇒ **跨项目读**
+    ⇒ ⇒ ⇒ 方向与本批所有守卫相反（守卫一律 fail-closed）。
+
+    ⇒ ⇒ 现在：**不知道执行者是谁 ⇒ ⇒ 拒绝执行**（且**在任何取数之前**）。
+    """
+    from app.core.errors import PcsError
+    from app.services.report.builder_service import execute_definition
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    row = await _load_def(db_session, d["def_id"])
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    with pytest.raises(PcsError) as exc:
+        await execute_definition(db_session, def_id=row.def_id, user_id=None)
+    assert exc.value.code == "REPORT_EXECUTOR_UNKNOWN", (
+        f"错误码不对：{exc.value.code} ⇒ ⇒ {exc.value.message}"
     )
