@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T00:56:25.309Z
-> Files: 1356 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-18T02:11:54.229Z
+> Files: 1365 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -256,6 +256,8 @@
 
 ## .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/
 
+- `audit-f3-t2a.md` — F3-T2a 审计结论 —— `config.py`(11) + `report_builder.py`(9) = **20 端点** (~1732 tok)
+- `audit-f3-t2b.md` — F3-T2b 审计结论 —— `report.py`(10) + `records.py`(6) = **16 端点** (~2799 tok)
 - `commit-drift-fix.txt` (~245 tok)
 - `commit-f1-batch-end.txt` (~212 tok)
 - `commit-f1-t1.txt` (~376 tok)
@@ -268,6 +270,12 @@
 - `commit-f2-t3.txt` (~332 tok)
 - `commit-f2-t4.txt` (~370 tok)
 - `commit-f2-t5.txt` (~483 tok)
+- `task-f3-t2a-brief.md` — Task F3-T2a brief —— `config.py`(11) + `report_builder.py`(9) = **20 端点** (~485 tok)
+- `task-f3-t2b-brief.md` — Task F3-T2b brief —— `report.py`(10) + `records.py`(6) = **16 端点** (~560 tok)
+
+## .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/proposals/
+
+- `guard-coverage-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~2847 tok)
 
 ## .superpowers/sdd/PCS-PLAN-P4-CORE-ENGINE/
 
@@ -632,7 +640,7 @@
 - `2026-11-13-p10-batch-b-fullflow-e2e.md` — P10-B 实施计划：全流程 E2E（10.2） (~16021 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
-- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~17600 tok)
+- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~17917 tok)
 
 ## docs/superpowers/specs/
 
@@ -1557,6 +1565,7 @@
 
 ## pcs-backend/scripts/
 
+- `audit_list_endpoints.py` — **守卫覆盖审计**的端点枚举（P10-F · F3）。 (~3250 tok)
 - `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1778 tok)
 - `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1243 tok)
@@ -1673,6 +1682,8 @@
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
 - `test_workspace_type_guard.py` — **工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。 (~2293 tok)
 - `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
+- `test_zz_demo_scope_gap.py` — ⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。 (~635 tok)
+- `test_zz_demo_t2b_gap.py` — ⚠️ **演示测试**（F3-T2b · 取证）—— **不是**仓库资产，用完移走。 (~1622 tok)
 - `test_zz_probe_cross_project.py` — 临时探针（**不提交**）：验证 TODO-113 / TODO-114 的越权是否**真实可达**。 (~885 tok)
 
 ## pcs-backend/tests/architecture/
@@ -1740,6 +1751,7 @@
 ## pcs-backend/tests/scripts/
 
 - `lane_script_body.py` — 脚本「可执行部分」的**一处真相源**（P10-F · 评审 #27）。 (~419 tok)
+- `test_audit_list_endpoints.py` — 守卫覆盖审计的端点枚举脚本（P10-F · F3）的守卫。 (~1563 tok)
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
 - `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)

@@ -6661,6 +6661,56 @@
         "TODO-174",
         "high"
       ]
+    },
+    {
+      "id": "bug-2187",
+      "timestamp": "2026-11-18",
+      "severity": "critical",
+      "error_message": "匿名调用方可以读走**任意项目**的管路记录与变更快照：`GET /api/v1/records/piping` / `GET /api/v1/records/piping/{pipe_id}` / `GET /api/v1/records/piping/{pipe_id}/snapshots` —— 实测：**不带 Authorization 头也 200**（P10-F · F3-T2b 审计取证）",
+      "file": "pcs-backend/app/api/v1/records.py",
+      "root_cause": "**两处缺失叠加**：① 三个读端点**没有 `current_actor` 依赖** ⇒ ⇒ **连「登录」都不要求**（`records.py:40-75` / `:78-113` / `:270-316`）；② 作用域 id（`workspace_id`）只过 `get_workspace`（`app/api/deps.py:20-40`）⇒ ⇒ 而它**只判存在性、零授权判定** ⇒ ⇒ ⇒ **没有任何 `user_projects` 判定** ⇒ ⇒ ⇒ 换成**任何一个**有 token 的用户也一样读到。\n\n⚠️ **放大链闭合**：`GET /api/v1/workspaces`（`app/api/v1/workspaces.py:63-81`）**同样不要求登录**，且 `owner_id` 不传即**返回全部** workspace（`workspace_service.py:86-100`：`owner_id=None` 视为不过滤）⇒ ⇒ **匿名可枚举 workspace_id** ⇒ ⇒ 再读管路记录。\n\n⚠️ **为什么单测抓不到**：`tests/test_records.py::test_list_piping` 与 `::test_snapshot_created_for_apply_change` **不带任何 token 就断言 200**（仓库自己的测试把「无认证可读」当成正常行为钉住了）；而 `tests/conftest.py` 的默认 `client` 又把项目守卫 mock 成永远 True ⇒ ⇒ 「端点缺项目守卫」这类缺陷在它上面**一个都测不出来**。",
+      "fix": "（**待修** ⇒ ⇒ 本批是只出结论的审计批 ⇒ ⇒ 不改生产代码）建议：① 三个端点加 `current_actor` 依赖（⇒ ⇒ 至少要登录）；② 按 `workspace.project_id` 做**项目授权判定** ⇒ ⇒ **无授权 ⇒ ⇒ 404**（与「不存在」同形 ⇒ ⇒ 不泄露存在性）；③ `workspace.project_id IS NULL` 时怎么办 ⇒ ⇒ **产品语义**（与 TODO-169 一起裁决）；④ `GET /workspaces` 的枚举面归 **F3-T3a** 复核（人裁决「工作区 id 令牌 ① 保留 · ② 关联项目数据必须审」⇒ ⇒ 「列表能枚举别的项目的 workspace」属「关联」）。⇒ ⇒ 登记为 **TODO-179**。",
+      "fix_commit": "",
+      "tags": [
+        "P10-F",
+        "F3-T2b",
+        "越权",
+        "未授权访问",
+        "records",
+        "跨项目读",
+        "TODO-179",
+        "critical"
+      ],
+      "related_bugs": [
+        "bug-2142"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
+    },
+    {
+      "id": "bug-2188",
+      "timestamp": "2026-11-18",
+      "severity": "high",
+      "error_message": "`POST /api/v1/records/piping` 授权判的是 **payload 里的 project_id**，行却落进 **workspace_id 指向的 workspace** ⇒ ⇒ **授权在项目 A 的人把记录写进了项目 B 的工作区**（实测 HTTP 200；对照组 payload=B ⇒ ⇒ 404 ⇒ ⇒ 守卫本身是「真」的，洞在 id 不同源）",
+      "file": "pcs-backend/app/api/v1/records.py",
+      "root_cause": "**三个 id 互不相同、授权只认其中一个**：`create_piping` 授权 **payload 的 `project_id`**（`records.py:130-134` `check_project_access_or_404(... project_id=uuid.UUID(payload[\"project_id\"]))`），而行落在 **`workspace_id` 指向的 workspace**（`:137` `workspace_id=workspace.workspace_id`）⇒ ⇒ 两个 id 可以互不相同 ⇒ ⇒ 守卫查 A（过）⇒ ⇒ 行落进 B 的 workspace。\n\n⚠️ **同族**：`transition_piping`（`:189-193`）/ `obsolete_piping`（`:243-247`）授权的是 **`ws.project_id`**，而行自己的 `project_id` 可能是别的值；且两处都是 `if ws.project_id is not None:` ⇒ ⇒ **FORMAL 且未绑项目的 workspace ⇒ ⇒ 守卫整段跳过**。\n\n⚠️ **读面不看 project_id**：`GET /records/piping` 只按 `workspace_id` 过滤 ⇒ ⇒ 记录「属于哪个项目」与「谁能看见它」两处口径各不相同。",
+      "fix": "（**待修** ⇒ ⇒ 审计批不改生产代码）建议：① `payload[\"project_id\"]` 必须与 `workspace.project_id` **一致** ⇒ ⇒ 不一致 ⇒ ⇒ **400**；或 ② 改用 **`workspace.project_id`** 作授权对象、`payload.project_id` 只作冗余校验；③ `transition` / `obsolete` 与 `create` 统一授权对象（同一个 id）；④ 「workspace 没有项目」时的口径 ⇒ ⇒ 与 TODO-169 / TODO-182 一起裁决。⇒ ⇒ 登记为 **TODO-180**（+ TODO-182）。",
+      "fix_commit": "",
+      "tags": [
+        "P10-F",
+        "F3-T2b",
+        "越权",
+        "跨项目写",
+        "records",
+        "id 不同源",
+        "TODO-180",
+        "high"
+      ],
+      "related_bugs": [
+        "bug-2187"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-11-18"
     }
   ]
 }

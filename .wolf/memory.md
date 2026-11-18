@@ -3823,3 +3823,26 @@
 | 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | expanded (+6 lines) | ~103 |
 | 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | inline fix | ~15 |
 | 08:56 | Edited pcs-backend/scripts/seed_e2e_flows.py | 3→8 lines | ~103 |
+| 09:00 | Created pcs-backend/scripts/audit_list_endpoints.py | — | ~2218 |
+| 09:01 | Created pcs-backend/tests/scripts/test_audit_list_endpoints.py | — | ~1131 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _router_prefix() | ~272 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _guard_calls() | ~184 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | added error handling | ~74 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | inline fix | ~12 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _router_prefix() | ~342 |
+| 09:01 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _add() | ~165 |
+| 09:02 | Edited pcs-backend/scripts/audit_list_endpoints.py | not() → APIRouter() | ~121 |
+| 09:02 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _module_local_funcs() | ~606 |
+| 09:02 | Edited pcs-backend/tests/scripts/test_audit_list_endpoints.py | modified test_local_wrapper_calls_are_reported() | ~211 |
+| 09:03 | Edited pcs-backend/scripts/audit_list_endpoints.py | 7→9 lines | ~102 |
+| 09:03 | Edited pcs-backend/scripts/audit_list_endpoints.py | modified _alias_guards() | ~567 |
+| 09:03 | Edited pcs-backend/tests/scripts/test_audit_list_endpoints.py | modified test_type_alias_dependencies_are_unwrapped() | ~253 |
+| 09:04 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/proposals/guard-coverage-scope-proposal.md | — | ~3036 |
+| 09:04 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+26 lines) | ~383 |
+| 09:05 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/task-f3-t2a-brief.md | — | ~518 |
+| 09:10 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2a.md | — | ~1847 |
+| 09:13 | Created pcs-backend/tests/api/v1/test_zz_demo_scope_gap.py | — | ~635 |
+| 10:04 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/task-f3-t2b-brief.md | — | ~598 |
+| 10:05 | Created pcs-backend/tests/api/v1/test_zz_demo_t2b_gap.py | — | ~1622 |
+| 10:11 | Created .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md | — | ~2815 |
+| 10:11 | Edited .superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md | expanded (+20 lines) | ~175 |

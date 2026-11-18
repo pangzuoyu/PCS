@@ -4473,3 +4473,243 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 ⚠️ **联动**：若 F3-T3a 审 `workspaces.py` 时发现「工作区 owner 看不到住在自己
 工作区里的项目」**可被利用**（例：owner 能删工作区 ⇒ ⇒ 项目 CASCADE 删除）
 ⇒ ⇒ 那是**另一条** ⇒ ⇒ 单独登记 ⇒ ⇒ 不属于本条。
+
+---
+
+## TODO-179: `records.py` 的**读面**既不要求登录也不做项目授权（匿名可读任意项目的管路记录）🔴
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b 审计**实测取证**）：
+
+⚠️ **实测演示**（证据见 `.superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md` §五
+⇒ ⇒ 演示文件**用完移走**，不进仓库 ⇒ ⇒ 复现方式见该节）：
+
+```
+[演示·甲] 无 token：列表 200 (1 行) · 详情 200 · 快照 200
+[演示·甲] 无授权用户：列表 200 (1 行)
+```
+
+**三个端点**（`app/api/v1/records.py`）：
+
+| 端点 | 行 | 缺什么 |
+|---|---|---|
+| `GET /records/piping` | `:40-75` | **没有 `current_actor` 依赖** ⇒ ⇒ 不带 `Authorization` 头也 200 |
+| `GET /records/piping/{pipe_id}` | `:78-113` | 同上 |
+| `GET /records/piping/{pipe_id}/snapshots` | `:270-316` | 同上 |
+
+⇒ ⇒ ⇒ **没有 `current_actor`** ⇒ ⇒ **连「登录」都不要求**
+⇒ ⇒ ⇒ 而 `get_workspace`（`app/api/deps.py:20-40`）**只判存在性**
+⇒ ⇒ ⇒ **没有任何 `user_projects` 判定** ⇒ ⇒ ⇒ 换成**任何一个**有 token 的用户也一样读到。
+
+**放大链（闭合）**：`GET /api/v1/workspaces`（`app/api/v1/workspaces.py:63-81`）
+**同样不要求登录**，且 `owner_id` 不传即**返回全部** workspace
+（`workspace_service.py:86-100`：`owner_id=None` 视为不过滤）
+⇒ ⇒ **匿名可枚举 workspace_id** ⇒ ⇒ 再读管路记录
+⇒ ⇒ ⇒ **攻击链闭合**（⚠️ `workspaces.py` 属 **T3a** 范围 ⇒ ⇒ T3a 要一并复核）。
+
+**泄露面**：项目管路记录（`line_no` / `sign_status` / `approval_step` /
+`locked_by_deliverable` / `seq_no` / `source_pid`）+ 变更快照（**审计轨迹**）。
+
+**建议改法**：
+
+① 三个端点加 `current_actor` 依赖（⇒ ⇒ 至少要登录）；
+② 再按 `workspace.project_id` 做**项目授权判定**
+   ⇒ ⇒ **无授权 ⇒ ⇒ 404**（与「不存在」同形 ⇒ ⇒ 不泄露存在性）
+   ⇒ ⇒ ⚠️ 参照 `app/api/v1/_guard.py::check_project_access_or_404`
+   ⇒ ⇒ `workspace.project_id IS NULL` 时怎么办 ⇒ ⇒ **产品语义**
+   （TODO-169「FORMAL 是否必然属于一个项目」相关 ⇒ ⇒ 一起裁决）；
+③ `GET /workspaces` 是否要一并收紧（列表面）⇒ ⇒ **T3a 裁决**
+   （人已裁决「工作区 id 令牌 ① 保留」⇒ ⇒ 但「**关联项目数据必须审**」
+   ⇒ ⇒ 「列表能枚举别的项目的 workspace」属于「关联」⇒ ⇒ 要审）。
+
+**何时做**：**下一批优先**（⇒ ⇒ 匿名可读 ⇒ ⇒ 数据泄露面最大）
+
+**归属**：P10-F（F3-T2b · **critical** · 与 TODO-180 同族）
+
+---
+
+## TODO-180: `records.py` 写面授权的 id 与落库的 id **不同源**（跨项目写入）🟠
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b 审计**实测取证**）：
+
+```
+[演示·乙] 攻击者（仅授权项目 A）向项目 B 的 workspace 写入 ⇒ HTTP 200
+[演示·乙] 对照组（payload 写 B）⇒ HTTP 404
+```
+
+⇒ ⇒ ⇒ **守卫是「真」的**（对照组 404）⇒ ⇒ ⇒ **洞恰好在 id 不同源**。
+
+**机制**（`app/api/v1/records.py::create_piping`）：
+
+| 事实 | 行 |
+|---|---|
+| 授权判的是 **payload 里的 `project_id`** | `:130-134` `check_project_access_or_404(... project_id=uuid.UUID(payload["project_id"]))` |
+| 行落在 **`workspace_id` 指向的 workspace** | `:137` `workspace_id=workspace.workspace_id` |
+| ⇒ ⇒ **两个 id 可以互不相同** | ⇒ ⇒ 守卫查 A（过）⇒ ⇒ 行落进 **B 的 workspace** |
+
+⇒ ⇒ ⇒ **授权在项目 A 的人，把记录写进了项目 B 的工作区**。
+
+**同族**（三个 id 可互不相同）：`transition_piping`（`:189-193`）与
+`obsolete_piping`（`:243-247`）授权的是 **`ws.project_id`**，
+而行自己的 `project_id` 可能是别的值（由 `create` 写进去的）
+⇒ ⇒ 读面（`GET /records/piping`）**只按 `workspace_id` 过滤** ⇒ ⇒
+⇒ ⇒ 记录落在哪个项目、谁能看到它，**三处口径各不相同**。
+
+**建议改法**：
+
+① `create_piping` 的 `payload["project_id"]` 必须与
+   `workspace.project_id` **一致** ⇒ ⇒ 不一致 ⇒ ⇒ **400**
+   （⇒ ⇒ 错误码要选：422 语义对但本仓习惯 400 ⇒ ⇒ 与 SPEC 对齐）；
+② 或者反过来：改用 **`workspace.project_id`** 作授权对象，
+   `payload["project_id"]` 只作**冗余校验**；
+③ `transition` / `obsolete` 的授权对象与 `create` **统一**（同一个 id）。
+
+**何时做**：下一批（⇒ ⇒ 与 TODO-179 同批做最省事：都在 `records.py`）
+
+**归属**：P10-F（F3-T2b · **high** · 与 TODO-179 同族）
+
+---
+
+## TODO-181: `records.py` / `report.py` 的**项目守卫零断言**（变异无人应答）🟠
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b **抽样变异**实测）：
+
+| 变异 | 删掉的东西 | 实测 |
+|---|---|---|
+| M3 | `records.py::transition_piping` 的 `check_project_access_or_404` | **49 个测试全绿** |
+| M4 | `report.py::_guard_project` 的守卫调用 | **45 个测试全绿** |
+| M5 | `report.py::generate_report` 的守卫调用 | **29 个测试全绿** |
+
+⇒ ⇒ ⇒ **守卫删了没有任何测试变红** ⇒ ⇒ ⇒ 「已覆盖」只是**代码上的**，
+**断言层面没有任何东西守着**。
+
+**根因**：这些端点的测试都用**默认 `client`** ⇒ ⇒ 默认 `client` 把
+`UserProjectService.check_user_project_access` mock 成永远 True
+（`tests/conftest.py:257-264`）⇒ ⇒ 「无权 ⇒ 404」的断言即便写了也是 **no-op**。
+
+⚠️ **已有的最弱断言也不算数**：
+`tests/api/v1/test_report.py::test_download_uses_404_not_403` 断言的是
+`status_code in (200, 404)` ⇒ ⇒ **恒真**（两个值都可能）⇒ ⇒ 不算覆盖
+⇒ ⇒ 它自己的 docstring 也写了「断言的是**端点选了哪种状态码**，不是「守卫拦住了无权用户」」。
+
+**建议改法**：
+
+① 用 **`strict_client`**（+ 真 `UserProject` 授权行）补断言：
+   「无权用户 ⇒ ⇒ **404**」；
+② **同时把 `tests/conftest.py::AUDITED_PROJECT_SCOPED_ENDPOINTS` 的棘轮数上调**
+   （当前 = 2 ⇒ ⇒ 只算 `report_builder` 的 create / execute
+   ⇒ ⇒ ⇒ 本条要把 `records.py`(3) + `report.py`(4) 计进去）；
+③ 顺手把 `test_download_uses_404_not_403` 的恒真断言改成**真断言**
+   （要么 `== 404`（无权）+ `== 200`（有权）两条，要么删掉它并把意图移到别处）。
+
+**何时做**：随 TODO-179 / 180 一批（⇒ ⇒ 守卫改完**立刻**补断言，
+⇒ ⇒ 否则又是一批「改了但没人守」）
+
+**归属**：P10-F（F3-T2b · 断言缺口 · **high**）
+
+---
+
+## TODO-182: `records.py` 的状态机守卫在 `ws.project_id IS NULL` 时**整段跳过**🟡
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b 审计）：
+
+`app/api/v1/records.py`：
+
+| 端点 | 行 | 形状 |
+|---|---|---|
+| `transition_piping` | `:189-193` | `if ws.project_id is not None:` ⇒ ⇒ **非空才判** |
+| `obsolete_piping` | `:243-247` | 同上 |
+| `create_piping` | `:130-134` | 判 **payload** 的 `project_id`（**必填** ⇒ ⇒ 永远有） |
+
+⇒ ⇒ ⇒ **FORMAL 且未绑项目的 workspace** ⇒ ⇒ **任何登录用户**都能改该
+workspace 里记录的状态（`DRAFT → IN_APPROVAL → CHECKED → …`）
+⇒ ⇒ ⇒ 而 `create` 写进去的行**永远带 `project_id`** ⇒ ⇒
+⇒ ⇒ **两个口径不一致**（= TODO-180 的另一半）。
+
+**建议改法**：与 TODO-180 的 ③ 一起统一：授权对象**只认一个** id
+⇒ ⇒ 至于「workspace 没有项目」时怎么办 ⇒ ⇒ **产品语义**
+⇒ ⇒ 与 TODO-169（FORMAL 是否必然属于一个项目）**一起裁决**。
+
+**何时做**：随 TODO-179 / 180 一批
+
+**归属**：P10-F（F3-T2b · **high** · 与 TODO-180 同族 · 依赖 TODO-169 的裁决）
+
+---
+
+## TODO-183: `test_project_level_uses_project_access_not_admin` 的断言**恒真** 🟡
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b **抽样变异**发现）：
+
+`tests/services/report/test_style_service.py:208`：
+
+```python
+granted = {"value": True}      # ← 起始值就是 True
+...
+assert granted["value"], "根本没查项目访问权 —— 权限检查被绕过了"   # :221
+```
+
+⇒ ⇒ ⇒ **`granted` 起始值是 `True`** ⇒ ⇒ ⇒ 随后的断言**永远为真**
+⇒ ⇒ ⇒ 它**侦测不到「项目检查被删掉」**。
+
+⚠️ **实测**：本批 M2 变异（删掉 `style_service._authorize` 里的
+`check_user_project_access` 调用）⇒ ⇒ **这条测试仍然绿**
+⇒ ⇒ ⇒ 而它的失败消息写的正是「根本没查项目访问权 —— 权限检查被绕过了」
+⇒ ⇒ ⇒ **消息描述的正是它做不到的事**。
+
+⇒ ⇒ ⇒ **同批 M2 里 `test_project_level_denied_when_no_project_access` 变红了**
+⇒ ⇒ ⇒ 说明**拒绝路径**有断言守着 ⇒ ⇒ **缺的是「确实去查了」这一侧**。
+
+**建议改法**：`granted = {"value": False}` 起步
+⇒ ⇒ M2 变异即可让它变红 ⇒ ⇒ 它才真的守着它声称的东西。
+
+**何时做**：随手（⇒ ⇒ 一行改动 ⇒ ⇒ 但**必须**与守卫补断言同批做，
+⇒ ⇒ 否则改完仍然没人守）
+
+**归属**：P10-F（F3-T2b · 断言缺口 · 与 TODO-181 同族）
+
+---
+
+## TODO-184: `GET /report/styles` 的 `project_id` 是**死参数** 🟢
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b 审计）：
+
+`app/api/v1/report.py::list_styles`：
+
+| 事实 | 行 |
+|---|---|
+| 声明了 `project_id` 查询参数 | `:319` |
+| **查询里从不用它** | `:326-331`（只按 `report_type` 过滤） |
+
+⇒ ⇒ ⇒ 契约里有个「按项目过滤样式」的参数，**行为上不存在**
+⇒ ⇒ ⇒ 与 `report_builder.py` 的「死字段 `project_id`」**同形**（= TODO-170）。
+
+⚠️ **注意**：本条**当前不构成越权面** ⇒ ⇒ 因为读面对**项目级**样式
+**有意放宽**（登录即可读，见 §二 P6）⇒ ⇒ ⇒ 过滤与否不影响可见性
+⇒ ⇒ ⇒ 但它是「契约说有、行为没有」的**同一类债** ⇒ ⇒ ⇒ 将来若把读面收紧
+⇒ ⇒ ⇒ 这个死参数会变成「过滤器形同虚设」。
+
+**建议改法**：要么实现它（按 `project_id` 过滤），要么从契约里去掉
+⇒ ⇒ ⇒ 后者要动 OpenAPI ⇒ ⇒ 走契约变更流程。
+
+**何时做**：低优先（⇒ ⇒ 登记即可）
+
+**归属**：P10-F（F3-T2b · **low** · 与 TODO-170 同族）
+
+---
+
+## TODO-185: `GET /records/piping/{pipe_id}`（详情端点）**零测试** 🟢
+
+**现状**（2026-11-18 · P10-F 的 F3-T2b 审计）：
+
+全仓 `grep "records/piping"` 只命中 `tests/test_records.py`
+（列表 / 快照 / 写）⇒ ⇒ ⇒ **详情端点 `GET /records/piping/{pipe_id}`
+没有任何测试** ⇒ ⇒ ⇒ 连「它返回 200」都没人钉
+⇒ ⇒ ⇒ 而它恰好是 TODO-179 里三个**无授权**端点之一。
+
+**建议改法**：随 TODO-179 补测试 ⇒ ⇒ 一条「无权用户 ⇒ ⇒ 404」
++ 一条「有权用户 ⇒ ⇒ 200 且字段齐」。
+
+**何时做**：随 TODO-179 一批
+
+**归属**：P10-F（F3-T2b · 断言缺口 · **low** · 与 TODO-179 联动）
+
+---

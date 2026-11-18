@@ -4,10 +4,40 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-18（第 35 轮：
-> **P10-F 批 1+2（F1+F2+F3-T1）+ 整支评审的修复批** —— 生产就绪评审落地
-> + 独立评审员查出的 **1 CRITICAL + 6 IMPORTANT** 全部修完；**未 push**）。
+> Read this FIRST when starting a session. Last updated: 2026-11-18（第 36 轮：
+> **P10-F 批 3 的前两个审计子批（F3-T2a + F3-T2b）** —— 守卫覆盖审计
+> + **T2b 查出 1 CRITICAL（匿名可读任意项目的管路记录）+ 1 HIGH（跨项目写入）**；
+> **未 push**）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
+
+---
+
+## ✅ Done（第 36 轮：P10-F · **F3-T2a + F3-T2b**（审计子批 · 只出结论））
+
+**F3-T2a**（`config.py` 11 + `report_builder.py` 9 = 20 端点）
+⇒ ⇒ 结论在工作区 `…/audit-f3-t2a.md` ⇒ ⇒ **推翻了范围裁决的两个前提**：
+`config.py` 的资源是**公司级**（`ConfigAsset` 无 `project_id`）⇒ ⇒ 「跨项目越权」
+**语义不成立** ⇒ ⇒ **越权缺口 0**（只缺断言）· `report_builder.project_id` 是
+**死字段**（可见性只看 `created_by`）⇒ ⇒ 真缺口是口径不一致（TODO-170 · 已裁决落地）
+⇒ ⇒ 同批**修掉了 TODO-174**（报表执行跨项目读 · `c7da7b6`）+ TODO-170 选项 ③（`bc881fa`）
+⇒ ⇒ 默认车道 **5855 passed**。
+
+**F3-T2b**（`report.py` 10 + `records.py` 6 = 16 端点）⇒ ⇒ 结论 `…/audit-f3-t2b.md`
+⇒ ⇒ **本批唯一的 CRITICAL**：
+
+| 编号 | 缺口 | 位置 |
+|---|---|---|
+| **TODO-179** 🔴 | **匿名可读任意项目的管路记录与快照**（三个 GET 既不要求登录也不做项目授权）⇒ ⇒ `GET /workspaces` 也不要求登录且可枚举全部 ⇒ ⇒ 攻击链闭合 | `records.py:40/78/270` |
+| **TODO-180** 🟠 | 写面授权判 **payload 的 project_id**、行落进 **workspace 的 workspace** ⇒ ⇒ 授权在 A 的人写进 B 的工作区 | `records.py:130-137` |
+| **TODO-181** 🟠 | `records.py`/`report.py` 的项目守卫**零断言**（变异 M3/M4/M5 **无人应答**） | 3 个变异 |
+| **TODO-182** 🟡 | 状态机守卫在 `ws.project_id IS NULL` 时**整段跳过** | `records.py:189/243` |
+| **TODO-183** 🟡 | `test_project_level_uses_project_access_not_admin` 的断言**恒真**（`granted` 起始 `True`） | `test_style_service.py:208` |
+| **TODO-184** 🟢 | `GET /report/styles` 的 `project_id` 是**死参数** | `report.py:319` |
+| **TODO-185** 🟢 | `GET /records/piping/{pipe_id}` **零测试** | `records.py:78` |
+
+⇒ ⇒ bug-2187（critical）· bug-2188（high）⇒ ⇒ 演示取证文件**已移出仓库**
+⇒ ⇒ 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS` 仍是 2（**已低于实际审计面 ≈12**
+⇒ ⇒ 留给 TODO-181 的修复批同批抬）。
 
 ---
 
@@ -55,19 +85,18 @@ TODO-167（清单已订正）· TODO-168（漂移守卫仍连开发库 · 只读
 
 ## 🚀 Next quest
 
-1. **P10-F 批 3（F3）—— F3-T2a 完成 ⇒ 下一批 = F3-T2b**（`report.py` 10 + `records.py` 6）
-   ⇒ ⇒ **4 问表已加 ②a 资源 id / ②b 作用域 id 两问 + 「覆盖断言用的 client」列**
+1. **P10-F 批 3（F3）—— F3-T2a + T2b 完成 ⇒ 下一批 = F3-T3a**
+   （`psychro.results` 5 + `workspaces` 4 + `user_projects` 4 + `admin_users` 3）
+   ⇒ ⇒ **4 问表 = ①/②a 资源 id/②b 作用域 id/③/④ + 「覆盖断言用的 client」列**
    ⇒ ⇒ ⚠️ **凡断「项目授权」的断言必须用 `strict_client`**（默认 client 把守卫
    mock 成永远 True ⇒ ⇒ 那类断言是 no-op ⇒ ⇒ TODO-176）
-   ⇒ ⇒ 范围**已由人裁决**（2026-11-18 · A+B+D(敏感)，C 不审 ≈ 63 端点）
-   ⇒ ⇒ 提案在工作区 `…/proposals/guard-coverage-scope-proposal.md` ·
-   T2a 结论在 `…/audit-f3-t2a.md`
-   ⇒ ⇒ ⚠️ **T2a 推翻了裁决的两个前提** ⇒ ⇒ 要报告给人：
-   **`config.py` 的资源是「公司级」**（`ConfigAsset` 无 `project_id`）⇒ ⇒
-   「跨项目越权」语义**不成立** ⇒ ⇒ **越权缺口 0**（只缺断言）·
-   **`report_builder` 的 `project_id` 是死字段**（可见性只看 `created_by`）
-   ⇒ ⇒ 真缺口是**口径不一致**（TODO-170 · 产品裁决）
-2. **推送本轮**（P10-B 12 个 + 本轮 8 个提交未 push ⇒ 需明确授权）。
+   ⇒ ⇒ 结论模板与两个先例在工作区：`audit-f3-t2a.md` · `audit-f3-t2b.md`
+   ⇒ ⇒ ⚠️ **T2b 留给 T3a 的线索**：`workspaces.py` 的 `GET ""` **不要求登录**
+   且 `owner_id` 不传即返回**全部** ⇒ ⇒ 它是 TODO-179 的**枚举放大器**
+   ⇒ ⇒ T3a 必须把它算进「工作区 id 令牌」那一档（人裁决 ① 保留令牌 ·
+   ② **关联项目数据必须审**）⇒ ⇒ `POST /workspaces` 同样不要求登录且
+   `owner_id` 由客户端指定 ⇒ ⇒ 一并看。
+2. **推送本轮**（P10-B 12 个 + 本轮提交未 push ⇒ 需明确授权）。
 3. **P10-C / D / E** 未开工 ⇒ ⇒ F4（依赖漏洞/镜像扫描/回滚演练）与 F5（告警/备份/
    Go-No-Go）前置不满足 ⇒ ⇒ F6 收口要等 F4/F5。
 4. **待人裁决**：**TODO-172**（publish 的**职责分离**未定义 · 产品语义 · 附带

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-18T00:56:25.309Z",
-    "fileCount": 1356,
+    "lastScanned": "2026-11-18T02:11:54.229Z",
+    "fileCount": 1365,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "fa3baad864e33370cda15174ede85583c50676dda079e5aa49badd22b4cc2e0b",
-    "storeUpdatedAt": "2026-11-18T00:56:25.322Z",
-    "rootHash": "fb778ac9f55182ca"
+    "renderedHash": "a0841d14e5406d3f7e3a97a15ec54d00f8f3b7a43c19a652903d6730f0dba030",
+    "storeUpdatedAt": "2026-11-18T02:11:54.241Z",
+    "rootHash": "0fc6739561d28f03"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -48609,11 +48609,11 @@
     },
     "docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md": {
       "description": "P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17",
-      "tokens": 17600,
-      "hash": "9f4a4f6242a7f46f",
-      "size": 106429,
-      "mtimeMs": 1794958864194.4807,
-      "updatedAt": "2026-11-17T23:41:04.243Z",
+      "tokens": 17917,
+      "hash": "6834540300a92c75",
+      "size": 108567,
+      "mtimeMs": 1794963877808.5684,
+      "updatedAt": "2026-11-18T01:04:37.863Z",
       "source": "hook"
     },
     "docs/ce-code-review/20261117-013829-7e9fbabe/hermes-adjudication.md": {
@@ -49094,6 +49094,361 @@
       "size": 6504,
       "mtimeMs": 1794960760660.7568,
       "updatedAt": "2026-11-18T00:12:40.710Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/audit_list_endpoints.py": {
+      "description": "**守卫覆盖审计**的端点枚举（P10-F · F3）。",
+      "tokens": 3250,
+      "hash": "a030ac5c8303d128",
+      "size": 14170,
+      "mtimeMs": 1794963808892.9797,
+      "updatedAt": "2026-11-18T01:03:28.943Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_call_tail",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 89,
+          "tokens": 93
+        },
+        {
+          "name": "_router_prefix",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 128,
+          "tokens": 428
+        },
+        {
+          "name": "_decorator_route",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 151,
+          "tokens": 229
+        },
+        {
+          "name": "_path_params",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 160,
+          "tokens": 57
+        },
+        {
+          "name": "_signature_params",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 167,
+          "tokens": 62
+        },
+        {
+          "name": "_alias_guards",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 191,
+          "tokens": 234
+        },
+        {
+          "name": "_guard_calls",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 222,
+          "tokens": 334
+        },
+        {
+          "name": "classify",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 231,
+          "tokens": 68
+        },
+        {
+          "name": "_rel",
+          "kind": "fn",
+          "startLine": 232,
+          "endLine": 239,
+          "tokens": 52
+        },
+        {
+          "name": "_module_local_funcs",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 248,
+          "tokens": 67
+        },
+        {
+          "name": "_local_calls",
+          "kind": "fn",
+          "startLine": 249,
+          "endLine": 265,
+          "tokens": 158
+        },
+        {
+          "name": "enumerate_endpoints",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 301,
+          "tokens": 382
+        },
+        {
+          "name": "_counts",
+          "kind": "fn",
+          "startLine": 302,
+          "endLine": 311,
+          "tokens": 94
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 312,
+          "endLine": 351,
+          "tokens": 381
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_audit_list_endpoints.py": {
+      "description": "守卫覆盖审计的端点枚举脚本（P10-F · F3）的守卫。",
+      "tokens": 1563,
+      "hash": "87cf98b7b8f5fef3",
+      "size": 6861,
+      "mtimeMs": 1794963818629.0652,
+      "updatedAt": "2026-11-18T01:03:38.677Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "get_thing",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 36,
+          "tokens": 26
+        },
+        {
+          "name": "create_thing",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 42,
+          "tokens": 41
+        },
+        {
+          "name": "get_thing_ro",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 48,
+          "tokens": 34
+        },
+        {
+          "name": "open_thing",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 54,
+          "tokens": 18
+        },
+        {
+          "name": "api_dir",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 59,
+          "tokens": 36
+        },
+        {
+          "name": "test_paths_carry_the_router_prefix",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 66,
+          "tokens": 75
+        },
+        {
+          "name": "test_guard_state_has_three_states",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 75,
+          "tokens": 132
+        },
+        {
+          "name": "test_role_gate_is_not_project_authorization",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 85,
+          "tokens": 133
+        },
+        {
+          "name": "test_dependency_style_guards_are_seen",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 95,
+          "tokens": 102
+        },
+        {
+          "name": "test_real_modules_have_the_endpoint_counts_the_plan_snapshotted",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 124,
+          "tokens": 268
+        },
+        {
+          "name": "test_local_wrapper_calls_are_reported",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 133,
+          "tokens": 77
+        },
+        {
+          "name": "_guard_project",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 138,
+          "tokens": 25
+        },
+        {
+          "name": "guarded",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 149,
+          "tokens": 93
+        },
+        {
+          "name": "test_type_alias_dependencies_are_unwrapped",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 164,
+          "tokens": 122
+        },
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 165,
+          "endLine": 172,
+          "tokens": 28
+        },
+        {
+          "name": "get_x",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 182,
+          "tokens": 87
+        },
+        {
+          "name": "test_every_row_has_a_state_and_a_method",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 188,
+          "tokens": 78
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/proposals/guard-coverage-scope-proposal.md": {
+      "description": "守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129）",
+      "tokens": 2847,
+      "hash": "7b0e7729f67c57aa",
+      "size": 18655,
+      "mtimeMs": 1794963862343.4395,
+      "updatedAt": "2026-11-18T01:04:22.393Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/task-f3-t2a-brief.md": {
+      "description": "Task F3-T2a brief —— `config.py`(11) + `report_builder.py`(9) = **20 端点**",
+      "tokens": 485,
+      "hash": "ff8cc384ff6b37a8",
+      "size": 3347,
+      "mtimeMs": 1794963914672.869,
+      "updatedAt": "2026-11-18T01:05:14.717Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2a.md": {
+      "description": "F3-T2a 审计结论 —— `config.py`(11) + `report_builder.py`(9) = **20 端点**",
+      "tokens": 1732,
+      "hash": "dd320087163f694a",
+      "size": 9892,
+      "mtimeMs": 1794964235086.1528,
+      "updatedAt": "2026-11-18T01:10:35.132Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_zz_demo_scope_gap.py": {
+      "description": "⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。",
+      "tokens": 635,
+      "hash": "747821eaeb4964df",
+      "size": 3055,
+      "mtimeMs": 1794964433319.4802,
+      "updatedAt": "2026-11-18T01:13:53.372Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_demo_execution_scope_project_is_not_authorized",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 70,
+          "tokens": 408
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/task-f3-t2b-brief.md": {
+      "description": "Task F3-T2b brief —— `report.py`(10) + `records.py`(6) = **16 端点**",
+      "tokens": 560,
+      "hash": "8183018d66436903",
+      "size": 3715,
+      "mtimeMs": 1794967485875.3896,
+      "updatedAt": "2026-11-18T02:04:45.922Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_zz_demo_t2b_gap.py": {
+      "description": "⚠️ **演示测试**（F3-T2b · 取证）—— **不是**仓库资产，用完移走。",
+      "tokens": 1622,
+      "hash": "a707f510fc48423a",
+      "size": 6795,
+      "mtimeMs": 1794967527373.0327,
+      "updatedAt": "2026-11-18T02:05:27.422Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_tok",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 45,
+          "tokens": 63
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 58,
+          "tokens": 128
+        },
+        {
+          "name": "_mk_ws",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 75,
+          "tokens": 122
+        },
+        {
+          "name": "_payload",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 93,
+          "tokens": 134
+        },
+        {
+          "name": "test_demo_records_read_needs_no_auth_and_no_grant",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 134,
+          "tokens": 496
+        },
+        {
+          "name": "test_demo_records_write_authorizes_a_different_project",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 166,
+          "tokens": 392
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-11-17-p10-batch-f-production-readiness/audit-f3-t2b.md": {
+      "description": "F3-T2b 审计结论 —— `report.py`(10) + `records.py`(6) = **16 端点**",
+      "tokens": 2799,
+      "hash": "7ee96033d6817777",
+      "size": 16770,
+      "mtimeMs": 1794967914174.385,
+      "updatedAt": "2026-11-18T02:11:54.228Z",
       "source": "hook"
     }
   }
