@@ -3582,7 +3582,7 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
 ⚠️ **本条是后端项**（PRO/II 解析器）⇒ ⇒ **搭车**该批收口（批内单列）。
 
-### ✅ **已关闭 · 2026-11-19 · P10-C · T4**（人裁决：**「我补 CAS 号并标注待确认」**）
+### ✅ **已关闭 · 2026-11-19 · P10-C · T4 · `bbea848`**（人裁决：**「我补 CAS 号并标注待确认」**）
 
 ⇒ ⇒ **链路打通**：`.inp` 的 `COMPOSITION(M|W)` ⇒ ⇒ **`{CAS: 摩尔分率}`**
 ⇒ ⇒ 落进 `composition_json` ⇒ ⇒ 送审的组成门禁（100±0.5%）能过
@@ -3604,7 +3604,7 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 ⇒ ⇒ **新增**：`app/services/component_cas.py`（规范名 → CAS · **域数据**）·
 `app/services/proii_composition.py`（换算 · 归一 · fail-closed）·
 `tests/fixtures/proii/sample6_composition/`（含 M / W / 认不出的组分三种流）·
-`tests/services/test_proii_composition_mole.py`（6 例）。
+`tests/services/test_proii_composition_mole.py`（8 例）。
 
 ⇒ ⇒ **变异自证**（三条各自变红）：丢基准 ⇒ 解析器那条红 · 不落组成 ⇒ 导入那条红 ·
 去掉 fail-closed ⇒ 「认不出 ⇒ 整条作废」那条红。
@@ -3632,7 +3632,7 @@ job 被 ARQ 当场判死），这两条断言**照样绿**。
 
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
 
-### ✅ **已关闭 · 2026-11-19 · P10-C · T3**（人裁决：**① 补一页设备台账**）
+### ✅ **已关闭 · 2026-11-19 · P10-C · T3 · `bbea848`**（人裁决：**① 补一页设备台账**）
 
 ⇒ ⇒ 新页 `/equipment-list`（菜单「设备台账」**独立成组** ⇒ ⇒ 与「设备一览」
 `/config/asset-list`（`ConfigAsset` 配置资产）**分开** ⇒ ⇒ 两条「设备」
@@ -3663,7 +3663,7 @@ DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账 ⇒ ⇒ �
 ⇒ ⇒ 8 例新测试（`strict_client`）+ **变异自证**（删读授权 ⇒ 3 例红 ·
 删单条 sync 守卫 ⇒ 1 例红 · 删 bulk 预检 ⇒ 1 例红）。
 
-⇒ ⇒ **证据**：前端 7 例页面测试 · 后端 6 例守卫测试 · 真后端扫描加了
+⇒ ⇒ **证据**：前端 7 例页面测试 · 后端 8 例守卫测试 · 真后端扫描加了
 「**种子设备 `132-P-101A/B` 可见**」的断言 ⇒ ⇒ 一条断言同时验了
 真端点 + 项目作用域解析 + 页面渲染。
 
@@ -3717,7 +3717,7 @@ DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账 ⇒ ⇒ �
 
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
 
-### ✅ **已关闭 · 2026-11-19 · P10-C · T2**
+### ✅ **已关闭 · 2026-11-19 · P10-C · T2 · `75cece5`**
 
 **查契约的结论**（`pcs-backend/docs/openapi.json`）⇒ **三个端点都不存在**
 ⇒ ⇒ 「改前端指向」这条路走不通（`GET /records/piping` 只返 5 字段，
@@ -3765,7 +3765,7 @@ DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账 ⇒ ⇒ �
 
 **归属**：**P10-C · 前端收口子批**（人裁决 2026-11-18 · `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`）
 
-### ✅ **已关闭 · 2026-11-19 · P10-C · T1**
+### ✅ **已关闭 · 2026-11-19 · P10-C · T1 · `ba312b9`**
 
 **对 OpenAPI 的结论**（`pcs-backend/docs/openapi.json`）⇒ 三个端点的
 必填参数是：
