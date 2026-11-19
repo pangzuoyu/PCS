@@ -3130,6 +3130,17 @@ export interface paths {
         /**
          * List Equipment
          * @description 分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。
+         *
+         *     ⚠️ **项目授权**（2026-11-19 · P10-C · T3 补）：本端点此前**只有角色闸**
+         *     ⇒ ⇒ 任何 DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账
+         *     ⇒ ⇒ **跨项目读**（与 TODO-179 / TODO-186 同族）。
+         *
+         *     ⇒ ⇒ 现在两种口径：
+         *
+         *     | 请求 | 行为 |
+         *     |---|---|
+         *     | 传了 `project_id` | 该项目必须对我**有授权** ⇒ 否则 **404**（与「不存在」同形 ⇒ 枚举不出项目） |
+         *     | **没传** | 只返回**我有授权的项目**的设备（`user_projects` 有效行）⇒ SYSTEM_ADMIN 全局 bypass（看得到全部） |
          */
         get: operations["list_equipment_api_v1_equipment_list_get"];
         put?: never;
@@ -3213,6 +3224,9 @@ export interface paths {
         /**
          * Bulk Sync Equipment
          * @description 批量 sync_from_source（1-100 条目）；partial failure 容错。
+         *
+         *     ⚠️⚠️ **逐条项目预检**（2026-11-19 · P10-C · T3 补）：写入落在**源记录的
+         *     项目**上 ⇒ ⇒ 无权 ⇒ ⇒ **不写**（标 `failed`）⇒ ⇒ 与单条 sync 同口径。
          */
         post: operations["bulk_sync_equipment_api_v1_equipment_list_bulk_sync_post"];
         delete?: never;

@@ -79,6 +79,30 @@ _COMPONENT_NAME_ENTRIES: dict[str, str] = {
     "NE": "NEON",
     "KR": "KRYPTON",
     "XE": "XENON",
+    # ─────────────────────────────────────────────────────────────
+    # DMC 装置的 10 个专用组分（2026-11-19 · P10-C · T4 补）
+    #
+    # ⚠️ **为什么补这 10 个**：PRO/II 的 DMC `.inp`（`sample/dmc.inp`）的
+    #    `COMPONENT DATA` 段用的是**装置缩写**（PO / PROPCARB / DMCARB …）
+    #    ⇒ ⇒ 别名表里**没有** ⇒ ⇒ `map_libid_to_alias` 返回原名
+    #    ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导入 ⇒ 物性补全」那条链断在这里。
+    #
+    # ⚠️ **规范名 = 化学全名的大写下划线式** ⇒ ⇒ CAS 见
+    #    `app/services/component_cas.py::CAS_BY_COMPONENT`（同一处查）。
+    # ─────────────────────────────────────────────────────────────
+    "PO": "PROPYLENE_OXIDE",            # 环氧丙烷
+    "PROPCARB": "PROPYLENE_CARBONATE",  # 碳酸丙烯酯
+    "DMCARB": "DIMETHYL_CARBONATE",     # 碳酸二甲酯
+    "12PG": "PROPYLENE_GLYCOL",         # 丙二醇
+    "DIPRPGLY": "DIPROPYLENE_GLYCOL",   # 二丙二醇
+    "TPG": "TRIPROPYLENE_GLYCOL",       # 三丙二醇
+    "AA": "ACRYLIC_ACID",               # 丙烯酸
+    "OXYLENE": "O_XYLENE",              # 邻二甲苯
+    "MOXYPROH": "METHOXYPROPANOL",      # 甲氧基丙醇
+    "PROPALD": "PROPIONALDEHYDE",       # 丙醛
+    # —— DMC 的甲醇（PRO/II 里常写 MEOH / CH3OH）——
+    "MEOH": "METHANOL",
+    "CH3OH": "METHANOL",
 }
 
 # ---------------------------------------------------------------------------

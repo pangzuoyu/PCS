@@ -48,19 +48,37 @@ def test_map_libid_to_alias_case_insensitive():
 
 
 def test_parse_compositions_from_sample1():
-    """sample1_34comp 多个 PROPERTY STREAM 含 COMPOSITION(M)=N,f/...。"""
+    """sample1_34comp 多个 PROPERTY STREAM 含 COMPOSITION(M)=N,f/...。
+
+    ⚠️ **P10-C · T4（2026-11-19）**：返回值从 `{别名: 数值}` 改成
+    `ProiiComposition`（**带 M/W 基准**）⇒ ⇒ 因为不区分基准的话，
+    `COMPOSITION(W)` 的流会被当成摩尔用 ⇒ ⇒ 组成**完全错**。
+    """
     inp_path = FIXTURES / "sample1_34comp" / "sample1_34comp.inp"
     result = parse_compositions(inp_path)
     assert isinstance(result, dict)
     # FEED 流有 21 项组成（C1~C38 多个）
     assert "FEED" in result
-    assert len(result["FEED"]) >= 1
+    assert len(result["FEED"].fractions) >= 1
     # 关键组分：LIBID=4 (C1) → METHANE，LIBID=11 (C6) → C6 (未在别名表)
-    assert "METHANE" in result["FEED"]  # C1 LIBID=4
-    assert "C6" in result["FEED"]  # C6 LIBID=11 (无别名)
-    # 摩尔分率抽取
-    assert result["FEED"]["METHANE"] == pytest.approx(5.0, rel=1e-6)
-    assert result["FEED"]["C6"] == pytest.approx(3.0, rel=1e-6)
+    assert "METHANE" in result["FEED"].fractions  # C1 LIBID=4
+    assert "C6" in result["FEED"].fractions  # C6 LIBID=11 (无别名)
+    # 摩尔分率抽取（**百分数** ⇒ 不是 0~1 的小数）
+    assert result["FEED"].fractions["METHANE"] == pytest.approx(5.0, rel=1e-6)
+    assert result["FEED"].fractions["C6"] == pytest.approx(3.0, rel=1e-6)
+    # ⚠️ **基准**被保留下来（样例全是 M）
+    assert result["FEED"].basis == "M"
+
+
+def test_parse_compositions_keeps_the_mass_basis():
+    """⚠️ **`COMPOSITION(W)` 的基准必须被保留**（P10-C · T4）。
+
+    ⇒ ⇒ 丢掉它 ⇒ ⇒ 质量分率被当成摩尔分率 ⇒ ⇒ 组成**完全错**。
+    """
+    inp_path = FIXTURES / "sample6_composition" / "sample6_composition.inp"
+    result = parse_compositions(inp_path)
+    assert result["S1"].basis == "M"
+    assert result["S2"].basis == "W"
 
 
 def test_parse_compositions_with_alias_resolution():
@@ -81,7 +99,7 @@ TITLE PROJECT=Test
         assert "S1" in result
         # 通过 libid → 名称 → 别名映射：1=H2O=WATER
         # 输出 keys 应为别名后的名称（uppercase 兜底）
-        keys = set(result["S1"].keys())
+        keys = set(result["S1"].fractions.keys())
         assert "WATER" in keys
         assert "CARBON_DIOXIDE" in keys
         assert "METHANE" in keys  # C1 → METHANE

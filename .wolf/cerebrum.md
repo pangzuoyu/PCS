@@ -48,8 +48,8 @@
 |---|---|---|
 | **A 契约 · 权限 · 守卫** | 17 | 同形 / 枚举 / 守卫 / fail-closed / actor 层 / 覆盖 / 角色 / 归属 / 注册表 / 早于 / 鉴权 / 不可逆 |
 | **B 数据 · 迁移 · 事务** | 22 | savepoint / get-or-create / 加锁 / FOR UPDATE / populate_existing / 回滚 / expire / 迁移 / FK / 唯一约束 / 布尔 / 硬上限 / project_id |
-| **C 测试 · 守门 · 假绿** | 27 | 假绿 / 变异 / 观测 / 正向对照 / strict_client / SQLite / 注释骗人 / docstring / 守卫 / 断言 / 到达 / inode |
-| **D 前端 · 契约派生 · 可空性** | 16 | 词表 / 契约派生 / mock / 可空性 / rowKey / 选中集 / 权威 / 类型检查 / 手写类型 / or 兜底 |
+| **C 测试 · 守门 · 假绿** | 29 | 假绿 / 变异 / 观测 / 正向对照 / strict_client / SQLite / 注释骗人 / docstring / 守卫 / 断言 / 到达 / inode / **棘轮自己有洞** / **变异要跑对文件** |
+| **D 前端 · 契约派生 · 可空性** | 17 | 词表 / 契约派生 / mock / 可空性 / rowKey / 选中集 / 权威 / 类型检查 / 手写类型 / or 兜底 / **DeepKeys 被数组污染** |
 | **E 工具 · 命令 · 浏览器** | 8 (+3 延伸) | 退出码 / 管道 / CI 步骤 / 基线 / page.goto / @eN / 空转 / 门禁 |
 | **F 流程 · 断言 · 协作** | 14 | 断言前先实测 / grep 既存 / 口径 / 评审结论 / 落点 / 逃生口 / 反向变更 / 真实可判定 |
 | **G 领域 · 技术速查** | 10 (+1 指针) | Alias / chemicals / IAPWS / PropertyAutoCompleter / JSONB / mixin 必填 / API 520 / GB/T 12241 / Two-Point Omega / SIM 范围 |
@@ -60,6 +60,25 @@
 ## Do-Not-Repeat（按主题）
 
 ### A 契约 · 权限 · 守卫
+
+#### 写面守卫要判「**行实际落到哪儿**」（2026-11-19 · P10-C · T3 撞出来的）
+
+设备台账的 **sync**：请求里的 `equipment_id` 指向**我有权**的项目
+⇒ ⇒ 守卫查了它 ⇒ ⇒ 通过 ⇒ ⇒ 但 `sync_from_source` 用的是
+**源记录的 `project_id`** ⇒ ⇒ **写进别的项目** ⇒ ⇒ **跨项目写**
+⇒ ⇒ 与 TODO-180「写面授权判 A、行落进 B」**同形**。
+⇒ ⇒ 守卫必须判「**落库那一维**」（源记录的项目），不是「请求里说的那个 id」。
+⇒ ⇒ bulk（批量）路径**更要逐条预检** ⇒ ⇒ 无权 ⇒ 标 failed 且**不写**。
+
+#### **列表端点的「只返回我有权的数据」有两种实现 ⇒ 两种 mock 覆盖不同**（2026-11-19 · P10-C · T3）
+
+① **取授权项目集合**（`list_user_projects`）⇒ ⇒ 默认 `client` fixture
+**只** mock `check_user_project_access` ⇒ ⇒ **这个集合是空的** ⇒ ⇒ 默认
+client 的老用例会突然变红（要补授权）。
+② **SQL EXISTS 子查询**（`report_builder.visible_clause` 那套）⇒ ⇒ 纯 SQL
+⇒ ⇒ 不受那个 mock 影响 ⇒ ⇒ 老用例照样绿。
+⇒ ⇒ ⇒ **选哪种要想清楚「默认 client 的老用例会不会红」** ⇒ ⇒ 别把「红」
+当成「我的改动坏了」⇒ ⇒ 先查是不是**守卫口径变了**（本轮真因）。
 
 #### 一次性守卫 + 实时配置回查 = **纸门**（2026-10-31 · P9B-2R #1）
 
@@ -854,7 +873,29 @@ PG 车道脚本）⇒ 就是 cerebrum 那条「写 DB fixture 前必查 NOT NULL
 ⇒ ⇒ 症状是「偶发卡住」（DDL 互相等锁）⇒ **极难定位**。
 ⇒ ⇒ 锁文件放**项目内**（`.tmp/` 不被清理）⇒ ⇒ 且要有**子进程实测**（默认路径也有效）。
 
+#### **漂移棘轮自己有个洞**：路径写法不同 ⇒ 它**看不见**那些端点（2026-11-19 · P10-C · T2）
+
+`tests/mocks/handlers.test.ts` 的「devOnly ∩ 契约」棘轮拿 **MSW 的 `:param` 路径**
+去比契约的 `{param}` 路径 ⇒ ⇒ **永远不相等** ⇒ ⇒ 凡是用 `:param` 写的 mock 端点
+**它一个都看不见** ⇒ ⇒ 「已进契约却没 ajv 校验」的洞敞了三年。
+⇒ ⇒ **棘轮自己要审**：它比的是**字符串** ⇒ ⇒ 归一化（`:name` → `{name}`）后再比
+⇒ ⇒ 代价是**多出一批欠账** ⇒ ⇒ 欠账要**显式列出来** + 加一条「不许悄悄消失」的断言。
+
+#### 变异必须跑「**该缺陷对应的断言文件**」（2026-11-19 · P10-C · T2/T4 再撞一次）
+
+变异 A 改在**解析器**里 ⇒ ⇒ 只跑**换算层**的测试文件 ⇒ ⇒ **全绿**（变异漏网）
+⇒ ⇒ 断言分散在两个文件时 ⇒ ⇒ **两个文件都要跑**。
+⚠️ 同款：断言写在 `A` 文件、变异在 `B` 文件 ⇒ ⇒ 必漏。
+
 ### D 前端 · 契约派生 · 可空性
+
+#### `DeepKeys`（dataIndex 的编译期闸）被**数组字段**污染 ⇒ 闸失效 + 类型不可赋值（2026-11-19 · P10-C · T2）
+
+`keyof string[]` = `number | "length" | "push" | … | [Symbol.iterator]`
+⇒ ⇒ 递归进**数组**字段 ⇒ ⇒ `DeepKeys<T>` 里混进 `number` + 一堆方法名 + **`unique symbol`**
+⇒ ⇒ ① 闸**失效**（`dataIndex: 'push'` 竟合法）② `StrictColumns<T>` **不再可赋值给**
+antd 的 `ColumnType<T>` ⇒ ⇒ 用它的页面**编译不过**。
+⇒ ⇒ **数组当叶子**（`never`）⇒ 数组字段的**字段名本身**仍可用（`keyof T` 那支管着）。
 
 #### 失败清单别放组件局部 state ⇒ 弹窗一关就丢，用户没法重试（2026-11-11 · P9B-4）
 
@@ -1611,6 +1652,15 @@ P9B-2 的实例（两轮审查各抓到一次）：
 - StreamSignStatus 走 P1 9 态全集；P3 活跃 4 态 PG native enum；P4 扩展走 `ALTER TYPE ADD VALUE`（不可逆）。
 - Pydantic v2 `Field(description=...)` 必含中文（spec 本体论 V1.6 §5.3 强制）；测试 `assert any("一" <= c <= "鿿" for c in field.description)`。
 - 物流冲突三级：BLOCK（阻止保存）/ WARN（用户值优先标记偏差）/ INFO（计算值优先派生类）。`effective = calculated ⊕ user_provided`，冲突必须可见不静默覆盖。
+- **PRO/II 组成的三个坑**（2026-11-19 · P10-C · T4）：
+  1. **基准（M / W）必须保留** —— `COMPOSITION(M)` 摩尔分率 · `COMPOSITION(W)` 质量分率
+     ⇒ ⇒ 丢掉它 ⇒ ⇒ 质量分率被当摩尔用 ⇒ ⇒ 组成**完全错**（解析器此前就丢了它）。
+  2. **数值是百分数**（0~100）⇒ ⇒ 不是 0~1 的小数 ⇒ ⇒ 用之前先 /100。
+  3. **「宁可没有组成，不要错组成」** ⇒ ⇒ **有一个组分认不出来 ⇒ ⇒ 整个组成为空**
+     （`composition_json = None`）+ 告警写明是哪些 ⇒ ⇒ 缺一个组分的组成送进闪蒸
+     ⇒ ⇒ 算出**错**的结果 ⇒ ⇒ 比没组成危险得多。
+  ⇒ ⇒ `composition_json` 的键**必须是 CAS** ⇒ ⇒ PRO/II 缩写 → 规范名
+  （`alias_registry`）→ CAS（`app/services/component_cas.py` · **域数据**）⇒ ⇒ 两段真相源。
 
 ### PCS 领域核心
 

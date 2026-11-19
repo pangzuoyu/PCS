@@ -8987,7 +8987,7 @@
           "equipment-list"
         ],
         "summary": "List Equipment",
-        "description": "分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。",
+        "description": "分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。\n\n⚠️ **项目授权**（2026-11-19 · P10-C · T3 补）：本端点此前**只有角色闸**\n⇒ ⇒ 任何 DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账\n⇒ ⇒ **跨项目读**（与 TODO-179 / TODO-186 同族）。\n\n⇒ ⇒ 现在两种口径：\n\n| 请求 | 行为 |\n|---|---|\n| 传了 `project_id` | 该项目必须对我**有授权** ⇒ 否则 **404**（与「不存在」同形 ⇒ 枚举不出项目） |\n| **没传** | 只返回**我有授权的项目**的设备（`user_projects` 有效行）⇒ SYSTEM_ADMIN 全局 bypass（看得到全部） |",
         "operationId": "list_equipment_api_v1_equipment_list_get",
         "parameters": [
           {
@@ -9326,7 +9326,7 @@
           "equipment-list"
         ],
         "summary": "Bulk Sync Equipment",
-        "description": "批量 sync_from_source（1-100 条目）；partial failure 容错。",
+        "description": "批量 sync_from_source（1-100 条目）；partial failure 容错。\n\n⚠️⚠️ **逐条项目预检**（2026-11-19 · P10-C · T3 补）：写入落在**源记录的\n项目**上 ⇒ ⇒ 无权 ⇒ ⇒ **不写**（标 `failed`）⇒ ⇒ 与单条 sync 同口径。",
         "operationId": "bulk_sync_equipment_api_v1_equipment_list_bulk_sync_post",
         "parameters": [
           {
@@ -13775,6 +13775,93 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/pipe-line-list": {
+      "get": {
+        "tags": [
+          "pipe-line-list"
+        ],
+        "summary": "List Pipe Line List",
+        "description": "列出某项目的管道一览表（分页：默认 limit=200 / offset=0）。\n\n- **项目隔离**：只返回 `project_id` 下的 `PipingResult`\n- **排序**：`seq_no` asc（序号）\n- 列清单 = SPEC §7.11.2「管道一览表列（完整）」",
+        "operationId": "list_pipe_line_list_api_v1_projects__project_id__pipe_line_list_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PipeLineListRow"
+                  },
+                  "title": "Response List Pipe Line List Api V1 Projects  Project Id  Pipe Line List Get"
                 }
               }
             }
@@ -34581,6 +34668,427 @@
         ],
         "title": "PipeClassUpdate",
         "description": "更新管号等级请求体（PUT /pipe-classes/{class_id}，含状态字段）。\n\n业务：在基类基础上加 status 字段。\n\n⚠️ 词表是 `ConfigStatus` 5 态，**不是** 1.9 时代遗留的三态。\nstatus 在这里是**幂等回写**用的：提交与当前状态相同才接受；\n真正的流转走 `POST /pipe-classes/{id}/{submit,approve,publish,obsolete}`\n四个端点（它们走 `ConfigStateMachine.transition`）。\n试图用 PUT 改状态 → 409，见 `PipeClassService.update`。"
+      },
+      "PipeLineListRow": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "title": "Seq",
+            "description": "序号"
+          },
+          "pipe_no": {
+            "type": "string",
+            "title": "Pipe No",
+            "description": "管道号"
+          },
+          "size": {
+            "type": "string",
+            "title": "Size",
+            "description": "尺寸"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material",
+            "description": "材料等级"
+          },
+          "fluid_code": {
+            "type": "string",
+            "title": "Fluid Code",
+            "description": "介质代号"
+          },
+          "fluid_name": {
+            "type": "string",
+            "title": "Fluid Name",
+            "description": "介质名称"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "description": "相态"
+          },
+          "fluid_class": {
+            "type": "string",
+            "title": "Fluid Class",
+            "description": "流体分类（D/M/NORMAL）"
+          },
+          "toxicity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toxicity",
+            "description": "毒性级别"
+          },
+          "pipe_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipe Class",
+            "description": "管道级别"
+          },
+          "insulation_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insulation Code",
+            "description": "绝热代号"
+          },
+          "insulation_thickness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insulation Thickness",
+            "description": "绝热厚度（mm）"
+          },
+          "paint_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paint Code",
+            "description": "涂漆代号"
+          },
+          "tracing_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracing Type",
+            "description": "伴管类型（J/T/TE/NONE）"
+          },
+          "holding_temp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holding Temp",
+            "description": "维持温度（°C）"
+          },
+          "pid_ref": {
+            "type": "string",
+            "title": "Pid Ref",
+            "description": "PID 图号"
+          },
+          "start_point": {
+            "type": "string",
+            "title": "Start Point",
+            "description": "起点"
+          },
+          "end_point": {
+            "type": "string",
+            "title": "End Point",
+            "description": "终点"
+          },
+          "norm_oper_press": {
+            "type": "number",
+            "title": "Norm Oper Press",
+            "description": "正常操作压力（MPaG）"
+          },
+          "max_oper_press": {
+            "type": "number",
+            "title": "Max Oper Press",
+            "description": "最大操作压力（MPa）"
+          },
+          "norm_oper_temp": {
+            "type": "number",
+            "title": "Norm Oper Temp",
+            "description": "正常操作温度（°C）"
+          },
+          "max_oper_temp": {
+            "type": "number",
+            "title": "Max Oper Temp",
+            "description": "最大操作温度（°C）"
+          },
+          "alt_norm_oper_press": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Norm Oper Press",
+            "description": "备用工况 · 正常操作压力"
+          },
+          "alt_max_oper_press": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Max Oper Press",
+            "description": "备用工况 · 最大操作压力"
+          },
+          "alt_norm_oper_temp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Norm Oper Temp",
+            "description": "备用工况 · 正常操作温度"
+          },
+          "alt_max_oper_temp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Max Oper Temp",
+            "description": "备用工况 · 最大操作温度"
+          },
+          "design_pressure_mpa": {
+            "type": "number",
+            "title": "Design Pressure Mpa",
+            "description": "设计压力（MPaG）"
+          },
+          "design_vacuum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Vacuum",
+            "description": "设计真空"
+          },
+          "design_temperature_c": {
+            "type": "number",
+            "title": "Design Temperature C",
+            "description": "设计温度（°C）"
+          },
+          "design_min_temperature_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Min Temperature C",
+            "description": "设计最小温度（°C）"
+          },
+          "piping_category": {
+            "type": "string",
+            "title": "Piping Category",
+            "description": "压力管道类别（GC1/GC2/GC3）"
+          },
+          "pressure_test_medium": {
+            "type": "string",
+            "title": "Pressure Test Medium",
+            "description": "压力试验介质（WATER/AIR）"
+          },
+          "pressure_test_press": {
+            "type": "number",
+            "title": "Pressure Test Press",
+            "description": "压力试验压力"
+          },
+          "ndt_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ndt Method",
+            "description": "NDT 方法（RT/UT/MT/PT/NONE）"
+          },
+          "ndt_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ndt Ratio",
+            "description": "NDT 比例（%）"
+          },
+          "ndt_tech_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ndt Tech Level",
+            "description": "NDT 技术等级"
+          },
+          "leak_test_medium": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leak Test Medium",
+            "description": "泄漏试验介质（AIR/WATER）"
+          },
+          "leak_test_press": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leak Test Press",
+            "description": "泄漏试验压力"
+          },
+          "check_class": {
+            "type": "string",
+            "title": "Check Class",
+            "description": "检查等级（I~V）"
+          },
+          "cleaning_method": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleaning Method",
+            "description": "清洗方法（PI/PA/DG/SO 多选）"
+          },
+          "stress_analysis_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stress Analysis Level",
+            "description": "应力分析级别"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark",
+            "description": "备注"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "记录门禁 9 态"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By",
+            "description": "更新人（用户 ID）"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "pipe_no",
+          "size",
+          "material",
+          "fluid_code",
+          "fluid_name",
+          "phase",
+          "fluid_class",
+          "pid_ref",
+          "start_point",
+          "end_point",
+          "norm_oper_press",
+          "max_oper_press",
+          "norm_oper_temp",
+          "max_oper_temp",
+          "design_pressure_mpa",
+          "design_temperature_c",
+          "piping_category",
+          "pressure_test_medium",
+          "pressure_test_press",
+          "check_class",
+          "sign_status"
+        ],
+        "title": "PipeLineListRow",
+        "description": "管道一览表的一行（SPEC §7.11.2 的列清单 · 逐条对应）。"
       },
       "PipeNetSolveRequest": {
         "properties": {

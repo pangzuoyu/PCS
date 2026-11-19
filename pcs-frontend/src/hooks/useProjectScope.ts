@@ -69,8 +69,18 @@ export function useProjectScope(): ProjectScope {
           rows = (await api.get<WorkspaceRow[]>('/workspaces', { params: { owner_id: myId } })).data;
         }
         if (cancelled) return;
-        // ⚠️ **取第一个「有项目」的工作区**（FORMAL ⇒ 必然有项目）。
-        const scoped = rows.find((w) => w.project_id);
+        // ⚠️⚠️ **优先取「env 指的那个项目」**（2026-11-19 · P10-C · T2/T3 实测）
+        //
+        // 一个身份**可能有多个项目**（真后端通道的种子库里就有两个）⇒ ⇒
+        // 「列表里的第一个」是**不确定的**⇒ ⇒ 真后端通道里会解析到
+        // **别的项目**（⇒ ⇒ 页面查的是另一个项目 ⇒ ⇒ 看着有数据实则不是它）。
+        // ⇒ ⇒ 有 hint（`VITE_PROJECT_ID`）就按 hint 选 ⇒ 没有才退回「第一个」。
+        //
+        // ⚠️ **这仍是「猜一个」** —— 真正的解法是**项目选择器**（TODO-194）。
+        const hint = import.meta.env.VITE_PROJECT_ID;
+        const scoped =
+          (hint ? rows.find((w) => w.project_id === hint) : undefined) ??
+          rows.find((w) => w.project_id);
         setScope({
           projectId: scoped?.project_id ?? null,
           workspaceId: scoped?.workspace_id ?? null,

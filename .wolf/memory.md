@@ -3931,3 +3931,74 @@
 | 15:57 | Edited pcs-backend/tests/api/v1/test_project_creation.py | modified test_create_project_duplicate_no_is_409_not_500() | ~269 |
 | 16:05 | P0 修（bug-2192）：工作区守卫真相源改成反查 `projects.workspace_id` + `POST /projects` 回填 + 迁移 `p10_003` + 71 条夹具改生产形状 + 契约 baseline 重滚（门禁 exit 1→0） | workspace_service.py · records.py · projects.py · alembic/versions/p10_003_*.py · tests/conftest.py · tests/test_records.py · tests/api/v1/test_{workspace_access_guard,project_creation}.py · docs/{openapi.json,openapi-baseline.json} · pcs-frontend/{openapi.snapshot.json,src/types/api.d.ts} · docs/solutions/security-issues/workspace-access-guard-project-or-owner.md | 待提交（变异 8 红 ⇒ 敏感；车道末轮 5888 passed） | ~46k |
 | 16:23 | Edited pcs-backend/tests/e2e_flows/test_e2e_project_config.py | modified test_e2e_001_project_creation_and_input_checklist() | ~398 |
+| 20:42 | Created docs/superpowers/plans/2026-11-18-p10-f-guard-hole-batch.md | — | ~1562 |
+| 20:43 | Edited pcs-backend/app/api/deps.py | modified require_formal_workspace() | ~319 |
+| 20:43 | Edited pcs-backend/app/api/v1/records.py | inline fix | ~20 |
+| 20:43 | Edited pcs-backend/app/api/v1/records.py | modified create_piping() | ~69 |
+| 20:43 | Edited pcs-backend/app/api/v1/records.py | expanded (+6 lines) | ~158 |
+| 20:43 | Edited pcs-backend/app/api/v1/records.py | added 1 import(s) | ~102 |
+| 20:43 | Edited pcs-backend/app/api/v1/records.py | expanded (+6 lines) | ~200 |
+| 20:46 | Edited pcs-backend/app/services/report/definition_service.py | modified update() | ~465 |
+| 20:46 | Edited pcs-backend/app/api/v1/report_builder.py | 8→12 lines | ~183 |
+| 20:47 | Edited pcs-backend/app/api/v1/projects.py | inline fix | ~16 |
+| 20:47 | Edited pcs-backend/app/api/v1/projects.py | expanded (+26 lines) | ~496 |
+| 20:47 | Edited pcs-backend/app/api/v1/projects.py | added 1 import(s) | ~16 |
+| 21:05 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+10 lines) | ~248 |
+| 21:10 | Edited pcs-backend/app/services/report/definition_service.py | modified obsolete() | ~457 |
+| 21:11 | Edited pcs-backend/app/api/v1/report_builder.py | 3→8 lines | ~110 |
+| 21:12 | Created pcs-backend/tests/test_strict_client_ratchet.py | — | ~1352 |
+| 06:59 | Edited pcs-frontend/src/api/common.ts | expanded (+58 lines) | ~713 |
+| 06:59 | Created pcs-frontend/src/pages/common/PropertySearchPage.tsx | — | ~1506 |
+| 06:59 | Created pcs-frontend/src/pages/common/AllowableStressPage.tsx | — | ~1574 |
+| 06:59 | Created pcs-frontend/src/pages/common/ToxicityExplosivityPage.tsx | — | ~1782 |
+| 06:59 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified PropertySearchRoute() | ~139 |
+| 06:59 | Created pcs-frontend/tests/pages/common/PropertySearchPage.test.tsx | — | ~1150 |
+| 06:59 | Created pcs-frontend/tests/pages/common/AllowableStressPage.test.tsx | — | ~929 |
+| 06:59 | Created pcs-frontend/tests/pages/common/ToxicityExplosivityPage.test.tsx | — | ~1085 |
+| 07:00 | Edited pcs-frontend/src/mocks/handlers.ts | added nullish coalescing | ~1078 |
+| 07:01 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | CSS: target, value | ~241 |
+| 07:01 | Edited pcs-frontend/tests/pages/routeWrappers.fetch.test.tsx | CSS: searchMaterials, commonQueryApi | ~99 |
+| 07:02 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | 20→17 lines | ~191 |
+| 07:04 | Created pcs-backend/app/schemas/pipe_line_list.py | — | ~1064 |
+| 07:04 | Created pcs-backend/app/api/v1/pipe_line_list.py | — | ~1244 |
+| 07:04 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~46 |
+| 07:05 | Created pcs-backend/tests/api/v1/test_pipe_line_list.py | — | ~1725 |
+| 07:05 | Edited pcs-backend/app/schemas/pipe_line_list.py | 2→2 lines | ~43 |
+| 07:06 | Edited pcs-frontend/src/types/pipe.ts | reduced (-15 lines) | ~133 |
+| 07:06 | Edited pcs-frontend/src/types/pipe.ts | added 1 import(s) | ~26 |
+| 07:06 | Created pcs-frontend/src/pages/pipe/PipeLineListPage.tsx | — | ~2121 |
+| 07:06 | Created pcs-frontend/src/hooks/useProjectScope.ts | — | ~802 |
+| 07:07 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 condition(s) | ~234 |
+| 07:07 | Edited pcs-frontend/src/pages/routeWrappers.tsx | 3→3 lines | ~17 |
+| 07:07 | Edited pcs-frontend/src/pages/routeWrappers.tsx | CSS: error, error | ~318 |
+| 07:07 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified PmsRoute() | ~183 |
+| 07:07 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~32 |
+| 07:07 | Edited pcs-frontend/src/pages/pms/PmsPage.tsx | CSS: marginBottom | ~224 |
+| 07:07 | Edited pcs-frontend/src/pages/pms/PmsPage.tsx | inline fix | ~21 |
+| 07:07 | Edited pcs-frontend/src/pages/bedd/BeddPage.tsx | CSS: marginBottom | ~267 |
+| 07:07 | Edited pcs-frontend/src/pages/bedd/BeddPage.tsx | inline fix | ~28 |
+| 07:07 | Created pcs-frontend/src/mocks/seed/pipe-line.ts | — | ~1872 |
+| 07:08 | Edited pcs-frontend/tests/mocks/handlers.test.ts | expanded (+11 lines) | ~664 |
+| 07:08 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 2→1 lines | ~14 |
+| 07:08 | Edited pcs-frontend/tests/mocks/handlers.test.ts | expanded (+8 lines) | ~131 |
+| 07:08 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added 1 import(s) | ~35 |
+| 07:09 | Edited pcs-frontend/tests/mocks/handlers.test.ts | expanded (+34 lines) | ~884 |
+| 07:09 | Edited pcs-frontend/e2e/real_backend_route_sweep.spec.ts | 17→21 lines | ~227 |
+| 07:10 | Edited pcs-frontend/src/types/strictColumns.ts | expanded (+16 lines) | ~385 |
+| 07:10 | Created pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | — | ~2142 |
+| 07:11 | Created pcs-frontend/tests/hooks/useProjectScope.test.tsx | — | ~1052 |
+| 07:11 | Created pcs-frontend/tests/pages/routeWrappers.projectScope.test.tsx | — | ~869 |
+| 07:13 | Created docs/PCS-NOTE-SPEC-7.8-三查询页改为查询驱动-2026-11-19.md | — | ~890 |
+| 07:19 | Created pcs-frontend/src/api/equipList.ts | — | ~396 |
+| 07:20 | Created pcs-frontend/src/pages/equip/EquipmentListPage.tsx | — | ~2108 |
+| 07:20 | Created pcs-frontend/src/mocks/seed/equipment.ts | — | ~743 |
+| 07:20 | Created pcs-frontend/tests/pages/equip/EquipmentListPage.test.tsx | — | ~1137 |
+| 07:25 | Edited pcs-backend/app/api/v1/equip_list.py | modified list_equipment() | ~677 |
+| 07:25 | Edited pcs-backend/app/api/v1/equip_list.py | added 2 import(s) | ~152 |
+| 07:25 | Created pcs-backend/tests/api/v1/test_equip_list_access.py | — | ~1584 |
+| 07:28 | Created pcs-backend/app/services/component_cas.py | — | ~988 |
+| 07:29 | Created pcs-backend/app/services/proii_composition.py | — | ~958 |
+| 07:31 | Created pcs-backend/tests/fixtures/proii/sample6_composition/sample6_composition.inp | — | ~272 |
+| 07:31 | Created pcs-backend/tests/fixtures/proii/sample6_composition/sample6_composition.out | — | ~458 |
+| 07:32 | Created pcs-backend/tests/services/test_proii_composition_mole.py | — | ~1367 |
+| 11:52 | Edited docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md | 7→11 lines | ~215 |

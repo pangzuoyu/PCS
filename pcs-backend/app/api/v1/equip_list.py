@@ -20,9 +20,10 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.models.enums import to_value
@@ -35,8 +36,68 @@ from app.schemas.equip_list import (
     EquipListSyncResponse,
 )
 from app.services.equip_list import persist_service, sync_service
+from app.services.user_project_service import (
+    UserProjectService,
+    has_project_access,
+)
 
 router = APIRouter(prefix="/equipment-list", tags=["equipment-list"])
+
+
+async def _source_project_allowed(
+    db: AsyncSession,
+    *,
+    source_module: str,
+    source_record_id: uuid.UUID,
+    user_id: uuid.UUID,
+    actor_roles: list[str],
+) -> tuple[bool, str]:
+    """源记录所在的**项目**我有没有访问权？（无源记录 ⇒ 「不拦」）。
+
+    ⚠️ **返回 (True, "")** 的两种情形：
+    ① 源记录**不存在**（⇒ ⇒ 真正的 sync 会自己抛「not found」⇒ ⇒ 不必这里拦）
+    ② `source_module` **不在** dispatcher 表内（⇒ ⇒ sync 会抛
+       `UnsupportedSourceModuleError`）⇒ ⇒ 同样不必这里拦。
+
+    ⇒ ⇒ 所以本函数**只拦「源记录存在、但我无权」**这一种情形。
+    """
+    from app.services.equip_list.source_resolver import get_source_record
+
+    try:
+        source = await get_source_record(source_module, source_record_id, db)
+    except Exception:  # noqa: BLE001 —— 不支持的 module ⇒ 交给 sync 自己报错
+        return True, ""
+    if source is None:
+        return True, ""
+    project_id = getattr(source, "project_id", None)
+    if project_id is None:
+        return True, ""
+    if await has_project_access(
+        db, user_id=user_id, project_id=project_id, actor_roles=actor_roles
+    ):
+        return True, ""
+    return False, f"无权同步项目 {project_id} 的设备"
+
+
+async def _guard_source_project(
+    db: AsyncSession,
+    *,
+    source_module: str,
+    source_record_id: uuid.UUID,
+    user_id: uuid.UUID,
+    actor_roles: list[str],
+) -> None:
+    """单条 sync 的写面守卫 —— 无权 ⇒ ⇒ **404**（与「不存在」同形）。"""
+    allowed, reason = await _source_project_allowed(
+        db,
+        source_module=source_module,
+        source_record_id=source_record_id,
+        user_id=user_id,
+        actor_roles=actor_roles,
+    )
+    if allowed:
+        return
+    raise HTTPException(status_code=404, detail=f"Source record not found: {source_record_id}")
 
 
 def _to_response(record) -> EquipListResponse:
@@ -81,8 +142,37 @@ async def list_equipment(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> EquipListListResponse:
-    """分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。"""
+    """分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。
+
+    ⚠️ **项目授权**（2026-11-19 · P10-C · T3 补）：本端点此前**只有角色闸**
+    ⇒ ⇒ 任何 DESIGNER / PROCESS_CONTROLLER 都能列**全部项目**的设备台账
+    ⇒ ⇒ **跨项目读**（与 TODO-179 / TODO-186 同族）。
+
+    ⇒ ⇒ 现在两种口径：
+
+    | 请求 | 行为 |
+    |---|---|
+    | 传了 `project_id` | 该项目必须对我**有授权** ⇒ 否则 **404**（与「不存在」同形 ⇒ 枚举不出项目） |
+    | **没传** | 只返回**我有授权的项目**的设备（`user_projects` 有效行）⇒ SYSTEM_ADMIN 全局 bypass（看得到全部） |
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles = list(user.roles)
+    # ⚠️ **「我被授权的项目」集合** —— 不传 `project_id` 时用它把结果**限死**
+    #    在我的项目内（否则 = 跨项目读）。
+    authorized_project_ids: set[uuid.UUID] | None = None
+    if project_id is not None:
+        await check_project_access_or_404(
+            db,
+            user_id=user.user_id,
+            project_id=project_id,
+            actor_roles=actor_roles,
+        )
+    elif "SYSTEM_ADMIN" not in actor_roles:
+        grants = await UserProjectService.list_user_projects(db, user_id=user.user_id)
+        authorized_project_ids = {g.project_id for g in grants}
+        if not authorized_project_ids:
+            # ⚠️ **一条授权都没有** ⇒ ⇒ 不查库，直接空（省一次全表扫描）
+            return EquipListListResponse(items=[], total=0, limit=limit, offset=offset)
     rows, total = await persist_service.list_equipment_records(
         db,
         project_id=project_id,
@@ -90,6 +180,7 @@ async def list_equipment(
         source_module=source_module,
         sign_status=sign_status,
         equipment_status=equipment_status,
+        authorized_project_ids=authorized_project_ids,
         limit=limit,
         offset=offset,
     )
@@ -267,6 +358,20 @@ async def sync_equipment(
         db, user_id=user.user_id, record=existing, actor_roles=user.roles,
     )
 
+    # ⚠️⚠️ **写入落在「源记录的项目」上**（2026-11-19 · P10-C · T3 补）
+    #
+    # 此前**只**查了 `existing`（equipment 行）的项目 ⇒ ⇒ 但
+    # `sync_from_source` 用的是 **source.project_id** ⇒ ⇒ 若源记录在
+    # **别的**项目 ⇒ ⇒ 写进**别的项目** ⇒ ⇒ **跨项目写**
+    # （与 TODO-180「写面授权判 A、行落进 B」**同形**）。
+    await _guard_source_project(
+        db,
+        source_module=body.source_module,
+        source_record_id=body.source_record_id,
+        user_id=user.user_id,
+        actor_roles=list(user.roles),
+    )
+
     record = await sync_service.sync_from_source(
         source_module=body.source_module,
         source_service=body.source_service,
@@ -290,10 +395,35 @@ async def bulk_sync_equipment(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[_Actor, Depends(current_actor)],
 ) -> EquipListBulkSyncResponse:
-    """批量 sync_from_source（1-100 条目）；partial failure 容错。"""
+    """批量 sync_from_source（1-100 条目）；partial failure 容错。
+
+    ⚠️⚠️ **逐条项目预检**（2026-11-19 · P10-C · T3 补）：写入落在**源记录的
+    项目**上 ⇒ ⇒ 无权 ⇒ ⇒ **不写**（标 `failed`）⇒ ⇒ 与单条 sync 同口径。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     entries = [e.model_dump() for e in body.entries]
-    succeeded, failed = await persist_service.bulk_sync_from_sources(entries, db)
+    allowed: list[dict] = []
+    denied: list[dict] = []
+    for entry in entries:
+        ok, reason = await _source_project_allowed(
+            db,
+            source_module=entry["source_module"],
+            source_record_id=entry["source_record_id"],
+            user_id=user.user_id,
+            actor_roles=list(user.roles),
+        )
+        if ok:
+            allowed.append(entry)
+        else:
+            denied.append(
+                {
+                    "entry": entry,
+                    "error_code": "PROJECT_ACCESS_DENIED",
+                    "error_message": reason,
+                }
+            )
+    succeeded, failed = await persist_service.bulk_sync_from_sources(allowed, db)
+    failed = denied + failed
     return EquipListBulkSyncResponse(
         succeeded=[
             EquipListSyncResponse(item=_to_response(r), was_created=True)

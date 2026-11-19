@@ -43,6 +43,10 @@ const ROUTES: RouteCase[] = [
   { path: '/config/coefficient-editor', testId: 'coefficient-page' },
   { path: '/sim/streams', testId: 'stream-list-page', seedText: 'E2E-FLOW-S-001' },
   { path: '/sim/import', testId: 'import-wizard-page' },
+  // ⚠️ **设备台账**（P10-C · T3 · TODO-157）⇒ ⇒ 断**种子设备的位号**
+  //    （`132-P-101A/B` —— 与后端种子 `FLOW_EQUIPMENT_TAG` 逐字一致）
+  //    ⇒ ⇒ 这条同时验了：真端点 + 项目作用域解析 + 页面渲染。
+  { path: '/equipment-list', testId: 'equipment-list-page', seedText: '132-P-101A/B' },
   { path: '/pipe-class', testId: 'pipe-class-list-page' },
   { path: '/pipe-class/symbols', testId: 'symbol-table-page' },
   { path: '/pipe-class/code-format', testId: 'code-format-designer-page' },

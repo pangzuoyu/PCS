@@ -28,6 +28,7 @@ from app.models.enums import StreamPhase
 from app.services.conflict_resolver import ConflictLevel, ConflictResolver
 from app.services.excel_parser import parse_excel_file
 from app.services.exceptions import PcsError
+from app.services.proii_composition import to_mole_fractions
 from app.services.proii_parser import (
     ConvergenceStatus,
     parse_proii_files,
@@ -129,11 +130,21 @@ def _pa_to_kpa(p: float | None) -> float | None:
     return None if p is None else p / 1000.0
 
 
-def _proii_lite_to_parsed(s: Any) -> ParsedStream:
+def _proii_lite_to_parsed(
+    s: Any, composition: dict[str, float] | None = None
+) -> ParsedStream:
     """_ParsedStreamLite → ParsedStream（物性补全 + 冲突检测需要 .cas 等）。
 
-    PRO/II parser 当前不提取 composition（SIM-10 MVP 仅 T/P/flow/phase 落库）；
-    .cas 留 None（SIM-3 转译为 MISSING_CAS → INFO 冲突）。
+    ⚠️ **组成**（2026-11-19 · P10-C · T4 补）：此前本函数**不填** composition
+    ⇒ ⇒ 导入出来的物流 `composition_json is None`
+    ⇒ ⇒ **计算链的入口不收**（flash 那条路要求有组成）
+    ⇒ ⇒ 「导入 ⇒ 直接算物性」这条路走不通。
+    ⇒ ⇒ 现在：调用方把**已换算成摩尔分率**的 `{CAS: mol_frac}` 传进来。
+
+    ⚠️ `.cas`（单组分 CAS）**仍留 None** —— PRO/II 的物流**没有**单组分 CAS
+    ⇒ ⇒ SIM-3 仍把它转译成 MISSING_CAS → INFO 冲突（**这是对的**：多组分物流
+    本来就没有「一个 CAS」）。
+
     MIXED 相检测由 caller 在调用前完成，结果通过 mixed_set 传至 preview。
     """
     return ParsedStream(
@@ -144,6 +155,7 @@ def _proii_lite_to_parsed(s: Any) -> ParsedStream:
         phase=_phase_norm(s.phase),
         mass_flow_kg_h=s.mass_flow_kg_h,
         zero_flow=s.zero_flow,
+        composition=composition,
     )
 
 
@@ -170,7 +182,10 @@ def _proii_preview_entry(
         "temp": _k_to_c(s.temperature_k),
         "press": _pa_to_kpa(s.pressure_pa),
         "mass_flow": s.mass_flow_kg_h,
-        "composition_json": None,
+        # ⚠️ **组成**（P10-C · T4）：此前恒为 None ⇒ ⇒ 导入的物流进不了计算链。
+        #    现在带**摩尔分率**（`{CAS: mol_frac}` · 和 = 1.0）⇒ ⇒ 送审时
+        #    组成门禁（100±0.5%）能过。
+        "composition_json": s.composition,
         "import_source_version": f"V{banner_version}",
         "import_original_row": None,
         "is_unreliable": s.tag in unreliable_set,
@@ -256,8 +271,25 @@ class ImportService:
         }
         # zero_flow 流也标记（保留流名，不阻塞保存）
         warnings: list[str] = list(result.warnings)
+        # ⚠️ **组成换算**（2026-11-19 · P10-C · T4）：`.inp` 的 COMPOSITION(M|W)
+        #    是**百分数** + **基准** ⇒ ⇒ 要换成 `{CAS: 摩尔分率}` 才能落库
+        #    ⇒ ⇒ 换算失败（**有组分没认出来**）⇒ ⇒ **该流的组成为空**
+        #    ⇒ ⇒ 并把没认出来的组分名写进 warnings（用户看得见）。
+        mole_by_tag: dict[str, dict[str, float]] = {}
+        for tag, comp in (result.compositions or {}).items():
+            mole, unresolved = to_mole_fractions(comp)
+            if mole is None:
+                warnings.append(
+                    f"物流 {tag} 的组成未换算（未识别的组分：{', '.join(unresolved)}）"
+                    f" ⇒ 该物流不带组成"
+                )
+                continue
+            mole_by_tag[tag] = mole
         # 物性补全 + 冲突检测（复用 SIM-4 链路）
-        parsed = [_proii_lite_to_parsed(s) for s in result.streams.values()]
+        parsed = [
+            _proii_lite_to_parsed(s, composition=mole_by_tag.get(tag))
+            for tag, s in result.streams.items()
+        ]
         report = ConflictResolver().resolve_batch(parsed, block_on_error=False)
         preview_streams = [
             _proii_preview_entry(

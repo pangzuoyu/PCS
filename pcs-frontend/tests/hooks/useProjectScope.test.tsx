@@ -106,3 +106,33 @@ describe('useProjectScope — 没有可用项目', () => {
     expect(result.current.error).toContain('项目作用域');
   });
 });
+
+
+describe('useProjectScope — 多个项目时按 env hint 选（2026-11-19 · T2/T3 实测）', () => {
+  it('⚠️ **优先取 `VITE_PROJECT_ID` 指的那个项目**（不是「列表里的第一个」）', async () => {
+    // ⚠️ 真后端通道的种子库里**有两个**项目 ⇒ ⇒ 「第一个」是**不确定**的
+    // ⇒ ⇒ 真后端通道里会解析到**别的项目**（页面查的不是它 ⇒ 假绿）。
+    vi.stubEnv('VITE_PROJECT_ID', 'proj-hinted');
+    get.mockResolvedValue(
+      ok([
+        { workspace_id: 'ws-a', workspace_type: 'FORMAL', project_id: 'proj-other' },
+        { workspace_id: 'ws-b', workspace_type: 'FORMAL', project_id: 'proj-hinted' },
+      ]),
+    );
+    const { result } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.projectId).toBe('proj-hinted');
+    vi.unstubAllEnvs();
+  });
+
+  it('hint 指向的项目**不在**列表里 ⇒ ⇒ 退回「第一个有项目的」', async () => {
+    vi.stubEnv('VITE_PROJECT_ID', 'proj-not-mine');
+    get.mockResolvedValue(
+      ok([{ workspace_id: 'ws-a', workspace_type: 'FORMAL', project_id: 'proj-other' }]),
+    );
+    const { result } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.projectId).toBe('proj-other');
+    vi.unstubAllEnvs();
+  });
+});

@@ -70,9 +70,23 @@ BEDD 文档 `/bedd` → `GET /projects/{id}/bedd` ⇒ ⇒ **全 404**。
 ⚠️ **要人裁**：① 补一页设备台账 ② 明确「设备一览 = ConfigAsset」且设备台账**只走 API**。
 若补 ⇒ ⇒ 要定：列表字段（位号 / 类型 / 厂家）· 项目作用域（`equipment_type_project_id`）· 与「冷却水子表」「换热器」里手填 `equipment_tag` 的关系。
 
-- [ ] 人裁 ①/②（**产品语义 ⇒ 不由执行者代裁**）
-- [ ] 若 ①：建页 + 路由 + 契约类型消费 + 一条断言（种子设备 `132-P-101A/B` 可见）
-- [ ] 若 ②：在 UI 上写清口径（设备一览 = 配置资产），并登记「设备台账只走 API」
+- [x] 人裁 ①/②（**产品语义 ⇒ 不由执行者代裁**）
+      ⇒ ⇒ **2026-11-19 人裁决：① 补一页设备台账**
+- [x] 若 ①：建页 + 路由 + 契约类型消费 + 一条断言（种子设备 `132-P-101A/B` 可见）
+      ⇒ ⇒ 新页 `/equipment-list`（菜单「设备台账」**独立成组**）
+      ⇒ ⇒ 列 = **契约 `EquipListResponse`** 的字段（SPEC §7.13 的「包号/单元/
+      计算状态」契约里没有 ⇒ ⇒ **不编** ⇒ ⇒ 登记 SPEC 修订）
+      ⇒ ⇒ 真后端扫描加了「**种子设备 `132-P-101A/B` 可见**」的断言
+      ⇒ ⇒ ⚠️⚠️ **顺带补上两个跨项目洞**（建页时撞出来的）：
+      ① **读**：`GET /equipment-list` 此前**只有角色闸** ⇒ ⇒ 任何 DESIGNER
+      都能列**全部项目**的设备台账 ⇒ ⇒ 现在传 `project_id` ⇒ 查授权（无权 404）
+      · 不传 ⇒ 只返回**我被授权的项目**的设备（SYSTEM_ADMIN bypass）
+      ② ⚠️⚠️ **写**（**更严重**）：**sync** 的写入落在**源记录的 `project_id`**
+      上 ⇒ ⇒ 单条 sync 此前**只**查了 equipment 行的项目 ⇒ ⇒ **跨项目写**
+      （与 TODO-180 同形）⇒ ⇒ bulk-sync **完全没查** ⇒ ⇒ 现在：单条 ⇒ 无权 ⇒
+      **404**；bulk ⇒ ⇒ 逐条预检 ⇒ 无权 ⇒ 标 `failed` 且**不写**
+      ⇒ ⇒ 8 例新测试（含**三处变异自证**）
+      ⇒ ⇒ **教训**：写面守卫要判「**行实际落到哪儿**」
 
 ### T4 · TODO-156 —— PRO/II 解析器**不抽组成** ⇒ 导入的物流进不了计算链 🟡
 
@@ -80,16 +94,33 @@ BEDD 文档 `/bedd` → `GET /projects/{id}/bedd` ⇒ ⇒ **全 404**。
 
 ⚠️ **门禁**：组成门禁（`app/api/v1/streams.py::_composition_gate`）要求 **100±0.5%** ⇒ ⇒ 解析出的摩尔分率**必须归一** ⇒ ⇒ 否则送审直接 422。
 
-- [ ] 解析 `.inp` 的**组分表** ⇒ 写进 `composition_json`（摩尔分率）⇒ ⇒ **归一**
-- [ ] 一条断言：导入带组分的 PRO/II ⇒ `composition_json` 非空且**摩尔分率和 = 100±0.5%**
-- [ ] SPEC §3.2.2 的 E2E-002「导入 ⇒ 物性补全」**中间那一环**被覆盖（现在只能拆两段测）
+- [x] 解析 `.inp` 的**组分表** ⇒ 写进 `composition_json`（摩尔分率）⇒ ⇒ **归一**
+      ⇒ ⇒ ⚠️ **基准（M/W）必须保留**（`COMPOSITION(M)` 摩尔 · `(W)` 质量）
+      ⇒ ⇒ 数值是**百分数** ⇒ ⇒ `/100`
+      ⇒ ⇒ 新增 `component_cas.py`（规范名 → CAS · **域数据**）+
+      `proii_composition.py`（换算 · 归一 · **fail-closed**）
+- [x] 一条断言：导入带组成的 PRO/II ⇒ `composition_json` 非空且**摩尔分率和 = 100±0.5%**
+      ⇒ ⇒ 新 fixture `sample6_composition`（M 流 / W 流 / 认不出的组分流）
+      ⇒ ⇒ 6 例新测试 + **三条变异自证**（丢基准 / 不落组成 / 去掉 fail-closed）
+- [x] SPEC §3.2.2 的 E2E-002「导入 ⇒ 物性补全」**中间那一环**被覆盖
+      ⇒ ⇒ ⚠️ **CAS 号待工艺室确认** ⇒ ⇒ 登记 **TODO-196**
 
 ### T5 · 闸门与证据
 
-- [ ] 前端 `npm run typecheck` clean · `npm run lint` clean · `npm run test`（vitest）≥ 上批 baseline
-- [ ] **真后端通道**（`bash pcs-backend/scripts/serve_e2e_backend.sh` + `npm run e2e:real`）⇒ ⇒ T1/T2/T3 三处**断言**绿（不是「只打印」）
-- [ ] 后端默认车道（`uv run pytest`）exit 0（T4 动了 `import_service`）
-- [ ] `TODOS.md` 四条**逐条**标「已关闭 · `<commit>`」
+- [x] 前端 `npm run typecheck` clean · `npm run lint` clean · `npm run test`（vitest）≥ 上批 baseline
+      ⇒ ⇒ typecheck clean · lint clean · vitest **1091/1091**（上批 1089）
+- [x] **真后端通道**（`bash pcs-backend/scripts/serve_e2e_backend.sh` + `npm run e2e:real`）⇒ ⇒ T1/T2/T3 三处**断言**绿（不是「只打印」）
+      ⇒ ⇒ **白名单现在是空的** ⇒ ⇒ 任何 4xx/5xx 都会红
+      ⇒ ⇒ **批末实跑：9/9 passed**（`BAD_RESPONSES=[]` · `CONSOLE_ERRORS=[]` · 46 条路由全可达）
+      ⇒ ⇒ `/equipment-list` 断的是**种子设备的位号 `132-P-101A/B`** ⇒ ⇒ 一条断言同时验了
+      真端点 + 项目作用域解析（`VITE_PROJECT_ID` → `FLOW_PROJECT_ID`）+ 页面渲染
+- [x] 后端默认车道（`uv run pytest`）exit 0（T4 动了 `import_service`）
+      ⇒ ⇒ **5923 passed · 139 skipped · EXIT=0**（T3/T4 落地前 5906）
+- [x] 契约门禁 `gate_08_openapi_contract.sh --check-baseline` RC 0（基线已滚动）
+      · 迁移幂等 `check_migration_idempotency.py` RC 0（49 个迁移 0 违反）
+- [x] `TODOS.md` 四条**逐条**标「已关闭 · `<commit>`」
+      ⇒ ⇒ TODO-156 / 157 / 159 / 160 **逐条**已标
+      ⇒ ⇒ 连带登记 **TODO-193 / 194 / 195 / 196**
 
 ---
 

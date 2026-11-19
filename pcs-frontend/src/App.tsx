@@ -23,6 +23,7 @@ import {
   ReportStyleRoute,
   HeatingValueRoute,
   ImportWizardRoute,
+  EquipmentListRoute,
   PipeClassListRoute,
   PipeLineListRoute,
   PipeNetRoute,
@@ -79,6 +80,12 @@ const router = createBrowserRouter([
       { path: 'sim/streams/new', element: <StreamManualWizardRoute /> },
       { path: 'sim/streams/:id', element: <StreamDetailRoute /> },
       { path: 'sim/import', element: <ImportWizardRoute /> },
+
+      // 设备台账（P10-C · T3 · TODO-157）
+      // ⚠️ **与「设备一览」(`/config/asset-list`) 是两件事**：
+      //    前者列 `ConfigAsset`（配置资产：公式/模板/系数表）
+      //    本页列 `EquipmentList`（设备台账：各模块同步过来的设备主数据）
+      { path: 'equipment-list', element: <EquipmentListRoute /> },
 
       // 管道等级
       { path: 'pipe-class', element: <PipeClassListRoute /> },

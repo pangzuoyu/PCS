@@ -42,6 +42,12 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
     { key: '/sim/streams', label: '物流一览' },
     { key: '/sim/import', label: '导入向导' },
   ]),
+  // ⚠️ **「设备台账」与「设备一览」是两件事**（P10-C · T3 · TODO-157）：
+  //    「设备一览」= 配置资产（ConfigAsset：公式/模板/系数表）
+  //    「设备台账」= 设备主数据（EquipmentList：各模块同步过来的设备）
+  group('设备台账', 'equip', [
+    { key: '/equipment-list', label: '设备台账' },
+  ]),
   group('管道等级', 'pipe-class', [
     { key: '/pipe-class', label: '等级一览' },
     { key: '/pipe-class/symbols', label: '符号表' },

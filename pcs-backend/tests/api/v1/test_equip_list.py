@@ -127,10 +127,20 @@ async def pws_setup_with_pump(db_session: AsyncSession) -> AsyncIterator[dict]:
 
 
 async def test_api_list_equipment_200(
-    client, db_session, sample_user_token, pws_setup_with_pump
+    client, db_session, sample_user_token, pws_setup_with_pump, grant_project
 ):
-    """GET /api/v1/equipment-list 200 + 返回创建的 EquipmentList。"""
+    """GET /api/v1/equipment-list 200 + 返回创建的 EquipmentList。
+
+    ⚠️ **项目授权是必须的**（2026-11-19 · P10-C · T3 补的守卫）：
+    列表端点此前**只有角色闸** ⇒ ⇒ 任何 DESIGNER 都能列**全部项目**的设备
+    ⇒ ⇒ 跨项目读 ⇒ ⇒ 现在：不传 `project_id` 时 ⇒ ⇒ 只返回**我被授权的
+    项目**的设备 ⇒ ⇒ ⇒ 本用例因此要**先授权**。
+    """
     pws = pws_setup_with_pump
+    # ⚠️ 授权必须挂在「令牌算出的那个 user_id」上 ⇒ ⇒ subject 是 username。
+    from app.services.token_issuer import derive_user_id
+
+    await grant_project(derive_user_id("test-user"), pws["project_id"])
     # 先 sync 创建 EquipmentList
     await sync_from_source(
         source_module="PUMP",
@@ -224,10 +234,16 @@ async def test_api_bulk_sync_equipment_partial_failure(
 
 
 async def test_api_list_equipment_process_controller_allowed(
-    client, db_session, sample_pc_token, pws_setup_with_pump
+    client, db_session, sample_pc_token, pws_setup_with_pump, grant_project
 ):
-    """ACL: PROCESS_CONTROLLER 角色可访问 GET list（DESIGNER/PC/SYSTEM_ADMIN 三档）。"""
+    """ACL: PROCESS_CONTROLLER 角色可访问 GET list（DESIGNER/PC/SYSTEM_ADMIN 三档）。
+
+    ⚠️ 同上（P10-C · T3）：列表**只返回我被授权的项目**⇒ ⇒ 要先授权。
+    """
     pws = pws_setup_with_pump
+    from app.services.token_issuer import derive_user_id
+
+    await grant_project(derive_user_id("test-pc"), pws["project_id"])
     await sync_from_source(
         source_module="PUMP",
         source_service="pump_service",

@@ -58,6 +58,7 @@ import { CoefficientTableEditorPage } from './config/CoefficientTableEditorPage'
 import { FormulaEditor, FormulaEditorPage } from './config/FormulaEditorPage';
 import { TemplateFilePage } from './config/TemplateFilePage';
 import { FlashComputePage } from './flash/FlashComputePage';
+import { EquipmentListPage } from './equip/EquipmentListPage';
 import { PipeComputePage } from './pipe/PipeComputePage';
 import { PipeLineListPage } from './pipe/PipeLineListPage';
 import { CodeFormatDesignerPage } from './pipe_class/CodeFormatDesignerPage';
@@ -323,6 +324,14 @@ export function PipeRoute(): JSX.Element {
     />
   );
 }
+// === 设备台账（P10-C · T3 · TODO-157）===
+//
+// ⚠️ **与「设备一览」(`/config/asset-list`) 是两件事**：前者列 `ConfigAsset`
+// （配置资产），本页列 `EquipmentList`（设备台账）。
+export function EquipmentListRoute(): JSX.Element {
+  return <EquipmentListPage />;
+}
+
 export function PipeLineListRoute(): JSX.Element {
   // ⚠️ **P10-C · T2（TODO-159）**：此前这里拿**占位** project id 去调
   // `GET /projects/{id}/pipe-line-list` ⇒ ⇒ **那个端点根本不存在** ⇒ ⇒ 404

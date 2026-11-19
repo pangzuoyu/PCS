@@ -100,6 +100,10 @@ class ProiiParseResult:
     warnings: list[str] = field(default_factory=list)
     # P4 #4：SIM-16 COLUMN SUMMARY 段（dict 或 None；preview/commit 链路落库）
     column_summary: dict | None = None
+    # P10-C · T4（2026-11-19）：PRO/II 的组成（**未归一** · 百分数 · 带 M/W 基准）
+    # ⇒ ⇒ 此前解析器**读不出**组成 ⇒ ⇒ 导入的物流 `composition_json is None`
+    # ⇒ ⇒ 「导入 ⇒ 物性补全」那条链断在这里。
+    compositions: dict[str, "ProiiComposition"] = field(default_factory=dict)
 
 
 # 复用 property_completion.ParsedStream（避免重复定义）—— 但为了测试简便，
@@ -217,7 +221,7 @@ def map_libid_to_alias(name: str) -> str:
 # .inp COMPOSITION(M)=N,f/N,f/... 段正则（COMPOSITION 关键字 + M 表示摩尔分率）
 # body：紧跟 = 之后的纯数字对（不允许字母/STREAM/&）
 _COMPOSITION_RE = re.compile(
-    r"COMPOSITION\s*\(\s*[MW]\s*\)\s*=\s*(?P<body>[\d\s,/\.\-+eE]+?)(?:\s*,?\s*NORMALIZE|$)",
+    r"COMPOSITION\s*\(\s*(?P<basis>[MW])\s*\)\s*=\s*(?P<body>[\d\s,/\.\-+eE]+?)(?:\s*,?\s*NORMALIZE|$)",
     re.IGNORECASE,
 )
 # COMPOSITION 数值对：N,f/N,f/...
@@ -299,6 +303,7 @@ def parse_proii_files(inp_path: Path | str, out_path: Path | str) -> ProiiParseR
         unreliable_streams=sorted(unreliable),
         warnings=warnings,
         column_summary=_parse_column_summary_text(out_text),
+        compositions=_parse_compositions_text(inp_text),
     )
 
 
@@ -1074,14 +1079,31 @@ def _parse_column_summary_text(text: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
+@dataclass(frozen=True)
+class ProiiComposition:
+    """一条物流的组成（**未归一** · 百分数 · 带 M/W 基准）。
+
+    ⚠️ **为什么带 basis**（2026-11-19 · P10-C · T4）：PRO/II 的
+    `COMPOSITION(M)` = **摩尔**分率 · `COMPOSITION(W)` = **质量**分率
+    ⇒ ⇒ 不区分的话，W 的流会被当成摩尔用 ⇒ ⇒ 组成**完全错**
+    ⇒ ⇒ 此前本函数**把 M/W 标记丢了** ⇒ ⇒ 补上。
+
+    ⚠️ **数值是百分数**（0~100 · 样例里 0.01 + 99.9 + 0.09 = 100）
+    ⇒ ⇒ 不是 0~1 的小数 ⇒ ⇒ 用之前先 /100。
+    """
+
+    basis: str  # "M"（摩尔分率）| "W"（质量分率）
+    fractions: dict[str, float]  # 组分别名 → 百分数
+
+
+def parse_compositions(inp_path: Path | str) -> dict[str, ProiiComposition]:
     """从 .inp 提取所有 PROPERTY STREAM 的 COMPOSITION(M/W)=N,f/N,f/...
 
     Args:
         inp_path: PRO/II .inp 文件路径
 
     Returns:
-        dict: stream_tag → {component_alias: mole_or_mass_fraction, ...}
+        dict: stream_tag → `ProiiComposition`（**含基准** + 百分数分率）
         - 无 COMPOSITION 段或无 STREAM → {}
         - 数值解析失败 → 跳过该 stream
     """
@@ -1089,7 +1111,16 @@ def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
     if not inp_path.exists():
         raise FileNotFoundError(f"PRO/II .inp not found: {inp_path}")
     text = inp_path.read_text(encoding="utf-8", errors="replace")
+    return _parse_compositions_text(text)
 
+
+def _parse_compositions_text(text: str) -> dict[str, ProiiComposition]:
+    """`.inp` **文本** → 组成（与 `parse_proii_files` 共用 ⇒ ⇒ 一次解析出全部）。
+
+    ⚠️ 为什么拆成两个（2026-11-19 · P10-C · T4）：`parse_proii_files` 已经把
+    `.inp` 读进内存了 ⇒ ⇒ 再调 `parse_compositions(path)` 就是**把文件读第二遍**
+    ⇒ ⇒ 拆开 ⇒ ⇒ 一份文本、两条用法。
+    """
     # 1) 取 LIBID → alias 映射（libid 是整数）
     components = _parse_components(text)
     libid_to_alias: dict[int, str] = {}
@@ -1116,7 +1147,7 @@ def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
         joined_lines.append(buf)
 
     # 4) 解析每个 PROPERTY STREAM 行
-    result: dict[str, dict[str, float]] = {}
+    result: dict[str, ProiiComposition] = {}
     for jline in joined_lines:
         m = _STREAM_DEF_RE.search(jline)
         if not m:
@@ -1126,6 +1157,7 @@ def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
         if not comp_match:
             continue
         comp_body = comp_match.group("body")
+        basis = comp_match.group("basis").upper()
         fractions: dict[str, float] = {}
         for pair_m in _COMPOSITION_PAIR_RE.finditer(comp_body):
             try:
@@ -1136,7 +1168,7 @@ def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
             alias = libid_to_alias.get(libid, f"LIBID_{libid}")
             fractions[alias] = frac
         if fractions:
-            result[tag] = fractions
+            result[tag] = ProiiComposition(basis=basis, fractions=fractions)
     return result
 
 

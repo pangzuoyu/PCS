@@ -68,6 +68,7 @@ async def list_equipment_records(
     source_module: str | None = None,
     sign_status: str | None = None,
     equipment_status: str | None = None,
+    authorized_project_ids: set[UUID] | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[Sequence[EquipmentList], int]:
@@ -78,6 +79,11 @@ async def list_equipment_records(
         project_id / workspace_id: 可选项目/workspace 过滤
         source_module: 可选源模块过滤
         sign_status / equipment_status: 可选状态过滤
+        authorized_project_ids: **我被授权的项目 id 集合**（`None` = 不额外限制）
+            ⚠️ **不传就是「不加项目限制」** ⇒ ⇒ 调用方（端点层）**必须**自己
+            算好这个集合 ⇒ ⇒ 否则 = 跨项目读（2026-11-19 · P10-C · T3 修的
+            就是这个洞：端点此前**只**有角色闸 ⇒ ⇒ 任何 DESIGNER 都能列
+            **全部项目**的设备台账）。
         limit / offset: 分页
 
     Returns:
@@ -102,6 +108,11 @@ async def list_equipment_records(
         stmt = stmt.where(EquipmentList.equipment_status == equipment_status)
         count_stmt = count_stmt.where(
             EquipmentList.equipment_status == equipment_status
+        )
+    if authorized_project_ids is not None:
+        stmt = stmt.where(EquipmentList.project_id.in_(authorized_project_ids))
+        count_stmt = count_stmt.where(
+            EquipmentList.project_id.in_(authorized_project_ids)
         )
 
     stmt = stmt.order_by(EquipmentList.equipment_id).limit(limit).offset(offset)

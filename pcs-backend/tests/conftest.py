@@ -341,16 +341,18 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
     "/api/v1/report-builder/definitions/{def_id}/publish",
     # P10-C · T2（2026-11-19）：管道一览表端点（新增 · 项目作用域）
     "/api/v1/projects/{project_id}/pipe-line-list",
+    # P10-C · T3（2026-11-19）：设备台账列表端点（项目作用域 · 本批补的守卫）
+    "/api/v1/equipment-list",
 )
 
 #: 台账的**下限**（**只增不减**）⇒ ⇒ 防止有人「悄悄把一条从清单里删掉」
 #: ⇒ ⇒ ⇒ 清单条目变少 ⇒ ⇒ 这里红。
-AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 9
+AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 10
 
 #: `strict_client` 测试函数数的**下限**（**只增不减**）⇒ ⇒ 防止
 #: ⇒ ⇒ 「把断言一条条删掉」⇒ ⇒ ⇒ 逐条路径检查只看「这个端点**还有没有**断言」
 #: ⇒ ⇒ ⇒ 同一个端点有 3 条断言时删 1 条，它看不出来 ⇒ ⇒ ⇒ 这个下限看得出来。
-STRICT_CLIENT_TEST_MIN = 114
+STRICT_CLIENT_TEST_MIN = 120
 
 #: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
 #:
