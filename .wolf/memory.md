@@ -4002,3 +4002,13 @@
 | 07:31 | Created pcs-backend/tests/fixtures/proii/sample6_composition/sample6_composition.out | — | ~458 |
 | 07:32 | Created pcs-backend/tests/services/test_proii_composition_mole.py | — | ~1367 |
 | 11:52 | Edited docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md | 7→11 lines | ~215 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | modified visible_clause() | ~806 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | modified get() | ~219 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | modified list() | ~68 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | inline fix | ~24 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+26 lines) | ~387 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+7 lines) | ~151 |
+| 12:55 | Edited pcs-backend/app/services/report/definition_service.py | inline fix | ~25 |
+| 12:55 | Edited pcs-backend/app/api/v1/workspaces.py | expanded (+14 lines) | ~217 |
+| 12:56 | Created pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py | — | ~3691 |
+| 13:00 | Created pcs-frontend/tests/pages/report/ReportDefinitionEditorPage.publishHint.test.tsx | — | ~1187 |

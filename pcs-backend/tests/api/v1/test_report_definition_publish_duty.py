@@ -240,14 +240,25 @@ async def test_obsolete_requires_project_authorization(
     ⇒ ⇒ 现在：项目级定义 ⇒ ⇒ 作废者必须对该项目有授权 ⇒ ⇒ 无权 ⇒ ⇒ **404**
     （与「不存在」同形 ⇒ ⇒ 不泄露定义存在性）。
 
-    ⚠️ **不扩到「禁自审」**：人裁决（TODO-190）明写「`obsolete` **不**跟 publish
-    一起禁自审」⇒ ⇒ 本条**只**补项目授权。
+    ⚠️ **2026-11-19 更新**：本条现在由 **`visible_clause`（可见性）**统一
+    判定 ⇒ ⇒ 「无项目授权 ⇒ ⇒ 看不见 ⇒ ⇒ 404」⇒ ⇒ 与列表/详情**同一份规则**。
+    ⇒ ⇒ ⚠️ **夹具改了**：定义先**发布**（此前是 DRAFT）⇒ ⇒ 否则 404 会来自
+    「草稿只有创建人看得见」那条 ⇒ ⇒ **测不到项目授权这一维**（断言不敏感）。
+    ⇒ ⇒ 「草稿那条」另在 `test_report_definition_ruling_2026_11_19.py` 里。
     """
     creator = uuid.uuid4()
+    reviewer = uuid.uuid4()
     project = await _mk_project(db_session, "作废目标项目")
     await grant_project(creator, project.project_id)
+    await grant_project(reviewer, project.project_id)
     d = await _mk_def(strict_client, subject="author-3", user_id=creator,
                       project_id=project.project_id)
+    # ⚠️ **先发布**（创建人不能自审自批 ⇒ ⇒ 由**别人**发布）
+    r = await strict_client.post(
+        f"/api/v1/report-builder/definitions/{d['def_id']}/publish",
+        headers=_auth("reviewer-9", "REVIEWER", user_id=reviewer),
+    )
+    assert r.status_code == 200, r.text
 
     stranger = uuid.uuid4()
     r = await strict_client.post(

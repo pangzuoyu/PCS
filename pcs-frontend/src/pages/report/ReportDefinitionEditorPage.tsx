@@ -46,6 +46,7 @@ import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/common/PageHeader';
+import { useAuth } from '../../store/auth';
 import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
 import type { ReportBuilderDatasource } from '../../api/reportBuilder';
 import {
@@ -82,6 +83,12 @@ export function ReportDefinitionEditorPage(): JSX.Element {
   const [meta, setMeta] = useState<{ name: string; category: string;
     description: string; sharedWith: string;
     projectId: string | null; status: string } | null>(null);
+  /** 定义创建人（uuid）—— 「发布须由他人审核」的判据（TODO-191）。
+   *
+   *  ⚠️ **新建时还不知道**（定义还不存在 ⇒ ⇒ `created_by` 还没定）
+   *  ⇒ ⇒ 但新建完它**一定是我** ⇒ ⇒ 新建态**永远**是「创建人」。
+   */
+  const [createdBy, setCreatedBy] = useState<string | null>(null);
   const [rows, setRows] = useState<FieldRow[]>([]);
   const [level, setLevel] = useState<string>('BASIC');
   // 白名单（后端下发）与用户已启用的关联（白名单子集）**分开存**。
@@ -119,6 +126,9 @@ export function ReportDefinitionEditorPage(): JSX.Element {
           name: d.name, category: d.category, description: d.description,
           sharedWith: d.shared_with, projectId: d.project_id, status: d.status,
         });
+        // ⚠️ **创建人 id 要留着**（TODO-191）⇒ ⇒ 判「我是不是创建人」⇒ ⇒
+        // ⇒ 「保存并发布」在创建人手里是**死按钮**（后端 403）⇒ ⇒ UI 要先说清。
+        setCreatedBy(d.created_by ?? null);
         const body = d.definition_json;
         setLevel(body.detailLevel);
         setMaxRows(d.max_rows);
@@ -194,6 +204,21 @@ export function ReportDefinitionEditorPage(): JSX.Element {
       return next.map((r, i) => ({ ...r, order: i }));
     });
 
+  /**
+   * **我是不是创建人**（2026-11-19 人裁决 · TODO-191）。
+   *
+   * ⚠️ 后端 `publish()` 对「`created_by == actor`」返 **403**
+   * ⇒ ⇒ ⇒ 创建人点「保存并发布」**必然失败** ⇒ ⇒ ⇒ 这个按钮对创建人是**死按钮**。
+   *
+   * ⇒ ⇒ **新建态**也是「创建人」（定义还不存在 ⇒ ⇒ 存完就是我的）⇒ ⇒ 一律置灰。
+   *
+   * ⚠️ ⚠️ **前端没有任何「他人发布」的入口**（全仓只有这一个发布按钮）
+   * ⇒ ⇒ ⇒ 置灰**不**减少功能（那个按钮本来就 100% 失败）
+   * ⇒ ⇒ ⇒ 「谁来发布」这条路在 UI 上**还没有** ⇒ ⇒ 已登记（见 TODOS）。
+   */
+  const myUserId = useAuth((s) => s.userId);
+  const isCreator = isNew || (myUserId !== null && createdBy === myUserId);
+
   const save = async (thenPublish: boolean) => {
     // ⚠️ 有本页无法识别的条件时，保存会把它们**丢掉**（评审 #25）。
     // Modal.confirm 的 onOk 里才真正保存 —— 用户点取消就什么都不发生。
@@ -263,14 +288,30 @@ export function ReportDefinitionEditorPage(): JSX.Element {
             onClick={() => navigate('/report/definitions')}>返回</Button>
           <Button icon={<SaveOutlined />} loading={saving}
             onClick={() => void save(false)}>存草稿</Button>
-          <Button type="primary" icon={<SendOutlined />} loading={saving}
-            onClick={() => void save(true)}>保存并发布</Button>
+          {/* ⚠️ **创建人 ⇒ 置灰**（2026-11-19 · TODO-191 人裁决）：
+              后端 publish 对「自审自批」返 403 ⇒ ⇒ 按钮对创建人是**死按钮**
+              ⇒ ⇒ 与其点了吃 403，不如**一开始就说清**。
+              ⚠️ Tooltip 必须包一层 `<span>` —— antd 的 disabled 按钮不触发 hover。 */}
+          <Tooltip title={isCreator ? '你是创建人 · 发布须由他人审核（后端 403）' : undefined}>
+            <span>
+              <Button type="primary" icon={<SendOutlined />} loading={saving}
+                disabled={isCreator}
+                onClick={() => void save(true)}>保存并发布</Button>
+            </span>
+          </Tooltip>
         </Space>
       }
     />
       <Spin spinning={loading}>
         {error && <Alert type="error" showIcon message={error}
           style={{ marginBottom: 16 }} />}
+        {isCreator && (
+          <Alert type="info" showIcon style={{ marginBottom: 16 }}
+            data-testid="self-publish-hint"
+            message="你是这份定义的创建人"
+            description={"发布须由他人审核（后端对自审自批返 403）⇒ ⇒ 这里只能保存草稿；"
+              + "请把定义交给另一位审核者发布。"} />
+        )}
         {unparsedFilters !== null && unparsedFilters > 0 && (
           <Alert type="warning" showIcon style={{ marginBottom: 16 }}
             message={`本定义含 ${unparsedFilters} 条本页无法识别的过滤条件`}

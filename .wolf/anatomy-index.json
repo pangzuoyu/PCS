@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-19T03:52:44.025Z",
-    "fileCount": 1411,
+    "lastScanned": "2026-11-19T05:00:24.720Z",
+    "fileCount": 1413,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "fdb40a7d7ea42c73032a7b3f3b7065d917437d6e3c599cb0c9fb78be1cd0286a",
-    "storeUpdatedAt": "2026-11-19T03:52:44.038Z",
-    "rootHash": "e10623a83bd84ae9"
+    "renderedHash": "77d77dd7ba32b01dd076889affaeff519b0f7720f5835d91c22c598e3dcbecd4",
+    "storeUpdatedAt": "2026-11-19T05:00:24.732Z",
+    "rootHash": "c206daf40546fcb3"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -13055,39 +13055,39 @@
     },
     "pcs-backend/app/api/v1/workspaces.py": {
       "description": "Workspace API（Sprint 1）。",
-      "tokens": 1977,
-      "hash": "cf38ab25718d68f6",
-      "size": 8208,
-      "mtimeMs": 1794969984315.2915,
-      "updatedAt": "2026-11-18T02:46:24.369Z",
+      "tokens": 2232,
+      "hash": "19bb6602a08b5e85",
+      "size": 9528,
+      "mtimeMs": 1795064151061.2717,
+      "updatedAt": "2026-11-19T04:55:51.110Z",
       "source": "hook",
       "symbols": [
         {
           "name": "create_workspace",
           "kind": "fn",
-          "startLine": 39,
-          "endLine": 80,
-          "tokens": 432
+          "startLine": 40,
+          "endLine": 95,
+          "tokens": 597
         },
         {
           "name": "list_workspaces",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 116,
+          "startLine": 96,
+          "endLine": 131,
           "tokens": 349
         },
         {
           "name": "get_workspace",
           "kind": "fn",
-          "startLine": 117,
-          "endLine": 149,
-          "tokens": 345
+          "startLine": 132,
+          "endLine": 170,
+          "tokens": 418
         },
         {
           "name": "archive_workspace",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 193,
+          "startLine": 171,
+          "endLine": 214,
           "tokens": 492
         }
       ]
@@ -25149,11 +25149,11 @@
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 5570,
-      "hash": "0bf10eca96cf8c74",
-      "size": 25985,
-      "mtimeMs": 1795007459724.7993,
-      "updatedAt": "2026-11-18T13:10:59.775Z",
+      "tokens": 6402,
+      "hash": "a9d16dcf81aebbff",
+      "size": 30409,
+      "mtimeMs": 1795064147890.1738,
+      "updatedAt": "2026-11-19T04:55:47.939Z",
       "source": "hook",
       "symbols": [
         {
@@ -25188,15 +25188,15 @@
           "name": "visible_clause",
           "kind": "fn",
           "startLine": 169,
-          "endLine": 224,
-          "tokens": 513
+          "endLine": 243,
+          "tokens": 807
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 225,
-          "endLine": 514,
-          "tokens": 3528
+          "startLine": 244,
+          "endLine": 572,
+          "tokens": 4066
         }
       ]
     },
@@ -50844,6 +50844,175 @@
           "startLine": 119,
           "endLine": 140,
           "tokens": 234
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py": {
+      "description": "**2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。",
+      "tokens": 3691,
+      "hash": "67ac0a9cb8d31d27",
+      "size": 14804,
+      "mtimeMs": 1795064205843.859,
+      "updatedAt": "2026-11-19T04:56:45.892Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 40,
+          "tokens": 77
+        },
+        {
+          "name": "_body",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 61,
+          "tokens": 161
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 75,
+          "tokens": 121
+        },
+        {
+          "name": "_mk_def",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 87,
+          "tokens": 129
+        },
+        {
+          "name": "_publish_by_other",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 103,
+          "tokens": 165
+        },
+        {
+          "name": "test_project_level_creator_only_is_invisible_to_other_members",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 130,
+          "tokens": 307
+        },
+        {
+          "name": "test_project_level_creator_only_stays_visible_to_its_creator",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 149,
+          "tokens": 222
+        },
+        {
+          "name": "test_project_level_all_users_is_visible_to_other_members",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 178,
+          "tokens": 339
+        },
+        {
+          "name": "test_system_admin_sees_other_users_draft",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 194,
+          "tokens": 196
+        },
+        {
+          "name": "test_ordinary_user_does_not_see_other_users_draft",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 212,
+          "tokens": 226
+        },
+        {
+          "name": "test_creator_cannot_obsolete_own_published_definition",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 238,
+          "tokens": 273
+        },
+        {
+          "name": "test_reviewer_can_obsolete_other_users_published_definition",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 260,
+          "tokens": 233
+        },
+        {
+          "name": "test_creator_can_obsolete_own_draft",
+          "kind": "fn",
+          "startLine": 261,
+          "endLine": 279,
+          "tokens": 186
+        },
+        {
+          "name": "test_non_creator_cannot_obsolete_other_users_draft",
+          "kind": "fn",
+          "startLine": 280,
+          "endLine": 308,
+          "tokens": 280
+        },
+        {
+          "name": "test_create_workspace_with_unauthorized_project_is_404",
+          "kind": "fn",
+          "startLine": 309,
+          "endLine": 328,
+          "tokens": 181
+        },
+        {
+          "name": "test_create_workspace_with_authorized_project_is_201",
+          "kind": "fn",
+          "startLine": 329,
+          "endLine": 346,
+          "tokens": 181
+        },
+        {
+          "name": "test_create_personal_workspace_without_project_is_201",
+          "kind": "fn",
+          "startLine": 347,
+          "endLine": 358,
+          "tokens": 118
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/report/ReportDefinitionEditorPage.publishHint.test.tsx": {
+      "description": "「保存并发布」对**创建人自己**是死按钮（2026-11-19 人裁决 · TODO-191）。",
+      "tokens": 1187,
+      "hash": "12f3d51d168b98bc",
+      "size": 4989,
+      "mtimeMs": 1795064424671.537,
+      "updatedAt": "2026-11-19T05:00:24.719Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "renderEditor",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 59,
+          "tokens": 81
+        },
+        {
+          "name": "flush",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 66,
+          "tokens": 42
+        },
+        {
+          "name": "publishButton",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 123,
+          "tokens": 514
+        },
+        {
+          "name": "definition",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 149,
+          "tokens": 171
         }
       ]
     }

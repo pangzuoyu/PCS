@@ -4,8 +4,9 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-19（第 37 轮：
-> **P10-C 子批「前端收口」** —— T1/T2/T3/T4 + T5 闸门**全绿** · **未 push**）。
+> Read this FIRST when starting a session. Last updated: 2026-11-19（第 38 轮：
+> **P10-G · 裁决落地批** —— 7 条待裁决项**逐条裁完** · 5 条小改落地中 ·
+> 3 项大活排进下一批）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -55,18 +56,45 @@ vitest **1091/1091**（121 文件）· 后端默认车道 **5923 passed / EXIT=0
 
 ---
 
+## ✅ 第 38 轮 · P10-G · 裁决落地批（2026-11-19）
+
+**用户指令**：「逐个裁决未解决问题」⇒ ⇒ 两轮 AskUserQuestion ⇒ ⇒ **7 条裁完**。
+
+| 裁决项 | 人裁 | 落点 |
+|---|---|---|
+| **TODO-190** | **① PUBLISHED 禁自审 / DRAFT 自己能删** | `DefinitionService.obsolete` + **角色闸挪进 service**（按状态分档） |
+| **TODO-191** | **① 拆成「保存草稿」+ 发布置灰** | `ReportDefinitionEditorPage`（创建人 ⇒ ⇒ 按钮置灰 + Tooltip + 提示条） |
+| **TODO-192 #5** | **② `CREATOR_ONLY` 对项目级也生效** | `visible_clause`（两条发布档的公共前提 = `shared_with == ALL_USERS`） |
+| **TODO-192 #8** | **① 补项目授权校验** | `POST /workspaces` ⇒ ⇒ 无权 ⇒ ⇒ **404** |
+| **TODO-192 #10** | **② admin 全可见**（含别人的草稿） | `visible_clause` 收 `actor_roles`（与项目守卫**同一谓词**） |
+| **TODO-195** | **② 补后端实体** | **不关闭** ⇒ ⇒ 下一批（PMS 表 + BEDD 写入路径） |
+| **TODO-196** | **② 维持现状** | **不关闭** ⇒ ⇒ 等工艺室核 CAS（风险照旧） |
+
+⇒ ⇒ **另查出来一个真缺口** ⇒ ⇒ 前端**没有「他人发布」的入口**
+⇒ ⇒ 全仓只有一个发布按钮、且创建人点必 403 ⇒ ⇒ 「发布」在 UI 上**不可达**
+⇒ ⇒ ⇒ 登记 **TODO-197**。
+
+⇒ ⇒ **代价（值得记）**：端点的一刀切 `require_roles` **堵死了自救通道**
+⇒ ⇒ 「创建人删不掉自己的草稿」⇒ ⇒ 角色闸**必须按状态分档**
+⇒ ⇒ ⇒ 只有 service 层知道状态 ⇒ ⇒ ⇒ 角色闸**挪进 service**。
+
+---
+
 ## 🚀 Next quest
 
-1. **P10-F · F4**（安全扫描 / 依赖漏洞 / 镜像扫描 / 回滚演练）
+1. **下一批（三项都做 · 顺序建议 194 → 195 → 193）**
+   ⇒ ⇒ **TODO-194** 项目选择器（`GET /user-projects/me` + UI）
+   ⇒ ⇒ **TODO-195** PMS 表 + BEDD 写入路径（**前置是 194** ⇒ ⇒ 否则两页
+   只能取「第一个项目」⇒ ⇒ 仍是半成品）
+   ⇒ ⇒ **TODO-193** 14 条 mock 欠账（逐条核字段形状）
+   ⇒ ⇒ **TODO-197** 「他人发布」的入口（待人裁三个方案）
+2. **P10-F · F4**（安全扫描 / 依赖漏洞 / 镜像扫描 / 回滚演练）
    ⇒ ⇒ ⚠️ **前置是 P10-C**（部署物）⇒ ⇒ **F4-PRE**（不依赖镜像的那部分
    `bandit` + `uv audit` + `npm audit`）**现在就能开**
-2. **推送本轮**（P10-B 12 个 + P10-F 18 个 + 本轮 3 个未 push ⇒ 需明确授权）
-3. **待人裁决**：**TODO-190**（`obsolete` 不查 `created_by`）·
-   **TODO-191**（前端「保存并发布」对创建人自己无提示）·
-   **TODO-195**（PMS / BEDD 两页**存废**：① 删页并归到向导 ② 补后端实体
-   ③ 保留占位）· **TODO-192 #5 / #8 / #10**（`shared_with` · `POST /workspaces`
-   的 `project_id` · admin bypass 口径）· **TODO-193**（14 条 mock 欠账）·
-   **TODO-194**（项目选择器）· **TODO-196**（10 个 DMC 组分的 CAS）
+3. **推送本轮**（P10-C 已推 · **P10-G 未推** ⇒ 需明确授权）
+4. **仍待人裁决**：**TODO-197**（「他人发布」的入口 · 三个方案）
+   · **TODO-196**（10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）
+   ⇒ ⇒ 其余 7 条**已逐条裁完**（见上表）
 
 ---
 

@@ -52,6 +52,18 @@ DEFINITION_STATUSES = frozenset({"DRAFT", "PUBLISHED", "OBSOLETE"})
 # 见模块 docstring 裁决 1
 SUPPORTED_SHARED_WITH = frozenset({"ALL_USERS", "CREATOR_ONLY"})
 
+#: **作废「已发布」定义**所需的角色（2026-11-19 · TODO-190 人裁决）。
+#:
+#: ⚠️ **为什么在 service 层而不在端点层**：端点原来对 `obsolete` 一律
+#: `require_roles(PUBLISH_ROLES)` ⇒ ⇒ **创建人（哪怕只是 DESIGNER）连自己的
+#: 草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人自救通道」**直接冲突**
+#: ⇒ ⇒ ⇒ 角色闸必须**按状态分档** ⇒ ⇒ ⇒ 只有 service 层知道状态。
+#:
+#: ⚠️ 与端点 `report_builder.py::PUBLISH_ROLES` **同一组角色**
+#: ⇒ ⇒ 但**不是同一处定义**（层规则：service 不 import api）
+#: ⇒ ⇒ 两处若要改 ⇒ ⇒ **一起改**（注释互指）。
+OBSOLETE_ROLES = frozenset({"REVIEWER", "APPROVER", "SYSTEM_ADMIN"})
+
 # ⚠️ **这是实现上限，不是 SPEC 要求**（用户 2026-10-14 裁决）。
 #
 # SPEC 只规定默认值 10000，**没有**规定上限。原先这里是 100_000，
@@ -166,7 +178,7 @@ def _to_dict(row: ReportDefinition) -> dict[str, Any]:
     }
 
 
-def visible_clause(user_id: uuid.UUID):
+def visible_clause(user_id: uuid.UUID, actor_roles: Sequence[str] | None = None):
     """SQL 侧的可见性过滤 —— **唯一一份**规则（列表与详情共用）。
 
     ⚠️ **列表和详情必须用同一个规则**：列表过滤掉、详情却能按 ID 取到，
@@ -174,21 +186,41 @@ def visible_clause(user_id: uuid.UUID):
     ⇒ ⇒ （此前详情走的是另一份 Python 规则 `_can_see` ⇒ ⇒ **两份会漂**
     ⇒ ⇒ 现已合并 ⇒ ⇒ `_can_see` 删掉。）
 
-    ## 规则（2026-11-18 人裁决 · TODO-170 选项 ③）
+    ## 规则（2026-11-19 人裁决 · TODO-192 #5 / #10 合并）
 
     | 条件 | 可见 |
     |---|---|
-    | `created_by == 我` | ✓（自己的定义） |
-    | `project_id IS NULL` ∧ `PUBLISHED` ∧ `shared_with == ALL_USERS` | ✓（**公司级模板**，全公司可见） |
-    | `project_id IS NOT NULL` ∧ `PUBLISHED` ∧ **我在该项目有授权** | ✓（**项目级模板**，项目内有授权者可见） |
+    | `created_by == 我` | ✓（自己的定义 —— 草稿 / 已发布 / 仅创建人） |
+    | `PUBLISHED` ∧ `shared_with == ALL_USERS` ∧ `project_id IS NULL`
+      | ✓（**公司级模板**，全公司可见） |
+    | `PUBLISHED` ∧ `shared_with == ALL_USERS` ∧ `project_id IS NOT NULL`
+      ∧ **我在该项目有授权** | ✓（**项目级模板**，项目内有授权者可见） |
     | 其余 | ✗ |
 
-    ⚠️ **`shared_with == ALL_USERS` 的语义随 `project_id` 变**：
+    ⚠️⚠️ **`shared_with` 现在两种 scope 都生效**（2026-11-19 · TODO-192 #5）：
 
-    - `project_id IS NULL` ⇒ ⇒ `ALL_USERS` = **全公司**；
-    - `project_id IS NOT NULL` ⇒ ⇒ `ALL_USERS` = **项目内所有有授权者**
-      ⇒ ⇒ ⇒ 实现上这一档**不再看 `shared_with`** ⇒ ⇒ 由「我在该项目
-      ⇒ ⇒ 有授权」**取代** ⇒ ⇒ ⇒ 语义写在 `ReportDefinition` 的 docstring。
+    - 此前**项目级**那一档**不看 `shared_with`** ⇒ ⇒ `CREATOR_ONLY` 被
+      **静默忽略** ⇒ ⇒ 「已发布 + CREATOR_ONLY」的项目级定义**项目内人人可见**
+      ⇒ ⇒ **字段与实现不符**（模块 docstring 写的语义是
+      「PUBLISHED 按 `shared_with`：`ALL_USERS` 全员 / `CREATOR_ONLY` 仅创建人」
+      ⇒ ⇒ 实现偏离了它自己声明的契约）。
+    - ⇒ ⇒ 现在 `shared_with == ALL_USERS` 是**两条发布档的公共前提**
+      ⇒ ⇒ `CREATOR_ONLY`（公司级 / 项目级都一样）⇒ ⇒ **只有创建人看得见**。
+    - ⚠️ 「仅创建人可见」在 `CREATOR_ONLY` 下**与 scope 无关** ⇒ ⇒
+      项目级的 `CREATOR_ONLY` 也不需要查 `user_projects` ⇒ ⇒ 少一次 EXISTS。
+
+    ⚠️⚠️ **SYSTEM_ADMIN 全局 bypass**（2026-11-19 · TODO-192 #10 人裁决）：
+
+    - 此前 `visible_clause` **没有** admin 分支 ⇒ ⇒ 而
+      `require_project_access_or_404` **有** ⇒ ⇒ 两处口径不一致
+      ⇒ ⇒ 症状是「admin 能 publish 一条定义，却 GET 不到它」
+      （publish 走 `db.get` + 自己的授权判定；GET 走 `visible_clause`）
+      ⇒ ⇒ ⇒ 现在 admin **看得见全部**（含别人的**草稿**）。
+    - ⚠️ 与 `require_project_access_or_404` 的 bypass **同口径**
+      （同一个谓词：`"SYSTEM_ADMIN" in actor_roles`）⇒ ⇒ 两处不会漂。
+    - ⚠️ 恒真表达式用 `def_id IS NOT NULL`（主键 ⇒ 恒真）⇒ ⇒
+      仍是**纯 SQL 表达式**（不引入 Python 侧分支 ⇒ 不会漏掉
+      `.where(...)` 的任何一处）。
 
     ⚠️ **「我在该项目有授权」的口径**必须与
     `UserProjectService.check_user_project_access` **一致**
@@ -204,15 +236,16 @@ def visible_clause(user_id: uuid.UUID):
         )
         .exists()
     )
+    # ⚠️ SYSTEM_ADMIN 全局 bypass（与项目守卫同口径）⇒ ⇒ 恒真。
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return ReportDefinition.def_id.is_not(None)
     return (
         (ReportDefinition.created_by == user_id)
         | (
             (ReportDefinition.status == "PUBLISHED")
+            & (ReportDefinition.shared_with == "ALL_USERS")
             & (
-                (
-                    ReportDefinition.project_id.is_(None)
-                    & (ReportDefinition.shared_with == "ALL_USERS")
-                )
+                (ReportDefinition.project_id.is_(None))
                 | (
                     ReportDefinition.project_id.is_not(None)
                     & project_member
@@ -266,18 +299,23 @@ class DefinitionService:
         await self.db.flush()
         return row
 
-    async def get(self, *, def_id: uuid.UUID, user_id: uuid.UUID) -> ReportDefinition:
+    async def get(self, *, def_id: uuid.UUID, user_id: uuid.UUID,
+                  actor_roles: Sequence[str] | None = None) -> ReportDefinition:
         """按 id 取定义 —— **可见性判定与列表共用同一份规则**（`visible_clause`）。
 
         ⚠️ 此前这里是 `db.get` + 另一份 Python 规则（`_can_see`）⇒ ⇒
         ⇒ **两份规则会漂** ⇒ ⇒ 「列表过滤掉、详情却能按 ID 取到」就等于没过滤
         ⇒ ⇒ ⇒ 现已合并成**一份**。
+
+        ⚠️ **`actor_roles` 要传进来**（2026-11-19 · TODO-192 #10）⇒ ⇒
+        SYSTEM_ADMIN 的全局 bypass 在**可见性**这一侧也生效
+        ⇒ ⇒ 否则 admin「能 publish 却 GET 不到」。
         """
         row = (
             await self.db.execute(
                 select(ReportDefinition)
                 .where(ReportDefinition.def_id == def_id)
-                .where(visible_clause(user_id))
+                .where(visible_clause(user_id, actor_roles))
             )
         ).scalar_one_or_none()
         if row is None:
@@ -287,7 +325,8 @@ class DefinitionService:
 
     async def list(self, *, user_id: uuid.UUID,
                    project_id: uuid.UUID | None = None,
-                   status: str | None = None) -> list[ReportDefinition]:
+                   status: str | None = None,
+                   actor_roles: Sequence[str] | None = None) -> list[ReportDefinition]:
         """列出当前用户可见的定义。
 
         `status` 是**收窄**，不是「过滤条件」（评审 #27，2026-10-18）：
@@ -298,7 +337,7 @@ class DefinitionService:
         定义的入口 —— 而它们退出日常视野是**可见性裁决**（仍可按 ID
         取到，供审计追溯），不是用户可以随手筛回来的。
         """
-        stmt = select(ReportDefinition).where(visible_clause(user_id))
+        stmt = select(ReportDefinition).where(visible_clause(user_id, actor_roles))
         if project_id is not None:
             stmt = stmt.where(ReportDefinition.project_id == project_id)
         # 已作废的不进默认列表（还能按 ID 取到，供审计追溯）
@@ -330,7 +369,7 @@ class DefinitionService:
         算不算「放宽作用域」？⇒ ⇒ 本批**只挡「改挂到无授权项目」**
         ⇒ ⇒ 那一条另登记（`TODOS.md` TODO-192 的「未解决的问题」）。
         """
-        row = await self.get(def_id=def_id, user_id=user_id)
+        row = await self.get(def_id=def_id, user_id=user_id, actor_roles=actor_roles)
         if row.created_by != user_id:
             # 非创建人改 PUBLISHED 的定义 = 绕过审批（见模块 docstring 裁决 2）
             raise PcsError(f"报表定义不存在：{def_id}",
@@ -460,22 +499,87 @@ class DefinitionService:
         ⇒ ⇒ 现在：**项目级定义 ⇒ ⇒ 作废者必须对该项目有授权**
         （无权 ⇒ ⇒ **404**，与「不存在」同形 ⇒ ⇒ 不泄露定义存在性）。
 
-        ⚠️ **不扩到「禁自审」**：人裁决（2026-11-18 · TODO-190）明写
-        ⇒ ⇒ 「`obsolete` **不**跟 publish 一起禁自审」⇒ ⇒ 「作废」≠「审」
-        ⇒ ⇒ ⇒ 本条**只补项目授权**，禁自审仍归 TODO-190（未裁决）。
+        ⚠️⚠️ **禁自审**（2026-11-19 人裁决 · TODO-190）：
+        此前 `obsolete()` **不查 `created_by`** ⇒ ⇒ 任何有项目授权的审核角色
+        ⇒ ⇒ 都能作废**别人已发布**的定义 ⇒ ⇒ 打断别人的工作流。
+        ⇒ ⇒ 现在：**已发布**的定义 ⇒ ⇒ **创建人自己不能作废**
+        （与 `publish` 同口径 ⇒ ⇒ **403** `REPORT_DEFINITION_SELF_OBSOLETE_FORBIDDEN`）；
+        ⇒ ⇒ 而 **DRAFT 仍由创建人自己作废**（草稿只有创建人看得见
+        ⇒ ⇒ 若连创建人都禁 ⇒ ⇒ **没人能删自己的草稿**）。
+        ⚠️ 2026-11-18 那条「`obsolete` 不跟 publish 一起禁自审」的裁决
+        ⇒ ⇒ **只针对「别在 TODO-172 那批顺手改」**（那是范围裁决）
+        ⇒ ⇒ **语义**在 2026-11-19 单独裁决（就是上面这两条）。
+
+        ## ⚠️⚠️ 可见性是**唯一那份**规则（2026-11-19）
+
+        ⇒ ⇒ 「我能不能作废它」**完全由 `visible_clause` 决定** ⇒ ⇒ 不另写
+        一份 Python 规则 ⇒ ⇒ 「列表 / 详情 / 作废」三处**不会漂**。
+
+        | 定义状态 | 作废者 |
+        |---|---|
+        | **DRAFT** | **只有创建人**（草稿只有创建人可见 ⇒ ⇒ 别人 ⇒ ⇒ **404**，与「不存在」同形） |
+        | **PUBLISHED** | 看得见它的**审核角色**（REVIEWER / APPROVER /
+          SYSTEM_ADMIN）**且不是创建人** |
+
+        ⚠️ **角色闸为什么从端点挪到 service**：
+        端点原来一律 `require_roles(PUBLISH_ROLES)` ⇒ ⇒ **创建人（哪怕只是
+        DESIGNER）连自己的草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人自救通道」
+        **直接冲突** ⇒ ⇒ ⇒ 「没人能删草稿」的死角**又回来了**。
+        ⇒ ⇒ 现在：角色闸**只**管 PUBLISHED 那一档（作废别人的已发布定义 =
+        治理动作）⇒ ⇒ DRAFT 那档**不需要**审核角色。
         """
-        row = await self.db.get(ReportDefinition, def_id)
+        # ⚠️⚠️ **可见性 = 唯一那份规则**（`visible_clause`）⇒ ⇒
+        # 「我看不见它」与「它不存在」**逐字同形**（都是 404）⇒ ⇒
+        # ⇒ ⇒ 「谁能作废」直接由它决定 ⇒ ⇒ 不另写一份 Python 规则
+        # ⇒ ⇒ ⇒ 「列表 / 详情 / 作废」三处**不会漂**。
+        #
+        # ⚠️ **它同时覆盖了三件事**：
+        # ① 项目级定义 ⇒ ⇒ 作废者要在项目里有授权（否则看不见 ⇒ ⇒ 404）
+        # ② DRAFT ⇒ ⇒ 只有创建人看得见 ⇒ ⇒ **别人作废它 ⇒ ⇒ 404**
+        # ③ CREATOR_ONLY ⇒ ⇒ 只有创建人看得见 ⇒ ⇒ 口径与列表一致
+        row = None
+        if actor_user_id is not None:
+            row = (
+                await self.db.execute(
+                    select(ReportDefinition)
+                    .where(ReportDefinition.def_id == def_id)
+                    .where(visible_clause(actor_user_id, actor_roles))
+                )
+            ).scalar_one_or_none()
         if row is None:
             raise PcsError(f"报表定义不存在：{def_id}",
                            code="REPORT_DEFINITION_NOT_FOUND", status=404)
-        # ⚠️ **与 `publish()` 同款的项目授权**（公司级定义没有项目可授权 ⇒ 不判）
-        if row.project_id is not None and actor_user_id is not None:
-            await require_project_access_or_404(
-                self.db, user_id=actor_user_id, project_id=row.project_id,
-                actor_roles=actor_roles,
-            )
         if row.status == "OBSOLETE":
             raise PcsError("该定义已作废", code="REPORT_DEFINITION_STATE", status=409)
+        # ⚠️⚠️ **作废的「谁能作废」**（2026-11-19 人裁决 · TODO-190）
+        #
+        # | 定义状态 | 谁能作废 |
+        # |---|---|---|
+        # | **DRAFT** | **只有创建人**（上面那层可见性已保证 ⇒ ⇒ 到达这里的人
+        #   **就是**创建人）⇒ ⇒ **不需要**审核角色 |
+        # | **PUBLISHED** | **除创建人以外的**审核角色（REVIEWER / APPROVER / SYSTEM_ADMIN） |
+        #
+        # ⚠️ **为什么 DRAFT 不禁自审**：草稿**只有创建人看得见**
+        # ⇒ ⇒ 若连创建人都禁 ⇒ ⇒ **没人能作废自己的草稿**（可见性 + 禁自审
+        # ⇒ ⇒ 交集为空）⇒ ⇒ 「草稿直接作废」这条路**被堵死**。
+        # ⇒ ⇒ 所以禁自审**只**施加在 PUBLISHED 上（那里它才有意义：
+        # 作废一条**别人已发布**的定义 = 打断别人的工作流 = 治理动作）。
+        if row.status == "PUBLISHED":
+            if not OBSOLETE_ROLES.intersection(actor_roles or ()):
+                # ⚠️ **403**（角色闸）—— ⚠️ 角色闸**只**管这一档：
+                # 作废别人已发布的定义 = 治理动作；删自己的草稿不是。
+                raise PcsError(
+                    "作废已发布的报表定义需要审核角色"
+                    f"（{sorted(OBSOLETE_ROLES)}）",
+                    code="REPORT_DEFINITION_ROLE_REQUIRED", status=403,
+                )
+            if row.created_by is not None and row.created_by == actor_user_id:
+                # ⚠️ **403** —— 与 `publish` 的「禁自审」同口径（但**不是同一个错误码**：
+                # 「作废」≠「审」⇒ ⇒ 复用 publish 的码会让人以为该去「发布」）。
+                raise PcsError(
+                    "不能作废自己创建的报表定义（作废须由他人执行）",
+                    code="REPORT_DEFINITION_SELF_OBSOLETE_FORBIDDEN", status=403,
+                )
         row.status = "OBSOLETE"
         await self.db.flush()
         await self.db.refresh(row)

@@ -6489,6 +6489,14 @@ export interface paths {
         /**
          * Obsolete Definition
          * @description 作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。
+         *
+         *     ⚠️⚠️ **角色闸不在这里**（2026-11-19 · TODO-190 人裁决）：
+         *     端点原来对 `obsolete` 一律 `require_roles(PUBLISH_ROLES)` ⇒ ⇒ **创建人
+         *     （哪怕只是 DESIGNER）连自己的草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人
+         *     自救通道」**直接冲突** ⇒ ⇒ ⇒ 「没人能删草稿」的死角。
+         *     ⇒ ⇒ 现在：**角色闸在 service 层、按状态分档**
+         *     （`obsolete()`：PUBLISHED 要审核角色 · DRAFT 只要创建人）
+         *     ⇒ ⇒ ⇒ 端点只负责**把身份传下去**。
          */
         post: operations["obsolete_definition_api_v1_report_builder_definitions__def_id__obsolete_post"];
         delete?: never;

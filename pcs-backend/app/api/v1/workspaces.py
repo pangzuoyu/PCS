@@ -65,6 +65,20 @@ async def create_workspace(
         raise HTTPException(
             status_code=403, detail="owner_id must match the current user"
         )
+    # ⚠️⚠️ **项目授权**（2026-11-19 人裁决 · TODO-192 #8）
+    #
+    # 此前 `POST /workspaces` 收**任意** `project_id` 且**不查项目授权**
+    # ⇒ ⇒ 建出来的工作区行指向一个我**无权**的项目
+    # ⇒ ⇒ ⇒ 之后的工作区列表里，那一行的 `project_id` 是个**我看不见的项目**
+    # ⇒ ⇒ ⇒ 「展示字段被污染」（P0 已修 ⇒ ⇒ 授权面影响已消除 ⇒ ⇒ 只剩这条）。
+    #
+    # ⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」逐字同形 ⇒ ⇒ 枚举不出项目存在性）
+    # ⇒ ⇒ ⇒ 与全仓项目守卫同一口径（`check_project_access_or_404`）。
+    if payload.project_id is not None:
+        await check_project_access_or_404(
+            session, user_id=user.user_id, project_id=payload.project_id,
+            actor_roles=list(user.roles),
+        )
     svc = WorkspaceService(session)
     ws = await svc.create(
         owner_id=user.user_id,

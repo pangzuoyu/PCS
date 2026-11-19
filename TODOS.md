@@ -5136,6 +5136,34 @@ require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMI
 
 **归属**：P10-F 之外的独立批（**产品语义**）
 
+### ✅ **已关闭 · 2026-11-19 · P10-G**（人裁决：**① PUBLISHED 禁自审 / DRAFT 自己能删**）
+
+| 定义状态 | 谁能作废 |
+|---|---|
+| **DRAFT** | **只有创建人**（草稿只有创建人看得见 ⇒ ⇒ 别人 ⇒ ⇒ **404**，与「不存在」同形） |
+| **PUBLISHED** | **除创建人以外的**审核角色（REVIEWER / APPROVER / SYSTEM_ADMIN） |
+
+⇒ ⇒ **可见性成为唯一判据** ⇒ ⇒ 「谁能作废」直接由 `visible_clause` 决定
+⇒ ⇒ 不另写一份 Python 规则 ⇒ ⇒ **列表 / 详情 / 作废三处不会漂**。
+
+⚠️⚠️ **端点的角色闸必须挪走**（这条是本条裁决的**真正代价**）：
+
+端点原来对 `obsolete` 一律 `require_roles(PUBLISH_ROLES)` ⇒ ⇒ **创建人
+（哪怕只是 DESIGNER）连自己的草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人
+自救通道」**直接冲突** ⇒ ⇒ ⇒ 「没人能删草稿」的死角**又回来了**
+⇒ ⇒ ⇒ 角色闸改成**按状态分档**（PUBLISHED 要审核角色 · DRAFT 只要创建人）
+⇒ ⇒ ⇒ 角色闸因此**挪进 service 层**（只有 service 层知道状态）。
+
+⚠️ **错误码是新的**（`REPORT_DEFINITION_SELF_OBSOLETE_FORBIDDEN`）⇒ ⇒ 不复用
+publish 的 `..._SELF_REVIEW_FORBIDDEN` ⇒ ⇒ 「作废」≠「审」⇒ ⇒ 复用会让人
+以为该去「发布」。
+
+⇒ ⇒ **证据**：后端 4 例新测试（1 例「创建人不能作废自己的已发布定义」
+· 1 例「别人能作废」正对照 · 1 例「创建人能删自己的草稿」
+· 1 例「别人的草稿 ⇒ ⇒ 404」）⇒ ⇒ **变异自证 2 条**（删禁自审 ⇒ 红 ·
+删可见性闸 ⇒ 红）⇒ ⇒ 既有那条「无项目授权 ⇒ ⇒ 404」的夹具改成**先发布**
+（否则 404 会来自「草稿只有创建人看得见」⇒ ⇒ 断言**不敏感**）。
+
 ---
 
 ## TODO-191: 前端「保存并发布」对**创建人自己**没有提示 ⇒ ⇒ 点了才吃 403 🟢
@@ -5162,6 +5190,23 @@ require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMI
 
 **归属**：P10-F 之外的独立批（**前端体验**）
 
+### ✅ **已关闭 · 2026-11-19 · P10-G**（人裁决：**① 拆成「保存草稿」+ 发布置灰**）
+
+⇒ ⇒ 编辑器页拿到定义的 `created_by` ⇒ ⇒ 与当前用户（`useAuth().userId`）
+比 ⇒ ⇒ **是创建人** ⇒ ⇒ 「保存并发布」**置灰** + Tooltip
+（「你是创建人 · 发布须由他人审核（后端 403）」）+ 页面顶部一条说明。
+
+⚠️⚠️ **「置灰」不等于「砍功能」** —— 全仓**只有这一个**发布入口
+⇒ ⇒ 且只有创建人能打开编辑器（`update()` 对非创建人返 404）
+⇒ ⇒ ⇒ 这个按钮**从来就 100% 失败**（后端 403）⇒ ⇒ 置灰是**如实反映**。
+
+⇒ ⇒ **顺带查出来的一个真缺口** ⇒ ⇒ 前端**没有任何「他人发布」的入口**
+⇒ ⇒ ⇒ 「谁来发布」这件事在 UI 上**不可达**（只能走 API）
+⇒ ⇒ ⇒ 已登记 **TODO-197**。
+
+⇒ ⇒ **证据**：前端 3 例新测试（创建人 ⇒ ⇒ 置灰 + 提示 · 非创建人 ⇒ ⇒
+**可用**（正对照）· 新建态 ⇒ ⇒ 置灰）⇒ ⇒ **变异自证**（删 `disabled` ⇒ 2 例红）。
+
 ---
 
 ## TODO-192: **ce-code-review（P10-F 整批 · 2026-11-18）的修复项** 🔴
@@ -5183,16 +5228,28 @@ learnings）⇒ ⇒ **51 条原始发现** ⇒ ⇒ 合并去重后 **1 P0 + 3 P1
 | 2 | 🔴 **P1** | **`DefinitionService.update` 改 `project_id` 不查项目授权**（`create` 查了 · `PUT` 没查）⇒ ⇒ 创建人可把定义改挂到无授权项目 | `app/services/report/definition_service.py:332` | **5 位独立命中** | ✅ **已修** `2a77bd6`（`update()` 补 `require_project_access_or_404`）|
 | 3 | 🔴 **P1** | **工作区 owner 自动授权会造 `ws-owner-<uuid>` 的假用户名 `users` 行** ⇒ ⇒ 破坏「`user_id` = `uuid5(username)`」派生不变式 ⇒ ⇒ owner 之后真登录被 `USER_ID_CONFLICT` 挡住 | `app/api/v1/projects.py:245` | adversarial + project-standards | ✅ **已修** `2a77bd6`（不再造假用户名 ⇒ ⇒ owner 无 `users` 行 ⇒ ⇒ 跳过 + warning）|
 | 4 | 🟠 P2 | `obsolete()` **不查任何身份/项目** ⇒ ⇒ 任意审核角色可作废别人的定义 | `definition_service.py:430` | maintainability + security + correctness | ✅ **已修** `f4a3246`（补**项目授权** ⇒ ⇒ 无权 404；⚠️ **禁自审**不补 ⇒ ⇒ 仍归 TODO-190）|
-| 5 | 🟠 P2 | 项目级定义的 `shared_with` **被静默忽略** ⇒ ⇒ `CREATOR_ONLY` 发布后对全体项目成员可见 ⇒ ⇒ **字段与实现不符** | `definition_service.py:218` | adversarial + api-contract + project-standards | ⏸ **待人裁**（项目级定义「一律共享」还是「`CREATOR_ONLY` 仍有效」）|
+| 5 | 🟠 P2 | 项目级定义的 `shared_with` **被静默忽略** ⇒ ⇒ `CREATOR_ONLY` 发布后对全体项目成员可见 ⇒ ⇒ **字段与实现不符** | `definition_service.py:218` | adversarial + api-contract + project-standards | ✅ **已修**（2026-11-19 · P10-G · 人裁决**②**）⇒ ⇒ `CREATOR_ONLY` 对项目级**也生效** ⇒ ⇒ 只有创建人看得见 |
 | 6 | 🟠 P2 | 审计脚本 `AUTHZ_GUARDS` **漏了两个新 service 层守卫** ⇒ ⇒ 把新守卫判成「无守卫」⇒ ⇒ **假阴性** | `scripts/audit_list_endpoints.py:84` | maintainability + adversarial + correctness | ✅ **已修** `f4a3246`（补两个 service 层守卫 + `interesting` 加 `TYPE_GUARDS`）|
 | 7 | 🟠 P2 | 报表执行的 scope 授权在 `user_id is None` 时**整段跳过** ⇒ ⇒ **fail-open** | `app/services/report/builder_service.py:193` | reliability + security | ✅ **已修** `f4a3246`（`user_id is None` ⇒ ⇒ **拒绝执行** · fail-closed）|
-| 8 | 🟠 P2 | `POST /workspaces` 收**任意 `project_id`** 且无项目授权（⚠️ **授权面影响已被 P0 修消除** ⇒ ⇒ 只剩「展示字段被污染」） | `app/api/v1/workspaces.py:73` | adversarial + security | ⏸ **待人裁**（⚠️ 授权面影响已被 P0 修消除 ⇒ ⇒ 只剩「展示字段被污染」）|
+| 8 | 🟠 P2 | `POST /workspaces` 收**任意 `project_id`** 且无项目授权（⚠️ **授权面影响已被 P0 修消除** ⇒ ⇒ 只剩「展示字段被污染」） | `app/api/v1/workspaces.py:73` | adversarial + security | ✅ **已修**（2026-11-19 · P10-G · 人裁决**①**）⇒ ⇒ 无权 ⇒ ⇒ **404**（与「不存在」同形）|
 | 9 | 🟠 P2 | 「无权」在**三层返回三种错误码** ⇒ ⇒ 逐字同形只做到「同层内」 | `user_project_service.py:372` | api-contract + maintainability | ⏸ **独立批**（要动 21+ 端点的错误信封）|
-| 10 | 🟠 P2 | `visible_clause` 与 `require_project_access_or_404` **对 SYSTEM_ADMIN bypass 口径不一致** | `definition_service.py:169/198` | api-contract + maintainability | ⏸ **待人裁**（admin 看得见全部 vs 只看得见别人看得见的 ⇒ ⇒ 现在 admin 能 publish 却 GET 不到）|
+| 10 | 🟠 P2 | `visible_clause` 与 `require_project_access_or_404` **对 SYSTEM_ADMIN bypass 口径不一致** | `definition_service.py:169/198` | api-contract + maintainability | ✅ **已修**（2026-11-19 · P10-G · 人裁决**②**）⇒ ⇒ admin **全可见**（含别人的草稿）⇒ ⇒ 与项目守卫同口径 |
 | 11 | 🟠 P2 | 棘轮 `AUDITED_PROJECT_SCOPED_ENDPOINTS = 2`（实际 17+ 条）⇒ ⇒ **永不触发** | `tests/conftest.py:301` | testing | ✅ **已修** `f4a3246`（台账从**计数 2** 改成**路径清单** + 两条只增不减的下限）|
 
 ⇒ ⇒ **P3（18 条）** 登记在计划的「低优先」一节（前端 axios / MSW mock / 车道脚本 /
 ARQ / 索引 / 文档 frontmatter …）⇒ ⇒ 不逐条开 TODO。
+
+### ✅ **2026-11-19 · P10-G · 人裁决落地**（#5 / #8 / #10 三条）
+
+| # | 裁决 | 落到哪儿 | 证据 |
+|---|---|---|---|
+| **#5** | **② `CREATOR_ONLY` 对项目级也生效** | `visible_clause`：两条发布档的公共前提 = `shared_with == ALL_USERS` ⇒ ⇒ `CREATOR_ONLY` ⇒ ⇒ **只有创建人看得见**（公司级 / 项目级一致） | 2 例新测试（看不见 + 正对照看得见）· 变异自证 1 条 |
+| **#8** | **① 补项目授权校验** | `POST /workspaces`：`project_id` 非空 ⇒ ⇒ `check_project_access_or_404` ⇒ ⇒ 无权 ⇒ ⇒ **404** | 3 例新测试（无权 404 + 两个正对照）· 变异自证 1 条 |
+| **#10** | **② admin 全可见** | `visible_clause` 收 `actor_roles` ⇒ ⇒ SYSTEM_ADMIN ⇒ ⇒ 恒真（含别人的草稿）⇒ ⇒ 与 `require_project_access_or_404` **同一谓词** ⇒ ⇒ 两处不漂 | 2 例新测试（admin 看得见 + 普通用户看不见的正对照）· 变异自证 1 条 |
+
+⇒ ⇒ 端点层要跟着改：`list` / `get` / `execute` **三个**都把
+`actor_roles` 传下去 ⇒ ⇒ 否则 admin 的 bypass 只在 service 内部生效
+⇒ ⇒ 端点那一侧**等于没生效**。
 
 ⚠️ **误报（已实测排除）**：① 「审计脚本 `type_only` 档不可达」⇒ ⇒ 实测
 `interesting` **已含** `TYPE_GUARDS` ⇒ ⇒ 该发现基于旧版本文件；② 「`shared_with`
@@ -5250,6 +5307,9 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 
 **归属**：**下一批 · mock 漂移棘轮补债**
 
+✅ **已排期**（2026-11-19 人裁）⇒ ⇒ 下一批**做**（与 TODO-194 / TODO-195
+落地一起排）⇒ ⇒ 顺序见批次计划。
+
 ---
 
 ## TODO-194: 前端**没有项目选择器** ⇒ 「项目作用域」只能取**第一个**有项目的工作区 🟡
@@ -5271,6 +5331,10 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 ⇒ ⇒ 用户看得见的是「某个项目」⇒ ⇒ **不是**完整的多项目体验。
 
 **归属**：**下一批 · 项目上下文 / 选择器**
+
+✅ **已排期**（2026-11-19 人裁）⇒ ⇒ 下一批**做**（走
+`GET /user-projects/me` 拿**我的全部授权** + 一个项目选择器 UI）
+⇒ ⇒ 它是 TODO-195 落地（PMS / BEDD 要**真**项目作用域）的**前置**。
 
 ---
 
@@ -5294,7 +5358,20 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 ② 补后端实体（PMS 表 / BEDD 录入与 SchemaForm）⇒ ⇒ 那是**新功能**（体量大）
 ③ 保留占位（现状）
 
-**归属**：**待人裁**（⚠️ 与 TODO-157 的 ①/② 一并裁更好）
+**归属**：**下一批 · PMS / BEDD 后端实体落地**
+
+✅ **已裁决**（2026-11-19 人裁）⇒ ⇒ **② 补后端实体** ⇒ ⇒ 本条**不关闭**
+⇒ ⇒ 下一批要落的东西（拆开算体量）：
+
+| 子项 | 内容 | 备注 |
+|---|---|---|
+| **PMS** | PMS 表 + 端点（SPEC §7.5 向导第 2 步「材料规格」） | 前端 `/pms` 页接真端点（列以契约为准） |
+| **BEDD** | `projects.bedd_json` 的**写入路径**（现在只有建表迁移提到它 ⇒ ⇒ 补出来的端点**永远返回空**） | 前端 `/bedd` 页接真端点 |
+
+⇒ ⇒ ⚠️ **前置**：项目作用域要能**选**（TODO-194）⇒ ⇒ 否则两页只能取
+「第一个项目」⇒ ⇒ 仍是半成品。
+⇒ ⇒ ⚠️ SPEC §7.5 的向导里 PMS / BEDD 两步**本身也是空占位**
+⇒ ⇒ ⇒ 做完这三件，向导那两步才有内容。
 
 ---
 
@@ -5318,3 +5395,84 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 （`composition_json = None`）+ 告警 ⇒ ⇒ **不会**带着错 CAS 落库。
 
 **归属**：**工艺室确认**（⇒ ⇒ 确认完在本条里把 CAS 号逐条核一遍 + 记确认人/日期）
+
+⚠️ **2026-11-19 人裁：维持现状**（选项 ②）⇒ ⇒ **未确认的 CAS 照常落库、
+照常过送审门禁** ⇒ ⇒ 只靠**人工登记**这条 TODO 兜着
+⇒ ⇒ ⇒ ⚠️ 风险照旧：**CAS 错了 ⇒ ⇒ 组成错 ⇒ ⇒ 闪蒸算出错的结果**
+⇒ ⇒ ⇒ 投产后端点必须**先**把这条关掉。
+⇒ ⇒ ⇒ （曾提过「送审门禁拒收含未确认组分的组成」这条更严的路 ⇒ ⇒
+人裁选了维持现状 ⇒ ⇒ **不做**。）
+
+---
+
+## TODO-198: 「待办 500ms 预算」测的是 **pytest harness 开销**，不是查询 ⇒ ⇒ 车道假红 🟠
+
+**现状**（2026-11-19 · P10-G 批末撞出来的）：
+
+`tests/api/v1/test_todos.py::test_todo_sql_and_parse_both_within_budget`
+⇒ ⇒ 断言 `GET /api/v1/todos` 端到端 **≤ 500ms**。
+
+⚠️⚠️ **它在完整车道的默认 capture 下会红**（P10-G 实测 3/3），
+而**同一份代码**在 `--capture=no` 下是绿的 ⇒ ⇒ ⇒ **红的不是代码，是 harness**。
+
+| 跑法 | 实测 |
+|---|---|
+| 该测试**单独**跑（默认 capture） | **235ms** ✔ |
+| `tests/alembic/ + tests/api/v1/`（默认 capture） | **233ms** ✔ |
+| **完整车道**（默认 capture） | **2039 ~ 2162ms** ✘（超预算 4 倍） |
+| **完整车道**（`--capture=no`） | **227ms** ✔ |
+| **查询本身**（`compute_todos` 直调，兄弟测试量的是它） | **12.7ms** ✔ |
+
+⇒ ⇒ ⇒ 结论：**500ms 预算里没有一分钱是查询花的** ⇒ ⇒ 预算测的是
+**pytest 的 fd 级 capture + ASGI 往返** ⇒ ⇒ 完整车道里那份开销被放大到 ~2s
+⇒ ⇒ ⇒ **这是一个「测机器噪声」的断言**，不是「测性能」的断言。
+
+⚠️ **HEAD（未含本批改动）下默认 capture 是绿的**（实测 2/2）⇒ ⇒ 它本来就
+**贴着预算边**（233ms vs 500ms）⇒ ⇒ 本批只是把它推过了线
+⇒ ⇒ ⇒ **不是功能回归**（查询 12.7ms 不变）。
+
+**建议改法**（**下一批**·不在本批改 —— 改断言让它绿是本仓明令禁止的）：
+
+① **预算断言改测「查询 + 解析」**（像兄弟测试 `test_todo_at_expected_data_volume`
+   那样直调 `todo_service.compute_todos`）⇒ ⇒ 测的是**它该测的东西**；
+② **HTTP 往返的预算单独给一条**（且给足余量）⇒ ⇒ 明确「这是 harness 预算，
+   不是服务预算」；
+③ ⇒ ⇒ 或者干脆**删掉 HTTP 往返那条**（兄弟测试已经覆盖了真正的性能面）。
+
+⇒ ⇒ ⇒ **本批的处置**：默认 capture 的车道有 **1 条**红（就是它）⇒ ⇒
+用 `--capture=no` 的车道作批末证据（**5935 passed · EXIT=0** ⇒ ⇒ 其余
+全部绿）⇒ ⇒ **如实登记本条**，不掩盖。
+
+**归属**：**下一批 · 测试质量**（与 TODO-193 同批做）
+
+---
+
+## TODO-197: 前端**没有「他人发布报表定义」的入口** ⇒ ⇒ 「发布」在 UI 上不可达 🟠
+
+**现状**（2026-11-19 · P10-G · TODO-191 落地时**顺带查出来**）：
+
+⚠️⚠️ 全仓**只有一处**能发布报表定义 ⇒ ⇒ 编辑器页的「保存并发布」按钮
+⇒ ⇒ 而**创建人不能发布自己创建的**（后端 `publish()` 对
+`created_by == actor` 返 **403** `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN`）
+⇒ ⇒ 而**只有创建人能打开编辑器**（`update()` 对非创建人返 404）
+⇒ ⇒ ⇒ ⇒ **那个按钮 100% 失败** ⇒ ⇒ ⇒ 「谁去发布」这件事**在 UI 上没有答案**
+⇒ ⇒ ⇒ 审核者**连别人的草稿都看不见**（可见性：草稿只有创建人可见）
+⇒ ⇒ ⇒ ⇒ 「创建 ⇒ 交给审核者 ⇒ 审核者发布」这条链**在 UI 上断在第二环**。
+
+⇒ ⇒ 2026-11-19 的人裁（TODO-191）把那个按钮**置灰**了 ⇒ ⇒ 如实反映
+⇒ ⇒ ⇒ 但**没有**补上「审核者发布」的那个入口 ⇒ ⇒ ⇒ 本条就是那个缺口。
+
+**为什么重要**：SPEC §3.2.2(6) 的「发布须由审核角色」这条流程
+⇒ ⇒ 今天在 UI 上**走不完** ⇒ ⇒ 只走 API 才走得完。
+
+**建议改法**（**待人裁**，不属本批）：
+
+① **列表页加「发布」动作** ⇒ ⇒ 但审核者**看不见别人的草稿**
+⇒ ⇒ ⇒ 得先放开「审核者能看到待审草稿」这条可见性（那是**另一条**裁决）；
+② **在定义详情页加一条「移交审核」的显式动作**（改状态 / 建一条待审记录）
+⇒ ⇒ 需要后端支持；
+③ **审核者从「我建的」列表里发布** ⇒ ⇒ 但那还是自审 ⇒ ⇒ 与裁决 ① 冲突
+⇒ ⇒ **不可行**。
+
+**归属**：**下一批 · 项目上下文 / 选择器** 之后的独立小批（或与 TODO-195
+落地同批做 —— 都要碰报表定义这块前端）

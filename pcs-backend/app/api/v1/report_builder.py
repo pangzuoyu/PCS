@@ -164,7 +164,11 @@ async def list_definitions(
             f"未知的定义状态 {status!r}，支持 {sorted(DEFINITION_STATUSES)}。",
             code="REPORT_DEFINITION_INVALID_STATUS", status=400,
         )
-    rows = await DefinitionService(db).list(user_id=actor.user_id, status=status)
+    # ⚠️ **roles 要传下去**（2026-11-19 · TODO-192 #10）⇒ ⇒ SYSTEM_ADMIN 的
+    # 全局 bypass 在**可见性**这一侧也生效 ⇒ ⇒ 否则 admin「能 publish
+    # 却 GET 不到」（两处口径不一致的根因）。
+    rows = await DefinitionService(db).list(
+        user_id=actor.user_id, status=status, actor_roles=list(actor.roles))
     items = [ReportDefinitionOut(**_as_dict(r)) for r in rows]
     return ReportDefinitionList(items=items, total=len(items))
 
@@ -173,7 +177,9 @@ async def list_definitions(
 async def get_definition(
     def_id: uuid.UUID, actor: ActorDep, db: DbDep,
 ) -> ReportDefinitionOut:
-    row = await DefinitionService(db).get(def_id=def_id, user_id=actor.user_id)
+    # ⚠️ **roles 要传下去**（2026-11-19 · TODO-192 #10）—— 同上。
+    row = await DefinitionService(db).get(
+        def_id=def_id, user_id=actor.user_id, actor_roles=list(actor.roles))
     return ReportDefinitionOut(**_as_dict(row))
 
 
@@ -257,8 +263,17 @@ async def publish_definition(
 async def obsolete_definition(
     def_id: uuid.UUID, actor: ActorDep, db: DbDep,
 ) -> ReportDefinitionOut:
-    """作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。"""
-    require_roles(actor, *PUBLISH_ROLES)
+    """作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。
+
+    ⚠️⚠️ **角色闸不在这里**（2026-11-19 · TODO-190 人裁决）：
+    端点原来对 `obsolete` 一律 `require_roles(PUBLISH_ROLES)` ⇒ ⇒ **创建人
+    （哪怕只是 DESIGNER）连自己的草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人
+    自救通道」**直接冲突** ⇒ ⇒ ⇒ 「没人能删草稿」的死角。
+    ⇒ ⇒ 现在：**角色闸在 service 层、按状态分档**
+    （`obsolete()`：PUBLISHED 要审核角色 · DRAFT 只要创建人）
+    ⇒ ⇒ ⇒ 端点只负责**把身份传下去**。
+    """
+    # ⚠️ **刻意不调 `require_roles`** —— 见上面那段注释。
     # ⚠️ **2026-11-18 · ce-code-review（TODO-192 #4）**：把**身份**传下去
     # ⇒ ⇒ service 层判「作废者对该定义的项目有没有授权」（无权 ⇒ ⇒ 404）
     # ⇒ ⇒ ⇒ 与 `publish()` 的项目授权**同口径**。
@@ -368,7 +383,10 @@ async def execute_definition_endpoint(
         _reject_bad_format(body.output_format)
 
     svc = DefinitionService(db)
-    row = await svc.get(def_id=def_id, user_id=actor.user_id)
+    # ⚠️ **roles 要传下去**（2026-11-19 · TODO-192 #10）—— admin 要能执行
+    # 自己无权项目的定义（与 publish / GET 同口径 ⇒ ⇒ 三处不漂）。
+    row = await svc.get(def_id=def_id, user_id=actor.user_id,
+                       actor_roles=list(actor.roles))
 
     # ⚠️⚠️ **scope 项目的授权判定（早失败）**（P10-F · TODO-174 · high）
     # ⇒ ⇒ 位置：`row` 取到之后、**落执行日志 / 入队之前**
