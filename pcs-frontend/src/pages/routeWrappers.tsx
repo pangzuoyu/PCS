@@ -21,7 +21,6 @@ import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types
 import type { Stream } from '../types/stream';
 import type { CodeFormatSegment, PipeClass, SymbolMapping } from '../types/pipeClass';
 import type { PipeNetGraph } from '../types/pipeNet';
-import type { BeddSection, PmsItem } from '../types/pms';
 import type { ConfigAsset } from '../types/configAsset';
 import type { PipeInput, PipeLineListRow, PipeResult } from '../types/pipe';
 import type { FlashInput, FlashResult } from '../types/flash';
@@ -496,11 +495,13 @@ export function SystemSettingsRoute(): JSX.Element {
 //   · **BEDD**：`projects.bedd_json` 这一列**存在**，但**没有任何写入路径**
 //     （全仓只有建表迁移提到它）⇒ ⇒ 没有数据可读 ⇒ ⇒ 补一个端点也只能
 //     永远返回空 ⇒ ⇒ **不补**（免得造一个「看起来有、其实永远空」的端点）。
+// ⚠️ **PMS / BEDD 页面自己取数**（P10-H · T2 · TODO-195）⇒ ⇒
+//   项目作用域来自顶栏的选择器（`useProjectScope`）⇒ ⇒ 换项目 ⇒ 页面跟着换。
 export function PmsRoute(): JSX.Element {
-  return <PmsPage items={[]} />;
+  return <PmsPage />;
 }
 export function BeddRoute(): JSX.Element {
-  return <BeddPage sections={[]} />;
+  return <BeddPage />;
 }
 export function WizardRoute(): JSX.Element {
   return (
@@ -517,11 +518,9 @@ export function WizardRoute(): JSX.Element {
 // 类型导出（防止被 tree-shake 误删其它用得上的 page 子集）
 export type {
   AllowableStress,
-  BeddSection,
   CodeFormatSegment,
   ComponentProperty,
   ConfigAsset,
-  PmsItem,
   PipeClass,
   PipeClassLite,
   PipeInput,

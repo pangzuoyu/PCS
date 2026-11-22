@@ -33,6 +33,20 @@ export const EDITABLE_RECORD_TYPES = [
 export type EditableRecordType = (typeof EDITABLE_RECORD_TYPES)[number];
 
 /**
+ * **记录动作**（送审 / 审批 / 作废 / 批注 …）可用的模块名。
+ *
+ * ⚠️ **比 `EDITABLE_RECORD_TYPES` 宽**：后者是「**有编辑路径**的表」
+ * （锁 + 409 并发基线）⇒ ⇒ 与后端 `edit_guard.TABLE_CAPABILITIES` 同源。
+ * 这里还包括**只走签署/作废、不走编辑锁**的模块 ⇒ ⇒ 当前多一个
+ * `PmsItem`（P10-H · T2 · TODO-195：PMS 管道材料规格，继承 `RecordMixin`
+ * ⇒ ⇒ 吃通用 9 态工作流，但**没有**编辑锁）。
+ *
+ * ⇒ ⇒ **不要**把 `PmsItem` 加进 `EDITABLE_RECORD_TYPES` ⇒ ⇒ 那个清单
+ * 会被 `/locks` 校验 ⇒ ⇒ 加错 ⇒ ⇒ 后端 404。
+ */
+export type RecordActionModule = EditableRecordType | 'PmsItem';
+
+/**
  * 并发基线（SPEC §6.21 P9A-LCK-006）。
  *
  * ⚠️ **字段名必须是 snake_case**（与后端请求体逐字一致）——

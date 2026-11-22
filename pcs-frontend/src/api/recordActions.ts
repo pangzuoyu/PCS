@@ -4,14 +4,15 @@
  * ⚠️ **`{module}` 是 `RECORD_TYPE_REGISTRY` 的键**（`CostEstResult` /
  * `cooling_tower_result` …），**不是表名** —— 后端 `resolve_record_model`
  * 查的就是那个注册表，传错 ⇒ 422 `RECORD_MODULE_UNKNOWN`。
- * ⇒ 复用 `src/api/records.ts` 的 `EditableRecordType`，**不另起词表**。
+ * ⇒ 复用 `src/api/records.ts` 的 `RecordActionModule`，**不另起词表**
+ * （⚠️ 它比 `EDITABLE_RECORD_TYPES` 宽 —— 那是「有编辑路径的表」清单）。
  *
  * ⚠️ **请求体字段名逐字取后端 schema**（`decision` / `reason`）—— 中间层改名
  * ⇒ TS 不报错 ⇒ 后端 422（RF-13 同形坑）。
  */
 import { api } from './client';
 import type { components } from '../types/api';
-import type { EditableRecordType } from './records';
+import type { RecordActionModule } from './records';
 
 export type RecordActionResponse = components['schemas']['RecordActionResponse'];
 export type SubmitApprovalResponse = components['schemas']['SubmitApprovalResponse'];
@@ -36,12 +37,12 @@ export type ApprovalRole =
   | 'DATA_ADMIN';
 
 export const recordActionsApi = {
-  obsolete: (module: EditableRecordType, recordId: string, reason: string) =>
+  obsolete: (module: RecordActionModule, recordId: string, reason: string) =>
     api
       .post<RecordActionResponse>(`/records/${module}/${recordId}/obsolete`, { reason })
       .then((r) => r.data),
 
-  requestReversal: (module: EditableRecordType, recordId: string, reason: string) =>
+  requestReversal: (module: RecordActionModule, recordId: string, reason: string) =>
     api
       .post<RecordActionResponse>(`/records/${module}/${recordId}/request-reversal`, {
         reason,
@@ -49,7 +50,7 @@ export const recordActionsApi = {
       .then((r) => r.data),
 
   reversalDecision: (
-    module: EditableRecordType,
+    module: RecordActionModule,
     recordId: string,
     decision: 'APPROVE' | 'REJECT',
     reason: string,
@@ -64,7 +65,7 @@ export const recordActionsApi = {
   // ⚠️ **R-17**：批准链由**后端**从项目绑定的 `module='RECORD'` 矩阵推导 ⇒
   //    前端**不再**传 `approval_role` / `approval_depth`（客户端说了不算）。
   submitApproval: (
-    module: EditableRecordType,
+    module: RecordActionModule,
     recordId: string,
     reason?: string,
   ) =>
@@ -75,7 +76,7 @@ export const recordActionsApi = {
       .then((r) => r.data),
 
   approvalStep: (
-    module: EditableRecordType,
+    module: RecordActionModule,
     recordId: string,
     decision: 'PASS' | 'REJECT',
     reason: string,
@@ -87,7 +88,7 @@ export const recordActionsApi = {
       })
       .then((r) => r.data),
 
-  abandonChange: (module: EditableRecordType, recordId: string, reason: string) =>
+  abandonChange: (module: RecordActionModule, recordId: string, reason: string) =>
     api
       .post<RecordActionResponse>(`/records/${module}/${recordId}/abandon-change`, {
         reason,
@@ -99,14 +100,14 @@ export const recordActionsApi = {
   //    ⇒ 渲染成**可用**按钮（旧的 R-6「这三个按钮没有端点 ⇒ 禁用」已被推翻）。
   //    ⚠️ 「建变更单 / 作废变更单」**不是**状态机事件 ⇒ 不在这里（归
   //    `ChangeNoticeAction`）。
-  initiateChange: (module: EditableRecordType, recordId: string, reason: string) =>
+  initiateChange: (module: RecordActionModule, recordId: string, reason: string) =>
     api
       .post<RecordActionResponse>(`/records/${module}/${recordId}/initiate-change`, {
         reason,
       })
       .then((r) => r.data),
 
-  applyChange: (module: EditableRecordType, recordId: string, reason: string) =>
+  applyChange: (module: RecordActionModule, recordId: string, reason: string) =>
     api
       .post<RecordActionResponse>(`/records/${module}/${recordId}/apply-change`, {
         reason,
@@ -116,14 +117,14 @@ export const recordActionsApi = {
 
 export const commentsApi = {
   list: (
-    module: EditableRecordType,
+    module: RecordActionModule,
     recordId: string,
     params?: { limit?: number; offset?: number },
   ) =>
     api
       .get<CommentListResponse>(`/records/${module}/${recordId}/comments`, { params })
       .then((r) => r.data),
-  create: (module: EditableRecordType, recordId: string, body: string) =>
+  create: (module: RecordActionModule, recordId: string, body: string) =>
     api
       .post<CommentResponse>(`/records/${module}/${recordId}/comments`, { body })
       .then((r) => r.data),

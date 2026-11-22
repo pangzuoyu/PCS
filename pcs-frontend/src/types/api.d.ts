@@ -4583,6 +4583,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/pms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pms
+         * @description 列项目的 PMS 条目（默认只返 DRAFT / CHECKED ⇒ 排除作废等门禁态）。
+         */
+        get: operations["list_pms_api_v1_projects__project_id__pms_get"];
+        put?: never;
+        /**
+         * Create Pms
+         * @description 新建一条 PMS 条目（**DRAFT** ⇒ ⇒ 送审走通用工作流）。
+         */
+        post: operations["create_pms_api_v1_projects__project_id__pms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/pms/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pms
+         * @description 取一条 PMS 条目（**别的项目的条目 ⇒ 404** ⇒ 不泄漏存在性）。
+         */
+        get: operations["get_pms_api_v1_projects__project_id__pms__item_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Pms
+         * @description 改一条 PMS 条目（**仅 DRAFT** ⇒ 锁定态 409）。
+         */
+        patch: operations["update_pms_api_v1_projects__project_id__pms__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/bedd": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bedd
+         * @description 读项目的 BEDD 文档（**没有 ⇒ 空文档**，不是 404）。
+         */
+        get: operations["get_bedd_api_v1_projects__project_id__bedd_get"];
+        /**
+         * Put Bedd
+         * @description 整份写入 BEDD 文档（**未知分组 / 未知字段 ⇒ 422**）。
+         */
+        put: operations["put_bedd_api_v1_projects__project_id__bedd_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/user-projects/grant": {
         parameters: {
             query?: never;
@@ -7465,6 +7537,196 @@ export interface components {
              * @description 幂等命中标记：已 IN_APPROVAL 时为 `already_in_approval`
              */
             note?: string | null;
+        };
+        /**
+         * BeddDesignCriteria
+         * @description BEDD 分组「设计准则」（SPEC §7.5）。
+         */
+        BeddDesignCriteria: {
+            /** Design Life */
+            design_life?: number | null;
+            /** Operation */
+            operation?: string | null;
+            /** Transportation */
+            transportation?: string | null;
+            /** Noise */
+            noise?: number | null;
+        };
+        /**
+         * BeddDocument
+         * @description BEDD 文档（9 个分组 · SPEC §7.5）。
+         */
+        BeddDocument: {
+            meteorology?: components["schemas"]["BeddMeteorology"] | null;
+            hydrology_geology?: components["schemas"]["BeddHydrologyGeology"] | null;
+            seismic?: components["schemas"]["BeddSeismic"] | null;
+            utilities?: components["schemas"]["BeddUtilities"] | null;
+            emission_limits?: components["schemas"]["BeddEmissionLimits"] | null;
+            design_criteria?: components["schemas"]["BeddDesignCriteria"] | null;
+            safety_fire?: components["schemas"]["BeddSafetyFire"] | null;
+            flare?: components["schemas"]["BeddFlare"] | null;
+            interface_conditions?: components["schemas"]["BeddInterfaceConditions"] | null;
+        };
+        /**
+         * BeddEmissionLimits
+         * @description BEDD 分组「排放限值」（SPEC §7.5）。
+         */
+        BeddEmissionLimits: {
+            /** Gas */
+            gas?: string | null;
+            /** Incineration */
+            incineration?: string | null;
+            /** Dust */
+            dust?: string | null;
+            /** Wastewater */
+            wastewater?: string | null;
+            /** Noise */
+            noise?: number | null;
+            /** Workplace Air */
+            workplace_air?: string | null;
+        };
+        /**
+         * BeddFlare
+         * @description BEDD 分组「火炬」（SPEC §7.5）。
+         */
+        BeddFlare: {
+            /** Back Pressure */
+            back_pressure?: number | null;
+            /** Radiation */
+            radiation?: number | null;
+        };
+        /**
+         * BeddHydrologyGeology
+         * @description BEDD 分组「水文地质」（SPEC §7.5）。
+         */
+        BeddHydrologyGeology: {
+            /** Tidal */
+            tidal?: string | null;
+            /** River */
+            river?: string | null;
+            /** Geology */
+            geology?: string | null;
+        };
+        /**
+         * BeddInterfaceConditions
+         * @description BEDD 分组「界面条件」（SPEC §7.5）。
+         */
+        BeddInterfaceConditions: {
+            /** Inlet */
+            inlet?: string | null;
+            /** Outlet */
+            outlet?: string | null;
+        };
+        /**
+         * BeddMeteorology
+         * @description BEDD 分组「气象」（SPEC §7.5）。
+         */
+        BeddMeteorology: {
+            /** Temperature */
+            temperature?: number | null;
+            /** Humidity */
+            humidity?: number | null;
+            /** Pressure */
+            pressure?: number | null;
+            /** Wind */
+            wind?: number | null;
+            /** Rainfall */
+            rainfall?: number | null;
+            /** Snowfall */
+            snowfall?: number | null;
+            /** Evaporation */
+            evaporation?: number | null;
+            /** Thunderstorm */
+            thunderstorm?: number | null;
+            /** Fog */
+            fog?: number | null;
+            /** Sunshine */
+            sunshine?: number | null;
+            /** Solar Radiation */
+            solar_radiation?: number | null;
+            /** Soil */
+            soil?: string | null;
+            /** Dust */
+            dust?: string | null;
+            /** Altitude */
+            altitude?: number | null;
+        };
+        /**
+         * BeddResponse
+         * @description `GET /projects/{project_id}/bedd` 响应。
+         */
+        BeddResponse: {
+            /** Project Id */
+            project_id: string;
+            /** @description BEDD 文档（9 个分组） */
+            document?: components["schemas"]["BeddDocument"];
+            /**
+             * Updated At
+             * @description 项目行的更新时间（bedd_json 的写入时刻）
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * BeddSafetyFire
+         * @description BEDD 分组「安全消防」（SPEC §7.5）。
+         */
+        BeddSafetyFire: {
+            /** Fire Pump */
+            fire_pump?: string | null;
+            /** Fire Truck */
+            fire_truck?: string | null;
+            /** Foam */
+            foam?: string | null;
+            /** Sprinkler */
+            sprinkler?: string | null;
+            /** Detection */
+            detection?: string | null;
+            /** Isolation Valve */
+            isolation_valve?: string | null;
+            /** Safety Shower */
+            safety_shower?: string | null;
+        };
+        /**
+         * BeddSeismic
+         * @description BEDD 分组「地震」（SPEC §7.5）。
+         */
+        BeddSeismic: {
+            /** Intensity */
+            intensity?: string | null;
+            /** Acceleration */
+            acceleration?: number | null;
+            /** Group */
+            group?: string | null;
+            /** Site Category */
+            site_category?: string | null;
+        };
+        /**
+         * BeddUtilities
+         * @description BEDD 分组「公用工程」（SPEC §7.5）。
+         */
+        BeddUtilities: {
+            /** Steam */
+            steam?: string | null;
+            /** Water */
+            water?: string | null;
+            /** Air */
+            air?: string | null;
+            /** Nitrogen */
+            nitrogen?: string | null;
+            /** Fuel Gas */
+            fuel_gas?: string | null;
+            /** Fuel Oil */
+            fuel_oil?: string | null;
+            /** Hydrogen */
+            hydrogen?: string | null;
+            /** Chemicals */
+            chemicals?: string | null;
+            /** Heat Transfer Oil */
+            heat_transfer_oil?: string | null;
+            /** Condensate */
+            condensate?: string | null;
+            /** Electrical */
+            electrical?: string | null;
         };
         /** Body_import_htri_api_v1_heat_import_htri_post */
         Body_import_htri_api_v1_heat_import_htri_post: {
@@ -15106,6 +15368,130 @@ export interface components {
             check_result: "PASS" | "WARNING" | "FAIL";
             /** Check Result Reason */
             check_result_reason: string | null;
+        };
+        /**
+         * PmsItemCreate
+         * @description `POST /projects/{project_id}/pms` 请求体。
+         */
+        PmsItemCreate: {
+            /**
+             * Pms No
+             * @description PMS 编号（项目内唯一）
+             */
+            pms_no: string;
+            /**
+             * Description
+             * @description 描述
+             * @default
+             */
+            description: string;
+            /**
+             * Pms Class
+             * @description 材料等级 / 类别
+             * @default
+             */
+            pms_class: string;
+            /**
+             * Hazard Level
+             * @description 危险等级（驱动审批层级）
+             * @default LOW
+             * @enum {string}
+             */
+            hazard_level: "LOW" | "MEDIUM" | "HIGH";
+        };
+        /**
+         * PmsItemListResponse
+         * @description `GET /projects/{project_id}/pms` 响应。
+         */
+        PmsItemListResponse: {
+            /** Items */
+            items?: components["schemas"]["PmsItemResponse"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Limit
+             * @default 100
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+        };
+        /**
+         * PmsItemResponse
+         * @description `PmsItem` 响应（`GET` 列表 / 详情 / `POST` / `PATCH`）。
+         */
+        PmsItemResponse: {
+            /**
+             * Item Id
+             * Format: uuid
+             */
+            item_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Pms No */
+            pms_no: string;
+            /** Description */
+            description: string;
+            /** Pms Class */
+            pms_class: string;
+            /** Hazard Level */
+            hazard_level: string;
+            /**
+             * Sign Status
+             * @description 记录门禁 9 态（RecordSignStatus9）
+             */
+            sign_status: string;
+            /**
+             * Record Hash
+             * @description 内容哈希（16 hex）
+             * @default
+             */
+            record_hash: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * PmsItemUpdate
+         * @description `PATCH /projects/{project_id}/pms/{item_id}` 请求体。
+         */
+        PmsItemUpdate: {
+            /**
+             * Pms No
+             * @description PMS 编号（项目内唯一）
+             */
+            pms_no: string;
+            /**
+             * Description
+             * @description 描述
+             * @default
+             */
+            description: string;
+            /**
+             * Pms Class
+             * @description 材料等级 / 类别
+             * @default
+             */
+            pms_class: string;
+            /**
+             * Hazard Level
+             * @description 危险等级（驱动审批层级）
+             * @default LOW
+             * @enum {string}
+             */
+            hazard_level: "LOW" | "MEDIUM" | "HIGH";
         };
         /**
          * ProductCategory
@@ -29430,6 +29816,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipeLineListRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pms_api_v1_projects__project_id__pms_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PmsItemListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_pms_api_v1_projects__project_id__pms_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PmsItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PmsItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pms_api_v1_projects__project_id__pms__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PmsItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_pms_api_v1_projects__project_id__pms__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PmsItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PmsItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bedd_api_v1_projects__project_id__bedd_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BeddResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_bedd_api_v1_projects__project_id__bedd_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BeddDocument"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BeddResponse"];
                 };
             };
             /** @description Validation Error */

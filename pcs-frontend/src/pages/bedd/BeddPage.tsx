@@ -1,114 +1,182 @@
 /**
- * BeddPage — BEDD 文档（P45-3-8 / Task 35）。
+ * BeddPage — BEDD 文档（P10-H · T2 · TODO-195 · SPEC §7.5）。
  *
- * SPEC §7.5.2：
- * - 章节列表（左侧）+ 内容预览（右侧）
- * - 签名行（step_index + signer + signed_at）
+ * ## 数据源与形状
+ *
+ * - 文档：`GET /projects/{project_id}/bedd`（**真端点** ⇒ ⇒ 有写入路径了）
+ * - 表单：`GET /meta/ui-schema/bedd`（**分组 Tab 编辑** ⇒ ⇒ SPEC §7.5）
+ *
+ * ⚠️ **此前本页是占位**（P10-C · T2 · TODO-159）：调的端点**契约里没有**
+ * ⇒ ⇒ 真后端 404 ⇒ ⇒ mock 通道一路绿灯。
+ *
+ * ## 为什么是「9 个分组」而不是「章节列表」
+ *
+ * 前端原先画的是**章节 + 签名**（P45-3-8 自创）⇒ ⇒ 与 SPEC §7.5
+ * **不是同一件事**（TODO-195 已记）⇒ ⇒ 人裁（2026-11-23）：**按 SPEC**
+ * ⇒ ⇒ 本页改成**分组 Tab**（uiSchema 的字段路径前缀 = 分组）。
  */
-import { useState } from 'react';
-import { Alert, Card, Col, Descriptions, Empty, List, Row, Space, Tag, Typography } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Spin, Tabs, message } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
-import { StateBadge } from '../../components/common/StateBadge';
-import type { BeddSection } from '../../types/pms';
+import { SchemaForm, type UiSchemaField } from '../../components/common/SchemaForm';
+import { beddApi, type BeddDocument } from '../../api/pms';
+import { metaApi } from '../../api/meta';
+import { useProjectScope } from '../../hooks/useProjectScope';
 
-interface Props {
-  sections: BeddSection[];
-}
+/** 分组 key → 中文 Tab 名（与后端 `BEDD_GROUP_LABELS` 一致 ⇒ ⇒ 顺序也一致）。 */
+const GROUP_LABELS: Record<string, string> = {
+  meteorology: '气象',
+  hydrology_geology: '水文地质',
+  seismic: '地震',
+  utilities: '公用工程',
+  emission_limits: '排放限值',
+  design_criteria: '设计准则',
+  safety_fire: '安全消防',
+  flare: '火炬',
+  interface_conditions: '界面条件',
+};
 
-export function BeddPage({ sections }: Props): JSX.Element {
-  const [active, setActive] = useState<string | null>(sections[0]?.section_id ?? null);
-  const current = sections.find((s) => s.section_id === active);
+export function BeddPage(): JSX.Element {
+  const { projectId, loading: scopeLoading, error: scopeError } = useProjectScope();
+  const [fields, setFields] = useState<UiSchemaField[]>([]);
+  /** 分组 key → {字段 key: 值} */
+  const [doc, setDoc] = useState<Record<string, Record<string, unknown>>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, msgCtx] = message.useMessage();
+
+  const reload = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [schema, res] = await Promise.all([
+        metaApi.uiSchema('bedd'),
+        beddApi.get(projectId),
+      ]);
+      setFields(schema.fields ?? []);
+      const document = (res.document ?? {}) as Record<string, unknown>;
+      const next: Record<string, Record<string, unknown>> = {};
+      for (const [group, values] of Object.entries(document)) {
+        if (values && typeof values === 'object') {
+          next[group] = { ...(values as Record<string, unknown>) };
+        }
+      }
+      setDoc(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'BEDD 文档加载失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  /** 按分组切 uiSchema 字段（路径前缀 = 分组）⇒ ⇒ 一个分组一个 Tab。 */
+  const groups = useMemo(() => {
+    const byGroup = new Map<string, UiSchemaField[]>();
+    for (const field of fields) {
+      const [group, ...rest] = field.path.split('.');
+      if (rest.length === 0) continue;
+      const bare: UiSchemaField = { ...field, path: rest.join('.') };
+      byGroup.set(group, [...(byGroup.get(group) ?? []), bare]);
+    }
+    return [...byGroup.entries()];
+  }, [fields]);
+
+  async function handleSave(): Promise<void> {
+    if (!projectId) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      for (const [group, values] of Object.entries(doc)) {
+        const cleaned = Object.fromEntries(
+          Object.entries(values).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+        );
+        if (Object.keys(cleaned).length > 0) payload[group] = cleaned;
+      }
+      await beddApi.put(projectId, payload as BeddDocument);
+      msg.success('已保存 BEDD 文档');
+      await reload();
+    } catch (err) {
+      msg.error(err instanceof Error ? err.message : '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (scopeError) {
+    return (
+      <div data-testid="bedd-page">
+        <PageHeader title="BEDD 文档" module="CONFIG" actions={null as unknown as undefined} />
+        <Alert
+          type="warning"
+          showIcon
+          data-testid="bedd-scope-error"
+          message="没有可用的项目作用域"
+          description={scopeError}
+        />
+      </div>
+    );
+  }
 
   return (
     <div data-testid="bedd-page">
-      <PageHeader title="BEDD 文档" module="CONFIG" actions={null as unknown as undefined} />
-
-      {/* ⚠️ **占位说明（P10-C · T2 · TODO-159）** —— 这不是「没有数据」，
-       *     是「**数据源还不存在**」。
-       *
-       * 此前本页调 `GET /projects/{id}/bedd` ⇒ ⇒ **契约里没有这个端点**
-       * ⇒ ⇒ 真后端 404（mock 通道有 handler ⇒ 一路绿灯 ⇒ 只有真后端抓得到）。
-       *
-       * ⚠️ **为什么不给 `projects.bedd_json` 补一个读端点**：那一列**存在**
-       * （`projects.bedd_json` JSONB）⇒ ⇒ 但全仓**没有任何写入路径**
-       * （只有建表迁移提到它）⇒ ⇒ 补出来的端点**永远返回空**
-       * ⇒ ⇒ 「看起来有、其实永远空」的端点比没有更坏 ⇒ ⇒ 不补。
-       *
-       * ⚠️ SPEC §7.5 的 BEDD 是**项目创建向导的第 3 步（BEDD 录入）**
-       * +「分组 Tab 编辑」⇒ ⇒ 与本页的「章节列表」不是同一件事。
-       */}
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        data-testid="bedd-not-wired"
-        message="BEDD 数据源尚未接入"
-        description="projects.bedd_json 这一列目前没有任何写入路径（只有建表迁移提到它）⇒ 无数据可读 ⇒ 本页暂为占位。SPEC §7.5 的 BEDD 是「项目创建向导」的第 3 步（BEDD 录入），与本页不是同一件事。"
+      <PageHeader
+        title="BEDD 文档"
+        module="CONFIG"
+        actions={
+          <Button
+            type="primary"
+            data-testid="bedd-save"
+            loading={saving}
+            disabled={!projectId || scopeLoading}
+            onClick={() => void handleSave()}
+          >
+            保存
+          </Button>
+        }
       />
 
-      <Row gutter={16}>
-        <Col span={8}>
-          <Card title={`章节 (${sections.length})`} size="small">
-            {sections.length === 0 ? (
-              <Empty description="无章节" />
-            ) : (
-              <List
-                data-testid="bedd-section-list"
-                dataSource={sections.map((s) => ({ ...s, idx: s.section_id }))}
-                renderItem={(item) => (
-                  <List.Item
-                    data-testid="bedd-section-item"
-                    data-section-id={item.section_id}
-                    onClick={() => setActive(item.section_id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: item.section_id === active ? 600 : 400 }}>
-                        {item.title}
-                      </span>
-                      <StateBadge status={item.sign_status} module="CONFIG" />
-                    </Space>
-                  </List.Item>
-                )}
+      {error ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          data-testid="bedd-error"
+          message="BEDD 文档加载失败"
+          description={error}
+        />
+      ) : null}
+
+      <Spin spinning={loading}>
+        <Tabs
+          data-testid="bedd-tabs"
+          items={groups.map(([group, groupFields]) => ({
+            key: group,
+            label: GROUP_LABELS[group] ?? group,
+            children: (
+              <SchemaForm
+                schema={{
+                  schema_version: '1.0.0',
+                  resource: `bedd.${group}`,
+                  fields: groupFields,
+                }}
+                value={doc[group] ?? {}}
+                onChange={(values) =>
+                  setDoc((prev) => ({ ...prev, [group]: values }))
+                }
               />
-            )}
-          </Card>
-        </Col>
+            ),
+          }))}
+        />
+      </Spin>
 
-        <Col span={16}>
-          <Card title={current?.title ?? '请选择章节'} size="small" data-testid="bedd-content">
-            {!current ? (
-              <Empty description="请选择左侧章节" />
-            ) : (
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                <Typography.Paragraph>{current.content}</Typography.Paragraph>
-
-                <Card size="small" title="签名" data-testid="bedd-signatures">
-                  {!current.signatures || current.signatures.length === 0 ? (
-                    <Typography.Text type="secondary">暂无签名</Typography.Text>
-                  ) : (
-                    <Descriptions size="small">
-                          {current.signatures.map((sig) => (
-                            <Descriptions.Item
-                              key={sig.step_index}
-                              label={
-                                <Space>
-                                  <Tag color="blue">Step {sig.step_index}</Tag>
-                                </Space>
-                              }
-                            >
-                              {sig.signer} · {sig.signed_at}
-                            </Descriptions.Item>
-                          ))}
-                        </Descriptions>
-                  )}
-                </Card>
-              </Space>
-            )}
-          </Card>
-        </Col>
-      </Row>
+      {msgCtx}
     </div>
   );
 }

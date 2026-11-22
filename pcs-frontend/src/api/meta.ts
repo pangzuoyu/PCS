@@ -16,6 +16,7 @@
  */
 import { api } from './client';
 import type { components } from '../types/api';
+import type { UiSchemaResponse } from '../components/common/SchemaForm';
 
 export type StateMachineResponse = components['schemas']['StateMachineResponse'];
 export type StateTransition = components['schemas']['StateTransition-Output'];
@@ -26,4 +27,12 @@ export const metaApi = {
     api.get<StateMachineResponse>('/meta/state-machine').then((r) => r.data),
   permissions: (): Promise<PermissionItem[]> =>
     api.get<PermissionItem[]>('/meta/permissions').then((r) => r.data),
+  /**
+   * `GET /meta/ui-schema/{resource}`（表单节点契约 ⇒ ⇒ 驱动 SchemaForm）。
+   *
+   * ⚠️ **resource 是后端词表**（`ui_schema_service._FIELDS` 的键）⇒ ⇒
+   * 传错 ⇒ ⇒ **404** `UNKNOWN_UI_SCHEMA_RESOURCE`。
+   */
+  uiSchema: (resource: string): Promise<UiSchemaResponse> =>
+    api.get<UiSchemaResponse>(`/meta/ui-schema/${resource}`).then((r) => r.data),
 };

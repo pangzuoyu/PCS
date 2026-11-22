@@ -55,7 +55,7 @@ import { metaSeed, MOCK_TOKEN } from "./seed/meta";
 import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/common";
 import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
-import { seedBeddSections, seedPmsItems } from "./seed/pms";
+import { seedBedd, seedBeddUiSchema, seedPmsList } from "./seed/pms";
 import { seedEquipmentList } from "./seed/equipment";
 import {
   seedStreams,
@@ -509,16 +509,6 @@ const devOnlyMockHandlers = [
   http.get("/api/v1/pipe-classes", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json(seedPipeClasses);
-  }),
-
-  // === PMS / BEDD ===
-  http.get("/api/v1/projects/:project_id/pms", ({ request }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedPmsItems);
-  }),
-  http.get("/api/v1/projects/:project_id/bedd", ({ request }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedBeddSections);
   }),
 
   // === 物性 / 许用应力 / 毒性爆炸 ===
@@ -1429,6 +1419,33 @@ export const handlers = [
       );
     }
     return HttpResponse.json(row);
+  }),
+
+  // === PMS / BEDD（P10-H · T2 · TODO-195）===
+  // ⚠️ 放**契约组**：这两个端点**本来就在契约里**（后端 P10-H · T2 补的）
+  // ⇒ ⇒ 形状必须照抄契约 ⇒ ⇒ 否则 mock 与契约漂移。
+  http.get("/api/v1/projects/:project_id/pms", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedPmsList);
+  }),
+  http.get("/api/v1/projects/:project_id/bedd", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedBedd);
+  }),
+
+  // === 表单节点契约（uiSchema）===
+  // ⚠️ **契约端点**（`GET /meta/ui-schema/{resource}` 在 OpenAPI 里）
+  // ⇒ ⇒ 至少要服务 BEDD（BEDD 页的分组 Tab 由它驱动）。
+  // ⚠️ **未知 resource ⇒ 404**（与真后端同形：`UNKNOWN_UI_SCHEMA_RESOURCE`）。
+  http.get("/api/v1/meta/ui-schema/:resource", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    if (params.resource !== "bedd") {
+      return HttpResponse.json(
+        { code: "UNKNOWN_UI_SCHEMA_RESOURCE", message: `未知资源：${params.resource}` },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(seedBeddUiSchema);
   }),
 
   http.get("/api/v1/meta/enums", ({ request }) => {

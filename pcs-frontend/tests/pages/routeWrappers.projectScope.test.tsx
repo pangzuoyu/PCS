@@ -79,6 +79,15 @@ beforeEach(() => {
   get.mockImplementation((url: string) => {
     if (url === '/user-projects/me') return Promise.resolve({ data: grants } as never);
     if (url === '/workspaces') return Promise.resolve({ data: workspaces } as never);
+    if (url === '/meta/ui-schema/bedd') {
+      return Promise.resolve({ data: { schema_version: '1.0.0', resource: 'bedd', fields: [] } } as never);
+    }
+    if (url === '/projects/proj-real/pms') {
+      return Promise.resolve({ data: { items: [], total: 0, limit: 100, offset: 0 } } as never);
+    }
+    if (url === '/projects/proj-real/bedd') {
+      return Promise.resolve({ data: { project_id: 'proj-real', document: {}, updated_at: null } } as never);
+    }
     // `GET /projects/{id}` ⇒ ⇒ 项目名
     const id = url.replace('/projects/', '');
     return Promise.resolve({
@@ -125,20 +134,20 @@ describe('PipeLineListRoute — 用**真** project id (P10-C · T2)', () => {
   });
 });
 
-describe('PmsRoute / BeddRoute — **零请求**的占位页 (P10-C · T2)', () => {
-  it('/pms ⇒ 不发任何请求，且页面写明「数据源尚未接入」', async () => {
+describe('PmsRoute / BeddRoute — 接**真端点**（P10-H · T2 · TODO-195）', () => {
+  it('/pms ⇒ 按**当前项目**取数（不再是占位页）', async () => {
     render(<PmsRoute />);
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/projects/proj-real/pms'));
     expect(screen.getByTestId('pms-page')).toBeTruthy();
-    expect(screen.getByTestId('pms-not-wired')).toBeTruthy();
-    expect(fetched).toEqual([]);
-    expect(get).not.toHaveBeenCalled();
+    // ⚠️ **不再有「数据源尚未接入」** ⇒ ⇒ 那是占位期的说法
+    expect(screen.queryByTestId('pms-not-wired')).toBeNull();
   });
 
-  it('/bedd ⇒ 不发任何请求，且页面写明「数据源尚未接入」', async () => {
+  it('/bedd ⇒ 取文档 + uiSchema（分组 Tab）', async () => {
     render(<BeddRoute />);
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/projects/proj-real/bedd'));
+    expect(get).toHaveBeenCalledWith('/meta/ui-schema/bedd');
     expect(screen.getByTestId('bedd-page')).toBeTruthy();
-    expect(screen.getByTestId('bedd-not-wired')).toBeTruthy();
-    expect(fetched).toEqual([]);
-    expect(get).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('bedd-not-wired')).toBeNull();
   });
 });

@@ -23,6 +23,7 @@ import { seedPipeLineRows } from "../../src/mocks/seed/pipe-line";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
 import { seedProjects, seedUserProjects } from "../../src/mocks/seed/projects";
+import { seedBedd, seedBeddUiSchema, seedPmsList } from "../../src/mocks/seed/pms";
 import {
   seedAdminUsers,
   seedDeliverableActions,
@@ -500,6 +501,30 @@ describe("项目作用域 mock 形状 ↔ OpenAPI（P10-H · T1）", () => {
     expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
     const validate = ajv.compile(schema as object);
     const ok = validate(seedUserProjects);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/projects/{project_id}/pms 的响应体符合契约（PMS · P10-H · T2）", () => {
+    const schema = schemaFor("/api/v1/projects/{project_id}/pms", "get");
+    expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
+    const validate = ajv.compile(schema as object);
+    const ok = validate(seedPmsList);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/projects/{project_id}/bedd 的响应体符合契约（BEDD · P10-H · T2）", () => {
+    const schema = schemaFor("/api/v1/projects/{project_id}/bedd", "get");
+    expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
+    const validate = ajv.compile(schema as object);
+    const ok = validate(seedBedd);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/meta/ui-schema/{resource} 的响应体符合契约（P10-H · T2）", () => {
+    const schema = schemaFor("/api/v1/meta/ui-schema/{resource}", "get");
+    expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
+    const validate = ajv.compile(schema as object);
+    const ok = validate(seedBeddUiSchema);
     expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
   });
 
