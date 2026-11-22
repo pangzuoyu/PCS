@@ -578,3 +578,42 @@ async def test_seed_corrects_a_legacy_workspace_without_owner(db_session):
         f"PERSONAL 工作区**按设计**没有项目 ⇒ {personal.project_id}"
     )
     assert personal.owner_id == derive_user_id("alice"), personal.owner_id
+
+
+# ---------------------------------------------------------------------------
+# 种子造的报表定义**必须能被当前契约读**（2026-11-19 · P10-G · 真后端通道撞出来的）
+# ---------------------------------------------------------------------------
+
+
+def test_seed_report_definition_body_matches_the_contract():
+    """⚠️⚠️ **种子写的 `definition_json` 必须是契约形状**。
+
+    ⇒ ⇒ 契约 `ReportDefinitionBody` 是 **`extra="forbid"`** ⇒ ⇒ 多一个字段
+    ⇒ ⇒ **就报错** ⇒ ⇒ 而种子此前写的是**旧形状**
+    （`datasource` / `fields` / `filters` 小写）⇒ ⇒ ⇒
+    ⇒ `GET /report-builder/definitions` 序列化那一行 ⇒ ⇒
+    ⇒ **整个列表端点 500** ⇒ ⇒ 真后端通道里 admin 一进「报表定义」页就 500。
+
+    ⇒ ⇒ **这是「种子造的行当前应用读不了」** ⇒ ⇒ 谁种过谁中招 ⇒ ⇒
+    ⇒ ⇒ 必须有一条守卫钉住：**种子载荷 ⇒ 契约校验 ⇒ 过**。
+    """
+    from app.schemas.report_builder import ReportDefinitionBody
+    from scripts.seed_e2e_flows import SEED_REPORT_DEFINITION_JSON
+
+    # 不抛 = 过（extra="forbid" ⇒ 多余字段会在这里炸）
+    body = ReportDefinitionBody.model_validate(SEED_REPORT_DEFINITION_JSON)
+    assert body.OutputFormat == "xlsx"
+    assert body.MaxRows == 1000
+    assert [f.field for f in body.SelectedFields] == ["stream_name", "phase"]
+
+
+def test_seed_report_definition_output_format_is_renderable():
+    """⚠️ `output_format` 列的值必须在**可渲染格式**里（否则定义建出来就跑不了）。"""
+    from app.api.v1.report_builder import _RENDERABLE_FORMATS
+    from scripts.seed_e2e_flows import SEED_REPORT_DEFINITION_JSON
+
+    fmt = SEED_REPORT_DEFINITION_JSON["OutputFormat"]
+    assert fmt in _RENDERABLE_FORMATS, (
+        f"种子的 OutputFormat {fmt!r} 不在可渲染格式里（{sorted(_RENDERABLE_FORMATS)}）"
+        " ⇒ ⇒ 种子造的定义**执行不了**"
+    )

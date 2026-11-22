@@ -770,11 +770,43 @@ async def _ensure_record(
     )
 
 
+#: 种子报表定义的**契约形状**（`app/schemas/report_builder.py::ReportDefinitionBody`）。
+#:
+#: ⚠️⚠️ **为什么必须是 PascalCase**（2026-11-19 · P10-G · 真后端通道撞出来的）：
+#: 契约是 `extra="forbid"` ⇒ ⇒ **多一个字段就报错** ⇒ ⇒ 而此前种子写的是
+#: **旧形状**（`datasource` / `fields` / `filters` 小写）⇒ ⇒ ⇒
+#: `GET /report-builder/definitions` 序列化那一行 ⇒ ⇒
+#: **pydantic `extra_forbidden` ⇒ ⇒ 整个列表端点 500**
+#: ⇒ ⇒ ⇒ 「种子造的行**当前应用读不了**」⇒ ⇒ ⇒ 谁种过谁中招。
+#:
+#: ⚠️ `OutputFormat` 也要小写（`xlsx`）⇒ ⇒ `output_format` 列同理
+#: ⇒ ⇒ `_RENDERABLE_FORMATS` 里是大写就**不可执行**。
+SEED_REPORT_DEFINITION_JSON: dict[str, Any] = {
+    "DataSources": [{"source": "STREAMS", "join_to": None}],
+    "SelectedFields": [
+        {"source": "STREAMS", "field": "stream_name", "alias": "",
+         "order": 1, "visible": True},
+        {"source": "STREAMS", "field": "phase", "alias": "",
+         "order": 2, "visible": True},
+    ],
+    "FilterConditions": [],
+    "SortBy": [],
+    "MaxRows": 1000,
+    "OutputFormat": "xlsx",
+    "detailLevel": "BASIC",
+}
+
+
 async def _ensure_report_definition(
     db: AsyncSession, project: Project
 ) -> ReportDefinition:
-    """建/取自定义报表定义（E2E-015 用）。"""
-    return await _get_or_create(
+    """建/取自定义报表定义（E2E-015 用）。
+
+    ⚠️ **存在即订正**（同 `_correct_workspace` 的理由）：`_get_or_create` 是
+    「存在就不动」⇒ ⇒ 只改工厂函数**不修已种下的老行**⇒ ⇒ 现象照旧
+    ⇒ ⇒ 这里显式订正 ⇒ ⇒ **重跑一次种子就修好了**。
+    """
+    row = await _get_or_create(
         db,
         select(ReportDefinition).where(ReportDefinition.def_id == FLOW_REPORT_DEF_ID),
         lambda: ReportDefinition(
@@ -783,12 +815,8 @@ async def _ensure_report_definition(
             name="E2E 流程级报表定义",
             category="CUSTOM",
             description="E2E 种子",
-            definition_json={
-                "datasource": "streams",
-                "fields": ["stream_name", "phase"],
-                "filters": {},
-            },
-            output_format="XLSX",
+            definition_json=dict(SEED_REPORT_DEFINITION_JSON),
+            output_format="xlsx",
             max_rows=1000,
             # ⚠️ **`version` 是 VARCHAR**（`app/models/report.py`：`Mapped[str]`）
             # ⇒ 塞 `int` ⇒ psycopg 让 PG 自己转（**绿**）⇒ asyncpg 直接报
@@ -796,8 +824,28 @@ async def _ensure_report_definition(
             # ⇒ ⇒ **生产上必炸**（app 的异步引擎是 asyncpg）⇒ **bug-2166**
             version="1",
             status="PUBLISHED",
+            # ⚠️ **项目级模板 ⇒ 「项目内共享」** ⇒ ⇒ `ALL_USERS`
+            # ⇒ ⇒（`CREATOR_ONLY` 的话项目成员看不见它 ⇒ ⇒ 种子等于白种）
+            shared_with="ALL_USERS",
         ),
     )
+    # ⚠️ **订正老行**（旧形状 / 大写格式 / 默认共享口径）⇒ ⇒ 只在真的不对时才写
+    changed = False
+    if row.definition_json != SEED_REPORT_DEFINITION_JSON:
+        row.definition_json = dict(SEED_REPORT_DEFINITION_JSON)
+        changed = True
+    if row.output_format != "xlsx":
+        row.output_format = "xlsx"
+        changed = True
+    if row.shared_with != "ALL_USERS":
+        row.shared_with = "ALL_USERS"
+        changed = True
+    if row.project_id != project.project_id:
+        row.project_id = project.project_id
+        changed = True
+    if changed:
+        await db.flush()
+    return row
 
 
 # ---------------------------------------------------------------------------
