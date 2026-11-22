@@ -13879,6 +13879,433 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/pms": {
+      "get": {
+        "tags": [
+          "pms"
+        ],
+        "summary": "List Pms",
+        "description": "列项目的 PMS 条目（默认只返 DRAFT / CHECKED ⇒ 排除作废等门禁态）。",
+        "operationId": "list_pms_api_v1_projects__project_id__pms_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PmsItemListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "pms"
+        ],
+        "summary": "Create Pms",
+        "description": "新建一条 PMS 条目（**DRAFT** ⇒ ⇒ 送审走通用工作流）。",
+        "operationId": "create_pms_api_v1_projects__project_id__pms_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PmsItemCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PmsItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/pms/{item_id}": {
+      "get": {
+        "tags": [
+          "pms"
+        ],
+        "summary": "Get Pms",
+        "description": "取一条 PMS 条目（**别的项目的条目 ⇒ 404** ⇒ 不泄漏存在性）。",
+        "operationId": "get_pms_api_v1_projects__project_id__pms__item_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PmsItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "pms"
+        ],
+        "summary": "Update Pms",
+        "description": "改一条 PMS 条目（**仅 DRAFT** ⇒ 锁定态 409）。",
+        "operationId": "update_pms_api_v1_projects__project_id__pms__item_id__patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PmsItemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PmsItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/bedd": {
+      "get": {
+        "tags": [
+          "bedd"
+        ],
+        "summary": "Get Bedd",
+        "description": "读项目的 BEDD 文档（**没有 ⇒ 空文档**，不是 404）。",
+        "operationId": "get_bedd_api_v1_projects__project_id__bedd_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeddResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "bedd"
+        ],
+        "summary": "Put Bedd",
+        "description": "整份写入 BEDD 文档（**未知分组 / 未知字段 ⇒ 422**）。",
+        "operationId": "put_bedd_api_v1_projects__project_id__bedd_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BeddDocument"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeddResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/user-projects/grant": {
       "post": {
         "tags": [
@@ -22476,6 +22903,789 @@
         ],
         "title": "BatchSucceededItem",
         "description": "一条成功的物流。\n\n⚠️ `status` 是**判别字段**（discriminator）—— 成功与失败是**两个类型**的\nunion ⇒ 前端与调用方都靠 `status` 分流，不必靠「在哪个数组里」判断\n（委员会 2026-11-03 · D5 裁决）。"
+      },
+      "BeddDesignCriteria": {
+        "properties": {
+          "design_life": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Life"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation"
+          },
+          "transportation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transportation"
+          },
+          "noise": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddDesignCriteria",
+        "description": "BEDD 分组「设计准则」（SPEC §7.5）。"
+      },
+      "BeddDocument": {
+        "properties": {
+          "meteorology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddMeteorology"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hydrology_geology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddHydrologyGeology"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seismic": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddSeismic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "utilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddUtilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "emission_limits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddEmissionLimits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "design_criteria": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddDesignCriteria"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "safety_fire": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddSafetyFire"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flare": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddFlare"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interface_conditions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeddInterfaceConditions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddDocument",
+        "description": "BEDD 文档（9 个分组 · SPEC §7.5）。"
+      },
+      "BeddEmissionLimits": {
+        "properties": {
+          "gas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas"
+          },
+          "incineration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incineration"
+          },
+          "dust": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dust"
+          },
+          "wastewater": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wastewater"
+          },
+          "noise": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise"
+          },
+          "workplace_air": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workplace Air"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddEmissionLimits",
+        "description": "BEDD 分组「排放限值」（SPEC §7.5）。"
+      },
+      "BeddFlare": {
+        "properties": {
+          "back_pressure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Back Pressure"
+          },
+          "radiation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radiation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddFlare",
+        "description": "BEDD 分组「火炬」（SPEC §7.5）。"
+      },
+      "BeddHydrologyGeology": {
+        "properties": {
+          "tidal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tidal"
+          },
+          "river": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "River"
+          },
+          "geology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geology"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddHydrologyGeology",
+        "description": "BEDD 分组「水文地质」（SPEC §7.5）。"
+      },
+      "BeddInterfaceConditions": {
+        "properties": {
+          "inlet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inlet"
+          },
+          "outlet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddInterfaceConditions",
+        "description": "BEDD 分组「界面条件」（SPEC §7.5）。"
+      },
+      "BeddMeteorology": {
+        "properties": {
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity"
+          },
+          "pressure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure"
+          },
+          "wind": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wind"
+          },
+          "rainfall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rainfall"
+          },
+          "snowfall": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snowfall"
+          },
+          "evaporation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaporation"
+          },
+          "thunderstorm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thunderstorm"
+          },
+          "fog": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fog"
+          },
+          "sunshine": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sunshine"
+          },
+          "solar_radiation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solar Radiation"
+          },
+          "soil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soil"
+          },
+          "dust": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dust"
+          },
+          "altitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddMeteorology",
+        "description": "BEDD 分组「气象」（SPEC §7.5）。"
+      },
+      "BeddResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "document": {
+            "$ref": "#/components/schemas/BeddDocument",
+            "description": "BEDD 文档（9 个分组）"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "项目行的更新时间（bedd_json 的写入时刻）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "BeddResponse",
+        "description": "`GET /projects/{project_id}/bedd` 响应。"
+      },
+      "BeddSafetyFire": {
+        "properties": {
+          "fire_pump": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fire Pump"
+          },
+          "fire_truck": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fire Truck"
+          },
+          "foam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foam"
+          },
+          "sprinkler": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sprinkler"
+          },
+          "detection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detection"
+          },
+          "isolation_valve": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isolation Valve"
+          },
+          "safety_shower": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safety Shower"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddSafetyFire",
+        "description": "BEDD 分组「安全消防」（SPEC §7.5）。"
+      },
+      "BeddSeismic": {
+        "properties": {
+          "intensity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intensity"
+          },
+          "acceleration": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceleration"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "site_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Category"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddSeismic",
+        "description": "BEDD 分组「地震」（SPEC §7.5）。"
+      },
+      "BeddUtilities": {
+        "properties": {
+          "steam": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steam"
+          },
+          "water": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water"
+          },
+          "air": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Air"
+          },
+          "nitrogen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nitrogen"
+          },
+          "fuel_gas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuel Gas"
+          },
+          "fuel_oil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuel Oil"
+          },
+          "hydrogen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydrogen"
+          },
+          "chemicals": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chemicals"
+          },
+          "heat_transfer_oil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Transfer Oil"
+          },
+          "condensate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condensate"
+          },
+          "electrical": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Electrical"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BeddUtilities",
+        "description": "BEDD 分组「公用工程」（SPEC §7.5）。"
       },
       "Body_import_htri_api_v1_heat_import_htri_post": {
         "properties": {
@@ -35252,6 +36462,210 @@
         ],
         "title": "PipeNetSolveResponse",
         "description": "POST /pipe-net/solve 响应。"
+      },
+      "PmsItemCreate": {
+        "properties": {
+          "pms_no": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Pms No",
+            "description": "PMS 编号（项目内唯一）"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Description",
+            "description": "描述",
+            "default": ""
+          },
+          "pms_class": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Pms Class",
+            "description": "材料等级 / 类别",
+            "default": ""
+          },
+          "hazard_level": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "title": "Hazard Level",
+            "description": "危险等级（驱动审批层级）",
+            "default": "LOW"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pms_no"
+        ],
+        "title": "PmsItemCreate",
+        "description": "`POST /projects/{project_id}/pms` 请求体。"
+      },
+      "PmsItemListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PmsItemResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "default": 100
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PmsItemListResponse",
+        "description": "`GET /projects/{project_id}/pms` 响应。"
+      },
+      "PmsItemResponse": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Item Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "pms_no": {
+            "type": "string",
+            "title": "Pms No"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "pms_class": {
+            "type": "string",
+            "title": "Pms Class"
+          },
+          "hazard_level": {
+            "type": "string",
+            "title": "Hazard Level"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "记录门禁 9 态（RecordSignStatus9）"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "内容哈希（16 hex）",
+            "default": ""
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "project_id",
+          "pms_no",
+          "description",
+          "pms_class",
+          "hazard_level",
+          "sign_status"
+        ],
+        "title": "PmsItemResponse",
+        "description": "`PmsItem` 响应（`GET` 列表 / 详情 / `POST` / `PATCH`）。"
+      },
+      "PmsItemUpdate": {
+        "properties": {
+          "pms_no": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Pms No",
+            "description": "PMS 编号（项目内唯一）"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Description",
+            "description": "描述",
+            "default": ""
+          },
+          "pms_class": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Pms Class",
+            "description": "材料等级 / 类别",
+            "default": ""
+          },
+          "hazard_level": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "title": "Hazard Level",
+            "description": "危险等级（驱动审批层级）",
+            "default": "LOW"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pms_no"
+        ],
+        "title": "PmsItemUpdate",
+        "description": "`PATCH /projects/{project_id}/pms/{item_id}` 请求体。"
       },
       "ProductCategory": {
         "type": "string",

@@ -4,6 +4,7 @@ from app.api.v1.admin_users import router as admin_users_router  # P9A-ADM-001/0
 from app.api.v1.ai import router as ai_router  # P10-A · SPEC §3.1.2 AI 预留（5 端点，一律 501）
 from app.api.v1.audit import router as audit_router  # F-P2-009 Sprint 3 / Issue 7
 from app.api.v1.auth import router as auth_router
+from app.api.v1.bedd import router as bedd_router  # P10-H · T2（TODO-195）BEDD 文档
 from app.api.v1.change_impact import router as change_impact_router
 from app.api.v1.checklist import router as checklist_router
 from app.api.v1.common import router as common_router
@@ -30,6 +31,7 @@ from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.pipe_line_list import router as pipe_line_list_router  # P10-C · T2（TODO-159）
 from app.api.v1.pipe_net import router as pipe_net_router
+from app.api.v1.pms import router as pms_router  # P10-H · T2（TODO-195）PMS 材料规格
 from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
@@ -100,6 +102,8 @@ api_router.include_router(thermosiphon_router)  # P5-0-1b T1
 api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
 api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
 api_router.include_router(pipe_line_list_router)  # P10-C · T2（TODO-159）管道一览表
+api_router.include_router(pms_router)  # P10-H · T2（TODO-195）PMS 材料规格
+api_router.include_router(bedd_router)  # P10-H · T2（TODO-195）BEDD 文档
 api_router.include_router(user_projects_router)  # P7-7+ BLOCKER-3 admin
 api_router.include_router(deliverables_router)  # P1-7+ D 模块读面（P8 REPORT 依赖）
 api_router.include_router(signature_matrices_router)  # TODO-070 签署矩阵管理面

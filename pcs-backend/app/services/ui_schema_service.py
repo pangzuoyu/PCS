@@ -40,7 +40,35 @@ SCHEMA_VERSION = "1.0.0"
 
 # === resource × fields 表 ===
 
+def _bedd_fields() -> list[dict[str, Any]]:
+    """BEDD 文档的表单字段（P10-H · T2 · TODO-195 · SPEC §7.5）。
+
+    ⚠️ **字段表从 `app.schemas.bedd.BEDD_FIELDS` 来** ⇒ ⇒ 表单渲染与
+    后端校验（分组/字段白名单）**同一份真相源** ⇒ ⇒ 不会漂。
+
+    path 形如 `meteorology.temperature` ⇒ ⇒ 前端按前缀分组（SPEC §7.5
+    「分组 Tab 编辑」⇒ ⇒ 一个分组一个 Tab）。
+    """
+    from app.schemas.bedd import BEDD_FIELDS
+
+    out: list[dict[str, Any]] = []
+    for group_key, fields in BEDD_FIELDS.items():
+        for i, (field_key, label, widget, _kind) in enumerate(fields, start=1):
+            out.append(
+                {
+                    "path": f"{group_key}.{field_key}",
+                    "label": label,
+                    "widget": widget,
+                    "order": i * 10,
+                }
+            )
+    return out
+
+
 _FIELDS: dict[str, list[dict[str, Any]]] = {
+    # P10-H · T2（TODO-195）：BEDD 文档（SPEC §7.5 分组 Tab）
+    # ⇒ ⇒ 字段表**由 `app.schemas.bedd.BEDD_FIELDS` 生成**（见 `_bedd_fields`）
+    "bedd": _bedd_fields(),
     "stream": [
         {
             "path": "stream_name",

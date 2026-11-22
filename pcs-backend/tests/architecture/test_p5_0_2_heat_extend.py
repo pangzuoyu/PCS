@@ -160,9 +160,11 @@ def test_record_type_registry_count_is_10():
     +OpenChannelResult / +FiltrationResult / +CostEstResult → 20 类。
     **P5-0-1b T1 修订**（SUP-010 §3.5 热虹吸循环安装高度）：
     +ThermosiphonCirculationResult → 21 类。
+    **P10-H · T2 修订**（TODO-195 PMS 管道材料规格 · 继承 RecordMixin ⇒ 走 9 态工作流）：
+    +PmsItem → 22 类。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 21, (
-        f"REGISTRY 应 21 类（P5-0-1b T1 +ThermosiphonCirculationResult），"
+    assert len(RECORD_TYPE_REGISTRY) == 22, (
+        f"REGISTRY 应 22 类（P10-H · T2 +PmsItem），"
         f"实际 {len(RECORD_TYPE_REGISTRY)}: {list(RECORD_TYPE_REGISTRY.keys())}"
     )
 

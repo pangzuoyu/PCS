@@ -58,6 +58,7 @@ from app.models.calc import (
     TwoPhaseResult,
     VesselResult,
 )
+from app.models.pms import PmsItem
 from app.models.psv_standards import ProjectCalculationStandardProfile
 from app.services.lineage import LineageTracker, _compute_hash
 from app.services.lineage_extension import attach_lineage_d45
@@ -112,6 +113,9 @@ RECORD_TYPE_REGISTRY: dict[str, type] = {
     "CostEstResult": CostEstResult,
     # P5-0-1b T1 新增（2026-09-30，SUP-010 §3.5 热虹吸循环安装高度）
     "ThermosiphonCirculationResult": ThermosiphonCirculationResult,
+    # P10-H · T2 新增（2026-11-23，TODO-195）：PMS 管道材料规格
+    # ⇒ ⇒ 继承 RecordMixin ⇒ ⇒ 直接吃 9 态工作流（送审 / 审批 / 作废）。
+    "PmsItem": PmsItem,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）
