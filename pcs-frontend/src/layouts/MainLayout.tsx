@@ -12,7 +12,9 @@ import {
 import { todosApi, type TodoItem } from '../api/todos';
 import { healthApi } from '../api/health';
 import { RealtimeStatusBanner } from '../components/common/RealtimeStatusBanner';
+import { ProjectSelector } from '../components/common/ProjectSelector';
 import { useDegradation } from '../store/degradation';
+import { useProjectScopeStore } from '../store/projectScope';
 
 const { Header, Content, Sider } = Layout;
 
@@ -134,6 +136,7 @@ export default function MainLayout() {
   const username = useAuth((s) => s.username);
   const role = useAuth((s) => s.role);
   const clear = useAuth((s) => s.clearSession);
+  const resetProjectScope = useProjectScopeStore((s) => s.reset);
   const nav = useNavigate();
   const location = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -203,6 +206,10 @@ export default function MainLayout() {
 
   function onLogout() {
     clear();
+    // ⚠️ **项目作用域也要清**（P10-H · T1）—— 否则**下一个登录的人**
+    // 会继承上一个身份选的项目（store 是模块级的，跨登出还在）⇒ ⇒
+    // 那是**跨身份的数据越界**。
+    resetProjectScope();
     nav('/login');
   }
 
@@ -213,6 +220,9 @@ export default function MainLayout() {
           PCS
         </Typography.Title>
         <div style={{ flex: 1 }} />
+        {/* ⚠️ **项目切换**（SPEC §3.2 TopBar「项目切换：下拉，显示最近项目 + 搜索」）
+            · P10-H · T1 · TODO-194）—— 全局项目作用域 ⇒ 换项目 = 换全局上下文。 */}
+        <ProjectSelector />
         <Space>
           <Badge count={unreadCount} size="small" data-testid="notif-badge">
             <Button

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-19T05:00:24.720Z",
-    "fileCount": 1413,
+    "lastScanned": "2026-11-22T23:41:41.718Z",
+    "fileCount": 1418,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "77d77dd7ba32b01dd076889affaeff519b0f7720f5835d91c22c598e3dcbecd4",
-    "storeUpdatedAt": "2026-11-19T05:00:24.732Z",
-    "rootHash": "c206daf40546fcb3"
+    "renderedHash": "afc8406c944f0d09009284e35e759ba16616cd8761b5162005cd067ef3696789",
+    "storeUpdatedAt": "2026-11-22T23:41:41.730Z",
+    "rootHash": "1f3a1d9b9565ba8e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 45695,
-      "hash": "3937be52cbabeb17",
-      "size": 306439,
-      "mtimeMs": 1794986914347.011,
-      "updatedAt": "2026-11-18T07:28:34.405Z",
+      "tokens": 50207,
+      "hash": "7f5fa5ce76291ec2",
+      "size": 337330,
+      "mtimeMs": 1795390901666.0295,
+      "updatedAt": "2026-11-22T23:41:41.718Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -13829,100 +13829,100 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。",
-      "tokens": 2857,
-      "hash": "168102a9700a2986",
-      "size": 11816,
-      "mtimeMs": 1794451957721.67,
-      "updatedAt": "2026-11-12T02:52:37.767Z",
+      "tokens": 3064,
+      "hash": "3cc6632e5a7f8366",
+      "size": 12912,
+      "mtimeMs": 1795390547723.0999,
+      "updatedAt": "2026-11-22T23:35:47.773Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
-          "startLine": 21,
-          "endLine": 30,
+          "startLine": 23,
+          "endLine": 32,
           "tokens": 78
         },
         {
           "name": "buildMenuItems",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 113,
-          "tokens": 856
+          "startLine": 33,
+          "endLine": 121,
+          "tokens": 920
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 114,
-          "endLine": 126,
+          "startLine": 122,
+          "endLine": 134,
           "tokens": 103
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 296,
-          "tokens": 1584
+          "startLine": 135,
+          "endLine": 312,
+          "tokens": 1688
         }
       ]
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 17422,
-      "hash": "e29fcd3e2adb8e9c",
-      "size": 67727,
-      "mtimeMs": 1795042855531.069,
-      "updatedAt": "2026-11-18T23:00:55.583Z",
+      "tokens": 18039,
+      "hash": "9c589dfc360689dd",
+      "size": 70195,
+      "mtimeMs": 1795390573006.7612,
+      "updatedAt": "2026-11-22T23:36:13.058Z",
       "source": "hook",
       "symbols": [
         {
           "name": "conflictByScenario",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 121,
+          "startLine": 90,
+          "endLine": 123,
           "tokens": 251
         },
         {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 257,
+          "startLine": 124,
+          "endLine": 259,
           "tokens": 1298
         },
         {
           "name": "buildReviewLog",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 295,
+          "startLine": 260,
+          "endLine": 297,
           "tokens": 414
         },
         {
           "name": "buildLineageGraph",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 944,
+          "startLine": 298,
+          "endLine": 946,
           "tokens": 7987
         },
         {
           "name": "buildNotificationList",
           "kind": "fn",
-          "startLine": 945,
-          "endLine": 952,
+          "startLine": 947,
+          "endLine": 954,
           "tokens": 64
         },
         {
           "name": "buildTodoList",
           "kind": "fn",
-          "startLine": 953,
-          "endLine": 962,
+          "startLine": 955,
+          "endLine": 964,
           "tokens": 77
         },
         {
           "name": "buildBatchSubmitResponse",
           "kind": "fn",
-          "startLine": 963,
-          "endLine": 1429,
-          "tokens": 6215
+          "startLine": 965,
+          "endLine": 1477,
+          "tokens": 6798
         }
       ]
     },
@@ -50408,36 +50408,13 @@
       ]
     },
     "pcs-frontend/src/hooks/useProjectScope.ts": {
-      "description": "`useProjectScope` —— 当前**项目作用域**（P10-C · T2 · TODO-159）。",
-      "tokens": 802,
-      "hash": "46a31341f2e2e4f6",
-      "size": 3543,
-      "mtimeMs": 1795043207685.4585,
-      "updatedAt": "2026-11-18T23:06:47.735Z",
-      "source": "hook",
-      "symbols": [
-        {
-          "name": "WorkspaceRow",
-          "kind": "section",
-          "startLine": 31,
-          "endLine": 36,
-          "tokens": 31
-        },
-        {
-          "name": "ProjectScope",
-          "kind": "section",
-          "startLine": 37,
-          "endLine": 45,
-          "tokens": 63
-        },
-        {
-          "name": "useProjectScope",
-          "kind": "fn",
-          "startLine": 46,
-          "endLine": 99,
-          "tokens": 445
-        }
-      ]
+      "description": "`useProjectScope` —— 当前**项目作用域**（P10-H · T1 · TODO-194）。",
+      "tokens": 471,
+      "hash": "b52818fe1183b4c0",
+      "size": 2182,
+      "mtimeMs": 1795390535513.7698,
+      "updatedAt": "2026-11-22T23:35:35.566Z",
+      "source": "hook"
     },
     "pcs-frontend/src/pages/pms/PmsPage.tsx": {
       "description": "PmsPage — 管道材料规格（P45-3-8 / Task 35）。",
@@ -50517,27 +50494,41 @@
       ]
     },
     "pcs-frontend/tests/hooks/useProjectScope.test.tsx": {
-      "description": "`useProjectScope` 测试（P10-C · T2 · TODO-159）。",
-      "tokens": 1052,
-      "hash": "c0d11892d3e5646d",
-      "size": 4196,
-      "mtimeMs": 1795043475189.2693,
-      "updatedAt": "2026-11-18T23:11:15.239Z",
+      "description": "`useProjectScope` 测试（P10-H · T1 · TODO-194）。",
+      "tokens": 2245,
+      "hash": "556f911fe56721e5",
+      "size": 8772,
+      "mtimeMs": 1795390587458.1262,
+      "updatedAt": "2026-11-22T23:36:27.506Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ok",
           "kind": "fn",
-          "startLine": 31,
-          "endLine": 35,
+          "startLine": 29,
+          "endLine": 33,
           "tokens": 28
         },
         {
           "name": "fail",
           "kind": "fn",
-          "startLine": 36,
-          "endLine": 109,
-          "tokens": 774
+          "startLine": 34,
+          "endLine": 38,
+          "tokens": 36
+        },
+        {
+          "name": "grants",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 55,
+          "tokens": 126
+        },
+        {
+          "name": "serve",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 235,
+          "tokens": 1810
         }
       ]
     },
@@ -51013,6 +51004,111 @@
           "startLine": 124,
           "endLine": 149,
           "tokens": 171
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-11-23-p10-h-project-scope.md": {
+      "description": "P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23",
+      "tokens": 796,
+      "hash": "0eea08f04f085e67",
+      "size": 4964,
+      "mtimeMs": 1795390483688.2852,
+      "updatedAt": "2026-11-22T23:34:43.743Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/store/projectScope.ts": {
+      "description": "项目作用域 store（P10-H · T1 · TODO-194）。",
+      "tokens": 1542,
+      "hash": "eb36e04052e454d7",
+      "size": 6606,
+      "mtimeMs": 1795390531516.66,
+      "updatedAt": "2026-11-22T23:35:31.565Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ProjectOption",
+          "kind": "section",
+          "startLine": 44,
+          "endLine": 49,
+          "tokens": 30
+        },
+        {
+          "name": "ProjectScopeState",
+          "kind": "section",
+          "startLine": 50,
+          "endLine": 65,
+          "tokens": 113
+        },
+        {
+          "name": "httpStatus",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 70,
+          "tokens": 49
+        },
+        {
+          "name": "fetchCandidateIds",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 107,
+          "tokens": 348
+        },
+        {
+          "name": "fetchNames",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 185,
+          "tokens": 643
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/ProjectSelector.tsx": {
+      "description": "`ProjectSelector` —— 顶栏的**项目切换**（P10-H · T1 · TODO-194）。",
+      "tokens": 464,
+      "hash": "e5d74303fae48d7f",
+      "size": 1952,
+      "mtimeMs": 1795390716308.0027,
+      "updatedAt": "2026-11-22T23:38:36.357Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/mocks/seed/projects.ts": {
+      "description": "项目 + 我的授权 seed（P10-H · T1 · TODO-194 · 项目选择器的数据源）。",
+      "tokens": 518,
+      "hash": "e55659aa88492529",
+      "size": 2163,
+      "mtimeMs": 1795390565743.5742,
+      "updatedAt": "2026-11-22T23:36:05.790Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/components/common/ProjectSelector.test.tsx": {
+      "description": "`ProjectSelector` 测试（P10-H · T1 · TODO-194 · SPEC §3.2 TopBar「项目切换」）。",
+      "tokens": 1322,
+      "hash": "303be1565aecd981",
+      "size": 4920,
+      "mtimeMs": 1795390613824.7686,
+      "updatedAt": "2026-11-22T23:36:53.874Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ok",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 25,
+          "tokens": 17
+        },
+        {
+          "name": "serve",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 72,
+          "tokens": 395
+        },
+        {
+          "name": "openDropdown",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 139,
+          "tokens": 702
         }
       ]
     }

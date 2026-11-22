@@ -34,9 +34,10 @@ beforeEach(() => {
   scope.mockReset();
   scope.mockReturnValue({
     projectId: '00000000-0000-0000-0000-000000000001',
-    workspaceId: '00000000-0000-0000-0000-000000000002',
+    projects: [],
     loading: false,
     error: null,
+    selectProject: vi.fn(),
   });
   list.mockResolvedValue({
     items: seedEquipmentList,
@@ -116,9 +117,10 @@ describe('EquipmentListPage — 失败与作用域', () => {
   it('没有项目作用域 ⇒ 显示说明，**且不发请求**', async () => {
     scope.mockReturnValue({
       projectId: null,
-      workspaceId: null,
+      projects: [],
       loading: false,
       error: '当前身份没有可用的项目作用域',
+      selectProject: vi.fn(),
     });
     render(<EquipmentListPage />);
     expect(screen.getByTestId('equipment-list-scope-error')).toBeTruthy();

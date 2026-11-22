@@ -4023,3 +4023,25 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+| 07:34 | Created docs/superpowers/plans/2026-11-23-p10-h-project-scope.md | — | ~849 |
+| 07:35 | Created pcs-frontend/src/store/projectScope.ts | — | ~1542 |
+| 07:35 | Created pcs-frontend/src/hooks/useProjectScope.ts | — | ~471 |
+| 07:35 | Created pcs-frontend/src/components/common/ProjectSelector.tsx | — | ~511 |
+| 07:35 | Edited pcs-frontend/src/layouts/MainLayout.tsx | modified onLogout() | ~58 |
+| 07:35 | Edited pcs-frontend/src/layouts/MainLayout.tsx | added 2 import(s) | ~78 |
+| 07:35 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 1→2 lines | ~33 |
+| 07:35 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 2→5 lines | ~60 |
+| 07:36 | Created pcs-frontend/src/mocks/seed/projects.ts | — | ~524 |
+| 07:36 | Edited pcs-frontend/src/mocks/seed/projects.ts | "00000000-0000-0000-0000-0" → "00000000-0000-0000-0000-0" | ~14 |
+| 07:36 | Edited pcs-frontend/src/mocks/handlers.ts | added 3 condition(s) | ~283 |
+| 07:36 | Edited pcs-frontend/src/mocks/handlers.ts | added 1 import(s) | ~38 |
+| 07:36 | Created pcs-frontend/tests/hooks/useProjectScope.test.tsx | — | ~2244 |
+| 07:36 | Edited pcs-frontend/tests/hooks/useProjectScope.test.tsx | inline fix | ~19 |
+| 07:36 | Created pcs-frontend/tests/components/common/ProjectSelector.test.tsx | — | ~1296 |
+| 07:36 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | modified if() | ~48 |
+| 07:36 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | 1→2 lines | ~28 |
+| 07:36 | Edited pcs-frontend/tests/components/common/ProjectSelector.test.tsx | 9→10 lines | ~150 |
+| 07:38 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | inline fix | ~24 |
+| 07:38 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | inline fix | ~22 |
+| 07:38 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | inline fix | ~11 |
+| 07:41 | Edited TODOS.md | expanded (+19 lines) | ~326 |

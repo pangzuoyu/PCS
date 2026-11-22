@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-19T05:00:24.720Z
-> Files: 1413 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-22T23:41:41.718Z
+> Files: 1418 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5974 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~45695 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~50207 tok)
 
 ## .claude/rules/
 
@@ -648,6 +648,7 @@
 - `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~17946 tok)
 - `2026-11-18-p10-c-frontend-closure.md` — P10-C 子批「前端收口」：P10-B 扫描留下的四条缺口 · 2026-11-18 (~1699 tok)
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
+- `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 
 ## docs/superpowers/specs/
 
@@ -1975,6 +1976,7 @@
 - `EditConflictModal.tsx` — EditConflictModal —— 409 保存冲突弹窗（P9B-1 · SPEC §6.21 P9A-LCK-005）。 (~1222 tok)
 - `EditLockIndicator.tsx` — EditLockIndicator —— 编辑锁状态提示（P9B-1 · SPEC §6.21 P9A-LCK-003）。 (~527 tok)
 - `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~1844 tok)
+- `ProjectSelector.tsx` — `ProjectSelector` —— 顶栏的**项目切换**（P10-H · T1 · TODO-194）。 (~464 tok)
 - `RealtimeStatusBanner.tsx` — RealtimeStatusBanner —— 通知实时推送的状态与降级（P9B-1 · SPEC §6.23）。 (~381 tok)
 - `RecordActions.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~3443 tok)
 - `RecordTimeline.tsx` — 记录状态时间线（P9B-2 · T5 · SPEC §7.19.1「状态时间线」）。 (~750 tok)
@@ -1996,11 +1998,11 @@
 
 - `useEditBaseline.ts` — 三档并发基线判定（P9B-1 · SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑥）。 (~824 tok)
 - `useEditLock.ts` — 编辑锁 hook（P9B-1 · SPEC §6.21 P9A-LCK-001~005 · ADR-0048）。 (~1439 tok)
-- `useProjectScope.ts` — `useProjectScope` —— 当前**项目作用域**（P10-C · T2 · TODO-159）。 (~802 tok)
+- `useProjectScope.ts` — `useProjectScope` —— 当前**项目作用域**（P10-H · T1 · TODO-194）。 (~471 tok)
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。 (~2857 tok)
+- `MainLayout.tsx` — 菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。 (~3064 tok)
 
 ## pcs-frontend/src/lib/
 
@@ -2011,7 +2013,7 @@
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~322 tok)
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~17422 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~18039 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
@@ -2025,6 +2027,7 @@
 - `meta.ts` — Meta seed fixture — 与 pcs-backend Task 4.5 V1.1 一致（P45-0-5） (~4390 tok)
 - `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~1043 tok)
 - `pipe-line.ts` — PipeLineList seed — 5 行（QA 11 组件实例化 P1 · **P10-C · T2 重塑**） (~1872 tok)
+- `projects.ts` — 项目 + 我的授权 seed（P10-H · T1 · TODO-194 · 项目选择器的数据源）。 (~518 tok)
 - `results.ts` — 6 类可编辑结果记录的 seed（P9B-1 · SPEC §6.21）。 (~2332 tok)
 - `signFlow.ts` — 签署流程 + ADMIN 的 seed（P9B-2 · T10）。 (~1309 tok)
 
@@ -2125,6 +2128,7 @@
 ## pcs-frontend/src/store/
 
 - `degradation.ts` — 降级横幅的全局状态（P9B-1 · SPEC §6.21 P9A-LCK-004）。 (~182 tok)
+- `projectScope.ts` — 项目作用域 store（P10-H · T1 · TODO-194）。 (~1542 tok)
 
 ## pcs-frontend/src/types/
 
@@ -2151,6 +2155,7 @@
 - `EditConflictModal.test.tsx` — 409 冲突弹窗的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-005）。 (~2012 tok)
 - `EditLockIndicator.test.tsx` — EditLockIndicator 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-003）。 (~607 tok)
 - `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 建 · P9A Z 收口按契约重绑）。 (~2283 tok)
+- `ProjectSelector.test.tsx` — `ProjectSelector` 测试（P10-H · T1 · TODO-194 · SPEC §3.2 TopBar「项目切换」）。 (~1322 tok)
 - `RealtimeStatusBanner.test.tsx` — RealtimeStatusBanner 的守卫（P9B-1 Task T5 · SPEC §6.23）。 (~499 tok)
 - `RecordActions.test.tsx` — RecordActions —— 记录操作按钮组（P9B-2 · T4 · SPEC §6.3）。 (~4828 tok)
 - `RecordTimeline.test.tsx` — 记录状态时间线（P9B-2 · T5 · SPEC §7.19.1）。 (~811 tok)
@@ -2162,7 +2167,7 @@
 
 - `useEditBaseline.test.ts` — 三档基线判定的守卫（P9B-1 Task T2）。 (~1294 tok)
 - `useEditLock.test.tsx` — 编辑锁 hook 的守卫（P9B-1 Task T2 · SPEC §6.21 P9A-LCK-001~005）。 (~1877 tok)
-- `useProjectScope.test.tsx` — `useProjectScope` 测试（P10-C · T2 · TODO-159）。 (~1052 tok)
+- `useProjectScope.test.tsx` — `useProjectScope` 测试（P10-H · T1 · TODO-194）。 (~2245 tok)
 
 ## pcs-frontend/tests/layouts/
 

@@ -5336,6 +5336,25 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 `GET /user-projects/me` 拿**我的全部授权** + 一个项目选择器 UI）
 ⇒ ⇒ 它是 TODO-195 落地（PMS / BEDD 要**真**项目作用域）的**前置**。
 
+✅ **已落地**（2026-11-23 · **P10-H · T1**）⇒ ⇒ **本条关闭**
+
+| 项 | 落点 |
+|---|---|
+| 状态 | `src/store/projectScope.ts`（zustand · 模块级 ⇒ 换页不丢选择） |
+| 候选来源 | `GET /user-projects/me`（我的全部授权）**∪** `GET /workspaces` 挂的项目（admin 全量 / 普通用户 `?owner_id={我}`） |
+| 项目名 | `GET /projects/{id}` 的 `ProjectOut.project_name`（授权列表**没有**名字）⇒ ⇒ 拉不到 ⇒ 退回 id 前 8 位 |
+| 选择 | 优先级 = **用户已选** > `VITE_PROJECT_ID` hint > 第一个 ⇒ ⇒ hint 只作**首次默认值** |
+| UI | `src/components/common/ProjectSelector.tsx`（antd `Select` + `showSearch`）⇒ ⇒ 挂在 `MainLayout` 顶栏（**SPEC §3.2 TopBar「项目切换：下拉，显示最近项目 + 搜索」**） |
+| mock | 补 `GET /user-projects/me` + `GET /api/v1/projects/:project_id`（**契约形状** + ajv 校验 ⇒ 棘轮） |
+| 顺带 | ① `useProjectScope` 的 `workspaceId` **无人消费** ⇒ ⇒ 删掉 ② 登出 ⇒ ⇒ **清项目作用域**（否则下一个登录的人继承上一个身份选的项目 ⇒ 跨身份越界） |
+
+⚠️ **admin 的额外一条**：`/user-projects/me` 只返**授权行**⇒ ⇒ admin 若没有
+授权行 ⇒ 选择器会是空的 ⇒ ⇒ admin 连自己的项目都选不了 ⇒ ⇒ **功能回退**
+⇒ ⇒ 所以候选里**并上**「admin 的工作区全量」。
+
+⚠️ **测试里必须 `useProjectScopeStore.getState().reset()`**（store 是**模块级**
+的 ⇒ 用例之间会串）⇒ ⇒ `tests/pages/routeWrappers.projectScope.test.tsx` 已踩过一次。
+
 ---
 
 ## TODO-195: PMS / BEDD **后端没有实体** ⇒ 两页只能是占位（产品语义） 🔴

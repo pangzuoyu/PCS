@@ -22,6 +22,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { PipeLineListRoute, PmsRoute, BeddRoute } from '../../src/pages/routeWrappers';
 import { PLACEHOLDER_PROJECT_ID } from '../../src/constants/env';
 import { api } from '../../src/api/client';
+import { useProjectScopeStore } from '../../src/store/projectScope';
 
 vi.mock('../../src/api/client', () => ({
   api: { get: vi.fn() },
@@ -48,13 +49,49 @@ function stubFetch(): void {
   );
 }
 
+/**
+ * 「我能看的项目」清单（**授权** ∪ **工作区**）—— P10-H · T1 之后
+ * 项目作用域来自 `GET /user-projects/me` ∪ `GET /workspaces`。
+ */
+let grants: unknown[] = [];
+let workspaces: unknown[] = [];
+
 beforeEach(() => {
   get.mockReset();
-  get.mockResolvedValue({
-    data: [
-      { workspace_id: 'ws-formal', workspace_type: 'FORMAL', project_id: 'proj-real' },
-    ],
-  } as never);
+  // ⚠️ **store 是模块级的**（P10-H · T1）⇒ ⇒ 用例之间必须清干净
+  //    ⇒ 否则上一个用例加载出来的项目作用域会**漏进**下一个用例。
+  useProjectScopeStore.getState().reset();
+  grants = [
+    {
+      id: 'grant-1',
+      user_id: '00000000-0000-0000-0000-0000000a11ce',
+      project_id: 'proj-real',
+      role_in_project: 'PROJECT_LEAD',
+      granted_by: null,
+      granted_at: null,
+      revoked_at: null,
+      revoked_by: null,
+    },
+  ];
+  workspaces = [
+    { workspace_id: 'ws-formal', workspace_type: 'FORMAL', project_id: 'proj-real' },
+  ];
+  get.mockImplementation((url: string) => {
+    if (url === '/user-projects/me') return Promise.resolve({ data: grants } as never);
+    if (url === '/workspaces') return Promise.resolve({ data: workspaces } as never);
+    // `GET /projects/{id}` ⇒ ⇒ 项目名
+    const id = url.replace('/projects/', '');
+    return Promise.resolve({
+      data: {
+        project_id: id,
+        project_no: 'PRJ-1',
+        project_name: '真项目',
+        project_type: 'PETROCHEMICAL',
+        product_category: 'OTHER',
+        electricity_value_type: 'EQUIVALENT',
+      },
+    } as never);
+  });
   stubFetch();
 });
 
@@ -78,7 +115,8 @@ describe('PipeLineListRoute — 用**真** project id (P10-C · T2)', () => {
   });
 
   it('没有项目作用域 ⇒ 显示说明，**且不发请求**', async () => {
-    get.mockResolvedValue({ data: [] } as never);
+    grants = [];
+    workspaces = [];
     render(<PipeLineListRoute />);
     await waitFor(() =>
       expect(screen.getByTestId('pipe-line-list-scope-error')).toBeTruthy(),

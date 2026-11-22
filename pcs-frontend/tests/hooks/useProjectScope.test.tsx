@@ -1,22 +1,20 @@
 /**
- * `useProjectScope` 测试（P10-C · T2 · TODO-159）。
+ * `useProjectScope` 测试（P10-H · T1 · TODO-194）。
  *
- * ## 为什么有这个 hook
+ * ## 本文件钉的规则
  *
- * 前端此前到处拿**占位** project id（`PLACEHOLDER_PROJECT_ID`）去调端点
- * ⇒ ⇒ 那**不是真项目** ⇒ ⇒ 真后端下必然 404。
- * ⇒ ⇒ 真 id 从**服务端**解析：`GET /workspaces` 的每一行都带 `project_id`。
- *
- * ## 本文件钉的三条规则
- *
- * 1. **SYSTEM_ADMIN**：`GET /workspaces`（不传 owner_id）⇒ 200 ⇒ 直接用。
- * 2. **普通用户**：上一步 **403** ⇒ ⇒ 退到 `?owner_id={我自己}`。
- * 3. **其它错误**（401 / 网络 / 500）⇒ ⇒ **原样报错**（不被误吞成「没项目」）。
+ * 1. **候选来源是「授权 ∪ 工作区」** ⇒ ⇒ 不是「列表里的第一个」。
+ * 2. **项目名**来自 `GET /projects/{id}`（授权列表**没有名字**）。
+ * 3. **选中的项目保持**（换页不丢）⇒ ⇒ 状态在 store 里，不在 hook 里。
+ * 4. **没有候选 ⇒ 给出说明**（不静默地空 projectId）。
+ * 5. **非 403 的错误不被吞**（401 / 500 ⇒ 原样报错）。
+ * 6. **幂等**：多个组件同时挂载 ⇒ ⇒ 只发**一轮**请求。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 import { useProjectScope } from '../../src/hooks/useProjectScope';
+import { useProjectScopeStore } from '../../src/store/projectScope';
 import { api } from '../../src/api/client';
 import { useAuth } from '../../src/store/auth';
 
@@ -37,8 +35,48 @@ function fail(status: number) {
   return { response: { status } } as never;
 }
 
+/** 授权列表（`UserProjectResponse` 的**契约形状**）。 */
+function grants(rows: Array<[string, string]>) {
+  return rows.map(([projectId, role], i) => ({
+    id: `grant-${i}`,
+    user_id: '00000000-0000-0000-0000-0000000a11ce',
+    project_id: projectId,
+    role_in_project: role,
+    granted_by: null,
+    granted_at: '2026-08-01T09:00:00Z',
+    revoked_at: null,
+    revoked_by: null,
+  }));
+}
+
+/**
+ * 铺一套响应：**授权**（`/user-projects/me`）+ **工作区**（`/workspaces`）
+ * + **项目名**（`/projects/{id}`）。
+ */
+function serve(granted: Array<[string, string]>, names: Record<string, string>): void {
+  get.mockImplementation((url: string) => {
+    if (url === '/user-projects/me') return Promise.resolve(ok(grants(granted)));
+    if (url === '/workspaces') return Promise.resolve(ok([]));
+    const id = url.replace('/projects/', '');
+    if (names[id]) {
+      return Promise.resolve(
+        ok({
+          project_id: id,
+          project_no: 'PRJ-1',
+          project_name: names[id],
+          project_type: 'PETROCHEMICAL',
+          product_category: 'ETHYLENE',
+          electricity_value_type: 'EQUIVALENT_VALUE',
+        }),
+      );
+    }
+    return Promise.reject(fail(404));
+  });
+}
+
 beforeEach(() => {
   get.mockReset();
+  useProjectScopeStore.getState().reset();
   useAuth.getState().clearSession();
   useAuth.getState().setSession({
     access_token: 'token-alice',
@@ -49,90 +87,150 @@ beforeEach(() => {
   });
 });
 
-describe('useProjectScope — SYSTEM_ADMIN', () => {
-  it('GET /workspaces 返回带 project_id 的工作区 ⇒ 解析出真项目 id', async () => {
-    get.mockResolvedValue(
-      ok([
-        { workspace_id: 'ws-personal', workspace_type: 'PERSONAL', project_id: null },
-        { workspace_id: 'ws-formal', workspace_type: 'FORMAL', project_id: 'proj-real' },
-      ]),
+describe('useProjectScope — 候选清单', () => {
+  it('授权列表 ⇒ 解析出**全部**候选 + 项目名（不是只取「第一个」）', async () => {
+    serve(
+      [
+        ['proj-a', 'PROJECT_LEAD'],
+        ['proj-b', 'DESIGNER'],
+      ],
+      { 'proj-a': '乙烯项目', 'proj-b': '炼油项目' },
     );
     const { result } = renderHook(() => useProjectScope());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.projectId).toBe('proj-real');
-    expect(result.current.workspaceId).toBe('ws-formal');
+    expect(result.current.projects.map((p) => p.projectId)).toEqual(['proj-a', 'proj-b']);
+    expect(result.current.projects.map((p) => p.name)).toEqual(['乙烯项目', '炼油项目']);
     expect(result.current.error).toBeNull();
-    // ⚠️ **不许退到 owner_id**（admin 一次就够）
-    expect(get).toHaveBeenCalledTimes(1);
-    expect(get).toHaveBeenCalledWith('/workspaces');
+    // ⚠️ 默认选中**第一个**（还没有用户选择时）
+    expect(result.current.projectId).toBe('proj-a');
   });
-});
 
-describe('useProjectScope — 普通用户', () => {
-  it('GET /workspaces 403 ⇒ 退到 ?owner_id={我自己}', async () => {
-    get
-      .mockRejectedValueOnce(fail(403))
-      .mockResolvedValueOnce(
-        ok([{ workspace_id: 'ws-mine', workspace_type: 'FORMAL', project_id: 'proj-mine' }]),
+  it('⚠️ **工作区挂的项目**也在候选里（我自己的项目 · 授权行后加的）', async () => {
+    get.mockImplementation((url, config) => {
+      if (url === '/user-projects/me') return Promise.resolve(ok(grants([])));
+      if (url === '/workspaces') {
+        // ⚠️ 普通用户 ⇒ 必须带 `owner_id`
+        const params = config?.params as { owner_id?: string } | undefined;
+        expect(params?.owner_id).toBe('00000000-0000-0000-0000-0000000a11ce');
+        return Promise.resolve(
+          ok([{ workspace_id: 'ws-1', workspace_type: 'FORMAL', project_id: 'proj-own' }]),
+        );
+      }
+      return Promise.resolve(
+        ok({
+          project_id: 'proj-own',
+          project_no: 'PRJ-2',
+          project_name: '自有项目',
+          project_type: 'REFINERY',
+          product_category: 'REFINING',
+          electricity_value_type: 'EQUIVALENT_VALUE',
+        }),
       );
+    });
     const { result } = renderHook(() => useProjectScope());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.projectId).toBe('proj-mine');
-    expect(get).toHaveBeenCalledTimes(2);
-    expect(get).toHaveBeenLastCalledWith('/workspaces', {
-      params: { owner_id: '00000000-0000-0000-0000-0000000a11ce' },
-    });
+    expect(result.current.projects.map((p) => p.projectId)).toEqual(['proj-own']);
+    expect(result.current.projectId).toBe('proj-own');
   });
 
-  it('⚠️ **非 403 的错误不被吞**（401 / 500 ⇒ 原样报错）', async () => {
-    get.mockRejectedValue(fail(500));
+  it('⚠️ **admin 走工作区全量**（不带 owner_id）⇒ ⇒ 没有授权行也能选项目', async () => {
+    useAuth.getState().clearSession();
+    useAuth.getState().setSession({
+      access_token: 'token-admin',
+      refresh_token: 'refresh-admin',
+      username: 'admin',
+      role: 'SYSTEM_ADMIN',
+      user_id: '00000000-0000-0000-0000-0000000a11ce',
+    });
+    get.mockImplementation((url, config) => {
+      if (url === '/user-projects/me') return Promise.resolve(ok(grants([])));
+      if (url === '/workspaces') {
+        const params = config?.params as { owner_id?: string } | undefined;
+        expect(params?.owner_id).toBeUndefined();
+        return Promise.resolve(
+          ok([{ workspace_id: 'ws-1', workspace_type: 'FORMAL', project_id: 'proj-admin' }]),
+        );
+      }
+      return Promise.resolve(
+        ok({
+          project_id: 'proj-admin',
+          project_no: 'PRJ-3',
+          project_name: '管理员项目',
+          project_type: 'PETROCHEMICAL',
+          product_category: 'OTHER',
+          electricity_value_type: 'EQUIVALENT',
+        }),
+      );
+    });
     const { result } = renderHook(() => useProjectScope());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.projectId).toBeNull();
-    expect(result.current.error).toBeTruthy();
-    // ⚠️ **只请求一次** ⇒ ⇒ 500 没有被误当成「要退到 owner_id」
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(result.current.projectId).toBe('proj-admin');
   });
 });
 
-describe('useProjectScope — 没有可用项目', () => {
-  it('工作区都**没挂项目** ⇒ 给出说明（而不是空 projectId 悄悄发请求）', async () => {
-    get.mockResolvedValue(
-      ok([{ workspace_id: 'ws-personal', workspace_type: 'PERSONAL', project_id: null }]),
+describe('useProjectScope — 选中项', () => {
+  it('用户选的项目**保持**（换页 / 重渲染都不丢）', async () => {
+    serve(
+      [
+        ['proj-a', 'PROJECT_LEAD'],
+        ['proj-b', 'DESIGNER'],
+      ],
+      { 'proj-a': '乙烯项目', 'proj-b': '炼油项目' },
     );
+    const { result, rerender } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.selectProject('proj-b'));
+    expect(result.current.projectId).toBe('proj-b');
+    rerender();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.projectId).toBe('proj-b');
+  });
+
+  it('env hint 只作**首次默认值**（用户选过之后 ⇒ 以用户的选择为准）', async () => {
+    vi.stubEnv('VITE_PROJECT_ID', 'proj-b');
+    serve(
+      [
+        ['proj-a', 'PROJECT_LEAD'],
+        ['proj-b', 'DESIGNER'],
+      ],
+      { 'proj-a': '乙烯项目', 'proj-b': '炼油项目' },
+    );
+    const { result } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.projectId).toBe('proj-b');
+    act(() => result.current.selectProject('proj-a'));
+    expect(result.current.projectId).toBe('proj-a');
+    vi.unstubAllEnvs();
+  });
+});
+
+describe('useProjectScope — 异常', () => {
+  it('没有候选 ⇒ 给出说明（而不是空 projectId 悄悄发请求）', async () => {
+    serve([], {});
     const { result } = renderHook(() => useProjectScope());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.projectId).toBeNull();
     expect(result.current.error).toContain('项目作用域');
   });
+
+  it('⚠️ **非 403 的错误不被吞**（500 ⇒ 原样报错）', async () => {
+    get.mockRejectedValue(fail(500));
+    const { result } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.projectId).toBeNull();
+    expect(result.current.error).toBeTruthy();
+  });
 });
 
-
-describe('useProjectScope — 多个项目时按 env hint 选（2026-11-19 · T2/T3 实测）', () => {
-  it('⚠️ **优先取 `VITE_PROJECT_ID` 指的那个项目**（不是「列表里的第一个」）', async () => {
-    // ⚠️ 真后端通道的种子库里**有两个**项目 ⇒ ⇒ 「第一个」是**不确定**的
-    // ⇒ ⇒ 真后端通道里会解析到**别的项目**（页面查的不是它 ⇒ 假绿）。
-    vi.stubEnv('VITE_PROJECT_ID', 'proj-hinted');
-    get.mockResolvedValue(
-      ok([
-        { workspace_id: 'ws-a', workspace_type: 'FORMAL', project_id: 'proj-other' },
-        { workspace_id: 'ws-b', workspace_type: 'FORMAL', project_id: 'proj-hinted' },
-      ]),
+describe('useProjectScope — 并发', () => {
+  it('⚠️ **幂等**：两个组件同时挂 ⇒ ⇒ 只发**一轮** `/user-projects/me`', async () => {
+    serve([['proj-a', 'PROJECT_LEAD']], { 'proj-a': '乙烯项目' });
+    renderHook(() => useProjectScope());
+    renderHook(() => useProjectScope());
+    await waitFor(() =>
+      expect(
+        get.mock.calls.filter((c) => c[0] === '/user-projects/me').length,
+      ).toBe(1),
     );
-    const { result } = renderHook(() => useProjectScope());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.projectId).toBe('proj-hinted');
-    vi.unstubAllEnvs();
-  });
-
-  it('hint 指向的项目**不在**列表里 ⇒ ⇒ 退回「第一个有项目的」', async () => {
-    vi.stubEnv('VITE_PROJECT_ID', 'proj-not-mine');
-    get.mockResolvedValue(
-      ok([{ workspace_id: 'ws-a', workspace_type: 'FORMAL', project_id: 'proj-other' }]),
-    );
-    const { result } = renderHook(() => useProjectScope());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.projectId).toBe('proj-other');
-    vi.unstubAllEnvs();
   });
 });

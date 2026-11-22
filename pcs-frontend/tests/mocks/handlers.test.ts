@@ -22,6 +22,7 @@ import { metaSeed } from "../../src/mocks/seed/meta";
 import { seedPipeLineRows } from "../../src/mocks/seed/pipe-line";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
+import { seedProjects, seedUserProjects } from "../../src/mocks/seed/projects";
 import {
   seedAdminUsers,
   seedDeliverableActions,
@@ -485,6 +486,33 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     // （含 4 个后端没有的列）⇒ ⇒ 真后端上线后 mock 仍在遮着漂移。
     validatePath("/api/v1/projects/{project_id}/pipe-line-list", seedPipeLineRows);
   });
+
+/**
+ * 项目作用域的两个 mock 响应体 ↔ OpenAPI（P10-H · T1 · TODO-194）。
+ *
+ * ⚠️ **为什么这两个也要 ajv 校验**：它们是**契约端点**（`/user-projects/me`
+ * 与 `/projects/{project_id}` 都在 OpenAPI 里）⇒ ⇒ mock 的形状一旦漂移，
+ * 项目选择器就会在生产上读不到名字（而 dev 里一路绿灯）。
+ */
+describe("项目作用域 mock 形状 ↔ OpenAPI（P10-H · T1）", () => {
+  it("GET /api/v1/user-projects/me 的响应体符合契约（UserProjectResponse[]）", () => {
+    const schema = schemaFor("/api/v1/user-projects/me", "get");
+    expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
+    const validate = ajv.compile(schema as object);
+    const ok = validate(seedUserProjects);
+    expect(ok, `形状不符: ${JSON.stringify(validate.errors)}`).toBe(true);
+  });
+
+  it("GET /api/v1/projects/{project_id} 的响应体符合契约（ProjectOut）", () => {
+    const schema = schemaFor("/api/v1/projects/{project_id}", "get");
+    expect(schema, "契约里没有该端点的 JSON schema").not.toBeNull();
+    const validate = ajv.compile(schema as object);
+    for (const project of seedProjects) {
+      const ok = validate(project);
+      expect(ok, `${project.project_id} 不合契约: ${JSON.stringify(validate.errors)}`).toBe(true);
+    }
+  });
+});
 
   it("6 类结果记录的列表 mock 响应体符合契约（P9B-1）", () => {
     // ⚠️ 棘轮新增了 6 条**契约端点** ⇒ 必须一并加 ajv 校验

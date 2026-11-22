@@ -62,6 +62,7 @@ import {
 } from "./seed/streams";
 import { seedAssets } from "./seed/config";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
+import { seedProjects, seedUserProjects } from "./seed/projects";
 import { seedDeliverables, seedWorkflowProgress } from "./seed/deliverables";
 import {
   SCENARIO,
@@ -1406,6 +1407,28 @@ export const handlers = [
       limit,
       offset,
     });
+  }),
+
+  // === 项目作用域（P10-H · T1 · TODO-194 · 项目选择器的数据源）===
+  // ⚠️ 放**契约组**：这两个端点**本来就在契约里**
+  // ⇒ ⇒ 形状必须照抄 `UserProjectResponse` / `ProjectOut`
+  // ⇒ ⇒ 否则 mock 与契约漂移。
+  http.get("/api/v1/user-projects/me", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedUserProjects);
+  }),
+  http.get("/api/v1/projects/:project_id", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const row = seedProjects.find((p) => p.project_id === params.project_id);
+    // ⚠️ **命中不到 ⇒ 404**（与真端点同形：`PROJECT_NOT_FOUND`）⇒ ⇒
+    //    否则「选了一个不存在的项目」在 mock 通道里看不出来。
+    if (!row) {
+      return HttpResponse.json(
+        { code: "PROJECT_NOT_FOUND", message: `Project not found: ${params.project_id}` },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(row);
   }),
 
   http.get("/api/v1/meta/enums", ({ request }) => {
