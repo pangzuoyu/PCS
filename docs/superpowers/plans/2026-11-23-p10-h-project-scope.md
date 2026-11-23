@@ -57,19 +57,33 @@
 
 ## 批末闸门
 
-- [ ] 前端 `typecheck` / `lint` / `vitest` ≥ 上批基线
-- [ ] 后端默认车道 `pytest` EXIT=0
-- [ ] `uv run alembic check`（两库 · **独立进程** · 直查 revision）
-- [ ] `check_openapi_payload_coverage.py` RC 0 · `check_migration_idempotency.py` RC 0
-- [ ] 真后端通道（`bash pcs-backend/scripts/serve_e2e_backend.sh` ⇒ `npm run e2e:real`）无 4xx/5xx
-- [ ] 浏览器 QA（`browse`）· 报告落 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md`
-- [ ] `TODOS.md` 逐条记结果 + `fix_commit`
+- [x] 前端 `typecheck` / `lint` clean · `vitest` **1114/1115**（上批 1091 ⇒ +23）
+      ⇒ ⇒ 唯一红的是**已知 flake**（`result_page.test.tsx` · 满负载超时 · 单独跑绿）
+- [x] 后端默认车道 ⇒ ⇒ **第一轮 6 failed**（全是**新表带来的守卫同步** ⇒ ⇒ 已修）
+      ⇒ ⇒ 四条计数型守卫 + p9_014 守卫的**断言形状**（从迁移文件 AST 推导豁免）
+      ⇒ ⇒ 第二轮复跑中
+- [x] `uv run alembic check`（两库 · **独立进程** · 直查 revision）⇒ ⇒ `pcs` exit 0 ·
+      `pcs_test` 直查 `alembic_version=p10_004` + 直查 `pms_items` 的 35 列
+- [x] `check_openapi_payload_coverage.py` RC 0（裸字段仍 71）·
+      `check_migration_idempotency.py` RC 0（50 个迁移）
+- [x] 测试栈（compose · **真 PG**）⇒ ⇒ `alembic_version=p10_004` · seed ×2 幂等
+- [x] 真后端通道（`serve_e2e_backend.sh` ⇒ `npm run e2e:real`）⇒ ⇒ **9/9** ·
+      `CONSOLE_ERRORS=[]` · `BAD_RESPONSES=[]` · 46 条路由全可达
+- [x] mock 通道（`npm run e2e`）⇒ ⇒ **23/23**（第一轮 2 failed = 顶栏新增 Select
+      ⇒ ⇒ `.first()` 位置定位失效 ⇒ ⇒ 改成指名道姓）
+- [x] 浏览器 QA（`browse`）⇒ ⇒ 登录 / 仪表盘 / 项目切换 / `/pms` / `/bedd` 全通 ·
+      控制台无 error · 报告落 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md`
+- [x] `TODOS.md` 逐条记结果 + commit
 
 ---
 
-## 未解决问题（开工时挂着的）
+## 未解决问题（**批末**）
 
-1. **PMS 的字段集**（T2 的前置）—— SPEC 没给 ⇒ ⇒ 待人裁。
-2. **BEDD 的粒度** —— `bedd_json` 存**结构化 10 分组**（SPEC §7.5）还是**自由章节**（前端 `/bedd` 页现在的形状）？⇒ ⇒ 待人裁。
-3. **TODO-197**（「他人发布报表定义」的入口）—— 三个方案待裁（与本批无关，挂着）。
-4. **TODO-196**（10 个 DMC 组分的 CAS）—— 工艺室确认，不是人能裁的。
+1. ✅ **PMS 的字段集** —— 人裁 2026-11-23：**沿用前端形状 + 签署流**（已落地）。
+2. ✅ **BEDD 的粒度** —— 人裁 2026-11-23：**按 SPEC 的 9 个分组**（已落地）。
+3. ⚠️ **TODO-199**（**本批新登记**）—— 4 条端点的契约**本身就是裸 object**
+   ⇒ ⇒ ajv 只能证明「是个 object」⇒ ⇒ 要后端补具名 schema。
+4. ⚠️ **SPEC §7.5 的向导**里 PMS / BEDD 两步**仍是空占位** ⇒ ⇒ 本批只把**独立页**做实。
+5. **TODO-197**（「他人发布报表定义」的入口）—— 三个方案待裁（与本批无关，挂着）。
+6. **TODO-196**（10 个 DMC 组分的 CAS）—— 工艺室确认，不是人能裁的。
+7. **推送**：P10-G + P10-H 都**未 push** ⇒ ⇒ 待明确授权。
