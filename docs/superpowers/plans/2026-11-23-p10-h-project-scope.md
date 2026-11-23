@@ -57,11 +57,11 @@
 
 ## 批末闸门
 
-- [x] 前端 `typecheck` / `lint` clean · `vitest` **1114/1115**（上批 1091 ⇒ +23）
+- [x] 前端 `typecheck` / `lint` clean · `vitest` **1117/1118**（上批 1091 ⇒ +26）
       ⇒ ⇒ 唯一红的是**已知 flake**（`result_page.test.tsx` · 满负载超时 · 单独跑绿）
-- [x] 后端默认车道 ⇒ ⇒ **第一轮 6 failed**（全是**新表带来的守卫同步** ⇒ ⇒ 已修）
-      ⇒ ⇒ 四条计数型守卫 + p9_014 守卫的**断言形状**（从迁移文件 AST 推导豁免）
-      ⇒ ⇒ 第二轮复跑中
+- [x] 后端默认车道 ⇒ ⇒ **5963 passed / EXIT=0**（11m16s）
+      ⇒ ⇒ 第一轮 **6 failed**（全是**新表带来的守卫同步** ⇒ ⇒ 已修）⇒ ⇒
+      四条计数型守卫 + p9_014 守卫的**断言形状**（从迁移文件 AST 推导豁免）
 - [x] `uv run alembic check`（两库 · **独立进程** · 直查 revision）⇒ ⇒ `pcs` exit 0 ·
       `pcs_test` 直查 `alembic_version=p10_004` + 直查 `pms_items` 的 35 列
 - [x] `check_openapi_payload_coverage.py` RC 0（裸字段仍 71）·
