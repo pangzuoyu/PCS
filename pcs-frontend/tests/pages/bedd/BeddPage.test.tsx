@@ -90,6 +90,24 @@ describe('BeddPage — 分组 Tab', () => {
 });
 
 describe('BeddPage — 保存', () => {
+  it('改一个字段 ⇒ ⇒ `PUT` 带**改后的**值（不是原样回传）', async () => {
+    render(<BeddPage />);
+    await waitFor(() => expect(screen.getByTestId('bedd-save')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('control-temperature')).toBeTruthy());
+    fireEvent.change(screen.getByTestId('control-temperature'), {
+      target: { value: '31.5' },
+    });
+    fireEvent.click(screen.getByTestId('bedd-save'));
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(
+        '/projects/p1/bedd',
+        expect.objectContaining({
+          meteorology: expect.objectContaining({ temperature: 31.5 }),
+        }),
+      ),
+    );
+  });
+
   it('保存 ⇒ ⇒ `PUT /projects/{id}/bedd`（**整份替换**）', async () => {
     render(<BeddPage />);
     await waitFor(() => expect(screen.getByTestId('bedd-save')).toBeTruthy());

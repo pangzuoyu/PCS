@@ -120,6 +120,26 @@ describe('PmsPage — 签署', () => {
   });
 });
 
+describe('PmsPage — 编辑', () => {
+  it('编辑一行 ⇒ ⇒ `PATCH /projects/{id}/pms/{item_id}`（带**该行**的值）', async () => {
+    render(<PmsPage />);
+    await waitFor(() => expect(screen.getAllByTestId('pms-edit').length).toBe(1));
+    fireEvent.click(screen.getAllByTestId('pms-edit')[0]);
+    // ⚠️ **表单必须带出该行的值**（`setFieldsValue` 在 Modal 首次挂载**之前**调用
+    // ⇒ ⇒ 忘了同步就���提交一份**空表单**）
+    await waitFor(() => expect(screen.getByTestId('pms-form-no')).toBeTruthy());
+    expect((screen.getByTestId('pms-form-no') as HTMLInputElement).value).toBe('PMS-002');
+    fireEvent.change(screen.getByTestId('pms-form-desc'), { target: { value: '改过的描述' } });
+    fireEvent.click(screen.getByRole('button', { name: /^(OK|确 定)$/ }));
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        '/projects/p1/pms/i2',
+        expect.objectContaining({ pms_no: 'PMS-002', description: '改过的描述' }),
+      ),
+    );
+  });
+});
+
 describe('PmsPage — 新建', () => {
   it('新建 ⇒ ⇒ `POST /projects/{id}/pms`', async () => {
     render(<PmsPage />);
