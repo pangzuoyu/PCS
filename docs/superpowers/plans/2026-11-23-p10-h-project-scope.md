@@ -67,6 +67,8 @@
 - [x] `check_openapi_payload_coverage.py` RC 0（裸字段仍 71）·
       `check_migration_idempotency.py` RC 0（50 个迁移）
 - [x] 测试栈（compose · **真 PG**）⇒ ⇒ `alembic_version=p10_004` · seed ×2 幂等
+- [x] **PG 车道 7 passed**（`scripts/pytest_pg.sh`）· **E2E 车道 40 passed**
+      （`scripts/pytest_e2e.sh`）⇒ ⇒ 本批闸门**全部收口**
 - [x] 真后端通道（`serve_e2e_backend.sh` ⇒ `npm run e2e:real`）⇒ ⇒ **9/9** ·
       `CONSOLE_ERRORS=[]` · `BAD_RESPONSES=[]` · 46 条路由全可达
 - [x] mock 通道（`npm run e2e`）⇒ ⇒ **23/23**（第一轮 2 failed = 顶栏新增 Select
