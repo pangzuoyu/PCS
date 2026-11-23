@@ -158,3 +158,66 @@ def test_the_number_of_strict_client_tests_never_shrinks() -> None:
         " ⇒ ⇒ 有人删了守卫断言 ⇒ ⇒ 默认 client 把守卫 mock 成永远 True"
         " ⇒ ⇒ 那些断言是 no-op"
     )
+
+
+# ---------------------------------------------------------------------------
+# 「第三个 client」守卫（TODO-189 ③）
+# ---------------------------------------------------------------------------
+
+#: **已知**自建 ASGI client 的文件（历史分散点 · **只减不增**）。
+#:
+#: ⚠️ **为什么要有这条**：棘轮只数 `strict_client` ⇒ ⇒ 一个**自建**的
+#: 「不 mock 守卫」的 client 写出来的用例 ⇒ ⇒ 对棘轮**隐形** ⇒ ⇒
+#: 「已审面」的计数**偏小** ⇒ ⇒ 而且**没人知道**。
+#:
+#: ⇒ ⇒ 这份清单是**已知的分散点**⇒ ⇒ 新增一个 ⇒ ⇒ 这里红 ⇒ ⇒
+#: 要么改用 `tests/conftest.py` 的 `client` / `strict_client` ⇒ ⇒
+#: 要么**明确**加进这份清单（那是「有意识地再开一个」⇒ ⇒ 有人看见过）。
+KNOWN_CUSTOM_CLIENT_FILES: frozenset[str] = frozenset(
+    {
+        "api/v1/test_ai_audit_middleware.py",
+        "api/v1/test_deliverables_progress_aggregate.py",
+        "api/v1/test_p9a_dlv_011_authorization.py",
+        "api/v1/test_project_creation.py",
+        "api/v1/test_record_edits_endpoint.py",
+        "api/v1/test_workflow_progress_api.py",
+        "core/test_outbound_ai_client.py",
+        "e2e_flows/conftest.py",
+        "test_dual_engine.py",
+        "test_token_issuer_endpoints.py",
+    }
+)
+
+
+def _files_building_an_asgi_client() -> set[str]:
+    """哪些测试文件**自建**了 ASGI client（`ASGITransport`）。
+
+    ⚠️ **判据 = `ASGITransport(`** ⇒ ⇒ 命中的就是「自己 new 一个 app + client」
+    ⇒ ⇒ 正是「第三个 client」的形状。
+    """
+    found: set[str] = set()
+    for path in TESTS_DIR.rglob("*.py"):
+        rel = path.relative_to(TESTS_DIR).as_posix()
+        if rel == "conftest.py":
+            continue  # 根 conftest 是**唯一真相源**（client / strict_client）
+        if rel == Path(__file__).relative_to(TESTS_DIR).as_posix():
+            continue  # 本文件自己写着这个关键字 ⇒ ⇒ 别把自己算进去
+        if "ASGITransport(" in path.read_text(encoding="utf-8", errors="ignore"):
+            found.add(rel)
+    return found
+
+
+def test_no_new_file_may_build_its_own_client() -> None:
+    """⚠️ **自建 client 的文件集合被冻结** ⇒ ⇒ 新增一个 ⇒ ⇒ 这里红。
+
+    ⇒ ⇒ 「第三个 client」从此**必须有人看见**才能存在。
+    """
+    found = _files_building_an_asgi_client()
+    new_files = found - KNOWN_CUSTOM_CLIENT_FILES
+    assert not new_files, (
+        f"这些文件**自建**了 ASGI client：{sorted(new_files)}"
+        " ⇒ ⇒ 棘轮只数 strict_client ⇒ ⇒ 它们的守卫用例对棘轮隐形"
+        " ⇒ ⇒ 请改用 tests/conftest.py 的 client / strict_client"
+        "（确实需要自建 ⇒ ⇒ 请明确加进 KNOWN_CUSTOM_CLIENT_FILES）"
+    )
+

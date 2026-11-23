@@ -8,50 +8,28 @@ F-P0-001 R1 / Sprint 3 增量: audit endpoint 接入 check_project_access_or_404
 - DESIGNER 有 UserProject grant → 200
 - SYSTEM_ADMIN bypass guard (与 _guard.py 设计一致)
 
-注: 本测试用独立 client fixture (real_user_project_client), 不应用 conftest.py
-的默认 client mock (该 mock 自动 bypass guard 让其他 BLOCKER-3 测试通过).
+⚠️ **为什么用 `strict_client`**（F4-PRE · TODO-189 · 2026-11-23）：
+本文件原先**自建**一个 client fixture（`real_user_project_client`）⇒ ⇒ 那是
+**第二个**「不 mock 项目守卫的 client」⇒ ⇒ 而棘轮
+（`tests/test_strict_client_ratchet.py`）**只数 `strict_client`**
+⇒ ⇒ ⇒ 本文件的用例对棘轮是**隐形的** ⇒ ⇒ 「已审面」的计数**偏小**。
+
+⇒ ⇒ 现在改用 **`tests/conftest.py::strict_client`**（唯一真相源）⇒ ⇒
+⚠️ 它比本地的那个多做一件事：**每次请求前**还原守卫 ⇒ ⇒ 不会被默认
+`client` 的 monkeypatch 抢在前面 ⇒ ⇒ **更稳**。
+⇒ ⇒ 另加一条**架构守卫**（在棘轮文件里）：全仓**只允许 `tests/conftest.py`
+定义 client fixture** ⇒ ⇒ 防止「第三个」再出现。
 """
 from __future__ import annotations
 
 import uuid
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 
-from app.api.v1._guard import check_project_access_or_404
 from app.core.security import create_access_token
-from app.db.base import Base
-from app.db.session import get_async_session_factory, get_db
 from app.models.equipment import EquipmentDeletionAudit
 
 pytestmark = pytest.mark.asyncio
-
-
-@pytest_asyncio.fixture
-async def real_user_project_client(db_engine):
-    """独立 client — 不应用 conftest.py 的 check_user_project_access bypass mock.
-    让 guard 在 HTTP 端点上真正生效。
-    """
-    from fastapi import FastAPI
-
-    from app.api.v1 import api_router
-    from app.core.errors import install_exception_handlers
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
-    factory = async_sessionmaker(db_engine, expire_on_commit=False)
-
-    async def _override_get_db():
-        async with factory() as session:
-            yield session
-
-    app = FastAPI(title="PCS Test Guard")
-    install_exception_handlers(app)
-    app.include_router(api_router)
-    app.dependency_overrides[get_db] = _override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
 
 
 @pytest.fixture
@@ -84,13 +62,13 @@ async def _insert_audit(db, *, project_id: uuid.UUID):
     return row
 
 
-async def test_ungranted_designer_404(real_user_project_client, db, designer_token):
+async def test_ungranted_designer_404(strict_client, db, designer_token):
     """P7-7+: DESIGNER 无 grant + project_id filter 命中 → 404 (guard 触发, 不泄漏)."""
     project_id = uuid.uuid4()
     await _insert_audit(db, project_id=project_id)
     await db.commit()
 
-    r = await real_user_project_client.get(
+    r = await strict_client.get(
         "/api/v1/equipment-deletion-audit",
         params={"project_id": str(project_id)},
         headers={"Authorization": f"Bearer {designer_token}"},
@@ -98,7 +76,7 @@ async def test_ungranted_designer_404(real_user_project_client, db, designer_tok
     assert r.status_code == 404, r.text
 
 
-async def test_granted_designer_200(real_user_project_client, db, designer_token, designer_user_id):
+async def test_granted_designer_200(strict_client, db, designer_token, designer_user_id):
     """P7-7+: DESIGNER + grant + project_id filter → 200."""
     from app.services.user_project_service import UserProjectService
 
@@ -112,7 +90,7 @@ async def test_granted_designer_200(real_user_project_client, db, designer_token
     )
     await db.commit()
 
-    r = await real_user_project_client.get(
+    r = await strict_client.get(
         "/api/v1/equipment-deletion-audit",
         params={"project_id": str(project_id)},
         headers={"Authorization": f"Bearer {designer_token}"},
@@ -122,13 +100,13 @@ async def test_granted_designer_200(real_user_project_client, db, designer_token
     assert body["total"] == 1
 
 
-async def test_admin_bypass_guard(real_user_project_client, db, admin_token):
+async def test_admin_bypass_guard(strict_client, db, admin_token):
     """P7-7+: SYSTEM_ADMIN 不需要 grant (guard 内 SYSTEM_ADMIN bypass)."""
     project_id = uuid.uuid4()
     await _insert_audit(db, project_id=project_id)
     await db.commit()
 
-    r = await real_user_project_client.get(
+    r = await strict_client.get(
         "/api/v1/equipment-deletion-audit",
         params={"project_id": str(project_id)},
         headers={"Authorization": f"Bearer {admin_token}"},

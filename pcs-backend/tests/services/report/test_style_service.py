@@ -205,7 +205,10 @@ async def test_project_level_uses_project_access_not_admin(session):
     from app.services.user_project_service import UserProjectService
 
     pid = uuid.uuid4()
-    granted = {"value": True}
+    # ⚠️ **初值必须是 False**（F4-PRE · TODO-183 · 2026-11-23）：初值 True ⇒ ⇒
+    # 「守卫被调用过」与「守卫从没被调用」**断言恒真** ⇒ ⇒ 删掉守卫这测试还绿
+    # ⇒ ⇒ 改成 False ⇒ ⇒ 删掉守卫 ⇒ ⇒ `granted["value"]` 仍是 False ⇒ ⇒ 红。
+    granted = {"value": False}
     orig = UserProjectService.check_user_project_access
 
     async def fake(cls, db, *, user_id, project_id):
