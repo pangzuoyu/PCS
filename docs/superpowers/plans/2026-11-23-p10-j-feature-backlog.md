@@ -70,6 +70,12 @@
       （`app/workers/report_builder_tasks.py:79`））⇒ ⇒ 否则公司级模板一执行，
       `report_files.project_id` 落 NULL ⇒ ⇒ **产出文件无项目归属**
 
+⇒ ⇒ ⚖️ **QA 要求（hermes · L3）**：`ReportDefinition` 的唯一约束是
+`UniqueConstraint("project_id", "name", postgresql_nulls_not_distinct=True)`
+（`app/models/report.py:213-215`）⇒ ⇒ **公司级作用域（`project_id IS NULL`）的语义
+在 SQLite 单测里**不可验** ⇒ ⇒ ⇒ 「公司级模板」的新用例**必须走 PG 车道**
+（`scripts/pytest_pg.sh`）⇒ ⇒ 默认车道的绿灯**对这一族没有证明力**。
+
 ⇒ ⇒ **3.2 = 404（技术决定 · 非产品决定）**：
 ① 守卫契约明写「无权访问 `project_id` ⇒ ⇒ **404**（与『不存在』同形）…… ⇒ ⇒ **403 不行**
 ⇒ ⇒ 403 会泄露「这个项目存在」」（`user_project_service.py:352-376`）

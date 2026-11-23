@@ -2138,8 +2138,10 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 ⇒ ⇒ **四条实现要求**（hermes）：
 - **A-1** 过滤落 **service 层**（既有模式：判定在 service ⇒ 端点漏调也绕不过）
 - **A-2** 两份 EXISTS **抽共享 helper**（勿复制）
-- **A-3** 角色闸引**唯一真相源**（现状**已 2 份**：`PUBLISH_ROLES` + `OBSOLETE_ROLES`
-  ⇒ ⇒ 队列会是第 3 份 ⇒ ⇒ 落 `app/core/acl.py`）
+- **A-3** 角色闸引**唯一真相源**（现状**已 3 份**：词表 `ALLOWED_ROLES`
+  `app/api/v1/config.py:92` + `PUBLISH_ROLES` `app/api/v1/report_builder.py:236` +
+  `OBSOLETE_ROLES` `app/services/report/definition_service.py:65`
+  ⇒ ⇒ 队列会是**第 4 份** ⇒ ⇒ 落 `app/core/acl.py`）
 - **A-4** **SYSTEM_ADMIN 也排除自己的草稿**（否则队列出现「点了必失败」的按钮）
 
 ⇒ ⇒ **队列响应**（新具名 schema `ReportDefinitionReviewItem`）= `def_id` / `name` /

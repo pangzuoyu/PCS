@@ -193,3 +193,36 @@
 
 ⚠️ 本机 **Grep/Glob 不可用**（ToolSearch 0 命中）⇒ ⇒ 它**实测 Bash 可用且未挂起**（本次约 **20 次只读命令**）
 ⇒ ⇒ 「**子代理 Bash 会挂起**」这条记忆在**本机**可能已**过期** ⇒ ⇒ 值得单独验一次。
+
+### 3.9 · 裁决速览（hermes 自述）
+
+| 项 | 裁决 | 关键判据 |
+|---|---|---|
+| **项 1** 队列端点形态 | **A 新建端点**（+4 要求：A-1 过滤落 service 层 / A-2 EXISTS 抽共享 helper / A-3 角色闸引唯一真相源 / A-4 SYSTEM_ADMIN 也排除自审）| 复用 `GET /definitions` 在**契约层做不到** —— `ReportDefinitionOut.definition_json` **必填**，而约束 1 要求队列不带半成品 ⇒ ⇒ 要么泄正文、要么让该端点变条件响应。且「只读」**已结构性成立**（`definition_service.py:314-323,372-376`）⇒ ⇒ 队列只能自足 |
+| **项 2**「忽略」存储 | **A 前端本地**（+2 约束：键必须是 `(def_id, updated_at)`；介质倾向 **sessionStorage**）| 忽略不是状态/授权/审计 ⇒ 后端表代价失衡。但 `version` 不区分草稿修订 ⇒ 只按 `def_id` 忽略会把改过的草稿**永久静默隐藏**。前端**零** localStorage 且有成文反对理由 |
+| **项 3.1** 公司级模板可否执行 | **产品决定，需人裁**；技术侧只剩一个选项（不存在「无项目执行」）+ 两条必做约束：**scope 顺序倒置为 `row.project_id or body.project_id`**、**入队传解析后的 scope** | `builder_service.py:179-185`「不能默认全库查询」+ `tests/api/v1/test_report_builder.py:790-795`。现状顺序会让「绑 B 的定义跑 A 的数据」 |
+| **项 3.2** 无权项目 | **404**（**技术决定**，非产品）| `user_project_service.py:352-376`「403 不行 ⇒ 泄露项目存在」；审计 `:46` 把「403(项目守卫)」归为**缺口**；端点已对定义自带项目走 404（`report_builder.py:398-402`）|
+
+**需要人裁的新发现（人裁时未覆盖）**：
+
+1. **`publish()` 不判 `shared_with`**（`definition_service.py:454-478`）⇒ ⇒ 队列一上 UI 就给这个洞开口子，而约束 2 的过滤表**漏了 `shared_with` 这一维**。
+2. **「发布」按钮位置**：人裁原话「列表页发布按钮」，但审核者在列表页看不到别人的草稿 ⇒ ⇒ 按钮必须在**队列页**。
+3. **SPEC 修订登记缺失**：SPEC V1.0（`docs/PCS-UI-SPEC.md:2168-2176`）无「待我审核」页、无公司级模板执行条款；P10-I 计划的跨文档清单只列了 F3 审计结论。
+
+**冲突检查结论**：
+
+- **TODO-197**：三个约束均**无冲突**（约束 1 被代码事实加强）；上列 1、2 两点属**需补**，非冲突。
+- **TODO-187**：两个约束均**无冲突**（项 3.2 不动守卫默认值 ⇒ 124 处零回归自动满足）；
+  T2 与项 3 **正交**、无顺序依赖；唯一要求是项 3.2 的 404 **必须走 service 层那份**
+  （`code=PROJECT_NOT_FOUND`），不能用 api 层 `_guard.check_project_access_or_404`
+  （`code=HTTP_404`），否则 code 不同仍可枚举。
+
+**hermes 完整版 Learnings 里的两处更精确的事实**（已据此订正本仓记录）：
+
+- 角色清单现状是 **3 份**（词表 `ALLOWED_ROLES` `app/api/v1/config.py:92` +
+  `PUBLISH_ROLES` `app/api/v1/report_builder.py:236` + `OBSOLETE_ROLES`
+  `app/services/report/definition_service.py:65`）⇒ ⇒ 队列会是**第 4 份**
+- `ReportDefinition` 的唯一约束带 `postgresql_nulls_not_distinct=True`
+  （`app/models/report.py:213-215`）⇒ ⇒ **公司级作用域（`project_id IS NULL`）的语义
+  在 SQLite 单测里不可验** ⇒ ⇒ 「公司级模板」的新用例**必须走 PG 车道**
+  ⇒ ⇒ 默认车道的绿灯**对这一族没有证明力**（已写进 P10-J 计划的 QA 要求）。

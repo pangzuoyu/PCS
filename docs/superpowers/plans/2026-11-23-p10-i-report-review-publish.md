@@ -82,9 +82,10 @@
       要么让 `GET /definitions` 变条件响应 ⇒ ⇒ **过滤条件按约束 2**（**不**改 `visible_clause`）
 - [ ] ⚖️ hermes **A-1** · 过滤落 **service 层**（既有模式：判定在 service ⇒ 端点漏调也绕不过）
 - [ ] ⚖️ hermes **A-2** · 两份 EXISTS **抽共享 helper**（勿复制）
-- [ ] ⚖️ hermes **A-3** · 角色闸引**唯一真相源**（现状**已 2 份**：`PUBLISH_ROLES` +
-      `OBSOLETE_ROLES` ⇒ ⇒ 队列会是第 3 份）⇒ ⇒ 落 `app/core/acl.py`
-      （层规则：service 不 import api）
+- [ ] ⚖️ hermes **A-3** · 角色闸引**唯一真相源**（现状**已 3 份**：词表 `ALLOWED_ROLES`
+      `app/api/v1/config.py:92` + `PUBLISH_ROLES` `app/api/v1/report_builder.py:236` +
+      `OBSOLETE_ROLES` `app/services/report/definition_service.py:65` ⇒ ⇒ 队列会是
+      **第 4 份**）⇒ ⇒ 落 `app/core/acl.py`（层规则：service 不 import api）
 - [ ] ⚖️ hermes **A-4** · **SYSTEM_ADMIN 也排除自己的草稿**（否则队列出现「点了必失败」按钮）
 - [ ] **后端** · 队列端点的 **docstring 写全约束 2 那张表**
 - [ ] **后端** · 队列**只返元数据** ⇒ ⇒ 新具名 schema `ReportDefinitionReviewItem`
