@@ -6509,6 +6509,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-builder/definitions/pending-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Review
+         * @description 「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。
+         *
+         *     ## 它解的是哪个洞
+         *
+         *     「创建 ⇒ 交给审核者 ⇒ 审核者发布」这条链，**在 UI 上断在第二环**：
+         *     - 创建人 ⇒ ⇒ **403 自审**（`publish()` 禁自审）
+         *     - 审核者 ⇒ ⇒ **在列表页看不见别人的草稿**（`visible_clause`：草稿只有创建人可见）
+         *     ⇒ ⇒ ⇒ 「那个发布按钮对所有角色 100% 死」⇒ ⇒ ⇒ SPEC §3.2.2 在 UI 上不成立。
+         *
+         *     ⇒ ⇒ 本端点给审核者**一条能看见可审草稿的路**（只读元数据）⇒ ⇒
+         *     ⇒ ⇒ 配合编辑器页外的「发布」动作（不进编辑器）⇒ ⇒ 链就通了。
+         *
+         *     ## 口径（**与 `visible_clause` 分离** —— 人裁约束 2）
+         *
+         *     | 草稿类型 | 我可见 | 条件 |
+         *     |---|---|---|
+         *     | 公司级（`project_id IS NULL`）| ✔ | `REVIEWER+` |
+         *     | 项目级 | ✔ | `REVIEWER+` ∧ 我在该项目有 `user_projects` 授权 |
+         *     | 项目级 · 我无授权 | ✘ | ——（即使我是 `REVIEWER`）|
+         *     | `created_by == 我` | ✘ | ——（自审禁止 ⇒ 与 `publish()` 的 **403** 一致）|
+         *     | `shared_with == CREATOR_ONLY` | ✘ | ——（它没有「发布」这个动作）|
+         *
+         *     ⚠️ **这组规则同时写进了 service 层 `pending_review()` 的 docstring**
+         *     ⇒ ⇒ 不是只写在实现里 ⇒ ⇒ 下一个维护者不会误以为「队列 = 所有 DRAFT」。
+         *
+         *     ## ⚠️ **路由顺序**（FastAPI 按声明顺序匹配）
+         *
+         *     本端点**必须**声明在 `GET /definitions/{def_id}` **之前**
+         *     ⇒ ⇒ 否则 `/definitions/pending-review` 会先撞上 `{def_id}`
+         *     ⇒ ⇒ ⇒ 表现是 **422**（`def_id` 不是 UUID）而不是「队列」。
+         *
+         *     ## ⚠️ **为什么这里不调 `require_roles`**
+         *
+         *     角色闸在 **service 层**（与过滤同处一地 ⇒ ⇒ 端点漏调也绕不过）
+         *     ⇒ ⇒ 同一条件**只有一个错误码** `REPORT_DEFINITION_ROLE_REQUIRED`
+         *     ⇒ ⇒ （若端点也 `require_roles` ⇒ ⇒ HTTPException 的 `HTTP_403`
+         *     ⇒ ⇒ 与 service 的码**并存** ⇒ ⇒ 前端按 code 分流要处理两个 ⇒ ⇒ 口径分裂）。
+         */
+        get: operations["list_pending_review_api_v1_report_builder_definitions_pending_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/report-builder/definitions/{def_id}": {
         parameters: {
             query?: never;
@@ -16667,6 +16723,44 @@ export interface components {
             created_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /**
+         * ReportDefinitionReviewItem
+         * @description 「待我审核」队列的一行 —— **只带元数据**（2026-11-23 · P10-I · T1）。
+         *
+         *     ⚠️ **为什么不复用 `ReportDefinitionOut`**：那份带 `definition_json`
+         *     （报表正文）⇒ ⇒ 队列是**只读视图**（人裁约束 1：审核者**不能进编辑器**）
+         *     ⇒ ⇒ 正文不给 ⇒ ⇒ 也不给 `version`（改草稿不动版本号 ⇒ ⇒ 恒值）
+         *     ⇒ ⇒ 也不给 `status`（队列里恒为 `DRAFT`）⇒ ⇒ 也不给 `output_format` / `max_rows`
+         *     ⇒ ⇒ ⇒ **只带够做动作的字段**（先例：SPEC §6.22 的待办 item 同款口径）。
+         */
+        ReportDefinitionReviewItem: {
+            /**
+             * Def Id
+             * Format: uuid
+             */
+            def_id: string;
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+            /** Created By */
+            created_by: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** ReportDefinitionReviewList */
+        ReportDefinitionReviewList: {
+            /** Items */
+            items: components["schemas"]["ReportDefinitionReviewItem"][];
+            /** Total */
+            total: number;
         };
         /**
          * ReportDefinitionUpsert
@@ -33397,6 +33491,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_review_api_v1_report_builder_definitions_pending_review_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionReviewList"];
                 };
             };
             /** @description Validation Error */

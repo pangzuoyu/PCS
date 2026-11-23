@@ -102,6 +102,29 @@ async def _publish_by_other(strict_client, def_id, *, subject="reviewer-1",
     return r.json()
 
 
+async def _force_publish(db_session, def_id):
+    """**直接**把定义置为 `PUBLISHED`（**不经 API**）。
+
+    ⚠️ **为什么需要它**（2026-11-23 · P10-I · T1 · 人裁 ①）：
+    `publish()` 现在**补判 `shared_with`** ⇒ ⇒ `CREATOR_ONLY` 的草稿
+    ⇒ ⇒ **任何人**都发不了（创建人自己 ⇒ 自审 403；他人 ⇒ 403
+    `REPORT_DEFINITION_NOT_SHAREABLE`）⇒ ⇒ ⇒ 「**已发布** + `CREATOR_ONLY`」
+    这个状态**从 API 走不到**了。
+
+    ⇒ ⇒ 但**可见性规则本身没变**（`visible_clause` 里那一档还在）
+    ⇒ ⇒ ⇒ 那两条用例断的是**可见性** ⇒ ⇒ ⇒ 用 DB 直接置位来搭场景
+    ⇒ ⇒ ⇒ 而不是删掉它们（删掉 ⇒ ⇒ `visible_clause` 的 `CREATOR_ONLY`
+    分支就**没人测了** ⇒ ⇒ ⇒ 那才是真的退化）。
+    """
+    from app.models.report import ReportDefinition
+
+    row = await db_session.get(ReportDefinition, uuid.UUID(str(def_id)))
+    assert row is not None, def_id
+    row.status = "PUBLISHED"
+    await db_session.commit()
+    return row
+
+
 # ---------------------------------------------------------------------------
 # ① TODO-192 #5 · `shared_with` 对项目级也要生效
 # ---------------------------------------------------------------------------
@@ -124,7 +147,8 @@ async def test_project_level_creator_only_is_invisible_to_other_members(
 
     d = await _mk_def(strict_client, subject="creator-1", user_id=creator,
                       project_id=project.project_id, shared_with="CREATOR_ONLY")
-    await _publish_by_other(strict_client, d["def_id"], user_id=other)
+    # ⚠️ **不经 API 发布**（人裁 ① 之后 `CREATOR_ONLY` 发不出去 ⇒ ⇒ 状态直置）
+    await _force_publish(db_session, d["def_id"])
 
     r = await strict_client.get(
         f"{DEF_PATH}/{d['def_id']}", headers=_auth("other-1", "DESIGNER", user_id=other))
@@ -146,7 +170,8 @@ async def test_project_level_creator_only_stays_visible_to_its_creator(
 
     d = await _mk_def(strict_client, subject="creator-1", user_id=creator,
                       project_id=project.project_id, shared_with="CREATOR_ONLY")
-    await _publish_by_other(strict_client, d["def_id"], user_id=other)
+    # ⚠️ **不经 API 发布**（人裁 ① 之后 `CREATOR_ONLY` 发不出去 ⇒ ⇒ 状态直置）
+    await _force_publish(db_session, d["def_id"])
 
     r = await strict_client.get(
         f"{DEF_PATH}/{d['def_id']}", headers=_auth("creator-1", "DESIGNER", user_id=creator))

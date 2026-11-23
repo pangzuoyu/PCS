@@ -4163,3 +4163,40 @@
 | 17:27 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | expanded (+15 lines) | ~183 |
 | 17:27 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | expanded (+11 lines) | ~212 |
 | 17:27 | Edited TODOS.md | expanded (+13 lines) | ~280 |
+| 18:00 | Edited pcs-backend/app/core/acl.py | modified PermissionDeniedError() | ~426 |
+| 18:00 | Edited pcs-backend/app/services/report/definition_service.py | 11→13 lines | ~172 |
+| 18:00 | Edited pcs-backend/app/services/report/definition_service.py | added 1 import(s) | ~23 |
+| 18:01 | Edited pcs-backend/app/services/report/definition_service.py | modified project_member_exists() | ~217 |
+| 18:01 | Edited pcs-backend/app/services/report/definition_service.py | removed 9 lines | ~15 |
+| 18:01 | Edited pcs-backend/app/services/report/definition_service.py | inline fix | ~10 |
+| 18:01 | Edited pcs-backend/app/services/report/definition_service.py | modified pending_review() | ~793 |
+| 18:01 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+17 lines) | ~229 |
+| 18:02 | Edited pcs-backend/app/schemas/report_builder.py | modified ReportDefinitionList() | ~339 |
+| 18:02 | Edited pcs-backend/app/api/v1/report_builder.py | 14→17 lines | ~152 |
+| 18:02 | Edited pcs-backend/app/api/v1/report_builder.py | modified list_pending_review() | ~607 |
+| 18:02 | Edited pcs-backend/app/services/report/definition_service.py | 13→13 lines | ~176 |
+| 18:02 | Edited pcs-backend/app/services/report/definition_service.py | 9→9 lines | ~119 |
+| 18:02 | Edited pcs-backend/app/api/v1/report_builder.py | 4→9 lines | ~116 |
+| 18:02 | Edited pcs-backend/app/api/v1/report_builder.py | inline fix | ~12 |
+| 18:03 | Created pcs-backend/tests/api/v1/test_report_definition_review_queue.py | — | ~3405 |
+| 18:05 | Edited pcs-backend/tests/conftest.py | 2→6 lines | ~88 |
+| 18:05 | Edited pcs-backend/tests/conftest.py | 3→5 lines | ~50 |
+| 18:05 | Edited pcs-backend/tests/conftest.py | 4→7 lines | ~79 |
+| 18:07 | Edited pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py | modified _publish_by_other() | ~329 |
+| 18:07 | Edited pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py | _publish_by_other() → _force_publish() | ~123 |
+| 18:07 | Edited pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py | _publish_by_other() → _force_publish() | ~124 |
+| 18:07 | Created pcs-backend/tests/api/v1/test_report_definition_review_queue.py | — | ~3594 |
+| 18:09 | Edited pcs-frontend/src/api/reportBuilder.ts | 2→5 lines | ~116 |
+| 18:09 | Edited pcs-frontend/src/api/reportBuilder.ts | expanded (+14 lines) | ~169 |
+| 18:09 | Created pcs-frontend/src/pages/report/reviewIgnored.ts | — | ~721 |
+| 18:09 | Created pcs-frontend/src/pages/report/ReportReviewQueuePage.tsx | — | ~2190 |
+| 18:10 | Edited pcs-frontend/src/App.tsx | 5→7 lines | ~128 |
+| 18:10 | Edited pcs-frontend/src/App.tsx | 3→4 lines | ~31 |
+| 18:10 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified ReportDefinitionListRoute() | ~201 |
+| 18:10 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 4→7 lines | ~76 |
+| 18:11 | Created pcs-frontend/tests/pages/report/ReportReviewQueuePage.test.tsx | — | ~1672 |
+| 18:14 | Edited docs/PCS-UI-SPEC.md | expanded (+42 lines) | ~355 |
+| 18:17 | Edited pcs-frontend/src/mocks/reportBuilder.ts | 2→3 lines | ~61 |
+| 18:17 | Edited pcs-frontend/src/mocks/reportBuilder.ts | expanded (+16 lines) | ~144 |
+| 18:17 | Edited pcs-frontend/src/mocks/reportBuilder.ts | modified json() | ~123 |
+| 20:14 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md | — | ~1250 |

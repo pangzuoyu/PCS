@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T09:27:58.090Z",
-    "fileCount": 1450,
+    "lastScanned": "2026-11-23T12:14:30.891Z",
+    "fileCount": 1456,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "37334ed346c680cafa1eadf7851610c94e9587554e9a5ef3e804a927c3c9dc53",
-    "storeUpdatedAt": "2026-11-23T09:27:58.103Z",
-    "rootHash": "357970a41c20fbd9"
+    "renderedHash": "42e51ade77a7df733561498ad48b1be42276b6e84d097b9ca4d4ac3f44bed83e",
+    "storeUpdatedAt": "2026-11-23T12:14:30.905Z",
+    "rootHash": "26394986118d648e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1756,11 +1756,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 18952,
-      "hash": "62cf705b9a4a1b2f",
-      "size": 125776,
-      "mtimeMs": 1794443680564.4175,
-      "updatedAt": "2026-11-12T00:34:40.615Z",
+      "tokens": 19278,
+      "hash": "2060c683354cdda0",
+      "size": 128278,
+      "mtimeMs": 1795428861105.7725,
+      "updatedAt": "2026-11-23T10:14:21.159Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -13590,11 +13590,11 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 5332,
-      "hash": "d908eaf67e20d6ac",
-      "size": 22745,
-      "mtimeMs": 1795043237294.8765,
-      "updatedAt": "2026-11-18T23:07:17.346Z",
+      "tokens": 5475,
+      "hash": "9274b9a7b69e349c",
+      "size": 23446,
+      "mtimeMs": 1795428629366.6003,
+      "updatedAt": "2026-11-23T10:10:29.421Z",
       "source": "hook",
       "symbols": [
         {
@@ -13734,106 +13734,106 @@
           "name": "PipeRoute",
           "kind": "fn",
           "startLine": 317,
-          "endLine": 325,
-          "tokens": 60
+          "endLine": 329,
+          "tokens": 100
+        },
+        {
+          "name": "EquipmentListRoute",
+          "kind": "fn",
+          "startLine": 330,
+          "endLine": 333,
+          "tokens": 25
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 326,
-          "endLine": 363,
+          "startLine": 334,
+          "endLine": 371,
           "tokens": 318
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 364,
-          "endLine": 367,
+          "startLine": 372,
+          "endLine": 375,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 368,
-          "endLine": 377,
+          "startLine": 376,
+          "endLine": 385,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 378,
-          "endLine": 383,
+          "startLine": 386,
+          "endLine": 391,
           "tokens": 63
         },
         {
           "name": "HeatingValueRoute",
           "kind": "fn",
-          "startLine": 384,
-          "endLine": 386,
+          "startLine": 392,
+          "endLine": 394,
           "tokens": 24
         },
         {
           "name": "SaturationWaterContentRoute",
           "kind": "fn",
-          "startLine": 387,
-          "endLine": 389,
+          "startLine": 395,
+          "endLine": 397,
           "tokens": 30
         },
         {
           "name": "CvRoute",
           "kind": "fn",
-          "startLine": 390,
-          "endLine": 395,
+          "startLine": 398,
+          "endLine": 403,
           "tokens": 38
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 396,
-          "endLine": 401,
+          "startLine": 404,
+          "endLine": 409,
           "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 402,
-          "endLine": 407,
-          "tokens": 54
-        },
-        {
-          "name": "HeatRoute",
-          "kind": "fn",
-          "startLine": 408,
-          "endLine": 556,
-          "tokens": 1339
+          "startLine": 410,
+          "endLine": 570,
+          "tokens": 1470
         }
       ]
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 1466,
-      "hash": "7953f23b4036cef4",
-      "size": 5315,
-      "mtimeMs": 1793097942641.174,
-      "updatedAt": "2026-10-27T10:45:42.685Z",
+      "tokens": 1733,
+      "hash": "9e40d353d320f64b",
+      "size": 6557,
+      "mtimeMs": 1795428623922.7703,
+      "updatedAt": "2026-11-23T10:10:23.982Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 146,
+          "startLine": 160,
+          "endLine": 166,
           "tokens": 38
         }
       ]
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。",
-      "tokens": 3064,
-      "hash": "3cc6632e5a7f8366",
-      "size": 12912,
-      "mtimeMs": 1795390547723.0999,
-      "updatedAt": "2026-11-22T23:35:47.773Z",
+      "tokens": 3103,
+      "hash": "eeb1dcdf8ea1a43d",
+      "size": 13177,
+      "mtimeMs": 1795428639080.2986,
+      "updatedAt": "2026-11-23T10:10:39.134Z",
       "source": "hook",
       "symbols": [
         {
@@ -13847,21 +13847,21 @@
           "name": "buildMenuItems",
           "kind": "fn",
           "startLine": 33,
-          "endLine": 121,
-          "tokens": 920
+          "endLine": 124,
+          "tokens": 960
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 134,
+          "startLine": 125,
+          "endLine": 137,
           "tokens": 103
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 312,
+          "startLine": 138,
+          "endLine": 315,
           "tokens": 1688
         }
       ]
@@ -15951,11 +15951,11 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 9108,
-      "hash": "b3af90a28d3d3710",
-      "size": 39765,
-      "mtimeMs": 1795402711108.8904,
-      "updatedAt": "2026-11-23T02:58:31.160Z",
+      "tokens": 9214,
+      "hash": "085ffd3c8231ba23",
+      "size": 40367,
+      "mtimeMs": 1795428356793.8477,
+      "updatedAt": "2026-11-23T10:05:56.843Z",
       "source": "hook",
       "symbols": [
         {
@@ -16046,126 +16046,126 @@
           "name": "client",
           "kind": "fn",
           "startLine": 272,
-          "endLine": 371,
-          "tokens": 1064
+          "endLine": 380,
+          "tokens": 1171
         },
         {
           "name": "_restore_real_project_guard",
           "kind": "fn",
-          "startLine": 372,
-          "endLine": 376,
+          "startLine": 381,
+          "endLine": 385,
           "tokens": 50
         },
         {
           "name": "_StrictAsyncClient",
           "kind": "class",
-          "startLine": 377,
-          "endLine": 399,
+          "startLine": 386,
+          "endLine": 408,
           "tokens": 202
         },
         {
           "name": "strict_client",
           "kind": "fn",
-          "startLine": 400,
-          "endLine": 434,
+          "startLine": 409,
+          "endLine": 443,
           "tokens": 312
         },
         {
           "name": "grant_project",
           "kind": "fn",
-          "startLine": 435,
-          "endLine": 468,
+          "startLine": 444,
+          "endLine": 477,
           "tokens": 290
         },
         {
           "name": "_avoid_real_db_probe",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 509,
+          "startLine": 478,
+          "endLine": 518,
           "tokens": 451
         },
         {
           "name": "lane_is_active",
           "kind": "fn",
-          "startLine": 510,
-          "endLine": 524,
+          "startLine": 519,
+          "endLine": 533,
           "tokens": 145
         },
         {
           "name": "pytest_collection_modifyitems",
           "kind": "fn",
-          "startLine": 525,
-          "endLine": 562,
+          "startLine": 534,
+          "endLine": 571,
           "tokens": 390
         },
         {
           "name": "apply_default_lane_isolation",
           "kind": "fn",
-          "startLine": 563,
-          "endLine": 588,
+          "startLine": 572,
+          "endLine": 597,
           "tokens": 233
         },
         {
           "name": "_isolate_default_lane",
           "kind": "fn",
-          "startLine": 589,
-          "endLine": 622,
+          "startLine": 598,
+          "endLine": 631,
           "tokens": 348
         },
         {
           "name": "_clear_rbac_rate_limits",
           "kind": "fn",
-          "startLine": 623,
-          "endLine": 637,
+          "startLine": 632,
+          "endLine": 646,
           "tokens": 129
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 638,
-          "endLine": 643,
+          "startLine": 647,
+          "endLine": 652,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 644,
-          "endLine": 649,
+          "startLine": 653,
+          "endLine": 658,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 650,
-          "endLine": 655,
+          "startLine": 659,
+          "endLine": 664,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 656,
-          "endLine": 661,
+          "startLine": 665,
+          "endLine": 670,
           "tokens": 32
         },
         {
           "name": "make_user",
           "kind": "fn",
-          "startLine": 662,
-          "endLine": 681,
+          "startLine": 671,
+          "endLine": 690,
           "tokens": 167
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 682,
-          "endLine": 728,
+          "startLine": 691,
+          "endLine": 737,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 729,
-          "endLine": 962,
+          "startLine": 738,
+          "endLine": 971,
           "tokens": 2207
         }
       ]
@@ -24938,265 +24938,293 @@
     },
     "pcs-backend/app/schemas/report_builder.py": {
       "description": "`/api/v1/report-builder` 的请求/响应模型（Phase 2）。",
-      "tokens": 1351,
-      "hash": "c57a793782f043bb",
-      "size": 5742,
-      "mtimeMs": 1791803751144.5332,
-      "updatedAt": "2026-10-12T11:15:51.189Z",
+      "tokens": 1961,
+      "hash": "a3eb8ae3275afdf2",
+      "size": 8880,
+      "mtimeMs": 1795428122650.4897,
+      "updatedAt": "2026-11-23T10:02:02.703Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ReportBuilderField",
           "kind": "class",
-          "startLine": 19,
-          "endLine": 27,
-          "tokens": 70
+          "startLine": 22,
+          "endLine": 34,
+          "tokens": 122
         },
         {
           "name": "ReportBuilderDatasource",
           "kind": "class",
-          "startLine": 28,
-          "endLine": 34,
+          "startLine": 35,
+          "endLine": 41,
           "tokens": 36
         },
         {
           "name": "ReportBuilderJoin",
           "kind": "class",
-          "startLine": 35,
-          "endLine": 42,
+          "startLine": 42,
+          "endLine": 49,
           "tokens": 37
         },
         {
           "name": "ReportBuilderDatasourceList",
           "kind": "class",
-          "startLine": 43,
-          "endLine": 53,
+          "startLine": 50,
+          "endLine": 60,
           "tokens": 104
         },
         {
           "name": "ReportDefSource",
           "kind": "class",
-          "startLine": 54,
-          "endLine": 60,
+          "startLine": 61,
+          "endLine": 67,
           "tokens": 38
         },
         {
           "name": "ReportDefSelectedField",
           "kind": "class",
-          "startLine": 61,
-          "endLine": 70,
+          "startLine": 68,
+          "endLine": 77,
           "tokens": 54
         },
         {
           "name": "ReportDefCondition",
           "kind": "class",
-          "startLine": 71,
-          "endLine": 83,
+          "startLine": 78,
+          "endLine": 90,
           "tokens": 102
         },
         {
           "name": "ReportDefFilterGroup",
           "kind": "class",
-          "startLine": 84,
-          "endLine": 103,
+          "startLine": 91,
+          "endLine": 110,
           "tokens": 182
         },
         {
           "name": "ReportDefSort",
           "kind": "class",
-          "startLine": 104,
-          "endLine": 109,
+          "startLine": 111,
+          "endLine": 116,
           "tokens": 33
         },
         {
           "name": "ReportDefinitionBody",
           "kind": "class",
-          "startLine": 110,
-          "endLine": 131,
-          "tokens": 242
+          "startLine": 117,
+          "endLine": 153,
+          "tokens": 442
         },
         {
           "name": "ReportDefinitionUpsert",
           "kind": "class",
-          "startLine": 132,
-          "endLine": 144,
-          "tokens": 109
+          "startLine": 154,
+          "endLine": 175,
+          "tokens": 200
         },
         {
           "name": "ReportDefinitionOut",
           "kind": "class",
-          "startLine": 145,
-          "endLine": 161,
+          "startLine": 176,
+          "endLine": 192,
           "tokens": 115
         },
         {
           "name": "ReportDefinitionList",
           "kind": "class",
-          "startLine": 162,
-          "endLine": 171,
-          "tokens": 103
+          "startLine": 193,
+          "endLine": 197,
+          "tokens": 27
+        },
+        {
+          "name": "ReportDefinitionReviewItem",
+          "kind": "class",
+          "startLine": 198,
+          "endLine": 216,
+          "tokens": 186
+        },
+        {
+          "name": "ReportDefinitionReviewList",
+          "kind": "class",
+          "startLine": 217,
+          "endLine": 227,
+          "tokens": 127
         }
       ]
     },
     "pcs-backend/app/api/v1/report_builder.py": {
       "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
-      "tokens": 4970,
-      "hash": "b75d3203088b0c22",
-      "size": 22996,
-      "mtimeMs": 1795007464939.7441,
-      "updatedAt": "2026-11-18T13:11:04.989Z",
+      "tokens": 5869,
+      "hash": "8f1e0b759d625df4",
+      "size": 27641,
+      "mtimeMs": 1795428161859.729,
+      "updatedAt": "2026-11-23T10:02:41.916Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_datasources",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 101,
+          "startLine": 60,
+          "endLine": 104,
           "tokens": 463
         },
         {
           "name": "_reject_bad_format",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 115,
+          "startLine": 105,
+          "endLine": 118,
           "tokens": 124
         },
         {
           "name": "create_definition",
           "kind": "fn",
-          "startLine": 116,
-          "endLine": 144,
+          "startLine": 119,
+          "endLine": 147,
           "tokens": 363
         },
         {
           "name": "list_definitions",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 172,
-          "tokens": 304
+          "startLine": 148,
+          "endLine": 179,
+          "tokens": 363
+        },
+        {
+          "name": "list_pending_review",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 239,
+          "tokens": 582
         },
         {
           "name": "get_definition",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 180,
-          "tokens": 88
+          "startLine": 240,
+          "endLine": 249,
+          "tokens": 115
         },
         {
           "name": "update_definition",
           "kind": "fn",
-          "startLine": 181,
-          "endLine": 200,
+          "startLine": 250,
+          "endLine": 269,
           "tokens": 261
         },
         {
           "name": "_as_dict",
           "kind": "fn",
-          "startLine": 201,
-          "endLine": 233,
-          "tokens": 295
+          "startLine": 270,
+          "endLine": 307,
+          "tokens": 357
         },
         {
           "name": "publish_definition",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 256,
+          "startLine": 308,
+          "endLine": 330,
           "tokens": 215
         },
         {
           "name": "obsolete_definition",
           "kind": "fn",
-          "startLine": 257,
-          "endLine": 275,
-          "tokens": 191
+          "startLine": 331,
+          "endLine": 358,
+          "tokens": 283
         },
         {
           "name": "ReportExecuteRequest",
           "kind": "class",
-          "startLine": 276,
-          "endLine": 288,
+          "startLine": 359,
+          "endLine": 371,
           "tokens": 109
         },
         {
           "name": "ReportExecuteAccepted",
           "kind": "class",
-          "startLine": 289,
-          "endLine": 295,
+          "startLine": 372,
+          "endLine": 378,
           "tokens": 37
         },
         {
           "name": "ReportExecutionStatus",
           "kind": "class",
-          "startLine": 296,
-          "endLine": 325,
+          "startLine": 379,
+          "endLine": 408,
           "tokens": 276
         },
         {
           "name": "execution_status",
           "kind": "fn",
-          "startLine": 326,
-          "endLine": 356,
+          "startLine": 409,
+          "endLine": 439,
           "tokens": 376
         },
         {
           "name": "execute_definition_endpoint",
           "kind": "fn",
-          "startLine": 357,
-          "endLine": 474,
-          "tokens": 1377
+          "startLine": 440,
+          "endLine": 560,
+          "tokens": 1424
         }
       ]
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 6402,
-      "hash": "a9d16dcf81aebbff",
-      "size": 30409,
-      "mtimeMs": 1795064147890.1738,
-      "updatedAt": "2026-11-19T04:55:47.939Z",
+      "tokens": 8026,
+      "hash": "056358111e781578",
+      "size": 39205,
+      "mtimeMs": 1795428152307.1516,
+      "updatedAt": "2026-11-23T10:02:32.360Z",
       "source": "hook",
       "symbols": [
         {
           "name": "bump_patch",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 92,
+          "startLine": 90,
+          "endLine": 107,
           "tokens": 128
         },
         {
           "name": "validate_definition_json",
           "kind": "fn",
-          "startLine": 93,
-          "endLine": 132,
+          "startLine": 108,
+          "endLine": 147,
           "tokens": 421
         },
         {
           "name": "align_with_columns",
           "kind": "fn",
-          "startLine": 133,
-          "endLine": 149,
+          "startLine": 148,
+          "endLine": 164,
           "tokens": 149
         },
         {
           "name": "_to_dict",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 168,
+          "startLine": 165,
+          "endLine": 183,
           "tokens": 168
+        },
+        {
+          "name": "project_member_exists",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 205,
+          "tokens": 194
         },
         {
           "name": "visible_clause",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 243,
-          "tokens": 807
+          "startLine": 206,
+          "endLine": 274,
+          "tokens": 751
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 244,
-          "endLine": 572,
-          "tokens": 4066
+          "startLine": 275,
+          "endLine": 716,
+          "tokens": 5364
         }
       ]
     },
@@ -26342,18 +26370,18 @@
     },
     "pcs-frontend/src/api/reportBuilder.ts": {
       "description": "REPORT_BUILDER 前端客户端（b10–b12 + c6）。",
-      "tokens": 1890,
-      "hash": "7187d8b467b13e89",
-      "size": 7776,
-      "mtimeMs": 1791857275661.7278,
-      "updatedAt": "2026-10-13T02:07:55.713Z",
+      "tokens": 2268,
+      "hash": "c7314b9ef3642c01",
+      "size": 9707,
+      "mtimeMs": 1795428557020.9006,
+      "updatedAt": "2026-11-23T10:09:17.070Z",
       "source": "hook",
       "symbols": [
         {
           "name": "errorMessage",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 170,
+          "startLine": 196,
+          "endLine": 203,
           "tokens": 90
         }
       ]
@@ -26657,33 +26685,33 @@
     },
     "pcs-frontend/src/mocks/reportBuilder.ts": {
       "description": "REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。",
-      "tokens": 2435,
-      "hash": "8900660b93638cf2",
-      "size": 9867,
-      "mtimeMs": 1791859349851.8494,
-      "updatedAt": "2026-10-13T02:42:29.900Z",
+      "tokens": 3384,
+      "hash": "42e7ce7d0338b9d8",
+      "size": 14136,
+      "mtimeMs": 1795429040414.9043,
+      "updatedAt": "2026-11-23T10:17:20.566Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "resetReportBuilderPollCount",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 212,
+          "tokens": 21
+        },
+        {
           "name": "requireAuth",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 146,
+          "startLine": 213,
+          "endLine": 215,
           "tokens": 33
         },
         {
           "name": "unauthorized",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 252,
-          "tokens": 1208
-        },
-        {
-          "name": "resetReportBuilderPollCount",
-          "kind": "fn",
-          "startLine": 253,
-          "endLine": 254,
-          "tokens": 21
+          "startLine": 216,
+          "endLine": 338,
+          "tokens": 1380
         }
       ]
     },
@@ -50875,130 +50903,137 @@
     },
     "pcs-backend/tests/api/v1/test_report_definition_ruling_2026_11_19.py": {
       "description": "**2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。",
-      "tokens": 3691,
-      "hash": "67ac0a9cb8d31d27",
-      "size": 14804,
-      "mtimeMs": 1795064205843.859,
-      "updatedAt": "2026-11-19T04:56:45.892Z",
+      "tokens": 3939,
+      "hash": "cc8d796fa81464cd",
+      "size": 16081,
+      "mtimeMs": 1795428444957.6707,
+      "updatedAt": "2026-11-23T10:07:25.012Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_auth",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 40,
+          "startLine": 41,
+          "endLine": 46,
           "tokens": 77
         },
         {
           "name": "_body",
           "kind": "fn",
-          "startLine": 41,
-          "endLine": 61,
+          "startLine": 47,
+          "endLine": 67,
           "tokens": 161
         },
         {
           "name": "_mk_project",
           "kind": "fn",
-          "startLine": 62,
-          "endLine": 75,
+          "startLine": 68,
+          "endLine": 81,
           "tokens": 121
         },
         {
           "name": "_mk_def",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 87,
+          "startLine": 82,
+          "endLine": 93,
           "tokens": 129
         },
         {
           "name": "_publish_by_other",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 103,
-          "tokens": 165
+          "startLine": 94,
+          "endLine": 104,
+          "tokens": 108
+        },
+        {
+          "name": "_force_publish",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 132,
+          "tokens": 278
         },
         {
           "name": "test_project_level_creator_only_is_invisible_to_other_members",
           "kind": "fn",
-          "startLine": 104,
-          "endLine": 130,
-          "tokens": 307
+          "startLine": 133,
+          "endLine": 160,
+          "tokens": 318
         },
         {
           "name": "test_project_level_creator_only_stays_visible_to_its_creator",
           "kind": "fn",
-          "startLine": 131,
-          "endLine": 149,
-          "tokens": 222
+          "startLine": 161,
+          "endLine": 180,
+          "tokens": 233
         },
         {
           "name": "test_project_level_all_users_is_visible_to_other_members",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 178,
+          "startLine": 181,
+          "endLine": 209,
           "tokens": 339
         },
         {
           "name": "test_system_admin_sees_other_users_draft",
           "kind": "fn",
-          "startLine": 179,
-          "endLine": 194,
+          "startLine": 210,
+          "endLine": 225,
           "tokens": 196
         },
         {
           "name": "test_ordinary_user_does_not_see_other_users_draft",
           "kind": "fn",
-          "startLine": 195,
-          "endLine": 212,
+          "startLine": 226,
+          "endLine": 243,
           "tokens": 226
         },
         {
           "name": "test_creator_cannot_obsolete_own_published_definition",
           "kind": "fn",
-          "startLine": 213,
-          "endLine": 238,
+          "startLine": 244,
+          "endLine": 269,
           "tokens": 273
         },
         {
           "name": "test_reviewer_can_obsolete_other_users_published_definition",
           "kind": "fn",
-          "startLine": 239,
-          "endLine": 260,
+          "startLine": 270,
+          "endLine": 291,
           "tokens": 233
         },
         {
           "name": "test_creator_can_obsolete_own_draft",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 279,
+          "startLine": 292,
+          "endLine": 310,
           "tokens": 186
         },
         {
           "name": "test_non_creator_cannot_obsolete_other_users_draft",
           "kind": "fn",
-          "startLine": 280,
-          "endLine": 308,
+          "startLine": 311,
+          "endLine": 339,
           "tokens": 280
         },
         {
           "name": "test_create_workspace_with_unauthorized_project_is_404",
           "kind": "fn",
-          "startLine": 309,
-          "endLine": 328,
+          "startLine": 340,
+          "endLine": 359,
           "tokens": 181
         },
         {
           "name": "test_create_workspace_with_authorized_project_is_201",
           "kind": "fn",
-          "startLine": 329,
-          "endLine": 346,
+          "startLine": 360,
+          "endLine": 377,
           "tokens": 181
         },
         {
           "name": "test_create_personal_workspace_without_project_is_201",
           "kind": "fn",
-          "startLine": 347,
-          "endLine": 358,
+          "startLine": 378,
+          "endLine": 389,
           "tokens": 118
         }
       ]
@@ -52318,6 +52353,280 @@
       "size": 4589,
       "mtimeMs": 1795425723754.6548,
       "updatedAt": "2026-11-23T09:22:03.806Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/core/acl.py": {
+      "description": "ACL 工具（基于 user 对象的 duck-typing）。",
+      "tokens": 536,
+      "hash": "c1239e47921b26bc",
+      "size": 2761,
+      "mtimeMs": 1795428047914.0442,
+      "updatedAt": "2026-11-23T10:00:47.964Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PermissionDeniedError",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 50,
+          "tokens": 25
+        },
+        {
+          "name": "_user_attr",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 66,
+          "tokens": 110
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_report_definition_review_queue.py": {
+      "description": "「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。",
+      "tokens": 3594,
+      "hash": "cf2a7d2a41d453d7",
+      "size": 14937,
+      "mtimeMs": 1795428458528.1992,
+      "updatedAt": "2026-11-23T10:07:38.579Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 54,
+          "tokens": 77
+        },
+        {
+          "name": "_body",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 75,
+          "tokens": 161
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 89,
+          "tokens": 121
+        },
+        {
+          "name": "_mk_def",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 103,
+          "tokens": 135
+        },
+        {
+          "name": "_ids",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 112,
+          "tokens": 78
+        },
+        {
+          "name": "test_company_level_draft_appears_in_the_review_queue",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 135,
+          "tokens": 222
+        },
+        {
+          "name": "test_project_level_draft_appears_only_with_a_project_grant",
+          "kind": "fn",
+          "startLine": 136,
+          "endLine": 170,
+          "tokens": 388
+        },
+        {
+          "name": "test_own_draft_never_appears_in_the_review_queue",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 187,
+          "tokens": 160
+        },
+        {
+          "name": "test_system_admin_does_not_see_own_draft_in_the_review_queue",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 211,
+          "tokens": 243
+        },
+        {
+          "name": "test_creator_only_draft_never_appears_in_the_review_queue",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 240,
+          "tokens": 319
+        },
+        {
+          "name": "test_non_reviewer_role_is_forbidden_on_the_queue",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 260,
+          "tokens": 204
+        },
+        {
+          "name": "test_queue_returns_metadata_only",
+          "kind": "fn",
+          "startLine": 261,
+          "endLine": 287,
+          "tokens": 290
+        },
+        {
+          "name": "test_publishing_a_creator_only_draft_is_forbidden",
+          "kind": "fn",
+          "startLine": 288,
+          "endLine": 312,
+          "tokens": 288
+        },
+        {
+          "name": "test_creator_only_draft_is_404_when_project_access_is_missing",
+          "kind": "fn",
+          "startLine": 313,
+          "endLine": 340,
+          "tokens": 296
+        },
+        {
+          "name": "test_published_definitions_are_not_in_the_queue",
+          "kind": "fn",
+          "startLine": 341,
+          "endLine": 364,
+          "tokens": 277
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/reviewIgnored.ts": {
+      "description": "「忽略」的本地存储 —— P10-I · T1（人裁 ④ · 2026-11-23）。",
+      "tokens": 721,
+      "hash": "571f3e5774f78722",
+      "size": 3604,
+      "mtimeMs": 1795428566807.5837,
+      "updatedAt": "2026-11-23T10:09:26.858Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "storage",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 43,
+          "tokens": 73
+        },
+        {
+          "name": "readIgnored",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 58,
+          "tokens": 114
+        },
+        {
+          "name": "writeIgnored",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 73,
+          "tokens": 86
+        },
+        {
+          "name": "isIgnored",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 81,
+          "tokens": 80
+        },
+        {
+          "name": "markIgnored",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 86,
+          "tokens": 47
+        },
+        {
+          "name": "clearIgnored",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 92,
+          "tokens": 41
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/ReportReviewQueuePage.tsx": {
+      "description": "ReportReviewQueuePage —— **「待我审核」队列**（P10-I · T1 · TODO-197）。",
+      "tokens": 2190,
+      "hash": "13dec1cbdd35c236",
+      "size": 8880,
+      "mtimeMs": 1795428595594.6624,
+      "updatedAt": "2026-11-23T10:09:55.641Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "errorParts",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 62,
+          "tokens": 104
+        },
+        {
+          "name": "hintFor",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 79,
+          "tokens": 177
+        },
+        {
+          "name": "ReportReviewQueuePage",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 259,
+          "tokens": 1538
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/report/ReportReviewQueuePage.test.tsx": {
+      "description": "「待我审核」队列页 —— P10-I · T1 · TODO-197。",
+      "tokens": 1672,
+      "hash": "75d52adbb2b1c542",
+      "size": 7071,
+      "mtimeMs": 1795428692976.6514,
+      "updatedAt": "2026-11-23T10:11:33.036Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "item",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 48,
+          "tokens": 96
+        },
+        {
+          "name": "flush",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 55,
+          "tokens": 45
+        },
+        {
+          "name": "apiError",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 59,
+          "tokens": 37
+        },
+        {
+          "name": "publishButton",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 170,
+          "tokens": 1162
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md": {
+      "description": "QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23",
+      "tokens": 1171,
+      "hash": "2ac6b1252d8a8d98",
+      "size": 7206,
+      "mtimeMs": 1795436070840.7104,
+      "updatedAt": "2026-11-23T12:14:30.891Z",
       "source": "hook"
     }
   }

@@ -36,6 +36,7 @@ import type { components } from "../types/api";
 
 type DatasourceList = components['schemas']['ReportBuilderDatasourceList'];
 type DefinitionOut = components['schemas']['ReportDefinitionOut'];
+type ReviewItem = components['schemas']['ReportDefinitionReviewItem'];
 type ExecuteAccepted = components['schemas']['ReportExecuteAccepted'];
 type ExecutionStatus = components['schemas']['ReportExecutionStatus'];
 type FileStatus = components['schemas']['ReportFileStatusResponse'];
@@ -152,6 +153,22 @@ const PUBLISHED: DefinitionOut = {
   version: '0.2.0',
 };
 
+/** 「待我审核」队列的一条（**只带元数据** · **不带** `definition_json`）。
+ *
+ * ⚠️ 这条是 **ALL_USERS** 的草稿（`DRAFT` 那条是 `CREATOR_ONLY` ⇒ ⇒ 按真后端口径
+ * ⇒ ⇒ 它**不进**队列）⇒ ⇒ 用它让 dev 里点得动「发布」。
+ */
+const REVIEW_ITEM: ReviewItem = {
+  def_id: '00000000-0000-0000-0000-0000000000b3',
+  name: '设备一览（待审）',
+  category: '设备类',
+  description: '位号 + 制造商',
+  created_by: '00000000-0000-0000-0000-0000000000a2',
+  project_id: null,
+  created_at: '2026-11-23T00:00:00Z',
+  updated_at: '2026-11-23T00:00:00Z',
+};
+
 const STYLE_V1: StyleSummary = {
   style_id: '00000000-0000-0000-0000-0000000000d1',
   report_type: 'HEAT_DETAIL',
@@ -227,6 +244,14 @@ export const reportBuilderHandlers = [
     const items = status ? all.filter((d) => d.status === status) : all;
     return HttpResponse.json({ items, total: items.length });
   }),
+
+  // ⚠️ **必须排在 `/definitions/:defId` 之前**（P10-I · T1）——
+  // MSW 按**注册顺序**匹配 ⇒ ⇒ 排在后面 ⇒ ⇒ `pending-review` 会被 `:defId`
+  // 抢走 ⇒ ⇒ ⇒ 队列永远返回「一条定义」而不是「队列」。
+  http.get('/api/v1/report-builder/definitions/pending-review', ({ request }) =>
+    (requireAuth(request)
+      ? HttpResponse.json({ items: [REVIEW_ITEM], total: 1 })
+      : unauthorized())),
 
   http.get('/api/v1/report-builder/definitions/:defId', ({ request, params }) =>
     (requireAuth(request)

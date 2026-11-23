@@ -32,9 +32,10 @@ from __future__ import annotations
 import uuid
 from typing import Any, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.acl import REVIEW_ROLES
 from app.core.config import get_settings
 from app.models.project import UserProject
 from app.models.report import ReportDefinition
@@ -59,10 +60,12 @@ SUPPORTED_SHARED_WITH = frozenset({"ALL_USERS", "CREATOR_ONLY"})
 #: 草稿都删不掉** ⇒ ⇒ 与「DRAFT 保留创建人自救通道」**直接冲突**
 #: ⇒ ⇒ ⇒ 角色闸必须**按状态分档** ⇒ ⇒ ⇒ 只有 service 层知道状态。
 #:
-#: ⚠️ 与端点 `report_builder.py::PUBLISH_ROLES` **同一组角色**
-#: ⇒ ⇒ 但**不是同一处定义**（层规则：service 不 import api）
-#: ⇒ ⇒ 两处若要改 ⇒ ⇒ **一起改**（注释互指）。
-OBSOLETE_ROLES = frozenset({"REVIEWER", "APPROVER", "SYSTEM_ADMIN"})
+#: ⚠️ **2026-11-23（P10-I · T1 · hermes A-3）**：这份清单此前**写了两遍**
+#: —— 端点层 `report_builder.py::PUBLISH_ROLES`（tuple）+ 这里（frozenset）
+#: ⇒ ⇒ 同一组角色、两个副本、两个名字 ⇒ ⇒ 改一处忘了另一处**没有任何测试会发现**
+#: ⇒ ⇒ 现在**唯一一份**在 `app.core.acl::REVIEW_ROLES`
+#: （core 是 api 与 service **都能** import 的那一层 ⇒ ⇒ 层规则：service 不 import api）
+#: ⇒ ⇒ ⇒ 本文件**不再**留 `OBSOLETE_ROLES` 这个别名 ⇒ ⇒ 一个名字、一处定义。
 
 # ⚠️ **这是实现上限，不是 SPEC 要求**（用户 2026-10-14 裁决）。
 #
@@ -178,6 +181,28 @@ def _to_dict(row: ReportDefinition) -> dict[str, Any]:
     }
 
 
+def project_member_exists(user_id: uuid.UUID):
+    """「我在这个项目里有授权」—— **共享 helper**（hermes A-2 · P10-I · T1）。
+
+    ⚠️ **为什么抽出来**：这段 EXISTS 此前**内联**在 `visible_clause` 里
+    ⇒ ⇒ 「待我审核」队列（`pending_review`）要用**同一口径**
+    ⇒ ⇒ 抄两份 ⇒ ⇒ 抄歪了 ⇒ ⇒ 「队列里出现了我没授权的项目」
+    ⇒ ⇒ ⇒ 那是**跨项目读** ⇒ ⇒ ⇒ 所以只留**一份**。
+
+    ⚠️ 口径必须与 `UserProjectService.check_user_project_access` **一致**
+    ⇒ ⇒ 即 `user_projects` 有行 **且 `revoked_at IS NULL`**。
+    """
+    return (
+        select(UserProject.id)
+        .where(
+            UserProject.user_id == user_id,
+            UserProject.project_id == ReportDefinition.project_id,
+            UserProject.revoked_at.is_(None),
+        )
+        .exists()
+    )
+
+
 def visible_clause(user_id: uuid.UUID, actor_roles: Sequence[str] | None = None):
     """SQL 侧的可见性过滤 —— **唯一一份**规则（列表与详情共用）。
 
@@ -227,15 +252,7 @@ def visible_clause(user_id: uuid.UUID, actor_roles: Sequence[str] | None = None)
     ⇒ ⇒ 即 `user_projects` 有行 **且 `revoked_at IS NULL`**
     ⇒ ⇒ ⇒ 这里用 EXISTS 子查询（⇒ ⇒ 不需要 await ⇒ ⇒ 仍是**纯 SQL 表达式**）。
     """
-    project_member = (
-        select(UserProject.id)
-        .where(
-            UserProject.user_id == user_id,
-            UserProject.project_id == ReportDefinition.project_id,
-            UserProject.revoked_at.is_(None),
-        )
-        .exists()
-    )
+    project_member = project_member_exists(user_id)
     # ⚠️ SYSTEM_ADMIN 全局 bypass（与项目守卫同口径）⇒ ⇒ 恒真。
     if actor_roles and "SYSTEM_ADMIN" in actor_roles:
         return ReportDefinition.def_id.is_not(None)
@@ -344,6 +361,70 @@ class DefinitionService:
         stmt = stmt.where(ReportDefinition.status != "OBSOLETE")
         if status is not None:
             stmt = stmt.where(ReportDefinition.status == status)
+        return list((await self.db.execute(stmt.order_by(
+            ReportDefinition.created_at.desc()))).scalars())
+
+    async def pending_review(self, *, user_id: uuid.UUID,
+                             actor_roles: Sequence[str] | None = None) -> list[ReportDefinition]:
+        """「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。
+
+        ## 口径（人裁 2026-11-23 · 约束 2）
+
+        | 草稿类型 | 我可见 | 条件 |
+        |---|---|---|
+        | 公司级（`project_id IS NULL`）| ✔ | `REVIEWER+` |
+        | 项目级 | ✔ | `REVIEWER+` ∧ 我在该项目有 `user_projects` 授权 |
+        | 项目级 · 我无授权 | ✘ | ——（即使我是 `REVIEWER`）|
+        | `created_by == 我` | ✘ | ——（自审禁止 ⇒ 与 `publish()` 的 **403** 一致）|
+        | `shared_with == CREATOR_ONLY` | ✘ | ——（它**没有「发布」这个动作**）|
+
+        ## ⚠️ **为什么这份口径不能复用 `visible_clause`**
+
+        `visible_clause` 答的是「**这条定义我能看吗**」⇒ ⇒ 它给的是
+        「自己的 + 已发布的」⇒ ⇒ **审核者在列表页看不见别人的草稿**
+        ⇒ ⇒ 所以队列必须**另写一份**口径（这正是「人裁约束 2」的由来）。
+
+        ⇒ ⇒ 但**复用不了**还有第二个原因（更硬）：
+        `visible_clause` 对 **SYSTEM_ADMIN 是全局 bypass**
+        ⇒ ⇒ 用它 ⇒ ⇒ admin 会把**别人的 `CREATOR_ONLY` 草稿**也列进来
+        ⇒ ⇒ ⇒ 队列必须**自己**写 SQL 口径。
+
+        ⚠️ **为什么「自己的草稿」也不出现**（A-4）：`publish()` 禁自审（403）
+        ⇒ ⇒ 队列里出现「自己创建、点发布必失败」的行 ⇒ ⇒ **点了必失败的按钮**
+        ⇒ ⇒ ⇒ SYSTEM_ADMIN 也一样排除自己的草稿。
+
+        ⚠️ **为什么 `CREATOR_ONLY` 也不出现**（人裁 ①）：
+        `CREATOR_ONLY` 的含义是「**不给别人看**」⇒ ⇒ 发布出来**也没别人看得见**
+        ⇒ ⇒ 它**没有「发布」这个动作**⇒ ⇒ 与 `publish()` 的补判**同一判据**
+        ⇒ ⇒ ⇒ UI 与 API 同口径（只做 UI 那层 ⇒ 洞仍在）。
+        """
+        # ⚠️ **角色闸在 service 层**（不是端点）：队列的过滤是「**谁能审**」
+        # ⇒ ⇒ 端点漏调角色闸 ⇒ ⇒ 就会把别人的草稿**列给非审核角色**
+        # ⇒ ⇒ ⇒ 所以闸门与过滤**同处一地** ⇒ ⇒ 漏不掉。
+        # ⚠️ **端点因此不再调 `require_roles`** ⇒ ⇒ 同一条件**只有一个错误码**
+        # （否则 HTTPException 的 `HTTP_403` 与这里的 `REPORT_DEFINITION_ROLE_REQUIRED`
+        # ⇒ ⇒ 前端按 code 分流时得处理两个 ⇒ ⇒ 那是口径分裂）。
+        if not set(actor_roles or ()).intersection(REVIEW_ROLES):
+            raise PcsError(
+                f"查看待审队列需要审核角色（{sorted(REVIEW_ROLES)}）",
+                code="REPORT_DEFINITION_ROLE_REQUIRED", status=403,
+            )
+        stmt = (
+            select(ReportDefinition)
+            .where(ReportDefinition.status == "DRAFT")
+            # ⚠️ `CREATOR_ONLY` 不进队列（理由见 docstring）
+            .where(ReportDefinition.shared_with != "CREATOR_ONLY")
+            # ⚠️ **自己的草稿不进队列**（自审禁止 ⇒ 点了必失败）
+            .where(or_(
+                ReportDefinition.created_by.is_(None),
+                ReportDefinition.created_by != user_id,
+            ))
+            # ⚠️ 项目级 ⇒ ⇒ 我在该项目有授权；公司级 ⇒ ⇒ 无需授权
+            .where(or_(
+                ReportDefinition.project_id.is_(None),
+                project_member_exists(user_id),
+            ))
+        )
         return list((await self.db.execute(stmt.order_by(
             ReportDefinition.created_at.desc()))).scalars())
 
@@ -471,6 +552,23 @@ class DefinitionService:
                         code="REPORT_DEFINITION_NOT_FOUND", status=404,
                     ) from exc
                 raise
+        # ⚠️ **④ `CREATOR_ONLY` 的草稿不能由他人发布**（2026-11-23 · P10-I · T1 · 人裁 ①）
+        # ⇒ ⇒ **此前 `publish()` 完全不判 `shared_with`** ⇒ ⇒ 任何审核角色
+        # ⇒ ⇒ 都能把「只我可见」的草稿发布掉 ⇒ ⇒ 发布后**仍只有创建人看得见**
+        # ⇒ ⇒ ⇒ 那是一次**对别人不可见的动作**（半成品被审核者动过）
+        # ⇒ ⇒ ⇒ 而「待我审核」队列一上 UI 就给它开了口子。
+        #
+        # ⚠️ **位置在 ②（项目授权 404）之后**：无权访问的项目 ⇒ ⇒ **404 先赢**
+        # ⇒ ⇒ 不泄露「这条是 CREATOR_ONLY」（那是半成品元数据）。
+        #
+        # ⚠️ **403 而不是 404**：是「你不能做这个动作」，不是「不存在」。
+        # ⚠️ **无回归**：`CREATOR_ONLY` 的草稿**创建人自己也发不了**
+        # （① 禁自审 403）⇒ ⇒ 补判只是把**隐含语义写明**，没缩小任何人的能力。
+        if row.shared_with == "CREATOR_ONLY":
+            raise PcsError(
+                "该定义不能由他人发布",
+                code="REPORT_DEFINITION_NOT_SHAREABLE", status=403,
+            )
         if row.status == "PUBLISHED":
             raise PcsError("该定义已发布", code="REPORT_DEFINITION_STATE", status=409)
         if row.status == "OBSOLETE":
@@ -565,12 +663,12 @@ class DefinitionService:
         # ⇒ ⇒ 所以禁自审**只**施加在 PUBLISHED 上（那里它才有意义：
         # 作废一条**别人已发布**的定义 = 打断别人的工作流 = 治理动作）。
         if row.status == "PUBLISHED":
-            if not OBSOLETE_ROLES.intersection(actor_roles or ()):
+            if not set(REVIEW_ROLES).intersection(actor_roles or ()):
                 # ⚠️ **403**（角色闸）—— ⚠️ 角色闸**只**管这一档：
                 # 作废别人已发布的定义 = 治理动作；删自己的草稿不是。
                 raise PcsError(
                     "作废已发布的报表定义需要审核角色"
-                    f"（{sorted(OBSOLETE_ROLES)}）",
+                    f"（{sorted(REVIEW_ROLES)}）",
                     code="REPORT_DEFINITION_ROLE_REQUIRED", status=403,
                 )
             if row.created_by is not None and row.created_by == actor_user_id:

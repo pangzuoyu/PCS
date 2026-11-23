@@ -48,7 +48,10 @@ KEEP_OPEN = {"TODO-143", "TODO-192"}
 
 CLOSE_RE = re.compile(r"(✅|已关闭|已裁决并落地|已裁决 · 关闭|已闭环|已修（|已闭：)")
 ENTRY_RE = re.compile(r"^#{2,3} (TODO-|bug-|✅)")
-NUM_RE = re.compile(r"(TODO-\d+|bug-\d+)")
+#: ⚠️ **必须带字母后缀**（`TODO-197b` / `TODO-187b`）—— 否则 `TODO-197b`
+#: 会被**截成** `TODO-197` ⇒ ⇒ 索引表里两条不同条目**编号相同**
+#: ⇒ ⇒ 「编号是追溯索引」这句话就废了（2026-11-23 发现）。
+NUM_RE = re.compile(r"(TODO-\d+[a-z]?|bug-\d+[a-z]?)")
 DATE_RE = re.compile(r"20\d\d-\d\d-\d\d")
 
 
@@ -56,8 +59,15 @@ def level(line: str) -> int:
     return len(line) - len(line.lstrip("#"))
 
 
+#: **工具自己生成的**「已关闭」段标题 ⇒ ⇒ 跳过它（否则工具**不幂等**：
+#: 第二次跑 ⇒ ⇒ 把它当成一条「已关闭条目」⇒ ⇒ 搬进归档 ⇒ ⇒ 文件结构被搞乱）。
+GENERATED_SECTION_HEADS = ("✅ 已关闭（",)
+
+
 def is_entry(line: str) -> bool:
     """这是不是「一条待办」（而不是分组标题）。"""
+    if any(mark in line for mark in GENERATED_SECTION_HEADS):
+        return False
     return bool(ENTRY_RE.match(line))
 
 
@@ -108,9 +118,48 @@ def is_closed(lines: list[str], heads: list[int], i: int) -> bool:
     return bool(CLOSE_RE.search(head))
 
 
+def strip_generated_blocks(lines: list[str]) -> list[str]:
+    """剥掉**上一次生成的**两个索引块 ⇒ ⇒ 让本工具**幂等**。
+
+    ⚠️⚠️ **2026-11-23 修**：本工具原先只**插入**新索引 ⇒ ⇒ 第二次跑
+    ⇒ ⇒ 文件里出现**两份**「还开着」索引 ⇒ ⇒ 「哪份是真的」没人知道
+    ⇒ ⇒ ⇒ 而且「已关闭」段也在文末**堆了两份**。
+
+    ⇒ ⇒ 两个生成块的标记：
+    - 头部：`## 📋 还开着的条目（**一眼看完**）` ⇒ ⇒ 到下一个标题为止
+    - 文末：`## ✅ 已关闭（**正文已搬进归档**）` ⇒ ⇒ 到文件末尾
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("## 📋 还开着的条目"):
+            i += 1
+            while i < len(lines) and not lines[i].startswith("#"):
+                i += 1
+            continue
+        if line.startswith("## ✅ 已关闭（"):
+            break   # 文末整段都是它 ⇒ ⇒ 直接截断
+        # ⚠️ **瘦身提示行**（工具自己写的）⇒ ⇒ 也要剥 ⇒ ⇒ 否则每次跑多插一份
+        if line.startswith("> **2026-11-23 瘦身**"):
+            i += 1
+            while i < len(lines) and lines[i].startswith("> ⇒ ⇒ 搬运由"):
+                i += 1
+            continue
+        out.append(line)
+        i += 1
+    # ⚠️ 去掉尾部残留的「---」与空行 ⇒ ⇒ 否则新写的文末段前面会**多一个分隔线**
+    while out and out[-1].strip() in ("", "---"):
+        out.pop()
+    return out
+
+
 def main() -> None:
     write = "--write" in sys.argv
     lines = SRC.read_text(encoding="utf-8").splitlines()
+    # ⚠️ **先剥掉上一次生成的索引块** ⇒ ⇒ 之后的行号/标题索引才对得上
+    # ⇒ ⇒ 否则 `heads` 指向的是**剥之前**的行号 ⇒ ⇒ ⇒ IndexError。
+    lines = strip_generated_blocks(lines)
     heads = [i for i, l in enumerate(lines) if re.match(r"^#{1,6} ", l)]
 
     # 每个标题的 **level-2 祖先**（level-3 的裁决小节归到它所属的条目）
@@ -198,6 +247,34 @@ def main() -> None:
         title = re.sub(r"\s*[🔴🟡🟠🟢⚪]+\s*$", "", title)
         open_rows.append((num.group(1) if num else "—", sev, title.strip()))
 
+    # ── 既有归档（**追加**，不是重建）────────────────────────────────────
+    # ⚠️⚠️ **2026-11-23 修**：本工具原先**重建**归档文件 ⇒ ⇒ 第二次跑
+    # ⇒ ⇒ 把**已归档的 98 条**抹掉（只剩本次搬的）⇒ ⇒ **数据丢失**。
+    # ⇒ ⇒ 现在：**读既有归档** ⇒ ⇒ 索引行合并 + 正文块**追加** ⇒ ⇒ 可复跑。
+    existing_rows: list[tuple[str, str, str]] = []
+    existing_body: list[str] = []
+    if ARCHIVE.exists():
+        raw = ARCHIVE.read_text(encoding="utf-8").splitlines()
+        sep = next((i for i, l in enumerate(raw) if l.strip() == "---"), None)
+        head_part = raw[:sep] if sep is not None else raw
+        body_part = raw[sep + 1:] if sep is not None else []
+        for line in head_part:
+            # ⚠️ **标题里可能含 `|`** ⇒ ⇒ 不能用固定三段正则
+            # ⇒ ⇒ 按 ` | ` 切 ⇒ ⇒ 首段 = 编号 · 末段 = 日期 · 中间 = 标题
+            parts = line.strip().strip("|").split(" | ")
+            if len(parts) < 3:
+                continue
+            num = parts[0].strip().strip("`")
+            date = parts[-1].strip()
+            title = " | ".join(parts[1:-1]).strip()
+            if num in ("编号", "---") or not title:
+                continue
+            existing_rows.append((num, title, date))
+        existing_body = body_part
+        # ⚠️ 去掉正文开头的空行 ⇒ ⇒ 否则**每次跑都多插一行**（归档文件逐次膨胀）
+        while existing_body and not existing_body[0].strip():
+            existing_body.pop(0)
+
     # ── 归档文件 ──────────────────────────────────────────────────────────
     arch: list[str] = [
         "# TODOS 归档 —— **已关闭**的条目（正文逐字保留）",
@@ -217,11 +294,13 @@ def main() -> None:
         "| 编号 | 条目 | 关闭日期 |",
         "|---|---|---|",
     ]
-    for num, title, date in index_rows:
+    merged_rows = existing_rows + index_rows
+    for num, title, date in merged_rows:
         arch.append(f"| `{num}` | {title} | {date} |")
     arch.append("")
     arch.append("---")
     arch.append("")
+    arch.extend(existing_body)
     arch.extend(archive_blocks)
 
     # ── 正文文末的「已关闭」索引（编号可追溯） ─────────────────────────────
@@ -233,12 +312,12 @@ def main() -> None:
         "",
         f"⚠️ **为什么搬走**：这些条目**已经闭合**（正文里带着完整的取证过程 / 裁决叙事 / "
         f"变异自证）⇒ ⇒ 它们**不再需要被逐字读**⇒ ⇒ 但**编号是追溯索引** ⇒ ⇒ "
-        f"原文逐字保留在 **`docs/archives/TODOS-closed.md`**（{len(index_rows)} 条）。",
+        f"原文逐字保留在 **`docs/archives/TODOS-closed.md`**（{len(merged_rows)} 条）。",
         "",
         "| 编号 | 条目 | 关闭日期 |",
         "|---|---|---|",
     ]
-    for num, title, date in index_rows:
+    for num, title, date in merged_rows:
         tail.append(f"| `{num}` | {title} | {date} |")
     tail.append("")
 
@@ -248,7 +327,7 @@ def main() -> None:
         "## 📋 还开着的条目（**一眼看完**）",
         "",
         f"⚠️ **正文里只有还开着的条目**（{len(open_rows)} 条）⇒ ⇒ "
-        f"**已关闭**的 {len(index_rows)} 条在 `docs/archives/TODOS-closed.md`"
+        f"**已关闭**的 {len(merged_rows)} 条在 `docs/archives/TODOS-closed.md`"
         f"（编号可追溯 ⇒ ⇒ 文末有「已关闭」索引表）。",
         "",
         "| 编号 | 严重度 | 条目 |",
@@ -268,13 +347,13 @@ def main() -> None:
     note = [
         "",
         "> **2026-11-23 瘦身**：本文件曾到 **5653 行 / 210 KB** ⇒ ⇒ "
-        f"**已关闭**的 {len(index_rows)} 条整体搬进 **`docs/archives/TODOS-closed.md`**"
+        f"**已关闭**的 {len(merged_rows)} 条整体搬进 **`docs/archives/TODOS-closed.md`**"
         "（正文逐字保留 · **编号可追溯**）⇒ ⇒ 本文件只留**还开着**的条目。",
         f"⇒ ⇒ 搬运由 `scripts/slim_todos.py` 完成（可复跑 · 判定口径写在脚本 docstring 里）。",
     ]
     kept = kept[:insert_at] + note + head_index + kept[insert_at:]
 
-    print(f"归档条目: {len(index_rows)} 条")
+    print(f"本次归档条目: {len(index_rows)} 条（累计 {len(merged_rows)} 条）")
     print(f"TODOS.md: {len(lines)} 行 → {len(kept) + len(tail)} 行")
     print(f"归档文件: {sum(e - s for s, e in archived)} 行 → docs/archives/TODOS-closed.md")
 

@@ -423,6 +423,7 @@ export function HeatRoute(): JSX.Element {
 // 取数（真 client），不像 P3/P4 那批组件要靠路由层喂 mock props。
 import { ReportDefinitionListPage } from './report/ReportDefinitionListPage';
 import { ReportDefinitionEditorPage } from './report/ReportDefinitionEditorPage';
+import { ReportReviewQueuePage } from './report/ReportReviewQueuePage';
 import { ReportExecutePage } from './report/ReportExecutePage';
 import { ReportStylePage } from './report/ReportStylePage';
 
@@ -432,6 +433,11 @@ export function ReportDefinitionListRoute(): JSX.Element {
 
 export function ReportDefinitionEditorRoute(): JSX.Element {
   return <ReportDefinitionEditorPage />;
+}
+
+/** P10-I · T1 · TODO-197：「待我审核」队列（审核者视角）。 */
+export function ReportReviewQueueRoute(): JSX.Element {
+  return <ReportReviewQueuePage />;
 }
 
 export function ReportExecuteRoute(): JSX.Element {

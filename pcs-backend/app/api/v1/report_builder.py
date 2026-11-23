@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.core.acl import REVIEW_ROLES
 from app.db.session import get_db
 from app.models.report import ReportExecutionLog
 from app.schemas.report_builder import (
@@ -35,6 +36,8 @@ from app.schemas.report_builder import (
     ReportDefFilterGroup,
     ReportDefinitionList,
     ReportDefinitionOut,
+    ReportDefinitionReviewItem,
+    ReportDefinitionReviewList,
     ReportDefinitionUpsert,
 )
 from app.services.exceptions import PcsError
@@ -173,6 +176,66 @@ async def list_definitions(
     return ReportDefinitionList(items=items, total=len(items))
 
 
+@router.get("/definitions/pending-review", response_model=ReportDefinitionReviewList)
+async def list_pending_review(
+    actor: ActorDep, db: DbDep,
+) -> ReportDefinitionReviewList:
+    """「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。
+
+    ## 它解的是哪个洞
+
+    「创建 ⇒ 交给审核者 ⇒ 审核者发布」这条链，**在 UI 上断在第二环**：
+    - 创建人 ⇒ ⇒ **403 自审**（`publish()` 禁自审）
+    - 审核者 ⇒ ⇒ **在列表页看不见别人的草稿**（`visible_clause`：草稿只有创建人可见）
+    ⇒ ⇒ ⇒ 「那个发布按钮对所有角色 100% 死」⇒ ⇒ ⇒ SPEC §3.2.2 在 UI 上不成立。
+
+    ⇒ ⇒ 本端点给审核者**一条能看见可审草稿的路**（只读元数据）⇒ ⇒
+    ⇒ ⇒ 配合编辑器页外的「发布」动作（不进编辑器）⇒ ⇒ 链就通了。
+
+    ## 口径（**与 `visible_clause` 分离** —— 人裁约束 2）
+
+    | 草稿类型 | 我可见 | 条件 |
+    |---|---|---|
+    | 公司级（`project_id IS NULL`）| ✔ | `REVIEWER+` |
+    | 项目级 | ✔ | `REVIEWER+` ∧ 我在该项目有 `user_projects` 授权 |
+    | 项目级 · 我无授权 | ✘ | ——（即使我是 `REVIEWER`）|
+    | `created_by == 我` | ✘ | ——（自审禁止 ⇒ 与 `publish()` 的 **403** 一致）|
+    | `shared_with == CREATOR_ONLY` | ✘ | ——（它没有「发布」这个动作）|
+
+    ⚠️ **这组规则同时写进了 service 层 `pending_review()` 的 docstring**
+    ⇒ ⇒ 不是只写在实现里 ⇒ ⇒ 下一个维护者不会误以为「队列 = 所有 DRAFT」。
+
+    ## ⚠️ **路由顺序**（FastAPI 按声明顺序匹配）
+
+    本端点**必须**声明在 `GET /definitions/{def_id}` **之前**
+    ⇒ ⇒ 否则 `/definitions/pending-review` 会先撞上 `{def_id}`
+    ⇒ ⇒ ⇒ 表现是 **422**（`def_id` 不是 UUID）而不是「队列」。
+
+    ## ⚠️ **为什么这里不调 `require_roles`**
+
+    角色闸在 **service 层**（与过滤同处一地 ⇒ ⇒ 端点漏调也绕不过）
+    ⇒ ⇒ 同一条件**只有一个错误码** `REPORT_DEFINITION_ROLE_REQUIRED`
+    ⇒ ⇒ （若端点也 `require_roles` ⇒ ⇒ HTTPException 的 `HTTP_403`
+    ⇒ ⇒ 与 service 的码**并存** ⇒ ⇒ 前端按 code 分流要处理两个 ⇒ ⇒ 口径分裂）。
+    """
+    rows = await DefinitionService(db).pending_review(
+        user_id=actor.user_id, actor_roles=list(actor.roles))
+    items = [
+        ReportDefinitionReviewItem(
+            def_id=r.def_id,
+            name=r.name,
+            category=r.category,
+            description=r.description,
+            created_by=r.created_by,
+            project_id=r.project_id,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+        for r in rows
+    ]
+    return ReportDefinitionReviewList(items=items, total=len(items))
+
+
 @router.get("/definitions/{def_id}", response_model=ReportDefinitionOut)
 async def get_definition(
     def_id: uuid.UUID, actor: ActorDep, db: DbDep,
@@ -230,10 +293,15 @@ def _as_dict(row) -> dict:
 
 # --- b3 版本与审批 -----------------------------------------------------------
 
-#: 可发布/作废的角色。SPEC §3.2.2(6) 写「需审核角色审批通过」，没点名 ——
-#: 落 REVIEWER（字面对应「审核」）。APPROVER 也放行：P2 的 CONFIG 审批流
-#: 用的是它，两个审批角色只放一个会让用户在审批页被拒。
-PUBLISH_ROLES = ("REVIEWER", "APPROVER", "SYSTEM_ADMIN")
+#: 可发布/作废的角色 —— ⚠️ **2026-11-23（P10-I · T1 · hermes A-3）**：
+#: 此前**这里**与 `definition_service.py::OBSOLETE_ROLES` **各写了一份**
+#: 同一组角色 ⇒ ⇒ 改一处忘了另一处**没有任何测试会发现**
+#: ⇒ ⇒ 现在**唯一一份**在 `app.core.acl::REVIEW_ROLES`
+#: （core 是 api 与 service **都能** import 的那一层 ⇒ ⇒ 层规则：service 不 import api）。
+#:
+#: SPEC §3.2.2(6) 写「需审核角色审批通过」，没点名 —— 落 REVIEWER（字面对应「审核」）。
+#: APPROVER 也放行：P2 的 CONFIG 审批流用的是它，两个审批角色只放一个
+#: 会让用户在审批页被拒。
 
 
 @router.post("/definitions/{def_id}/publish", response_model=ReportDefinitionOut)
@@ -244,7 +312,7 @@ async def publish_definition(
 
     角色检查在**查行之前**：审核角色不该靠「哪些定义存在」来试探。
     """
-    require_roles(actor, *PUBLISH_ROLES)
+    require_roles(actor, *REVIEW_ROLES)
     # ⚠️ **职责分离在 service 层**（人裁决 2026-11-18 · TODO-172）：
     # ① **禁自审**（创建人自己是 REVIEWER 也不行）② **审核者要对定义的项目
     # 有授权** ③ **公司级模板不做项目判定**（否则永远没人能审）

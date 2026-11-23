@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T09:27:58.090Z
-> Files: 1450 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T12:14:30.891Z
+> Files: 1456 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -205,6 +205,7 @@
 - `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1525 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
+- `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1171 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -416,7 +417,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~18952 tok)
+- `PCS-UI-SPEC.md` (~19278 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -1404,7 +1405,7 @@
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11088 tok)
 - `records.py` — Records API（Sprint 2）。 (~3916 tok)
-- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4970 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~5869 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5474 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
@@ -1425,6 +1426,7 @@
 
 ## pcs-backend/app/core/
 
+- `acl.py` — ACL 工具（基于 user 对象的 duck-typing）。 (~536 tok)
 - `ai_audit_middleware.py` — AI 请求的**审计中间件**（P10-A · Task T11）—— 纯 ASGI。 (~2690 tok)
 - `ai_cidr.py` — AI 端点的**内网 CIDR 校验**（P10-A · Task T5）。 (~1260 tok)
 - `ai_errors.py` — AI 侧的异常类型（P10-A · Task T8）。 (~220 tok)
@@ -1475,7 +1477,7 @@
 - `property.py` — 物性相关的**具名**契约（P10-H · TODO-199）。 (~1075 tok)
 - `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~2014 tok)
-- `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
+- `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1961 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
 - `signature_matrix.py` — 签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。 (~1122 tok)
 - `stream_batch.py` — 批量「提交校对」的请求/响应契约（P9B-3b · D1~D6）。 (~814 tok)
@@ -1578,7 +1580,7 @@
 - `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3432 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
-- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~6402 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~8026 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
@@ -1633,7 +1635,7 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~9108 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~9214 tok)
 - `lane_guards.py` — **默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。 (~281 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1038 tok)
@@ -1712,7 +1714,8 @@
 - `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_definition_publish_duty.py` — **publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。 (~1815 tok)
-- `test_report_definition_ruling_2026_11_19.py` — **2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。 (~3691 tok)
+- `test_report_definition_review_queue.py` — 「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。 (~3594 tok)
+- `test_report_definition_ruling_2026_11_19.py` — **2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。 (~3939 tok)
 - `test_report_project_guard.py` — `report.py` 的**项目守卫**必须真的拦住无权用户（TODO-181）。 (~1327 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~6052 tok)
@@ -1974,7 +1977,7 @@
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~1466 tok)
+- `App.tsx` — router — renders form (~1733 tok)
 - `main.tsx` — Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除 (~283 tok)
 - `vite-env.d.ts` — 是否挂 MSW（评审 #23 · 2026-11-12）。 (~196 tok)
 
@@ -1997,7 +2000,7 @@
 - `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~364 tok)
 - `recordActions.ts` — 记录级写面客户端（9 态动作 + 批注）—— P9B-2 · SPEC §6.3 / §7.19.1。 (~1178 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
-- `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
+- `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~2268 tok)
 - `signatureMatrices.ts` — 签署矩阵管理 API 客户端（TODO-070 · P9A-DLV-011 T3 的前端面）。 (~980 tok)
 - `stream.ts` — SIM 物流 API 客户端（P9B-3 · T6/T7/T8 扩展）。 (~2454 tok)
 - `systemSettings.ts` — 系统参数客户端（§7.20.1 · P9B-3）。 (~263 tok)
@@ -2036,7 +2039,7 @@
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。 (~3064 tok)
+- `MainLayout.tsx` — 菜单项 —— **按角色**生成（SPEC §5.1「菜单项隐藏」）。 (~3103 tok)
 
 ## pcs-frontend/src/lib/
 
@@ -2049,7 +2052,7 @@
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
 - `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~18039 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
-- `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
+- `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~3384 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
 - `signFlow.ts` — 签署流程 + ADMIN 的 MSW handlers（P9B-2 · T10）。 (~4273 tok)
 - `systemSettings.ts` — 系统参数的 seed + MSW handlers（P9B-3 · T5）。 (~1312 tok)
@@ -2070,7 +2073,7 @@
 
 - `DashboardPage.tsx` — DashboardPage (~584 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~808 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~5332 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~5475 tok)
 
 ## pcs-frontend/src/pages/admin/
 
@@ -2126,7 +2129,9 @@
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
 - `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3851 tok)
+- `ReportReviewQueuePage.tsx` — ReportReviewQueuePage —— **「待我审核」队列**（P10-I · T1 · TODO-197）。 (~2190 tok)
 - `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
+- `reviewIgnored.ts` — 「忽略」的本地存储 —— P10-I · T1（人裁 ④ · 2026-11-23）。 (~721 tok)
 
 ## pcs-frontend/src/pages/results/
 
@@ -2275,6 +2280,7 @@
 
 - `ReportDefinitionEditorPage.publishHint.test.tsx` — 「保存并发布」对**创建人自己**是死按钮（2026-11-19 人裁决 · TODO-191）。 (~1187 tok)
 - `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
+- `ReportReviewQueuePage.test.tsx` — 「待我审核」队列页 —— P10-I · T1 · TODO-197。 (~1672 tok)
 - `ReportStylePage.test.tsx` — 样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在， (~1250 tok)
 
 ## pcs-frontend/tests/pages/results/

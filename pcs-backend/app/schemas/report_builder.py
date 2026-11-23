@@ -195,7 +195,32 @@ class ReportDefinitionList(BaseModel):
     total: int
 
 
+class ReportDefinitionReviewItem(BaseModel):
+    """「待我审核」队列的一行 —— **只带元数据**（2026-11-23 · P10-I · T1）。
+
+    ⚠️ **为什么不复用 `ReportDefinitionOut`**：那份带 `definition_json`
+    （报表正文）⇒ ⇒ 队列是**只读视图**（人裁约束 1：审核者**不能进编辑器**）
+    ⇒ ⇒ 正文不给 ⇒ ⇒ 也不给 `version`（改草稿不动版本号 ⇒ ⇒ 恒值）
+    ⇒ ⇒ 也不给 `status`（队列里恒为 `DRAFT`）⇒ ⇒ 也不给 `output_format` / `max_rows`
+    ⇒ ⇒ ⇒ **只带够做动作的字段**（先例：SPEC §6.22 的待办 item 同款口径）。
+    """
+    def_id: uuid.UUID
+    name: str
+    category: str
+    description: str
+    created_by: uuid.UUID | None
+    project_id: uuid.UUID | None = None   # ← None = 公司级模板
+    created_at: dt.datetime | None = None
+    updated_at: dt.datetime | None = None
+
+
+class ReportDefinitionReviewList(BaseModel):
+    items: list[ReportDefinitionReviewItem]
+    total: int
+
+
 __all__ += ["ReportDefSource", "ReportDefSelectedField", "ReportDefCondition",
            "ReportDefFilterGroup", "ReportDefNode", "ReportDefSort",
            "ReportDefinitionBody", "ReportDefinitionUpsert",
-           "ReportDefinitionOut", "ReportDefinitionList"]
+           "ReportDefinitionOut", "ReportDefinitionList",
+           "ReportDefinitionReviewItem", "ReportDefinitionReviewList"]

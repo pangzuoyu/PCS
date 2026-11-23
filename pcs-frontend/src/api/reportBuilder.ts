@@ -27,6 +27,9 @@ export type ReportBuilderDatasourceList =
   components['schemas']['ReportBuilderDatasourceList'];
 export type ReportDefinitionOut = components['schemas']['ReportDefinitionOut'];
 export type ReportDefinitionList = components['schemas']['ReportDefinitionList'];
+/** 「待我审核」队列的一行（**只带元数据** · 不带 `definition_json`）。 */
+export type ReportDefinitionReviewItem = components['schemas']['ReportDefinitionReviewItem'];
+export type ReportDefinitionReviewList = components['schemas']['ReportDefinitionReviewList'];
 export type ReportDefinitionUpsert = components['schemas']['ReportDefinitionUpsert'];
 export type ReportDefinitionBody =
   components['schemas']['ReportDefinitionBody-Input'];
@@ -93,6 +96,20 @@ export const reportBuilderApi = {
 
   publish: (defId: string) =>
     api.post<ReportDefinitionOut>(`/report-builder/definitions/${defId}/publish`)
+      .then((r) => r.data),
+
+  /**
+   * **「待我审核」队列**（P10-I · T1 · TODO-197）—— 只读列表。
+   *
+   * ⚠️ **口径与列表页不同**（人裁约束 2）：这里返回的是「**别人交给我审**的草稿」
+   * ⇒ ⇒ 列表页（`list`）返回的是「**我能看**的定义」（草稿只有创建人可见）
+   * ⇒ ⇒ ⇒ 两个端点**不是**同一个筛选 ⇒ ⇒ 复用 `list` 会拿到空列表。
+   *
+   * ⚠️ **队列只带元数据**（不带 `definition_json`）⇒ ⇒ 审核者**不能进编辑器**
+   * ⇒ ⇒ ⇒ 「发布」是队列页里的独立动作，不经过编辑器。
+   */
+  pendingReview: () =>
+    api.get<ReportDefinitionReviewList>('/report-builder/definitions/pending-review')
       .then((r) => r.data),
 
   obsolete: (defId: string) =>

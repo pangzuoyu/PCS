@@ -19,6 +19,7 @@ import {
   HeatRoute,
   ReportDefinitionListRoute,
   ReportDefinitionEditorRoute,
+  ReportReviewQueueRoute,
   ReportExecuteRoute,
   ReportStyleRoute,
   HeatingValueRoute,
@@ -115,6 +116,8 @@ const router = createBrowserRouter([
       // P8 REPORT_BUILDER
       { path: 'report/definitions', element: <ReportDefinitionListRoute /> },
       { path: 'report/definitions/:defId', element: <ReportDefinitionEditorRoute /> },
+      // P10-I · T1：「待我审核」队列（审核者视角 · 只读 + 发布/忽略）
+      { path: 'report/review', element: <ReportReviewQueueRoute /> },
       { path: 'report/execute/:defId', element: <ReportExecuteRoute /> },
       { path: 'report/styles', element: <ReportStyleRoute /> },
 

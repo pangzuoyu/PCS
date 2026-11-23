@@ -80,6 +80,9 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
   ]),
   group('报表', 'report', [
     { key: '/report/definitions', label: '报表定义' },
+    // P10-I · T1：「待我审核」（审核者视角）—— 非审核角色点进来会看到
+    // 「需要审核角色」的提示（**不是**空表 ⇒ 空表会被读成「没有待审的」）。
+    { key: '/report/review', label: '待我审核' },
     { key: '/report/styles', label: '报表样式' },
   ]),
   group('结果记录', 'results', [

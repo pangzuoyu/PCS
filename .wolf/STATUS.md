@@ -4,11 +4,39 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-23（第 41 轮：
-> **CAS 号核完** —— 3 条错号已修 + 离线棘轮已立）。
+> Read this FIRST when starting a session. Last updated: 2026-11-23（第 42 轮：
+> **P10-I · T1 落地** —— 「待我审核」队列 + `publish()` 补洞 · QA 全绿）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
+
+## ✅ Done（第 42 轮 · **P10-I · T1** · 2026-11-23）
+
+**「待我审核」队列**（TODO-197 · 人裁方案 ①）落地 ⇒ ⇒ **后端 + 前端 + SPEC**：
+
+- **端点** `GET /api/v1/report-builder/definitions/pending-review`
+  ⇒ ⇒ **声明在 `/definitions/{def_id}` 之前**（否则被 `{def_id}` 抢走 ⇒ 422）
+- **口径与 `visible_clause` 分离**（人裁约束 2）⇒ ⇒ **不**复用它
+  （它对 SYSTEM_ADMIN 全局 bypass ⇒ ⇒ admin 会看到别人的 `CREATOR_ONLY` 草稿）
+- **过滤落 service 层** + 角色闸**同处**（端点漏调也绕不过）⇒ ⇒ 端点**不**调
+  `require_roles`（同一条件只留**一个**错误码）
+- **`publish()` 补判 `shared_with`** ⇒ ⇒ 403 `REPORT_DEFINITION_NOT_SHAREABLE`
+  ⇒ ⇒ 位置在**项目授权 404 之后**（404 先赢 ⇒ 不泄露半成品存在性）
+- **A-3** `PUBLISH_ROLES` / `OBSOLETE_ROLES` 两份重复 ⇒ ⇒ 收进 **`app/core/acl.py`**
+  （core = api 与 service 都能 import 的那一层）
+- **前端**「待我审核」页 + `/report/review` + 菜单 · 「发布」**只在队列页**
+  · 「忽略」`localStorage`（键含 `updated_at` + 版本前缀 + 「显示已忽略」开关）
+- **SPEC** §7.18.1 已登记 + §12.4 **V2.17**（文件头 V2.6 的漂移一并校正）
+- **断言** 10 条 `strict_client`（成对断）⇒ ⇒ **5/5 变异自证**全红
+  ⇒ ⇒ 队列进台账 + `STRICT_CLIENT_TEST_MIN` 120 → **171**
+- ⚠️ **后果**：`CREATOR_ONLY` 的定义**永远停在 DRAFT**（人裁 ① 的直接后果，已写进 SPEC）
+
+**QA 全绿**：后端 6079 · PG 46 · 前端 1125 · 浏览器（队列渲染 / 名称**不是链接** /
+发布 / 忽略 / 无 console error / 无 404）⇒ ⇒ 报告
+`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md`
+
+**顺带修了 `scripts/slim_todos.py` 的 6 个缺陷**（最重：**第二次跑会抹掉已归档的 98 条**
+⇒ ⇒ 已回滚救回）⇒ ⇒ 现在**两次跑逐字节一致**（幂等）。
 
 ## ✅ Done（第 41 轮 · **CAS 号核完** · 2026-11-23）
 
@@ -48,22 +76,18 @@ budget_tokens: 1200
 
 ## 🚀 Next quest
 
-1. **P10-I**（`docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md`）
-   ⇒ ⇒ **T1 · TODO-197 已裁决**（选 ①「待我审核」队列 + 只读视图 + 过滤与
-   `visible_clause` 分离 + 「拒绝」转 TODO-197b）· **T2 · TODO-187b 已裁决**
-   （选 A 守卫加可选 `not_found_code/message` + 两个约束 · 12 族 · 🟢 low）
-   ⇒ ⇒ ⚖️ **hermes 意见已落盘**
-   （`docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md`）
-   ⇒ ⇒ ⚠️ **不塞 P10-C**（那条批已满）⇒ ⇒ **优先级 197 > 187b**。
+1. **P10-I · T2 · TODO-187b**（12 族端点的 404 文案**逐字同形** · 选 A
+   「守卫加可选 `not_found_code/message`」· 🟢 low）⇒ ⇒ **已裁决 · 待实施**
+   ⇒ ⇒ 两个约束：同端点同资源类型才逐字同形 · **守卫默认文案
+   `"Project not found: {project_id}"` 不得变**（124 处依赖 ⇒ ⇒ 要测试钉子）
+   ⇒ ⇒ 计划 `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md` §T2
 2. **P10-F · F4 主批** ⇒ ⇒ 前置是 **P10-C**（没镜像/部署物/告警 ⇒ F4 开不了）
-   ⇒ ⇒ **P10-C 未做 ⇒ F4 开不了 ⇒ P10-I 之后开 P10-C**。
-3. **推送**：✅ 已推（`origin/main..HEAD` = 0）。**18:00 起做 P10-I**。
+   ⇒ ⇒ **P10-C 未做 ⇒ F4 开不了 ⇒ T2 之后开 P10-C**
+3. **推送**：本批提交**待明确授权**
 4. **仍待人裁决**：**P10-J-T2「拒绝」动作**（4 问：状态模型 / 谁可见 / 能不能再编辑 /
    要不要通知）⇒ ⇒ **P10-J 未排期** · **TODO-196**：只剩**工艺室签字**（已核完）·
    **SPEC §7.5 向导**的 PMS / BEDD 两步**仍是空占位** ⇒ ⇒ 另开。
-5. ⚖️ **2026-11-23 第二轮人裁已落**：P10-I 的 6 条（`CREATOR_ONLY` 不列 +
-   `publish()` 补判 · 按钮只在队列页 · SPEC 随批登记 · 忽略用 `localStorage`
-   · 公司级模板留 P10-J · scope 顺序确认）⇒ ⇒ **P10-I · T1 无待裁项**。
+5. ⚠️ **P10-C 里有「SPEC §7.5 向导」的 PMS / BEDD 空占位** ⇒ ⇒ 另开一条。
 
 ---
 
