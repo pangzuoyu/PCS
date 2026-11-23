@@ -45,7 +45,11 @@ test.describe('CoolingWaterPage (P7-6B / R1 §7.2 9 类水)', () => {
     await gotoCoolingWater(page);
     await page.waitForLoadState('networkidle');
 
-    const waterSelect = page.locator('select, [role="combobox"]').first();
+    // ⚠️ **指名道姓**（不要用 `.first()`）—— 顶栏有「项目切换」Select
+    // ⇒ ⇒ 位置定位会点到**顶栏那个**（P10-H · T1 的副作用）。
+    const waterSelect = page.locator(
+      '[data-testid="cooling-water-type"] [role="combobox"]',
+    );
     await waterSelect.click();
 
     // 验证 9 类水 options (MOCK seed 含 CW-001 + FW-001, 与 MSW 列表返回一致)
@@ -65,7 +69,8 @@ test.describe('CoolingWaterPage (P7-6B / R1 §7.2 9 类水)', () => {
     // 选水类 (CIRCULATING_WATER → 循环水)。antd dropdown portal 在 headless
     // 下定位异常 (viewport 外 + 虚拟列表 unstable) → 键盘流绕过几何依赖:
     // WATER_TYPE_OPTIONS 顺序 FRESH_WATER(1) → CIRCULATING_WATER(2)
-    const select = page.locator('.ant-select').first();
+    // ⚠️ 同上：**指名道姓**（顶栏的 Select 在 DOM 里更靠前）
+    const select = page.locator('[data-testid="cooling-water-type"]');
     await select.scrollIntoViewIfNeeded();
     await select.click();
     await page.keyboard.press('ArrowDown'); // 高亮 新鲜水

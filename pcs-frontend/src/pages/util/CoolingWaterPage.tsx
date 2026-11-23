@@ -331,6 +331,10 @@ export function CoolingWaterPage({
           </Form.Item>
           <Form.Item label="水类" name="water_type" rules={[{ required: true }]}>
             <Select
+              // ⚠️ **稳定 testid**（P10-H · T1 的副作用）—— 顶栏新增了
+              // 「项目切换」Select ⇒ ⇒ e2e 里 `page.locator('.ant-select').first()`
+              // 会**点到顶栏那个**⇒ ⇒ 定位必须**指名道姓**（不能靠位置）。
+              data-testid="cooling-water-type"
               placeholder="选择 R1 §7.2 水类"
               options={WATER_TYPE_OPTIONS}
               style={{ width: 220 }}
