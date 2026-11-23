@@ -91,10 +91,13 @@ asyncio_default_fixture_loop_scope = "function"
 # 后出现的 -m 覆盖前面的，所以 CI 那条命令能直接打开这批测试。
 # ⚠️ 这批测试验的是「像素上到底画没画」，文本层断言看不见布局空白
 # （页脚页码那个 bug 就是 extract_text() 全绿、转 PNG 一眼发现的）。
-addopts = "-m 'not visual'"
+# ⚠️ docker 标记同理（要**真镜像** ⇒ ⇒ 构建慢 ⇒ ⇒ 默认 deselect）
+# ⇒ ⇒ 但**不是**「跳过就当过了」⇒ ⇒ 跑它时必须**记进 QA 报告**（否则绿灯是假的）。
+addopts = "-m 'not visual and not docker'"
 markers = [
     "slow: 慢速验收用例（SPEC 指标类，如 P9A-OBS-004 的 p99）；本地全量跑会执行。",
     "visual: 像素级渲染验证，需 poppler-utils(pdftoppm)。CI 用 `pytest -m visual` 单独跑。",
+    "docker: 需要**真 Docker 镜像**的用例（compose 侧车道锁的容器实测）。用 `pytest -m docker` 单独跑 ⇒ ⇒ 跑完必须记进 QA 报告。",
     "pg: PG 专属用例（需真 PostgreSQL）。只能经 scripts/pytest_pg.sh 跑 —— 平时被 skipif 静默跳过。",
     "e2e: 全流程 E2E（隔离 schema · 真 PG）。只能经 scripts/pytest_e2e.sh 跑 —— 默认车道被 conftest 的闸门跳过。",
 ]

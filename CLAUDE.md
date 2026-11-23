@@ -124,6 +124,8 @@ uv run python scripts/seed_user_project_access.py --username <用户名> --proje
 - [ ] 部署前确认**没有**遗留账号行：`SELECT count(*) FROM users WHERE user_id <> uuid5_derived(username)` = 0
       ⇒ > 0 ⇒ 先按 TODO-137 迁移（授权转到派生 id），否则 legacy 用户**处处 404**
       （`ensure_user_row` 只认派生 id ⇒ 建行撞唯一约束 ⇒ 显式 409 `USER_ID_CONFLICT`）
+- [ ] **每环境的部署前置清单**跑完 ⇒ ⇒ 见 **`docs/deploy-prerequisites.md`**
+      （① 遗留账号迁移 · ② seed 授权行 · ③ 两库各跑一次 `alembic check` · ④ 遗留账号行数 = 0）
 
 ⚠️ 第 1 条验「迁移与 ORM 一致」，第 2 条验「迁移在**真实 PG** 上跑得通 + 并发语义正确」
 ⇒ 两者**不互相替代** ⇒ 「只跑 alembic check」不算发布前检查通过。

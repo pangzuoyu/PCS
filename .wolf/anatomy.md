@@ -1,17 +1,17 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T12:48:50.339Z
-> Files: 1463 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T23:07:29.089Z
+> Files: 1468 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~296 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~1926 tok)
+- `CLAUDE.md` — OpenWolf (~1960 tok)
 - `CONCEPTS.md` — Concepts (~2240 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
-- `docker-compose.yml` — Docker Compose services (~2098 tok)
+- `docker-compose.yml` — Docker Compose services (~2488 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
 - `TODOS.md` — TODOS.md — PCS 延后工作清单 (~24142 tok)
@@ -178,6 +178,7 @@
 
 - `_dashboard-snapshot.txt` — - BEGIN UNTRUSTED EXTERNAL CONTENT (source: http://localhost:5173/) --- (~536 tok)
 - `qa-report-pcs-backend-2026-10-13-arq-chain.md` — QA 报告：P8 异步链路真跑（Redis + ARQ worker） (~774 tok)
+- `qa-report-pcs-backend-2026-11-24-p10c-t0.md` — QA 报告 · P10-C · T0（容器侧车道锁 + 部署前置清单）· 2026-11-24 (~861 tok)
 - `qa-report-pcs-frontend-2026-09-16.md` — PCS Frontend QA Report (~1153 tok)
 - `qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md` — QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环 (~2385 tok)
 - `qa-report-pcs-frontend-2026-09-25-p6-2-batch.md` — QA Report — pcs-frontend — P6-2 batch 批末 (~2123 tok)
@@ -371,6 +372,7 @@
 ## docs/
 
 - `ce-code-review-p5-p6-summary.md` — ce-code-review P5+P6 全范围 Summary (~1831 tok)
+- `deploy-prerequisites.md` — 部署前置清单（每个环境各跑一次 · P10-C · T0-5） (~759 tok)
 - `P45-BATCH3-TYPE-MIGRATION.md` — P45 BATCH3 前端类型手动迁移登记 (~248 tok)
 - `P6-9-PICKUP-4.md` — P6-9-PICKUP-4 — ce-code-review P5+P6 残留 debt 闭环 (~2054 tok)
 - `P6-9-PICKUP-6.md` — P6-9-PICKUP-5 工艺债务批 archive (~2281 tok)
@@ -661,7 +663,7 @@
 - `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~19491 tok)
 - `2026-11-18-p10-c-frontend-closure.md` — P10-C 子批「前端收口」：P10-B 扫描留下的四条缺口 · 2026-11-18 (~1699 tok)
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
-- `2026-11-23-p10-c-deploy-observability.md` — P10-C 主体 · 部署与可观测性 · 计划 (~934 tok)
+- `2026-11-23-p10-c-deploy-observability.md` — P10-C 主体 · 部署与可观测性 · 计划 (~1253 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
@@ -1317,7 +1319,8 @@
 ## pcs-backend/
 
 - `.tmp_probe_write.txt` (~2 tok)
-- `pyproject.toml` — ", "**/migrations/**"] (~928 tok)
+- `Dockerfile` — Docker container definition (~928 tok)
+- `pyproject.toml` — ", "**/migrations/**"] (~1011 tok)
 
 ## pcs-backend/alembic/
 
@@ -1620,7 +1623,8 @@
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
 - `check_report_font.py` — 部署侧报表字体自检（TODO-045）。 (~715 tok)
 - `check_schema_parity.py` — 两库 schema 版本**与代码 head** 对齐的发布前闸门 —— P10-B 评审 **#20 / #21**。 (~1644 tok)
-- `compose_test_stack.sh` — **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。 (~1264 tok)
+- `compose_lane_lock.sh` — 一次性写者（compose 的 `migrate` / `seed`）的**容器侧**车道锁。 (~370 tok)
+- `compose_test_stack.sh` — **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。 (~1298 tok)
 - `gate_alembic_check.py` — alembic 漂移闸门（ORM ↔ 迁移漂移）—— P9-Prep PP-5。 (~638 tok)
 - `gen_compact_orm.py` — 从 ORM metadata 生成 `docs/schema_compact_orm.md`（TODO-103 · P9B-3 · T1）。 (~1644 tok)
 - `migrate_legacy_user_ids.py` — 迁移「遗留账号」（`user_id` ≠ 派生值）⇒ ⇒ 授权与审计都转到派生 id。 (~2957 tok)
@@ -1831,6 +1835,7 @@
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
 - `test_check_report_font.py` — `scripts/check_report_font.py` —— 部署侧字体自检（TODO-045）。 (~870 tok)
 - `test_check_schema_parity.py` — `scripts/check_schema_parity.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~764 tok)
+- `test_compose_lane_lock.py` — compose **容器侧**车道锁的守卫（P10-C · T0-3 · TODO-163）。 (~1968 tok)
 - `test_compose_test_profile.py` — `docker-compose.yml` 的 **test profile** 守卫（P10-A · Task T1）。 (~2314 tok)
 - `test_compose_test_stack_pg.py` — **执行级**的测试栈守卫（评审 #22 · 2026-11-12）。 (~1330 tok)
 - `test_gate_alembic_check.py` — `scripts/gate_alembic_check.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~469 tok)

@@ -18,12 +18,12 @@
 **维护规则**：新增条目必须带 `证据` 字段；关闭条目移到文末归档表，不要删（编号是追溯索引）。
 最后全量核销：2026-10-06。
 
-> **2026-11-23 瘦身**：本文件曾到 **5653 行 / 210 KB** ⇒ ⇒ **已关闭**的 101 条整体搬进 **`docs/archives/TODOS-closed.md`**（正文逐字保留 · **编号可追溯**）⇒ ⇒ 本文件只留**还开着**的条目。
+> **2026-11-23 瘦身**：本文件曾到 **5653 行 / 210 KB** ⇒ ⇒ **已关闭**的 103 条整体搬进 **`docs/archives/TODOS-closed.md`**（正文逐字保留 · **编号可追溯**）⇒ ⇒ 本文件只留**还开着**的条目。
 ⇒ ⇒ 搬运由 `scripts/slim_todos.py` 完成（可复跑 · 判定口径写在脚本 docstring 里）。
 
 ## 📋 还开着的条目（**一眼看完**）
 
-⚠️ **正文里只有还开着的条目**（75 条）⇒ ⇒ **已关闭**的 101 条在 `docs/archives/TODOS-closed.md`（编号可追溯 ⇒ ⇒ 文末有「已关闭」索引表）。
+⚠️ **正文里只有还开着的条目**（73 条）⇒ ⇒ **已关闭**的 103 条在 `docs/archives/TODOS-closed.md`（编号可追溯 ⇒ ⇒ 文末有「已关闭」索引表）。
 
 | 编号 | 严重度 | 条目 |
 |---|---|---|
@@ -71,7 +71,6 @@
 | `TODO-129` | 🟡 | 物流面**之外**的模块守卫覆盖审计 |
 | `TODO-130` | 🟢 | `user_project_service.py` 的既有 ruff 债（F821 / UP035 / UP037） |
 | `TODO-131` | 🔴 | 部署前置 —— 各环境必须先 seed 授权行，否则**全站物流 404** |
-| `TODO-137` | 🟡 | 遗留账号（`user_id` ≠ 派生值）的授权迁移 —— 一次性运维动作 |
 | `TODO-138` | 🟡 | `TwoPhaseResult` **没有 `project_id`** ⇒ 无法登记血缘守卫 |
 | `TODO-139` | ⚪ | 物流来源 vs 计算来源是不是**同一个概念** |
 | `TODO-141` | 🟡 | 全量测试迁移到 `strict_client`（守卫测试的唯一入口） |
@@ -91,7 +90,6 @@
 | `TODO-158` | 🔴 | 报表审计哈希的**根因未闭环**（bug-2165 的残余） |
 | `TODO-161` | 🟡 | 管道链计算**在运行时写配置表**（占位管级 `CS-STD`） |
 | `TODO-162` | 🟡 | 公式编辑器的参数表用了 antd `rowKey` 回调的 **index** 参数 |
-| `TODO-163` | 🟡 | compose 的 `migrate` / `seed` 两个写者**不在车道互斥锁内** |
 | `TODO-167` | 🟡 | 前端还有别处把**占位常量**当真项目 id 用 |
 | `TODO-170` | 🟠 | `report_definitions.project_id` 是**死字段**（数据模型说项目级 · 授权说创建人级） |
 | `TODO-172` | 🟡 | **publish 的职责分离未定义**（产品语义待定 · **不是**越权缺口） |
@@ -1117,34 +1115,6 @@ uv run python scripts/seed_user_project_access.py --username alice --project <�
 ⚠️ **生产库的用户必须先在 `users` 表里存在**（FK 约束）⇒ 走真实登录路径即可。
 
 
-## TODO-137: 遗留账号（`user_id` ≠ 派生值）的授权迁移 —— 一次性运维动作 🟡
-
-**现状**（2026-11-10 · ce-code-review 的 **#10** 修复引入的**新前置**）：
-
-`ensure_user_row` 现在**只认 `user_id`** ⇒ 若某个用户名已被一条
-**`user_id` 与派生值不同**的遗留行占着（`users.username` 唯一 ⇒ 派生 id 与遗留 id
-**不能并存**）⇒ 建行会撞唯一约束 ⇒ **显式 409 `USER_ID_CONFLICT`**（不再静默替换）。
-
-⇒ 需要**一次性迁移**把遗留账号的授权转到派生 id。**核查结果**：开发库
-`users` **0 行**、`user_projects` **0 行**、**0 条** id 与派生值不一致的行
-⇒ **当前没有这样的遗留行** ⇒ 本条是**预防性**的。
-
-**迁移步骤**（顺序不能错 —— FK 约束）：
-
-```sql
--- ① 遗留行让出 username（否则派生 id 的行建不出来）
-UPDATE users SET username = 'legacy:' || username
- WHERE user_id <> uuid5(namespace_dns, username);   -- ← 派生函数在应用层，见下
--- ② 建派生 id 的行（username 用原名，roles 按真实登录路径补）
--- ③ 把授权转到派生 id
-UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
-```
-
-⚠️ 派生 id 的**唯一**算法在 `app/services/token_issuer.py::derive_user_id`
-（`uuid5(NAMESPACE_DNS, username)`）⇒ 迁移脚本必须**调用它**，不要另抄一份。
-
-**归属**：一次性运维动作（代码侧已 fail-loud 护住）。
-
 ## TODO-138: `TwoPhaseResult` **没有 `project_id`** ⇒ 无法登记血缘守卫 🟡
 
 **现状**（2026-11-10 · P9B-4 体验批 T0-D 的注册完整性快照实测）：
@@ -1605,57 +1575,6 @@ There is no guarantee that it will work as expected.
 - **白名单**：`ALLOWED_CONSOLE_ERRORS` **删掉那条** ⇒ ⇒ 现在这张表
   **是空的** ⇒ ⇒ 真后端通道的路由扫描**照旧全绿** ⇒ ⇒
   ⇒ 这就是「组件修好后删白名单条目」这条纪律的**验证本身**。
-
-## TODO-163: compose 的 `migrate` / `seed` 两个写者**不在车道互斥锁内** 🟡
-
-**现状**（2026-11-17 · P10-B 评审 #15 的第 ① 步）：
-
-`scripts/pytest_pg.sh` 的车道互斥锁只约束**走进这个脚本的进程**
-（PG 车道 / E2E 车道）⇒ ⇒ 而 compose 的两个**一次性写者**
-（`migrate` · `seed`）**不经过这个脚本** ⇒ ⇒ 它们与车道**并发**时：
-
-- `migrate`（`alembic upgrade head`）与车道在**同一个库**上建 schema
-  ⇒ ⇒ DDL 互相等锁 ⇒ ⇒ 表现是「**偶发卡住**」（不是报错 ⇒ 极难定位）；
-- `seed` 往 **public schema** 灌数据 ⇒ ⇒ 与车道的隔离 schema 不冲突，
-  但**同库同表** ⇒ ⇒ 可能撞唯一约束。
-
-**为什么本批只做了一半**（评审 #15 的裁决是「最小可行三步」）：
-
-① compose 的两个服务要进**同一把锁** ⇒ ⇒ 容器里得 `flock` 同一个文件 ⇒ ⇒
-需要 ① 把锁目录**以可写方式**挂进容器（`./pcs-backend:/app:ro` 是**只读**的）
-② 容器镜像里要有 `flock`（`util-linux`）—— 本机**无外网** ⇒ 镜像既不能构建
-也不能在运行时 `apt-get` ⇒ ⇒ **改完无法验证** ⇒ ⇒ 留到 P10-C（有网环境）。
-
-⇒ ⇒ 本批已做的两步（**可验证**）：
-- **第 ② 步**：默认锁路径从 `/tmp/pcs-pgtest-lane.lock` 改**项目内**
-  `pcs-backend/.tmp/lane.lock` ⇒ ⇒ `/tmp` 会被清理 ⇒ inode 换新 ⇒ ⇒
-  正在跑的车道的锁对新车道**不可见** ⇒ ⇒ 互斥**静默失效** ⇒
-  （`.gitignore` 已加 `pcs-backend/.tmp/`）
-- **第 ③ 步**：守门测试补一条「**默认路径**下两 lane 互斥」的**子进程实测**
-  （`tests/scripts/test_pytest_pg_gate.py::test_two_lanes_are_mutually_exclusive_on_the_default_path`）
-  ⇒ ⇒ 之前只测过「覆盖过的锁文件」⇒ ⇒ **默认路径从没被测过**
-
-**何时做**：**P10-C**（有网环境 ⇒ 能构建镜像 ⇒ 能验证 compose 侧改动）
-
-**2026-11-17 · P10-F 的 F2-T3 部分关闭** ⇒ ⇒ **宿主侧**已进同一把锁：
-
-- `scripts/compose_test_stack.sh` 现在**先抢车道锁**（与 `scripts/pytest_pg.sh`
-  **同一把**、**同一路径口径** `${BACKEND_DIR}/.tmp/lane.lock`、同样支持
-  `PCS_PGTEST_LANE_LOCK` 覆盖）⇒ ⇒ 抢不到 ⇒ 非零退出 + 「另一条车道正在跑」。
-- 守卫两条（`tests/scripts/test_compose_test_profile.py`）：静态（锁在调
-  compose **之前** + `flock -n` + `exec 9>`）+ **行为**（锁被占着 ⇒ 假 docker
-  + 真占锁进程 ⇒ 脚本必须失败）。
-- `docker-compose.yml` 的 `migrate` / `seed` 两个服务都注明「**必须**经
-  `scripts/compose_test_stack.sh` 起」。
-
-⚠️ **残留**（**未关闭** ⇒ 归 P10-C）：直接 `docker compose run --rm seed`
-**仍能绕过锁** ⇒ ⇒ 容器侧装 `flock` + 把锁目录**可写**挂进容器那条路
-⇒ ⇒ 本机 docker registry 拉不动 ⇒ ⇒ **改完无法验证** ⇒ ⇒ 不硬改。
-⇒ ⇒ **保留本条**（状态从「完全没做」变成「宿主侧已做 · 容器侧待 P10-C」）。
-
-**归属**：P10-C
-
----
 
 ## TODO-167: 前端还有别处把**占位常量**当真项目 id 用 🟡
 
@@ -2156,7 +2075,7 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 
 ## ✅ 已关闭（**正文已搬进归档**）
 
-⚠️ **为什么搬走**：这些条目**已经闭合**（正文里带着完整的取证过程 / 裁决叙事 / 变异自证）⇒ ⇒ 它们**不再需要被逐字读**⇒ ⇒ 但**编号是追溯索引** ⇒ ⇒ 原文逐字保留在 **`docs/archives/TODOS-closed.md`**（101 条）。
+⚠️ **为什么搬走**：这些条目**已经闭合**（正文里带着完整的取证过程 / 裁决叙事 / 变异自证）⇒ ⇒ 它们**不再需要被逐字读**⇒ ⇒ 但**编号是追溯索引** ⇒ ⇒ 原文逐字保留在 **`docs/archives/TODOS-closed.md`**（103 条）。
 
 | 编号 | 条目 | 关闭日期 |
 |---|---|---|
@@ -2261,3 +2180,5 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 | `TODO-197` | 前端**没有「他人发布报表定义」的入口** ⇒ ⇒ 「发布」在 UI 上不可达 ✅ | 2026-11-23 |
 | `TODO-187b` | 12 族端点的 404 文案**逐字同形**（选 A · 守卫加可选文案参数）✅ | 2026-11-23 |
 | `TODO-187` | 两种 404 的**文案不同** ⇒ 记录/项目存在性可枚举 | 2026-11-23 |
+| `TODO-137` | 遗留账号（`user_id` ≠ 派生值）的授权迁移 —— 一次性运维动作 | 2026-11-24 |
+| `TODO-163` | compose 的 `migrate` / `seed` 两个写者**不在车道互斥锁内** | 2026-11-24 |

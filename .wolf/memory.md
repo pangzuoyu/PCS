@@ -4230,3 +4230,22 @@
 | 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | 9→4 lines | ~35 |
 | 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | 8→7 lines | ~67 |
 | 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | inline fix | ~15 |
+| 20:54 | Created pcs-backend/Dockerfile | — | ~611 |
+| 20:56 | Created pcs-backend/scripts/compose_lane_lock.sh | — | ~370 |
+| 20:58 | Edited docker-compose.yml | expanded (+13 lines) | ~334 |
+| 20:58 | Edited docker-compose.yml | expanded (+10 lines) | ~501 |
+| 20:58 | Edited pcs-backend/scripts/compose_test_stack.sh | 7→10 lines | ~74 |
+| 20:58 | Created pcs-backend/tests/scripts/test_compose_lane_lock.py | — | ~1968 |
+| 20:58 | Edited pcs-backend/pyproject.toml | 11→14 lines | ~200 |
+| 21:01 | Edited pcs-backend/Dockerfile | expanded (+16 lines) | ~224 |
+| 21:03 | Created docs/deploy-prerequisites.md | — | ~810 |
+| 21:04 | Edited pcs-backend/Dockerfile | 20→23 lines | ~249 |
+| 21:05 | Edited pcs-backend/Dockerfile | 6→8 lines | ~66 |
+| 21:07 | Edited CLAUDE.md | 4→6 lines | ~102 |
+| 06:41 | Edited pcs-backend/Dockerfile | 8→9 lines | ~72 |
+| 06:41 | Edited pcs-backend/Dockerfile | 7→9 lines | ~88 |
+| 06:43 | Edited pcs-backend/Dockerfile | 4→8 lines | ~66 |
+| 06:44 | Edited docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md | expanded (+17 lines) | ~628 |
+| 06:52 | Created .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t0.md | — | ~918 |
+| 07:06 | Edited pcs-backend/Dockerfile | 9→10 lines | ~93 |
+| 07:07 | Edited pcs-backend/Dockerfile | 10→11 lines | ~125 |

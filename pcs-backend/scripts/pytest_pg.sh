@@ -64,6 +64,12 @@ fi
 BACKEND_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOCK_FILE="${PCS_PGTEST_LANE_LOCK:-${BACKEND_DIR}/.tmp/lane.lock}"
 mkdir -p "$(dirname "$LOCK_FILE")"
+# ⚠️ **容器侧也要抢这把锁**（P10-C · T0-2）⇒ ⇒ 容器里的 uid 未必能写这个目录
+# ⇒ ⇒ ⇒ 目录与锁文件都放开权限（`.tmp/` 已 gitignore ⇒ ⇒ 只是本机产物）
+# ⇒ ⇒ ⇒ 不放开 ⇒ ⇒ 容器建的锁文件宿主改不动 ⇒ ⇒ 宿主脚本**开不了锁**。
+chmod 777 "$(dirname "$LOCK_FILE")" 2>/dev/null || true
+touch "$LOCK_FILE" 2>/dev/null || true
+chmod 666 "$LOCK_FILE" 2>/dev/null || true
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "FAIL: 另一条车道（PG 车道 / E2E 车道）正在跑 ⇒ 同一个库不能并发建 schema" >&2

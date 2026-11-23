@@ -33,25 +33,42 @@
 
 ## T0 · 无裁决 · 可直接开工
 
-- [ ] **T0-1 · `pcs-backend/Dockerfile`**（生产镜像）
-      ⇒ 装 `util-linux`（**`flock`** · TODO-163 要用）· `fonts-noto-cjk`（PDF 渲染）
-      ⇒ 非 root 运行 · `uv` + `--frozen` ⇒ ⇒ **镜像即部署物**
-- [ ] **T0-2 · compose 侧接线**
-      ⇒ `migrate` / `seed` 改用该镜像 · **锁目录可写挂载**（`.tmp`）
+- [x] **T0-1 · `pcs-backend/Dockerfile`**（生产镜像）
+      ⇒ 装 `util-linux`（**`flock`** · TODO-163 要用）· 非 root 运行
+      ⇒ ⇒ **不装 `fonts-noto-cjk`**（那个字体是 CFF 轮廓 ⇒ ⇒ reportlab 报错
+      ⇒ ⇒ ⇒ 真正管用的是宿主的 `fonts/NotoSansSC-Regular.ttf` ⇒ ⇒ 装进镜像
+      ⇒ ⇒ ⇒ 反而制造第二个坏候选）
+      ⇒ ⇒ **不把项目装进 venv**（`--no-install-project` + `PYTHONPATH=/app`）
+      ⇒ ⇒ ⇒ 装了的话**旧副本会盖住挂载的新源码** ⇒ ⇒ dev 改代码不生效
+- [x] **T0-2 · compose 侧接线**
+      ⇒ `migrate` / `seed` 改用该镜像（`build:` ⇒ ⇒ 镜像不存在时**自动构建**）
+      ⇒ ⇒ **锁目录可写挂载**（`./pcs-backend/.tmp:/app/.tmp` ⇒ ⇒ **同一 inode**）
       ⇒ ⇒ 容器内 `flock` **同一把锁、同一路径口径**（`pcs-backend/.tmp/lane.lock`）
       ⇒ ⇒ 抢不到 ⇒ **非零退出**（与宿主侧 `pytest_pg.sh` / `compose_test_stack.sh` 同纪律）
-      ⇒ ⇒ ⚠️ 开发仍走**挂载**（不改日常路径）⇒ ⇒ 两套并存，**生产 profile** 用镜像
-- [ ] **T0-3 · 守卫**
-      ⇒ 静态：compose 里 `migrate`/`seed` 确实带 `flock` + 可写挂载
-      ⇒ 动态：**跑着的车道** + `docker compose run --rm migrate` ⇒ ⇒ **必须被拒**
-- [ ] **T0-4 · TODO-137 迁移脚本** `scripts/migrate_legacy_user_ids.py`
+      ⇒ ⇒ ⚠️ **宿主已持锁 ⇒ ⇒ 容器不能再抢**（同锁自锁）⇒ ⇒ `PCS_LANE_LOCK_HELD=1` 放行
+- [x] **T0-3 · 守卫**（`tests/scripts/test_compose_lane_lock.py` · 11 条）
+      ⇒ 静态：compose 的 command / 挂载 / image 三项 + Dockerfile 装 util-linux
+      ⇒ 行为：真跑 `sh` ⇒ 锁空闲 ⇒ 执行 · 锁被占 ⇒ **非零退出** · `PCS_LANE_LOCK_HELD=1` ⇒ 放行
+      ⇒ 容器实测（`docker` 标记 · 默认 deselect）：镜像里**真的有** `flock`
+- [x] **T0-4 · TODO-137 迁移脚本** `scripts/migrate_legacy_user_ids.py`
       ⇒ ⚠️ **必须调** `app/services/token_issuer.py::derive_user_id`（**不另抄一份**）
-      ⇒ ⇒ 三步顺序（让出 username → 建派生行 → 转移 `user_projects`）⇒ ⇒ **幂等**
-      ⇒ ⇒ 干跑模式（`--dry-run`）先出清单再动手
-- [ ] **T0-5 · 部署前置清单** `docs/deploy-prerequisites.md`
+      ⇒ ⇒ 四步顺序（让出 username → 建派生行 → 改指引用 → **删遗留行**）
+      ⇒ ⇒ **迁完不留遗留行** ⇒ ⇒ 否则发布闸「遗留账号行数 = 0」永远不绿
+      ⇒ ⇒ **引用列从 ORM metadata 推导**（实测 9 列）⇒ ⇒ 漏一列 ⇒ ⇒ 授权留在遗留 id 上
+      ⇒ ⇒ 幂等 + `--dry-run` + 残留引用检查
+- [x] **T0-5 · 部署前置清单** `docs/deploy-prerequisites.md`
       ⇒ 每环境：seed 授权行（TODO-131）· 遗留账号迁移（TODO-137）·
       `alembic check` **两库各一进程**（pcs / pcs_test）· 遗留账号行数 = 0
       ⇒ ⇒ 挂进 `CLAUDE.md` 的「发布前检查」
+
+### T0 · 实施中撞到的**四个坑**
+
+| # | 坑 | 后果 | 解法 |
+|---|---|---|---|
+| 1 | ⚠️ **旧结论「本机无外网」已过时** —— 实测 deb 200 · ghcr 401(正常) · **pypi ✘ 但阿里云 200** · Docker 29.4.3 可用 | TODO-163 的前提失效 | 实测更新 ⇒ ⇒ 容器侧路线解锁 |
+| 2 | ⚠️ **容器内网到镜像源被限速** —— 宿主同源 **9.4 MB/s**，容器里 uv 拉 numpy(15.9MB)/chemicals(21.3MB) **反复超时**（1734s 后仍失败）| 镜像构建**做不出来** | 构建用 `--network=host`（compose 的 `build.network: host`）⇒ ⇒ **一次过** |
+| 3 | ⚠️ **Debian slim 自带 `flock`**（`util-linux` 是 priority: required）⇒ ⇒ **不必 apt** | apt 拉 8.8MB `Packages` **反复失败**（卡 6 分钟）| Dockerfile 先 `command -v flock` ⇒ ⇒ 有就跳过 apt ⇒ ⇒ 构建不碰网络 |
+| 4 | ⚠️ **锁文件权限** —— 容器（uid 10001）要在宿主 `.tmp` 里建锁文件 ⇒ ⇒ docker 建的目录是 **root** ⇒ ⇒ 宿主脚本**开不了锁** | 宿主脚本直接报错 | 两个取锁脚本都 `chmod 777` 目录 + `chmod 666` 锁文件（`.tmp/` 已 gitignore ⇒ ⇒ 只是本机产物）|
 
 ---
 

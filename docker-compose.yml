@@ -112,12 +112,26 @@ services:
     # ⇒ ⇒ 那个脚本**先抢车道锁**（`pcs-backend/.tmp/lane.lock`）⇒ ⇒ 与
     # ⇒ PG 车道 / E2E 车道**互斥**（它们写同一个库 ⇒ 并发 ⇒ DDL 等锁 ⇒
     # ⇒ 表现是「偶发卡住」）。
-    # ⇒ ⇒ **直接 `docker compose run --rm migrate` 会绕过锁** ⇒ ⇒ 那是已知
-    # ⇒ ⇒ 残留（容器侧装 flock 的路线归 P10-C · TODO-163）。
-    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    # ⇒ ⇒ **直接 `docker compose run --rm migrate` 会绕过锁** ⇒ ⇒
+    # ⇒ ⇒ **P10-C · T0-2 已闭**：容器**自己也抢**同一把锁
+    # ⇒ ⇒ （`scripts/compose_lane_lock.sh` ⇒ ⇒ 同一 inode ⇒ ⇒ 宿主/容器互斥）。
+    #
+    # ⚠️ **换自建镜像**（`pcs-backend/Dockerfile`）⇒ ⇒ 因为它带 `flock`
+    # ⇒ ⇒（uv 官方镜像里**没有** flock ⇒ ⇒ 容器侧拿不到锁）。
+    # ⇒ ⇒ `build:` ⇒ ⇒ 镜像不存在时 compose **自动构建** ⇒ ⇒ 不用手工步骤。
+    image: pcs-backend:local
+    build:
+      context: ./pcs-backend
+      dockerfile: Dockerfile
+      # ⚠️ **构建用宿主网络** —— 实测**容器内网**到 pypi 镜像被限速
+      # ⇒ ⇒ uv 拉大包（numpy 15.9MB / chemicals 21.3MB）**反复超时**
+      # ⇒ ⇒ 宿主同源 9.4 MB/s ⇒ ⇒ ⇒ 构建走 `host` 网络。
+      network: host
     profiles: ["test"]
     working_dir: /app
-    command: ["uv", "run", "--frozen", "alembic", "upgrade", "head"]
+    # ⚠️ **容器侧抢车道锁**（TODO-163）⇒ ⇒ 抢不到 ⇒ ⇒ 非零退出
+    # ⇒ ⇒ ⇒ 直接 `docker compose run --rm migrate` 也会被拒。
+    command: ["sh", "/app/scripts/compose_lane_lock.sh", "uv", "run", "--frozen", "alembic", "upgrade", "head"]
     environment:
       UV_PROJECT_ENVIRONMENT: /opt/venv
       UV_CACHE_DIR: /opt/uvcache
@@ -125,6 +139,9 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest
     volumes:
       - ./pcs-backend:/app:ro
+      # ⚠️ **锁目录必须「可写」** ⇒ ⇒ 容器要在**同一个 inode** 上抢锁
+      # ⇒ ⇒（`:ro` 的挂载 ⇒ ⇒ 容器开不了锁 ⇒ ⇒ 互斥失效）
+      - ./pcs-backend/.tmp:/app/.tmp
     depends_on:
       postgres-pgtest: {condition: service_healthy}
   seed:
@@ -134,8 +151,17 @@ services:
     # ⚠️ **必须经 `pcs-backend/scripts/compose_test_stack.sh` 起**（P10-F · F2-T3）
     # ⇒ ⇒ 那个脚本**先抢车道锁**（`pcs-backend/.tmp/lane.lock`）⇒ ⇒ 与
     # ⇒ PG 车道 / E2E 车道**互斥** ⇒ ⇒ 直接 `docker compose run --rm seed`
-    # ⇒ ⇒ **会绕过锁** ⇒ ⇒ 已知残留（容器侧路线归 P10-C · TODO-163）。
-    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    # ⇒ ⇒ **会绕过锁** ⇒ ⇒ **P10-C · T0-2 已闭**（容器侧也抢锁 ⇒ ⇒ 同上）。
+    #
+    # ⚠️ **换自建镜像**（带 `flock` ⇒ ⇒ 容器侧拿得到锁）。
+    image: pcs-backend:local
+    build:
+      context: ./pcs-backend
+      dockerfile: Dockerfile
+      # ⚠️ **构建用宿主网络** —— 实测**容器内网**到 pypi 镜像被限速
+      # ⇒ ⇒ uv 拉大包（numpy 15.9MB / chemicals 21.3MB）**反复超时**
+      # ⇒ ⇒ 宿主同源 9.4 MB/s ⇒ ⇒ ⇒ 构建走 `host` 网络。
+      network: host
     # ⚠️ profile 只给**一次性任务** —— 加了它 `docker compose up` 就不再起它
     #    （这是本仓的纪律：日常开发服务绝不进 profile）。
     profiles: ["test"]
@@ -148,7 +174,10 @@ services:
     # ⇒ ⇒ **两个房间不通**（后端 E2E 车道的数据在隔离 schema 里）
     # ⇒ ⇒ flows 种子**必须也在 public 跑一遍** ⇒ UI 流才有数据可断言。
     # ⇒ ⚠️ 用 `sh -c` 串起来（`&&` ⇒ 第一个失败就不跑第二个 ⇒ fail-closed）。
+    # ⇒ ⚠️ **容器侧抢车道锁**（TODO-163）⇒ ⇒ 抢不到 ⇒ ⇒ 非零退出。
     command:
+      - sh
+      - /app/scripts/compose_lane_lock.sh
       - sh
       - -c
       - >-
@@ -164,6 +193,8 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres-pgtest:5432/pcs_pgtest
     volumes:
       - ./pcs-backend:/app:ro
+      # ⚠️ **锁目录必须「可写」** ⇒ ⇒ 容器要在**同一个 inode** 上抢锁
+      - ./pcs-backend/.tmp:/app/.tmp
     depends_on:
       # ⚠️ **先迁移再灌种子** —— 否则空 schema 上 `seed` 第一句就炸
       # （`relation "workspaces" does not exist`）。

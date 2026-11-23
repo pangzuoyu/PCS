@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T12:48:50.339Z",
-    "fileCount": 1463,
+    "lastScanned": "2026-11-23T23:07:29.089Z",
+    "fileCount": 1468,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "60f40afb60a07121d44360acf85af5d881435680227561ff1271dfb6a67d8ef9",
-    "storeUpdatedAt": "2026-11-23T12:48:50.353Z",
-    "rootHash": "9e284088948ba9d6"
+    "renderedHash": "aa0a6a7532598aaaf1541907ffe3da68cdcef352000398b4a097525d75fb30a4",
+    "storeUpdatedAt": "2026-11-23T23:07:29.102Z",
+    "rootHash": "f39a5fc7fba5f18a"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -769,11 +769,11 @@
     },
     "CLAUDE.md": {
       "description": "OpenWolf",
-      "tokens": 1926,
-      "hash": "49ff0323f5c69372",
-      "size": 12199,
-      "mtimeMs": 1794444891636.6316,
-      "updatedAt": "2026-11-12T00:54:51.683Z",
+      "tokens": 1960,
+      "hash": "4edac4c8032ee792",
+      "size": 12422,
+      "mtimeMs": 1795439247258.071,
+      "updatedAt": "2026-11-23T13:07:27.308Z",
       "source": "hook"
     },
     "CONTEXT.md": {
@@ -788,11 +788,11 @@
     },
     "docker-compose.yml": {
       "description": "Docker Compose services",
-      "tokens": 2098,
-      "hash": "a4b225ec4db5ba57",
-      "size": 9713,
-      "mtimeMs": 1794833125431.7961,
-      "updatedAt": "2026-11-16T12:45:25.485Z",
+      "tokens": 2488,
+      "hash": "f8acb05308ad3e1f",
+      "size": 11802,
+      "mtimeMs": 1795438690900.3423,
+      "updatedAt": "2026-11-23T12:58:10.950Z",
       "source": "hook"
     },
     "docs/adr/0001-two-layer-signing-model.md": {
@@ -40827,11 +40827,11 @@
     },
     "pcs-backend/pyproject.toml": {
       "description": "\", \"**/migrations/**\"]",
-      "tokens": 928,
-      "hash": "d55e4948384f8175",
-      "size": 4354,
-      "mtimeMs": 1793631845489.0095,
-      "updatedAt": "2026-11-02T15:04:05.537Z",
+      "tokens": 1011,
+      "hash": "dfff5c9cf9574f06",
+      "size": 4895,
+      "mtimeMs": 1795438731411.2373,
+      "updatedAt": "2026-11-23T12:58:51.465Z",
       "source": "hook"
     },
     "pcs-frontend/tests/components/common/StateBadge.test.tsx": {
@@ -46773,11 +46773,11 @@
     },
     "pcs-backend/scripts/compose_test_stack.sh": {
       "description": "**真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。",
-      "tokens": 1264,
-      "hash": "5de6cc9b44da328e",
-      "size": 6661,
-      "mtimeMs": 1794921949046.6206,
-      "updatedAt": "2026-11-17T13:25:49.097Z",
+      "tokens": 1298,
+      "hash": "8167df40f41207ef",
+      "size": 6907,
+      "mtimeMs": 1795438697553.3247,
+      "updatedAt": "2026-11-23T12:58:17.599Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_compose_test_stack_pg.py": {
@@ -52853,11 +52853,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md": {
       "description": "P10-C 主体 · 部署与可观测性 · 计划",
-      "tokens": 934,
-      "hash": "d537078b0de33f87",
-      "size": 5908,
-      "mtimeMs": 1795437711977.62,
-      "updatedAt": "2026-11-23T12:41:52.032Z",
+      "tokens": 1253,
+      "hash": "de02b955de989345",
+      "size": 7970,
+      "mtimeMs": 1795473893811.8518,
+      "updatedAt": "2026-11-23T22:44:53.867Z",
       "source": "hook"
     },
     "pcs-backend/scripts/migrate_legacy_user_ids.py": {
@@ -53035,6 +53035,123 @@
           "tokens": 243
         }
       ]
+    },
+    "pcs-backend/Dockerfile": {
+      "description": "Docker container definition",
+      "tokens": 928,
+      "hash": "4c03ec86e8b88b03",
+      "size": 4726,
+      "mtimeMs": 1795475249033.7283,
+      "updatedAt": "2026-11-23T23:07:29.089Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/compose_lane_lock.sh": {
+      "description": "一次性写者（compose 的 `migrate` / `seed`）的**容器侧**车道锁。",
+      "tokens": 370,
+      "hash": "0a64b58c481f8beb",
+      "size": 2172,
+      "mtimeMs": 1795438598829.5913,
+      "updatedAt": "2026-11-23T12:56:38.879Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_compose_lane_lock.py": {
+      "description": "compose **容器侧**车道锁的守卫（P10-C · T0-3 · TODO-163）。",
+      "tokens": 1968,
+      "hash": "a22d6f2c29a27cde",
+      "size": 8256,
+      "mtimeMs": 1795438726669.2495,
+      "updatedAt": "2026-11-23T12:58:46.728Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "compose",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 60,
+          "tokens": 122
+        },
+        {
+          "name": "test_write_services_go_through_the_lane_lock_script",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 72,
+          "tokens": 142
+        },
+        {
+          "name": "test_lock_directory_is_mounted_writable",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 89,
+          "tokens": 177
+        },
+        {
+          "name": "test_services_use_the_self_built_image",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 104,
+          "tokens": 162
+        },
+        {
+          "name": "_run_locked",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 115,
+          "tokens": 94
+        },
+        {
+          "name": "test_lock_script_runs_the_command_when_the_lock_is_free",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 122,
+          "tokens": 82
+        },
+        {
+          "name": "test_lock_script_refuses_when_the_lock_is_held",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 153,
+          "tokens": 293
+        },
+        {
+          "name": "test_lock_script_yields_when_the_host_already_holds_the_lock",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 178,
+          "tokens": 242
+        },
+        {
+          "name": "test_dockerfile_installs_util_linux_for_flock",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 190,
+          "tokens": 129
+        },
+        {
+          "name": "test_the_built_image_actually_has_flock",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 207,
+          "tokens": 148
+        }
+      ]
+    },
+    "docs/deploy-prerequisites.md": {
+      "description": "部署前置清单（每个环境各跑一次 · P10-C · T0-5）",
+      "tokens": 759,
+      "hash": "29107249cb4c3b9d",
+      "size": 4713,
+      "mtimeMs": 1795438987384.6265,
+      "updatedAt": "2026-11-23T13:03:07.435Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t0.md": {
+      "description": "QA 报告 · P10-C · T0（容器侧车道锁 + 部署前置清单）· 2026-11-24",
+      "tokens": 861,
+      "hash": "06a03ca8eecdc32c",
+      "size": 5274,
+      "mtimeMs": 1795474365058.2703,
+      "updatedAt": "2026-11-23T22:52:45.111Z",
+      "source": "hook"
     }
   }
 }

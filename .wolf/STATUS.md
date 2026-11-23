@@ -10,6 +10,29 @@ budget_tokens: 1200
 
 ---
 
+## ✅ Done（第 44 轮 · **P10-C · T0**（容器侧车道锁 + 部署前置清单）· 2026-11-24）
+
+**容器侧也抢同一把车道锁** ⇒ ⇒ **TODO-163 闭**（原先「直接
+`docker compose run --rm seed`」能绕过宿主锁 ⇒ ⇒ 与跑着的车道并发建 schema
+⇒ ⇒ 「偶发卡住」）。
+
+- `pcs-backend/Dockerfile`（生产镜像 `pcs-backend:local`）⇒ ⇒ 带 `flock`
+- `pcs-backend/scripts/compose_lane_lock.sh` ⇒ ⇒ 同一路径 ⇒ ⇒ **同一 inode**
+  ⇒ ⇒ 宿主与容器**互斥** ⇒ ⇒ 抢不到 ⇒ ⇒ exit 1
+- compose 的 `migrate`/`seed` 改用它 + **锁目录可写挂载**
+  ⇒ ⇒ ⚠️ **宿主已持锁 ⇒ ⇒ `PCS_LANE_LOCK_HELD=1` 放行**（否则**同锁自锁**）
+- **TODO-137 闭**：`scripts/migrate_legacy_user_ids.py`（幂等 · `--dry-run`
+  · **迁完不留遗留行** ⇒ ⇒ 发布闸「遗留账号行数 = 0」才绿 · 引用列**从 ORM
+  metadata 推导** ⇒ ⇒ 实测 9 列 ⇒ ⇒ 漏一列 ⇒ ⇒ 授权留在遗留 id 上）
+- **部署前置清单** `docs/deploy-prerequisites.md` ⇒ ⇒ 挂进 `CLAUDE.md`
+- 断言 22 条 + **端到端实测**（宿主持锁 ⇒ ⇒ 容器 exit 1）
+
+⚠️ **四个环境坑**（实测 · 旧结论「本机无外网」**已过时**）：
+① **容器内网到镜像源被限速**（宿主 9.4 MB/s）⇒ ⇒ 构建用 `--network=host`
+② Debian slim **自带 `flock`** ⇒ ⇒ **不必 apt**（apt 拉 8.8MB 包反复失败）
+③ 锁文件**权限** ⇒ ⇒ docker 建的目录是 root ⇒ ⇒ 两个取锁脚本都 chmod
+④ **装项目 wheel ⇒ ⇒ 旧副本盖住挂载源码** ⇒ ⇒ `--no-install-project` + `PYTHONPATH=/app`
+
 ## ✅ Done（第 43 轮 · **P10-I · T2**（TODO-187b）· 2026-11-23）
 
 **404 文案逐字同形** —— 守卫（`_guard.py`）加两个可选参数
