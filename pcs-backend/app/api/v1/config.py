@@ -80,6 +80,27 @@ from app.services.user_status_service import is_account_disabled
 
 router = APIRouter(prefix="/config", tags=["config"])
 
+#: **角色白名单（唯一真相源）** —— JWT 的 `role` 声明只允许这些值。
+#:
+#: ⚠️ **为什么提为模块级常量**（F4-PRE · TODO-188 · 2026-11-23）：
+#: 原来它是 `current_actor` 里的**局部字面量** ⇒ ⇒ 别的端点想写
+#: 「这些角色都能进」时只能**手抄一份** ⇒ ⇒ 抄漏一个 ⇒ ⇒ **合法用户 403**
+#: ⇒ ⇒（`GET /user-projects/me` 就这样把 `PROCESS_CONTROLLER` / `VIEWER`
+#: 挡在了外面 ⇒ ⇒ 前端的项目选择器对这两类人直接空）。
+#: ⇒ ⇒ 现在它是**一份** ⇒ ⇒ 要放行「所有合法角色」就写 `*ALLOWED_ROLES`
+#: ⇒ ⇒ **抄漏**这件事从此不存在。
+ALLOWED_ROLES: frozenset[str] = frozenset(
+    {
+        "DESIGNER",
+        "PROCESS_CONTROLLER",
+        "REVIEWER",
+        "APPROVER",
+        "SYSTEM_ADMIN",
+        "VIEWER",
+        "CHECKER",
+    }
+)
+
 
 # ---------------------------------------------------------------------------
 # ACL helper（内联版）
@@ -539,11 +560,9 @@ async def current_actor(
     # role 白名单校验 (无论环境, 非法 role 一律拒).
     # 含项目内角色 VIEWER (per project.py:139) 和 CHECKER (per test_state_machine).
     # role-string 收敛 (2026-10-04): 历史双写 "SYSADMIN" 全量收敛为 "SYSTEM_ADMIN".
-    _ALLOWED_ROLES = {
-        "DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN",
-        "VIEWER", "CHECKER",
-    }
-    if role not in _ALLOWED_ROLES:
+    # ⚠️ 白名单是**模块级常量**（唯一真相源）⇒ ⇒ 别的端点直接 `*ALLOWED_ROLES`
+    # ⇒ ⇒ 不用再手抄第二份（抄漏 ⇒ ⇒ 合法用户 403 ⇒ ⇒ TODO-188 的根因）。
+    if role not in ALLOWED_ROLES:
         raise PcsError(
             code="INVALID_ROLE",
             message=f"role {role!r} not allowed",
@@ -569,4 +588,4 @@ async def current_actor(
     return _Actor(user_id=user_id, username=sub, role=role)
 
 
-__all__ = ["current_actor", "router", "require_roles"]
+__all__ = ["ALLOWED_ROLES", "current_actor", "router", "require_roles"]

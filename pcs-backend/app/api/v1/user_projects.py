@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.config import current_actor, require_roles
+from app.api.v1.config import ALLOWED_ROLES, current_actor, require_roles
 from app.db.session import get_db
 from app.models.project import UserProject
 from app.services.user_project_service import UserProjectService
@@ -119,8 +119,14 @@ async def list_my_projects(
     db: Annotated[AsyncSession, Depends(get_db)],
     actor=Depends(current_actor),
 ) -> list[UserProjectResponse]:
-    """当前用户可见项目列表 (DESIGNER+ 即可)."""
-    require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMIN")
+    """当前用户可见项目列表 (任何已登录用户)."""
+    # ⚠️ **角色清单用唯一真相源**（F4-PRE · TODO-188 · 2026-11-23）：
+    # 原来这里**手抄**了一份角色清单 ⇒ ⇒ 漏掉 `PROCESS_CONTROLLER` / `VIEWER`
+    # ⇒ ⇒ **合法用户 403** ⇒ ⇒ 前端的项目选择器（TODO-194）对这两类人直接空。
+    # ⇒ ⇒ 现在写 `*ALLOWED_ROLES`（JWT 白名单那份）⇒ ⇒ **抄漏**不可能再发生。
+    # ⇒ ⇒ 语义 = 「**任何持有合法角色的登录用户**都能看**自己**的项目清单」
+    # ⇒ ⇒ （返回的是**调用者自己的**行 ⇒ ⇒ 不泄露别人的项目）。
+    require_roles(actor, *ALLOWED_ROLES)
     records = await UserProjectService.list_user_projects(
         db, user_id=actor.user_id
     )

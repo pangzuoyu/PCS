@@ -49,7 +49,11 @@ async def batch_submit_streams(
     返回（`succeeded` / `failed`）。⚠️ 207 是 **2xx** ⇒ 客户端**不会**自动
     抛异常 ⇒ 必须自己看 `failed`。
     """
-    require_roles(user, "DESIGNER", "PROCESS_CONTROLLOR", "SYSTEM_ADMIN")
+    # ⚠️ **角色名曾有拼写错误**（F4-PRE · TODO-188 同族 · 2026-11-23）：
+    # 写的是 `PROCESS_CONTROLLOR`（多一个 O）⇒ ⇒ 真角色 `PROCESS_CONTROLLER`
+    # **永远匹配不上** ⇒ ⇒ 合法用户被 403 ⇒ ⇒ 而文档/契约里写的是
+    # `PROCESS_CONTROLLOR` ⇒ ⇒ 这是**笔误**，不是有意收紧 ⇒ ⇒ 已订正。
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
 
     # ⚠️ service 抛的 `PcsError`（如超限 422）**不用**在这里转 —— 全局
     # handler（`app/core/errors.py::install_exception_handlers`）已经把它

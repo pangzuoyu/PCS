@@ -21,7 +21,6 @@
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -338,23 +337,28 @@ def test_role_headers_rejects_an_unknown_role(role_headers):
 def test_role_headers_rejects_a_role_outside_the_allowlist(role_headers):
     """⚠️ 角色**在白名单外** ⇒ **报错** ⇒ 不是发一个非法 token 让全场 403。
 
-    ⚠️ 顺带钉住「白名单本身」：本仓 copy 的集合必须**等于**应用里那份
-    （`app/api/v1/config.py` 的 `_ALLOWED_ROLES`）⇒ 否则复制品会漂。
+    ⚠️ **顺带钉住「白名单只有一份」**（F4-PRE · TODO-188 · 2026-11-23）：
+    E2E 车道的白名单**直接引用应用那份** ⇒ ⇒ **没有复制品** ⇒ ⇒
+    「漂移」这件事**不可能发生**。
+    ⚠️ 原来这里是**正则解析源码**来比对两份 copy ⇒ ⇒ 应用侧一改写法
+    （常量改名 / 换容器类型）它就**自己红了**（不是「漂移」红，是「找不到」红）
+    ⇒ ⇒ 而且「抄第二份」本身就是 TODO-188 的**根因**。
     """
     with pytest.raises(ValueError):
         role_headers("SYSADMIN")
 
-    source = (BACKEND_ROOT / "app" / "api" / "v1" / "config.py").read_text(
-        encoding="utf-8"
-    )
-    block = re.search(r"_ALLOWED_ROLES\s*=\s*\{(.*?)\}", source, re.S)
-    assert block, "应用里找不到 `_ALLOWED_ROLES` ⇒ 白名单的口径变了"
-    app_roles = set(re.findall(r'"([^"]+)"', block.group(1)))
+    from app.api.v1.config import ALLOWED_ROLES as app_roles
     from tests.e2e_flows.conftest import ALLOWED_ROLES
 
-    assert ALLOWED_ROLES == app_roles, (
-        f"白名单漂移了：conftest={sorted(ALLOWED_ROLES)} app={sorted(app_roles)}"
+    assert ALLOWED_ROLES is app_roles, (
+        "E2E 车道的白名单与应用那份**不是同一个对象** ⇒ ⇒ 说明又抄了一份"
+        " ⇒ ⇒ 抄漏 ⇒ ⇒ 合法用户 403（TODO-188 的根因）"
     )
+    # ⇒ ⇒ 种子里用到的角色必须**都在**白名单里（早失败的另一半）
+    from scripts.seed_e2e_flows import ROLE_TO_USERNAME
+
+    missing = sorted(set(ROLE_TO_USERNAME) - set(app_roles))
+    assert not missing, f"种子里用了白名单外的角色：{missing}"
 
 
 def test_e2e_items_are_skipped_without_the_lane_flag():

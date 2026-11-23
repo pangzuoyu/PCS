@@ -37,30 +37,13 @@ import httpx
 import pytest
 import pytest_asyncio
 
+from app.api.v1.config import ALLOWED_ROLES  # noqa: F401  （重导出给测试用）
 from app.core.db_guard import (
     assert_allowed_lane_database,
     db_name_from_url,
 )
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-
-#: 全局角色的**白名单** —— 与 `app/api/v1/config.py::_ALLOWED_ROLES` 同款。
-#:
-#: ⚠️ 这里 copy 一份是为了**早失败**（非法角色 ⇒ 立刻报错，而不是发一个
-#: 会被 403 的 token ⇒ 症状离病因很远）。
-#: ⚠️ **漂移由测试钉住** ⇒ `test_role_headers_rejects_a_role_outside_the_allowlist`
-#: 会把这份 copy 与**应用源码里那份**逐个比对 ⇒ 改一处不改两处 ⇒ 测试会红。
-ALLOWED_ROLES = frozenset(
-    {
-        "DESIGNER",
-        "PROCESS_CONTROLLER",
-        "REVIEWER",
-        "APPROVER",
-        "SYSTEM_ADMIN",
-        "VIEWER",
-        "CHECKER",
-    }
-)
 
 #: 车道标识 —— `scripts/pytest_e2e.sh` 导出 ⇒ 默认车道没有 ⇒ 闸门全跳。
 LANE_ENV_VAR = "PCS_E2E_LANE"
