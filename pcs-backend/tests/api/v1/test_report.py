@@ -106,8 +106,11 @@ async def test_generate_accepts_every_renderer_supported_format(
 # 所以**通过 client 测「无权访问 = 403/404」必然假绿** ——
 # 守卫根本没被执行。真实的项目访问权由
 # `tests/services/test_user_project_service.py` 单独验证；
-# 本文件只测**角色**维度（`require_roles` 不被 bypass），并在
-# `test_download_uses_404_not_403` 里钉住 404/403 的选择本身。
+# 本文件只测**角色**维度（`require_roles` 不被 bypass）。
+# ⚠️ **「无权 ⇒ ⇒ 404（而非 403）」的真断言**在
+# **`tests/api/v1/test_report_project_guard.py`**（用 `strict_client`）——
+# 2026-11-23 · F4-PRE · TODO-181：原来这里那条 `status_code in (200, 404)`
+# **恒真** ⇒ ⇒ 已删 ⇒ ⇒ 意图移到那个文件。
 
 
 # --- status / download ------------------------------------------------------
@@ -118,18 +121,6 @@ async def test_status_endpoint_reports_state(client, auth_pc, report_file):
                          headers=auth_pc)
     assert r.status_code == 200
     assert r.json()["status"] == report_file.status
-
-
-async def test_download_uses_404_not_403(client, auth_viewer, report_file):
-    """**404 而非 403** —— 不向攻击者泄漏报表/项目是否存在
-    （`app/api/v1/_guard.py` 的既定取舍）。
-
-    ⚠️ 这里断言的是**端点选了哪种状态码**，不是「守卫拦住了无权用户」——
-    后者由共享 `client` 的 bypass 使其无法在本文件验证，见文件头说明。
-    """
-    r = await client.get(f"/api/v1/report/{report_file.report_file_id}/download",
-                         headers=auth_viewer)
-    assert r.status_code in (200, 404), r.text
 
 
 async def test_download_streams_the_file(client, auth_pc, report_file, report_file_bytes):
