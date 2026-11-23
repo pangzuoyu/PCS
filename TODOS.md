@@ -5529,6 +5529,28 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 ⇒ ⇒ ⚠️ **不是** TODO-193 的尾巴 ⇒ ⇒ TODO-193 已于 2026-11-23 关闭（14 条欠账
 逐条还完）⇒ ⇒ 这 4 条**另立一条**（别让「还完了」这句话掩盖「还有 4 条是空的」）。
 
+✅ **已落地**（2026-11-23 · **P10-H · T4**）⇒ ⇒ **本条关闭**
+
+| 端点 | 响应 schema | 备注 |
+|---|---|---|
+| `GET /streams/{id}/properties` | `StreamPropertiesResponse` | 4 个物性袋 ⇒ `StreamPropertyBag` |
+| `POST /streams/{id}/properties/estimate` | `StreamPropertiesEstimateResponse` | `{results: [...]}`（此前 mock 返 `{estimated: 1}` ⇒ **与真后端不同形**） |
+| `GET/POST/PATCH /streams/{id}/state-points` | `StreamStatePointResponse`（**已存在** ⇒ 只是挂上去） | 21 个字段全部具名 |
+| `POST /streams/{id}/submit` | `StreamTransitionResponse` | 5 个字段 |
+
+- **物性袋的字段表只有一份**：`PropertyAutoCompleter.COMMON_FIELDS` ∪
+  `ESTIMATABLE_FIELDS`（**公开化**）⇒ ⇒ `StreamPropertyBag` 用 `create_model`
+  **从它生成** ⇒ ⇒ 与 BEDD 分组表同一手法 ⇒ ⇒ 抄第二份必然漂。
+- ⚠️ **载荷不许变**：加 `response_model` 后 pydantic 会把未赋值字段补成 null
+  ⇒ ⇒ 那会**改变现有载荷** ⇒ ⇒ 4 条都带 `response_model_exclude_unset=True`
+  ⇒ ⇒ 只保留端点**真的产出的**键（实测：存量断言「只有填了的键」照绿）。
+- ⚠️ **`composition_json` 只在响应侧放宽成可空**（请求侧仍必填）⇒ ⇒ 否则它
+  在 OpenAPI 里是**裸 object** ⇒ ⇒ **裸载荷字段闸从 71 涨到 72 ⇒ ⇒ 倒退**。
+- 后果：契约 schema **395 → 402**；前端 `src/types/api.d.ts` 同步 ⇒ ⇒
+  **这 4 条端点前端终于有类型了**（此前是 `object`）。
+- 守卫：后端新测试 `tests/api/v1/test_stream_typed_responses.py`（4 条）⇒ ⇒
+  含一条「**载荷不多不少**」的断言（钉住 `exclude_unset` 的意义）。
+
 ---
 
 ## TODO-197: 前端**没有「他人发布报表定义」的入口** ⇒ ⇒ 「发布」在 UI 上不可达 🟠

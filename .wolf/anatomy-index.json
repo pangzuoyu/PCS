@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T00:22:11.609Z",
-    "fileCount": 1431,
+    "lastScanned": "2026-11-23T02:29:43.376Z",
+    "fileCount": 1433,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5f89f41967200ac1daf09a26d26d5b1723779b62116b32aa6adf32021c00dad9",
-    "storeUpdatedAt": "2026-11-23T00:22:11.621Z",
-    "rootHash": "e60f158020833b34"
+    "renderedHash": "70f5a82b9cc2c85649c23dc9851c89d9c572da8319f2c5c481ffdf82379ab6ba",
+    "storeUpdatedAt": "2026-11-23T02:29:43.388Z",
+    "rootHash": "b6d51d798dc69abe"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -51494,6 +51494,112 @@
       "mtimeMs": 1795393331560.018,
       "updatedAt": "2026-11-23T00:22:11.609Z",
       "source": "hook"
+    },
+    "pcs-backend/app/schemas/property.py": {
+      "description": "物性相关的**具名**契约（P10-H · TODO-199）。",
+      "tokens": 1075,
+      "hash": "e2fd596067e2fc98",
+      "size": 4745,
+      "mtimeMs": 1795400612038.9175,
+      "updatedAt": "2026-11-23T02:23:32.094Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_build_property_bag",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 68,
+          "tokens": 261
+        },
+        {
+          "name": "StreamPropertiesResponse",
+          "kind": "class",
+          "startLine": 69,
+          "endLine": 86,
+          "tokens": 188
+        },
+        {
+          "name": "StreamPropertyEstimate",
+          "kind": "class",
+          "startLine": 87,
+          "endLine": 95,
+          "tokens": 76
+        },
+        {
+          "name": "StreamPropertiesEstimateResponse",
+          "kind": "class",
+          "startLine": 96,
+          "endLine": 103,
+          "tokens": 68
+        },
+        {
+          "name": "StreamTransitionResponse",
+          "kind": "class",
+          "startLine": 104,
+          "endLine": 122,
+          "tokens": 178
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_stream_typed_responses.py": {
+      "description": "4 条端点的**具名**响应契约（P10-H · TODO-199）。",
+      "tokens": 1783,
+      "hash": "f31928e1cd876b4b",
+      "size": 7069,
+      "mtimeMs": 1795400983324.6877,
+      "updatedAt": "2026-11-23T02:29:43.376Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 53,
+          "tokens": 181
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 58,
+          "tokens": 48
+        },
+        {
+          "name": "_make_stream",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 86,
+          "tokens": 258
+        },
+        {
+          "name": "test_state_point_list_has_the_named_fields",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 137,
+          "tokens": 408
+        },
+        {
+          "name": "test_properties_response_keeps_exactly_the_produced_keys",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 169,
+          "tokens": 283
+        },
+        {
+          "name": "test_properties_estimate_response_is_results_shaped",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 192,
+          "tokens": 223
+        },
+        {
+          "name": "test_submit_response_has_the_named_fields",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 208,
+          "tokens": 174
+        }
+      ]
     }
   }
 }

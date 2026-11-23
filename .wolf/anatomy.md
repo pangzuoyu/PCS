@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T00:22:11.609Z
-> Files: 1431 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T02:29:43.376Z
+> Files: 1433 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1458,6 +1458,7 @@
 - `pipe_line_list.py` — 管道一览表响应 schema（P10-C · T2 · TODO-159）。 (~1068 tok)
 - `pms.py` — PMS 管道材料规格的请求/响应契约（P10-H · T2 · TODO-195）。 (~491 tok)
 - `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~742 tok)
+- `property.py` — 物性相关的**具名**契约（P10-H · TODO-199）。 (~1075 tok)
 - `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~2014 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
@@ -1706,6 +1707,7 @@
 - `test_stream_project_guard.py` — 物流面**项目守卫** —— P9B-4 紧急批次 T2（10 个端点）。 (~7088 tok)
 - `test_stream_review_log.py` — `GET /streams/{id}/review-log` —— P9B-4 紧急批次 T6（TODO-112）。 (~3795 tok)
 - `test_stream_source.py` — `streams.source` 列（用户裁决 1a · P9B-3 · T2.5）。 (~2312 tok)
+- `test_stream_typed_responses.py` — 4 条端点的**具名**响应契约（P10-H · TODO-199）。 (~1783 tok)
 - `test_stream_workspace_ownership.py` — 物流创建的 **workspace 归属** —— P9B-4 T0-C（TODO-133）。 (~2016 tok)
 - `test_streams_api.py` — P3.2 SIM-6：物流手工表单 API 集成测试。 (~4196 tok)
 - `test_streams_delete_reference_blocking.py` — P3.x SIM-35：DELETE /streams/{id} 被引用时不可删除。 (~2641 tok)

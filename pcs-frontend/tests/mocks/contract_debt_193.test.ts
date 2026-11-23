@@ -198,9 +198,9 @@ describe('mock ↔ 契约 · streams（记录面）', () => {
     });
   });
 
-  it('POST /api/v1/streams/{stream_id}/properties/estimate ⇒ 契约的裸 object', () => {
+  it('POST /api/v1/streams/{stream_id}/properties/estimate ⇒ **具名** StreamPropertiesEstimateResponse', () => {
     expectContract('/api/v1/streams/{stream_id}/properties/estimate', 'post', {
-      estimated: 1,
+      results: [{ cas: '7732-18-5', mw: 28.01, estimated: false }],
     });
   });
 
@@ -208,16 +208,32 @@ describe('mock ↔ 契约 · streams（记录面）', () => {
     expectContract('/api/v1/streams/{stream_id}/review-log', 'get', buildReviewLog('s-1'));
   });
 
-  it('GET /api/v1/streams/{stream_id}/state-points ⇒ 契约的裸 object[]', () => {
+  it('GET /api/v1/streams/{stream_id}/state-points ⇒ **具名** StreamStatePointResponse[]', () => {
+    // ⚠️ **P10-H · TODO-199 后**：契约不再是裸 object ⇒ ⇒ 这条从「证明是个
+    //    object」升级成「**逐字段**对得上」（少一个必填字段 ⇒ ⇒ 红）。
     expectContract('/api/v1/streams/{stream_id}/state-points', 'get', [
       {
+        state_point_id: 'sp-mock-1',
+        stream_id: 's-1',
         state_label: '设计工况',
         case_type: 'NORMAL',
         temp: 25,
         press: 0.5,
         phase: 'LIQUID',
-        mass_flow: 10000,
         vapor_fraction: null,
+        mass_flow: 10000,
+        composition_json: {},
+        vapor_composition_json: null,
+        liquid_composition_json: null,
+        density: null,
+        viscosity_dynamic: null,
+        enthalpy: null,
+        entropy: null,
+        record_hash: '0000000000000000',
+        estimated_flags_json: null,
+        profile_json: null,
+        source_type: 'MANUAL_ENTRY',
+        created_at: '2026-09-10T10:00:00Z',
       },
     ]);
   });

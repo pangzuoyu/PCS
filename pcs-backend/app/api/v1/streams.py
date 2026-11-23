@@ -40,6 +40,11 @@ from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.models.enums import StateTransition
 from app.models.project import Project, Stream, StreamStatePoint
+from app.schemas.property import (
+    StreamPropertiesEstimateResponse,
+    StreamPropertiesResponse,
+    StreamTransitionResponse,
+)
 from app.schemas.stream import (
     StreamCreate,
     StreamPhase,
@@ -47,6 +52,7 @@ from app.schemas.stream import (
     StreamSignStatus,
     StreamSource,
     StreamStatePointCreate,
+    StreamStatePointResponse,
     StreamStatePointUpdate,
     StreamUpdate,
 )
@@ -507,6 +513,8 @@ def _state_point_to_response(sp: StreamStatePoint) -> dict[str, Any]:
 @router.post(
     "/streams/{stream_id}/state-points",
     status_code=201,
+    response_model=StreamStatePointResponse,  # P10-H · TODO-199：契约不再是裸 object
+    response_model_exclude_unset=True,
 )
 async def create_state_point(
     stream_id: uuid.UUID,
@@ -531,7 +539,11 @@ async def create_state_point(
     return _state_point_to_response(sp)
 
 
-@router.get("/streams/{stream_id}/state-points")
+@router.get(
+    "/streams/{stream_id}/state-points",
+    response_model=list[StreamStatePointResponse],  # P10-H · TODO-199
+    response_model_exclude_unset=True,
+)
 async def list_state_points(
     stream_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -547,7 +559,11 @@ async def list_state_points(
     return [_state_point_to_response(sp) for sp in sps]
 
 
-@router.get("/state-points/{state_point_id}")
+@router.get(
+    "/state-points/{state_point_id}",
+    response_model=StreamStatePointResponse,  # P10-H · TODO-199
+    response_model_exclude_unset=True,
+)
 async def get_state_point(
     state_point_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -560,7 +576,11 @@ async def get_state_point(
     return _state_point_to_response(sp)
 
 
-@router.patch("/state-points/{state_point_id}")
+@router.patch(
+    "/state-points/{state_point_id}",
+    response_model=StreamStatePointResponse,  # P10-H · TODO-199
+    response_model_exclude_unset=True,
+)
 async def update_state_point(
     state_point_id: uuid.UUID,
     payload: dict[str, Any],
@@ -668,7 +688,11 @@ async def _transition_endpoint(
     }
 
 
-@router.post("/streams/{stream_id}/submit")
+@router.post(
+    "/streams/{stream_id}/submit",
+    response_model=StreamTransitionResponse,  # P10-H · TODO-199
+    response_model_exclude_unset=True,
+)
 async def submit_stream(
     stream_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -822,7 +846,14 @@ class EstimatePropertiesRequest(BaseModel):
     )
 
 
-@router.get("/streams/{stream_id}/properties")
+@router.get(
+    "/streams/{stream_id}/properties",
+    response_model=StreamPropertiesResponse,  # P10-H · TODO-199：契约不再是裸 object
+    # ⚠️ **exclude_unset** —— 契约模型有 19 个字段（物性全集）⇒ ⇒ 校验后
+    #    **未赋值的字段会变成 null 出现在响应里** ⇒ ⇒ 那会**改变现有载荷**
+    #    （存量断言按「只有填了的键」比）⇒ ⇒ 只保留端点**真的产出的**键。
+    response_model_exclude_unset=True,
+)
 async def get_stream_properties(
     stream_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
@@ -847,7 +878,11 @@ async def get_stream_properties(
     }
 
 
-@router.post("/streams/{stream_id}/properties/estimate")
+@router.post(
+    "/streams/{stream_id}/properties/estimate",
+    response_model=StreamPropertiesEstimateResponse,  # P10-H · TODO-199
+    response_model_exclude_unset=True,
+)
 async def estimate_properties(
     stream_id: uuid.UUID,
     req: EstimatePropertiesRequest,

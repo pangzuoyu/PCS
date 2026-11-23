@@ -401,8 +401,22 @@ class StreamStatePointUpdate(BaseModel):
 
 
 class StreamStatePointResponse(StreamStatePointBase):
-    """完整响应：含 ID + 审计字段。"""
+    """完整响应：含 ID + 审计字段。
 
+    ⚠️ **`composition_json` 在**响应侧**放宽成可空**（P10-H · TODO-199）：
+
+    - **请求侧不变**（`StreamStatePointBase` 里它**仍必填**）⇒ ⇒ 写入语义不变；
+    - 响应侧放宽 ⇒ ⇒ 契约里它不是「必填」⇒ ⇒ **不给「裸载荷字段」闸添债**
+      （`dict` 类型的**必填**字段在 OpenAPI 里是**裸 object** ⇒ ⇒ 闸会记一笔
+      ⇒ ⇒ 实测：挂上这个响应模型后闸从 71 涨到 72 ⇒ ⇒ **倒退**）。
+
+    ⚠️ DB 列是 **NOT NULL** ⇒ ⇒ 实际值不会是 null ⇒ ⇒ 这是**契约层的宽松**，
+    **不是行为变化**（响应里的值仍来自那一行）。
+    """
+
+    composition_json: dict[str, Any] | None = Field(
+        None, description="组成 CAS→摩尔分率（DB NOT NULL ⇒ 实际不为 null）"
+    )
     state_point_id: uuid.UUID = Field(..., description="状态点 ID")
     stream_id: uuid.UUID = Field(..., description="所属物流 ID")
     record_hash: str = Field(..., description="SHA-256 实质变更判别")

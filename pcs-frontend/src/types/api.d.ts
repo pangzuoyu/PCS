@@ -19113,6 +19113,12 @@ export interface components {
             };
         };
         /**
+         * StatePointCaseType
+         * @description 状态点级 case_type（spec V1.6 §3.2.2）：操作边界 4 值。
+         * @enum {string}
+         */
+        StatePointCaseType: "NORMAL" | "MIN" | "MAX" | "ALTERNATE";
+        /**
          * StateTransition
          * @description Sprint 2 状态机 13 项事件（ADR-0002 + ADR-0024 锁定）。
          *
@@ -19291,6 +19297,157 @@ export interface components {
          * @enum {string}
          */
         StreamPhase: "VAPOR" | "LIQUID" | "MIXED" | "SOLID";
+        /**
+         * StreamPropertiesEstimateResponse
+         * @description `POST /streams/{stream_id}/properties/estimate` 响应（**不入库**）。
+         */
+        StreamPropertiesEstimateResponse: {
+            /**
+             * Results
+             * @description 每个 CAS 一条
+             */
+            results?: components["schemas"]["StreamPropertyEstimate"][];
+        };
+        /**
+         * StreamPropertiesResponse
+         * @description `GET /streams/{stream_id}/properties` 响应（SIM-26）。
+         */
+        StreamPropertiesResponse: {
+            /**
+             * Stream Id
+             * @description 物流 ID
+             */
+            stream_id: string;
+            /** @description 用户提供（手工 / Excel 入口） */
+            user_provided?: components["schemas"]["StreamPropertyBag"] | null;
+            /** @description SIM-3 自动补全（Joback / Lee-Kesler / Rackett / CoolProp） */
+            calculated?: components["schemas"]["StreamPropertyBag"] | null;
+            /** @description 实际生效（user_provided > calculated > default） */
+            effective?: components["schemas"]["StreamPropertyBag"] | null;
+            /** @description 冲突消解输出（`PropertyConflictResolver`） */
+            conflict_resolutions?: components["schemas"]["StreamPropertyBag"] | null;
+        };
+        /**
+         * StreamPropertyBag
+         * @description 物性袋（COMMON 物性 + 逐字段估算标记）。字段表由 `PropertyAutoCompleter` 的字段集生成 ⇒ ⇒ 唯一真相源。
+         */
+        StreamPropertyBag: {
+            /**
+             * Acentric Factor
+             * @description 物性 acentric_factor
+             */
+            acentric_factor?: number | null;
+            /**
+             * Estimated Acentric Factor
+             * @description acentric_factor 是否为估算值
+             */
+            estimated_acentric_factor?: boolean | null;
+            /**
+             * Liquid Density
+             * @description 物性 liquid_density
+             */
+            liquid_density?: number | null;
+            /**
+             * Estimated Liquid Density
+             * @description liquid_density 是否为估算值
+             */
+            estimated_liquid_density?: boolean | null;
+            /**
+             * Mw
+             * @description 物性 mw
+             */
+            mw?: number | null;
+            /**
+             * Estimated Mw
+             * @description mw 是否为估算值
+             */
+            estimated_mw?: boolean | null;
+            /**
+             * Pc Pa
+             * @description 物性 pc_pa
+             */
+            pc_pa?: number | null;
+            /**
+             * Estimated Pc Pa
+             * @description pc_pa 是否为估算值
+             */
+            estimated_pc_pa?: boolean | null;
+            /**
+             * Tb K
+             * @description 物性 tb_k
+             */
+            tb_k?: number | null;
+            /**
+             * Estimated Tb K
+             * @description tb_k 是否为估算值
+             */
+            estimated_tb_k?: boolean | null;
+            /**
+             * Tc K
+             * @description 物性 tc_k
+             */
+            tc_k?: number | null;
+            /**
+             * Estimated Tc K
+             * @description tc_k 是否为估算值
+             */
+            estimated_tc_k?: boolean | null;
+            /**
+             * Thermal Conductivity Gas
+             * @description 物性 thermal_conductivity_gas
+             */
+            thermal_conductivity_gas?: number | null;
+            /**
+             * Estimated Thermal Conductivity Gas
+             * @description thermal_conductivity_gas 是否为估算值
+             */
+            estimated_thermal_conductivity_gas?: boolean | null;
+            /**
+             * Tm K
+             * @description 物性 tm_k
+             */
+            tm_k?: number | null;
+            /**
+             * Estimated Tm K
+             * @description tm_k 是否为估算值
+             */
+            estimated_tm_k?: boolean | null;
+            /**
+             * Viscosity Gas
+             * @description 物性 viscosity_gas
+             */
+            viscosity_gas?: number | null;
+            /**
+             * Estimated Viscosity Gas
+             * @description viscosity_gas 是否为估算值
+             */
+            estimated_viscosity_gas?: boolean | null;
+            /**
+             * Estimated
+             * @description 是否**含**估算值（总标记）
+             */
+            estimated?: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StreamPropertyEstimate
+         * @description `POST /streams/{id}/properties/estimate` 的**单条**结果。
+         */
+        StreamPropertyEstimate: {
+            /**
+             * Cas
+             * @description CAS 号
+             */
+            cas: string;
+            /**
+             * Estimated
+             * @description 是否含估算值（总标记）
+             */
+            estimated?: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * StreamResponse
          * @description 完整响应：含 sign_status + 审计字段。
@@ -19792,6 +19949,164 @@ export interface components {
          * @enum {string}
          */
         StreamSourceType: "SIM_IMPORT" | "MANUAL_ENTRY" | "LAB_REPORT" | "FLASH_CALCULATED" | "PIPE_CALCULATED" | "PUMP_CALCULATED" | "PIPE_NET_CALCULATED" | "VESSEL_CALCULATED" | "SEP_EQUIP_CALCULATED" | "PSV_CALCULATED" | "HEAT_CALCULATED" | "RESTRICTION_CALCULATED" | "DEVICE_CALCULATED";
+        /**
+         * StreamStatePointResponse
+         * @description 完整响应：含 ID + 审计字段。
+         *
+         *     ⚠️ **`composition_json` 在**响应侧**放宽成可空**（P10-H · TODO-199）：
+         *
+         *     - **请求侧不变**（`StreamStatePointBase` 里它**仍必填**）⇒ ⇒ 写入语义不变；
+         *     - 响应侧放宽 ⇒ ⇒ 契约里它不是「必填」⇒ ⇒ **不给「裸载荷字段」闸添债**
+         *       （`dict` 类型的**必填**字段在 OpenAPI 里是**裸 object** ⇒ ⇒ 闸会记一笔
+         *       ⇒ ⇒ 实测：挂上这个响应模型后闸从 71 涨到 72 ⇒ ⇒ **倒退**）。
+         *
+         *     ⚠️ DB 列是 **NOT NULL** ⇒ ⇒ 实际值不会是 null ⇒ ⇒ 这是**契约层的宽松**，
+         *     **不是行为变化**（响应里的值仍来自那一行）。
+         */
+        StreamStatePointResponse: {
+            /**
+             * State Label
+             * @description 状态点标签，如 设计工况/最大负荷
+             */
+            state_label: string;
+            /** @description 状态点级工况：NORMAL/MIN/MAX/ALTERNATE */
+            case_type: components["schemas"]["StatePointCaseType"];
+            /**
+             * Temp
+             * @description 温度 °C
+             */
+            temp: number;
+            /**
+             * Press
+             * @description 压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）
+             */
+            press: number;
+            /** @description 相态（与 Stream.phase 同一词表） */
+            phase: components["schemas"]["StreamPhase"];
+            /**
+             * Vapor Fraction
+             * @description 气相分率
+             */
+            vapor_fraction?: number | null;
+            /**
+             * Mass Flow
+             * @description 质量流量 kg/h
+             */
+            mass_flow: number;
+            /**
+             * Composition Json
+             * @description 组成 CAS→摩尔分率（DB NOT NULL ⇒ 实际不为 null）
+             */
+            composition_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Vapor Composition Json
+             * @description 气相组成
+             */
+            vapor_composition_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Liquid Composition Json
+             * @description 液相组成
+             */
+            liquid_composition_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Density
+             * @description 密度 kg/m³
+             */
+            density?: number | null;
+            /**
+             * Viscosity Dynamic
+             * @description 动力粘度 Pa·s
+             */
+            viscosity_dynamic?: number | null;
+            /**
+             * Enthalpy
+             * @description 焓 kJ/kg
+             */
+            enthalpy?: number | null;
+            /**
+             * Entropy
+             * @description 熵 kJ/(kg·K)
+             */
+            entropy?: number | null;
+            /**
+             * Estimated Flags Json
+             * @description 估算标记 {field: true if estimated}
+             */
+            estimated_flags_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Profile Json
+             * @description 沿程剖面 distance/pressures/temperatures
+             */
+            profile_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description 来源类型（与 Stream.source_type 同一词表） */
+            source_type: components["schemas"]["StreamSourceType"];
+            /**
+             * State Point Id
+             * Format: uuid
+             * @description 状态点 ID
+             */
+            state_point_id: string;
+            /**
+             * Stream Id
+             * Format: uuid
+             * @description 所属物流 ID
+             */
+            stream_id: string;
+            /**
+             * Record Hash
+             * @description SHA-256 实质变更判别
+             */
+            record_hash: string;
+            /**
+             * Created At
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
+         * StreamTransitionResponse
+         * @description `POST /streams/{stream_id}/submit`（送审校对）的响应。
+         *
+         *     ⚠️ **只有 5 个字段** —— 这是「转移后**这条记录**的状态」⇒ ⇒ 页面据此
+         *     刷新状态列 ⇒ ⇒ 字段名与 `StreamResponse` 里那几列**逐字一致**（同源）。
+         */
+        StreamTransitionResponse: {
+            /**
+             * Stream Id
+             * @description 物流 ID
+             */
+            stream_id: string;
+            /**
+             * Sign Status
+             * @description 记录门禁 9 态（转移后）
+             */
+            sign_status: string;
+            /**
+             * Approval Step
+             * @description IN_APPROVAL 当前步骤（1-based）
+             */
+            approval_step?: number | null;
+            /**
+             * Change Pending Since
+             * @description 变更待处理起始时间（ISO 8601）
+             */
+            change_pending_since?: string | null;
+            /**
+             * Change Resolved At
+             * @description 变更处理完成时间（ISO 8601）
+             */
+            change_resolved_at?: string | null;
+        };
         /**
          * StylePatch
          * @description 样式局部补丁。
@@ -26644,9 +26959,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["StreamStatePointResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -26685,9 +26998,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamStatePointResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26720,9 +27031,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamStatePointResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26792,9 +27101,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamStatePointResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26827,9 +27134,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamTransitionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -27053,9 +27358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamPropertiesResponse"];
                 };
             };
             /** @description Validation Error */
@@ -27092,9 +27395,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["StreamPropertiesEstimateResponse"];
                 };
             };
             /** @description Validation Error */

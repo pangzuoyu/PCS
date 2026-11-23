@@ -60,12 +60,16 @@ class PropertyAutoCompleter:
     """
 
     # COMMON 库可提供的核心物性集（命中即不估算）
-    _COMMON_FIELDS: frozenset[str] = frozenset(
+    # ⚠️ **公开**（2026-11-23 · P10-H · TODO-199）—— 契约侧要据此**生成**
+    #   物性袋 schema（`app/schemas/property.py`）⇒ ⇒ 字段清单**只有这一份**
+    #   ⇒ ⇒ 抄第二份必然漂 ⇒ ⇒ 「哪个字段是物性」由**这个类**说了算。
+    COMMON_FIELDS: frozenset[str] = frozenset(
         {"mw", "tc_k", "pc_pa", "tb_k", "tm_k"}
     )
 
     # 估算可提供的扩展物性集（COMMON 库不提供）
-    _ESTIMATABLE_FIELDS: frozenset[str] = frozenset(
+    # ⚠️ **公开**（同上）—— 契约侧据此生成 schema。
+    ESTIMATABLE_FIELDS: frozenset[str] = frozenset(
         {
             "acentric_factor",  # Lee-Kesler
             "liquid_density",   # Rackett @ Tb
@@ -101,10 +105,10 @@ class PropertyAutoCompleter:
 
         # 2) 处理 COMMON 库可提供字段
         target = target_fields or (
-            self._COMMON_FIELDS | self._ESTIMATABLE_FIELDS
+            self.COMMON_FIELDS | self.ESTIMATABLE_FIELDS
         )
         for field in target:
-            if field in self._COMMON_FIELDS:
+            if field in self.COMMON_FIELDS:
                 if not common_error:
                     val = common_data.get(field)
                     if val is not None:

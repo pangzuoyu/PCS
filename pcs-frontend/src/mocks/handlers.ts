@@ -379,17 +379,34 @@ const devOnlyMockHandlers = [
       conflict_resolutions: {},
     });
   }),
-  http.get("/api/v1/streams/:stream_id/state-points", ({ request }) => {
+  // ⚠️ **契约形状**（P10-H · TODO-199）：`StreamStatePointResponse` ⇒ ⇒ 21 个字段
+  //    （`StreamStatePointBase` + id / stream_id / record_hash / created_at）
+  //    ⇒ ⇒ 少一个必填字段 ⇒ ⇒ **ajv 直接红**（以前契约是裸 object ⇒ ⇒ 查不出来）。
+  http.get("/api/v1/streams/:stream_id/state-points", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json([
       {
+        state_point_id: "sp-mock-1",
+        stream_id: String(params["stream_id"]),
         state_label: "设计工况",
         case_type: "NORMAL",
         temp: 25,
         press: 0.5,
         phase: "LIQUID",
-        mass_flow: 10000,
         vapor_fraction: null,
+        mass_flow: 10000,
+        composition_json: {},
+        vapor_composition_json: null,
+        liquid_composition_json: null,
+        density: null,
+        viscosity_dynamic: null,
+        enthalpy: null,
+        entropy: null,
+        record_hash: "0000000000000000",
+        estimated_flags_json: null,
+        profile_json: null,
+        source_type: "MANUAL_ENTRY",
+        created_at: "2026-09-10T10:00:00Z",
       },
     ]);
   }),
@@ -461,9 +478,14 @@ const devOnlyMockHandlers = [
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json({ state_point_id: "sp-mock-1" }, { status: 201 });
   }),
+  // ⚠️ **契约形状**（P10-H · TODO-199）：`StreamPropertiesEstimateResponse`
+  //    ⇒ ⇒ `{results: [...]}`（每个 CAS 一条）⇒ ⇒ 此前返 `{estimated: 1}`
+  //    ⇒ ⇒ 与真后端**完全不同形**（而且此前契约是裸 object ⇒ ⇒ 查不出来）。
   http.post("/api/v1/streams/:stream_id/properties/estimate", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json({ estimated: 1 });
+    return HttpResponse.json({
+      results: [{ cas: "7732-18-5", mw: 28.01, estimated: false }],
+    });
   }),
   http.post("/api/v1/streams/:stream_id/submit", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
