@@ -1498,7 +1498,7 @@ Expected: 全绿且**不挂** ⇒ ⇒ ⚠️ 2026-11-17 那次跑到 22% 卡死 
 | **177** | ② **转 P10-J** | `docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md`（P10-J-T1） | 要改契约 = 新功能 ⇒ ⇒ **待人裁** |
 | **181** | ① 本批修 → **关闭** | `tests/api/v1/test_report_project_guard.py`（4 条端点 · `strict_client`）+ 删掉**恒真**断言 + 进台账 | 变异自证：删守卫 ⇒ ⇒ 3 条红 |
 | **183** | ① 本批修 → **关闭** | 断言初值 `True` ⇒ ⇒ `False` | 变异自证：删守卫 ⇒ ⇒ 2 条红 |
-| **187** | ② **转 P10-I · T2**（**待裁决**） | `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md` | 改 404 文案 = **改守卫逻辑** ⇒ ⇒ 超出本批边界；⚠️ 范围已收窄到 **12 族**（124 处 project 级已同形）|
+| **187** | ② **转 P10-I · T2**（**2026-11-23 已裁：选 A**） | `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md` | 改 404 文案 = **改守卫逻辑** ⇒ ⇒ 超出本批边界；⚠️ 范围已收窄到 **12 族**（124 处 project 级已同形）⇒ ⇒ 落地条目 **TODO-187b**（🟢 low · 下一批做）|
 | **188** | ① 本批修 → **关闭** | 角色白名单提为**模块级常量** `ALLOWED_ROLES` ⇒ ⇒ `/me` 用 `*ALLOWED_ROLES` ⇒ ⇒ **抄漏**不再可能 | 顺带修同族笔误 `PROCESS_CONTROLLOR` |
 | **189** | ① 本批修 → **关闭** | `test_audit_guard.py` 改用 `strict_client` + **「自建 client 的文件集合冻结」**守卫 | 防第三个 |
 | **190** | ③ 已关闭（2026-11-19 · P10-G） | 人裁决① | — |

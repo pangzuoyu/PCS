@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T08:47:12.083Z",
+    "lastScanned": "2026-11-23T08:49:18.253Z",
     "fileCount": 1446,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d55d96f134caeaf7096718922a6e85694dc49964cf5c925c6128bfbd4999b385",
-    "storeUpdatedAt": "2026-11-23T08:47:12.095Z",
-    "rootHash": "12f48936cf59abcf"
+    "renderedHash": "8e8e92f4dd93d2a0e52f5a16e504ba6e19b903f9c29edddff325eb11f24d84da",
+    "storeUpdatedAt": "2026-11-23T08:49:18.266Z",
+    "rootHash": "59f6fd865f0b39b2"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 22327,
-      "hash": "4e7a6895babc2ecf",
-      "size": 147328,
-      "mtimeMs": 1795423568666.8918,
-      "updatedAt": "2026-11-23T08:46:08.717Z",
+      "tokens": 22919,
+      "hash": "c2be00ee53d4d8d0",
+      "size": 151461,
+      "mtimeMs": 1795423749672.831,
+      "updatedAt": "2026-11-23T08:49:09.723Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -52168,11 +52168,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md": {
       "description": "P10-I · 报表审核发布 + 守卫文案收口批 —— 计划",
-      "tokens": 1437,
-      "hash": "862deb95c2ce0216",
-      "size": 10213,
-      "mtimeMs": 1795423598194.2046,
-      "updatedAt": "2026-11-23T08:46:38.245Z",
+      "tokens": 1463,
+      "hash": "723a9bee463c6678",
+      "size": 10397,
+      "mtimeMs": 1795423758203.797,
+      "updatedAt": "2026-11-23T08:49:18.253Z",
       "source": "hook"
     }
   }

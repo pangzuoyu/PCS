@@ -1905,13 +1905,16 @@ B 档的结论密度**（人裁决）⇒ ⇒ ⇒ **不并入**。
 
 ## TODO-187: 两种 404 的**文案不同** ⇒ 记录/项目存在性可枚举 🟡
 
-↪️ **已裁决 · 转批**（2026-11-23 · F4-PRE · FP-T1）—— **P10-I · T2**（`docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md`）⇒ ⇒ 改 404 文案 = **改守卫逻辑** ⇒ ⇒ 超出 F4-PRE 批次边界。
+⚖️ **已裁决（2026-11-23 · 人）—— 选 A**（守卫加**可选** `not_found_code` / `not_found_message`
+⇒ ⇒ 12 族各传自己的「X not found」⇒ ⇒ 端点自身的 404 与守卫的 404 **逐字同形**）
+⇒ ⇒ **严重度 low**（不是 medium）⇒ ⇒ 落地条目 = **TODO-187b**（下一批做）
+⇒ ⇒ 计划 **P10-I · T2**（`docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md`）。
 ⚠️ **范围已实测收窄**（2026-11-23 · F4-PRE 复核）：**不是「21+ 端点族」** ⇒ ⇒
 守卫共 **140 处调用**（124 project 级 + 16 record 级）⇒ ⇒ **project 级已经同形**
 （守卫是 404 的唯一来源 ⇒ 「不存在」与「无权」都是 "Project not found"）⇒ ⇒
 **真正有两种文案的只有 12 个文件**（checklist · cool_tower · cost_est · filtration ·
 flare · flash · open_channel · psychro · report · supplier · util · workspaces）
-⇒ ⇒ 工作量 ≈ **30~40 行** ⇒ ⇒ **待人裁决**（选项见 P10-I 计划 · T2）
+⇒ ⇒ 工作量 ≈ **30~40 行** ⇒ ⇒ 详见 **TODO-187b**（选 A 的落地条目）
 ⇒ ⇒ **优先级低于 TODO-197**（medium · 功能缺口 > low · 加固）。
 
 
@@ -2147,6 +2150,64 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 
 ---
 
+## TODO-187b: 12 族端点的 404 文案**逐字同形**（选 A · 守卫加可选文案参数）🟢
+
+**来源**（2026-11-23 · 人裁 **TODO-187** ⇒ ⇒ 选 **A** ⇒ ⇒ **独立条目**
+⇒ ⇒ 以便与原条目 TODO-187（审计发现 · 当时记的是 medium · 「跨 21+ 端点族」）
+**区分开** —— 那个范围后来**实测收窄**了）
+
+⚖️ **裁决（2026-11-23 · 人）—— 选 A**
+
+| 维度 | **A（选中）** | B（否决） |
+|---|---|---|
+| 逐字同形 | ✔ | ✔ |
+| 可诊断性 | ✔ 保留（"PsychroResult not found" vs "Project not found"）| ✘ 丢失 |
+| 前端按 code 分流 | **不变** | ✘ 变粗（前端在用**几十个专属 code** ⇒ ⇒ 盘点工作量大）|
+| 改动面 | 12 族各 1~2 处调用 + 常量（≈ **30~40 行**）| 12 族 + **全前端 code 分流盘点** |
+| 向后兼容 | ✔（**可选参数默认保持原行为** ⇒ ⇒ 124 处 project 级不受影响）| ✘（code 统一是**破坏性**变化）|
+
+⇒ ⇒ B 的唯一优势是「全仓一句话」更简单 ⇒ ⇒ 代价（前端几十个专属 code 的盘点 +
+丢失诊断性）⇒ ⇒ **不值得**。
+
+**约束 1 · 同一端点、同一资源类型 ⇒ 「不存在」与「无权」必须逐字同形**
+⇒ ⇒ **不同资源类型之间可以不同**（「PsychroResult not found」与
+「Project not found」不同是**正常的** ⇒ ⇒ 端点路径本身就暴露了资源类型）
+⇒ ⇒ 关键是**同一个端点内**，攻击者**不能**靠 `message` 区分
+「不存在」与「存在但我无权」。
+
+**约束 2 · 守卫的默认文案 `"Project not found: {project_id}"` **不得因加参数而改变**
+⇒ ⇒ **124 处 project 级调用**依赖这个默认值 ⇒ ⇒ 加可选参数时**默认值必须是现状**
+（**不是**空、**不是**通用文案）⇒ ⇒ ⚠️ **本条最大的回归风险点**：
+「加一个参数顺手把默认改了」⇒ ⇒ 124 处全变 ⇒ ⇒ 测试红一大片。
+⇒ ⇒ **测试钉子**：至少一条断言 ——
+`check_project_access_or_404(db, user_id=…, project_id=…)`
+**不传** `not_found_message` 时 ⇒ ⇒ 仍抛 **`"Project not found: {project_id}"`**。
+
+**落地要点**（实现时必须满足）：
+
+- [ ] 守卫加**两个可选参数** `not_found_code: str | None = None` ·
+      `not_found_message: str | None = None` ⇒ ⇒ **默认 = 现状**
+- [ ] ⚠️ **code 与 message 要**一起**对齐**：端点自身的不存在若是
+      `PcsError(code="REPORT_FILE_NOT_FOUND", …)` ⇒ ⇒ 守卫也必须能覆盖 **code**
+      ⇒ ⇒ 这就是**为什么两个参数都要**（只传 message ⇒ ⇒ code 仍不同 ⇒ ⇒
+      **仍然可枚举** ⇒ ⇒ **没修掉**）
+- [ ] 12 族各 1~2 处调用点传自己的文案（**逐字**抄端点自身那条）
+- [ ] 每族 **2 条参数化用例**：无权 ⇒ 与「不存在」**逐字相同**（code + message 都比）
+- [ ] **约束 2 的钉子**（见上）单独一条
+- [ ] ⚠️ **124 处 project 级**调用**一行不动**（默认路径）⇒ ⇒ 跑默认车道 + PG 车道验证零回归
+
+**严重度**：🟢 **low**（不是 medium）—— 理由：project 级 **124 处已同形**；
+record 级与混合族的攻击面要求攻击者**已能访问某 project** ⇒ ⇒ 只能枚举
+**该 project 内**某 record 是否存在 ⇒ ⇒ **不泄露跨 project 数据**
+⇒ ⇒ 这是**信息泄露的纵深加固**，不是直接越权。
+
+**归属**：**独立批 = P10-I · T2**（`docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md`）
+⇒ ⇒ ⚠️ **不塞 P10-C 前端收口**（那条批是前端收口 ⇒ ⇒ 塞后端 404 文案会**失焦**）
+⇒ ⇒ ⚠️ **不塞 F3**（F3 是**审计 + 结论**，不是修）
+⇒ ⇒ **下一批做**（P10-I · T2 · 与 T1 的 TODO-197 同批 ⇒ ⇒ T1 优先）
+
+---
+
 ## TODO-197b: 「待我审核」队列需要**「拒绝」动作** ⇒ ⇒ 状态要加 `REJECTED` 🟡
 
 **来源**（2026-11-23 · 人裁 TODO-197 的**约束 3**）
@@ -2194,7 +2255,7 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 | **177** | 公司级模板（`project_id IS NULL`）不可执行 | ② **转 P10-J** | 要改契约（`ReportExecuteRequest` 加 `project_id`）= **新功能** ⇒ ⇒ 计划 `docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md`（P10-J-T1）⇒ ⇒ **待人裁** |
 | **181** | `records.py` / `report.py` 项目守卫零断言 | ① 本批修 → **关闭** | `records.py` 三条此前已入台账（P9B-4 批 4）；`report.py` **4 条**本批补 `strict_client` 断言（`tests/api/v1/test_report_project_guard.py`）+ 删掉那条**恒真**断言（`status_code in (200, 404)`）⇒ ⇒ 变异自证（删守卫 ⇒ ⇒ 3 条红）|
 | **183** | `test_project_level_uses_project_access_not_admin` 断言恒真 | ① 本批修 → **关闭** | 根因：字典初值是 `True` ⇒ ⇒ 「守卫被调用过」与「守卫从没被调用」都绿 ⇒ ⇒ 改成 `False` ⇒ ⇒ 变异自证（删守卫 ⇒ ⇒ 2 条红）|
-| **187** | 两种 404 文案不同 ⇒ 存在性可枚举 | ② **转 P10-I · T2**（**待裁决**） | 改 404 文案 = **改守卫逻辑** ⇒ ⇒ 超出 F4-PRE 的批次边界 ⇒ ⇒ 计划 `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md` ⇒ ⇒ ⚠️ **范围已实测收窄**：守卫 140 处调用里 **124 处 project 级已经同形** ⇒ ⇒ 真正要改的只有 **12 族** ⇒ ⇒ ≈ 30~40 行 |
+| **187** | 两种 404 文案不同 ⇒ 存在性可枚举 | ② **转 P10-I · T2**（**2026-11-23 已裁：选 A**） | 改 404 文案 = **改守卫逻辑** ⇒ ⇒ 超出 F4-PRE 的批次边界 ⇒ ⇒ 计划 `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md` ⇒ ⇒ ⚠️ **范围已实测收窄**：守卫 140 处调用里 **124 处 project 级已经同形** ⇒ ⇒ 真正要改的只有 **12 族** ⇒ ⇒ ≈ 30~40 行 ⇒ ⇒ 落地条目 **TODO-187b**（🟢 low）|
 | **188** | `GET /user-projects/me` 角色清单不全 ⇒ 合法用户 403 | ① 本批修 → **关闭** | 根因是**手抄第二份清单** ⇒ ⇒ 角色白名单提为**模块级常量** `app.api.v1.config.ALLOWED_ROLES`（唯一真相源）⇒ ⇒ `/me` 改用 `*ALLOWED_ROLES` ⇒ ⇒ **抄漏**不再可能 ⇒ ⇒ 顺带修**同族笔误** `PROCESS_CONTROLLOR`（批量提交端点）⇒ ⇒ 11 条断言 |
 | **189** | 两个「不 mock 守卫」的 client ⇒ 棘轮看不见其中一个 | ① 本批修 → **关闭** | `tests/test_audit_guard.py` 改用 `strict_client`（唯一真相源）⇒ ⇒ 另加**架构守卫**：「自建 ASGI client 的文件集合**冻结**」⇒ ⇒ 不会有第三个 |
 | **190** | `obsolete` 不查 `created_by` | ③ 已关闭 | 2026-11-19 · P10-G（人裁决①：PUBLISHED 禁自审 / DRAFT 自己能删）⇒ ⇒ 4 条用例 + 2 条变异自证 |

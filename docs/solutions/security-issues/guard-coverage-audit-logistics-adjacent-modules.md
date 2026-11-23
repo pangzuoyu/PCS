@@ -222,7 +222,7 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 | **TODO-175** | 🟡 medium | `POST /projects` 能否替别人建项目（**产品语义**）⇒ ⇒ **已裁决并落地**（`09c9282`）：只有 SYSTEM_ADMIN 能替别人建（**现状即满足**）+ **工作区 owner 自动获授权** | —— |
 | **TODO-176** | 🟠 high | 默认 `client` 把项目守卫 mock 成永远 True ⇒ ⇒ 「已覆盖」必须复核（**部分已做**：`strict_client` + 棘轮） | —— |
 | **TODO-177** | 🟡 medium | **公司级模板（`project_id IS NULL`）当前不可执行**（恒 400） | —— |
-| **TODO-187** | 🟡 medium | 两种 404 **文案不同** ⇒ ⇒ 存在性可枚举（跨 21+ 端点族） | 守卫 `Project not found: X` vs 端点 `X not found` |
+| **TODO-187** | 🟢 **low** | 两种 404 **文案不同** ⇒ ⇒ 存在性可枚举 ⇒ ⇒ ⚠️ **范围已收窄**（2026-11-23 实测）：守卫 **140 处**调用里 **124 处 project 级已经同形** ⇒ ⇒ 真正要改的只有 **12 族**（不是「21+ 端点族」） ⇒ ⇒ ⚖️ **已裁 2026-11-23：选 A**（守卫加**可选** `not_found_code/message`） ⇒ ⇒ 落地条目 **TODO-187b**（P10-I · T2） ⇒ ⇒ ⚠️ 约束：守卫**默认文案不得变**（124 处依赖它）| 守卫 `Project not found: X` vs 端点 `X not found` |
 | **TODO-188** | 🟡 medium | `GET /user-projects/me` 角色清单缺 `PROCESS_CONTROLLER`/`VIEWER`/`DATA_ADMIN` | 代码审查 |
 | **TODO-183** | 🟡 medium | `test_project_level_uses_project_access_not_admin` 的断言**恒真** | 变异 6 |
 | **TODO-184** | 🟢 low | `GET /report/styles` 的 `project_id` 是**死参数** | 代码审查 |
