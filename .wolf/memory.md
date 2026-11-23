@@ -4152,3 +4152,14 @@
 | 17:21 | Edited TODOS.md | expanded (+47 lines) | ~692 |
 | 17:21 | Edited TODOS.md | inline fix | ~25 |
 | 17:22 | Created docs/solutions/domain-data/cas-numbers-must-be-verified-not-recalled.md | — | ~643 |
+| 17:25 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | expanded (+17 lines) | ~268 |
+| 17:25 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | 4→6 lines | ~103 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | expanded (+9 lines) | ~173 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | expanded (+8 lines) | ~150 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | expanded (+6 lines) | ~118 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | expanded (+6 lines) | ~171 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | 20→19 lines | ~264 |
+| 17:26 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | 3→8 lines | ~84 |
+| 17:27 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | expanded (+15 lines) | ~183 |
+| 17:27 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | expanded (+11 lines) | ~212 |
+| 17:27 | Edited TODOS.md | expanded (+13 lines) | ~280 |

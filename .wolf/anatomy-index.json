@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T09:22:03.806Z",
+    "lastScanned": "2026-11-23T09:27:58.090Z",
     "fileCount": 1450,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "450283e360846d43827936a5aac003b65181d7bb80a70169e4a7ed993bdb4f12",
-    "storeUpdatedAt": "2026-11-23T09:22:03.818Z",
-    "rootHash": "b037dbbbe8486468"
+    "renderedHash": "37334ed346c680cafa1eadf7851610c94e9587554e9a5ef3e804a927c3c9dc53",
+    "storeUpdatedAt": "2026-11-23T09:27:58.103Z",
+    "rootHash": "357970a41c20fbd9"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 23912,
-      "hash": "e49bda69c5125ec3",
-      "size": 158286,
-      "mtimeMs": 1795425676099.2314,
-      "updatedAt": "2026-11-23T09:21:16.157Z",
+      "tokens": 24142,
+      "hash": "5054ababb3a7f483",
+      "size": 159892,
+      "mtimeMs": 1795426078038.7524,
+      "updatedAt": "2026-11-23T09:27:58.090Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -52095,11 +52095,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md": {
       "description": "P10-J · 功能批（产品语义 · **待人裁决**）—— 计划",
-      "tokens": 616,
-      "hash": "8e24a75e2ebf2b41",
-      "size": 4682,
-      "mtimeMs": 1795423632034.0369,
-      "updatedAt": "2026-11-23T08:47:12.082Z",
+      "tokens": 1574,
+      "hash": "94ecb0927fdf1224",
+      "size": 11069,
+      "mtimeMs": 1795426035930.388,
+      "updatedAt": "2026-11-23T09:27:15.979Z",
       "source": "hook"
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md": {
@@ -52168,11 +52168,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md": {
       "description": "P10-I · 报表审核发布 + 守卫文案收口批 —— 计划",
-      "tokens": 1743,
-      "hash": "f738088edfc70635",
-      "size": 12331,
-      "mtimeMs": 1795424205132.6304,
-      "updatedAt": "2026-11-23T08:56:45.184Z",
+      "tokens": 2887,
+      "hash": "ac290f66749e6317",
+      "size": 19939,
+      "mtimeMs": 1795425986959.963,
+      "updatedAt": "2026-11-23T09:26:27.022Z",
       "source": "hook"
     },
     "docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md": {

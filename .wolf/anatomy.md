@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T09:22:03.806Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T09:27:58.090Z
 > Files: 1450 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~23912 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~24142 tok)
 
 ## .claude/rules/
 
@@ -661,8 +661,8 @@
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
-- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~1743 tok)
-- `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~616 tok)
+- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~2887 tok)
+- `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
 
 ## docs/superpowers/specs/
 
