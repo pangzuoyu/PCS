@@ -20,10 +20,23 @@ from app.schemas.pms import PmsItemCreate, PmsItemUpdate
 from app.services.calc_lineage import compute_record_hash
 from app.services.exceptions import PcsError
 
-#: 列表默认只返「可见」态（与既有结果模块同口径）。
+#: 列表默认只**排除作废**（其余全列）。
+#:
+#: ⚠️ **为什么不照抄结果模块的 (DRAFT, CHECKED) 白名单**：那两条是「**可编辑**」
+#: 的状态 ⇒ ⇒ 结果模块列表只列可改的行是对的；但 PMS 是**材料规格台账**
+#: ⇒ ⇒ 只列 DRAFT/CHECKED ⇒ ⇒ **送审中的、已核验的条目全都看不见**
+#: ⇒ ⇒ 用户提交完就「消失」了 ⇒ ⇒ 那是台账页最不能接受的行为。
+#:
+#: ⇒ ⇒ 只排掉 `OBSOLETE`（作废的行不该占台账）⇒ ⇒ 其余 8 态全列。
 DEFAULT_STATUSES: tuple[RecordSignStatus9, ...] = (
     RecordSignStatus9.DRAFT,
+    RecordSignStatus9.IN_APPROVAL,
     RecordSignStatus9.CHECKED,
+    RecordSignStatus9.CHECK_REJECTED,
+    RecordSignStatus9.STALE,
+    RecordSignStatus9.CHANGE_PENDING,
+    RecordSignStatus9.CHANGED,
+    RecordSignStatus9.REVERSAL_PENDING,
 )
 
 

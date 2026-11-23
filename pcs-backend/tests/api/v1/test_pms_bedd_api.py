@@ -212,6 +212,52 @@ async def test_pms_update_draft_ok_and_locked_state_409(
     assert r2.status_code == 409, r2.text
 
 
+async def test_pms_list_shows_submitted_items(strict_client, db_session, grant_project):
+    """⚠️ **送审中的条目也必须在列表里**（台账页 ⇒ 提交完不能「消失」）。"""
+    from app.models.pms import PmsItem
+
+    me = uuid.uuid4()
+    _ws, pid = await _mk_project(db_session, me)
+    await grant_project(me, pid)
+    created = (
+        await strict_client.post(
+            f"/api/v1/projects/{pid}/pms",
+            json={"pms_no": "PMS-INAP-001"},
+            headers=_tok(me),
+        )
+    ).json()
+    item = await db_session.get(PmsItem, uuid.UUID(created["item_id"]))
+    item.sign_status = "IN_APPROVAL"
+    await db_session.commit()
+
+    r = await strict_client.get(f"/api/v1/projects/{pid}/pms", headers=_tok(me))
+    assert r.status_code == 200, r.text
+    assert [i["pms_no"] for i in r.json()["items"]] == ["PMS-INAP-001"]
+
+
+async def test_pms_list_excludes_obsolete(strict_client, db_session, grant_project):
+    """⚠️ **作废的行不进台账**（其余 8 态都进）。"""
+    from app.models.pms import PmsItem
+
+    me = uuid.uuid4()
+    _ws, pid = await _mk_project(db_session, me)
+    await grant_project(me, pid)
+    created = (
+        await strict_client.post(
+            f"/api/v1/projects/{pid}/pms",
+            json={"pms_no": "PMS-OBS-001"},
+            headers=_tok(me),
+        )
+    ).json()
+    item = await db_session.get(PmsItem, uuid.UUID(created["item_id"]))
+    item.sign_status = "OBSOLETE"
+    await db_session.commit()
+
+    r = await strict_client.get(f"/api/v1/projects/{pid}/pms", headers=_tok(me))
+    assert r.status_code == 200, r.text
+    assert r.json()["items"] == []
+
+
 async def test_pms_other_projects_item_is_404(strict_client, db_session, grant_project):
     """⚠️ **别的项目的条目 ⇒ ⇒ 404**（不泄漏存在性）。"""
     me = uuid.uuid4()
@@ -356,6 +402,19 @@ async def test_bedd_unknown_field_is_422(strict_client, db_session, grant_projec
         headers=_tok(me),
     )
     assert r.status_code == 422, r.text
+
+
+async def test_bedd_write_by_process_controller(strict_client, db_session, grant_project):
+    """⚠️ **工艺角色要能写**（公用工程 / 排放限值那几组是工艺填的）。"""
+    me = uuid.uuid4()
+    _ws, pid = await _mk_project(db_session, me)
+    await grant_project(me, pid)
+    r = await strict_client.put(
+        f"/api/v1/projects/{pid}/bedd",
+        json={"utilities": {"steam": "自产"}},
+        headers=_tok(me, role="PROCESS_CONTROLLER"),
+    )
+    assert r.status_code == 200, r.text
 
 
 async def test_bedd_write_requires_write_role(strict_client, db_session, grant_project):

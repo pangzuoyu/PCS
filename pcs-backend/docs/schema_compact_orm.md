@@ -1,7 +1,7 @@
 # PCS 紧凑对照表（ORM 版 · **生成物**）
-> 生成时间：2026-11-12 | 来源：app/models/*.py（**生成物，勿手改**）
+> 生成时间：2026-11-23 | 来源：app/models/*.py（**生成物，勿手改**）
 > 重新生成：`cd pcs-backend && uv run python scripts/gen_compact_orm.py`
-> 表数量：**107**（= ORM metadata 的全部表）
+> 表数量：**108**（= ORM metadata 的全部表）
 
 ⚠️ 本文件是 `SA_Base.metadata` 的**派生**产物 ⇒ 表/列不会过期。
 完整真值永远 = `app/models/*.py`；本文件只供「快速查一张表的字段」用。
@@ -130,7 +130,7 @@
 ### license_configs
   license_id|CHARPK!, license_key|str!, modules_json|jsonb!, issued_at|dt!, expires_at|dt, status|str!  [UNIQUE: license_key]
 
-## 其它(55)
+## 其它(56)
 ### cepci_index_series
   id|intPK!, year|int!, cepci_value|float!, source|str!, confirmed_by|str, confirmed_at|dt, created_at|dt!, updated_at|dt
 ### column_sizing
@@ -179,6 +179,8 @@
   template_id|CHARPK!, asset_id|CHARFK, template_name|str!, description|str, format_definition_json|jsonb!, status|str!, version|str!, created_by|CHAR, created_at|dt!, updated_at|dt  [UNIQUE: template_name]
 ### pipe_e_modulus
   id|intPK!, grade|str!, e_psi|float!, spec_source|str!, source|str!, confirmed_by|str!, confirmed_at|dt, created_at|dt!, updated_at|dt!  [UNIQUE: grade]
+### pms_items
+  item_id|CHARPK!, pms_no|str!, description|str!, pms_class|str!, hazard_level|str!, tag_number|str, sign_status|str!, record_hash|str!, approval_step|int, approval_depth|int!, approval_role|str, approval_chain_snapshot|jsonb, locked_by_deliverable|bool!, change_pending_since|dt, change_resolved_by|str, change_resolved_at|dt, change_abandoned_at|dt, change_abandoned_reason|str, obsoleted_reason|str, obsoleted_by|CHAR, obsoleted_at|dt, obsoleted_via_deliverable_id|CHAR, reversal_requested_at|dt, reversal_requested_by|CHAR, reversal_reason|str, reversal_approved_by|CHAR, reversal_approved_at|dt, stale_resolution_path|str, hash_changed|bool, changed_fields|jsonb, project_id|CHARFK!, workspace_id|CHARFK!, created_by|CHAR, created_at|dt!, updated_at|dt  [UNIQUE: project_id+pms_no]
 ### project_calculation_standard_profiles
   id|CHARPK!, project_id|CHARFK!, discipline|str!, profile_code|str!, standard_refs_json|jsonb!, approval_json|jsonb, is_default|bool!, migrated_default|bool!, effective_from|dt!, effective_to|dt, approved_by|CHARFK, created_at|dt!, updated_at|dt!
 ### project_pipe_code_configs

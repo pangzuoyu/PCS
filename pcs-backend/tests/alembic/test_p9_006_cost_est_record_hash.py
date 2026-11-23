@@ -81,7 +81,9 @@ def test_every_record_hash_column_in_the_repo_has_the_same_shape():
         if "record_hash" in table.columns:
             col = table.columns["record_hash"]
             shapes[table.name] = (col.type.length, col.nullable)
-    assert len(shapes) == 26, f"应有 26 张表带 record_hash，实为 {len(shapes)}：{sorted(shapes)}"
+    # ⚠️ **2026-11-23 · P10-H · T2（TODO-195）**：+pms_items（PMS 管道材料规格
+    #   · 继承 RecordMixin ⇒ ⇒ 也有 record_hash）⇒ ⇒ 26 → 27。
+    assert len(shapes) == 27, f"应有 27 张表带 record_hash，实为 {len(shapes)}：{sorted(shapes)}"
     assert set(shapes.values()) == {(64, False)}, (
         f"record_hash 列形状不一致：{ {k: v for k, v in shapes.items() if v != (64, False)} }"
     )

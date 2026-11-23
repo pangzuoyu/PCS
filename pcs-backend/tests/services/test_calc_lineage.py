@@ -76,6 +76,8 @@ def test_registry_contains_all_calc_record_types() -> None:
     Task P6-3-30 扩展为 20 类（+OpenChannelResult/+FiltrationResult/+CostEstResult，
     SPEC §3.2.6/§3.2.7/§3.2.8）。
     Task P5-0-1b T1 扩展为 21 类（+ThermosiphonCirculationResult，SUP-010 §3.5）。
+    P10-H · T2（TODO-195）扩展为 22 类（+PmsItem —— PMS 管道材料规格，
+    继承 RecordMixin ⇒ ⇒ 吃通用 9 态工作流）。
     """
     assert set(RECORD_TYPE_REGISTRY) == {
         "PipingResult",
@@ -108,6 +110,8 @@ def test_registry_contains_all_calc_record_types() -> None:
         "CostEstResult",
         # P5-0-1b T1 新增（2026-09-30，SUP-010 §3.5 热虹吸循环安装高度）
         "ThermosiphonCirculationResult",
+        # P10-H · T2 新增（2026-11-23，TODO-195）：PMS 管道材料规格
+        "PmsItem",
     }
 
 

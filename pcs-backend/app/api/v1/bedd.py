@@ -36,7 +36,9 @@ from app.services.exceptions import PcsError
 router = APIRouter(prefix="/projects", tags=["bedd"])
 
 _READ_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-_WRITE_ROLES = ("DESIGNER", "SYSTEM_ADMIN")
+# ⚠️ **审核角色不写数据源**（REVIEWER / APPROVER 不在列）⇒ ⇒
+#   但**工艺角色要能写**（公用工程 / 排放限值那几组是工艺填的）。
+_WRITE_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
 
 
 async def _get_project(

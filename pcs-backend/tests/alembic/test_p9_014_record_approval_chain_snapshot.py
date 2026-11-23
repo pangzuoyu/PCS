@@ -77,6 +77,43 @@ def _orm_record_tables() -> set[str]:
     return set(_orm_record_mappers())
 
 
+def _tables_created_with_the_column() -> set[str]:
+    """哪些表是「`create_table` 时就**自带** `approval_chain_snapshot`」的。
+
+    ⚠️ **为什么需要这个豁免**（2026-11-23 · P10-H · T2 · TODO-195）：
+    `pms_items`（PMS 管道材料规格）由 **p10_004** 建 ⇒ ⇒ 建表时**自带**这一列
+    ⇒ ⇒ 它**不能**出现在 p9_014 的硬编码清单里（p9_014 跑的时候那张表
+    **还不存在** ⇒ ⇒ `op.add_column` 会直接炸 ⇒ ⇒ 迁移链断掉）。
+
+    ⇒ ⇒ 判定**从迁移文件推导**（不是手写名单 ⇒ ⇒ 不会漂）：
+    凡是在某个迁移的 `create_table` 调用里**带着这一列**的表 ⇒ ⇒ 豁免。
+    """
+    import ast
+
+    versions_dir = MIGRATION.parent
+    out: set[str] = set()
+    for path in sorted(versions_dir.glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf8"))
+        except SyntaxError:  # pragma: no cover —— 迁移文件不该有语法错
+            continue
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "create_table"
+                and node.args
+            ):
+                continue
+            first = node.args[0]
+            if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
+                continue
+            if "approval_chain_snapshot" in ast.dump(node):
+                out.add(first.value)
+    return out
+
+
+
 # ---------------------------------------------------------------------------
 # 1. 清单与 ORM 同步（不需要 PG ⇒ 每个 commit 都跑）
 # ---------------------------------------------------------------------------
@@ -101,13 +138,21 @@ def test_migration_table_list_matches_the_orm():
     module = _load()
     orm_tables = _orm_record_tables()
     migration_tables = set(module._TABLES)
+    # ⚠️ **p9_014 之后新建的表自带这一列** ⇒ ⇒ 不在 p9_014 的清单里是**对的**
+    # （加进去 ⇒ ⇒ p9_014 跑的时候那张表还不存在 ⇒ ⇒ `op.add_column` 直接炸）
+    exempt = _tables_created_with_the_column()
 
-    missing = orm_tables - migration_tables
+    missing = orm_tables - migration_tables - exempt
     assert not missing, (
         f"ORM 里有这些 RecordMixin 表，而 p9_014 的清单里没有：{sorted(missing)} "
         "⇒ 真库不会加 `approval_chain_snapshot` 列 ⇒ 该记录类型读起来 "
         "'column does not exist'，而单测照绿"
     )
+    # ⚠️ **豁免表必须在自己的迁移里真的带这一列**（否则真库会缺列）
+    for table in exempt:
+        assert table in orm_tables, (
+            f"豁免表 {table} 不在 ORM 的 RecordMixin 表集里 ⇒ ⇒ 豁免理由不成立"
+        )
     extra = migration_tables - orm_tables
     assert not extra, (
         f"p9_014 的清单里有这些表，但它们已经不是 RecordMixin 叶子表：{sorted(extra)} "
@@ -300,6 +345,11 @@ def test_p9_014_downgrade_drops_the_column():
 
     schema = f"iso_rt14_{uuid.uuid4().hex[:8]}"
     root = Path(__file__).resolve().parents[2]
+    # ⚠️ **期望列数从清单推导**（不是手写 20）—— p9_014 之后新建且**自带**
+    # 这一列的表（当前 = pms_items）也会被算进去 ⇒ ⇒ 手写的数会过期。
+    n_p9_014 = len(_load()._TABLES)
+    n_extra = len(_tables_created_with_the_column())
+    expected_cols = n_p9_014 + n_extra
 
     script = f"""
 import asyncio, os, re
@@ -330,7 +380,10 @@ async def count_cols():
 async def main():
     assert await count_cols() == 0, "降级后列应被删掉"
     command.upgrade(cfg, "head")
-    assert await count_cols() == 20, "重升级后 20 张表都该有该列"
+    assert await count_cols() == {expected_cols}, (
+        "重升级后 {expected_cols} 张表都该有该列"
+        "（p9_014 的 {n_p9_014} 张 + 自带该列的新建表 {n_extra} 张）"
+    )
     print("P9_014_ROUNDTRIP_OK")
 asyncio.run(main())
 """
