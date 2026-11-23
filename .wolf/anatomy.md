@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T03:11:02.143Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T03:28:02.105Z
 > Files: 1444 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -203,7 +203,7 @@
 - `qa-report-pcs-frontend-2026-11-17-p10f-f1.md` — QA 报告 —— PCS 前端 · P10-F 批 1（F1） (~1130 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-f2.md` — QA 报告 —— PCS 前端 · P10-F 批 2（F2） (~809 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
-- `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1208 tok)
+- `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1525 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 

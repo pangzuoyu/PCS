@@ -4111,3 +4111,6 @@
 | 11:08 | Edited pcs-backend/tests/test_lane_isolation.py | modified get_closest_marker() | ~95 |
 | 11:10 | Edited pcs-backend/tests/e2e_flows/conftest.py | reduced (-6 lines) | ~131 |
 | 11:11 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_role_headers_rejects_a_role_outside_the_allowlist() | ~266 |
+| 11:16 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md | 11→15 lines | ~333 |
+| 11:27 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md | 15→17 lines | ~412 |
+| 11:28 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md | expanded (+14 lines) | ~240 |

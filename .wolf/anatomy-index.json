@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T03:11:02.143Z",
+    "lastScanned": "2026-11-23T03:28:02.105Z",
     "fileCount": 1444,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3d96617478dfc2113ae3aa580afc997fe01ba62ae63891bb3e854f1160e71a46",
-    "storeUpdatedAt": "2026-11-23T03:11:02.156Z",
-    "rootHash": "1793fde2c3e26639"
+    "renderedHash": "cabe1117be76479186e5f6416f0e0956ff6628ace460e87daff72aaec0e28de8",
+    "storeUpdatedAt": "2026-11-23T03:28:02.118Z",
+    "rootHash": "659eb208f0696419"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -52104,11 +52104,11 @@
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md": {
       "description": "QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」",
-      "tokens": 1208,
-      "hash": "af0fd45afc412b19",
-      "size": 7764,
-      "mtimeMs": 1795403149532.8567,
-      "updatedAt": "2026-11-23T03:05:49.585Z",
+      "tokens": 1525,
+      "hash": "cdcd35b0d444f8b2",
+      "size": 9789,
+      "mtimeMs": 1795404482059.7095,
+      "updatedAt": "2026-11-23T03:28:02.105Z",
       "source": "hook"
     },
     "docs/solutions/security-issues/role-vocabulary-must-have-one-source.md": {
