@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-22T23:41:41.718Z",
-    "fileCount": 1418,
+    "lastScanned": "2026-11-23T00:22:11.609Z",
+    "fileCount": 1431,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "afc8406c944f0d09009284e35e759ba16616cd8761b5162005cd067ef3696789",
-    "storeUpdatedAt": "2026-11-22T23:41:41.730Z",
-    "rootHash": "1f3a1d9b9565ba8e"
+    "renderedHash": "5f89f41967200ac1daf09a26d26d5b1723779b62116b32aa6adf32021c00dad9",
+    "storeUpdatedAt": "2026-11-23T00:22:11.621Z",
+    "rootHash": "e60f158020833b34"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 50207,
-      "hash": "7f5fa5ce76291ec2",
-      "size": 337330,
-      "mtimeMs": 1795390901666.0295,
-      "updatedAt": "2026-11-22T23:41:41.718Z",
+      "tokens": 50755,
+      "hash": "b1ce7a137d0e3599",
+      "size": 340866,
+      "mtimeMs": 1795392229038.495,
+      "updatedAt": "2026-11-23T00:03:49.093Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -50417,52 +50417,38 @@
       "source": "hook"
     },
     "pcs-frontend/src/pages/pms/PmsPage.tsx": {
-      "description": "PmsPage — 管道材料规格（P45-3-8 / Task 35）。",
-      "tokens": 1068,
-      "hash": "e83098ee70f7536a",
-      "size": 4291,
-      "mtimeMs": 1795043242202.265,
-      "updatedAt": "2026-11-18T23:07:22.253Z",
+      "description": "PmsPage — PMS 管道材料规格（P10-H · T2 · TODO-195）。",
+      "tokens": 2016,
+      "hash": "914a4da8376ad024",
+      "size": 7545,
+      "mtimeMs": 1795391639672.7266,
+      "updatedAt": "2026-11-22T23:53:59.727Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "Props",
-          "kind": "section",
-          "startLine": 17,
-          "endLine": 40,
-          "tokens": 143
-        },
-        {
           "name": "PmsPage",
           "kind": "fn",
-          "startLine": 41,
-          "endLine": 131,
-          "tokens": 769
+          "startLine": 51,
+          "endLine": 267,
+          "tokens": 1670
         }
       ]
     },
     "pcs-frontend/src/pages/bedd/BeddPage.tsx": {
-      "description": "BeddPage — BEDD 文档（P45-3-8 / Task 35）。",
-      "tokens": 1220,
-      "hash": "4ca2ba7065f792f2",
-      "size": 4924,
-      "mtimeMs": 1795043246932.6357,
-      "updatedAt": "2026-11-18T23:07:26.984Z",
+      "description": "BeddPage — BEDD 文档（P10-H · T2 · TODO-195 · SPEC §7.5）。",
+      "tokens": 1573,
+      "hash": "ebcc349e72903b85",
+      "size": 6042,
+      "mtimeMs": 1795391645792.759,
+      "updatedAt": "2026-11-22T23:54:05.849Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "Props",
-          "kind": "section",
-          "startLine": 15,
-          "endLine": 18,
-          "tokens": 14
-        },
-        {
           "name": "BeddPage",
           "kind": "fn",
-          "startLine": 19,
-          "endLine": 116,
-          "tokens": 1078
+          "startLine": 40,
+          "endLine": 185,
+          "tokens": 1212
         }
       ]
     },
@@ -51111,6 +51097,403 @@
           "tokens": 702
         }
       ]
+    },
+    "pcs-backend/app/schemas/bedd.py": {
+      "description": "BEDD 文档结构（P10-H · T2 · TODO-195 · SPEC §7.5）。",
+      "tokens": 1954,
+      "hash": "45b7516d1efdb040",
+      "size": 8532,
+      "mtimeMs": 1795391455335.6392,
+      "updatedAt": "2026-11-22T23:50:55.388Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_group_model",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 161,
+          "tokens": 165
+        },
+        {
+          "name": "_camel",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 171,
+          "tokens": 78
+        },
+        {
+          "name": "BeddDocument",
+          "kind": "class",
+          "startLine": 172,
+          "endLine": 191,
+          "tokens": 224
+        },
+        {
+          "name": "BeddResponse",
+          "kind": "class",
+          "startLine": 192,
+          "endLine": 204,
+          "tokens": 105
+        }
+      ]
+    },
+    "pcs-backend/app/models/pms.py": {
+      "description": "PMS 管道材料规格（PMS = Pipe Material Specification）· P10-H · T2 · TODO-195。",
+      "tokens": 584,
+      "hash": "defb066b57de409d",
+      "size": 2593,
+      "mtimeMs": 1795391093758.5908,
+      "updatedAt": "2026-11-22T23:44:53.806Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PmsItem",
+          "kind": "class",
+          "startLine": 30,
+          "endLine": 74,
+          "tokens": 375
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/pms.py": {
+      "description": "PMS 管道材料规格的请求/响应契约（P10-H · T2 · TODO-195）。",
+      "tokens": 491,
+      "hash": "9e17383590caab78",
+      "size": 1933,
+      "mtimeMs": 1795391098914.6462,
+      "updatedAt": "2026-11-22T23:44:58.965Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/pms_service.py": {
+      "description": "PMS 管道材料规格的数据访问（P10-H · T2 · TODO-195）。",
+      "tokens": 1300,
+      "hash": "77c35fe0dcdcfc2a",
+      "size": 5391,
+      "mtimeMs": 1795391189681.5557,
+      "updatedAt": "2026-11-22T23:46:29.732Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "list_pms_items",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 45,
+          "tokens": 167
+        },
+        {
+          "name": "get_pms_item",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 55,
+          "tokens": 78
+        },
+        {
+          "name": "_is_pms_no_unique_violation",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 74,
+          "tokens": 202
+        },
+        {
+          "name": "create_pms_item",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 120,
+          "tokens": 400
+        },
+        {
+          "name": "update_pms_item",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 148,
+          "tokens": 229
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/pms.py": {
+      "description": "PMS 管道材料规格 API（P10-H · T2 · TODO-195）。",
+      "tokens": 1389,
+      "hash": "355e444b57cb0e5e",
+      "size": 5301,
+      "mtimeMs": 1795391115054.8171,
+      "updatedAt": "2026-11-22T23:45:15.108Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_get_project",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 68,
+          "tokens": 177
+        },
+        {
+          "name": "list_pms",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 90,
+          "tokens": 225
+        },
+        {
+          "name": "create_pms",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 108,
+          "tokens": 179
+        },
+        {
+          "name": "get_pms",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 128,
+          "tokens": 203
+        },
+        {
+          "name": "update_pms",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 150,
+          "tokens": 221
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/bedd.py": {
+      "description": "BEDD 文档 API（P10-H · T2 · TODO-195 · SPEC §7.5）。",
+      "tokens": 863,
+      "hash": "5347ba6fbd91513b",
+      "size": 3529,
+      "mtimeMs": 1795391118545.8535,
+      "updatedAt": "2026-11-22T23:45:18.595Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_get_project",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 62,
+          "tokens": 171
+        },
+        {
+          "name": "get_bedd",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 79,
+          "tokens": 164
+        },
+        {
+          "name": "put_bedd",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 97,
+          "tokens": 179
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p10_004_pms_items.py": {
+      "description": "p10_004：pms_items 表（P10-H · T2 · TODO-195）。",
+      "tokens": 1944,
+      "hash": "d3367ef1ca398834",
+      "size": 7572,
+      "mtimeMs": 1795391154498.2175,
+      "updatedAt": "2026-11-22T23:45:54.544Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 156,
+          "tokens": 1400
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 163,
+          "tokens": 119
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_pms_bedd_api.py": {
+      "description": "PMS / BEDD 端点（P10-H · T2 · TODO-195）。",
+      "tokens": 3304,
+      "hash": "bb3d417cb156c02a",
+      "size": 12960,
+      "mtimeMs": 1795391229897.9219,
+      "updatedAt": "2026-11-22T23:47:09.947Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_tok",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 54,
+          "tokens": 67
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 92,
+          "tokens": 297
+        },
+        {
+          "name": "test_pms_list_requires_authentication",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 99,
+          "tokens": 82
+        },
+        {
+          "name": "test_pms_list_without_grant_is_404",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 107,
+          "tokens": 88
+        },
+        {
+          "name": "test_pms_create_is_draft_and_has_hash",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 130,
+          "tokens": 214
+        },
+        {
+          "name": "test_pms_list_returns_the_items",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 146,
+          "tokens": 166
+        },
+        {
+          "name": "test_pms_duplicate_pms_no_is_409",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 163,
+          "tokens": 189
+        },
+        {
+          "name": "test_pms_invalid_hazard_level_is_422",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 176,
+          "tokens": 133
+        },
+        {
+          "name": "test_pms_update_draft_ok_and_locked_state_409",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 214,
+          "tokens": 346
+        },
+        {
+          "name": "test_pms_other_projects_item_is_404",
+          "kind": "fn",
+          "startLine": 215,
+          "endLine": 235,
+          "tokens": 205
+        },
+        {
+          "name": "test_pms_submit_approval_goes_through_generic_workflow",
+          "kind": "fn",
+          "startLine": 236,
+          "endLine": 275,
+          "tokens": 345
+        },
+        {
+          "name": "test_bedd_read_requires_authentication",
+          "kind": "fn",
+          "startLine": 276,
+          "endLine": 281,
+          "tokens": 69
+        },
+        {
+          "name": "test_bedd_read_without_grant_is_404",
+          "kind": "fn",
+          "startLine": 282,
+          "endLine": 288,
+          "tokens": 77
+        },
+        {
+          "name": "test_bedd_empty_document_when_never_written",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 298,
+          "tokens": 118
+        },
+        {
+          "name": "test_bedd_write_then_read_round_trip",
+          "kind": "fn",
+          "startLine": 299,
+          "endLine": 320,
+          "tokens": 229
+        },
+        {
+          "name": "test_bedd_unknown_group_is_422",
+          "kind": "fn",
+          "startLine": 321,
+          "endLine": 333,
+          "tokens": 126
+        },
+        {
+          "name": "test_bedd_unknown_field_is_422",
+          "kind": "fn",
+          "startLine": 334,
+          "endLine": 346,
+          "tokens": 124
+        },
+        {
+          "name": "test_bedd_write_requires_write_role",
+          "kind": "fn",
+          "startLine": 347,
+          "endLine": 358,
+          "tokens": 134
+        }
+      ]
+    },
+    "pcs-frontend/src/api/pms.ts": {
+      "description": "PMS / BEDD API 客户端（P10-H · T2 · TODO-195）。",
+      "tokens": 644,
+      "hash": "d03caca454d28252",
+      "size": 2625,
+      "mtimeMs": 1795391631962.6853,
+      "updatedAt": "2026-11-22T23:53:52.016Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/mocks/seed/pms.ts": {
+      "description": "PMS / BEDD seed（P10-H · T2 · TODO-195）。",
+      "tokens": 1811,
+      "hash": "83b69a230767cfcb",
+      "size": 7116,
+      "mtimeMs": 1795391672492.898,
+      "updatedAt": "2026-11-22T23:54:32.542Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/pms/PmsPage.test.tsx": {
+      "description": "`PmsPage` 测试（P10-H · T2 · TODO-195）。",
+      "tokens": 1158,
+      "hash": "281a3471d3930119",
+      "size": 4447,
+      "mtimeMs": 1795391710921.0913,
+      "updatedAt": "2026-11-22T23:55:10.974Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/bedd/BeddPage.test.tsx": {
+      "description": "`BeddPage` 测试（P10-H · T2 · TODO-195 · SPEC §7.5）。",
+      "tokens": 998,
+      "hash": "940fd7868bc4a2f8",
+      "size": 3878,
+      "mtimeMs": 1795391715505.114,
+      "updatedAt": "2026-11-22T23:55:15.551Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md": {
+      "description": "QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193）",
+      "tokens": 1352,
+      "hash": "54d273bc84bae054",
+      "size": 8470,
+      "mtimeMs": 1795393331560.018,
+      "updatedAt": "2026-11-23T00:22:11.609Z",
+      "source": "hook"
     }
   }
 }

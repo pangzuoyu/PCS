@@ -4,127 +4,82 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-19（第 38 轮：
-> **P10-G · 裁决落地批** —— 7 条待裁决项**逐条裁完** · 5 条小改落地中 ·
-> 3 项大活排进下一批）。
+> Read this FIRST when starting a session. Last updated: 2026-11-23（第 39 轮：
+> **P10-H · 项目作用域批** —— TODO-194 / 195 / 193 三条**全部落地**）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done（第 37 轮 · P10-C 子批「前端收口」· T1 + T2 + T3 + T4 + T5 闸门全绿）
+## ✅ Done（第 39 轮 · P10-H · 项目作用域批 · 2026-11-23）
 
-计划 `docs/superpowers/plans/2026-11-18-p10-c-frontend-closure.md`
-⇒ ⇒ **T1（TODO-160 · 三页首屏 422）** commit `ba312b9`
-⇒ ⇒ **T2（TODO-159 · 三个页面调不存在的端点）** commit `75cece5`
-⇒ ⇒ **T3（TODO-157 · 设备台账页）+ T4（TODO-156 · PRO/II 补组成）** 落地中。
+计划 `docs/superpowers/plans/2026-11-23-p10-h-project-scope.md`
+⇒ ⇒ 提交 `3cfc88c` → `ba116da` → `5d60df7` → `ef17999` → `9cfa39e` → `1a12fde`
+（另含前一轮遗留的 `2619bb9` 种子修契约形状 · bug-2193）。
 
-**T1**：契约里三个端点的必填参数（`keyword` / `material`+`temp_c` / `cas`）⇒ ⇒
-三页改「**填条件才查**」（300ms 防抖 ⇒ **首屏零请求**）
-⇒ ⇒ 顺带纠正两处形状错（`allowable-stress` / `safety` 返的是**单个对象**）
-⇒ ⇒ **MSW mock 同步收紧**（缺参数 ⇒ 422 ⇒ 不再比真后端宽容）
-⇒ ⇒ 变异自证 6 条断言转红。
+**T1 · TODO-194（前端能选项目）** `3cfc88c`
+顶栏**项目切换**（SPEC §3.2）⇒ 候选 = `GET /user-projects/me` ∪ `GET /workspaces`
+（admin 全量）· 名字走 `GET /projects/{id}` · 选择存 **store**（换页不丢）·
+登出清空（防跨身份越界）· mock 补 2 个端点 + ajv 校验。
 
-**T2**：查契约 ⇒ **三个端点都不存在** ⇒ ⇒ 分两种处置：
-`/pipe/line-list` **补端点** `GET /projects/{project_id}/pipe-line-list`
-（数据源 = `piping_results` · 列 = **SPEC §7.11.2 的 43 列**）
-· `/pms` `/bedd` **明确占位**（后端**确实没有**那两个实体 ⇒ 不编）
-⇒ ⇒ 新增 `useProjectScope`（从 `GET /workspaces` 解析**真** project id）
-⇒ ⇒ `PipeLineListRow` 改成**契约类型**（作废 4 个**后端没有**的列）
-⇒ ⇒ 真后端扫描的**白名单现在是空的**。
+**T2 · TODO-195（PMS / BEDD 后端实体 · 人裁 ②）** `ba116da` + `5d60df7`
+- **PMS** 表 `pms_items`（迁移 `p10_004`）· 继承 `RecordMixin` ⇒ ⇒ **吃通用 9 态
+  工作流**（`/records/PmsItem/{id}/submit-approval`）⇒ ⇒ 不另造签署框架 · 4 个端点 ·
+  `pms_no` 项目内唯一 ⇒ 409 · 只有 DRAFT 能改。
+- **BEDD** = `projects.bedd_json` 的**写入路径**（`PUT` 整份替换）· 9 个分组的具名
+  schema（`create_model` 从 SPEC 字段表生成 ⇒ 校验与表单**同一份真相源**）·
+  新增 `bedd` uiSchema 资源 ⇒ 前端两页从**占位**变**真端点**（分组 Tab）。
 
-**T3（人裁决① 补一页设备台账）**：新页 `/equipment-list`（菜单独立成组）⇒ ⇒
-列 = **契约字段**（SPEC §7.13 的「包号 / 单元 / 计算状态」契约里没有 ⇒ 不编）
-⇒ ⇒ ⚠️ **顺带补上两个跨项目洞**：`GET /equipment-list` 此前**只有角色闸**
-（跨项目读）· sync 写入落在**源记录的 `project_id`** 上（跨项目写）
-⇒ ⇒ 8 例新测试（`strict_client`）+ **变异自证**（删授权 ⇒ 3 例红）
+**T3 · TODO-193（14 条 mock 欠账还完）** `ef17999`
+`tests/mocks/contract_debt_193.test.ts`（14 条 ajv 校验）⇒ 棘轮「欠账清单」清空
+（**机制保留**）。
 
-**T4（人裁决「我补 CAS 号并标注待确认」）**：`.inp` 的 `COMPOSITION(M|W)` ⇒ ⇒
-`{CAS: 摩尔分率}`（和 = 1.0）⇒ ⇒ 送审的组成门禁（100±0.5%）能过
-⇒ ⇒ 新增 `component_cas.py` + `proii_composition.py` + fixture `sample6_composition`
-⇒ ⇒ 8 例新测试（含**真的过一遍送审门禁**的断言）
-⇒ ⇒ ⚠️ **10 个 DMC 组分的 CAS 待工艺室确认** ⇒ ⇒ **TODO-196**
+**批末闸门抓到的真问题（已修）** `9cfa39e` + `1a12fde`
+① 后端默认车道第一轮 **6 failed** = 四条计数型守卫 + p9_014 守卫的**断言形状**
+（新表由 p10_004 建 ⇒ ⇒ 不能进 p9_014 的清单 ⇒ ⇒ 改为**从迁移文件 AST 推导**豁免）；
+② mock 通道 e2e **2 failed** = 顶栏新增 Select ⇒ ⇒ `.first()` **位置定位**失效
+⇒ ⇒ 改成指名道姓（`data-testid`）⇒ ⇒ 23/23 绿；
+③ 环境级：**残留 uvicorn 占住车道锁 3.5 天** ⇒ ⇒ 车道起不来 ⇒ ⇒ 杀掉 + 教训入账。
 
-**顺带修掉三个洞**：① mock 漂移棘轮**看不见 `:param` 写法的端点**（躲了三年 ⇒
-归一化后多出 14 条欠账 ⇒ **TODO-193**）② `DeepKeys` 被**数组字段**污染
-（闸失效 + `StrictColumns` 不可赋值）③ **`GET /equipment-list` 没有项目守卫**
-（跨项目读 ⇒ T3 修）。
-
-**闸门（批末实跑 · 全绿）**：前端 typecheck clean · lint clean ·
-vitest **1091/1091**（121 文件）· 后端默认车道 **5923 passed / EXIT=0** ·
-契约门禁 G-08 RC 0（基线已滚动）· 迁移幂等 0 违反（49 个迁移）·
-**真后端通道 9/9 passed**（`BAD_RESPONSES=[]` · `CONSOLE_ERRORS=[]` · 46 条路由全可达）。
-
----
-
-## ✅ 第 38 轮 · P10-G · 裁决落地批（2026-11-19）
-
-**用户指令**：「逐个裁决未解决问题」⇒ ⇒ 两轮 AskUserQuestion ⇒ ⇒ **7 条裁完**。
-
-| 裁决项 | 人裁 | 落点 |
-|---|---|---|
-| **TODO-190** | **① PUBLISHED 禁自审 / DRAFT 自己能删** | `DefinitionService.obsolete` + **角色闸挪进 service**（按状态分档） |
-| **TODO-191** | **① 拆成「保存草稿」+ 发布置灰** | `ReportDefinitionEditorPage`（创建人 ⇒ ⇒ 按钮置灰 + Tooltip + 提示条） |
-| **TODO-192 #5** | **② `CREATOR_ONLY` 对项目级也生效** | `visible_clause`（两条发布档的公共前提 = `shared_with == ALL_USERS`） |
-| **TODO-192 #8** | **① 补项目授权校验** | `POST /workspaces` ⇒ ⇒ 无权 ⇒ ⇒ **404** |
-| **TODO-192 #10** | **② admin 全可见**（含别人的草稿） | `visible_clause` 收 `actor_roles`（与项目守卫**同一谓词**） |
-| **TODO-195** | **② 补后端实体** | **不关闭** ⇒ ⇒ 下一批（PMS 表 + BEDD 写入路径） |
-| **TODO-196** | **② 维持现状** | **不关闭** ⇒ ⇒ 等工艺室核 CAS（风险照旧） |
-
-⇒ ⇒ **另查出来一个真缺口** ⇒ ⇒ 前端**没有「他人发布」的入口**
-⇒ ⇒ 全仓只有一个发布按钮、且创建人点必 403 ⇒ ⇒ 「发布」在 UI 上**不可达**
-⇒ ⇒ ⇒ 登记 **TODO-197**。
-
-⇒ ⇒ **代价（值得记）**：端点的一刀切 `require_roles` **堵死了自救通道**
-⇒ ⇒ 「创建人删不掉自己的草稿」⇒ ⇒ 角色闸**必须按状态分档**
-⇒ ⇒ ⇒ 只有 service 层知道状态 ⇒ ⇒ ⇒ 角色闸**挪进 service**。
+**闸门（批末实跑）**：后端新测试 19 passed · 测试栈真 PG **alembic_version=p10_004**
+· 真后端冒烟 7 端点全通 · typecheck/lint clean · vitest **1114/1115**（唯一红是
+已知 flake）· mock 通道 **23/23** · 真后端通道 **9/9**（`CONSOLE_ERRORS=[]`）·
+浏览器 QA 全通 · `alembic check` 两库 exit 0 · 载荷闸 RC 0（裸字段仍 71）·
+迁移幂等 RC 0（50 个）· 契约漂移 RC 0。
 
 ---
 
 ## 🚀 Next quest
 
-1. **下一批（三项都做 · 顺序建议 194 → 195 → 193）**
-   ⇒ ⇒ **TODO-194** 项目选择器（`GET /user-projects/me` + UI）
-   ⇒ ⇒ **TODO-195** PMS 表 + BEDD 写入路径（**前置是 194** ⇒ ⇒ 否则两页
-   只能取「第一个项目」⇒ ⇒ 仍是半成品）
-   ⇒ ⇒ **TODO-193** 14 条 mock 欠账（逐条核字段形状）
-   ⇒ ⇒ **TODO-197** 「他人发布」的入口（待人裁三个方案）
-2. **P10-F · F4**（安全扫描 / 依赖漏洞 / 镜像扫描 / 回滚演练）
-   ⇒ ⇒ ⚠️ **前置是 P10-C**（部署物）⇒ ⇒ **F4-PRE**（不依赖镜像的那部分
-   `bandit` + `uv audit` + `npm audit`）**现在就能开**
-3. **推送本轮**（P10-C 已推 · **P10-G 未推** ⇒ 需明确授权）
-4. **仍待人裁决**：**TODO-197**（「他人发布」的入口 · 三个方案）
-   · **TODO-196**（10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）
-   ⇒ ⇒ 其余 7 条**已逐条裁完**（见上表）
+1. **收尾本批**：后端默认车道**第二轮**复跑（第一轮 6 条已修 ⇒ ⇒ 待确认 EXIT=0）
+   ⇒ ⇒ `TODOS.md` 三条标 commit ⇒ ⇒ QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md`
+   ⇒ ⇒ **推送 P10-G + P10-H**（**需明确授权** ⇒ 本轮一直未 push）。
+2. **P10-F · F4-PRE**（`bandit` + `uv audit` + `npm audit`）—— 不依赖镜像 ⇒ 现在就能开。
+3. **仍待人裁决**：**TODO-197**（「他人发布」的入口 · 三个方案）· **TODO-196**
+   （10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）· **TODO-196 兜底**照旧。
+4. **本批新登记**：**TODO-199**（4 条端点的契约**本身就是裸 object** ⇒ ⇒ ajv 只能
+   证明「是个 object」⇒ ⇒ 要后端补具名 schema）。
 
 ---
 
 ## Context
 
-> ⚠️ **迁移 / PG 车道 / 裸载荷基线 / 发布前检查** ⇒ 见 `CLAUDE.md` ⇒ **不重复**。
-
-- main。**不要建 worktree** · **不要 `git checkout <commit> --detach`**。
-  **不得擅自 push**。`.wolf/*` 里 `anatomy.md` / `memory.md` / `anatomy-index.json` 由 hook 维护。
-- 提交约定：conventional commits，**带** `Co-Authored-By: Claude Code` 行；长消息写文件后 `git commit -F`。
-- ⚠️ **真后端通道统一入口**：后端 `bash pcs-backend/scripts/serve_e2e_backend.sh`
-  （库 `pcs_pgtest` · 端口 **8001**）⇒ 前端 `npm run e2e:real`。
-  ⇒ ⇒ 它**整个生命周期**都占**车道锁** ⇒ ⇒ 跑它之前**先跑完** PG / E2E 车道。
-- ⚠️ **`.env` 的 `DATABASE_URL` 指向开发库 `pcs`** ⇒ 跑真后端通道必须**显式覆盖**
-  ⇒ alembic 的 `settings` 是 pydantic **缓存实例** ⇒ **一库一个进程**。
-- ⚠️ **跑 pytest 前先清掉残留进程** ⇒ 满负载 ⇒ 前端 `locator.click` **30s 超时假红**
-  （本轮实测：`result_page.test.tsx` 在车道跑时红、单独跑绿 ⇒ **已知 flake**）。
-- ⚠️ **本轮踩到**：**上一轮遗留的后台 pytest 车道**没退出 ⇒ **两条车道并发**
-  ⇒ ⇒ CPU 抢占 ⇒ 车道慢 + 一条疑似假红 ⇒ ⇒ **每轮开工先 `pgrep -af pytest` 看一眼**。
+- main。**不要建 worktree** · **不要 `git checkout <commit> --detach`**。**不得擅自 push**。
+  `.wolf/*` 里 `anatomy.md` / `memory.md` / `anatomy-index.json` 由 hook 维护。
+- ⚠️ **每轮开工先查残留**：`fuser -v pcs-backend/.tmp/lane.lock`（谁占着车道锁）·
+  `pgrep -af "uvicorn app.main:app"`（真后端通道的后端）· `ss -ltnp | grep 5173`
+  （上一轮的 vite · 端口被占 ⇒ 新 vite 会落到 5174 ⇒ ⇒ **没人注意**）。
+- ⚠️ **真后端通道**：后端 `bash pcs-backend/scripts/serve_e2e_backend.sh`（库
+  `pcs_pgtest` · 端口 8001）⇒ 前端 `npm run e2e:real`；**mock 登录端点是
+  `/auth/mock-login`（不在 `/api/v1` 下）**。
+- ⚠️ **`.env` 的口令不要写命令行** ⇒ 用 `dotenv_values('.env')` 在**进程内**派生 URL
+  ⇒ ⇒ **一库一个进程**（alembic 的 settings 是 pydantic 缓存实例）。
 - ⚠️ **子代理 Bash 会挂起** ⇒ 派发审阅/实现子代理**只给 Read/Grep**。
-- ⚠️ **`.env` 的口令不要写命令行** ⇒ 用 `dotenv_values('.env')` 在**进程内**派生 URL。
 
 ---
 
-## 教训（**已进 cerebrum / docs/solutions**，此处只留最新三条）
+## 教训（**已进 cerebrum / docs/solutions**，此处只留最新两条）
 
-- **「替身比被测物更宽容」**（本轮第三次撞上）⇒ ⇒ **mock 必须和契约一样严**
-  （缺参数 ⇒ 422 · 命中不到 ⇒ 404）⇒ ⇒ 否则前端漏参数在 mock 通道里**看不出来**。
-- **变异必须跑「该缺陷对应的断言文件」** ⇒ ⇒ 断言分散在两个文件时 ⇒ ⇒ **两个都跑**
-  （本轮：丢「M/W 基准」的变异在换算层测试里**全绿** ⇒ ⇒ 在解析器测试里才红）。
-- **写面授权要判「行实际落到哪儿」** ⇒ ⇒ 单条 sync 查的是 equipment 行的项目
-  ⇒ ⇒ 但写入落在**源记录的 `project_id`** 上 ⇒ ⇒ **判错了对象**（⇒ ⇒ 与
-  TODO-180「判 A 落进 B」同形）⇒ ⇒ 守卫要判**落库那一维**。
+- **`.first()` 是位置定位** ⇒ ⇒ 页面上多一个同类型控件就**静默失效**
+  （本轮：顶栏加 Select ⇒ e2e 点到了顶栏那个）⇒ ⇒ 一律**指名道姓**。
+- **残留进程会占住车道锁 ⇒ ⇒ 几天都起不来**（本轮：僵尸 uvicorn 占锁 3.5 天，
+  而真后端通道照跑 ⇒ ⇒ 看起来「车道在跑」其实是「锁被占着」）。

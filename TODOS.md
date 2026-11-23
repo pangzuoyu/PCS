@@ -5310,6 +5310,27 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 ✅ **已排期**（2026-11-19 人裁）⇒ ⇒ 下一批**做**（与 TODO-194 / TODO-195
 落地一起排）⇒ ⇒ 顺序见批次计划。
 
+✅ **已落地**（2026-11-23 · **P10-H · T3**）⇒ ⇒ **本条关闭**
+
+- 新增 `tests/mocks/contract_debt_193.test.ts`：**14 条端点 = 14 条断言**
+  ⇒ ⇒ 每条把 **mock 的响应体**过一遍**契约 schema 的 ajv 校验**。
+- 棘轮清单：14 条从「欠账清单」**移进「已校验名单」**
+  ⇒ ⇒ `CONTRACT_ENDPOINTS_NOT_YET_VALIDATED` 现在是**空集**
+  ⇒ ⇒ 但**机制不许删**：① 新增契约端点出现在 devOnly 里 ⇒ ⇒ 立刻红；
+  ② 「欠账不许悄悄消失」那条断言保留。
+- **变异自证**：把 `seedStreams[0].stream_name` 改成 `undefined`
+  ⇒ ⇒ 断言立刻红（错误信息精确到 `missingProperty: 'stream_name'`）
+  ⇒ ⇒ 证明这些断言**不是空的**。
+
+⚠️ **4 条的契约**本身就是**裸 object**（`/streams/{id}/properties` ·
+`/properties/estimate` · `/state-points` · `/submit`）⇒ ⇒ 后端**没声明形状**
+⇒ ⇒ 这 4 条的 ajv 校验只能证明「是个 object」⇒ ⇒ **真正的形状靠前端消费端
+保证** ⇒ ⇒ **登记 TODO-199**（后端补具名 schema）⇒ ⇒ **不归本条**。
+
+⚠️ **「替身比被测物更宽容」是本仓第三次撞上** ⇒ ⇒ 这条欠账清单的价值不在
+「14 条」这个数 ⇒ ⇒ 在于**棘轮从此看得见 `:param` 写法的端点** ⇒ ⇒
+以后新增契约端点若没补校验 ⇒ ⇒ **立刻红**。
+
 ---
 
 ## TODO-194: 前端**没有项目选择器** ⇒ 「项目作用域」只能取**第一个**有项目的工作区 🟡
@@ -5392,6 +5413,25 @@ MSW    : /api/v1/projects/:project_id/pipe-line-list
 ⇒ ⇒ ⚠️ SPEC §7.5 的向导里 PMS / BEDD 两步**本身也是空占位**
 ⇒ ⇒ ⇒ 做完这三件，向导那两步才有内容。
 
+✅ **已落地**（2026-11-23 · **P10-H · T2a + T2b**）⇒ ⇒ **本条关闭**
+（人裁 2026-11-23 把口径定死：PMS = 沿用前端形状 + 签署流；BEDD = 按 SPEC
+的 9 个分组）
+
+| 子项 | 落点 | commit |
+|---|---|---|
+| **PMS 表** | `pms_items`（迁移 `p10_004`）⇒ ⇒ 继承 `RecordMixin` ⇒ ⇒ **直接吃通用 9 态工作流**（`/records/PmsItem/{id}/submit-approval`）⇒ ⇒ **不另造签署框架** | `ba116da` |
+| **PMS 端点** | `GET/POST /projects/{id}/pms` · `GET/PATCH /projects/{id}/pms/{item_id}` ⇒ ⇒ 无权 ⇒ ⇒ **404**；`pms_no` 项目内唯一 ⇒ ⇒ **409**；**只有 DRAFT 能改** ⇒ ⇒ 锁定态 **409** | `ba116da` |
+| **BEDD 写入路径** | `PUT /projects/{id}/bedd`（**整份替换**）⇒ ⇒ 此前 `bedd_json` **从未有过写入路径** ⇒ ⇒ 这一条就是它 | `ba116da` |
+| **BEDD 读** | `GET /projects/{id}/bedd` ⇒ ⇒ 没写过 ⇒ ⇒ **空文档**（不是 404） | `ba116da` |
+| **BEDD 结构** | `app/schemas/bedd.py` = **SPEC §7.5 分组表的唯一机器可读副本** ⇒ ⇒ 分组模型由 `create_model` **从字段表生成** ⇒ ⇒ 9 个具名 schema 进 OpenAPI（不给「裸载荷字段」闸添债）⇒ ⇒ 未知分组/字段 ⇒ ⇒ **422** | `ba116da` |
+| **uiSchema** | 新增 `bedd` 资源（`GET /meta/ui-schema/bedd`）⇒ ⇒ 前端 **分组 Tab**（路径前缀 = 分组） | `ba116da` |
+| **前端两页** | `/pms` 接真端点（列不变 · 状态列现在是**真的 9 态** · DRAFT 行给「提交审核」）· `/bedd` 改成**分组 Tab**（不再是占位） | `5d60df7` |
+| **类型** | 手写的 `PmsItem` / `BeddSection` **删掉** ⇒ ⇒ 改用生成的契约类型（bug-180 那类漂移从根上没了） | `5d60df7` |
+| **mock + 守卫** | 三个 handler 挪进**契约组** + ajv 校验 + **新守卫**：mock 的 BEDD 字段表是后端 `BEDD_FIELDS` 的镜像 ⇒ ⇒ 漂移即红（变异自证） | `5d60df7` |
+
+⚠️ **遗留（不归本条）**：SPEC §7.5 的**向导**里 PMS / BEDD 两步**仍是空占位**
+⇒ ⇒ 本批只把**独立页**做实 ⇒ ⇒ 向导那两步要另开。
+
 ---
 
 ## TODO-196: DMC 专用组分的 CAS 号**待工艺室确认**（P10-C · T4 引入） 🟡
@@ -5463,6 +5503,31 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 全部绿）⇒ ⇒ **如实登记本条**，不掩盖。
 
 **归属**：**下一批 · 测试质量**（与 TODO-193 同批做）
+
+---
+
+## TODO-199: 4 条端点的契约**本身就是裸 object** ⇒ ⇒ 形状无人保证 🟡
+
+**现状**（2026-11-23 · P10-H · T3 · 还 TODO-193 欠账时**顺带查出来**）：
+
+| 端点 | 契约里的响应 |
+|---|---|
+| `GET /api/v1/streams/{stream_id}/properties` | `{"type": "object", "additionalProperties": true}` |
+| `POST /api/v1/streams/{stream_id}/properties/estimate` | 同上 |
+| `GET /api/v1/streams/{stream_id}/state-points` | `{"type": "array", "items": {"type": "object", "additionalProperties": true}}` |
+| `POST /api/v1/streams/{stream_id}/submit` | `{"type": "object", "additionalProperties": true}` |
+
+⇒ ⇒ **后端根本没声明这四条响应的形状** ⇒ ⇒ 前端 `src/types/api.d.ts` 生成出来
+就是**裸 object** ⇒ ⇒ 前端**只能继续手写类型**（= TODO-039/041 想消灭的那件事）
+⇒ ⇒ 也让「裸载荷字段」闸（`check_openapi_payload_coverage.py`）一直欠着。
+
+⇒ ⇒ **P10-H · T3 的 ajv 校验对这 4 条只能证明「是个 object」** ⇒ ⇒ 真正的
+形状**只靠前端消费端**保证 ⇒ ⇒ **漂移抓不到**。
+
+**归属**：**下一批 · 契约补洞**（给这 4 条补具名 schema ⇒ ⇒ 前端类型自动生成）
+
+⇒ ⇒ ⚠️ **不是** TODO-193 的尾巴 ⇒ ⇒ TODO-193 已于 2026-11-23 关闭（14 条欠账
+逐条还完）⇒ ⇒ 这 4 条**另立一条**（别让「还完了」这句话掩盖「还有 4 条是空的」）。
 
 ---
 

@@ -36,10 +36,10 @@
 
 **前置**：T1（否则两页只能取「第一个项目」⇒ ⇒ 仍是半成品）。
 
-- [ ] **PMS**：项目级表 + 端点（列表 + 增删改？⇒ ⇒ 按 SPEC §7.5 向导第 2 步的语义定）⇒ ⇒ 前端 `/pms` 页接真端点（列以契约为准）
-- [ ] **BEDD**：`projects.bedd_json` 的**写入路径**（现在只有建表迁移提到它 ⇒ ⇒ 补出来的端点**永远返回空**）⇒ ⇒ 前端 `/bedd` 页接真端点
-- [ ] alembic 迁移 + **ORM 列同步手工核对**（改迁移后 `uv run alembic check` 在 **pcs / pcs_test 两库各跑一次 · 独立进程** ⇒ ⇒ 只信退出码不够 ⇒ ⇒ 直查 `alembic_version`）
-- [ ] 前端：两页去掉「数据源尚未接入」的占位 Alert ⇒ ⇒ 接真端点
+- [x] **PMS**：项目级表 `pms_items`（迁移 `p10_004`）+ 端点 ⇒ ⇒ **人裁 2026-11-23：沿用前端形状 + 签署流** ⇒ ⇒ 继承 `RecordMixin` ⇒ ⇒ 吃**通用 9 态工作流** ⇒ ⇒ 前端 `/pms` 页接真端点（列不变 · 状态列现在是真的 9 态）
+- [x] **BEDD**：`projects.bedd_json` 的**写入路径**（`PUT`，**整份替换**）⇒ ⇒ **人裁 2026-11-23：按 SPEC 的 9 个分组** ⇒ ⇒ 分组模型由 `create_model` 从字段表生成 ⇒ ⇒ 前端 `/bedd` 页改成**分组 Tab**（uiSchema 驱动）
+- [x] alembic 迁移 + **ORM 列同步手工核对** ⇒ ⇒ `pcs` 与 `pcs_test` **两库各跑一次 · 独立进程** ⇒ ⇒ `pcs_test` 直查 `alembic_version=p10_004` + 直查 `pms_items` 的 35 列 ⇒ ⇒ 两库 `alembic check` 都是「无新升级操作」
+- [x] 前端：两页去掉「数据源尚未接入」的占位 Alert ⇒ ⇒ 接真端点 ⇒ ⇒ 手写的 `PmsItem`/`BeddSection` **删掉** ⇒ ⇒ 改用生成的契约类型
 
 ⚠️ **PMS 语义未定义**（SPEC §7.5 只给了章节标题 + BEDD 的 10 个分组，**没给 PMS 字段**）⇒ ⇒ **人裁**（见「未解决问题」）。
 
@@ -49,9 +49,9 @@
 
 **欠账清单**：`pcs-frontend/tests/mocks/handlers.test.ts` 的 `CONTRACT_ENDPOINTS_NOT_YET_VALIDATED`（14 条）。
 
-- [ ] **逐条**核字段形状（对着 `pcs-backend/docs/openapi.json`）⇒ ⇒ 每条补一条 ajv 校验用例 ⇒ ⇒ 从清单里删一条
-- [ ] 清单**不许悄悄少**：端点从 mock 删了 ⇒ 断言要红（已有）
-- [ ] 变异自证：把某条的校验去掉 ⇒ ⇒ 对应用例转红
+- [x] **逐条**核字段形状（对着 `pcs-backend/docs/openapi.json`）⇒ ⇒ 每条补一条 ajv 校验用例 ⇒ ⇒ 从清单里删一条 ⇒ ⇒ 新增 `tests/mocks/contract_debt_193.test.ts`（14 条）
+- [x] 清单**不许悄悄少**：端点从 mock 删了 ⇒ 断言要红（已有）⇒ ⇒ 清单现在是**空集** ⇒ ⇒ **机制保留**（新增契约端点出现在 devOnly ⇒ ⇒ 立刻红）
+- [x] 变异自证：把某条的校验去掉 ⇒ ⇒ 对应用例转红 ⇒ ⇒ 实测（`stream_name` 改 `undefined` ⇒ ⇒ 精确报 `missingProperty`）
 
 ---
 

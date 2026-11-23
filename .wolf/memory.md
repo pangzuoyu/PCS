@@ -4045,3 +4045,23 @@
 | 07:38 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | inline fix | ~22 |
 | 07:38 | Edited pcs-frontend/src/components/common/ProjectSelector.tsx | inline fix | ~11 |
 | 07:41 | Edited TODOS.md | expanded (+19 lines) | ~326 |
+| 07:44 | Created pcs-backend/app/schemas/bedd.py | — | ~1526 |
+| 07:44 | Created pcs-backend/app/models/pms.py | — | ~584 |
+| 07:44 | Created pcs-backend/app/schemas/pms.py | — | ~491 |
+| 07:45 | Created pcs-backend/app/services/pms_service.py | — | ~994 |
+| 07:45 | Created pcs-backend/app/api/v1/pms.py | — | ~1389 |
+| 07:45 | Created pcs-backend/app/api/v1/bedd.py | — | ~863 |
+| 07:45 | Created pcs-backend/alembic/versions/p10_004_pms_items.py | — | ~1944 |
+| 07:46 | Edited pcs-backend/app/services/pms_service.py | added error handling | ~602 |
+| 07:47 | Created pcs-backend/tests/api/v1/test_pms_bedd_api.py | — | ~3304 |
+| 07:50 | Created pcs-backend/app/schemas/bedd.py | — | ~1954 |
+| 07:53 | Created pcs-frontend/src/api/pms.ts | — | ~644 |
+| 07:53 | Created pcs-frontend/src/pages/pms/PmsPage.tsx | — | ~2016 |
+| 07:54 | Created pcs-frontend/src/pages/bedd/BeddPage.tsx | — | ~1573 |
+| 07:54 | Created pcs-frontend/src/mocks/seed/pms.ts | — | ~1811 |
+| 07:55 | Created pcs-frontend/tests/pages/pms/PmsPage.test.tsx | — | ~1158 |
+| 07:55 | Created pcs-frontend/tests/pages/bedd/BeddPage.test.tsx | — | ~998 |
+| 08:03 | Edited TODOS.md | expanded (+19 lines) | ~405 |
+| 08:03 | Edited TODOS.md | expanded (+21 lines) | ~244 |
+| 08:06 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md | — | ~392 |
+| 08:22 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md | — | ~1442 |

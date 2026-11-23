@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-22T23:41:41.718Z
-> Files: 1418 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T00:22:11.609Z
+> Files: 1431 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5974 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~50207 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~50755 tok)
 
 ## .claude/rules/
 
@@ -203,6 +203,7 @@
 - `qa-report-pcs-frontend-2026-11-17-p10f-f1.md` — QA 报告 —— PCS 前端 · P10-F 批 1（F1） (~1130 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-f2.md` — QA 报告 —— PCS 前端 · P10-F 批 2（F2） (~809 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
+- `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -1311,6 +1312,7 @@
 - `dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py` — v3.1 full schema (53 tables, ADR-0023). (~34452 tok)
 - `p10_001_ai_audit_request_fields.py` — 给 `ai_audit_log` 加 P10 的**请求审计** 8 列（P10-A · Task T7）。 (~931 tok)
 - `p10_003_backfill_workspace_project.py` — p10_003：回填 `workspaces.project_id`（P10-F 评审的 P0 修 · 2026-11-18） (~634 tok)
+- `p10_004_pms_items.py` — p10_004：pms_items 表（P10-H · T2 · TODO-195）。 (~1944 tok)
 - `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
@@ -1363,6 +1365,7 @@
 - `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1088 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3928 tok)
+- `bedd.py` — BEDD 文档 API（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~863 tok)
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5944 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
@@ -1381,6 +1384,7 @@
 - `pipe_line_list.py` — 管道一览表（**项目作用域**）—— P10-C · T2（TODO-159）。 (~1244 tok)
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
 - `pipe.py` — P4-2-5 PIPE 计算链 API。 (~2299 tok)
+- `pms.py` — PMS 管道材料规格 API（P10-H · T2 · TODO-195）。 (~1389 tok)
 - `projects.py` — 项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~3778 tok)
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
@@ -1428,6 +1432,7 @@
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `mixins.py` — ORM mixin 集合（公用字段 + 状态机 hook）。 (~1453 tok)
 - `notification.py` — notifications ORM（ADR-0049 §① 通知建表）。 (~975 tok)
+- `pms.py` — PMS 管道材料规格（PMS = Pipe Material Specification）· P10-H · T2 · TODO-195。 (~584 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~8141 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `record_comment.py` — record_comments ORM（P9A B4c）。 (~631 tok)
@@ -1441,6 +1446,7 @@
 
 - `ai.py` — AI 预留接口的请求/响应 schema（P10-A · Task T9）。 (~686 tok)
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
+- `bedd.py` — BEDD 文档结构（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~1954 tok)
 - `deliverable_progress.py` — 交付物工作流进度聚合响应（TODO-065 · P9B-2 · T0）。 (~552 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1290 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1340 tok)
@@ -1450,6 +1456,7 @@
 - `notification.py` — 通知读 / 标已读 API 的响应 schema（SPEC P9A-NOT-001/005）。 (~312 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `pipe_line_list.py` — 管道一览表响应 schema（P10-C · T2 · TODO-159）。 (~1068 tok)
+- `pms.py` — PMS 管道材料规格的请求/响应契约（P10-H · T2 · TODO-195）。 (~491 tok)
 - `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~742 tok)
 - `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~2014 tok)
@@ -1487,6 +1494,7 @@
 - `numbering_service.py` — NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。 (~1617 tok)
 - `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1812 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
+- `pms_service.py` — PMS 管道材料规格的数据访问（P10-H · T2 · TODO-195）。 (~1300 tok)
 - `proii_composition.py` — PRO/II 组成 → **摩尔分率**（P10-C · T4 · TODO-156）。 (~958 tok)
 - `record_capabilities.py` — 记录能力谓词（TODO-058 裁决，2026-10-20）。 (~922 tok)
 - `record_snapshot_codec.py` — 记录快照的**数据编解码**（TODO-087）。 (~1917 tok)
@@ -1674,6 +1682,7 @@
 - `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
 - `test_pipe_line_list.py` — **管道一览表端点**（`GET /projects/{project_id}/pipe-line-list`）—— P10-C · T2。 (~1725 tok)
+- `test_pms_bedd_api.py` — PMS / BEDD 端点（P10-H · T2 · TODO-195）。 (~3304 tok)
 - `test_probe_stale_read.py` — 临时探针：验证 T3 引入的 identity map 陈旧读（C-1）。**不提交**。 (~604 tok)
 - `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~5232 tok)
 - `test_project_owner_access.py` — 「建项目 ⇒ 自动授权创建者」—— P9B-4 紧急批次 T0。 (~2165 tok)
@@ -1960,6 +1969,7 @@
 - `locks.ts` — 编辑锁**操作**客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~941 tok)
 - `meta.ts` — Meta API 客户端（状态机 + 权限矩阵）—— P9B-2 · T4 的数据源。 (~324 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
+- `pms.ts` — PMS / BEDD API 客户端（P10-H · T2 · TODO-195）。 (~644 tok)
 - `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~364 tok)
 - `recordActions.ts` — 记录级写面客户端（9 态动作 + 批注）—— P9B-2 · SPEC §6.3 / §7.19.1。 (~1178 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
@@ -2027,6 +2037,7 @@
 - `meta.ts` — Meta seed fixture — 与 pcs-backend Task 4.5 V1.1 一致（P45-0-5） (~4390 tok)
 - `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~1043 tok)
 - `pipe-line.ts` — PipeLineList seed — 5 行（QA 11 组件实例化 P1 · **P10-C · T2 重塑**） (~1872 tok)
+- `pms.ts` — PMS / BEDD seed（P10-H · T2 · TODO-195）。 (~1811 tok)
 - `projects.ts` — 项目 + 我的授权 seed（P10-H · T1 · TODO-194 · 项目选择器的数据源）。 (~518 tok)
 - `results.ts` — 6 类可编辑结果记录的 seed（P9B-1 · SPEC §6.21）。 (~2332 tok)
 - `signFlow.ts` — 签署流程 + ADMIN 的 seed（P9B-2 · T10）。 (~1309 tok)
@@ -2049,7 +2060,7 @@
 
 ## pcs-frontend/src/pages/bedd/
 
-- `BeddPage.tsx` — BeddPage — BEDD 文档（P45-3-8 / Task 35）。 (~1220 tok)
+- `BeddPage.tsx` — BeddPage — BEDD 文档（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~1573 tok)
 
 ## pcs-frontend/src/pages/common/
 
@@ -2081,7 +2092,7 @@
 
 ## pcs-frontend/src/pages/pms/
 
-- `PmsPage.tsx` — PmsPage — 管道材料规格（P45-3-8 / Task 35）。 (~1068 tok)
+- `PmsPage.tsx` — PmsPage — PMS 管道材料规格（P10-H · T2 · TODO-195）。 (~2016 tok)
 
 ## pcs-frontend/src/pages/report/
 
@@ -2203,6 +2214,10 @@
 - `AuditLogPage.export.test.tsx` — 审计日志的**筛选 + CSV 导出**（P9B-2 · T7 · SPEC §7.20）。 (~2364 tok)
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
 
+## pcs-frontend/tests/pages/bedd/
+
+- `BeddPage.test.tsx` — `BeddPage` 测试（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~998 tok)
+
 ## pcs-frontend/tests/pages/common/
 
 - `AllowableStressPage.test.tsx` — AllowableStressPage 测试（P45-3-3 / Task 30 · **P10-C · T1 改：查询驱动**）。 (~929 tok)
@@ -2227,6 +2242,10 @@
 
 - `PipeClassListPage.test.tsx` — PipeClassListPage 测试（P45-3-2 / Task 29；2026-10-19 按契约重写）。 (~1893 tok)
 - `zz_probe_key.test.tsx` — 探针：PipeClassListPage 的 React key 警告到底来自哪儿？ (~202 tok)
+
+## pcs-frontend/tests/pages/pms/
+
+- `PmsPage.test.tsx` — `PmsPage` 测试（P10-H · T2 · TODO-195）。 (~1158 tok)
 
 ## pcs-frontend/tests/pages/report/
 
