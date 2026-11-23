@@ -39,8 +39,9 @@ PCS/
 │   ├── PCS-PLAN-*.md         # 实施计划
 │   ├── PCS-P*-CLOSE-REPORT.md
 │   ├── ce-code-review/       # 代码评审产物归档（每轮一个目录：report.md + 证据链）
-│   └── solutions/            # 已记录的问题解法（按 problem_type 分目录）
-├── TODOS.md                  # 延后工作清单（编号是追溯索引）
+│   ├── solutions/            # 已记录的问题解法（按 problem_type 分目录）
+│   └── archives/             # 归档（含 TODOS-closed.md · 已关闭条目的正文）
+├── TODOS.md                  # 延后工作清单（**只留还开着的** · 编号是追溯索引）
 ├── .wolf/                    # OpenWolf 状态（STATUS / cerebrum / buglog）
 ├── spec/                     # 需求规格 / 数据字典
 ├── sample/                   # PRO/II 工程实例（不入 git）

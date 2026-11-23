@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T03:28:02.105Z
-> Files: 1444 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T06:49:17.798Z
+> Files: 1445 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -13,7 +13,7 @@
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
-- `README.md` — Project documentation (~5974 tok)
+- `README.md` — Project documentation (~5993 tok)
 - `TODOS.md` — TODOS.md — PCS 延后工作清单 (~50755 tok)
 
 ## .claude/rules/
@@ -2297,6 +2297,10 @@
 
 - `no_handwritten_result_types.test.ts` — 防漂移：`src/types/` 的手写类型 vs 生成的契约（P9B-1 Task F0）。 (~1488 tok)
 - `strictColumns.test.ts` — `dataIndex` 闸的自检（2026-10-19，TODO-041）。 (~851 tok)
+
+## scripts/
+
+- `slim_todos.py` — TODOS.md 瘦身 —— 把**已关闭**的条目搬进归档文件，正文只留**还开着**的。 (~2666 tok)
 
 ## spec/
 

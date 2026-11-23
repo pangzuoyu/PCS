@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T03:28:02.105Z",
-    "fileCount": 1444,
+    "lastScanned": "2026-11-23T06:49:17.798Z",
+    "fileCount": 1445,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cabe1117be76479186e5f6416f0e0956ff6628ace460e87daff72aaec0e28de8",
-    "storeUpdatedAt": "2026-11-23T03:28:02.118Z",
-    "rootHash": "659eb208f0696419"
+    "renderedHash": "af4d51af39ca4b7067eb8b74b3edd336c9735ee46513497ea7a0086977760738",
+    "storeUpdatedAt": "2026-11-23T06:49:17.811Z",
+    "rootHash": "6defd77c5570e361"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12350,11 +12350,11 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 5974,
-      "hash": "49bad0bb36036e5a",
-      "size": 34716,
-      "mtimeMs": 1794904453065.4995,
-      "updatedAt": "2026-11-17T08:34:13.111Z",
+      "tokens": 5993,
+      "hash": "671acfb6af9fb65c",
+      "size": 34842,
+      "mtimeMs": 1795416545243.3152,
+      "updatedAt": "2026-11-23T06:49:05.292Z",
       "source": "hook"
     },
     "TODOS.md": {
@@ -52119,6 +52119,52 @@
       "mtimeMs": 1795403229751.4897,
       "updatedAt": "2026-11-23T03:07:09.804Z",
       "source": "hook"
+    },
+    "scripts/slim_todos.py": {
+      "description": "TODOS.md 瘦身 —— 把**已关闭**的条目搬进归档文件，正文只留**还开着**的。",
+      "tokens": 2666,
+      "hash": "724607c27662e408",
+      "size": 12168,
+      "mtimeMs": 1795416557738.1438,
+      "updatedAt": "2026-11-23T06:49:17.798Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "level",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 58,
+          "tokens": 22
+        },
+        {
+          "name": "is_entry",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 63,
+          "tokens": 30
+        },
+        {
+          "name": "extent",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 72,
+          "tokens": 66
+        },
+        {
+          "name": "is_closed",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 110,
+          "tokens": 396
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 295,
+          "tokens": 1778
+        }
+      ]
     }
   }
 }
