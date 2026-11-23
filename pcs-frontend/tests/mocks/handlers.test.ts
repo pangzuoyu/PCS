@@ -415,26 +415,16 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
     // 这条棘轮原先**直接拿 MSW 的 `:param` 路径**去比契约的 `{param}` 路径
     // ⇒ ⇒ **永远不相等** ⇒ ⇒ 凡是用 `:param` 写的 mock 端点，
     // 这条棘轮**根本看不见它** ⇒ ⇒ 「有契约可漂移却没校验」的洞一直敞着。
-    // ⇒ ⇒ 现在路径**归一化**了 ⇒ ⇒ 洞被看见 ⇒ ⇒ 欠账登记在下面。
+    // ⇒ ⇒ 现在路径**归一化**了 ⇒ ⇒ 洞被看见 ⇒ ⇒ 多出 14 条欠账。
     //
-    // ⇒ ⇒ **补完一条就从这里删一条**（并加进上面的 ajv 校验用例）。
-    // ⇒ ⇒ 债可以还，但**不许悄悄消失**（下面那条断言盯着）。
-    const CONTRACT_ENDPOINTS_NOT_YET_VALIDATED = [
-      "/api/v1/checklist/projects/{project_id}",
-      "/api/v1/checklist/projects/{project_id}/completeness",
-      "/api/v1/heat/{heat_id}",
-      "/api/v1/heat/{heat_id}/weight-estimate",
-      "/api/v1/lineage/{record_type}/{record_id}/graph",
-      "/api/v1/projects/{project_id}/psv/standard-profile",
-      "/api/v1/projects/{project_id}/streams",
-      "/api/v1/projects/{project_id}/streams/validate",
-      "/api/v1/streams/{stream_id}",
-      "/api/v1/streams/{stream_id}/properties",
-      "/api/v1/streams/{stream_id}/properties/estimate",
-      "/api/v1/streams/{stream_id}/review-log",
-      "/api/v1/streams/{stream_id}/state-points",
-      "/api/v1/streams/{stream_id}/submit",
-    ];
+    // ✅ **已还完**（2026-11-23 · P10-H · T3 · TODO-193）⇒ ⇒ 14 条 ajv 校验
+    // 在 `tests/mocks/contract_debt_193.test.ts`（逐条端点 · 含变异自证）。
+    //
+    // ⇒ ⇒ 清单**现在是空的** ⇒ ⇒ 但**机制不许删**：
+    // ① 下面的断言仍盯着「devOnly ∩ 契约」的全集 ⇒ ⇒ **新增契约端点**
+    //    出现在 devOnly 里 ⇒ ⇒ **立刻红** ⇒ ⇒ 必须补 ajv 校验；
+    // ② 「欠账不许悄悄消失」那条断言**保留**（现在是空集 ⇒ 但机制在）。
+    const CONTRACT_ENDPOINTS_NOT_YET_VALIDATED: string[] = [];
 
     expect(inContract).toEqual([
       "/api/v1/audit-logs",
@@ -472,6 +462,23 @@ describe("通知 / 待办 mock 形状 ↔ OpenAPI（TODO-065）", () => {
       "/api/v1/util/heat-exchange-items",
       "/api/v1/vessel/calculate",
       "/api/v1/workspaces",
+      // P10-H · T3（2026-11-23 · TODO-193）：**14 条欠账已还**
+      // ⇒ ⇒ 从「欠账清单」移进**已校验名单**（校验在
+      // `tests/mocks/contract_debt_193.test.ts`）⇒ ⇒ 这里只登记「已覆盖」。
+      "/api/v1/checklist/projects/{project_id}",
+      "/api/v1/checklist/projects/{project_id}/completeness",
+      "/api/v1/heat/{heat_id}",
+      "/api/v1/heat/{heat_id}/weight-estimate",
+      "/api/v1/lineage/{record_type}/{record_id}/graph",
+      "/api/v1/projects/{project_id}/psv/standard-profile",
+      "/api/v1/projects/{project_id}/streams",
+      "/api/v1/projects/{project_id}/streams/validate",
+      "/api/v1/streams/{stream_id}",
+      "/api/v1/streams/{stream_id}/properties",
+      "/api/v1/streams/{stream_id}/properties/estimate",
+      "/api/v1/streams/{stream_id}/review-log",
+      "/api/v1/streams/{stream_id}/state-points",
+      "/api/v1/streams/{stream_id}/submit",
       ...CONTRACT_ENDPOINTS_NOT_YET_VALIDATED,
     ].sort());
 

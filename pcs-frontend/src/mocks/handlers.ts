@@ -884,7 +884,7 @@ const mockPsvCalculateResult: PsvCalculateResponse = {
 };
 
 /** P5-3 PSV 项目标准配置 mock seed — API/7th 默认 */
-const mockPsvStandardProfile: StandardProfileResponse = {
+export const mockPsvStandardProfile: StandardProfileResponse = {
   profile_id: '00000000-0000-0000-0000-000000000200',
   project_id: '00000000-0000-0000-0000-000000000001',
   discipline: 'PSV',
