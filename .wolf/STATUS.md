@@ -46,18 +46,27 @@ budget_tokens: 1200
 浏览器 QA 全通 · `alembic check` 两库 exit 0 · 载荷闸 RC 0（裸字段仍 71）·
 迁移幂等 RC 0（50 个）· 契约漂移 RC 0。
 
+**T4 · TODO-199（4 条裸 object 端点补具名 schema）** `7b93b7e7`
+`GET /streams/{id}/properties` · `POST /properties/estimate` ·
+`GET/POST/PATCH /streams/{id}/state-points` · `POST /streams/{id}/submit`
+⇒ ⇒ 契约里从**裸 object** 变**具名 schema**（395 → 402 个 schema）⇒ ⇒ 前端
+终于有类型。⚠️ `response_model_exclude_unset=True` ⇒ ⇒ **载荷不变**（否则未赋值
+字段补成 null ⇒ ⇒ 存量断言直接红）；⚠️ `composition_json` 只在**响应侧**放宽成
+可空（否则裸载荷闸 71 → 72 ⇒ ⇒ 倒退）。物性袋字段表**只有一份**
+（`PropertyAutoCompleter` 的字段集公开化 ⇒ ⇒ `create_model` 生成）。
+
 ---
 
 ## 🚀 Next quest
 
-1. **收尾本批**：后端默认车道**第二轮**复跑（第一轮 6 条已修 ⇒ ⇒ 待确认 EXIT=0）
-   ⇒ ⇒ `TODOS.md` 三条标 commit ⇒ ⇒ QA 报告 `.gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md`
-   ⇒ ⇒ **推送 P10-G + P10-H**（**需明确授权** ⇒ 本轮一直未 push）。
-2. **P10-F · F4-PRE**（`bandit` + `uv audit` + `npm audit`）—— 不依赖镜像 ⇒ 现在就能开。
+1. **P10-F · F4-PRE**（`docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md`
+   的 F4 前置批 · 5 个任务：FP-T1 逐条裁决 14 条遗留债 · FP-T2 棘轮抬真
+   （`AUDITED_PROJECT_SCOPED_ENDPOINTS` 从**计数**改成**清单**）· FP-T3 车道残留
+   · FP-T4 断言缺口 · FP-T5 台账入账）⇒ ⇒ **不依赖 P10-C** ⇒ ⇒ 现在就能开。
+2. **推送**：P10-H 的 T4 已提交 ⇒ ⇒ 待推（用户已授权推过一次）。
 3. **仍待人裁决**：**TODO-197**（「他人发布」的入口 · 三个方案）· **TODO-196**
-   （10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）· **TODO-196 兜底**照旧。
-4. **本批新登记**：**TODO-199**（4 条端点的契约**本身就是裸 object** ⇒ ⇒ ajv 只能
-   证明「是个 object」⇒ ⇒ 要后端补具名 schema）。
+   （10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）。
+4. **SPEC §7.5 的向导**里 PMS / BEDD 两步**仍是空占位** ⇒ ⇒ 另开。
 
 ---
 
