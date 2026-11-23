@@ -6893,7 +6893,7 @@
    "file": "pcs-backend/app/services/component_cas.py",
    "root_cause": "2026-11-19 那 10 条 DMC 组分的 CAS 号是**凭记忆填**的（人裁「我补 CAS 号并标注待确认」）⇒ ⇒ 没有任何一道机械关卡挡住 ⇒ ⇒ 且 CAS 末位是**校验位**，纯算术就能验出两条根本不合法 ⇒ ⇒ 第三条（校验位过）更隐蔽：它指向一个**不存在于任何权威源的号** ⇒ ⇒ `chemicals.MW('2463-75-4')` 报「A valid CAS number was recognized, but is not in the database」⇒ ⇒ `mw_by_cas` 返回 None ⇒ ⇒ 组成被**静默作废**（`composition_json = None`）⇒ ⇒ 那些流闪蒸算不了（安全的失败，不是错的失败 —— 只有「真号指向别的物质」才会算出错结果）",
    "fix": "① 按权威源改正 3 条：ISO_BUTANE→75-28-5 · DIPROPYLENE_GLYCOL→25265-71-8（CAS Common Chemistry 官方 + OECD SIDS + NOAA CAMEO）· TRIPROPYLENE_GLYCOL→24800-44-0（OECD SIDS + CAMEO + Sigma-Aldrich）；② 新增**离线棘轮** `tests/services/test_component_cas.py`（95 条断言 = 42 条 × 〔校验位关 + chemicals 存在关〕 + 11 条分子量钉死）⇒ ⇒ **变异自证**：把 3 个错号塞回去 ⇒ ⇒ **8 条红**；③ 新增联网工具 `pcs-backend/scripts/verify_component_cas.py`（PubChem 双向查 + 全表离线体检）⇒ ⇒ ⚠️ CAS Common Chemistry 自 2025 起要 API key（401）⇒ ⇒ 别把 401 当「查不到」；⚠️ 三丙二醇 PubChem 无独立记录 ⇒ ⇒ 须用 OECD SIDS / CAMEO 交叉确认",
-   "fix_commit": "PENDING",
+   "fix_commit": "853df7b5",
    "tags": [
     "cas",
     "domain-data",
