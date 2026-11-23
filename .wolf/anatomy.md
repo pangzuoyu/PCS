@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T06:49:17.798Z
-> Files: 1445 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T08:47:12.083Z
+> Files: 1446 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~50755 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~22327 tok)
 
 ## .claude/rules/
 
@@ -595,7 +595,7 @@
 
 ## docs/solutions/security-issues/
 
-- `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5616 tok)
+- `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5970 tok)
 - `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
 - `role-vocabulary-must-have-one-source.md` — 角色白名单**手抄第二份** ⇒ ⇒ 合法用户 403（拼错比漏写更隐蔽） (~506 tok)
@@ -653,7 +653,8 @@
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
-- `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~557 tok)
+- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~1437 tok)
+- `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~616 tok)
 
 ## docs/superpowers/specs/
 

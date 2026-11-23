@@ -87,7 +87,7 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 | `GET /report-builder/definitions` | 可选 `project_id` 过滤 | ✅ `visible_clause`（三态） | N/A（公司级模板 ⇒ scope 空 ⇒ 恒 400 · TODO-177） | 404（不在列表） | `definition_service.py::visible_clause` | default（断**纯 SQL** ⇒ 不受 mock 影响） | 🟢 已覆盖（✅ **变异敏感**） |
 | `GET /report-builder/definitions/{def_id}` | `def_id` | ✅ `visible_clause` | N/A | 404 | `::get` | default | 🟢 已覆盖（✅ 断言） |
 | `PUT /report-builder/definitions/{def_id}` | `def_id` | ⚠️ `update` 的 `created_by` 检查**冗余**（读闸先挡） | N/A | 404 | `definition_service.py::update` | default | 🟡 **写闸无独立断言**（TODO-171） |
-| `POST /report-builder/definitions/{def_id}/publish` | `def_id` | 角色闸 `require_roles(REVIEWER,APPROVER,SA)`；service **不查 `created_by`** | N/A | 403 | `report_builder.py:233` | default | 🟢 已覆盖（✅ **变异敏感**）· ⚠️ 「自审自批」允许（TODO-172 / 178） |
+| `POST /report-builder/definitions/{def_id}/publish` | `def_id` | 角色闸 `require_roles(REVIEWER,APPROVER,SA)`；service **不查 `created_by`** | N/A | 403 | `report_builder.py:233` | default | 🟢 已覆盖（✅ **变异敏感**）· ⚠️ 「自审自批」允许（TODO-172 / 178 · **已裁决落地** `09c9282`）· ⚠️ **UI 层不可达**（TODO-197 · **产品缺口**，不是审计缺口 ⇒ 见 §六）|
 | `POST /report-builder/definitions/{def_id}/obsolete` | `def_id` | 同上 | N/A | 403 | `:245` | default | 🟢 已覆盖（✅ 断言） |
 | `GET /report-builder/executions/{task_id}` | `task_id` | 复用 `get`（可见性） | N/A | 404 | `:304-327` | default | 🟢 已覆盖（✅ 断言） |
 | `POST /report-builder/definitions/{def_id}/execute` | `def_id` + scope 项目 | ✅ 可见性 `get` | ✅ **已修**（scope 项目授权 ⇒ 404） | 404 | `report_builder.py::execute_definition_endpoint` + `builder_service.py::execute_definition` | **strict** ✅ | 🟢 已覆盖（**TODO-174 已修**） |
@@ -244,6 +244,7 @@ root_cause: ① 守卫**结构性缺失**（端点没有 current_actor ⇒ 连�
 | `report.py` 的 `verify` | **有意免登录**（HMAC 签名 + 15 分钟 exp + 限速 + 签名绑定 id）⇒ ⇒ 设计内 |
 | `user_projects` 的 grant / `{user_id}` | 能给**任意**项目授权、查**任意**用户的清单 ⇒ ⇒ **管理员的职责本身**（SYSTEM_ADMIN 闸在）⇒ ⇒ 设计内 |
 | `meta.py` 6 个 | **静态字典 + 认证** ⇒ ⇒ 无项目维度 |
+| `report_builder.py` 的 **publish（UI 层）** | ⚠️ **API 层的权限是对的**（角色闸 + 禁自审 + 项目授权 ⇒ 三条断言都在）⇒ ⇒ **不是审计缺口** ⇒ ⇒ 但**产品流程在 UI 上走不完**（审核者看不见可审的草稿 · 连 SYSTEM_ADMIN 都打不开别人的草稿编辑器 ⇒ ⇒ 「保存并发布」按钮**对所有角色 100% 死**）⇒ ⇒ **产品缺口** ⇒ ⇒ 移交 **TODO-197**（人裁决 2026-11-23 · 选方案 ①「待我审核」队列 · **P10-I · T1**）⇒ ⇒ ⚠️ **API 层覆盖 ≠ 产品流程覆盖** ⇒ ⇒ 读本表时**别把它当成「这条流程通了」** |
 
 ---
 
