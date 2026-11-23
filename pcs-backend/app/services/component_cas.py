@@ -15,13 +15,37 @@ PRO/II LIBID 名/缩写  ──alias_registry.resolve_alias("COMPONENT_NAME", �
 
 ⇒ ⇒ 第一段是**既有**的（`app/services/alias_registry.py`）⇒ ⇒ 本表是**第二段**。
 
-## ⚠️⚠️ **待工艺室确认**（2026-11-19 · 用户裁决「我补 CAS 号并标注待确认」）
+## ⚠️⚠️ **待工艺室签字**（2026-11-19 裁决「我补 CAS 号并标注待确认」·
+## ⚠️ 2026-11-23 已用**公开源逐条核对**并修掉 3 条错号）
 
 下面标 `⚠️ 待确认` 的 10 条是 **DMC 装置专用组分**（PRO/II 的 LIBID 缩写
 PO / PROPCARB / DMCARB / 12PG / DIPRPGLY / TPG / AA / OXYLENE / MOXYPROH /
-PROPALD）⇒ ⇒ 它们的 CAS 是按**公开的化学物质登记号**填的
-⇒ ⇒ **未经工艺室逐条核对** ⇒ ⇒ 首次投产前请让工艺室确认一遍
+PROPALD）⇒ ⇒ 它们的 CAS 来自**公开的化学物质登记号**
+⇒ ⇒ **尚未经工艺室逐条核对** ⇒ ⇒ 首次投产前请让工艺室确认一遍
 ⇒ ⇒ 已登记 **TODO-196**。
+
+### ✅ 2026-11-23 · 已用公开源核过一遍（**查出并修掉 3 条错号**）
+
+CAS 号是**公开登记号** ⇒ ⇒ 可以核 ⇒ ⇒ 核法 = **三源互证**
+（脚本 `scripts/verify_component_cas.py` · 离线棘轮 `tests/services/test_component_cas.py`）：
+
+1. **校验位**（CAS 末位是校验位 ⇒ ⇒ **格式错一眼看穿**）
+2. **`chemicals` 离线库能取到 MW**（⇒ ⇒ 「这个号指向一个真实物质」）
+3. **PubChem 双向查**（正向：物质名 ⇒ 同义词含该 CAS；反向：CAS ⇒ 分子式/分子量）
+
+⇒ ⇒ **查出 3 条错号**（bug-2197）：
+
+| 组分 | 错号（错在哪） | 正号 | 依据 |
+|---|---|---|---|
+| `ISO_BUTANE` | `106-98-3` —— **校验位不过**（真值算出来是 `…-9`）| `75-28-5` | PubChem / `chemicals` |
+| `DIPROPYLENE_GLYCOL` | `25265-29-4` —— **校验位不过**（真值 `…-6`）| `25265-71-8` | **CAS Common Chemistry（官方）** · OECD SIDS · NOAA CAMEO |
+| `TRIPROPYLENE_GLYCOL` | `2463-75-4` —— 校验位**过**，但**没有任何源**把它指向三丙二醇 | `24800-44-0` | OECD SIDS · NOAA CAMEO · Sigma-Aldrich |
+
+⇒ ⇒ ⚠️ **错号的实际后果 = 组成被静默作废**（不是「算出错结果」）：
+`mw_by_cas` 取不到 MW ⇒ ⇒ `composition_json = None` + 告警
+⇒ ⇒ 那几条组分的流**闪蒸算不了**（安全的失败，不是错的失败）
+⇒ ⇒ ⚠️ 但**「真号指向别的物质」**（校验位过、库里能查到、但不是本组分）
+才危险 ⇒ ⇒ 那会算出**错的**组成与闪蒸 ⇒ ⇒ 所以「校验位 + MW 能查到」**两关都要过**。
 
 ⚠️ **查不到 CAS ⇒ ⇒ 不许编**：本表没有的组分 ⇒ ⇒ 该流的组成**整个作废**
 （⇒ `composition_json = None`）⇒ ⇒ **宁可没有组成，不要错组成**
@@ -56,7 +80,7 @@ CAS_BY_COMPONENT: dict[str, str] = {
     "HYDROGEN_CHLORIDE": "7647-01-0",
     "CHLORINE": "7782-50-5",
     "N_BUTANE": "106-97-8",
-    "ISO_BUTANE": "106-98-3",
+    "ISO_BUTANE": "75-28-5",
     "N_PENTANE": "109-66-0",
     "N_HEXANE": "110-54-3",
     "N_HEPTANE": "142-82-5",
@@ -73,13 +97,13 @@ CAS_BY_COMPONENT: dict[str, str] = {
     "NEON": "7440-01-9",
     "KRYPTON": "7439-90-9",
     "XENON": "7440-63-3",
-    # —— ⚠️ 待工艺室确认（DMC 装置专用 · 2026-11-19）——
+    # —— ⚠️ 待工艺室签字（DMC 装置专用 · 2026-11-19 填 · 2026-11-23 已核）——
     "PROPYLENE_OXIDE": "75-56-9",        # PO 环氧丙烷
     "PROPYLENE_CARBONATE": "108-32-7",   # PROPCARB 碳酸丙烯酯
     "DIMETHYL_CARBONATE": "616-38-6",    # DMCARB 碳酸二甲酯
     "PROPYLENE_GLYCOL": "57-55-6",       # 12PG 丙二醇
-    "DIPROPYLENE_GLYCOL": "25265-29-4",  # DIPRPGLY 二丙二醇
-    "TRIPROPYLENE_GLYCOL": "2463-75-4",  # TPG 三丙二醇
+    "DIPROPYLENE_GLYCOL": "25265-71-8",  # DIPRPGLY 二丙二醇（C6H14O3 · MW 134.17）
+    "TRIPROPYLENE_GLYCOL": "24800-44-0", # TPG 三丙二醇（C9H20O4 · MW 192.25）
     "ACRYLIC_ACID": "79-10-7",           # AA 丙烯酸
     "O_XYLENE": "95-47-6",               # OXYLENE 邻二甲苯
     "METHOXYPROPANOL": "107-98-2",       # MOXYPROH 甲氧基丙醇

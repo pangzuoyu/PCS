@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T08:57:02.057Z
-> Files: 1447 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T09:22:03.806Z
+> Files: 1450 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2098 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~22919 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~23912 tok)
 
 ## .claude/rules/
 
@@ -588,6 +588,10 @@
 - `get-or-create-default-row-race-savepoint-reread.md` — get-or-create 默认行的并发兜底：savepoint 内插 + 撞约束重读赢家 (~478 tok)
 - `information-schema-not-scoped-by-search-path.md` — `information_schema` 不受 `search_path` 约束 —— 隔离 schema 测试的隐形跨库计数 (~584 tok)
 - `response-enum-nullable-must-match-db-nullability.md` — 响应的可空性必须与 DB 列**一致** —— 窄声明就是 500 (~489 tok)
+
+## docs/solutions/domain-data/
+
+- `cas-numbers-must-be-verified-not-recalled.md` — CAS 号不能凭记忆填 —— 用「三关」自证（bug-2197） (~603 tok)
 
 ## docs/solutions/framework-integration-issues/
 
@@ -1490,7 +1494,7 @@
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~10750 tok)
-- `component_cas.py` — 组分别名 → CAS 号（**域数据**）—— P10-C · T4（TODO-156）。 (~988 tok)
+- `component_cas.py` — 组分别名 → CAS 号（**域数据**）—— P10-C · T4（TODO-156）。 (~1302 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~14142 tok)
 - `edit_guard.py` — 编辑冲突 guard：**能力声明 + 阶梯判定 + 编辑审计**（ADR-0048 §⑥ §⑦）。 (~3348 tok)
 - `edit_lock.py` — 编辑锁：Redis 层的**悲观**互斥（ADR-0048 §①~⑤）。 (~2813 tok)
@@ -1625,6 +1629,7 @@
 - `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9673 tok)
 - `seed_user_project_access.py` — 给「指定用户名 × 指定项目」授权（幂等）—— P9B-4 紧急批次 T0。 (~1468 tok)
 - `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~634 tok)
+- `verify_component_cas.py` — **联网**核对 `component_cas.py` 的 CAS 号（TODO-196 · bug-2197）。 (~2784 tok)
 
 ## pcs-backend/tests/
 
@@ -1842,6 +1847,7 @@
 - `test_change_notice_project_guard.py` — 变更单 service 层的**项目一致性**守卫（TODO-084 第 2 条）。 (~1063 tok)
 - `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~8472 tok)
 - `test_change_reversal_escape_hatch.py` — 「已对外生效」的**逃生口**：CHANGE_REVERSAL 反向变更单（TODO-082 的已知代价）。 (~1988 tok)
+- `test_component_cas.py` — `CAS_BY_COMPONENT` 的**离线棘轮** —— 每个 CAS 号都必须站得住。 (~1105 tok)
 - `test_deliverable_create_version_row.py` — `DeliverableService.create_version_row` 的守卫（P9A-DLV-011 · T1）。 (~1196 tok)
 - `test_edit_guard.py` — 编辑冲突 guard 的**阶梯**测试 —— P9A-4 D2（ADR-0048 §⑥）。 (~3662 tok)
 - `test_edit_lock.py` — 编辑锁（Redis 层）测试 —— P9A-4 D1（ADR-0048 §①~⑤）。 (~3260 tok)

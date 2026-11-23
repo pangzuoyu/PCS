@@ -4142,3 +4142,13 @@
 | 16:55 | Created docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md | — | ~859 |
 | 16:56 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | inline fix | ~18 |
 | 16:57 | Edited docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md | expanded (+14 lines) | ~319 |
+| 17:09 | Created pcs-backend/scripts/verify_component_cas.py | — | ~2056 |
+| 17:18 | Edited pcs-backend/app/services/component_cas.py | expanded (+24 lines) | ~370 |
+| 17:18 | Edited pcs-backend/app/services/component_cas.py | inline fix | ~8 |
+| 17:18 | Edited pcs-backend/app/services/component_cas.py | 11→11 lines | ~185 |
+| 17:18 | Created pcs-backend/tests/services/test_component_cas.py | — | ~1105 |
+| 17:18 | Created pcs-backend/scripts/verify_component_cas.py | — | ~2779 |
+| 17:19 | Edited pcs-backend/scripts/verify_component_cas.py | inline fix | ~25 |
+| 17:21 | Edited TODOS.md | expanded (+47 lines) | ~692 |
+| 17:21 | Edited TODOS.md | inline fix | ~25 |
+| 17:22 | Created docs/solutions/domain-data/cas-numbers-must-be-verified-not-recalled.md | — | ~643 |

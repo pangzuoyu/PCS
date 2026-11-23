@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T08:57:02.057Z",
-    "fileCount": 1447,
+    "lastScanned": "2026-11-23T09:22:03.806Z",
+    "fileCount": 1450,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d2b537cf6cdf1c5cd71c2600c89c67b23572ed48e1e2d93b9bc58be85642df66",
-    "storeUpdatedAt": "2026-11-23T08:57:02.069Z",
-    "rootHash": "bb5cbbfbcdd1d9b3"
+    "renderedHash": "450283e360846d43827936a5aac003b65181d7bb80a70169e4a7ed993bdb4f12",
+    "storeUpdatedAt": "2026-11-23T09:22:03.818Z",
+    "rootHash": "b037dbbbe8486468"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 22919,
-      "hash": "c2be00ee53d4d8d0",
-      "size": 151461,
-      "mtimeMs": 1795423749672.831,
-      "updatedAt": "2026-11-23T08:49:09.723Z",
+      "tokens": 23912,
+      "hash": "e49bda69c5125ec3",
+      "size": 158286,
+      "mtimeMs": 1795425676099.2314,
+      "updatedAt": "2026-11-23T09:21:16.157Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -50761,25 +50761,25 @@
     },
     "pcs-backend/app/services/component_cas.py": {
       "description": "组分别名 → CAS 号（**域数据**）—— P10-C · T4（TODO-156）。",
-      "tokens": 988,
-      "hash": "064b9d3b36f6cd94",
-      "size": 4537,
-      "mtimeMs": 1795044517371.8252,
-      "updatedAt": "2026-11-18T23:28:37.418Z",
+      "tokens": 1302,
+      "hash": "b29695ec6fda4b51",
+      "size": 6343,
+      "mtimeMs": 1795425497425.6238,
+      "updatedAt": "2026-11-23T09:18:17.474Z",
       "source": "hook",
       "symbols": [
         {
           "name": "cas_for_component",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 96,
+          "startLine": 114,
+          "endLine": 121,
           "tokens": 69
         },
         {
           "name": "mw_by_cas",
           "kind": "fn",
-          "startLine": 97,
-          "endLine": 117,
+          "startLine": 122,
+          "endLine": 142,
           "tokens": 140
         }
       ]
@@ -52182,6 +52182,142 @@
       "size": 6768,
       "mtimeMs": 1795424222007.0798,
       "updatedAt": "2026-11-23T08:57:02.057Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/verify_component_cas.py": {
+      "description": "**联网**核对 `component_cas.py` 的 CAS 号（TODO-196 · bug-2197）。",
+      "tokens": 2784,
+      "hash": "9c6a9a862bf87c2a",
+      "size": 11611,
+      "mtimeMs": 1795425573139.3093,
+      "updatedAt": "2026-11-23T09:19:33.187Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check_digit_ok",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 94,
+          "tokens": 87
+        },
+        {
+          "name": "local_mw",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 111,
+          "tokens": 119
+        },
+        {
+          "name": "Row",
+          "kind": "class",
+          "startLine": 112,
+          "endLine": 130,
+          "tokens": 118
+        },
+        {
+          "name": "_get_json",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 152,
+          "tokens": 230
+        },
+        {
+          "name": "_cids_by_name",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 158,
+          "tokens": 58
+        },
+        {
+          "name": "_cids_by_cas",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 164,
+          "tokens": 58
+        },
+        {
+          "name": "_synonyms",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 170,
+          "tokens": 61
+        },
+        {
+          "name": "_props",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 176,
+          "tokens": 63
+        },
+        {
+          "name": "verify_online",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 229,
+          "tokens": 592
+        },
+        {
+          "name": "audit_offline",
+          "kind": "fn",
+          "startLine": 230,
+          "endLine": 243,
+          "tokens": 154
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 244,
+          "endLine": 291,
+          "tokens": 493
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_component_cas.py": {
+      "description": "`CAS_BY_COMPONENT` 的**离线棘轮** —— 每个 CAS 号都必须站得住。",
+      "tokens": 1105,
+      "hash": "db362e18c35a843c",
+      "size": 5252,
+      "mtimeMs": 1795425512033.7566,
+      "updatedAt": "2026-11-23T09:18:32.085Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_check_digit_ok",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 51,
+          "tokens": 111
+        },
+        {
+          "name": "test_every_cas_passes_its_check_digit",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 61,
+          "tokens": 126
+        },
+        {
+          "name": "test_every_cas_resolves_in_the_offline_chemicals_db",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 95,
+          "tokens": 429
+        },
+        {
+          "name": "test_pinned_components_keep_their_molecular_weight",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 109,
+          "tokens": 139
+        }
+      ]
+    },
+    "docs/solutions/domain-data/cas-numbers-must-be-verified-not-recalled.md": {
+      "description": "CAS 号不能凭记忆填 —— 用「三关」自证（bug-2197）",
+      "tokens": 603,
+      "hash": "39d9c62fbc89e506",
+      "size": 4589,
+      "mtimeMs": 1795425723754.6548,
+      "updatedAt": "2026-11-23T09:22:03.806Z",
       "source": "hook"
     }
   }
