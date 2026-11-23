@@ -49,6 +49,10 @@ budget_tokens: 1200
 ## 🚀 Next quest
 
 1. **P10-I**（新建 · `docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md`）
+   ⇒ ⇒ ⚖️ **hermes 第三方意见已落盘**
+   （`docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md`）
+   ⇒ ⇒ 项 1 = **选 A**（新建端点 + 独立 schema）· 项 2 = **选 A**（前端本地 · 键
+   `(def_id, updated_at)`）· 项 3.1 = **产品决定** · 项 3.2 = **404**（技术决定）
    ⇒ ⇒ **T1 · TODO-197**（**已裁决 2026-11-23**：选 ①「待我审核」队列 + 列表页发布按钮
    + 三个约束：只读视图 / 过滤条件与 `visible_clause` 分离 / 「拒绝」不做 ⇒ 转 TODO-197b）
    ⇒ ⇒ **T2 · TODO-187b**（**已裁决**：选 A「守卫加可选 `not_found_code/message`」
@@ -61,8 +65,12 @@ budget_tokens: 1200
    ⇒ ⇒ **P10-C** 未做 ⇒ ⇒ F4 仍**开不了** ⇒ ⇒ 下一批该开 **P10-C**。
 3. **推送**：本轮提交**待明确授权**。
 4. **仍待人裁决**：**TODO-196**（10 个 DMC 组分的 CAS ⇒ **工艺室**确认）·
-   **P10-J-T1** 的两个问题（公司级模板该不该可执行 / 无权时 404 还是 403）·
-   **P10-I-T1** 的两个实现选择（队列端点形态 · 「忽略」存哪）。
+   **P10-J-T1**：公司级模板**执行时选项目**要不要做成 UI 流程（3.1 · 产品决定）·
+   **P10-I-T1**（hermes 给了 6 条，见下）：
+   ① 队列要不要列 `CREATOR_ONLY` 的草稿（⚠️ `publish()` **不判** `shared_with`
+   ⇒ ⇒ 队列一上 UI 就开了口子）② 「发布」按钮放队列页还是两处 ③ 队列页的 SPEC 修订
+   ④ 「忽略」用 `localStorage` 还是 `sessionStorage` ⑤ 公司级模板执行是否进 P10-J
+   ⑥ **scope 顺序倒置**（`row.project_id or body.project_id`）必须写进 TODO-177 落地清单。
 5. **SPEC §7.5 的向导**里 PMS / BEDD 两步**仍是空占位** ⇒ ⇒ 另开。
 
 ---

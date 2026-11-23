@@ -22,7 +22,10 @@
 
 ---
 
-## T1 · TODO-197 · 「待我审核」队列 + 列表页发布按钮 ⚖️（**已裁决**）
+## T1 · TODO-197 · 「待我审核」队列 + 发布按钮 ⚖️（**已裁决**）+ ⚖️ **hermes 第三方意见**
+
+> ⚖️ **hermes 意见已落盘**：`docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md`
+> ⇒ ⇒ 下面标「⚖️ hermes」的条目 = **它的具体要求**（已逐条核过代码事实）。
 
 ### 问题的本质（不是「权限缺失」，是「流程在 UI 上走不完」）
 
@@ -73,10 +76,23 @@
 
 ### 落地清单
 
-- [ ] **后端** · 队列端点（`GET /report-builder/definitions/pending-review` 或
-      `list` 加过滤参数）⇒ ⇒ **过滤条件按约束 2**（**不**改 `visible_clause`）
+- [ ] **后端** · 队列端点 ⚖️ hermes **选 A（新建）** ——
+      `GET /report-builder/definitions/pending-review` ⇒ ⇒ **不**复用 `list`
+      ⇒ ⇒ 判据：`ReportDefinitionOut.definition_json` **必填** ⇒ ⇒ 复用要么泄正文、
+      要么让 `GET /definitions` 变条件响应 ⇒ ⇒ **过滤条件按约束 2**（**不**改 `visible_clause`）
+- [ ] ⚖️ hermes **A-1** · 过滤落 **service 层**（既有模式：判定在 service ⇒ 端点漏调也绕不过）
+- [ ] ⚖️ hermes **A-2** · 两份 EXISTS **抽共享 helper**（勿复制）
+- [ ] ⚖️ hermes **A-3** · 角色闸引**唯一真相源**（现状**已 2 份**：`PUBLISH_ROLES` +
+      `OBSOLETE_ROLES` ⇒ ⇒ 队列会是第 3 份）⇒ ⇒ 落 `app/core/acl.py`
+      （层规则：service 不 import api）
+- [ ] ⚖️ hermes **A-4** · **SYSTEM_ADMIN 也排除自己的草稿**（否则队列出现「点了必失败」按钮）
 - [ ] **后端** · 队列端点的 **docstring 写全约束 2 那张表**
-- [ ] **后端** · 队列**只返元数据**（不含 `definition_json` 全文 ⇒ ⇒ 别把半成品正文送到前端）
+- [ ] **后端** · 队列**只返元数据** ⇒ ⇒ 新具名 schema `ReportDefinitionReviewItem`
+      = `def_id` / `name` / `created_by` / `project_id`（可空 = 公司级）/ `created_at` /
+      `updated_at` / `description` / `category`
+      ⇒ ⇒ **不带** `definition_json`（约束 1）· **不带** `version`（改草稿不动版本号 ⇒ 恒值）·
+      **不带** `status`（恒 DRAFT）· 不带 `output_format` / `max_rows`
+      ⇒ ⇒ ⚖️ 先例：SPEC §6.22 的待办 item 也**只带够做动作的字段 + title**（不帶正文）
 - [ ] **后端** · 队列端点**不要求** `update()` 权限 ⇒ ⇒ 但 `publish()` 的三条判定**一律保留**
       （角色闸 + 禁自审 + 项目授权）⇒ ⇒ 队列只解决「**看得见**」，不解决「**能发**」
 - [ ] **前端** · 「待我审核」页（队列表格 + 「发布」/「忽略」两个动作）
@@ -84,6 +100,9 @@
 - [ ] **前端** · 创建人的编辑器入口**不变**（TODO-191 的置灰照旧）
 - [ ] **断言** · 队列的每条过滤规则各一条（公司级可见 / 项目级有授权可见 /
       项目级无授权**不可见** / 自己的草稿**不可见**）⇒ ⇒ 用 `strict_client`
+      ⇒ ⇒ ⚖️ hermes：**成对**断（有授权 ⇒ 出现 / 无授权 ⇒ 不出现）⇒ ⇒ 否则是**假绿**
+- [ ] **棘轮** · 队列进 `AUDITED_PROJECT_SCOPED_ENDPOINTS`（`tests/conftest.py:333`）
+      ⇒ ⇒ 并**同批**抬下限（`:357`）
 - [ ] **断言** · 「发布」按钮 ⇒ ⇒ 403 / 404 / 成功 三态各一条（前端 vitest）
 - [ ] **契约** · 队列响应是**具名 schema**（不是裸 object）⇒ ⇒ 走 `response_model`
 - [ ] **QA** · 浏览器 QA：审核角色登录 ⇒ ⇒ 队列能看到别人的草稿 ⇒ ⇒ 能发布
@@ -91,6 +110,14 @@
 - [ ] **SPEC 修订登记** · `docs/PCS-UI-SPEC.md` §7.18 对报表定义只有一句
       「列表 + 版本 + 共享范围」⇒ ⇒ 新增「待我审核」页 ⇒ ⇒ **要登记修订**
       （项目规约：前端 UI 以 SPEC 为唯一依据 ⇒ ⇒ 新页面必须落进 SPEC）
+
+### ⚠️ hermes 查出的一个**真漏洞**（需人裁 ⇒ ⇒ 队列上线前必须解决）
+
+`publish()` **不判 `shared_with`**（`definition_service.py:454-478` 只判自审 / 项目授权 / 状态）
+⇒ ⇒ **`CREATOR_ONLY` 的草稿谁都能发** ⇒ ⇒ 发布后**仅创建人可见**
+⇒ ⇒ ⚠️ **队列一上 UI 就给它开了口子**（审核者能把「只我可见」的草稿发布掉）
+⇒ ⇒ 而**约束 2 的过滤表漏了这一维** ⇒ ⇒ **要么**队列**不列** `CREATOR_ONLY` 的草稿
+⇒ ⇒ **要么** `publish()` 补判 `shared_with` ⇒ ⇒ ⇒ **需人裁**（hermes 待人裁清单 #1）。
 
 ### 跨文档
 
@@ -167,6 +194,13 @@
 
 ## 尚未解决的问题
 
+0. ⚖️ **hermes 的待人裁清单（6 条）**：
+   ① 队列要不要列 `shared_with == CREATOR_ONLY` 的草稿（见上）② 「发布」按钮放
+   **队列页**还是两处（⚠️ 人裁原话「列表页发布按钮」与「队列页」有措辞出入 ⇒ ⇒
+   审核者在**列表页**看不到别人的草稿 ⇒ ⇒ 列表页那处对审核者是**死按钮**）
+   ③ 「待我审核」页的 **SPEC 修订登记** ④ 「忽略」用 `localStorage` 还是
+   `sessionStorage` ⑤ 公司级模板执行**是否进 P10-J** + SPEC 条款怎么写
+   ⑥ ⚠️ **scope 顺序倒置**必须写进 TODO-177 落地清单（**实现时必须做**，不是「要不要」）
 1. ~~T2 选 A / B / C？~~ ⇒ ⇒ **已裁：选 A**（2026-11-23 · 人）⇒ ⇒ 落地条目
    **TODO-187b** ⇒ ⇒ **约束 1**（同端点同资源类型才要求逐字同形）·
    **约束 2**（守卫默认文案**不得**变 ⇒ ⇒ 要一条测试钉子）⇒ ⇒ **本条已闭合**。

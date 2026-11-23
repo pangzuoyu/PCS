@@ -42,8 +42,49 @@
 **验收**：
 - [ ] 契约里 `ReportExecuteRequest` 有 `project_id`
 - [ ] 「公司级模板 + 有权的项目」⇒ ⇒ 跑通（用例）
-- [ ] 「公司级模板 + 无权的项目」⇒ ⇒ 404（用例）
+- [ ] 「公司级模板 + 无权的项目」⇒ ⇒ **404**（用例）
 - [ ] 前端「执行报表」有「选项目」入口
+
+#### ⚖️ hermes 第三方意见（2026-11-23 · `docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md`）
+
+⇒ ⇒ **3.1 是产品决定**（需人裁）⇒ ⇒ 但技术侧**只剩一个选项**：
+**不存在「无项目地执行」** ⇒ ⇒ `execute_definition` 的 `scope is None` ⇒ 恒 400
+（`builder_service.py:179-185`；注释：「**不能默认全库查询** —— 那会把别的项目的数据一起导出去」；
+测试 docstring `tests/api/v1/test_report_builder.py:790-795`：「放行的后果不是『数据多一点』，
+而是**全库所有项目的数据**被导进一份报表交给任何一个能打开执行面板的人」）
+⇒ ⇒ ⇒ 计划里的「① 可执行 vs ② 只做模板、执行时必须选项目」**其实是同一件事**
+⇒ ⇒ ⇒ **真问句是「要不要把『执行时选项目』做成 UI 流程」**。
+
+⇒ ⇒ **三条技术约束（落地时必须满足）**：
+
+- [ ] **a** **前端地基已在**（P10-H · TODO-194：`useProjectScope.ts` + `store/projectScope.ts`）
+      ⇒ ⇒ 但执行页**完全不认项目**（`ReportExecutePage.tsx` 全文无 `project_id`）⇒ ⇒ 要接
+- [ ] **b** ⚠️ **必须把 scope 顺序倒过来：`scope = row.project_id or body.project_id`**
+      （现状 `project_id or row.project_id`，`builder_service.py:179`）
+      ⇒ ⇒ 一旦 `ReportExecuteRequest` 有 `project_id`，前端**总是**发当前选中项目
+      ⇒ ⇒ **绑在项目 B 的定义会被拿项目 A 的数据执行** ⇒ ⇒ 不是越权（A 有权），
+      而是「定义名叫 B、出来的是 A 的数据」的**静默语义事故**
+      ⇒ ⇒ ⚠️ **这是「实现时必须做」，不是「要不要」**（否则会被当风格省掉）
+- [ ] **c** ⚠️ **入队必须传「解析后的 scope」**（现状传 `str(row.project_id or "")`
+      （`report_builder.py:463`）；worker `pid = uuid.UUID(project_id) if project_id else None`
+      （`app/workers/report_builder_tasks.py:79`））⇒ ⇒ 否则公司级模板一执行，
+      `report_files.project_id` 落 NULL ⇒ ⇒ **产出文件无项目归属**
+
+⇒ ⇒ **3.2 = 404（技术决定 · 非产品决定）**：
+① 守卫契约明写「无权访问 `project_id` ⇒ ⇒ **404**（与『不存在』同形）…… ⇒ ⇒ **403 不行**
+⇒ ⇒ 403 会泄露「这个项目存在」」（`user_project_service.py:352-376`）
+② 审计判据把「403（项目守卫）」归类为**缺口**（audit `:46`）
+③ 端点对**定义自带**的项目已走 404（`report_builder.py:398-402`）⇒ ⇒ 指定项目**同口径**
+④ 与 TODO-187b 约束 1 不冲突（跨资源类型可不同）
+
+⚠️ **实现钉子**：404 须走 **service 层**那份（`code="PROJECT_NOT_FOUND"`）
+⇒ ⇒ **不能**用 api 层 `_guard.check_project_access_or_404`（抛 `HTTPException` ⇒
+`code="HTTP_404"`）⇒ ⇒ 否则 **code 不同仍可枚举**（与 TODO-187b 的落地要点同一条）
+⇒ ⇒ **403 的合法位置只剩「角色闸」**（角色不够 ⇒ 403 对；项目无权 ⇒ ⇒ 404 对）。
+
+⇒ ⇒ ⚖️ **SPEC**：V1.0 **无此条款**（`docs/PCS-UI-SPEC.md:2168-2176` 只有「报表定义管理：
+列表 + 版本 + 共享范围」；`:1506/:1539/:1541` 的「公司级」讲的是报表**样式**不是报表**定义**）
+⇒ ⇒ 冻结版 ⇒ ⇒ **须登记 SPEC 修订**。
 
 ### P10-J-T2 · TODO-197b：「待我审核」队列需要**「拒绝」动作**（新状态 `REJECTED`）🟡
 
