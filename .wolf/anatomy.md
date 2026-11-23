@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T08:49:18.253Z
-> Files: 1446 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T08:57:02.057Z
+> Files: 1447 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -563,6 +563,10 @@
 - `hermes-adjudication.md` — 第三方裁决意见（hermes / learnings 人格）—— 6 条人未裁决的发现 (~7104 tok)
 - `report.md` — PCS ce-code-review — P10-B 批（全流程 E2E） (~3721 tok)
 
+## docs/ce-code-review/20261123-hermes-p10i-p10j/
+
+- `hermes-adjudication.md` — 第三方裁决意见（hermes / learnings 人格）—— 三条**人未裁决**的项 (~1092 tok)
+
 ## docs/contracts/
 
 - `p45-contract-reconciliation-2026-09-16.md` — 后端 ↔ PCS-UI-SPEC 契约对账报告 (~1285 tok)
@@ -653,7 +657,7 @@
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
-- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~1463 tok)
+- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~1743 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~616 tok)
 
 ## docs/superpowers/specs/

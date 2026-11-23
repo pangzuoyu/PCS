@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T08:49:18.253Z",
-    "fileCount": 1446,
+    "lastScanned": "2026-11-23T08:57:02.057Z",
+    "fileCount": 1447,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8e8e92f4dd93d2a0e52f5a16e504ba6e19b903f9c29edddff325eb11f24d84da",
-    "storeUpdatedAt": "2026-11-23T08:49:18.266Z",
-    "rootHash": "59f6fd865f0b39b2"
+    "renderedHash": "d2b537cf6cdf1c5cd71c2600c89c67b23572ed48e1e2d93b9bc58be85642df66",
+    "storeUpdatedAt": "2026-11-23T08:57:02.069Z",
+    "rootHash": "bb5cbbfbcdd1d9b3"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -52168,11 +52168,20 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md": {
       "description": "P10-I · 报表审核发布 + 守卫文案收口批 —— 计划",
-      "tokens": 1463,
-      "hash": "723a9bee463c6678",
-      "size": 10397,
-      "mtimeMs": 1795423758203.797,
-      "updatedAt": "2026-11-23T08:49:18.253Z",
+      "tokens": 1743,
+      "hash": "f738088edfc70635",
+      "size": 12331,
+      "mtimeMs": 1795424205132.6304,
+      "updatedAt": "2026-11-23T08:56:45.184Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md": {
+      "description": "第三方裁决意见（hermes / learnings 人格）—— 三条**人未裁决**的项",
+      "tokens": 1092,
+      "hash": "68db02741209c486",
+      "size": 6768,
+      "mtimeMs": 1795424222007.0798,
+      "updatedAt": "2026-11-23T08:57:02.057Z",
       "source": "hook"
     }
   }

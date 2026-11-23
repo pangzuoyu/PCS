@@ -4138,3 +4138,7 @@
 | 16:47 | Edited docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | expanded (+8 lines) | ~200 |
 | 16:49 | Edited TODOS.md | expanded (+58 lines) | ~599 |
 | 16:49 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | 13→13 lines | ~188 |
+| 16:55 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | 2→5 lines | ~66 |
+| 16:55 | Created docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md | — | ~859 |
+| 16:56 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | inline fix | ~18 |
+| 16:57 | Edited docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md | expanded (+14 lines) | ~319 |
