@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T02:29:43.376Z
-> Files: 1433 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T03:11:02.143Z
+> Files: 1444 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -203,6 +203,7 @@
 - `qa-report-pcs-frontend-2026-11-17-p10f-f1.md` — QA 报告 —— PCS 前端 · P10-F 批 1（F1） (~1130 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-f2.md` — QA 报告 —— PCS 前端 · P10-F 批 2（F2） (~809 tok)
 - `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
+- `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1208 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
@@ -597,6 +598,7 @@
 - `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5616 tok)
 - `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
+- `role-vocabulary-must-have-one-source.md` — 角色白名单**手抄第二份** ⇒ ⇒ 合法用户 403（拼错比漏写更隐蔽） (~506 tok)
 - `workspace-access-guard-project-or-owner.md` — 工作区访问权：项目授权 or owner —— 「登录」是下限，不是授权 (~1315 tok)
 
 ## docs/solutions/testing-issues/
@@ -646,10 +648,12 @@
 - `2026-11-13-p10-batch-b-fullflow-e2e.md` — P10-B 实施计划：全流程 E2E（10.2） (~16021 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
 - `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
-- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~17946 tok)
+- `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~19491 tok)
 - `2026-11-18-p10-c-frontend-closure.md` — P10-C 子批「前端收口」：P10-B 扫描留下的四条缺口 · 2026-11-18 (~1699 tok)
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
+- `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
+- `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~557 tok)
 
 ## docs/superpowers/specs/
 
@@ -1367,7 +1371,7 @@
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3928 tok)
 - `bedd.py` — BEDD 文档 API（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~863 tok)
 - `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
-- `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5944 tok)
+- `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~6108 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
 - `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~5047 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
@@ -1396,10 +1400,11 @@
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4438 tok)
-- `stream_batch.py` — 批量「提交校对」的端点（P9B-3b）。 (~608 tok)
+- `stream_batch.py` — 批量「提交校对」的端点（P9B-3b）。 (~673 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8840 tok)
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
+- `user_projects.py` — UserProject 管理 API（P7-7+ BLOCKER-3 admin 端点）。 (~1356 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~2232 tok)
 - `ws.py` — WebSocket 实时推送端点（ADR-0049 §⑤ / P9-OPEN-006 关键路径）。 (~1864 tok)
@@ -1618,21 +1623,21 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~8296 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~9108 tok)
 - `lane_guards.py` — **默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。 (~281 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
-- `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
+- `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1038 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
-- `test_lane_isolation.py` — **默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。 (~1332 tok)
+- `test_lane_isolation.py` — **默认车道**的隔离性（P10-F · F2-T5 · 评审期间新发现）。 (~2089 tok)
 - `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~2363 tok)
 - `test_mock_auth.py` — Mock auth + 生产环境禁用契约 + **双闸**（T0-F · TODO-135）。 (~2399 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~3449 tok)
 - `test_records.py` — Records API 端到端（Sprint 2）。 (~2260 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3389 tok)
-- `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
-- `test_strict_client_ratchet.py` — **`strict_client` 覆盖的棘轮**（P10-F · F3 · 2026-11-18 人裁决）。 (~1352 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3548 tok)
+- `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1860 tok)
+- `test_strict_client_ratchet.py` — **`strict_client` 覆盖的棘轮**（P10-F · F3 · 2026-11-18 人裁决）。 (~2138 tok)
 - `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
 - `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~2889 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
@@ -1660,6 +1665,7 @@
 - `test_change_impact_confirm.py` — CIA 哈希判定分流 + manual-adjust 的端到端测试 —— P9A-4 D3（P9A-CIA-001/002）。 (~2805 tok)
 - `test_change_notice_api.py` — 变更单闭环端点测试（TODO-068 · P9A-DLV-011 T4 · ADR-0002 / ADR-0008）。 (~10097 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
+- `test_config_role_gates.py` — `config.py` **每一条**角色闸都要有 403 断言（TODO-173）。 (~1585 tok)
 - `test_cost_est_project_isolation.py` — `CostEstResult` 的项目隔离 —— P9A-5 Task B（TODO-061）。 (~3042 tok)
 - `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
@@ -1697,8 +1703,9 @@
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_definition_publish_duty.py` — **publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。 (~1815 tok)
 - `test_report_definition_ruling_2026_11_19.py` — **2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。 (~3691 tok)
+- `test_report_project_guard.py` — `report.py` 的**项目守卫**必须真的拦住无权用户（TODO-181）。 (~1327 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
-- `test_report.py` — `/api/v1/report` 路由契约。 (~5966 tok)
+- `test_report.py` — `/api/v1/report` 路由契约。 (~6052 tok)
 - `test_signature_matrix_api.py` — 签署矩阵管理面端点测试（TODO-070 · P9A-DLV-011 T3）。 (~2526 tok)
 - `test_stream_batch_concurrency_pg.py` — 批量/单条「提交校对」的**真并发**（PG 车道 · P9B-3b · T4）。 (~3466 tok)
 - `test_stream_composition_sum.py` — 物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。 (~1901 tok)
@@ -1716,10 +1723,11 @@
 - `test_system_settings.py` — 系统参数 CRUD（§7.20.1 · P9B-3 · T4）。 (~1963 tok)
 - `test_todos.py` — P9A C4：待办实时计算（ADR-0049 §② / SPEC P9A-NOT-002）。 (~3325 tok)
 - `test_user_disabled_guard.py` — 禁用用户不得访问物流面 —— P9B-4 T0-B（TODO-132）。 (~2443 tok)
+- `test_user_projects_me_roles.py` — `GET /user-projects/me` 的**角色闸**与**角色白名单唯一真相源**（TODO-188）。 (~983 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
 - `test_workspace_access_guard.py` — **工作区访问守卫** —— P10-F · F3 修复批（TODO-179 / 180 / 182 / 185 / 186）。 (~5646 tok)
 - `test_workspace_type_guard.py` — **工作区类型门禁**的覆盖面（TODO-076 · UI-SPEC §5.3）。 (~2293 tok)
-- `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6439 tok)
+- `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~6372 tok)
 - `test_zz_demo_scope_gap.py` — ⚠️ **演示测试**（F3-T2a · TODO-174 的取证）—— **不是**仓库资产，用完移走。 (~635 tok)
 - `test_zz_demo_t2b_gap.py` — ⚠️ **演示测试**（F3-T2b · 取证）—— **不是**仓库资产，用完移走。 (~1622 tok)
 - `test_zz_demo_t3a_gap.py` — ⚠️ **演示测试**（F3-T3a · 取证）—— **不是**仓库资产，用完移走。 (~867 tok)
@@ -1769,7 +1777,7 @@
 - `test_e2e_sim_import.py` — E2E-002：PRO/II 导入 → 物流 → 物性补全（P10-B · T3）。 (~914 tok)
 - `test_e2e_supplier.py` — E2E-014：供应商实际值 → 偏差报告（P10-B · T4）。 (~698 tok)
 - `test_e2e_workspaces_visible.py` — 种子工作区在切换器里**可见**（P10-F · F2-T2 · 评审 #24）。 (~646 tok)
-- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~3936 tok)
+- `test_lane_smoke.py` — E2E 车道的自检（隔离 schema · 真 PG）—— P10-B · T1。 (~3978 tok)
 
 ## pcs-backend/tests/fixtures/proii/sample6_composition/
 
@@ -1784,6 +1792,9 @@
 ## pcs-backend/tests/models/
 
 - `test_report_models.py` — P8 报表 4 张表的 ORM 契约。 (~439 tok)
+- `test_sim_tower_model.py` — P3.x SIM-16: sim_tower_results 表 + COLUMN SUMMARY 解析 测试。 (~1470 tok)
+- `test_sim_unit_op_model.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表 测试。 (~2888 tok)
+- `test_streams_sim_fields.py` — P3.x SIM-17 + SIM-18: streams 表 8 字段扩展 测试。 (~1426 tok)
 
 ## pcs-backend/tests/schemas/
 
@@ -1897,7 +1908,7 @@
 - `test_renderer_visual.py` — **像素级**验证：关键模板元素必须真的画在纸上。 (~1288 tok)
 - `test_renderers.py` — DOCX / XLSX 渲染器契约。 (~2382 tok)
 - `test_report_service.py` — 生成编排契约 —— 二维码载荷 + 取数 + 渲染 + 内容哈希存储 + 审计。 (~1906 tok)
-- `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~2796 tok)
+- `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~3032 tok)
 - `test_style_wiring.py` — `resolve()` 接进生成路径。 (~1684 tok)
 - `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
 - `test_verify_secret_strength.py` — `REPORT_VERIFY_SECRET` 必须有长度下限（评审 #29）。 (~990 tok)

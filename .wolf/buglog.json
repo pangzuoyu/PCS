@@ -6834,6 +6834,56 @@
    "occurrences": 1,
    "last_seen": "2026-11-19",
    "fix_commit": "a4ea468"
+  },
+  {
+   "id": "bug-2194",
+   "timestamp": "2026-11-23",
+   "severity": "high",
+   "error_message": "`POST /api/v1/streams/batch-submit` ⇒ ⇒ **403**：合法角色 `PROCESS_CONTROLLER` 被角色闸挡下（闸里写的是 `PROCESS_CONTROLLOR` —— 多一个 O）⇒ ⇒ 批量提交校对对工艺室的人**不可用**",
+   "file": "pcs-backend/app/api/v1/stream_batch.py",
+   "root_cause": "**角色名拼写错误**：`require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLOR\", \"SYSTEM_ADMIN\")` ⇒ ⇒ 而真实角色是 `PROCESS_CONTROLLER` ⇒ ⇒ `current_actor` 的白名单里也只有后者 ⇒ ⇒ ⇒ 真角色**永远匹配不上** ⇒ ⇒ 而端点自己的 docstring 与 OpenAPI 的 403 描述写的都是 `PROCESS_CONTROLLOR` ⇒ ⇒ ⇒ 这是**笔误**不是有意收紧",
+   "fix": "拼写订正为 `PROCESS_CONTROLLOR` + 注释写明「曾因拼写错误让合法用户 403」⇒ ⇒ 守卫 `tests/api/v1/test_user_projects_me_roles.py::test_batch_submit_accepts_process_controller` 钉住（403 ⇒ ⇒ 红）+ 守卫「不在白名单的角色 ⇒ ⇒ 403」钉住闸门没被顺手拆掉",
+   "fix_commit": "PENDING",
+   "tags": [
+    "acl",
+    "typo",
+    "stream-batch",
+    "f4-pre"
+   ]
+  },
+  {
+   "id": "bug-2195",
+   "timestamp": "2026-11-23",
+   "severity": "high",
+   "error_message": "`GET /api/v1/user-projects/me` ⇒ ⇒ **403**：合法角色 `PROCESS_CONTROLLER` / `VIEWER` 拿不到**自己**的项目清单 ⇒ ⇒ P10-H 刚落的**前端项目选择器**对这两类人**直接空**",
+   "file": "pcs-backend/app/api/v1/user_projects.py",
+   "root_cause": "端点**手抄**了第二份角色清单（`DESIGNER`/`CHECKER`/`APPROVER`/`REVIEWER`/`SYSTEM_ADMIN`）⇒ ⇒ 漏掉 `PROCESS_CONTROLLER` / `VIEWER` ⇒ ⇒ 而 JWT 白名单（`current_actor` 的 `_ALLOWED_ROLES`）是**局部字面量** ⇒ ⇒ 别的端点想写「所有合法角色」只能再抄一份 ⇒ ⇒ **抄漏 ⇒ ⇒ 合法用户 403** 这类缺陷**无法根治**",
+   "fix": "① 角色白名单提为**模块级常量** `app.api.v1.config.ALLOWED_ROLES`（唯一真相源）⇒ ⇒ `/me` 改用 `require_roles(actor, *ALLOWED_ROLES)` ⇒ ⇒ **抄漏**不再可能；② 守卫 `tests/api/v1/test_user_projects_me_roles.py`：**参数化**逐个白名单角色打一遍（缺一个 ⇒ ⇒ 那个角色红）+ 401 未登录 + 「白名单只有一份」的**根因守卫**（源码里不得再出现手抄清单）",
+   "fix_commit": "PENDING",
+   "tags": [
+    "acl",
+    "user-projects",
+    "role-vocabulary",
+    "f4-pre",
+    "p10-h"
+   ]
+  },
+  {
+   "id": "bug-2196",
+   "timestamp": "2026-11-23",
+   "severity": "high",
+   "error_message": "默认单测车道（`uv run pytest`）**在开发库 `pcs` 里建隔离 schema + 跑整条 alembic 链** ⇒ ⇒ 违反 CLAUDE.md 的「**单测车道绝不碰开发库**」⇒ ⇒ 而且是 **DDL 写**",
+   "file": "pcs-backend/tests/conftest.py",
+   "root_cause": "`pg` 标记的用例**平时也会被默认车道收集并执行**（`addopts` 只排除 `visual`）⇒ ⇒ 而它们的 `_pg_url()` 读 `DATABASE_URL` / `.env` ⇒ ⇒ 那是**开发库**⇒ ⇒ F2-T5 的隔离 fixture 只改了**应用侧**的引擎与 Redis URL ⇒ ⇒ **管不到这类用例自己 new 出来的连接** ⇒ ⇒ ⇒ TODO-164 的「F2-T5 已隔离 ⇒ 该关闭」**不成立**",
+   "fix": "① `tests/conftest.py` 加**收集期**闸（`pytest_collection_modifyitems`）：`pg` 标记的用例**只在车道里跑**（判据 = 车道脚本导出的 `PCS_TEST_LANE`）⇒ ⇒ 默认车道整批 skip ⇒ ⇒ 开发库零触碰；② 依赖真 Redis 的用例按 **fixture 名**（`real_redis`）**自动**标 `pg`（⇒ ⇒ 不用手写标记 ⇒ ⇒ 新增用例不会漏）⇒ ⇒ 21 条用例进 PG 车道 ⇒ ⇒ **PG 车道 7 → 46 passed**；③ 5 处漂移守卫（sim_tower / streams_sim_fields / sim_unit_op / sqlite_check / test_schema）全部离开默认车道 ⇒ ⇒ 默认车道零连真 PG",
+   "fix_commit": "PENDING",
+   "tags": [
+    "test-lane",
+    "db-isolation",
+    "pg-marker",
+    "f4-pre",
+    "todo-164"
+   ]
   }
  ]
 }

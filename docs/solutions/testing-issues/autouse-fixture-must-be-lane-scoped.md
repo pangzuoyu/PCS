@@ -88,3 +88,70 @@ assert settings.redis_url == "redis://127.0.0.1:6379/0"
 - ⚠️ **「覆盖损失」必须能被复核** ⇒ ⇒ 「已登记 TODO」不等于「TODO 可执行」
   ⇒ ⇒ 登记时要看一眼：**按那条 TODO 写，能不能真的把用例跑起来**。
 - ⚠️ **守卫的判据要看「被改成了什么」**，不能只看「现在是不是隔离值」。
+
+---
+
+## 补记（2026-11-23 · F4-PRE · bug-2196）：**隔离必须挂在「收集期」**，否则默认车道照样摸开发库
+
+### 现象
+
+F2-T5 的隔离（同步引擎 ⇒ SQLite · Redis ⇒ 不可路由端口）落地后，
+`TODO-164` 被判「F2-T5 已做隔离 ⇒ 该关闭」⇒ ⇒ **2026-11-23 实测：不成立**。
+
+单跑这个文件（**默认车道**）：
+
+```bash
+uv run pytest tests/alembic/test_p9_013_bind_default_record_matrix.py -q
+# → 7 passed
+```
+
+而这 7 条用例的 `_pg_url()` 读 `DATABASE_URL` / `.env` ⇒ ⇒ 那是**开发库 `pcs`**
+⇒ ⇒ 默认车道在开发库里**建隔离 schema + 跑整条 alembic 链**（**DDL 写**）。
+
+### 根因
+
+**`pg` 标记的用例平时也会被默认车道收集并执行** —— `addopts` 只排除 `visual`：
+
+```toml
+addopts = "-m 'not visual'"
+```
+
+⇒ ⇒ `pg` 只是**一个标记**，不是**一道闸** ⇒ ⇒ 而 F2-T5 的隔离 fixture
+只管**应用侧**（`_sync_engine` / `redis_url`）⇒ ⇒ **管不到用例自己 new 出来的
+连接** ⇒ ⇒ 「不碰开发库」这件事**只在应用侧成立**。
+
+### 处置
+
+**闸门挂在收集期**（`pytest_collection_modifyitems`）—— 不是运行时：
+
+```python
+def pytest_collection_modifyitems(config, items):
+    # ① 依赖真 Redis 的用例 ⇒ 自动标 pg（按 fixture 名 ⇒ 不会漏）
+    for item in items:
+        if "real_redis" in getattr(item, "fixturenames", ()):
+            item.add_marker(pytest.mark.pg)
+    if lane_is_active():          # 车道脚本导出的 PCS_TEST_LANE
+        return
+    skip_pg = pytest.mark.skip(reason="pg 专属用例 ⇒ 只能经 scripts/pytest_pg.sh 跑")
+    for item in items:
+        if item.get_closest_marker("pg"):
+            item.add_marker(skip_pg)
+```
+
+⚠️ **为什么不是运行时 skip**：运行时 skip ⇒ ⇒ 默认车道**照样把连接建起来**
+（只是最后跳了断言）⇒ ⇒ 库已经被摸了 ⇒ ⇒ 不算隔离。
+
+⚠️ **为什么「自动标 pg」比「手写标记」好**：手写 ⇒ ⇒ 新增用例的人不会记得
+⇒ ⇒ 覆盖又悄悄丢 ⇒ ⇒ 判据取**fixture 名** ⇒ ⇒ 一处生效。
+
+### 效果
+
+- **PG 车道 7 → 46 passed**（21 条真 Redis 用例 + 漂移守卫 + schema 断言）
+- 默认车道**零连真 PG**（`pg` 用例在收集期就被 skip ⇒ ⇒ 连接压根没建）
+
+### 教训（补）
+
+- ⚠️ **标记 ≠ 闸门** ⇒ ⇒ 「这个用例属于某条车道」要用**机制**表达
+  （收集期 skip / 车道脚本的 `-m` + fail-closed），不是靠标记的**语义**。
+- ⚠️ **「已隔离」的结论要看「谁 new 了连接」** ⇒ ⇒ 应用侧隔离管不到
+  用例自己建的引擎 ⇒ ⇒ 审计隔离时**要问「还有谁自己 new 客户端」**。

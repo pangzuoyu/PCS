@@ -4,68 +4,56 @@ budget_tokens: 1200
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-11-23（第 39 轮：
-> **P10-H · 项目作用域批** —— TODO-194 / 195 / 193 三条**全部落地**）。
+> Read this FIRST when starting a session. Last updated: 2026-11-23（第 40 轮：
+> **P10-F · F4-PRE** —— 14 条遗留债**逐条裁决**完）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done（第 39 轮 · P10-H · 项目作用域批 · 2026-11-23）
+## ✅ Done（第 40 轮 · P10-F · F4-PRE · 2026-11-23）
 
-计划 `docs/superpowers/plans/2026-11-23-p10-h-project-scope.md`
-⇒ ⇒ 提交 `3cfc88c` → `ba116da` → `5d60df7` → `ef17999` → `9cfa39e` → `1a12fde`
-（另含前一轮遗留的 `2619bb9` 种子修契约形状 · bug-2193）。
+计划 `docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md`
+的 **F4 前置批**（FP-T1~T5）⇒ ⇒ 提交见 `git log`（本轮）。
 
-**T1 · TODO-194（前端能选项目）** `3cfc88c`
-顶栏**项目切换**（SPEC §3.2）⇒ 候选 = `GET /user-projects/me` ∪ `GET /workspaces`
-（admin 全量）· 名字走 `GET /projects/{id}` · 选择存 **store**（换页不丢）·
-登出清空（防跨身份越界）· mock 补 2 个端点 + ajv 校验。
+**FP-T1 逐条裁决**（主任务）⇒ ⇒ 14 条债**逐条落成三者之一**
+⇒ ⇒ **本批修 8 条** · **转批 2 条** · **关闭 4 条**
+⇒ ⇒ **无一条留在「未定」**（那正是这批债攒下来的原因）
+⇒ ⇒ 逐条证据：`TODOS.md` 末尾「**F4-PRE 裁决表**」（唯一账本）。
 
-**T2 · TODO-195（PMS / BEDD 后端实体 · 人裁 ②）** `ba116da` + `5d60df7`
-- **PMS** 表 `pms_items`（迁移 `p10_004`）· 继承 `RecordMixin` ⇒ ⇒ **吃通用 9 态
-  工作流**（`/records/PmsItem/{id}/submit-approval`）⇒ ⇒ 不另造签署框架 · 4 个端点 ·
-  `pms_no` 项目内唯一 ⇒ 409 · 只有 DRAFT 能改。
-- **BEDD** = `projects.bedd_json` 的**写入路径**（`PUT` 整份替换）· 9 个分组的具名
-  schema（`create_model` 从 SPEC 字段表生成 ⇒ 校验与表单**同一份真相源**）·
-  新增 `bedd` uiSchema 资源 ⇒ 前端两页从**占位**变**真端点**（分组 Tab）。
+**FP-T2 棘轮抬真** ⇒ ⇒ 台账本就是**清单**（不是计数）⇒ ⇒ 本批补两件事：
+`report.py` 的 **4 条**项目作用域端点进台账 · 新增「**自建 client 的文件集合
+冻结**」守卫（防第三个 client）。
 
-**T3 · TODO-193（14 条 mock 欠账还完）** `ef17999`
-`tests/mocks/contract_debt_193.test.ts`（14 条 ajv 校验）⇒ 棘轮「欠账清单」清空
-（**机制保留**）。
+**FP-T3 车道残留** ⇒ ⇒ ⚠️ **发现 TODO-164 其实没关**：`pg` 标记的用例
+**平时也会被默认车道跑** ⇒ ⇒ 在**开发库**里建 schema + 跑 alembic 链（DDL 写！）
+⇒ ⇒ 补**收集期**闸（`pg` 只在车道跑）⇒ ⇒ 依赖真 Redis 的用例按 fixture 名
+**自动**标 `pg`（21 条）⇒ ⇒ **PG 车道 7 → 46 passed** ⇒ ⇒ 覆盖回来了。
 
-**批末闸门抓到的真问题（已修）** `9cfa39e` + `1a12fde`
-① 后端默认车道第一轮 **6 failed** = 四条计数型守卫 + p9_014 守卫的**断言形状**
-（新表由 p10_004 建 ⇒ ⇒ 不能进 p9_014 的清单 ⇒ ⇒ 改为**从迁移文件 AST 推导**豁免）；
-② mock 通道 e2e **2 failed** = 顶栏新增 Select ⇒ ⇒ `.first()` **位置定位**失效
-⇒ ⇒ 改成指名道姓（`data-testid`）⇒ ⇒ 23/23 绿；
-③ 环境级：**残留 uvicorn 占住车道锁 3.5 天** ⇒ ⇒ 车道起不来 ⇒ ⇒ 杀掉 + 教训入账。
+**FP-T4 断言缺口** ⇒ ⇒ 173（`config.py` **11 条**端点逐条 403 + **AST 完整性
+守卫**）· 181（`report.py` 4 条端点补 `strict_client` 断言 + 删掉**恒真**断言）
+· 183（初值 `True` ⇒ ⇒ `False`）· 188（角色白名单提为**模块级常量**
+`ALLOWED_ROLES` ⇒ ⇒ `/me` 用 `*ALLOWED_ROLES` ⇒ ⇒ **抄漏**不再可能）· 171 关闭。
 
-**闸门（批末实跑）**：后端新测试 19 passed · 测试栈真 PG **alembic_version=p10_004**
-· 真后端冒烟 7 端点全通 · typecheck/lint clean · vitest **1114/1115**（唯一红是
-已知 flake）· mock 通道 **23/23** · 真后端通道 **9/9**（`CONSOLE_ERRORS=[]`）·
-浏览器 QA 全通 · `alembic check` 两库 exit 0 · 载荷闸 RC 0（裸字段仍 71）·
-迁移幂等 RC 0（50 个）· 契约漂移 RC 0。
+**FP-T5 台账** ⇒ ⇒ `TODOS.md` 逐条标状态 + 计划末尾的清单表同步 + 两个新批号。
 
-**T4 · TODO-199（4 条裸 object 端点补具名 schema）** `7b93b7e7`
-`GET /streams/{id}/properties` · `POST /properties/estimate` ·
-`GET/POST/PATCH /streams/{id}/state-points` · `POST /streams/{id}/submit`
-⇒ ⇒ 契约里从**裸 object** 变**具名 schema**（395 → 402 个 schema）⇒ ⇒ 前端
-终于有类型。⚠️ `response_model_exclude_unset=True` ⇒ ⇒ **载荷不变**（否则未赋值
-字段补成 null ⇒ ⇒ 存量断言直接红）；⚠️ `composition_json` 只在**响应侧**放宽成
-可空（否则裸载荷闸 71 → 72 ⇒ ⇒ 倒退）。物性袋字段表**只有一份**
-（`PropertyAutoCompleter` 的字段集公开化 ⇒ ⇒ `create_model` 生成）。
+⚠️ **顺带修的三个真缺陷**（`bug-2194/2195/2196`）：批量提交端点角色名
+**拼错**（`PROCESS_CONTROLLOR`）⇒ ⇒ 工艺室的人 403 · `/user-projects/me`
+漏两个角色（**P10-H 的项目选择器对他们直接空**）· 默认车道摸开发库。
+
+**转出去的两条**（都**有批号**了）：**P10-I** 守卫补洞批（TODO-187 改 404
+文案）· **P10-J** 功能批（TODO-177 公司级模板可执行 · TODO-197 他人发布入口
+· TODO-196 DMC CAS）⇒ ⇒ 两份计划已建。
 
 ---
 
 ## 🚀 Next quest
 
-1. **P10-F · F4-PRE**（`docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md`
-   的 F4 前置批 · 5 个任务：FP-T1 逐条裁决 14 条遗留债 · FP-T2 棘轮抬真
-   （`AUDITED_PROJECT_SCOPED_ENDPOINTS` 从**计数**改成**清单**）· FP-T3 车道残留
-   · FP-T4 断言缺口 · FP-T5 台账入账）⇒ ⇒ **不依赖 P10-C** ⇒ ⇒ 现在就能开。
-2. **推送**：P10-H 的 T4 已提交 ⇒ ⇒ 待推（用户已授权推过一次）。
+1. **P10-F · F4 主批**（`docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md`
+   的 F4）⇒ ⇒ 前置是 **P10-C**（没有镜像 / 部署物 / 告警 ⇒ F4 开不了）
+   ⇒ ⇒ **P10-C** 未做 ⇒ ⇒ F4 仍**开不了** ⇒ ⇒ 下一批该开 **P10-C**。
+2. **P10-I**（守卫补洞 · TODO-187）与 **P10-J**（功能 · 待人裁决）⇒ ⇒ 都能开。
 3. **仍待人裁决**：**TODO-197**（「他人发布」的入口 · 三个方案）· **TODO-196**
-   （10 个 DMC 组分的 CAS ⇒ **工艺室**确认，不是人能裁的）。
+   （10 个 DMC 组分的 CAS ⇒ **工艺室**确认）· **P10-J-T1** 的两个问题。
 4. **SPEC §7.5 的向导**里 PMS / BEDD 两步**仍是空占位** ⇒ ⇒ 另开。
 
 ---
@@ -75,8 +63,10 @@ budget_tokens: 1200
 - main。**不要建 worktree** · **不要 `git checkout <commit> --detach`**。**不得擅自 push**。
   `.wolf/*` 里 `anatomy.md` / `memory.md` / `anatomy-index.json` 由 hook 维护。
 - ⚠️ **每轮开工先查残留**：`fuser -v pcs-backend/.tmp/lane.lock`（谁占着车道锁）·
-  `pgrep -af "uvicorn app.main:app"`（真后端通道的后端）· `ss -ltnp | grep 5173`
-  （上一轮的 vite · 端口被占 ⇒ 新 vite 会落到 5174 ⇒ ⇒ **没人注意**）。
+  `pgrep -af "uvicorn app.main:app"`（真后端通道的后端）· `ss -ltnp | grep 5173`。
+- ⚠️ **默认车道现在零连真 PG**（`pg` 用例只在车道跑）⇒ ⇒ 想跑它们**必须**走
+  `bash scripts/pytest_pg.sh`（**唯一入口**）⇒ ⇒ 该车道要求 **redis 起着**
+  （编辑锁 / 广播用例要真 Redis）。
 - ⚠️ **真后端通道**：后端 `bash pcs-backend/scripts/serve_e2e_backend.sh`（库
   `pcs_pgtest` · 端口 8001）⇒ 前端 `npm run e2e:real`；**mock 登录端点是
   `/auth/mock-login`（不在 `/api/v1` 下）**。
@@ -88,7 +78,7 @@ budget_tokens: 1200
 
 ## 教训（**已进 cerebrum / docs/solutions**，此处只留最新两条）
 
-- **`.first()` 是位置定位** ⇒ ⇒ 页面上多一个同类型控件就**静默失效**
-  （本轮：顶栏加 Select ⇒ e2e 点到了顶栏那个）⇒ ⇒ 一律**指名道姓**。
-- **残留进程会占住车道锁 ⇒ ⇒ 几天都起不来**（本轮：僵尸 uvicorn 占锁 3.5 天，
-  而真后端通道照跑 ⇒ ⇒ 看起来「车道在跑」其实是「锁被占着」）。
+- **「已覆盖」要能复核** ⇒ ⇒ 判据 = **这条断言用的是 `strict_client`** ⇒ ⇒
+  默认 `client` 把守卫 mock 成永远 True ⇒ ⇒ 那些断言是 **no-op**。
+- **标记只在**「收集期」**生效才叫车道隔离** ⇒ ⇒ `pg` 用例平时也会被默认
+  车道跑 ⇒ ⇒ 闸门必须挂在 `pytest_collection_modifyitems` 上（不是运行时）。

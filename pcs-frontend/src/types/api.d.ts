@@ -4704,7 +4704,7 @@ export interface paths {
         };
         /**
          * List My Projects
-         * @description 当前用户可见项目列表 (DESIGNER+ 即可).
+         * @description 当前用户可见项目列表 (任何已登录用户).
          */
         get: operations["list_my_projects_api_v1_user_projects_me_get"];
         put?: never;

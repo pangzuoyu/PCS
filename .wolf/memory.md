@@ -4067,3 +4067,47 @@
 | 08:22 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10h.md | — | ~1442 |
 | 10:23 | Created pcs-backend/app/schemas/property.py | — | ~1075 |
 | 10:29 | Created pcs-backend/tests/api/v1/test_stream_typed_responses.py | — | ~1783 |
+| 10:45 | Edited pcs-backend/tests/conftest.py | modified pytest_collection_modifyitems() | ~288 |
+| 10:46 | Edited pcs-backend/tests/conftest.py | modified pytest_collection_modifyitems_real_redis() | ~231 |
+| 10:46 | Edited pcs-backend/tests/conftest.py | modified lane_is_active() | ~190 |
+| 10:46 | Edited pcs-backend/tests/conftest.py | 14→17 lines | ~174 |
+| 10:46 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | modified test_ws_accepts_a_valid_token() | ~29 |
+| 10:46 | Edited pcs-backend/tests/api/v1/test_ws_notifications.py | modified test_ws_delivers_notification_published_by_another_worker() | ~23 |
+| 10:47 | Edited pcs-backend/tests/models/test_sim_unit_op_model.py | modified test_unit_op_main_fk_to_sim_imports_cascade() | ~19 |
+| 10:47 | Edited pcs-backend/tests/models/test_sim_unit_op_model.py | modified test_specialty_table_fks_cascade() | ~16 |
+| 10:47 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | modified test_streams_sim17_18_columns_exist_in_db() | ~19 |
+| 10:47 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | modified test_streams_sim17_indexes_exist() | ~16 |
+| 10:47 | Edited pcs-backend/tests/models/test_sim_tower_model.py | modified test_sim_tower_cascade_on_sim_import_delete() | ~32 |
+| 10:47 | Edited pcs-backend/tests/test_sqlite_check_constraint_overrides.py | modified test_postgres_original_matches_same_verdicts() | ~188 |
+| 10:47 | Edited pcs-backend/tests/test_sqlite_check_constraint_overrides.py | modified _probe_engine() | ~131 |
+| 10:48 | Edited pcs-backend/tests/test_schema.py | expanded (+10 lines) | ~111 |
+| 10:49 | Edited pcs-backend/tests/services/report/test_style_service.py | 3→6 lines | ~84 |
+| 10:50 | Edited pcs-backend/app/api/v1/user_projects.py | expanded (+14 lines) | ~141 |
+| 10:51 | Edited pcs-backend/app/api/v1/stream_batch.py | 1→5 lines | ~86 |
+| 10:51 | Edited pcs-backend/app/api/v1/config.py | expanded (+21 lines) | ~183 |
+| 10:52 | Edited pcs-backend/app/api/v1/config.py | 8→6 lines | ~95 |
+| 10:52 | Edited pcs-backend/app/api/v1/user_projects.py | reduced (-8 lines) | ~114 |
+| 10:52 | Edited pcs-backend/app/api/v1/user_projects.py | inline fix | ~21 |
+| 10:52 | Edited pcs-backend/app/api/v1/config.py | "current_actor" → "ALLOWED_ROLES" | ~21 |
+| 10:52 | Created pcs-backend/tests/api/v1/test_user_projects_me_roles.py | — | ~986 |
+| 10:53 | Created pcs-backend/tests/api/v1/test_config_role_gates.py | — | ~1585 |
+| 10:54 | Created pcs-backend/tests/api/v1/test_report_project_guard.py | — | ~1327 |
+| 10:55 | Edited pcs-backend/tests/api/v1/test_report.py | get() → skip() | ~170 |
+| 10:55 | Edited pcs-backend/tests/api/v1/test_report.py | removed 17 lines | ~26 |
+| 10:55 | Edited pcs-backend/tests/api/v1/test_report.py | 2→5 lines | ~71 |
+| 10:56 | Edited pcs-backend/tests/test_audit_guard.py | reduced (-22 lines) | ~300 |
+| 10:56 | Edited pcs-backend/tests/test_audit_guard.py | "strict_client" → "real_user_project_client" | ~18 |
+| 10:57 | Edited pcs-backend/tests/test_strict_client_ratchet.py | modified _files_building_an_asgi_client() | ~671 |
+| 10:58 | Edited pcs-backend/tests/test_strict_client_ratchet.py | modified rglob() | ~134 |
+| 10:58 | Edited pcs-backend/tests/conftest.py | expanded (+7 lines) | ~117 |
+| 10:59 | Created docs/superpowers/plans/2026-11-23-p10-i-guard-hardening.md | — | ~492 |
+| 10:59 | Created docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md | — | ~595 |
+| 11:00 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+12 lines) | ~575 |
+| 11:01 | Edited docs/superpowers/plans/2026-11-17-p10-batch-f-production-readiness.md | expanded (+22 lines) | ~840 |
+| 11:04 | Edited pcs-backend/tests/api/v1/test_user_projects_me_roles.py | added 1 import(s) | ~169 |
+| 11:05 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md | — | ~1288 |
+| 11:07 | Created docs/solutions/security-issues/role-vocabulary-must-have-one-source.md | — | ~540 |
+| 11:07 | Edited pcs-backend/tests/test_lane_isolation.py | added 1 condition(s) | ~764 |
+| 11:08 | Edited pcs-backend/tests/test_lane_isolation.py | modified get_closest_marker() | ~95 |
+| 11:10 | Edited pcs-backend/tests/e2e_flows/conftest.py | reduced (-6 lines) | ~131 |
+| 11:11 | Edited pcs-backend/tests/e2e_flows/test_lane_smoke.py | modified test_role_headers_rejects_a_role_outside_the_allowlist() | ~266 |
