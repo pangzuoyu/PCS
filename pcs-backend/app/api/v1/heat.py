@@ -362,6 +362,7 @@ async def get_heat(
     # BLOCKER-3 守卫
     await check_record_access_or_404(
         db, user_id=user.user_id, record=record, actor_roles=user.roles,
+        not_found_code="HEAT_NOT_FOUND", not_found_message=f"HeatResult {heat_id} 不存在",
     )
 
     return HeatResultResponse(
@@ -409,6 +410,7 @@ async def estimate_weight_endpoint(
         )
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+        not_found_code="HEAT_NOT_FOUND", not_found_message=f"HeatResult {heat_id} 不存在",
     )
 
     weight_input = WeightEstimateInput(**req.model_dump())

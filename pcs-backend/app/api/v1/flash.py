@@ -171,6 +171,7 @@ async def calculate_flash(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
         actor_roles=user.roles,
+        not_found_code="SIM_STREAM_NOT_FOUND", not_found_message="Stream not found",
     )
     try:
         data = await flash_persist.persist_calculate(
@@ -230,6 +231,7 @@ async def calculate_bubble(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
         actor_roles=user.roles,
+        not_found_code="SIM_STREAM_NOT_FOUND", not_found_message="Stream not found",
     )
     try:
         data = await flash_persist.persist_bubble(
@@ -286,6 +288,7 @@ async def calculate_dew(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
         actor_roles=user.roles,
+        not_found_code="SIM_STREAM_NOT_FOUND", not_found_message="Stream not found",
     )
     try:
         data = await flash_persist.persist_dew(

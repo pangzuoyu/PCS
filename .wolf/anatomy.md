@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T12:14:30.891Z
-> Files: 1456 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T12:48:50.339Z
+> Files: 1463 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -205,7 +205,7 @@
 - `qa-report-pcs-frontend-2026-11-18-p10f-final-review.md` — QA 报告 —— PCS 前端 + 后端 · P10-F 整支评审的修复批 (~995 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1525 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
-- `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1171 tok)
+- `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1873 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -608,6 +608,7 @@
 - `guard-coverage-audit-scope-proposal.md` — 守卫覆盖审计 · **范围提案 + 初判**（F3-T1 · TODO-129） (~965 tok)
 - `midflight-config-rebind-defeeds-one-shot-guards.md` — 中途配置重绑绕过一次性守卫 —— 审批链必须在提交时冻结（快照） (~580 tok)
 - `role-vocabulary-must-have-one-source.md` — 角色白名单**手抄第二份** ⇒ ⇒ 合法用户 403（拼错比漏写更隐蔽） (~506 tok)
+- `two-404-messages-leak-existence.md` — 两种 404 文案就是存在性预言机 —— 让守卫**照抄**端点自己那条 (~783 tok)
 - `workspace-access-guard-project-or-owner.md` — 工作区访问权：项目授权 or owner —— 「登录」是下限，不是授权 (~1315 tok)
 
 ## docs/solutions/testing-issues/
@@ -660,9 +661,10 @@
 - `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~19491 tok)
 - `2026-11-18-p10-c-frontend-closure.md` — P10-C 子批「前端收口」：P10-B 扫描留下的四条缺口 · 2026-11-18 (~1699 tok)
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
+- `2026-11-23-p10-c-deploy-observability.md` — P10-C 主体 · 部署与可观测性 · 计划 (~934 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
-- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~2887 tok)
+- `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
 
 ## docs/superpowers/specs/
@@ -1375,15 +1377,15 @@
 ## pcs-backend/app/api/v1/
 
 - `__init__.py` (~2055 tok)
-- `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~1599 tok)
+- `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~2202 tok)
 - `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1088 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3928 tok)
 - `bedd.py` — BEDD 文档 API（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~863 tok)
-- `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3812 tok)
+- `change_impact.py` — Change Impact API（Sprint 3 + P9A-4 D3）。 (~3916 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~6108 tok)
 - `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~5520 tok)
-- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~5047 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。 (~5133 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `equip_list.py` — S1-4b EQUIP_LIST API endpoints。 (~3426 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
@@ -1403,7 +1405,7 @@
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
-- `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11088 tok)
+- `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11161 tok)
 - `records.py` — Records API（Sprint 2）。 (~3916 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~5869 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5474 tok)
@@ -1413,6 +1415,7 @@
 - `stream_batch.py` — 批量「提交校对」的端点（P9B-3b）。 (~673 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8840 tok)
+- `supplier.py` — 供应商实际数据录入 API (P7 Sprint 4 S4-1 / ADR-0025). (~2527 tok)
 - `system_settings.py` — 系统参数端点（§7.20.1）。 (~586 tok)
 - `user_projects.py` — UserProject 管理 API（P7-7+ BLOCKER-3 admin 端点）。 (~1356 tok)
 - `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
@@ -1609,6 +1612,7 @@
 
 ## pcs-backend/scripts/
 
+- `_apply_guard_msgs.py` — **一次性**工具：给 29 处守卫调用补 `not_found_message` / `not_found_code`。 (~1376 tok)
 - `audit_list_endpoints.py` — **守卫覆盖审计**的端点枚举（P10-F · F3）。 (~3639 tok)
 - `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1778 tok)
@@ -1619,6 +1623,7 @@
 - `compose_test_stack.sh` — **真跑一遍**测试栈（migrate + seed）并**直查库**验证结果。 (~1264 tok)
 - `gate_alembic_check.py` — alembic 漂移闸门（ORM ↔ 迁移漂移）—— P9-Prep PP-5。 (~638 tok)
 - `gen_compact_orm.py` — 从 ORM metadata 生成 `docs/schema_compact_orm.md`（TODO-103 · P9B-3 · T1）。 (~1644 tok)
+- `migrate_legacy_user_ids.py` — 迁移「遗留账号」（`user_id` ≠ 派生值）⇒ ⇒ 授权与审计都转到派生 id。 (~2957 tok)
 - `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
 - `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
@@ -1635,7 +1640,7 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~9214 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~9339 tok)
 - `lane_guards.py` — **默认车道**的隔离守卫（P10-F · F2-T5）—— 一处真相源。 (~281 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1038 tok)
@@ -1671,6 +1676,7 @@
 
 ## pcs-backend/tests/api/v1/
 
+- `test_404_message_alignment.py` — **404 文案逐字同形**（2026-11-23 · P10-I · T2 · TODO-187b）。 (~4037 tok)
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_ai_audit_middleware.py` — AI 审计中间件（P10-A · Task T11 · Review Focus #1 #2）。 (~3628 tok)
 - `test_ai_routes.py` — AI 路由骨架（P10-A · Task T9）。 (~2285 tok)
@@ -1685,7 +1691,7 @@
 - `test_deliverable_sign_status_vocabulary.py` — 交付物 `sign_status` 的**词表必须在契约产物里** —— P9B-2F（评审 #6）。 (~674 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~4590 tok)
 - `test_deliverables_current_version.py` — 交付物「当前版本 id」（P9B-1 Task T0）。 (~2829 tok)
-- `test_deliverables_progress_aggregate.py` — TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。 (~3941 tok)
+- `test_deliverables_progress_aggregate.py` — TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。 (~4260 tok)
 - `test_disabled_user_endpoints.py` — **停用覆盖面**：`current_user` 背后的 7 个端点（P9B-4 评审 #16）。 (~1044 tok)
 - `test_edit_acl_order.py` — 编辑端点的**鉴权顺序**守卫 —— P9A-4 D2 修的既有越权洞。 (~1157 tok)
 - `test_edit_conflict.py` — 编辑冲突的**接线**测试 —— P9A-4 D2（ADR-0048 §⑥ §⑦）。 (~2340 tok)
@@ -1707,7 +1713,7 @@
 - `test_project_owner_access.py` — 「建项目 ⇒ 自动授权创建者」—— P9B-4 紧急批次 T0。 (~2165 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_record_approval_chain.py` — 记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。 (~7732 tok)
-- `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3498 tok)
+- `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3528 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~4315 tok)
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~5118 tok)
@@ -1830,6 +1836,7 @@
 - `test_gate_alembic_check.py` — `scripts/gate_alembic_check.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~469 tok)
 - `test_gen_compact_orm.py` — `scripts/gen_compact_orm.py` 的行为（TODO-103 · P9B-3 · T1）。 (~901 tok)
 - `test_lane_script_body.py` — `lane_script_body` 的**剥注释口径**（P10-F · 评审 #27）。 (~530 tok)
+- `test_migrate_legacy_user_ids.py` — 「遗留账号迁移」脚本的守卫（TODO-137 · P10-C · T0-4）。 (~3094 tok)
 - `test_pytest_e2e_gate.py` — `scripts/pytest_e2e.sh` 的形状守卫（P10-B · T1）。 (~875 tok)
 - `test_pytest_pg_gate.py` — scripts/pytest_pg.sh 的 fail-closed 行为（T0 · TODO-099 · 裁决 4 约束 1）。 (~2387 tok)
 - `test_report_heat_coverage.py` — c4/c5：HEAT DETAIL 覆盖率工具的测试。 (~2226 tok)

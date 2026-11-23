@@ -151,6 +151,7 @@ async def update_item(
         raise HTTPException(status_code=404, detail="ChecklistItem not found")
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre, actor_roles=user.roles,
+        not_found_message="ChecklistItem not found",
     )
     svc = ChecklistService(session=db)
     try:

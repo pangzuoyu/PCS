@@ -499,6 +499,7 @@ async def get_open_channel_result(
     # BLOCKER-3 守卫
     await check_record_access_or_404(
         db, user_id=user.user_id, record=record, actor_roles=user.roles,
+        not_found_message="OpenChannelResult not found",
     )
 
     return OpenChannelResultResponse.model_validate(record, from_attributes=True)
@@ -544,6 +545,7 @@ async def update_open_channel_result(
         )
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+        not_found_message="OpenChannelResult not found",
     )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
@@ -616,6 +618,7 @@ async def soft_delete_open_channel_result(
         )
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+        not_found_message="OpenChannelResult not found",
     )
     try:
         record = await soft_delete_open_channel_result_service(

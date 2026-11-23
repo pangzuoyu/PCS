@@ -107,6 +107,12 @@ async def _authorize(
         user_id=actor.user_id,
         project_id=deliverable.project_id,
         actor_roles=actor.roles,
+        # ⚠️ **逐字同形**（TODO-187b）—— `get_or_404` 自己抛的是
+        # `DELIVERABLE_NOT_FOUND` / `f"交付物 {deliverable_id} 不存在"`
+        # ⇒ ⇒ 守卫必须**同一句**（code 也要一起对齐）
+        # ⇒ ⇒ 否则无权者能靠文案**枚举出交付物是否存在**。
+        not_found_code="DELIVERABLE_NOT_FOUND",
+        not_found_message=f"交付物 {deliverable_id} 不存在",
     )
     return deliverable
 

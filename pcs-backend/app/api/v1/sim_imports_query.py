@@ -327,6 +327,10 @@ async def get_import_by_id(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,
+        not_found_message={
+            "code": "SIM_IMPORT_NOT_FOUND",
+            "message": f"sim_import {import_id} 不存在",
+        },
     )
     return _to_detail(imp)
 
@@ -360,6 +364,10 @@ async def get_preview_streams(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,
+        not_found_message={
+            "code": "SIM_IMPORT_NOT_FOUND",
+            "message": f"sim_import {import_id} 不存在",
+        },
     )
     if imp.status != SimImportStatus.PREVIEW:
         raise HTTPException(
@@ -416,6 +424,10 @@ async def list_warnings_for_import(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,
+        not_found_message={
+            "code": "SIM_IMPORT_NOT_FOUND",
+            "message": f"sim_import {import_id} 不存在",
+        },
     )
     rows = (
         (

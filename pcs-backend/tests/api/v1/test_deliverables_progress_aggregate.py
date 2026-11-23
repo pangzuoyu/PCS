@@ -414,8 +414,12 @@ async def test_other_project_deliverable_is_404(
 
     assert resp.status_code == 404
     # ⚠️ 只断言 404 会在「端点还不存在」时也绿 ⇒ 断**消息**（路由未命中的
-    #    404 说的是 "Not Found"，项目守卫说的是 "Project not found: ..."）。
-    assert "Project not found" in resp.json()["message"]
+    #    404 说的是 "Not Found"）。
+    # ⚠️ TODO-187b：这条文案已**对齐**成「交付物不存在」那一条 ⇒ ⇒ 「无权」
+    #    与「不存在」**逐字同形**（code 也一样）⇒ ⇒ 枚举不出存在性。
+    body = resp.json()
+    assert "不存在" in body["message"]
+    assert body["code"] == "DELIVERABLE_NOT_FOUND"
 
 
 async def test_unknown_deliverable_is_404_with_code(client, auth):

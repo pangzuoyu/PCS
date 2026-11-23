@@ -350,6 +350,7 @@ async def get_cool_tower_result(
     # BLOCKER-3 守卫
     await check_record_access_or_404(
         db, user_id=user.user_id, record=record, actor_roles=user.roles,
+        not_found_message="CoolingTowerResult not found",
     )
     return CoolTowerResultResponse.model_validate(record, from_attributes=True)
 
@@ -396,6 +397,7 @@ async def update_cool_tower_result(
         )
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+        not_found_message="CoolingTowerResult not found",
     )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
@@ -473,6 +475,7 @@ async def delete_cool_tower_result(
         )
     await check_record_access_or_404(
         db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+        not_found_message="CoolingTowerResult not found",
     )
     ok = await soft_delete_cool_tower_result_service(
         db, record_id=record_id, project_id=None

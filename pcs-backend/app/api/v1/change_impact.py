@@ -218,6 +218,10 @@ async def _resolve_stale(
         user_id=user.user_id,
         record=record,
         actor_roles=user.roles,
+        # ⚠️ **逐字同形**（TODO-187b）—— `_load_record` 自己抛的是
+        # `f"{record_type} not found"` ⇒ ⇒ 守卫必须**同一句**
+        # ⇒ ⇒ 否则无权者能靠文案**枚举出记录是否存在**。
+        not_found_message=f"{record_type} not found",
     )
     if getattr(record, "sign_status", None) != "STALE":
         raise CorePcsError(

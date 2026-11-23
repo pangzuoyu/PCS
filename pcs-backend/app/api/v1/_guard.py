@@ -27,6 +27,8 @@ async def check_project_access_or_404(
     user_id: uuid.UUID,
     project_id: uuid.UUID,
     actor_roles: list[str] | None = None,
+    not_found_code: str | None = None,
+    not_found_message: str | dict[str, Any] | None = None,
 ) -> None:
     """检查 user 对 project_id 的访问权；无权抛 404。
 
@@ -37,17 +39,55 @@ async def check_project_access_or_404(
 
     role-string 收敛 (2026-10-04): 历史双写 "SYSADMIN" 已全量收敛为
     "SYSTEM_ADMIN" (state_machine/cia_engine/mock_auth/LDAP 同步)。
+
+    ## ⚠️ `not_found_code` / `not_found_message`（2026-11-23 · TODO-187b）
+
+    **为什么需要**：端点常见「**先取记录 ⇒ 再判授权**」的写法 ⇒ ⇒
+    ⇒ 「记录不存在」与「无权访问」会给出**两种不同的 404 文案**
+    ⇒ ⇒ ⇒ 无权者可以靠文案**枚举出记录是否存在**（存在性泄露）。
+
+    ⇒ ⇒ ⇒ 于是「**同一个端点、同一种资源类型**」的两种 404 必须**逐字同形**
+    ⇒ ⇒ ⇒ 端点把**自己那条**文案传给守卫 ⇒ ⇒ 守卫照抄 ⇒ ⇒ 两种情况不可区分。
+
+    | 参数 | 抛出的形状 | 用途 |
+    |---|---|---|
+    | 都不给 | `HTTPException(404, "Project not found: …")` | **默认 = 现状** ⇒ ⇒ 124 处**零影响** |
+    | 给 `not_found_message` | `HTTPException(404, detail=<它>)` | 端点自己抛 `HTTPException` 的族 |
+    | 给 `not_found_code` | `PcsError(code=…, message=…, 404)` | 端点自己抛 `PcsError` 的族 |
+
+    ⚠️ **默认文案一个字都不能改**（`"Project not found: {project_id}"`）
+    ⇒ ⇒ 124 处调用依赖它 ⇒ ⇒ 有测试钉子（`test_project_guard_default_message_is_unchanged`）。
+
+    ⚠️ **code 与 message 必须**一起**对齐** ⇒ ⇒ 只对齐 message 而 code 不同
+    ⇒ ⇒ ⇒ 前端按 code 分流时**仍然能区分** ⇒ ⇒ ⇒ 那就没修掉。
     """
     if actor_roles and "SYSTEM_ADMIN" in actor_roles:
         return  # SYSTEM_ADMIN 全局访问权
     has_access = await UserProjectService.check_user_project_access(
         db, user_id=user_id, project_id=project_id,
     )
-    if not has_access:
+    if has_access:
+        return
+    # ⚠️ **默认分支 = 现状**（`not_found_*` 都不给）⇒ ⇒ 124 处零影响。
+    if not_found_code is None and not_found_message is None:
         raise HTTPException(
             status_code=404,
             detail=f"Project not found: {project_id}",
         )
+    if not_found_code is not None:
+        # ⚠️ 端点自己抛的是 `PcsError(code=…)` ⇒ ⇒ 守卫也要抛**同一形状**
+        # ⇒ ⇒ 否则 code 不同 ⇒ ⇒ 前端仍能分流 ⇒ ⇒ 存在性仍可枚举。
+        from app.services.exceptions import PcsError
+
+        raise PcsError(
+            not_found_message or f"Project not found: {project_id}",
+            code=not_found_code,
+            status=404,
+        )
+    raise HTTPException(
+        status_code=404,
+        detail=not_found_message,
+    )
 
 
 async def check_record_access_or_404(
@@ -56,10 +96,15 @@ async def check_record_access_or_404(
     user_id: uuid.UUID,
     record: Any,
     actor_roles: list[str] | None = None,
+    not_found_code: str | None = None,
+    not_found_message: str | dict[str, Any] | None = None,
 ) -> None:
     """检查 user 对 record.project_id 的访问权；无权抛 404。
 
     record 必须有 project_id 属性（ORM 模型）。无此字段抛 500（开发期漏调用）。
+
+    ⚠️ `not_found_code` / `not_found_message` 的语义见
+    `check_project_access_or_404`（原样转发 ⇒ ⇒ 两处口径不会漂）。
     """
     project_id = getattr(record, "project_id", None)
     if project_id is None:
@@ -69,6 +114,7 @@ async def check_record_access_or_404(
         )
     await check_project_access_or_404(
         db, user_id=user_id, project_id=project_id, actor_roles=actor_roles,
+        not_found_code=not_found_code, not_found_message=not_found_message,
     )
 
 async def require_formal_project_workspace(

@@ -4200,3 +4200,33 @@
 | 18:17 | Edited pcs-frontend/src/mocks/reportBuilder.ts | expanded (+16 lines) | ~144 |
 | 18:17 | Edited pcs-frontend/src/mocks/reportBuilder.ts | modified json() | ~123 |
 | 20:14 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md | — | ~1250 |
+| 20:17 | Edited pcs-backend/app/api/v1/_guard.py | modified check_project_access_or_404() | ~956 |
+| 20:19 | Created pcs-backend/scripts/_apply_guard_msgs.py | — | ~1376 |
+| 20:20 | Created pcs-backend/tests/api/v1/test_404_message_alignment.py | — | ~2392 |
+| 20:21 | Edited pcs-backend/app/api/v1/supplier.py | 6→9 lines | ~88 |
+| 20:21 | Edited pcs-backend/app/api/v1/records_actions.py | 3→8 lines | ~107 |
+| 20:30 | Edited pcs-backend/app/api/v1/change_impact.py | 7→11 lines | ~118 |
+| 20:30 | Edited pcs-backend/app/api/v1/deliverables.py | expanded (+6 lines) | ~162 |
+| 20:33 | Edited pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py | 4→8 lines | ~92 |
+| 20:33 | Edited pcs-backend/tests/api/v1/test_record_edits_endpoint.py | 4→8 lines | ~87 |
+| 20:34 | Created docs/solutions/security-issues/two-404-messages-leak-existence.md | — | ~835 |
+| 20:35 | Edited pcs-backend/tests/conftest.py | expanded (+8 lines) | ~262 |
+| 20:35 | Edited pcs-backend/tests/api/v1/test_404_message_alignment.py | modified test_missing_and_unauthorized_are_byte_identical() | ~442 |
+| 20:35 | Edited pcs-backend/tests/api/v1/test_404_message_alignment.py | 16→19 lines | ~190 |
+| 20:36 | Edited pcs-backend/tests/conftest.py | 4→5 lines | ~59 |
+| 20:36 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md | expanded (+16 lines) | ~244 |
+| 20:36 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md | 2→6 lines | ~68 |
+| 20:38 | Edited pcs-backend/tests/api/v1/test_404_message_alignment.py | 3→2 lines | ~32 |
+| 20:38 | Edited docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md | 5→10 lines | ~138 |
+| 20:41 | Created docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md | — | ~996 |
+| 20:43 | Created pcs-backend/scripts/migrate_legacy_user_ids.py | — | ~3309 |
+| 20:43 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | modified run_migration() | ~516 |
+| 20:43 | Created pcs-backend/tests/scripts/test_migrate_legacy_user_ids.py | — | ~3169 |
+| 20:43 | Edited pcs-backend/tests/scripts/test_migrate_legacy_user_ids.py | 27→27 lines | ~248 |
+| 20:44 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | inline fix | ~21 |
+| 20:44 | Edited pcs-backend/tests/scripts/test_migrate_legacy_user_ids.py | 27→22 lines | ~159 |
+| 20:45 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | expanded (+6 lines) | ~347 |
+| 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | removed 30 lines | ~8 |
+| 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | 9→4 lines | ~35 |
+| 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | 8→7 lines | ~67 |
+| 20:48 | Edited pcs-backend/scripts/migrate_legacy_user_ids.py | inline fix | ~15 |

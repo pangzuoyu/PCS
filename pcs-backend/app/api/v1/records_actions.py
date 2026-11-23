@@ -196,7 +196,12 @@ async def load_record(
             status=404,
         )
     await check_record_access_or_404(
-        db, user_id=actor.user_id, record=record, actor_roles=actor.roles
+        db, user_id=actor.user_id, record=record, actor_roles=actor.roles,
+        # ⚠️ **逐字同形**（TODO-187b）—— 「记录不存在」与「无权访问」必须**同一条**
+        # ⇒ ⇒ 否则无权者能靠文案**枚举出记录是否存在**（本 helper 被**所有**记录
+        # 写面端点共用 ⇒ ⇒ 改这一处 ⇒ ⇒ 那一族全对齐）。
+        not_found_code="RECORD_NOT_FOUND",
+        not_found_message=f"{module} 记录 {record_id} 不存在",
     )
     return record
 

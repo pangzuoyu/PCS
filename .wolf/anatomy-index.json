@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T12:14:30.891Z",
-    "fileCount": 1456,
+    "lastScanned": "2026-11-23T12:48:50.339Z",
+    "fileCount": 1463,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "42e51ade77a7df733561498ad48b1be42276b6e84d097b9ca4d4ac3f44bed83e",
-    "storeUpdatedAt": "2026-11-23T12:14:30.905Z",
-    "rootHash": "26394986118d648e"
+    "renderedHash": "60f40afb60a07121d44360acf85af5d881435680227561ff1271dfb6a67d8ef9",
+    "storeUpdatedAt": "2026-11-23T12:48:50.353Z",
+    "rootHash": "9e284088948ba9d6"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -15951,11 +15951,11 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 9214,
-      "hash": "085ffd3c8231ba23",
-      "size": 40367,
-      "mtimeMs": 1795428356793.8477,
-      "updatedAt": "2026-11-23T10:05:56.843Z",
+      "tokens": 9339,
+      "hash": "9d609fd5c3bbee2b",
+      "size": 41033,
+      "mtimeMs": 1795437362275.178,
+      "updatedAt": "2026-11-23T12:36:02.331Z",
       "source": "hook",
       "symbols": [
         {
@@ -16046,126 +16046,126 @@
           "name": "client",
           "kind": "fn",
           "startLine": 272,
-          "endLine": 380,
-          "tokens": 1171
+          "endLine": 389,
+          "tokens": 1296
         },
         {
           "name": "_restore_real_project_guard",
           "kind": "fn",
-          "startLine": 381,
-          "endLine": 385,
+          "startLine": 390,
+          "endLine": 394,
           "tokens": 50
         },
         {
           "name": "_StrictAsyncClient",
           "kind": "class",
-          "startLine": 386,
-          "endLine": 408,
+          "startLine": 395,
+          "endLine": 417,
           "tokens": 202
         },
         {
           "name": "strict_client",
           "kind": "fn",
-          "startLine": 409,
-          "endLine": 443,
+          "startLine": 418,
+          "endLine": 452,
           "tokens": 312
         },
         {
           "name": "grant_project",
           "kind": "fn",
-          "startLine": 444,
-          "endLine": 477,
+          "startLine": 453,
+          "endLine": 486,
           "tokens": 290
         },
         {
           "name": "_avoid_real_db_probe",
           "kind": "fn",
-          "startLine": 478,
-          "endLine": 518,
+          "startLine": 487,
+          "endLine": 527,
           "tokens": 451
         },
         {
           "name": "lane_is_active",
           "kind": "fn",
-          "startLine": 519,
-          "endLine": 533,
+          "startLine": 528,
+          "endLine": 542,
           "tokens": 145
         },
         {
           "name": "pytest_collection_modifyitems",
           "kind": "fn",
-          "startLine": 534,
-          "endLine": 571,
+          "startLine": 543,
+          "endLine": 580,
           "tokens": 390
         },
         {
           "name": "apply_default_lane_isolation",
           "kind": "fn",
-          "startLine": 572,
-          "endLine": 597,
+          "startLine": 581,
+          "endLine": 606,
           "tokens": 233
         },
         {
           "name": "_isolate_default_lane",
           "kind": "fn",
-          "startLine": 598,
-          "endLine": 631,
+          "startLine": 607,
+          "endLine": 640,
           "tokens": 348
         },
         {
           "name": "_clear_rbac_rate_limits",
           "kind": "fn",
-          "startLine": 632,
-          "endLine": 646,
+          "startLine": 641,
+          "endLine": 655,
           "tokens": 129
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 647,
-          "endLine": 652,
+          "startLine": 656,
+          "endLine": 661,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 653,
-          "endLine": 658,
+          "startLine": 662,
+          "endLine": 667,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 659,
-          "endLine": 664,
+          "startLine": 668,
+          "endLine": 673,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 665,
-          "endLine": 670,
+          "startLine": 674,
+          "endLine": 679,
           "tokens": 32
         },
         {
           "name": "make_user",
           "kind": "fn",
-          "startLine": 671,
-          "endLine": 690,
+          "startLine": 680,
+          "endLine": 699,
           "tokens": 167
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 691,
-          "endLine": 737,
+          "startLine": 700,
+          "endLine": 746,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 738,
-          "endLine": 971,
+          "startLine": 747,
+          "endLine": 980,
           "tokens": 2207
         }
       ]
@@ -16286,40 +16286,40 @@
     },
     "pcs-backend/app/api/v1/_guard.py": {
       "description": "API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。",
-      "tokens": 1599,
-      "hash": "a670e4bdbe975f27",
-      "size": 7358,
-      "mtimeMs": 1793012060662.446,
-      "updatedAt": "2026-10-26T10:54:20.718Z",
+      "tokens": 2202,
+      "hash": "a2d9340954c3d91a",
+      "size": 10295,
+      "mtimeMs": 1795436242522.9656,
+      "updatedAt": "2026-11-23T12:17:22.573Z",
       "source": "hook",
       "symbols": [
         {
           "name": "check_project_access_or_404",
           "kind": "fn",
           "startLine": 24,
-          "endLine": 52,
-          "tokens": 250
+          "endLine": 92,
+          "tokens": 701
         },
         {
           "name": "check_record_access_or_404",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 73,
-          "tokens": 176
+          "startLine": 93,
+          "endLine": 119,
+          "tokens": 256
         },
         {
           "name": "require_formal_project_workspace",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 124,
-          "tokens": 470
+          "startLine": 120,
+          "endLine": 173,
+          "tokens": 526
         },
         {
           "name": "require_project_role",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 181,
-          "tokens": 518
+          "startLine": 174,
+          "endLine": 231,
+          "tokens": 536
         }
       ]
     },
@@ -21571,88 +21571,88 @@
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。",
-      "tokens": 5047,
-      "hash": "4884c106a79f2ecb",
-      "size": 22102,
-      "mtimeMs": 1793586983414.6064,
-      "updatedAt": "2026-11-02T02:36:23.464Z",
+      "tokens": 5133,
+      "hash": "5414e0b156abfe9a",
+      "size": 22535,
+      "mtimeMs": 1795437059412.393,
+      "updatedAt": "2026-11-23T12:30:59.471Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
           "startLine": 94,
-          "endLine": 118,
-          "tokens": 179
+          "endLine": 124,
+          "tokens": 265
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 168,
+          "startLine": 125,
+          "endLine": 174,
           "tokens": 440
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 194,
+          "startLine": 175,
+          "endLine": 200,
           "tokens": 239
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 195,
-          "endLine": 216,
+          "startLine": 201,
+          "endLine": 222,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 217,
-          "endLine": 260,
+          "startLine": 223,
+          "endLine": 266,
           "tokens": 470
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 304,
+          "startLine": 267,
+          "endLine": 310,
           "tokens": 459
         },
         {
           "name": "sign_step",
           "kind": "fn",
-          "startLine": 305,
-          "endLine": 354,
+          "startLine": 311,
+          "endLine": 360,
           "tokens": 519
         },
         {
           "name": "proxy_customer_approval",
           "kind": "fn",
-          "startLine": 355,
-          "endLine": 412,
+          "startLine": 361,
+          "endLine": 418,
           "tokens": 631
         },
         {
           "name": "get_deliverable_progress",
           "kind": "fn",
-          "startLine": 413,
-          "endLine": 439,
+          "startLine": 419,
+          "endLine": 445,
           "tokens": 268
         },
         {
           "name": "list_deliverable_actions",
           "kind": "fn",
-          "startLine": 440,
-          "endLine": 494,
+          "startLine": 446,
+          "endLine": 500,
           "tokens": 558
         },
         {
           "name": "list_todos",
           "kind": "fn",
-          "startLine": 495,
-          "endLine": 522,
+          "startLine": 501,
+          "endLine": 528,
           "tokens": 234
         }
       ]
@@ -30179,11 +30179,11 @@
     },
     "pcs-backend/app/api/v1/records_actions.py": {
       "description": "records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。",
-      "tokens": 11088,
-      "hash": "0fd41b010309a02c",
-      "size": 49529,
-      "mtimeMs": 1793589962673.5188,
-      "updatedAt": "2026-11-02T03:26:02.723Z",
+      "tokens": 11161,
+      "hash": "74f84c1e010bfd56",
+      "size": 49951,
+      "mtimeMs": 1795436487227.1016,
+      "updatedAt": "2026-11-23T12:21:27.278Z",
       "source": "hook",
       "symbols": [
         {
@@ -30204,140 +30204,140 @@
           "name": "load_record",
           "kind": "fn",
           "startLine": 163,
-          "endLine": 203,
-          "tokens": 359
+          "endLine": 208,
+          "tokens": 432
         },
         {
           "name": "_roles_for",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 211,
+          "startLine": 209,
+          "endLine": 216,
           "tokens": 74
         },
         {
           "name": "_transition",
           "kind": "fn",
-          "startLine": 212,
-          "endLine": 260,
+          "startLine": 217,
+          "endLine": 265,
           "tokens": 414
         },
         {
           "name": "_response",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 274,
+          "startLine": 266,
+          "endLine": 279,
           "tokens": 121
         },
         {
           "name": "obsolete_record",
           "kind": "fn",
-          "startLine": 275,
-          "endLine": 307,
+          "startLine": 280,
+          "endLine": 312,
           "tokens": 300
         },
         {
           "name": "request_reversal",
           "kind": "fn",
-          "startLine": 308,
-          "endLine": 337,
+          "startLine": 313,
+          "endLine": 342,
           "tokens": 264
         },
         {
           "name": "reversal_decision",
           "kind": "fn",
-          "startLine": 338,
-          "endLine": 371,
+          "startLine": 343,
+          "endLine": 376,
           "tokens": 311
         },
         {
           "name": "_next_approval_role",
           "kind": "fn",
-          "startLine": 372,
-          "endLine": 414,
+          "startLine": 377,
+          "endLine": 419,
           "tokens": 415
         },
         {
           "name": "_submitter_from_audit",
           "kind": "fn",
-          "startLine": 415,
-          "endLine": 464,
+          "startLine": 420,
+          "endLine": 469,
           "tokens": 533
         },
         {
           "name": "_legacy_chain_snapshot",
           "kind": "fn",
-          "startLine": 465,
-          "endLine": 523,
+          "startLine": 470,
+          "endLine": 528,
           "tokens": 597
         },
         {
           "name": "submit_approval",
           "kind": "fn",
-          "startLine": 524,
-          "endLine": 647,
+          "startLine": 529,
+          "endLine": 652,
           "tokens": 1224
         },
         {
           "name": "approval_step",
           "kind": "fn",
-          "startLine": 648,
-          "endLine": 810,
+          "startLine": 653,
+          "endLine": 815,
           "tokens": 1662
         },
         {
           "name": "abandon_change",
           "kind": "fn",
-          "startLine": 811,
-          "endLine": 851,
+          "startLine": 816,
+          "endLine": 856,
           "tokens": 414
         },
         {
           "name": "create_comment",
           "kind": "fn",
-          "startLine": 852,
-          "endLine": 889,
+          "startLine": 857,
+          "endLine": 894,
           "tokens": 326
         },
         {
           "name": "list_comments",
           "kind": "fn",
-          "startLine": 890,
-          "endLine": 953,
+          "startLine": 895,
+          "endLine": 958,
           "tokens": 616
         },
         {
           "name": "initiate_change",
           "kind": "fn",
-          "startLine": 954,
-          "endLine": 989,
+          "startLine": 959,
+          "endLine": 994,
           "tokens": 316
         },
         {
           "name": "apply_change",
           "kind": "fn",
-          "startLine": 990,
-          "endLine": 1034,
+          "startLine": 995,
+          "endLine": 1039,
           "tokens": 409
         },
         {
           "name": "read_open_change_notice",
           "kind": "fn",
-          "startLine": 1035,
-          "endLine": 1066,
+          "startLine": 1040,
+          "endLine": 1071,
           "tokens": 288
         },
         {
           "name": "cancel_change_notice",
           "kind": "fn",
-          "startLine": 1067,
-          "endLine": 1106,
+          "startLine": 1072,
+          "endLine": 1111,
           "tokens": 373
         },
         {
           "name": "create_change_notice",
           "kind": "fn",
-          "startLine": 1107,
-          "endLine": 1167,
+          "startLine": 1112,
+          "endLine": 1172,
           "tokens": 618
         }
       ]
@@ -34758,88 +34758,88 @@
     },
     "pcs-backend/app/api/v1/change_impact.py": {
       "description": "Change Impact API（Sprint 3 + P9A-4 D3）。",
-      "tokens": 3812,
-      "hash": "2ffbf65397e89ce1",
-      "size": 15430,
-      "mtimeMs": 1792503171856.6167,
-      "updatedAt": "2026-10-20T13:32:51.918Z",
+      "tokens": 3916,
+      "hash": "398462fa11f8006d",
+      "size": 15917,
+      "mtimeMs": 1795437056045.386,
+      "updatedAt": "2026-11-23T12:30:56.103Z",
       "source": "hook",
       "symbols": [
         {
           "name": "LatestLineageResponse",
           "kind": "class",
-          "startLine": 63,
-          "endLine": 70,
+          "startLine": 64,
+          "endLine": 71,
           "tokens": 76
         },
         {
           "name": "ConfirmRecalcResponse",
           "kind": "class",
-          "startLine": 71,
-          "endLine": 84,
-          "tokens": 162
+          "startLine": 72,
+          "endLine": 88,
+          "tokens": 180
         },
         {
           "name": "ImpactConfirmResponse",
           "kind": "class",
-          "startLine": 85,
-          "endLine": 107,
-          "tokens": 263
+          "startLine": 89,
+          "endLine": 114,
+          "tokens": 281
         },
         {
           "name": "ManualAdjustRequest",
           "kind": "class",
-          "startLine": 108,
-          "endLine": 124,
+          "startLine": 115,
+          "endLine": 131,
           "tokens": 135
         },
         {
           "name": "_resolve_model",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 134,
+          "startLine": 132,
+          "endLine": 141,
           "tokens": 89
         },
         {
           "name": "_load_record",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 150,
+          "startLine": 142,
+          "endLine": 157,
           "tokens": 153
         },
         {
           "name": "_classify_change",
           "kind": "fn",
-          "startLine": 151,
-          "endLine": 195,
+          "startLine": 158,
+          "endLine": 202,
           "tokens": 423
         },
         {
           "name": "_resolve_stale",
           "kind": "fn",
-          "startLine": 196,
-          "endLine": 269,
-          "tokens": 696
+          "startLine": 203,
+          "endLine": 280,
+          "tokens": 754
         },
         {
           "name": "confirm_recalc",
           "kind": "fn",
-          "startLine": 270,
-          "endLine": 337,
+          "startLine": 281,
+          "endLine": 349,
           "tokens": 654
         },
         {
           "name": "confirm_impact",
           "kind": "fn",
-          "startLine": 338,
-          "endLine": 372,
+          "startLine": 350,
+          "endLine": 384,
           "tokens": 308
         },
         {
           "name": "manual_adjust_impact",
           "kind": "fn",
-          "startLine": 373,
-          "endLine": 405,
+          "startLine": 385,
+          "endLine": 417,
           "tokens": 243
         }
       ]
@@ -39202,11 +39202,11 @@
     },
     "pcs-backend/tests/api/v1/test_deliverables_progress_aggregate.py": {
       "description": "TODO-065 聚合进度端点（`GET /deliverables/{id}/progress`）—— P9B-2 · T0。",
-      "tokens": 3941,
-      "hash": "16367bccd6c2b020",
-      "size": 15786,
-      "mtimeMs": 1793073512085.1377,
-      "updatedAt": "2026-10-27T03:58:32.138Z",
+      "tokens": 4260,
+      "hash": "39d0f670f260c4c7",
+      "size": 17311,
+      "mtimeMs": 1795437216777.673,
+      "updatedAt": "2026-11-23T12:33:36.827Z",
       "source": "hook",
       "symbols": [
         {
@@ -39262,56 +39262,63 @@
           "name": "test_customer_approval_proxy_section_uses_deliverable_id",
           "kind": "fn",
           "startLine": 239,
-          "endLine": 263,
-          "tokens": 263
+          "endLine": 258,
+          "tokens": 210
+        },
+        {
+          "name": "test_progress_sections_exclude_rows_of_other_projects",
+          "kind": "fn",
+          "startLine": 259,
+          "endLine": 297,
+          "tokens": 340
         },
         {
           "name": "test_sign_section_unavailable_when_no_version",
           "kind": "fn",
-          "startLine": 264,
-          "endLine": 285,
+          "startLine": 298,
+          "endLine": 319,
           "tokens": 196
         },
         {
           "name": "test_available_section_with_zero_steps_is_not_unavailable",
           "kind": "fn",
-          "startLine": 286,
-          "endLine": 307,
+          "startLine": 320,
+          "endLine": 341,
           "tokens": 207
         },
         {
           "name": "test_five_state_counts_always_present",
           "kind": "fn",
-          "startLine": 308,
-          "endLine": 323,
+          "startLine": 342,
+          "endLine": 357,
           "tokens": 186
         },
         {
           "name": "test_counts_reflect_seeded_rows",
           "kind": "fn",
-          "startLine": 324,
-          "endLine": 364,
+          "startLine": 358,
+          "endLine": 398,
           "tokens": 369
         },
         {
           "name": "test_other_project_deliverable_is_404",
           "kind": "fn",
-          "startLine": 365,
-          "endLine": 386,
-          "tokens": 205
+          "startLine": 399,
+          "endLine": 424,
+          "tokens": 239
         },
         {
           "name": "test_unknown_deliverable_is_404_with_code",
           "kind": "fn",
-          "startLine": 387,
-          "endLine": 401,
+          "startLine": 425,
+          "endLine": 439,
           "tokens": 144
         },
         {
           "name": "test_request_does_not_n_plus_one",
           "kind": "fn",
-          "startLine": 402,
-          "endLine": 434,
+          "startLine": 440,
+          "endLine": 472,
           "tokens": 306
         }
       ]
@@ -39343,11 +39350,11 @@
     },
     "pcs-backend/tests/api/v1/test_record_edits_endpoint.py": {
       "description": "记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。",
-      "tokens": 3498,
-      "hash": "ffcdd7ad0547fe8c",
-      "size": 13557,
-      "mtimeMs": 1793073865985.2683,
-      "updatedAt": "2026-10-27T04:04:26.036Z",
+      "tokens": 3528,
+      "hash": "0368fdb439550c45",
+      "size": 13753,
+      "mtimeMs": 1795437222085.681,
+      "updatedAt": "2026-11-23T12:33:42.143Z",
       "source": "hook",
       "symbols": [
         {
@@ -39424,56 +39431,56 @@
           "name": "test_other_project_record_is_404",
           "kind": "fn",
           "startLine": 224,
-          "endLine": 252,
-          "tokens": 272
+          "endLine": 256,
+          "tokens": 302
         },
         {
           "name": "test_unknown_module_is_422_with_code",
           "kind": "fn",
-          "startLine": 253,
-          "endLine": 262,
+          "startLine": 257,
+          "endLine": 266,
           "tokens": 97
         },
         {
           "name": "test_module_without_sign_status_still_works",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 295,
+          "startLine": 267,
+          "endLine": 299,
           "tokens": 279
         },
         {
           "name": "test_unknown_record_is_404_with_code",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 308,
+          "startLine": 300,
+          "endLine": 312,
           "tokens": 128
         },
         {
           "name": "test_malformed_detail_json_yields_empty_changed_fields",
           "kind": "fn",
-          "startLine": 309,
-          "endLine": 327,
+          "startLine": 313,
+          "endLine": 331,
           "tokens": 180
         },
         {
           "name": "test_pagination_keeps_total",
           "kind": "fn",
-          "startLine": 328,
-          "endLine": 341,
+          "startLine": 332,
+          "endLine": 345,
           "tokens": 140
         },
         {
           "name": "test_newest_first_ordering",
           "kind": "fn",
-          "startLine": 342,
-          "endLine": 364,
+          "startLine": 346,
+          "endLine": 368,
           "tokens": 218
         },
         {
           "name": "test_real_edit_is_listed",
           "kind": "fn",
-          "startLine": 365,
-          "endLine": 385,
+          "startLine": 369,
+          "endLine": 389,
           "tokens": 202
         }
       ]
@@ -52203,11 +52210,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-i-report-review-publish.md": {
       "description": "P10-I · 报表审核发布 + 守卫文案收口批 —— 计划",
-      "tokens": 2887,
-      "hash": "ac290f66749e6317",
-      "size": 19939,
-      "mtimeMs": 1795425986959.963,
-      "updatedAt": "2026-11-23T09:26:27.022Z",
+      "tokens": 3185,
+      "hash": "4fad7f5ccdebae7f",
+      "size": 21965,
+      "mtimeMs": 1795437529958.222,
+      "updatedAt": "2026-11-23T12:38:50.015Z",
       "source": "hook"
     },
     "docs/ce-code-review/20261123-hermes-p10i-p10j/hermes-adjudication.md": {
@@ -52622,12 +52629,412 @@
     },
     ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-23-p10i-t1.md": {
       "description": "QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23",
-      "tokens": 1171,
-      "hash": "2ac6b1252d8a8d98",
-      "size": 7206,
-      "mtimeMs": 1795436070840.7104,
-      "updatedAt": "2026-11-23T12:14:30.891Z",
+      "tokens": 1873,
+      "hash": "698a25f368d71337",
+      "size": 11756,
+      "mtimeMs": 1795437414616.5078,
+      "updatedAt": "2026-11-23T12:36:54.668Z",
       "source": "hook"
+    },
+    "pcs-backend/scripts/_apply_guard_msgs.py": {
+      "description": "**一次性**工具：给 29 处守卫调用补 `not_found_message` / `not_found_code`。",
+      "tokens": 1376,
+      "hash": "d4cf98dc5f9acbc8",
+      "size": 5039,
+      "mtimeMs": 1795436381487.3044,
+      "updatedAt": "2026-11-23T12:19:41.549Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_404_message_alignment.py": {
+      "description": "**404 文案逐字同形**（2026-11-23 · P10-I · T2 · TODO-187b）。",
+      "tokens": 4037,
+      "hash": "dca0d16166cf3d38",
+      "size": 16752,
+      "mtimeMs": 1795437513711.3887,
+      "updatedAt": "2026-11-23T12:38:33.767Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 59,
+          "tokens": 129
+        },
+        {
+          "name": "test_project_guard_default_message_is_unchanged",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 83,
+          "tokens": 219
+        },
+        {
+          "name": "test_guard_with_custom_message_keeps_the_http_exception_shape",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 99,
+          "tokens": 183
+        },
+        {
+          "name": "test_guard_with_custom_code_raises_pcs_error",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 120,
+          "tokens": 254
+        },
+        {
+          "name": "_own_not_found_node",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 140,
+          "tokens": 265
+        },
+        {
+          "name": "_own_not_found",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 176,
+          "tokens": 401
+        },
+        {
+          "name": "_guard_call",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 186,
+          "tokens": 92
+        },
+        {
+          "name": "_has_vector",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 199,
+          "tokens": 102
+        },
+        {
+          "name": "_same_expr",
+          "kind": "fn",
+          "startLine": 200,
+          "endLine": 206,
+          "tokens": 66
+        },
+        {
+          "name": "_endpoints_with_two_404s",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 227,
+          "tokens": 223
+        },
+        {
+          "name": "test_the_ast_guard_actually_found_endpoints",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 240,
+          "tokens": 109
+        },
+        {
+          "name": "test_every_guarded_endpoint_aligns_its_own_not_found",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 281,
+          "tokens": 430
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 282,
+          "endLine": 296,
+          "tokens": 134
+        },
+        {
+          "name": "_create_psychro",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 320,
+          "tokens": 249
+        },
+        {
+          "name": "_create_filtration",
+          "kind": "fn",
+          "startLine": 321,
+          "endLine": 351,
+          "tokens": 258
+        },
+        {
+          "name": "test_missing_and_unauthorized_are_byte_identical",
+          "kind": "fn",
+          "startLine": 352,
+          "endLine": 402,
+          "tokens": 561
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/supplier.py": {
+      "description": "供应商实际数据录入 API (P7 Sprint 4 S4-1 / ADR-0025).",
+      "tokens": 2527,
+      "hash": "fdf1058904eb2243",
+      "size": 10200,
+      "mtimeMs": 1795436478645.043,
+      "updatedAt": "2026-11-23T12:21:18.695Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_equipment",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 88,
+          "tokens": 223
+        },
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 98,
+          "tokens": 106
+        },
+        {
+          "name": "get_actual_data",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 110,
+          "tokens": 127
+        },
+        {
+          "name": "put_actual_data",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 134,
+          "tokens": 223
+        },
+        {
+          "name": "_report_to_response",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 146,
+          "tokens": 134
+        },
+        {
+          "name": "get_deviation_report",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 183,
+          "tokens": 347
+        },
+        {
+          "name": "confirm_actual_data",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 200,
+          "tokens": 178
+        },
+        {
+          "name": "check_actual_data",
+          "kind": "fn",
+          "startLine": 201,
+          "endLine": 222,
+          "tokens": 222
+        },
+        {
+          "name": "export_deviation_report",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 261,
+          "tokens": 391
+        }
+      ]
+    },
+    "docs/solutions/security-issues/two-404-messages-leak-existence.md": {
+      "description": "两种 404 文案就是存在性预言机 —— 让守卫**照抄**端点自己那条",
+      "tokens": 783,
+      "hash": "b4eaa45bf1206ef6",
+      "size": 5278,
+      "mtimeMs": 1795437299918.7866,
+      "updatedAt": "2026-11-23T12:34:59.972Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md": {
+      "description": "P10-C 主体 · 部署与可观测性 · 计划",
+      "tokens": 934,
+      "hash": "d537078b0de33f87",
+      "size": 5908,
+      "mtimeMs": 1795437711977.62,
+      "updatedAt": "2026-11-23T12:41:52.032Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/migrate_legacy_user_ids.py": {
+      "description": "迁移「遗留账号」（`user_id` ≠ 派生值）⇒ ⇒ 授权与审计都转到派生 id。",
+      "tokens": 2957,
+      "hash": "2a2b03f2ba789030",
+      "size": 12736,
+      "mtimeMs": 1795438130291.2092,
+      "updatedAt": "2026-11-23T12:48:50.339Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "LegacyUser",
+          "kind": "class",
+          "startLine": 93,
+          "endLine": 105,
+          "tokens": 73
+        },
+        {
+          "name": "MigrationReport",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 120,
+          "tokens": 135
+        },
+        {
+          "name": "remap_targets",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 140,
+          "tokens": 191
+        },
+        {
+          "name": "find_legacy_users",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 156,
+          "tokens": 154
+        },
+        {
+          "name": "_remap_references",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 174,
+          "tokens": 182
+        },
+        {
+          "name": "_remaining_references",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 192,
+          "tokens": 172
+        },
+        {
+          "name": "migrate_one",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 262,
+          "tokens": 621
+        },
+        {
+          "name": "run_migration",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 283,
+          "tokens": 202
+        },
+        {
+          "name": "_run",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 319,
+          "tokens": 317
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 320,
+          "endLine": 338,
+          "tokens": 146
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_migrate_legacy_user_ids.py": {
+      "description": "「遗留账号迁移」脚本的守卫（TODO-137 · P10-C · T0-4）。",
+      "tokens": 3094,
+      "hash": "b5ca691fcdc2e632",
+      "size": 12374,
+      "mtimeMs": 1795437864296.5798,
+      "updatedAt": "2026-11-23T12:44:24.352Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_mk_legacy_user",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 65,
+          "tokens": 137
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 87,
+          "tokens": 166
+        },
+        {
+          "name": "test_remap_targets_cover_every_user_id_column",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 131,
+          "tokens": 443
+        },
+        {
+          "name": "test_find_legacy_users_detects_only_mismatched_ids",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 149,
+          "tokens": 154
+        },
+        {
+          "name": "test_already_migrated_rows_are_not_detected_again",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 170,
+          "tokens": 181
+        },
+        {
+          "name": "test_migration_moves_identity_and_all_references",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 218,
+          "tokens": 445
+        },
+        {
+          "name": "test_release_gate_is_green_after_migration",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 230,
+          "tokens": 114
+        },
+        {
+          "name": "test_migration_is_idempotent",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 246,
+          "tokens": 136
+        },
+        {
+          "name": "test_duplicate_grant_on_same_project_is_deduped",
+          "kind": "fn",
+          "startLine": 247,
+          "endLine": 282,
+          "tokens": 309
+        },
+        {
+          "name": "test_refuses_when_derived_row_already_exists",
+          "kind": "fn",
+          "startLine": 283,
+          "endLine": 306,
+          "tokens": 227
+        },
+        {
+          "name": "test_derived_id_uses_the_single_derivation_point",
+          "kind": "fn",
+          "startLine": 307,
+          "endLine": 326,
+          "tokens": 186
+        },
+        {
+          "name": "test_no_reference_is_left_behind_on_the_legacy_id",
+          "kind": "fn",
+          "startLine": 327,
+          "endLine": 350,
+          "tokens": 243
+        }
+      ]
     }
   }
 }

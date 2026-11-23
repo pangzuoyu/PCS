@@ -6901,6 +6901,23 @@
     "todo-196",
     "p10-c"
    ]
+  },
+  {
+   "id": "bug-2198",
+   "timestamp": "2026-11-23",
+   "severity": "low",
+   "error_message": "同一个端点的两种 404 文案不同（「记录不存在」= \"X not found\" vs 「无权访问」= \"Project not found: {pid}\"）⇒ ⇒ 无权者能靠文案**枚举出记录是否存在**",
+   "file": "pcs-backend/app/api/v1/_guard.py",
+   "root_cause": "端点普遍是「**先取记录 ⇒ 再判授权**」的写法 ⇒ ⇒ 记录不存在时抛端点自己那条 404，无权时抛守卫那条 404 ⇒ ⇒ **两条文案不同** ⇒ ⇒ 存在性泄露。守卫（`check_project_access_or_404` / `check_record_access_or_404`）**只有一个固定文案**，端点没法把自己的那条传进去 ⇒ ⇒ 端点之间的 404 口径被迫分裂。⚠️ 计划里量的是「12 族」，**AST 实扫是 47 个端点**（另有两处 own-404 在 helper 里：`supplier.py::_load_equipment` 与 `records_actions.py::load_record`，后者被**所有记录写面端点**共用）",
+   "fix": "① 守卫加**两个可选参数** `not_found_code` / `not_found_message` ⇒ ⇒ 端点把**自己那条**传进去 ⇒ ⇒ 守卫照抄 ⇒ ⇒ 「不存在」与「无权」**逐字同形** ⇒ ⇒ **默认分支一个字没改**（`\"Project not found: {project_id}\"` ⇒ ⇒ 124 处 project 级调用零影响 ⇒ ⇒ 有测试钉子）；② `not_found_code` 一起对齐（端点自己抛 `PcsError(code=…)` 的族 ⇒ ⇒ 否则 code 不同 ⇒ ⇒ 前端仍能按 code 分流 ⇒ ⇒ 仍可枚举）；③ 断言 = **AST 完整性守卫**（扫全 api 层 47 个端点逐条比对「自己抛的那条」与「传给守卫的那条」的 AST 结构 ⇒ ⇒ 漏传/抄错一个字即红）+ **端到端** 2 族（真发请求 ⇒ ⇒ 同一无权用户探「存在」与「不存在」⇒ ⇒ (code, message) 逐字相同）+ **约束 2 钉子**；④ 变异自证 3/3 全红",
+   "fix_commit": "PENDING",
+   "tags": [
+    "guard",
+    "enumeration",
+    "404",
+    "todo-187b",
+    "p10-i"
+   ]
   }
  ]
 }

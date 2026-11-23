@@ -356,6 +356,7 @@ async def sync_equipment(
     # BLOCKER-3 守卫
     await check_record_access_or_404(
         db, user_id=user.user_id, record=existing, actor_roles=user.roles,
+        not_found_message=f"EquipmentList not found: {equipment_id}",
     )
 
     # ⚠️⚠️ **写入落在「源记录的项目」上**（2026-11-19 · P10-C · T3 补）

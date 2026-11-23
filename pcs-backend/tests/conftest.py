@@ -354,13 +354,20 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
     "/api/v1/report/{report_file_id}/status",
     "/api/v1/report/{report_file_id}/download",
     "/api/v1/report/{report_file_id}/hash",
+    # P10-I · T2（2026-11-23 · TODO-187b）：「404 文案**逐字同形**」的两族代表
+    # ⇒ ⇒ 端到端断「无权」与「不存在」的 `(code, message)` **逐字相同**
+    # ⇒ ⇒ 必须用 `strict_client`（默认 client 把守卫 mock 成永远 True ⇒ ⇒ 测不出来）
+    # ⇒ ⇒ 进台账（棘轮逐条盯）。
+    "/api/v1/psychro/results/{record_id}",
+    "/api/v1/filtration/results/{result_id}",
 )
 
 #: 台账的**下限**（**只增不减**）⇒ ⇒ 防止有人「悄悄把一条从清单里删掉」
 #: ⇒ ⇒ ⇒ 清单条目变少 ⇒ ⇒ 这里红。
 #:
 #: ⚠️ 2026-11-23（P10-I · T1）：+1（「待我审核」队列进台账）⇒ ⇒ **10 → 11**。
-AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 11
+#: ⚠️ 2026-11-23（P10-I · T2）：+2（404 同形的两族代表）⇒ ⇒ **11 → 13**。
+AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 13
 
 #: `strict_client` 测试函数数的**下限**（**只增不减**）⇒ ⇒ 防止
 #: ⇒ ⇒ 「把断言一条条删掉」⇒ ⇒ ⇒ 逐条路径检查只看「这个端点**还有没有**断言」
@@ -368,7 +375,9 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 11
 #:
 #: ⚠️ 2026-11-23（P10-I · T1）：「待我审核」队列 10 条 ⇒ ⇒ **120 → 171**
 #: ⇒ ⇒ 取**当前实际数** ⇒ ⇒ 删任何一条 ⇒ ⇒ 立刻红。
-STRICT_CLIENT_TEST_MIN = 171
+#: ⚠️ 2026-11-23（P10-I · T2）：404 同形端到端（**参数化 ⇒ ⇒ 1 个函数**）
+#: ⇒ ⇒ **171 → 172**。
+STRICT_CLIENT_TEST_MIN = 172
 
 #: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
 #:

@@ -437,6 +437,7 @@ async def get_filtration_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FiltrationResult not found",
     )
 
     return FiltrationResultResponse.model_validate(record, from_attributes=True)
@@ -486,6 +487,7 @@ async def update_filtration_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FiltrationResult not found",
     )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
@@ -559,6 +561,7 @@ async def soft_delete_filtration_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FiltrationResult not found",
     )
     try:
         record = await soft_delete_filtration_result_service(

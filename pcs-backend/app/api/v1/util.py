@@ -125,6 +125,7 @@ async def get_util_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message=f"UtilResults not found: {util_result_id}",
     )
     return _to_response(record)
 
@@ -219,6 +220,7 @@ async def get_util_summary(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message=f"UtilResults not found: {util_result_id}",
     )
     summary = await summary_service.summarize(record, db=db, year=year)
     return UtilSummaryResponse(
@@ -253,6 +255,7 @@ async def get_util_energy_consumption(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="UtilResults not found",
     )
     summary = await summary_service.summarize(record, db=db, year=year)
 
@@ -296,6 +299,7 @@ async def get_util_water_balance(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="UtilResults not found",
     )
 
     water_keys = {

@@ -639,6 +639,7 @@ async def get_psychro_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="PsychroResult not found",
     )
     return PsychroResultResponse.model_validate(record, from_attributes=True)
 
@@ -689,6 +690,7 @@ async def update_psychro_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="PsychroResult not found",
     )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
@@ -758,6 +760,7 @@ async def delete_psychro_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="PsychroResult not found",
     )
     ok = await soft_delete_psychro_result_service(
         db, record_id=record_id, project_id=None

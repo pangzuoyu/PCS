@@ -79,6 +79,9 @@ async def _load_equipment(
         user_id=actor.user_id,
         project_id=record.project_id,
         actor_roles=actor.roles,
+        # ⚠️ **逐字同形**（TODO-187b）—— 「设备不存在」与「无权访问」必须是**同一条**
+        # ⇒ ⇒ 否则无权者能靠文案**枚举出设备是否存在**。
+        not_found_message="Equipment not found",
     )
     return record
 

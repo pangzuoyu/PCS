@@ -473,6 +473,7 @@ async def get_flare_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FlareSystemResult not found",
     )
     return FlareResultResponse.model_validate(record, from_attributes=True)
 
@@ -523,6 +524,7 @@ async def update_flare_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FlareSystemResult not found",
     )
     # P9A-4 D2：并发基线检查（ADR-0048 §⑥）—— 冲突 ⇒ 409，**不保存、不写审计**
     conflict = await check_conflict(
@@ -588,6 +590,7 @@ async def delete_flare_result(
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=pre_record.project_id,
         actor_roles=actor_roles_list,
+        not_found_message="FlareSystemResult not found",
     )
     ok = await soft_delete_flare_result_service(
         db, record_id=record_id, project_id=None
