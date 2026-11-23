@@ -63,6 +63,17 @@ interface ProjectScopeState {
 /** 正在飞的那一轮请求 ⇒ ⇒ 幂等的实现抓手。 */
 let inflight: Promise<void> | null = null;
 
+/**
+ * **世代号**（登出 / 换身份 ⇒ ⇒ 加一）。
+ *
+ * ⚠️ **为什么需要它**：登出时 `reset()` 把 store 清干净了 ⇒ ⇒ 但**在飞的那一轮
+ * 请求**还活着 ⇒ ⇒ 它回来时会把**上一个身份**的项目清单**写回** store
+ * ⇒ ⇒ 下一个身份登录后 ⇒ ⇒ 顶栏会**闪一下上一个身份的项目名**。
+ *
+ * ⇒ ⇒ 在飞的那轮**写盘前**比一下世代号 ⇒ ⇒ 不是自己那一代的响应 ⇒ ⇒ **丢弃**。
+ */
+let epoch = 0;
+
 function httpStatus(err: unknown): number | undefined {
   return (err as { response?: { status?: number } })?.response?.status;
 }
@@ -128,10 +139,14 @@ export const useProjectScopeStore = create<ProjectScopeState>((set, get) => ({
 
   ensureLoaded: async () => {
     if (inflight) return inflight;
+    const myEpoch = epoch;
+    /** 不是自己那一代的响应 ⇒ ⇒ 丢弃（登出 / 换身份了）。 */
+    const stale = (): boolean => epoch !== myEpoch;
     const run = async (): Promise<void> => {
       set({ loading: true, error: null });
       try {
         const candidates = await fetchCandidateIds();
+        if (stale()) return;
         const ids = [...candidates.keys()];
         if (ids.length === 0) {
           set({
@@ -143,6 +158,7 @@ export const useProjectScopeStore = create<ProjectScopeState>((set, get) => ({
           return;
         }
         const names = await fetchNames(ids);
+        if (stale()) return;
         const projects: ProjectOption[] = ids.map((id) => ({
           projectId: id,
           name: names.get(id) ?? id.slice(0, 8),
@@ -157,8 +173,10 @@ export const useProjectScopeStore = create<ProjectScopeState>((set, get) => ({
           (hint && projects.some((p) => p.projectId === hint) ? hint : null) ??
           projects[0].projectId;
 
+        if (stale()) return;
         set({ projects, currentProjectId: next, loading: false, error: null });
       } catch (err) {
+        if (stale()) return;
         set({
           projects: [],
           currentProjectId: null,
@@ -178,6 +196,9 @@ export const useProjectScopeStore = create<ProjectScopeState>((set, get) => ({
   },
 
   reset: () => {
+    // ⚠️ **世代号 + 1** ⇒ ⇒ 在飞的那一轮回来时**丢弃**（否则会把上一个身份的
+    // 项目清单写回 store ⇒ ⇒ 下一个身份登录后顶栏闪一下别人的项目名）。
+    epoch += 1;
     inflight = null;
     set({ projects: [], currentProjectId: null, loading: false, error: null });
   },

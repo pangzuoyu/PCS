@@ -222,6 +222,47 @@ describe('useProjectScope — 异常', () => {
   });
 });
 
+describe('useProjectScope — 登出（世代号）', () => {
+  it('⚠️ **登出后在飞的那一轮响应被丢弃**（不把上一个身份的项目写回 store）', async () => {
+    // ⇒ ⇒ 登出（reset）⇒ ⇒ 请求才回来 ⇒ ⇒ 旧数据**不能**落进 store
+    let resolveAuth: (v: unknown) => void = () => {};
+    get.mockImplementation((url: string) => {
+      if (url === '/user-projects/me') {
+        return new Promise((resolve) => {
+          resolveAuth = resolve;
+        });
+      }
+      if (url === '/workspaces') return Promise.resolve(ok([]));
+      return Promise.reject(fail(404));
+    });
+
+    const { result } = renderHook(() => useProjectScope());
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/user-projects/me'));
+
+    // ⇒ ⇒ 登出 ⇒ ⇒ store 清干净 ⇒ ⇒ 然后旧请求才回来
+    useProjectScopeStore.getState().reset();
+    resolveAuth(
+      ok([
+        {
+          id: 'g1',
+          user_id: 'old-user',
+          project_id: 'old-project',
+          role_in_project: 'PROJECT_LEAD',
+          granted_by: null,
+          granted_at: null,
+          revoked_at: null,
+          revoked_by: null,
+        },
+      ]),
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(useProjectScopeStore.getState().projects).toEqual([]);
+    expect(useProjectScopeStore.getState().currentProjectId).toBeNull();
+    expect(result.current.projectId).toBeNull();
+  });
+});
+
 describe('useProjectScope — 并发', () => {
   it('⚠️ **幂等**：两个组件同时挂 ⇒ ⇒ 只发**一轮** `/user-projects/me`', async () => {
     serve([['proj-a', 'PROJECT_LEAD']], { 'proj-a': '乙烯项目' });
