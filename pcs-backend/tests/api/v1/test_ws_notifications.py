@@ -213,6 +213,7 @@ async def test_mark_read_requires_auth(client, db, user_id):
 # ==========================================================================
 
 
+@pytest.mark.pg
 def test_ws_accepts_a_valid_token():
     require_real_redis()
     """路由**确实存在**的正向证明。
@@ -468,6 +469,7 @@ async def test_ws_sink_still_delivers_to_an_active_user(
     assert ws.closed == []
 
 
+@pytest.mark.pg
 def test_ws_delivers_notification_published_by_another_worker():
     require_real_redis()
     """端到端跨进程推送：连接在 worker A 上，发布在 worker B 上。

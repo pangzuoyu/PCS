@@ -343,6 +343,13 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
     "/api/v1/projects/{project_id}/pipe-line-list",
     # P10-C · T3（2026-11-19）：设备台账列表端点（项目作用域 · 本批补的守卫）
     "/api/v1/equipment-list",
+    # F4-PRE · TODO-181（2026-11-23）：报表文件的 4 条**项目作用域**端点
+    # ⇒ ⇒ 守卫在代码里但**零断言** ⇒ ⇒ 删掉守卫 45+29 个测试全绿
+    # ⇒ ⇒ 现在用 `strict_client` 补了断言 ⇒ ⇒ 进台账（棘轮逐条盯）。
+    "/api/v1/report/generate",
+    "/api/v1/report/{report_file_id}/status",
+    "/api/v1/report/{report_file_id}/download",
+    "/api/v1/report/{report_file_id}/hash",
 )
 
 #: 台账的**下限**（**只增不减**）⇒ ⇒ 防止有人「悄悄把一条从清单里删掉」
@@ -513,6 +520,44 @@ def lane_is_active() -> bool:
     ⇒ ⇒ `export PCS_TEST_LANE=1` ⇒ ⇒ E2E 车道 exec 进它 ⇒ ⇒ 一处生效）。
     """
     return bool(os.environ.get("PCS_TEST_LANE"))
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """两条规则，都在**收集期**落地（一处 ⇒ ⇒ 新增用例自动适用）：
+
+    ① **依赖真 Redis 的用例 ⇒ 自动标 `pg`**（TODO-165）
+    ② **默认车道不跑 `pg` 用例** ⇒ ⇒ 默认车道**零连真 PG**（TODO-164 残留）
+
+    ⚠️ **为什么要有 ②**（F4-PRE · 2026-11-23 实测）：
+    `pg` 标记的用例**平时也会被默认车道收集并执行**（`addopts` 只排除
+    `visual`）⇒ ⇒ 而它们的 `_pg_url()` 读 `DATABASE_URL` / `.env`
+    ⇒ ⇒ 那是**开发库 `pcs`** ⇒ ⇒ 于是默认车道会在开发库里
+    **建隔离 schema + 跑整条 alembic 链**（**DDL 写**！）⇒ ⇒
+    「默认车道绝不碰开发库」**并没有真的成立**。
+
+    ⇒ ⇒ 现在：**`pg` 标记的用例只在车道里跑**（判据 = `PCS_TEST_LANE`）
+    ⇒ ⇒ 默认车道把它们**整批 skip** ⇒ ⇒ 开发库零触碰。
+    ⚠️ **车道里不许 skip**（`scripts/pytest_pg.sh` 的 fail-closed ③）
+    ⇒ ⇒ 「跑没跑」由车道的闸门保证，不靠这里。
+    """
+    # ① **依赖真 Redis 的用例 ⇒ 自动标 `pg`**（F4-PRE · TODO-165）
+    #    ⚠️ **为什么自动标**：依赖真 Redis 语义的用例（编辑锁 TTL/续期 ·
+    #    跨进程 pub/sub）在默认车道**测不了**（Redis 被隔离成不可路由端口）
+    #    ⇒ ⇒ 只能去 PG 车道 ⇒ ⇒ **手写 `@pytest.mark.pg` 会漏**
+    #    ⇒ ⇒ 判据 = **用例是否请求 `real_redis` fixture** ⇒ ⇒ 一处生效。
+    for item in items:
+        if "real_redis" in getattr(item, "fixturenames", ()):
+            item.add_marker(pytest.mark.pg)
+
+    if lane_is_active():
+        return
+    skip_pg = pytest.mark.skip(
+        reason="pg 专属用例 ⇒ 只能经 scripts/pytest_pg.sh 跑"
+        "（默认车道绝不碰真 PG）"
+    )
+    for item in items:
+        if item.get_closest_marker("pg"):
+            item.add_marker(skip_pg)
 
 
 def apply_default_lane_isolation() -> None:

@@ -273,6 +273,7 @@ def test_sim_unit_op_table_names():
     assert SimCalculatorResult.__tablename__ == "sim_calculator_results"
 
 
+@pytest.mark.pg
 def test_unit_op_main_fk_to_sim_imports_cascade():
     """FK 契约：sim_unit_op_results.import_id → sim_imports.import_id CASCADE。"""
     eng = create_engine(get_settings().database_url)
@@ -284,6 +285,7 @@ def test_unit_op_main_fk_to_sim_imports_cascade():
     eng.dispose()
 
 
+@pytest.mark.pg
 def test_specialty_table_fks_cascade():
     """FK 契约：6 类专用表 → sim_unit_op_results.unit_op_id CASCADE。"""
     eng = create_engine(get_settings().database_url)

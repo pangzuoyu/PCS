@@ -97,6 +97,7 @@ async def test_stream_sim18_fields_persist(db, make_project):
     assert loaded.conflict_resolutions_json["MW"]["strategy"] == "USER_PROVIDED"
 
 
+@pytest.mark.pg
 def test_streams_sim17_18_columns_exist_in_db():
     """DB 契约：streams 表新增 8 列存在。"""
     eng = create_engine(get_settings().database_url)
@@ -119,6 +120,7 @@ def test_streams_sim17_18_columns_exist_in_db():
     eng.dispose()
 
 
+@pytest.mark.pg
 def test_streams_sim17_indexes_exist():
     """SIM-17 索引契约：simulation_status + estimated 上有 B-tree 索引。"""
     eng = create_engine(get_settings().database_url)

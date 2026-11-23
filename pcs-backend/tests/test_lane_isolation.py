@@ -146,3 +146,82 @@ def test_isolation_does_not_apply_inside_a_lane(monkeypatch) -> None:
         "车道里同步引擎单例被换掉了 ⇒ 任何走 get_engine() 的路径"
         "在车道里静默指向 SQLite（假绿）"
     )
+
+
+# ---------------------------------------------------------------------------
+# 收集期闸门（2026-11-23 · F4-PRE · bug-2196）
+# ---------------------------------------------------------------------------
+
+
+class _FakeItem:
+    """最小替身：够 `pytest_collection_modifyitems` 用即可。"""
+
+    def __init__(self, *, pg: bool = False, fixturenames: tuple[str, ...] = ()):
+        self._pg = pg
+        self.fixturenames = fixturenames
+        self.markers: list = []
+
+    def get_closest_marker(self, name: str):
+        import pytest
+
+        for m in reversed(self.markers):
+            if getattr(m, "name", None) == name:
+                return m
+        return pytest.mark.pg if (name == "pg" and self._pg) else None
+
+    def add_marker(self, marker) -> None:
+        self.markers.append(marker)
+
+
+def _has_skip(item: _FakeItem) -> bool:
+    return any(getattr(m, "name", None) == "skip" for m in item.markers)
+
+
+def test_pg_marked_tests_are_skipped_in_the_default_lane(monkeypatch) -> None:
+    """⚠️ **默认车道不跑 `pg` 用例** ⇒ ⇒ 开发库零触碰。
+
+    ⚠️ **为什么是「收集期」**（2026-11-23 实测）：`pg` 标记的用例**平时也会
+    被默认车道收集并执行**（`addopts` 只排除 `visual`）⇒ ⇒ 而它们的
+    `_pg_url()` 读 `.env` ⇒ ⇒ 那是**开发库** ⇒ ⇒ 默认车道在开发库里建 schema
+    ⇒ ⇒ ⇒ 闸门必须挂在**收集期**（运行时 skip ⇒ ⇒ 连接照样建了）。
+    """
+    import pytest
+
+    from tests.conftest import pytest_collection_modifyitems
+
+    monkeypatch.delenv("PCS_TEST_LANE", raising=False)
+    item = _FakeItem(pg=True)
+    pytest_collection_modifyitems(config=None, items=[item])
+    assert _has_skip(item), (
+        "默认车道没有跳过 `pg` 用例 ⇒ ⇒ 它们会去连开发库"
+        "（pg 标记只是标记，不是闸门）"
+    )
+
+
+def test_pg_marked_tests_are_not_skipped_inside_a_lane(monkeypatch) -> None:
+    """⚠️ **车道里不许 skip** —— 「跑没跑」由车道的 fail-closed 闸保证。"""
+    from tests.conftest import pytest_collection_modifyitems
+
+    monkeypatch.setenv("PCS_TEST_LANE", "1")
+    item = _FakeItem(pg=True)
+    pytest_collection_modifyitems(config=None, items=[item])
+    assert not _has_skip(item), (
+        "车道里 `pg` 用例被跳过了 ⇒ ⇒ 车道绿灯**不携带信息**"
+        "（scripts/pytest_pg.sh 的 fail-closed ③ 会因 skip 失败）"
+    )
+
+
+def test_tests_depending_on_real_redis_are_auto_marked_pg(monkeypatch) -> None:
+    """⚠️ **依赖真 Redis 的用例自动标 `pg`** ⇒ ⇒ 不用手写标记 ⇒ ⇒ 不会漏。
+
+    ⇒ ⇒ 判据 = **用例是否请求 `real_redis` fixture** ⇒ ⇒ 一处生效。
+    """
+    from tests.conftest import pytest_collection_modifyitems
+
+    monkeypatch.delenv("PCS_TEST_LANE", raising=False)
+    item = _FakeItem(fixturenames=("real_redis", "db_session"))
+    pytest_collection_modifyitems(config=None, items=[item])
+    assert item.get_closest_marker("pg") is not None, (
+        "依赖真 Redis 的用例没有被自动标 `pg` ⇒ ⇒ 它会在默认车道里 skip"
+        "（覆盖丢失）⇒ ⇒ 应由 conftest 按 fixture 名自动标"
+    )

@@ -1,4 +1,14 @@
-"""V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。"""
+"""V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。
+
+⚠️ **为什么 DB 侧的那几条标 `pg`**（F4-PRE · TODO-168 · 2026-11-23）：
+这文件用 `create_engine(get_settings().database_url)` 查**真库**的 schema
+⇒ ⇒ 默认车道里那是**开发库 `pcs`** ⇒ ⇒ 违反「单测车道绝不碰开发库」
+⇒ ⇒ 现在标 `pg` ⇒ ⇒ **只在 PG 车道跑**（车道库 `pcs_pgtest` · 已对齐 head）
+⇒ ⇒ 默认车道零连 PG。
+
+⚠️ **「开发库 / pcs_test 上的漂移」由谁守**？⇒ ⇒ `alembic check`
+（发布前检查 · 两库各一次 · 独立进程）⇒ ⇒ 那是**发布闸门**，不是单测。
+"""
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
@@ -21,6 +31,7 @@ def engine():
     eng.dispose()
 
 
+@pytest.mark.pg
 def test_table_count(inspector):
     tables = inspector.get_table_names()
     assert "alembic_version" in tables
@@ -93,6 +104,7 @@ def test_table_count(inspector):
     #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）
 
 
+@pytest.mark.pg
 def test_required_tables_present(inspector):
     required = {
         "projects",
@@ -168,6 +180,7 @@ def test_required_tables_present(inspector):
     assert not missing, f"missing tables: {missing}"
 
 
+@pytest.mark.pg
 def test_equipment_type_codes_composite_unique(inspector):
     """Sprint 3: PK → UNIQUE（允许 project_id NULL）。约束列必须是 (project_id, type_code)。"""
     uqs = inspector.get_unique_constraints("equipment_type_codes")
@@ -175,6 +188,7 @@ def test_equipment_type_codes_composite_unique(inspector):
     assert len(target) == 1, f"expected 1 UNIQUE on (project_id, type_code), got {uqs}"
 
 
+@pytest.mark.pg
 def test_equipment_list_composite_fk_to_equipment_type_codes(inspector):
     """ADR-0023: equipment_list 复合 FK → equipment_type_codes。"""
     fks = inspector.get_foreign_keys("equipment_list")
@@ -185,6 +199,7 @@ def test_equipment_list_composite_fk_to_equipment_type_codes(inspector):
     assert sorted(fk["referred_columns"]) == ["project_id", "type_code"]
 
 
+@pytest.mark.pg
 def test_record_mixin_columns_present(inspector):
     """RecordMixin 字段全部出现在计算结果表（含 sign_status 9 态枚举）。"""
     cols = {c["name"] for c in inspector.get_columns("pump_results")}
@@ -203,6 +218,7 @@ def test_record_mixin_columns_present(inspector):
     assert not missing, f"missing mixin cols in pump_results: {missing}"
 
 
+@pytest.mark.pg
 def test_recordsignstatus_enum_has_9_values(inspector):
     """SUP-007 §3.1: 9 态枚举。"""
     eng = create_engine(get_settings().database_url)
@@ -227,6 +243,7 @@ def test_recordsignstatus_enum_has_9_values(inspector):
     assert not missing, f"missing enum values: {missing} (got {sorted(vals)})"
 
 
+@pytest.mark.pg
 def test_fk_violation_raises(engine):
     """端到端验证：FK 约束被强制执行（非仅声明）。
     插入带不存在 project_id 的 stream 应被 DB 拒绝（IntegrityError）。

@@ -105,6 +105,7 @@ def test_sqlite_substitute_matches_expected(label, eff, cre, accepted):
     assert got is accepted, f"{label}: 期望{'放行' if accepted else '拒绝'}"
 
 
+@pytest.mark.pg
 @pytest.mark.parametrize(("label", "eff", "cre", "accepted"), _CASES,
                          ids=[c[0] for c in _CASES])
 def test_postgres_original_matches_same_verdicts(label, eff, cre, accepted):
@@ -113,11 +114,13 @@ def test_postgres_original_matches_same_verdicts(label, eff, cre, accepted):
     这是本文件的核心断言：两套表达式不是「各测各的」，而是**同一张表的两个
     实现**。任何一侧被改动而另一侧没跟上，这里立刻红。
 
-    需要 `pcs_test` 可连（不在 CI 的默认配置里），连不上就跳过 —— 缺了真库
-    这一侧不能算通过，但也别把整份测试拖红。
+    ⚠️ **为什么标 `pg`**（F4-PRE · TODO-168 · 2026-11-23）：这条要在**真 PG**
+    上建 / 删一张探针表 ⇒ ⇒ 属于「车道」的活（默认车道**绝不碰 Postgres**）
+    ⇒ ⇒ 车道里 DB = `pcs_pgtest`（车道脚本导出的 `DATABASE_URL`）
+    ⇒ ⇒ 探针表建完即删 ⇒ ⇒ 不留残留。
     """
     if not _postgres_available():
-        pytest.skip("pcs_test 不可连")
+        pytest.skip("PG 车道库不可连")
     assert _verdict_on_postgres(eff, cre) is accepted, label
 
 
@@ -133,15 +136,17 @@ def _postgres_available() -> bool:
 
 
 def _probe_engine() -> sa.Engine:
-    """指向 `pcs_test` 的同步引擎。
+    """指向**当前车道库**的同步引擎。
 
     库名/凭据一律从 `get_settings().database_url` 派生（与 `tests/test_schema.py`
     同一套做法），**不把连接串写进源码** —— 写死的口令会跟着 git 走。
 
-    换到 `pcs_test` 而不是开发库：这里要真的 CREATE / DROP 一张探针表。
+    ⚠️ **为什么不再强行切到 `pcs_test`**（F4-PRE · TODO-168 · 2026-11-23）：
+    这条用例现在标 `pg` ⇒ ⇒ 只在**车道**里跑 ⇒ ⇒ 车道脚本导出的
+    `DATABASE_URL` 已经是**隔离车道库 `pcs_pgtest`** ⇒ ⇒ 直接用它
+    ⇒ ⇒ 默认车道**连 Postgres 的机会都没有**（之前它连 `pcs_test` 建表）。
     """
-    url = sa.engine.make_url(get_settings().database_url)
-    return sa.create_engine(url.set(database="pcs_test"))
+    return sa.create_engine(get_settings().database_url)
 
 
 def _verdict_on_postgres(effective_from: str, created_at: str) -> bool:

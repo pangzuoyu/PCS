@@ -116,6 +116,7 @@ async def test_sim_tower_result_create_and_persist(db, make_sim_import):
     assert loaded.rating_json["overall"] == "OK"
 
 
+@pytest.mark.pg
 @pytest.mark.asyncio
 async def test_sim_tower_cascade_on_sim_import_delete(db, make_sim_import):
     """sim_imports 行删除 → sim_tower_results 行 CASCADE 删除。
