@@ -6918,6 +6918,39 @@
     "todo-187b",
     "p10-i"
    ]
+  },
+  {
+   "id": "bug-2201",
+   "timestamp": "2026-11-24",
+   "severity": "medium",
+   "error_message": "Prometheus 指标「**定义了但没人喂**」⇒ ⇒ `/metrics` 上报 `xxx 0.0` ⇒ ⇒ 面板读成「一切正常」而真相是「**根本没测**」；且「队列深度」若只在 `/status` 里 `.set()` ⇒ ⇒ **没人打开状态页就永远是 0** ⇒ ⇒ 「队列积压」告警**永远不会触发**",
+   "file": "pcs-backend/app/core/metrics.py",
+   "root_cause": "① `prometheus_client` 的**无标签** Gauge **创建即报 0** ⇒ ⇒ ⇒ 定义了 ≠ 有值 ⇒ ⇒ ⇒ 「假零」是它的**默认行为** ⇒ ⇒ ⇒ 「待签署数」（业务口径没人裁 ⇒ ⇒ ⇒ 没人喂）就属于这一类；② 队列深度被写成「**有人访问状态页时才设一次**」的 Gauge ⇒ ⇒ ⇒ 它是**事件驱动**的，不是**状态** ⇒ ⇒ ⇒ 没事件 ⇒ ⇒ ⇒ 值不变 ⇒ ⇒ ⇒ 告警条件（`> 50`）永远不成立；③ ⚠️ **两个引擎**（sync / async）的连接池 Gauge 无标签 ⇒ ⇒ ⇒ 分不清是哪个池 ⇒ ⇒ ⇒ 且 `aiosqlite` 内存库用 `StaticPool`（**没有** `size()` / `checkedout()`）⇒ ⇒ ⇒ 一绑就 `AttributeError`",
+   "fix": "① 「待签署数」**删掉**（口径没人裁 ⇒ ⇒ 没人喂 ⇒ ⇒ 假零比没有更坏）⇒ ⇒ ⇒ 留 `TODOS.md` TODO-200；② 队列深度改成 **collector**（`ARQQueueDepthCollector`）⇒ ⇒ ⇒ **scrape 时现读 Redis** ⇒ ⇒ ⇒ 端点改 **`def`（同步）** ⇒ ⇒ ⇒ FastAPI 丢 threadpool ⇒ ⇒ ⇒ 阻塞读**不进事件循环**；③ collector 读不到 Redis ⇒ ⇒ ⇒ **不产出序列**（不是报 0）⇒ ⇒ ⇒ 「测不到」与「真的是 0」**可区分** ⇒ ⇒ ⇒ 另加 `absent()` 告警「队列测不到」；④ 连接池 Gauge 加 `engine` 标签（sync / async）⇒ ⇒ ⇒ 池事件挂在 `checkout` / `checkin`（**借还时才变**）⇒ ⇒ ⇒ 绑之前 `hasattr` 判一下（`StaticPool` 没那两个方法）；⑤ 状态机转移失败数接在 `InvalidTransition` 的抛出点（**不数** `RoleForbidden` ⇒ ⇒ ⇒ 那是权限问题不是签署链卡住）",
+   "fix_commit": "096196b8",
+   "tags": [
+    "prometheus",
+    "metrics",
+    "fake-zero",
+    "alert",
+    "p10-c"
+   ]
+  },
+  {
+   "id": "bug-2202",
+   "timestamp": "2026-11-24",
+   "severity": "medium",
+   "error_message": "`GET /api/v1/status`（系统状态端点）**匿名可读** ⇒ ⇒ ⇒ 队列深度 / worker 心跳 / LDAP 主机 / DB 与 Redis 延迟 ⇒ ⇒ ⇒ 等于给外人一张**内部拓扑图**",
+   "file": "pcs-backend/app/api/v1/status.py",
+   "root_cause": "端点只声明了 `response_model` ⇒ ⇒ ⇒ **没有任何 `Depends(current_user)`** ⇒ ⇒ ⇒ FastAPI 不做任何鉴权 ⇒ ⇒ ⇒ 而「状态页是只读的 ⇒ ⇒ ⇒ 无需角色闸」被读成了「**无需登录**」⇒ ⇒ ⇒ ⚠️ 「只读」说的是**没有写操作**，不是「谁都能看」⇒ ⇒ ⇒ 且 `/health` 匿名是可以的（它只说「活着」）⇒ ⇒ ⇒ ⇒ ⇒ 两者混起来就漏了",
+   "fix": "端点加 `Depends(current_user)` ⇒ ⇒ ⇒ 无 token ⇒ ⇒ 401 `MISSING_BEARER`（实测）⇒ ⇒ ⇒ SPEC §7.22 与 V2.18 修订登记**同步写明**「恒 200 说的是『**组件**挂了仍 200』，不是『匿名也 200』」⇒ ⇒ ⇒ 前端 mock handler 本来就有 `isAuthed` 检查 ⇒ ⇒ ⇒ 口径一致",
+   "fix_commit": "096196b8",
+   "tags": [
+    "auth",
+    "info-leak",
+    "status-endpoint",
+    "p10-c"
+   ]
   }
  ]
 }
