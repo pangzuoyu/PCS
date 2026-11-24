@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T10:43:04.692Z
-> Files: 1494 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T10:49:13.842Z
+> Files: 1495 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -690,8 +690,9 @@
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
-- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~871 tok)
+- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~973 tok)
 - `2026-11-24-p10-j-t2-reject-action.md` — P10-J-T2 · 「拒绝 / 打回」动作 —— 计划 (~873 tok)
+- `2026-11-24-p10-k-spec75-project-wizard.md` — P10-K · SPEC §7.5 项目向导 —— 计划 (~1421 tok)
 
 ## docs/superpowers/specs/
 

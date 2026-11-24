@@ -4339,3 +4339,6 @@
 | 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 3→6 lines | ~55 |
 | 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 3→3 lines | ~30 |
 | 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 5→6 lines | ~71 |
+| 18:49 | Created docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | — | ~1516 |
+| 18:49 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+11 lines) | ~142 |
+| 18:49 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | "useProjectScope" → "useProjectScope().project" | ~53 |

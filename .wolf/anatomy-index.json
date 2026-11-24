@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-24T10:43:04.692Z",
-    "fileCount": 1494,
+    "lastScanned": "2026-11-24T10:49:13.842Z",
+    "fileCount": 1495,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "86925aa1e0b5188d3b7b572643933def06c1f201bf3d2e259fb7a0e77817dacc",
-    "storeUpdatedAt": "2026-11-24T10:43:04.705Z",
-    "rootHash": "8bd6a2966284a484"
+    "renderedHash": "eb559388e91c186027175269def4117b1151cd5fca5465e5dd83ece841cd5cbb",
+    "storeUpdatedAt": "2026-11-24T10:49:13.854Z",
+    "rootHash": "b04f329e8dbac4ba"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -53986,11 +53986,11 @@
     },
     "docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md": {
       "description": "P10-J-T1 · 公司级模板「执行时选项目」 —— 计划",
-      "tokens": 871,
-      "hash": "c1354b248abbe888",
-      "size": 5530,
-      "mtimeMs": 1795516510291.2402,
-      "updatedAt": "2026-11-24T10:35:10.342Z",
+      "tokens": 973,
+      "hash": "b176a9b57ec3f585",
+      "size": 6358,
+      "mtimeMs": 1795517353792.7703,
+      "updatedAt": "2026-11-24T10:49:13.842Z",
       "source": "hook"
     },
     "docs/solutions/framework-integration-issues/serialization-must-go-through-the-response-model.md": {
@@ -54009,6 +54009,15 @@
       "size": 5457,
       "mtimeMs": 1795516634506.33,
       "updatedAt": "2026-11-24T10:37:14.577Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md": {
+      "description": "P10-K · SPEC §7.5 项目向导 —— 计划",
+      "tokens": 1421,
+      "hash": "5b1a901fd910a605",
+      "size": 9485,
+      "mtimeMs": 1795517347445.6519,
+      "updatedAt": "2026-11-24T10:49:07.496Z",
       "source": "hook"
     }
   }
