@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-24T02:22:27.445Z",
-    "fileCount": 1485,
+    "lastScanned": "2026-11-24T02:53:21.378Z",
+    "fileCount": 1486,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d63f86b62bc38897ac0d09b51aaabf2f05b1146c09ee1861f13a8a8727153df5",
-    "storeUpdatedAt": "2026-11-24T02:22:27.459Z",
-    "rootHash": "9dbe44e0e38f1d31"
+    "renderedHash": "ed2dd92e3b14eb876c1c118de4645688520fec30c0cc8c28a411f2243541b234",
+    "storeUpdatedAt": "2026-11-24T02:53:21.392Z",
+    "rootHash": "cb1ff5e20dcb90af"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -53761,6 +53761,15 @@
       "size": 4129,
       "mtimeMs": 1795486361874.5125,
       "updatedAt": "2026-11-24T02:12:41.926Z",
+      "source": "hook"
+    },
+    "docs/adr/signatures/dmc-component-cas-signoff.md": {
+      "description": "DMC 装置 10 条组分 CAS 号 —— 工艺签字确认表",
+      "tokens": 869,
+      "hash": "2215fa7a0629b438",
+      "size": 5312,
+      "mtimeMs": 1795488801319.0554,
+      "updatedAt": "2026-11-24T02:53:21.378Z",
       "source": "hook"
     }
   }

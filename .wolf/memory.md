@@ -4311,3 +4311,4 @@
 | 10:12 | Created docs/solutions/observability-issues/metric-must-have-a-real-feed.md | — | ~676 |
 | 10:17 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | inline fix | ~63 |
 | 10:22 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | expanded (+6 lines) | ~108 |
+| 10:53 | Created docs/adr/signatures/dmc-component-cas-signoff.md | — | ~927 |

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T02:22:27.445Z
-> Files: 1485 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T02:53:21.378Z
+> Files: 1486 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -486,6 +486,7 @@
 - `0030-v1.2-coolprop-extension.md` — ADR-0030 V1.2 修订说明：CoolProp 纳入锁定（D3 反向决议） (~1346 tok)
 - `dba-btree-gist-install-confirmation.md` — DBA 执行确认：btree_gist 扩展预装（两库） (~563 tok)
 - `dba-btree-gist-install-request.md` — DBA 执行请求：预装 btree_gist 扩展（两库） (~794 tok)
+- `dmc-component-cas-signoff.md` — DMC 装置 10 条组分 CAS 号 —— 工艺签字确认表 (~869 tok)
 - `psv-gas-area-independent-verification.md` — PSV 气体泄放面积独立工程复算（C6 关闭报告） (~2360 tok)
 
 ## docs/ce-code-review/
