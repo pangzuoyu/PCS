@@ -6951,6 +6951,40 @@
     "status-endpoint",
     "p10-c"
    ]
+  },
+  {
+   "id": "bug-2203",
+   "timestamp": "2026-11-24",
+   "severity": "medium",
+   "error_message": "`ReportDefinitionOut` 的响应体是**手写的字段清单**（`_as_dict()`）⇒ ⇒ ⇒ ORM 加了 `rejected_at` / `rejected_by` / `reject_reason` 三列而它**没加** ⇒ ⇒ ⇒ 响应**静默少三个字段** ⇒ ⇒ ⇒ 前端判据 `rejected_at != null` **永远为假** ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **「被退回」badge 永远不亮**（而后端单测全绿 ⇒ ⇒ ⇒ 前端也全绿 ⇒ ⇒ ⇒ 没人看见）",
+   "file": "pcs-backend/app/api/v1/report_builder.py",
+   "root_cause": "序列化**不走 Pydantic 模型**（`ReportDefinitionOut` 明明存在）⇒ ⇒ ⇒ 改用**另一份手写 dict** ⇒ ⇒ ⇒ 于是「schema 说有」与「响应真的有」**没有任何一道机械关卡**⇒ ⇒ ⇒ ORM 与响应**各写一份字段名** ⇒ ⇒ ⇒ 两份会漂 ⇒ ⇒ ⇒ 且漂的方向是**少字段**（不报错、不炸 ⇒ ⇒ ⇒ 静默）⇒ ⇒ ⇒ ⚠️ 契约检查器只看 **OpenAPI**（schema 里有这三列 ⇒ ⇒ ⇒ 绿）⇒ ⇒ ⇒ **看不见响应里没有** ⇒ ⇒ ⇒ 单测若只断「状态码 200」同样绿 ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 只有**端到端看渲染结果**才逮得住",
+   "fix": "① `_as_dict()` **显式列出**三列（并留注释写明「为什么必须显式列」⇒ ⇒ ⇒ 防止下一个加列的人再踩）；② 前端断言**断渲染结果**（「被退回」badge 出现 / 不出现）⇒ ⇒ ⇒ **不**断「字段在不在」⇒ ⇒ ⇒ 少字段会**立刻**表现为「badge 不亮」⇒ ⇒ ⇒ 测试因此**对契约漂移敏感**；③ 前端 fixture **带**三列 ⇒ ⇒ ⇒ 与后端响应对齐 ⇒ ⇒ ⇒ 少一列即红",
+   "fix_commit": "90fd4a56",
+   "tags": [
+    "serialization",
+    "silent-drift",
+    "report-builder",
+    "p10-j",
+    "todo-197b"
+   ]
+  },
+  {
+   "id": "bug-2204",
+   "timestamp": "2026-11-24",
+   "severity": "medium",
+   "error_message": "「被打回」的草稿**两个方向都堵死**：① 打完回**它还在「待我审核」队列里** ⇒ ⇒ ⇒ 审核者点「打回」会拿到 409（第二次）⇒ ⇒ ⇒ 队列里躺着「点了必失败」的行；② 创建人改稿后**「被退回」标记永不消失** ⇒ ⇒ ⇒ 且它**永远不在队列里** ⇒ ⇒ ⇒ 那条草稿**永远没人审**",
+   "file": "pcs-backend/app/services/report/definition_service.py",
+   "root_cause": "「被退回」是**第三个维度**（marker）⇒ ⇒ ⇒ 而**所有读路径只按 `status` 过滤** ⇒ ⇒ ⇒ 队列（`pending_review`）、发布资格（`publish`）、可见性（`visible_clause`）**各写一份 SQL** ⇒ ⇒ ⇒ 加一个新维度就要改 N 处 ⇒ ⇒ ⇒ **漏一处 ⇒ ⇒ ⇒ 出静默 bug**（不报错、不炸）⇒ ⇒ ⇒ ⚠️ 而且两个方向**互相掩盖**：① 若只改队列不改 `update()`，创建人改完稿仍显示「被退回」（看起来像「打回信息没清」）；② 若只改 `update()` 不改队列，永远没人审（看起来像「没人提交」）⇒ ⇒ ⇒ 谁也不会想到「两处**都要**改」",
+   "fix": "① **一个标记 + 一处口径**：`pending_review()` 加 `rejected_at IS NULL` ⇒ ⇒ ⇒ 队列只装「待审」（DRAFT ∧ 没被打回）⇒ ⇒ ⇒ 「待审 vs 待改」是**两个态**而不是**两个状态** ⇒ ⇒ ⇒ 9 态机一个字不改；② `update()` **清三个标记** ⇒ ⇒ ⇒ 创建人改稿 ⇒ ⇒ ⇒ 它**自动回到队列**（闭环）；③ `publish()` **拒绝**被打回的（409 `REPORT_DEFINITION_ALREADY_REJECTED`）⇒ ⇒ ⇒ 否则「刚刚被自己打回的那一版」被原样发出去；④ 断言三条**成对**（打完回 ⇒ 不在队列 · 改稿 ⇒ 标记清了且**重新在队列**）⇒ ⇒ ⇒ 单测**成对**断 ⇒ ⇒ ⇒ 「只改一处」必红",
+   "fix_commit": "90fd4a56",
+   "tags": [
+    "query-drift",
+    "silent-drift",
+    "report-builder",
+    "p10-j",
+    "todo-197b"
+   ]
   }
  ]
 }
