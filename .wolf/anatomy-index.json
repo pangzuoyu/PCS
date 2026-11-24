@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-23T23:07:29.089Z",
-    "fileCount": 1468,
+    "lastScanned": "2026-11-24T02:22:27.445Z",
+    "fileCount": 1485,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "aa0a6a7532598aaaf1541907ffe3da68cdcef352000398b4a097525d75fb30a4",
-    "storeUpdatedAt": "2026-11-23T23:07:29.102Z",
-    "rootHash": "f39a5fc7fba5f18a"
+    "renderedHash": "d63f86b62bc38897ac0d09b51aaabf2f05b1146c09ee1861f13a8a8727153df5",
+    "storeUpdatedAt": "2026-11-24T02:22:27.459Z",
+    "rootHash": "9dbe44e0e38f1d31"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -788,11 +788,11 @@
     },
     "docker-compose.yml": {
       "description": "Docker Compose services",
-      "tokens": 2488,
-      "hash": "f8acb05308ad3e1f",
-      "size": 11802,
-      "mtimeMs": 1795438690900.3423,
-      "updatedAt": "2026-11-23T12:58:10.950Z",
+      "tokens": 2974,
+      "hash": "22ffb37b7f3a5ef0",
+      "size": 14018,
+      "mtimeMs": 1795486100194.1855,
+      "updatedAt": "2026-11-24T02:08:20.251Z",
       "source": "hook"
     },
     "docs/adr/0001-two-layer-signing-model.md": {
@@ -1756,11 +1756,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 19278,
-      "hash": "2060c683354cdda0",
-      "size": 128278,
-      "mtimeMs": 1795428861105.7725,
-      "updatedAt": "2026-11-23T10:14:21.159Z",
+      "tokens": 19923,
+      "hash": "dc9196aa07ff152c",
+      "size": 133067,
+      "mtimeMs": 1795479963171.7344,
+      "updatedAt": "2026-11-24T00:26:03.227Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -13590,11 +13590,11 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 5475,
-      "hash": "9274b9a7b69e349c",
-      "size": 23446,
-      "mtimeMs": 1795428629366.6003,
-      "updatedAt": "2026-11-23T10:10:29.421Z",
+      "tokens": 5519,
+      "hash": "5bfb65d12b36cf54",
+      "size": 23622,
+      "mtimeMs": 1795478816707.7769,
+      "updatedAt": "2026-11-24T00:06:56.756Z",
       "source": "hook",
       "symbols": [
         {
@@ -13804,8 +13804,8 @@
           "name": "PsvRoute",
           "kind": "fn",
           "startLine": 410,
-          "endLine": 570,
-          "tokens": 1470
+          "endLine": 576,
+          "tokens": 1513
         }
       ]
     },
@@ -13868,11 +13868,11 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 18039,
-      "hash": "9c589dfc360689dd",
-      "size": 70195,
-      "mtimeMs": 1795390573006.7612,
-      "updatedAt": "2026-11-22T23:36:13.058Z",
+      "tokens": 18783,
+      "hash": "66994d4db1e869a9",
+      "size": 73347,
+      "mtimeMs": 1795479029495.965,
+      "updatedAt": "2026-11-24T00:10:29.554Z",
       "source": "hook",
       "symbols": [
         {
@@ -13900,29 +13900,29 @@
           "name": "buildLineageGraph",
           "kind": "fn",
           "startLine": 298,
-          "endLine": 946,
-          "tokens": 7987
+          "endLine": 958,
+          "tokens": 8128
         },
         {
           "name": "buildNotificationList",
           "kind": "fn",
-          "startLine": 947,
-          "endLine": 954,
+          "startLine": 959,
+          "endLine": 966,
           "tokens": 64
         },
         {
           "name": "buildTodoList",
           "kind": "fn",
-          "startLine": 955,
-          "endLine": 964,
+          "startLine": 967,
+          "endLine": 976,
           "tokens": 77
         },
         {
           "name": "buildBatchSubmitResponse",
           "kind": "fn",
-          "startLine": 965,
-          "endLine": 1477,
-          "tokens": 6798
+          "startLine": 977,
+          "endLine": 1537,
+          "tokens": 7398
         }
       ]
     },
@@ -38218,54 +38218,54 @@
     },
     "pcs-backend/app/services/state_machine.py": {
       "description": "状态机（Sprint 2 核心）。",
-      "tokens": 5744,
-      "hash": "3dec5508fe330109",
-      "size": 23022,
-      "mtimeMs": 1793075039622.9949,
-      "updatedAt": "2026-10-27T04:23:59.672Z",
+      "tokens": 5842,
+      "hash": "987d7f7f2cae22c0",
+      "size": 23485,
+      "mtimeMs": 1795479239172.651,
+      "updatedAt": "2026-11-24T00:13:59.221Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_record_pk",
           "kind": "fn",
-          "startLine": 33,
-          "endLine": 37,
+          "startLine": 34,
+          "endLine": 38,
           "tokens": 46
         },
         {
           "name": "_record_table_name",
           "kind": "fn",
-          "startLine": 38,
-          "endLine": 152,
+          "startLine": 39,
+          "endLine": 153,
           "tokens": 1672
         },
         {
           "name": "InvalidTransition",
           "kind": "class",
-          "startLine": 153,
-          "endLine": 162,
+          "startLine": 154,
+          "endLine": 163,
           "tokens": 102
         },
         {
           "name": "RoleForbidden",
           "kind": "class",
-          "startLine": 163,
-          "endLine": 166,
+          "startLine": 164,
+          "endLine": 167,
           "tokens": 16
         },
         {
           "name": "NoModification",
           "kind": "class",
-          "startLine": 167,
-          "endLine": 184,
+          "startLine": 168,
+          "endLine": 185,
           "tokens": 146
         },
         {
           "name": "StateMachineService",
           "kind": "class",
-          "startLine": 185,
-          "endLine": 495,
-          "tokens": 3562
+          "startLine": 186,
+          "endLine": 500,
+          "tokens": 3642
         }
       ]
     },
@@ -40827,11 +40827,11 @@
     },
     "pcs-backend/pyproject.toml": {
       "description": "\", \"**/migrations/**\"]",
-      "tokens": 1011,
-      "hash": "dfff5c9cf9574f06",
-      "size": 4895,
-      "mtimeMs": 1795438731411.2373,
-      "updatedAt": "2026-11-23T12:58:51.465Z",
+      "tokens": 1088,
+      "hash": "adc9525d852e864c",
+      "size": 5389,
+      "mtimeMs": 1795479705038.4387,
+      "updatedAt": "2026-11-24T00:21:45.091Z",
       "source": "hook"
     },
     "pcs-frontend/tests/components/common/StateBadge.test.tsx": {
@@ -50134,11 +50134,11 @@
     },
     "pcs-backend/tests/test_strict_client_ratchet.py": {
       "description": "**`strict_client` 覆盖的棘轮**（P10-F · F3 · 2026-11-18 人裁决）。",
-      "tokens": 2138,
-      "hash": "699fa65457ad0b3c",
-      "size": 9930,
-      "mtimeMs": 1795402692769.5105,
-      "updatedAt": "2026-11-23T02:58:12.821Z",
+      "tokens": 2242,
+      "hash": "c7b649e82ea7c9f8",
+      "size": 10463,
+      "mtimeMs": 1795486009184.719,
+      "updatedAt": "2026-11-24T02:06:49.238Z",
       "source": "hook",
       "symbols": [
         {
@@ -50187,21 +50187,21 @@
           "name": "test_the_number_of_strict_client_tests_never_shrinks",
           "kind": "fn",
           "startLine": 148,
-          "endLine": 191,
-          "tokens": 439
+          "endLine": 197,
+          "tokens": 542
         },
         {
           "name": "_files_building_an_asgi_client",
           "kind": "fn",
-          "startLine": 192,
-          "endLine": 209,
+          "startLine": 198,
+          "endLine": 215,
           "tokens": 193
         },
         {
           "name": "test_no_new_file_may_build_its_own_client",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 224,
+          "startLine": 216,
+          "endLine": 230,
           "tokens": 146
         }
       ]
@@ -52853,11 +52853,11 @@
     },
     "docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md": {
       "description": "P10-C 主体 · 部署与可观测性 · 计划",
-      "tokens": 1253,
-      "hash": "de02b955de989345",
-      "size": 7970,
-      "mtimeMs": 1795473893811.8518,
-      "updatedAt": "2026-11-23T22:44:53.867Z",
+      "tokens": 1580,
+      "hash": "b2a6cdae5d0d7bf3",
+      "size": 10030,
+      "mtimeMs": 1795479305873.9834,
+      "updatedAt": "2026-11-24T00:15:05.925Z",
       "source": "hook"
     },
     "pcs-backend/scripts/migrate_legacy_user_ids.py": {
@@ -53137,11 +53137,11 @@
     },
     "docs/deploy-prerequisites.md": {
       "description": "部署前置清单（每个环境各跑一次 · P10-C · T0-5）",
-      "tokens": 759,
-      "hash": "29107249cb4c3b9d",
-      "size": 4713,
-      "mtimeMs": 1795438987384.6265,
-      "updatedAt": "2026-11-23T13:03:07.435Z",
+      "tokens": 1010,
+      "hash": "e76b58df9af2ba72",
+      "size": 6387,
+      "mtimeMs": 1795479299523.0457,
+      "updatedAt": "2026-11-24T00:14:59.580Z",
       "source": "hook"
     },
     ".gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t0.md": {
@@ -53151,6 +53151,616 @@
       "size": 5274,
       "mtimeMs": 1795474365058.2703,
       "updatedAt": "2026-11-23T22:52:45.111Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/core/metrics.py": {
+      "description": "Prometheus 指标（**exporters**）—— P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-d",
+      "tokens": 2076,
+      "hash": "2613a030938d34f3",
+      "size": 9959,
+      "mtimeMs": 1795486278775.58,
+      "updatedAt": "2026-11-24T02:11:18.834Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ARQQueueDepthCollector",
+          "kind": "class",
+          "startLine": 124,
+          "endLine": 183,
+          "tokens": 533
+        },
+        {
+          "name": "route_template",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 194,
+          "tokens": 84
+        },
+        {
+          "name": "PrometheusMiddleware",
+          "kind": "class",
+          "startLine": 195,
+          "endLine": 235,
+          "tokens": 371
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/metrics.py": {
+      "description": "`GET /metrics` —— Prometheus 抓取端点（P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10-",
+      "tokens": 359,
+      "hash": "d3fd078a07327cd7",
+      "size": 1796,
+      "mtimeMs": 1795479213825.9124,
+      "updatedAt": "2026-11-24T00:13:33.876Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_metrics_endpoint.py": {
+      "description": "`/metrics` 端点的守卫（P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observab",
+      "tokens": 1425,
+      "hash": "6e51f3212d8ed409",
+      "size": 6655,
+      "mtimeMs": 1795479296355.077,
+      "updatedAt": "2026-11-24T00:14:56.412Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "client",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 59,
+          "tokens": 230
+        },
+        {
+          "name": "test_metrics_is_served_at_the_root_path",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 66,
+          "tokens": 82
+        },
+        {
+          "name": "test_metrics_body_contains_our_metric_names",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 75,
+          "tokens": 85
+        },
+        {
+          "name": "test_metric_labels_use_the_route_template_not_the_raw_url",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 100,
+          "tokens": 244
+        },
+        {
+          "name": "test_unmatched_routes_use_a_fixed_label",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 108,
+          "tokens": 97
+        },
+        {
+          "name": "test_metrics_endpoint_is_not_in_the_openapi_contract",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 119,
+          "tokens": 97
+        },
+        {
+          "name": "test_no_never_fed_gauges_are_exposed",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 136,
+          "tokens": 152
+        },
+        {
+          "name": "test_queue_depth_is_absent_when_redis_is_unreachable",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 150,
+          "tokens": 141
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/status.py": {
+      "description": "`GET /status` —— **系统状态页**的数据源（P10-C · T1b · SPEC §7.22）。",
+      "tokens": 1864,
+      "hash": "362cbea10bf874c5",
+      "size": 8476,
+      "mtimeMs": 1795479970310.4946,
+      "updatedAt": "2026-11-24T00:26:10.373Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ComponentStatus",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 56,
+          "tokens": 79
+        },
+        {
+          "name": "QueueStatus",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 69,
+          "tokens": 104
+        },
+        {
+          "name": "StatusResponse",
+          "kind": "class",
+          "startLine": 70,
+          "endLine": 80,
+          "tokens": 91
+        },
+        {
+          "name": "_probe_database",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 94,
+          "tokens": 126
+        },
+        {
+          "name": "_probe_redis_and_queue",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 140,
+          "tokens": 470
+        },
+        {
+          "name": "_redact_url",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 156,
+          "tokens": 152
+        },
+        {
+          "name": "_probe_ldap",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 174,
+          "tokens": 174
+        },
+        {
+          "name": "status",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 211,
+          "tokens": 293
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_status_endpoint.py": {
+      "description": "`GET /status` 的守卫（P10-C · T1b · SPEC §7.22）。",
+      "tokens": 1165,
+      "hash": "2686dcab8a8757c5",
+      "size": 5118,
+      "mtimeMs": 1795479946190.3135,
+      "updatedAt": "2026-11-24T00:25:46.242Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth_headers",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 33,
+          "tokens": 82
+        },
+        {
+          "name": "test_status_requires_authentication",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 42,
+          "tokens": 75
+        },
+        {
+          "name": "test_status_is_always_200",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 50,
+          "tokens": 92
+        },
+        {
+          "name": "test_status_contains_all_components",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 61,
+          "tokens": 127
+        },
+        {
+          "name": "test_status_does_not_leak_secrets",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 73,
+          "tokens": 134
+        },
+        {
+          "name": "test_status_queue_component_has_the_expected_shape",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 81,
+          "tokens": 105
+        },
+        {
+          "name": "test_status_response_schema_is_stable",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 93,
+          "tokens": 76
+        },
+        {
+          "name": "test_ldap_url_credentials_are_redacted",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 106,
+          "tokens": 122
+        },
+        {
+          "name": "test_health_endpoint_does_not_grow_the_status_dependencies",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 119,
+          "tokens": 159
+        }
+      ]
+    },
+    "pcs-frontend/src/api/status.ts": {
+      "description": "系统状态客户端（P10-C · T1b · SPEC §10.4）。",
+      "tokens": 356,
+      "hash": "a5553d810da41b38",
+      "size": 1646,
+      "mtimeMs": 1795476937609.5276,
+      "updatedAt": "2026-11-23T23:35:37.657Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/system/StatusPage.tsx": {
+      "description": "系统状态页（P10-C · T1b · SPEC §10.4）。",
+      "tokens": 1418,
+      "hash": "c477cfbec60554c1",
+      "size": 5478,
+      "mtimeMs": 1795476945051.552,
+      "updatedAt": "2026-11-23T23:35:45.103Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StatusTag",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 43,
+          "tokens": 45
+        },
+        {
+          "name": "StatusPage",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 168,
+          "tokens": 1105
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/system/StatusPage.test.tsx": {
+      "description": "系统状态页的守卫（P10-C · T1b · SPEC §10.4）。",
+      "tokens": 682,
+      "hash": "0c0106162f0692c0",
+      "size": 2648,
+      "mtimeMs": 1795476987328.6929,
+      "updatedAt": "2026-11-23T23:36:27.381Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/backup_restore_drill.py": {
+      "description": "备份**演练**：把库 dump 出来 ⇒ 再恢复到一个临时库 ⇒ ⇒ **验证恢复出来的库能用**。",
+      "tokens": 1838,
+      "hash": "c6a1f69b81e5c658",
+      "size": 7596,
+      "mtimeMs": 1795477886849.8276,
+      "updatedAt": "2026-11-23T23:51:26.907Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_db_parts",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 66,
+          "tokens": 183
+        },
+        {
+          "name": "_run",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 70,
+          "tokens": 62
+        },
+        {
+          "name": "_psql_env",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 77,
+          "tokens": 54
+        },
+        {
+          "name": "_scalar",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 85,
+          "tokens": 80
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 175,
+          "tokens": 1118
+        }
+      ]
+    },
+    "deploy/prometheus/prometheus.yml": {
+      "description": "Prometheus 抓取配置（P10-C · T1d · SPEC §10.4）。",
+      "tokens": 305,
+      "hash": "577492342a84fe81",
+      "size": 1496,
+      "mtimeMs": 1795477976446.2407,
+      "updatedAt": "2026-11-23T23:52:56.494Z",
+      "source": "hook"
+    },
+    "deploy/prometheus/rules.yml": {
+      "description": "告警规则（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。",
+      "tokens": 715,
+      "hash": "70266ac75c47d31f",
+      "size": 3434,
+      "mtimeMs": 1795479246087.5803,
+      "updatedAt": "2026-11-24T00:14:06.136Z",
+      "source": "hook"
+    },
+    "deploy/grafana/provisioning/datasources/prometheus.yml": {
+      "description": "Grafana 的 Prometheus 数据源预置（P10-C · T1d · SPEC §10.4）。",
+      "tokens": 89,
+      "hash": "d927724d9d631c9d",
+      "size": 411,
+      "mtimeMs": 1795477986155.784,
+      "updatedAt": "2026-11-23T23:53:06.205Z",
+      "source": "hook"
+    },
+    "deploy/grafana/provisioning/dashboards/dashboards.yml": {
+      "description": "Grafana 仪表盘预置（P10-C · T1d · SPEC §10.4）。",
+      "tokens": 88,
+      "hash": "28f8f82755d394d0",
+      "size": 380,
+      "mtimeMs": 1795477990139.5986,
+      "updatedAt": "2026-11-23T23:53:10.189Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/db/session.py": {
+      "description": "双引擎：sync（P0 auth/health/migration）+ async（P1 端点/ARQ）。",
+      "tokens": 1490,
+      "hash": "e50b2b442c3f57ba",
+      "size": 6068,
+      "mtimeMs": 1795479988903.8816,
+      "updatedAt": "2026-11-24T00:26:28.958Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_bind_pool_metrics",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 54,
+          "tokens": 291
+        },
+        {
+          "name": "get_engine",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 70,
+          "tokens": 125
+        },
+        {
+          "name": "check_database",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 80,
+          "tokens": 62
+        },
+        {
+          "name": "_build_async_url",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 89,
+          "tokens": 109
+        },
+        {
+          "name": "get_async_engine",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 105,
+          "tokens": 133
+        },
+        {
+          "name": "get_async_session_factory",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 137,
+          "tokens": 288
+        },
+        {
+          "name": "check_database_async",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 147,
+          "tokens": 70
+        },
+        {
+          "name": "get_db",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 158,
+          "tokens": 84
+        },
+        {
+          "name": "dispose_engines_async",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 167,
+          "tokens": 81
+        },
+        {
+          "name": "dispose_sync_engine",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 173,
+          "tokens": 61
+        }
+      ]
+    },
+    "pcs-backend/tests/test_state_machine.py": {
+      "description": "Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。",
+      "tokens": 4365,
+      "hash": "64b6e8b454075839",
+      "size": 15953,
+      "mtimeMs": 1795479279763.2412,
+      "updatedAt": "2026-11-24T00:14:39.814Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_state_transition_enum_has_13_entries",
+          "kind": "fn",
+          "startLine": 8,
+          "endLine": 13,
+          "tokens": 52
+        },
+        {
+          "name": "test_snapshot_status_enum_has_3_entries",
+          "kind": "fn",
+          "startLine": 14,
+          "endLine": 19,
+          "tokens": 52
+        },
+        {
+          "name": "test_allowed_transitions_complete_13_events",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 28,
+          "tokens": 93
+        },
+        {
+          "name": "test_draft_can_submit_for_check",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 41,
+          "tokens": 123
+        },
+        {
+          "name": "test_check_rejected_can_resubmit",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 51,
+          "tokens": 86
+        },
+        {
+          "name": "test_in_approval_pass_check_to_checked",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 72,
+          "tokens": 178
+        },
+        {
+          "name": "test_changed_can_request_reversal",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 87,
+          "tokens": 138
+        },
+        {
+          "name": "test_checked_can_initiate_change",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 98,
+          "tokens": 98
+        },
+        {
+          "name": "test_reversal_pending_resolves_back_to_checked_or_changed",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 113,
+          "tokens": 155
+        },
+        {
+          "name": "test_checked_to_stale_to_change_pending",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 132,
+          "tokens": 177
+        },
+        {
+          "name": "test_change_pending_can_abandon_to_checked",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 144,
+          "tokens": 102
+        },
+        {
+          "name": "test_stale_resolve_two_paths",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 162,
+          "tokens": 150
+        },
+        {
+          "name": "test_obsolete_from_any_state",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 176,
+          "tokens": 120
+        },
+        {
+          "name": "test_invalid_transition_raises",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 225,
+          "tokens": 411
+        },
+        {
+          "name": "test_invalid_transition_is_counted_for_prometheus",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 293,
+          "tokens": 578
+        },
+        {
+          "name": "test_stale_resolved_audit_contains_three_fields",
+          "kind": "fn",
+          "startLine": 294,
+          "endLine": 355,
+          "tokens": 575
+        },
+        {
+          "name": "test_stale_resolved_changed_audit_path",
+          "kind": "fn",
+          "startLine": 356,
+          "endLine": 424,
+          "tokens": 652
+        },
+        {
+          "name": "test_stale_resolved_changed_fields_list_format",
+          "kind": "fn",
+          "startLine": 425,
+          "endLine": 489,
+          "tokens": 599
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md": {
+      "description": "QA 报告 · P10-C · T1（exporters · 状态页 · 监控栈 · 备份演练）· 2026-11-24",
+      "tokens": 1433,
+      "hash": "19f38defa3a697f5",
+      "size": 8844,
+      "mtimeMs": 1795486947395.5442,
+      "updatedAt": "2026-11-24T02:22:27.445Z",
+      "source": "hook"
+    },
+    "docs/solutions/observability-issues/metric-must-have-a-real-feed.md": {
+      "description": "指标「定义了」≠「有值」—— 三种**假零**",
+      "tokens": 634,
+      "hash": "5f711bc3d9437e43",
+      "size": 4129,
+      "mtimeMs": 1795486361874.5125,
+      "updatedAt": "2026-11-24T02:12:41.926Z",
       "source": "hook"
     }
   }

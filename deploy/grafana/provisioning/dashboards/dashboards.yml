@@ -1,0 +1,14 @@
+# Grafana 仪表盘预置（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。
+#
+# ⚠️ **预置** ⇒ ⇒ ⇒ 容器一起来就有仪表盘 ⇒ ⇒ ⇒ 不用手工导入 JSON。
+apiVersion: 1
+providers:
+  - name: pcs
+    orgId: 1
+    folder: PCS
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards

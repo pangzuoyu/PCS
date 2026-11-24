@@ -49,6 +49,56 @@
         }
       }
     },
+    "/api/v1/status": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Status",
+        "description": "系统状态（**恒 200** ⇒ ⇒ ⇒ 页面永远打得开）。\n\n⚠️ **要登录**（`current_user`）—— 本端点吐的是**运维内部信息**\n（队列深度 / worker 心跳 / LDAP 主机 / DB 与 Redis 延迟）\n⇒ ⇒ ⇒ 匿名可读 ⇒ ⇒ ⇒ 等于给外人一张**内部拓扑图**\n⇒ ⇒ ⇒ ⇒ ⇒ （`/health` 匿名是可以的 —— 它只说「活着」）\n\n⚠️ **恒 200 的范围**：**组件**挂了仍 200 ⇒ ⇒ ⇒ 但**没登录**仍 401\n⇒ ⇒ ⇒ ⇒ ⇒ 两个「恒 200」说的是不同的事。",
+        "operationId": "status_api_v1_status_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ai/intent": {
       "post": {
         "tags": [
@@ -24909,6 +24959,51 @@
         "title": "CommitByImportIdRequest",
         "description": "commit 请求体：仅含 import_id（preview 阶段已返回并持久化到 sim_imports）。"
       },
+      "ComponentStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Status",
+            "description": "ok / degraded / down / unknown"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "补充说明（**不含敏感值**）"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms",
+            "description": "探测耗时（毫秒）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ComponentStatus",
+        "description": "单个组件的状态。"
+      },
       "ConfigAssetReport": {
         "properties": {
           "category": {
@@ -37869,6 +37964,62 @@
         "title": "PumpCurveRequest",
         "description": "厂家泵曲线请求。"
       },
+      "QueueStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth",
+            "description": "队列里待处理的任务数"
+          },
+          "worker_last_heartbeat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Last Heartbeat",
+            "description": "worker 最近一次心跳（ARQ 的 health-check 键的内容）"
+          },
+          "worker_alive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Alive",
+            "description": "心跳键是否存在（TTL 内 ⇒ ⇒ worker 活着）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "QueueStatus",
+        "description": "ARQ 队列状态。"
+      },
       "RadiationCheckInfo": {
         "properties": {
           "q_at_receptor_w_m2": {
@@ -42971,6 +43122,49 @@
         ],
         "title": "StatefulPreviewResponse",
         "description": "stateful preview 响应：import_id + 预览内容。"
+      },
+      "StatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "unknown"
+            ],
+            "title": "Status",
+            "description": "总体状态（任一组件 down ⇒ ⇒ degraded）"
+          },
+          "checked_at": {
+            "type": "number",
+            "title": "Checked At",
+            "description": "探测时刻（unix 秒）"
+          },
+          "database": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "redis": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueStatus"
+          },
+          "ldap": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "checked_at",
+          "database",
+          "redis",
+          "queue",
+          "ldap"
+        ],
+        "title": "StatusResponse",
+        "description": "系统状态（**给状态页用的**）。"
       },
       "StreamBatchSubmitRequest": {
         "properties": {

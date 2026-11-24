@@ -20,6 +20,7 @@ import {
   ReportDefinitionListRoute,
   ReportDefinitionEditorRoute,
   ReportReviewQueueRoute,
+  StatusRoute,
   ReportExecuteRoute,
   ReportStyleRoute,
   HeatingValueRoute,
@@ -118,6 +119,8 @@ const router = createBrowserRouter([
       { path: 'report/definitions/:defId', element: <ReportDefinitionEditorRoute /> },
       // P10-I · T1：「待我审核」队列（审核者视角 · 只读 + 发布/忽略）
       { path: 'report/review', element: <ReportReviewQueueRoute /> },
+      // P10-C · T1b：系统状态页（只读 · DB / Redis / 队列 / worker / LDAP）
+      { path: 'status', element: <StatusRoute /> },
       { path: 'report/execute/:defId', element: <ReportExecuteRoute /> },
       { path: 'report/styles', element: <ReportStyleRoute /> },
 

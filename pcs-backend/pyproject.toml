@@ -29,6 +29,7 @@ dependencies = [
     "reportlab>=4.0",
     "xlsxwriter>=3.2",
     "python-docx>=1.1",
+    "prometheus-client>=0.26.0",
 ]
 
 # P6-6A-6 v5.1 — wheel 构建：hatch backend（uv default），include JSON sidecar (B-2 落实)
@@ -42,6 +43,12 @@ packages = ["app"]
 # Behr 系数 sidecar JSON（Day-0 Gate 实际拟合系数；P6-6A-6 v5.1）
 [tool.hatch.build.targets.wheel.force-include]
 "app/services/psychro/data/behr_coefficients.json" = "app/services/psychro/data/behr_coefficients.json"
+
+# ⚠️ **不写死镜像源** —— 本机 `pypi.org/simple` 不可达（实测 000）时，
+# ⇒ ⇒ ⇒ **运营侧**用 `UV_INDEX_URL` / daemon 的 `registry-mirrors` 覆盖
+# ⇒ ⇒ ⇒ ⇒ ⇒ 写进仓库 ⇒ ⇒ ⇒ 全仓依赖的 URL 都指向第三方镜像
+# ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ （那是**信任决策**，不是开发便利）
+# ⇒ ⇒ ⇒ 依赖的**下载**走 `files.pythonhosted.org`（实测可达）⇒ ⇒ ⇒ 不受影响。
 
 [dependency-groups]
 dev = [

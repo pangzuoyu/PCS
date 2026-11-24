@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -24,6 +24,34 @@ _async_engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _bind_pool_metrics(engine: Engine | AsyncEngine, name: str) -> None:
+    """把**连接池**指标接上 Prometheus（P10-C · T1a）。
+
+    ⚠️ **为什么在这儿接**（而不是在 `app/core/metrics.py`）：
+    `app/core/` **不得** import `app/db/`（否则 core 依赖具体存储层）
+    ⇒ ⇒ ⇒ 反过来（db → core）才是对的依赖方向。
+
+    ⚠️ **为什么用池事件**：池里的连接数**只在借出/归还时变**
+    ⇒ ⇒ ⇒ 挂在 `checkout` / `checkin` 上 ⇒ ⇒ ⇒ 每次变化都更新一次 gauge
+    ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 而不是一个**永远不刷新**的定时器。
+    """
+    from app.core.metrics import DB_POOL_CHECKED_OUT, DB_POOL_SIZE
+
+    pool = engine.pool
+    # ⚠️ **不是所有池都有这两个方法** —— `aiosqlite` 的**内存库**用
+    # `StaticPool`（**没有** `size()` / `checkedout()`）
+    # ⇒ ⇒ ⇒ 不判一下 ⇒ ⇒ ⇒ 测试车道一连库就 `AttributeError`。
+    if not (hasattr(pool, "size") and hasattr(pool, "checkedout")):
+        return
+
+    def _refresh() -> None:
+        DB_POOL_CHECKED_OUT.labels(engine=name).set(pool.checkedout())
+        DB_POOL_SIZE.labels(engine=name).set(pool.size())
+
+    event.listen(pool, "checkout", lambda *a, **k: _refresh())
+    event.listen(pool, "checkin", lambda *a, **k: _refresh())
+
+
 def get_engine() -> Engine:
     """P0 同步引擎（auth/health/migration 路径）。"""
     global _sync_engine
@@ -36,6 +64,7 @@ def get_engine() -> Engine:
             pool_timeout=30,
             pool_recycle=1800,
         )
+        _bind_pool_metrics(_sync_engine, "sync")
     return _sync_engine
 
 
@@ -70,6 +99,7 @@ def get_async_engine() -> AsyncEngine:
             pool_timeout=30,
             pool_recycle=1800,
         )
+        _bind_pool_metrics(_async_engine, "async")
     return _async_engine
 
 

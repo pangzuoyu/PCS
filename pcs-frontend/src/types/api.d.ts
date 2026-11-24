@@ -70,6 +70,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Status
+         * @description 系统状态（**恒 200** ⇒ ⇒ ⇒ 页面永远打得开）。
+         *
+         *     ⚠️ **要登录**（`current_user`）—— 本端点吐的是**运维内部信息**
+         *     （队列深度 / worker 心跳 / LDAP 主机 / DB 与 Redis 延迟）
+         *     ⇒ ⇒ ⇒ 匿名可读 ⇒ ⇒ ⇒ 等于给外人一张**内部拓扑图**
+         *     ⇒ ⇒ ⇒ ⇒ ⇒ （`/health` 匿名是可以的 —— 它只说「活着」）
+         *
+         *     ⚠️ **恒 200 的范围**：**组件**挂了仍 200 ⇒ ⇒ ⇒ 但**没登录**仍 401
+         *     ⇒ ⇒ ⇒ ⇒ ⇒ 两个「恒 200」说的是不同的事。
+         */
+        get: operations["status_api_v1_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/intent": {
         parameters: {
             query?: never;
@@ -8445,6 +8473,28 @@ export interface components {
             import_id: string;
         };
         /**
+         * ComponentStatus
+         * @description 单个组件的状态。
+         */
+        ComponentStatus: {
+            /**
+             * Status
+             * @description ok / degraded / down / unknown
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "down" | "unknown";
+            /**
+             * Detail
+             * @description 补充说明（**不含敏感值**）
+             */
+            detail?: string | null;
+            /**
+             * Latency Ms
+             * @description 探测耗时（毫秒）
+             */
+            latency_ms?: number | null;
+        };
+        /**
          * ConfigAssetReport
          * @description 按 category 聚合的 status 计数（按 version 算，不取 latest）。
          */
@@ -16277,6 +16327,32 @@ export interface components {
             rated_efficiency: number;
         };
         /**
+         * QueueStatus
+         * @description ARQ 队列状态。
+         */
+        QueueStatus: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "down" | "unknown";
+            /**
+             * Depth
+             * @description 队列里待处理的任务数
+             */
+            depth?: number | null;
+            /**
+             * Worker Last Heartbeat
+             * @description worker 最近一次心跳（ARQ 的 health-check 键的内容）
+             */
+            worker_last_heartbeat?: string | null;
+            /**
+             * Worker Alive
+             * @description 心跳键是否存在（TTL 内 ⇒ ⇒ worker 活着）
+             */
+            worker_alive?: boolean | null;
+        };
+        /**
          * RadiationCheckInfo
          * @description Radiation Check 子结果（API 521 §7.4.2.3 + BEDD）。
          */
@@ -19262,6 +19338,27 @@ export interface components {
             preview: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * StatusResponse
+         * @description 系统状态（**给状态页用的**）。
+         */
+        StatusResponse: {
+            /**
+             * Status
+             * @description 总体状态（任一组件 down ⇒ ⇒ degraded）
+             * @enum {string}
+             */
+            status: "ok" | "degraded" | "down" | "unknown";
+            /**
+             * Checked At
+             * @description 探测时刻（unix 秒）
+             */
+            checked_at: number;
+            database: components["schemas"]["ComponentStatus"];
+            redis: components["schemas"]["ComponentStatus"];
+            queue: components["schemas"]["QueueStatus"];
+            ldap: components["schemas"]["ComponentStatus"];
         };
         /**
          * StreamBatchSubmitRequest
@@ -22949,6 +23046,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthAIResponse"];
+                };
+            };
+        };
+    };
+    status_api_v1_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

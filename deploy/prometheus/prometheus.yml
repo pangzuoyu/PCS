@@ -1,0 +1,41 @@
+# Prometheus 抓取配置（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。
+#
+# ## 抓谁
+#
+# 后端 API 在**宿主**上跑（`uv run uvicorn` · 开发流）⇒ ⇒ ⇒ 容器里要用
+# `host.docker.internal` 才够得着 ⇒ ⇒ ⇒ ⇒ compose 里给 `prometheus` 服务配了
+# `extra_hosts: host.docker.internal:host-gateway` ✔
+#
+# ## ⚠️ **`/metrics` 无鉴权**
+#
+# ⇒ ⇒ ⇒ 它**不映射到宿主端口** ⇒ ⇒ ⇒ 只在容器内网可达 ⇒ ⇒ ⇒ ⇒
+# ⇒ ⇒ ⇒ Prometheus 在同一 compose 网络里 ⇒ ⇒ ⇒ 抓得到 ⇒ ⇒ ⇒ ⇒
+# ⇒ ⇒ ⇒ **别**把 8000 端口映射出去（那等于把指标暴露给整个局域网）。
+#
+# ## ⚠️ **告警不外发**（人裁 2026-11-24 · 裁决 ④）
+#
+# ⇒ ⇒ ⇒ **不配 Alertmanager** ⇒ ⇒ ⇒ 告警只出现在 Prometheus 自己的
+# `/alerts` 面板 ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒
+# ⇒ ⇒ ⇒ 等有真实运维环境再接出口（邮件 / webhook / 机器人）。
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: pcs-backend
+
+rule_files:
+  - /etc/prometheus/rules.yml
+
+scrape_configs:
+  - job_name: pcs-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - host.docker.internal:8000
+        labels:
+          component: backend
+  # ⇒ ⇒ Prometheus 自己也抓自己 ⇒ ⇒ ⇒ 「Prometheus 挂了没」这件事可见
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

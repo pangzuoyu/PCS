@@ -100,6 +100,29 @@ uv run python scripts/migrate_legacy_user_ids.py --dry-run   # ⇒ 「没有遗�
 
 ---
 
+## 附 · 监控栈（P10-C · T1d）
+
+```bash
+docker compose -f docker-compose.yml up -d prometheus grafana
+```
+
+⇒ ⇒ 两个服务**都不映射宿主端口** ⇒ ⇒ ⇒ 只在 compose 内网可达
+⇒ ⇒ ⇒ （`/metrics` 无鉴权 ⇒ ⇒ ⇒ 映射出去 = 把指标暴露给整个局域网）。
+
+### ⚠️ 两个**环境事实**（2026-11-24 实测 · 不是配置问题）
+
+| # | 事实 | 影响 | 处置 |
+|---|---|---|---|
+| 1 | ⚠️ **宿主 8000 端口被别的服务占着**（实测 `main:app` · 不是本仓）⇒ ⇒ Prometheus 抓 `host.docker.internal:8000` ⇒ ⇒ **404** | 抓取目标 down | **换端口**：后端跑在别的端口 ⇒ ⇒ 改 `deploy/prometheus/prometheus.yml` 的 target ⇒ ⇒ （或停掉占端口的服务）|
+| 2 | ⚠️ **docker.io 本机不可达**（`registry-1.docker.io` IPv6 超时）⇒ ⇒ `prom/prometheus` · `grafana/grafana` 拉不动 | 监控栈起不来 | **镜像源是运营侧决定** ⇒ ⇒ ⇒ 仓库里**不写死**第三方镜像 ⇒ ⇒ ⇒ 需要时用 daemon 的 `registry-mirrors` 或 `docker tag` 改本地标签 |
+
+⇒ ⇒ ⇒ 端到端已验：抓取目标 **up** · 抓到 `pcs_http_requests_total` · 标签是**路由模板** ✔
+⇒ ⇒ ⇒ 告警规则 **5 条**（5xx 率 · P95 延迟 · 队列积压 · **队列测不到** · 状态机失败）
+⇒ ⇒ ⇒ ⚠️ **前 4 条**在真 Prometheus 上验过（`/api/v1/rules` 可见 · `state=inactive`）
+⇒ ⇒ ⇒ ⇒ 第 5 条（`absent()`）是本批新增 ⇒ ⇒ 镜像已不在本机 ⇒ ⇒ **未经 promtool 复核**
+⇒ ⇒ ⇒ ⚠️ 「队列测不到」那条是因为队列深度是 **scrape 时现读 Redis** 的
+⇒ ⇒ ⇒ ⇒ ⇒ 读不到 ⇒ ⇒ ⇒ **序列不产出**（不是报 0）⇒ ⇒ ⇒ ⇒ ⇒ 「测不到」与「真的是 0」可区分 ✔
+
 ## 附 · 车道互斥（同一时刻只有一条能建 schema）
 
 `migrate` / `seed` / PG 车道 / E2E 车道**都写 `pcs_pgtest`** ⇒ ⇒ 必须互斥：

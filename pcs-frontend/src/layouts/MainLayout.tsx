@@ -78,6 +78,10 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
     { key: '/util/cooling-water', label: '冷却水子表' },
     { key: '/util/energy-summary', label: '综合能耗聚合' },
   ]),
+  group('运维', 'ops', [
+    // P10-C · T1b：系统状态（**只读** · 不含敏感值）
+    { key: '/status', label: '系统状态' },
+  ]),
   group('报表', 'report', [
     { key: '/report/definitions', label: '报表定义' },
     // P10-I · T1：「待我审核」（审核者视角）—— 非审核角色点进来会看到

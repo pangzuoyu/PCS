@@ -83,18 +83,28 @@
 
 ### T1 · 待裁后细项（骨架）
 
-- [ ] **exporters** —— `prometheus-client` + `GET /metrics`
+> ⚠️ **人裁 2026-11-24**：①镜像 = **A**（保持 uv 官方镜像 + 加生产镜像）· ②监控栈 = **A**
+> （Prometheus + Grafana，**不做 ELK**）· ③状态页 = **A**（后端聚合端点 + 前端页）·
+> ④备份演练 = **A**（可验证脚本）· ⑤告警出口 = **A**（**先只落 Prometheus**，不接 Alertmanager）
+
+- [x] **exporters** —— `prometheus-client` + `GET /metrics`
       ⇒ ⚠️ **无鉴权** ⇒ ⇒ 只在容器内网暴露（不映射到宿主端口）
       ⇒ 指标（5~8 个）：请求延迟直方图 · 在飞请求数 · ARQ 队列深度 ·
       DB 连接池 · 状态机转移失败数 · 待签署数
-- [ ] **监控栈 + 告警** —— compose 加 `prometheus` + `grafana`
-      ⇒ ⇒ 4 条告警规则（5xx 率 · P95 延迟 · 队列积压 · 状态机失败率）
-      ⇒ ⇒ 告警**出口**（邮件 / webhook）**待裁**（第 5 问）
-- [ ] **状态页** —— `GET /status`（DB / Redis / LDAP / worker 心跳 / 队列深度）
+      ⇒ ⇒ **落地**：`app/core/metrics.py` + `app/api/v1/metrics.py`（**挂在 app 根**
+      ⇒ ⇒ 不在 `api_router` 下 ⇒ ⇒ 否则路径成 `/api/v1/metrics`）
+- [x] **监控栈 + 告警** —— compose 加 `prometheus` + `grafana`
+      ⇒ ⇒ **5 条**告警规则（5xx 率 · P95 延迟 · 队列积压 · **队列测不到**
+      ⇒ ⇒ ⇒ （`absent()`）· 状态机失败率）
+      ⇒ ⇒ 告警**出口**：**人裁 ⑤ = A** ⇒ ⇒ **不配 Alertmanager** ⇒ ⇒ 只在 `/alerts` 面板
+      ⇒ ⇒ **落地**：`deploy/prometheus/{prometheus,rules}.yml` + `deploy/grafana/provisioning/**`
+- [x] **状态页** —— `GET /status`（DB / Redis / LDAP / worker 心跳 / 队列深度）
       ⇒ ⇒ 前端 `/status` 页（**只读** · **不含敏感值**）
-- [ ] **备份演练** —— `scripts/backup_restore_drill.sh`
+      ⇒ ⇒ **落地**：`app/api/v1/status.py`（**恒 200** · **不复用 `/health`**）+
+      `pcs-frontend/src/pages/system/StatusPage.tsx` ⇒ ⇒ **SPEC §7.22**
+- [x] **备份演练** —— `scripts/backup_restore_drill.py`（**不是 `.sh`** —— 要读 ORM metadata）
       ⇒ ⇒ `pg_dump` → 恢复到**临时库** → `alembic check` + 抽样行数比对
-      ⇒ ⇒ **脚本自带断言**（失败即非零退出）⇒ ⇒ 演练记录进 `docs/`
+      ⇒ ⇒ **脚本自带断言**（失败即非零退出）⇒ ⇒ 演练记录进 `docs/deploy-prerequisites.md`
 - [ ] **测试报告页** —— **形态待裁**（页面形态 + 数据来源）
 
 ---
@@ -111,5 +121,17 @@
 
 ## 未解决
 
-- **①②③④ 待人裁**（T1 的前提）· **告警出口**待裁（第 5 问）· **测试报告页形态**待裁
+- **测试报告页形态**待裁（**本批唯一未做的 T1 细项**）
+- ⚠️ **「待签署数」指标没做** —— 原计划放 `pcs_signatures_pending`
+  ⇒ ⇒ ⇒ 但「待签署」的**业务口径没人裁**（哪些状态算「待签」？）
+  ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 没口径 ⇒ ⇒ ⇒ **没人喂那个 gauge**
+  ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 而 `prometheus_client` 的无标签 gauge **创建即报 0**
+  ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **假零** ⇒ ⇒ ⇒ ⇒ ⇒ 面板上读成「一切正常」
+  ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **已删**（不放进指标集）
+  ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 要做的话：先裁口径 ⇒ ⇒ ⇒ 再加 gauge ⇒ ⇒ ⇒ 再喂
+- ⚠️ **两个环境事实**（不是配置问题 · 见 `docs/deploy-prerequisites.md` 附节）：
+  ① **宿主 8000 端口被别的服务占着** ⇒ ⇒ Prometheus 抓 `host.docker.internal:8000` ⇒ ⇒ **404**
+  ⇒ ⇒ 换端口（或停掉占端口的服务）⇒ ⇒ 端点已在 **8010** 上验过（target **up** · 抓到序列）
+  ② **docker.io 本机不可达** ⇒ ⇒ `prom/prometheus` · `grafana/grafana` 拉不动
+  ⇒ ⇒ **镜像源是运营侧决定** ⇒ ⇒ 仓库里**不写死**第三方镜像
 - P10-J-T2「拒绝」动作（4 问）· TODO-196 工艺室签字 · SPEC §7.5 向导 PMS/BEDD 占位 —— **均不在本批**

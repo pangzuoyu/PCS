@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-23T23:07:29.089Z
-> Files: 1468 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T02:22:27.445Z
+> Files: 1485 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -11,7 +11,7 @@
 - `CLAUDE.md` — OpenWolf (~1960 tok)
 - `CONCEPTS.md` — Concepts (~2240 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
-- `docker-compose.yml` — Docker Compose services (~2488 tok)
+- `docker-compose.yml` — Docker Compose services (~2974 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
 - `TODOS.md` — TODOS.md — PCS 延后工作清单 (~24142 tok)
@@ -179,6 +179,7 @@
 - `_dashboard-snapshot.txt` — - BEGIN UNTRUSTED EXTERNAL CONTENT (source: http://localhost:5173/) --- (~536 tok)
 - `qa-report-pcs-backend-2026-10-13-arq-chain.md` — QA 报告：P8 异步链路真跑（Redis + ARQ worker） (~774 tok)
 - `qa-report-pcs-backend-2026-11-24-p10c-t0.md` — QA 报告 · P10-C · T0（容器侧车道锁 + 部署前置清单）· 2026-11-24 (~861 tok)
+- `qa-report-pcs-backend-2026-11-24-p10c-t1.md` — QA 报告 · P10-C · T1（exporters · 状态页 · 监控栈 · 备份演练）· 2026-11-24 (~1433 tok)
 - `qa-report-pcs-frontend-2026-09-16.md` — PCS Frontend QA Report (~1153 tok)
 - `qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md` — QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环 (~2385 tok)
 - `qa-report-pcs-frontend-2026-09-25-p6-2-batch.md` — QA Report — pcs-frontend — P6-2 batch 批末 (~2123 tok)
@@ -369,10 +370,23 @@
 
 - `results.json` (~39 tok)
 
+## deploy/grafana/provisioning/dashboards/
+
+- `dashboards.yml` — Grafana 仪表盘预置（P10-C · T1d · SPEC §10.4）。 (~88 tok)
+
+## deploy/grafana/provisioning/datasources/
+
+- `prometheus.yml` — Grafana 的 Prometheus 数据源预置（P10-C · T1d · SPEC §10.4）。 (~89 tok)
+
+## deploy/prometheus/
+
+- `prometheus.yml` — Prometheus 抓取配置（P10-C · T1d · SPEC §10.4）。 (~305 tok)
+- `rules.yml` — 告警规则（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。 (~715 tok)
+
 ## docs/
 
 - `ce-code-review-p5-p6-summary.md` — ce-code-review P5+P6 全范围 Summary (~1831 tok)
-- `deploy-prerequisites.md` — 部署前置清单（每个环境各跑一次 · P10-C · T0-5） (~759 tok)
+- `deploy-prerequisites.md` — 部署前置清单（每个环境各跑一次 · P10-C · T0-5） (~1010 tok)
 - `P45-BATCH3-TYPE-MIGRATION.md` — P45 BATCH3 前端类型手动迁移登记 (~248 tok)
 - `P6-9-PICKUP-4.md` — P6-9-PICKUP-4 — ce-code-review P5+P6 残留 debt 闭环 (~2054 tok)
 - `P6-9-PICKUP-6.md` — P6-9-PICKUP-5 工艺债务批 archive (~2281 tok)
@@ -419,7 +433,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~19278 tok)
+- `PCS-UI-SPEC.md` (~19923 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -604,6 +618,10 @@
 
 - `raw-fetch-bypasses-axios-token-interceptor.md` — 裸 `fetch` 绕开了 axios 拦截器 ⇒ 两条取数通道 ⇒ 只有一条被测过 (~503 tok)
 
+## docs/solutions/observability-issues/
+
+- `metric-must-have-a-real-feed.md` — 指标「定义了」≠「有值」—— 三种**假零** (~634 tok)
+
 ## docs/solutions/security-issues/
 
 - `guard-coverage-audit-logistics-adjacent-modules.md` — 守卫覆盖审计 —— A/B/D 档 63 个端点逐个回答 (~5970 tok)
@@ -663,7 +681,7 @@
 - `2026-11-17-p10-batch-f-production-readiness.md` — P10-F 实施计划：生产就绪评审（10.7）· 2026-11-17 (~19491 tok)
 - `2026-11-18-p10-c-frontend-closure.md` — P10-C 子批「前端收口」：P10-B 扫描留下的四条缺口 · 2026-11-18 (~1699 tok)
 - `2026-11-18-p10-f-guard-hole-batch.md` — P10-F「守卫补洞批」：ce-code-review 出的 3 条 P1 + 8 条 P2 · 2026-11-18 (~1464 tok)
-- `2026-11-23-p10-c-deploy-observability.md` — P10-C 主体 · 部署与可观测性 · 计划 (~1253 tok)
+- `2026-11-23-p10-c-deploy-observability.md` — P10-C 主体 · 部署与可观测性 · 计划 (~1580 tok)
 - `2026-11-23-p10-h-project-scope.md` — P10-H · 项目作用域批（TODO-194 → TODO-195 → TODO-193）· 2026-11-23 (~796 tok)
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
@@ -1320,7 +1338,7 @@
 
 - `.tmp_probe_write.txt` (~2 tok)
 - `Dockerfile` — Docker container definition (~928 tok)
-- `pyproject.toml` — ", "**/migrations/**"] (~1011 tok)
+- `pyproject.toml` — ", "**/migrations/**"] (~1088 tok)
 
 ## pcs-backend/alembic/
 
@@ -1396,6 +1414,7 @@
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~1932 tok)
 - `lineage.py` — Lineage API（Sprint 3）。 (~3731 tok)
 - `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1958 tok)
+- `metrics.py` — `GET /metrics` —— Prometheus 抓取端点（P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10- (~359 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~816 tok)
 - `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
@@ -1415,6 +1434,7 @@
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4438 tok)
+- `status.py` — `GET /status` —— **系统状态页**的数据源（P10-C · T1b · SPEC §7.22）。 (~1864 tok)
 - `stream_batch.py` — 批量「提交校对」的端点（P9B-3b）。 (~673 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~8840 tok)
@@ -1440,8 +1460,13 @@
 - `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~3280 tok)
 - `db_guard.py` — 目标库白名单守卫 —— E2E 车道 / 种子脚本（P10-B 评审 #8 · P1）。 (~1183 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~3688 tok)
+- `metrics.py` — Prometheus 指标（**exporters**）—— P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-d (~2076 tok)
 - `outbound_ai_client.py` — **唯一**允许调 AI 端点的出口（P10-A · Task T8）。 (~716 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
+
+## pcs-backend/app/db/
+
+- `session.py` — 双引擎：sync（P0 auth/health/migration）+ async（P1 端点/ARQ）。 (~1490 tok)
 
 ## pcs-backend/app/models/
 
@@ -1524,7 +1549,7 @@
 - `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~3082 tok)
 - `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `signature_matrix_service.py` — 签署矩阵服务（P9A-DLV-007 · SUP-005 · ADR-0008）。 (~8562 tok)
-- `state_machine.py` — 状态机（Sprint 2 核心）。 (~5744 tok)
+- `state_machine.py` — 状态机（Sprint 2 核心）。 (~5842 tok)
 - `stream_batch_service.py` — 批量「提交校对」（P9B-3b · 委员会裁决 5 的 D1~D6）。 (~5708 tok)
 - `stream_review_log_service.py` — 读物流的「校核记录」（TODO-112 · P9B-4 紧急批次 T6）。 (~966 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~8389 tok)
@@ -1617,6 +1642,7 @@
 
 - `_apply_guard_msgs.py` — **一次性**工具：给 29 处守卫调用补 `not_found_message` / `not_found_code`。 (~1376 tok)
 - `audit_list_endpoints.py` — **守卫覆盖审计**的端点枚举（P10-F · F3）。 (~3639 tok)
+- `backup_restore_drill.py` — 备份**演练**：把库 dump 出来 ⇒ 再恢复到一个临时库 ⇒ ⇒ **验证恢复出来的库能用**。 (~1838 tok)
 - `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1778 tok)
 - `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1243 tok)
@@ -1658,7 +1684,8 @@
 - `test_records.py` — Records API 端到端（Sprint 2）。 (~2260 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3548 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1860 tok)
-- `test_strict_client_ratchet.py` — **`strict_client` 覆盖的棘轮**（P10-F · F3 · 2026-11-18 人裁决）。 (~2138 tok)
+- `test_state_machine.py` — Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。 (~4365 tok)
+- `test_strict_client_ratchet.py` — **`strict_client` 覆盖的棘轮**（P10-F · F3 · 2026-11-18 人裁决）。 (~2242 tok)
 - `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
 - `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~2889 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
@@ -1708,6 +1735,7 @@
 - `test_lineage_guard.py` — 血缘端点的项目守卫 —— P9B-4 紧急批次 T5（TODO-114）。 (~1817 tok)
 - `test_lineage_review_fixes.py` — P9B-4 评审的**血缘面**修复（#3 / #4 / #9 / #11）。 (~3948 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
+- `test_metrics_endpoint.py` — `/metrics` 端点的守卫（P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observab (~1425 tok)
 - `test_notification_list_budget.py` — P9A 收口：通知列表的 500ms 预算（ADR-0049 §③ / SPEC §7.2「待办/通知 ≤500ms」）。 (~1813 tok)
 - `test_p9a_dlv_011_authorization.py` — P9A-DLV-011 新端点的**项目授权**测试（评审 I-6）。 (~2299 tok)
 - `test_pipe_line_list.py` — **管道一览表端点**（`GET /projects/{project_id}/pipe-line-list`）—— P10-C · T2。 (~1725 tok)
@@ -1730,6 +1758,7 @@
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~6052 tok)
 - `test_signature_matrix_api.py` — 签署矩阵管理面端点测试（TODO-070 · P9A-DLV-011 T3）。 (~2526 tok)
+- `test_status_endpoint.py` — `GET /status` 的守卫（P10-C · T1b · SPEC §7.22）。 (~1165 tok)
 - `test_stream_batch_concurrency_pg.py` — 批量/单条「提交校对」的**真并发**（PG 车道 · P9B-3b · T4）。 (~3466 tok)
 - `test_stream_composition_sum.py` — 物流组成合计校验（SPEC §7.7.2「底部合计校验（100±0.5%）」）。 (~1901 tok)
 - `test_stream_list_filters.py` — 物流列表的四项筛选（SPEC §7.7.1 · P9B-3 · 评审 I-4）。 (~1346 tok)
@@ -2014,6 +2043,7 @@
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~2268 tok)
 - `signatureMatrices.ts` — 签署矩阵管理 API 客户端（TODO-070 · P9A-DLV-011 T3 的前端面）。 (~980 tok)
+- `status.ts` — 系统状态客户端（P10-C · T1b · SPEC §10.4）。 (~356 tok)
 - `stream.ts` — SIM 物流 API 客户端（P9B-3 · T6/T7/T8 扩展）。 (~2454 tok)
 - `systemSettings.ts` — 系统参数客户端（§7.20.1 · P9B-3）。 (~263 tok)
 - `todos.ts` — 待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。 (~182 tok)
@@ -2062,7 +2092,7 @@
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~322 tok)
 - `changeNotices.ts` — 变更单闭环的 MSW handlers（TODO-083 · P9A-DLV-011 T4 的前端）。 (~1166 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~18039 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~18783 tok)
 - `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~3384 tok)
 - `signatureMatrices.ts` — 签署矩阵的 seed + MSW handlers（TODO-079 · P9A-DLV-011 T3 的前端）。 (~1919 tok)
@@ -2085,7 +2115,7 @@
 
 - `DashboardPage.tsx` — DashboardPage (~584 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~808 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~5475 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~5519 tok)
 
 ## pcs-frontend/src/pages/admin/
 
@@ -2172,6 +2202,10 @@
 - `StreamPropertiesTab.tsx` — 物流详情 —— 「物性」Tab（SPEC §7.7.2 · P9B-3 · T8）。 (~904 tok)
 - `StreamReviewLogTab.tsx` — 物流详情 —— 「校核记录」Tab（SPEC §7.7.2 · P9B-3 · T8 · TODO-112 改）。 (~835 tok)
 - `StreamStatePointsTab.tsx` — 物流详情 —— 「状态点」Tab（SPEC §7.7.2 · P9B-3 · T8）。 (~836 tok)
+
+## pcs-frontend/src/pages/system/
+
+- `StatusPage.tsx` — 系统状态页（P10-C · T1b · SPEC §10.4）。 (~1418 tok)
 
 ## pcs-frontend/src/pages/util/
 
@@ -2315,6 +2349,10 @@
 
 - `StreamLineageTab.test.tsx` — 「血缘」Tab 测试（P9B-4 T0-D · TODO-136）。 (~768 tok)
 - `StreamReviewLogTab.test.tsx` — 「校核记录」Tab 测试（TODO-112 · P9B-4 紧急批次 T6）。 (~793 tok)
+
+## pcs-frontend/tests/pages/system/
+
+- `StatusPage.test.tsx` — 系统状态页的守卫（P10-C · T1b · SPEC §10.4）。 (~682 tok)
 
 ## pcs-frontend/tests/report/
 

@@ -221,6 +221,75 @@ async def test_invalid_transition_raises(db_session):
             actor_role="DESIGNER",
         )
 
+
+@pytest.mark.asyncio
+async def test_invalid_transition_is_counted_for_prometheus(db_session):
+    """⚠️ **转移被拒要计数**（P10-C · T1a）⇒ ⇒ ⇒ 告警「签署链卡住」才抓得到。
+
+    ⇒ ⇒ ⇒ 计数器**只有**在真的被拒时才出现序列 ⇒ ⇒ ⇒
+    ⇒ ⇒ ⇒ 第一次转移失败之前，`/metrics` 上**没有**这条序列
+    ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒（不是「0」——「0」会读成「没失败过」）
+    """
+    import uuid
+
+    from prometheus_client import REGISTRY
+
+    from app.models.calc import PipingResult
+    from app.models.enums import RecordSignStatus9, StateTransition
+    from app.services.state_machine import InvalidTransition, StateMachineService
+
+    def _value() -> float:
+        """⚠️ 用**公开** API（`REGISTRY.get_sample_value`）⇒ ⇒ 不碰 `_value` 私有属性。"""
+        return (
+            REGISTRY.get_sample_value(
+                "pcs_state_machine_transition_failures_total",
+                {"transition": StateTransition.APPLY_CHANGE.value},
+            )
+            or 0.0
+        )
+
+    before = _value()
+
+    rec = PipingResult(
+        project_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        seq_no=1,
+        line_no="P-100",
+        line_size="2\"",
+        material_class="A1",
+        fluid_code="W",
+        fluid_name="Water",
+        fluid_phase="L",
+        fluid_category="NORMAL",
+        source_pid="P&ID-001",
+        line_from="V-100",
+        line_to="P-101",
+        norm_oper_press=1.0,
+        max_oper_press=1.5,
+        norm_oper_temp=40.0,
+        max_oper_temp=80.0,
+        design_press=2.0,
+        design_temp=100.0,
+        piping_category="GC2",
+        pressure_test_medium="WATER",
+        pressure_test_press=3.0,
+        check_class="II",
+        sign_status=RecordSignStatus9.DRAFT,
+    )
+    db_session.add(rec)
+    await db_session.flush()
+    svc = StateMachineService(db_session)
+
+    with pytest.raises(InvalidTransition):
+        await svc.transition(
+            record=rec,
+            transition=StateTransition.APPLY_CHANGE,
+            actor_user_id=uuid.uuid4(),
+            actor_role="DESIGNER",
+        )
+
+    assert _value() == before + 1, "转移被拒 ⇒ ⇒ ⇒ 计数器没动 ⇒ ⇒ ⇒ 告警抓不到"
+
 @pytest.mark.asyncio
 async def test_stale_resolved_audit_contains_three_fields(db_session):
     """R-03 T0 (D8 9A): STALE_RESOLVED 转移写 audit 含 stale_resolution_path / hash_changed / changed_fields 三字段"""

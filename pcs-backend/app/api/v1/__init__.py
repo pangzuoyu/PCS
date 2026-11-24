@@ -19,6 +19,7 @@ from app.api.v1.filtration import router as filtration_router  # P6-3 Task 34
 from app.api.v1.flare import router as flare_router  # P6-2 Task 20
 from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
+from app.api.v1.status import router as status_router
 from app.api.v1.heat import router as heat_router  # P5-4-5
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
@@ -62,6 +63,8 @@ from app.api.v1.ws import router as notifications_ws_router  # P9A-NOT-006 / ADR
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
+# P10-C · T1b：`/status`（**状态页的数据源** · 恒 200 · 不复用 /health）
+api_router.include_router(status_router)
 api_router.include_router(ai_router)  # P10-A：AI 预留（5 端点，一律 501）
 api_router.include_router(auth_router)
 api_router.include_router(admin_users_router)  # P9A：全环境挂载（见 admin_users.py 顶注）

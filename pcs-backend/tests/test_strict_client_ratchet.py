@@ -177,6 +177,12 @@ KNOWN_CUSTOM_CLIENT_FILES: frozenset[str] = frozenset(
     {
         "api/v1/test_ai_audit_middleware.py",
         "api/v1/test_deliverables_progress_aggregate.py",
+        # ⚠️ **P10-C · T1a**：`/metrics` 挂在 **app 根路径**（Prometheus 抓
+        # 服务根 ⇒ ⇒ ⇒ 挂进 `api_router` 会被 `/api/v1` 前缀带走 ⇒ ⇒ ⇒ 404）
+        # ⇒ ⇒ ⇒ 而 conftest 的 `client` fixture 只挂 `api_router`
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **那个 app 里压根没有 `/metrics`** ⇒ ⇒ ⇒ 恒 404
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 只能自建（**测的是真实接线**：中间件 + 根路径挂载）
+        "api/v1/test_metrics_endpoint.py",
         "api/v1/test_p9a_dlv_011_authorization.py",
         "api/v1/test_project_creation.py",
         "api/v1/test_record_edits_endpoint.py",

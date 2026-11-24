@@ -1397,6 +1397,28 @@ export const handlers = [
     });
   }),
 
+  // === 系统状态（P10-C · T1b · SPEC §7.22）===
+  // ⚠️ 放**契约组**：`/status` **本来就在契约里** ⇒ ⇒ 形状必须照抄
+  //    `StatusResponse`（5 个字段：status / checked_at / database / redis /
+  //    queue / ldap）⇒ ⇒ 否则 mock 与契约漂移。
+  // ⚠️ **不含敏感值** ⇒ ⇒ 不放口令 / 凭据 ⇒ ⇒ LDAP 那条**只到主机**
+  //    （后端 `_redact_url` 会把 `user:pass@` 换成 `***@` ⇒ ⇒ 口径一致）。
+  http.get("/api/v1/status", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json({
+      status: "ok",
+      checked_at: Date.now() / 1000,
+      database: { status: "ok", detail: null, latency_ms: 2.1 },
+      redis: { status: "ok", detail: null, latency_ms: 0.8 },
+      queue: {
+        status: "ok",
+        depth: 0,
+        worker_last_heartbeat: "Nov-24 15:39:00 j_complete=12 j_failed=0 j_retried=0 j_ongoing=0 queued=0",
+        worker_alive: true,
+      },
+      ldap: { status: "ok", detail: "已配置（ldap://localhost:389）", latency_ms: null },
+    });
+  }),
   // === 设备台账（P10-C · T3 · TODO-157）===
   // ⚠️ 放**契约组**：`/equipment-list` **本来就在契约里** ⇒ ⇒ 形状必须照抄
   //    `EquipListListResponse`（`{items, total, limit, offset}`）

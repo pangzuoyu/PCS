@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.metrics import STATE_MACHINE_TRANSITION_FAILURES
 from app.models.enums import (
     AuditAction,
     RecordSignStatus9,
@@ -395,6 +396,10 @@ class StateMachineService:
             )
         key = (from_status, transition)
         if key not in ALLOWED_TRANSITIONS:
+            # ⚠️ **状态机转移被拒** ⇒ ⇒ ⇒ 计数（Prometheus · P10-C · T1a）
+            # ⇒ ⇒ ⇒ 只数 `InvalidTransition`（**状态机自己**不承认这次转移）
+            # ⇒ ⇒ ⇒ ⇒ 不数 `RoleForbidden`（那是**权限**问题 ⇒ ⇒ ⇒ 不是签署链卡住）
+            STATE_MACHINE_TRANSITION_FAILURES.labels(transition=transition.value).inc()
             raise InvalidTransition(from_status.value, transition.value)
         to_status = ALLOWED_TRANSITIONS[key]
 

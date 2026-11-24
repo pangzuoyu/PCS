@@ -424,6 +424,7 @@ export function HeatRoute(): JSX.Element {
 import { ReportDefinitionListPage } from './report/ReportDefinitionListPage';
 import { ReportDefinitionEditorPage } from './report/ReportDefinitionEditorPage';
 import { ReportReviewQueuePage } from './report/ReportReviewQueuePage';
+import StatusPage from './system/StatusPage';
 import { ReportExecutePage } from './report/ReportExecutePage';
 import { ReportStylePage } from './report/ReportStylePage';
 
@@ -438,6 +439,11 @@ export function ReportDefinitionEditorRoute(): JSX.Element {
 /** P10-I · T1 · TODO-197：「待我审核」队列（审核者视角）。 */
 export function ReportReviewQueueRoute(): JSX.Element {
   return <ReportReviewQueuePage />;
+}
+
+/** P10-C · T1b：系统状态页（**只读**）。 */
+export function StatusRoute(): JSX.Element {
+  return <StatusPage />;
 }
 
 export function ReportExecuteRoute(): JSX.Element {

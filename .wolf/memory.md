@@ -4249,3 +4249,65 @@
 | 06:52 | Created .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t0.md | — | ~918 |
 | 07:06 | Edited pcs-backend/Dockerfile | 9→10 lines | ~93 |
 | 07:07 | Edited pcs-backend/Dockerfile | 10→11 lines | ~125 |
+| 07:30 | Created pcs-backend/app/core/metrics.py | — | ~1242 |
+| 07:30 | Created pcs-backend/app/api/v1/metrics.py | — | ~283 |
+| 07:31 | Created pcs-backend/tests/api/v1/test_metrics_endpoint.py | — | ~778 |
+| 07:32 | Edited pcs-backend/tests/api/v1/test_metrics_endpoint.py | modified client() | ~834 |
+| 07:34 | Created pcs-backend/app/api/v1/status.py | — | ~1522 |
+| 07:34 | Created pcs-backend/tests/api/v1/test_status_endpoint.py | — | ~779 |
+| 07:35 | Created pcs-frontend/src/api/status.ts | — | ~356 |
+| 07:35 | Created pcs-frontend/src/pages/system/StatusPage.tsx | — | ~1418 |
+| 07:36 | Created pcs-frontend/tests/pages/system/StatusPage.test.tsx | — | ~682 |
+| 07:51 | Created pcs-backend/scripts/backup_restore_drill.py | — | ~1838 |
+| 07:52 | Created deploy/prometheus/prometheus.yml | — | ~305 |
+| 07:53 | Created deploy/prometheus/rules.yml | — | ~532 |
+| 07:53 | Created deploy/grafana/provisioning/datasources/prometheus.yml | — | ~89 |
+| 07:53 | Created deploy/grafana/provisioning/dashboards/dashboards.yml | — | ~88 |
+| 08:06 | Edited pcs-backend/app/api/v1/status.py | 4→4 lines | ~64 |
+| 08:06 | Edited pcs-backend/app/api/v1/status.py | removed 10 lines | ~11 |
+| 08:06 | Edited pcs-backend/app/api/v1/status.py | modified _redact_url() | ~310 |
+| 08:06 | Edited pcs-backend/tests/api/v1/test_status_endpoint.py | modified test_status_response_schema_is_stable() | ~197 |
+| 08:06 | Edited pcs-frontend/src/pages/routeWrappers.tsx | inline fix | ~13 |
+| 08:10 | Edited pcs-frontend/src/mocks/handlers.ts | inline fix | ~11 |
+| 08:11 | Edited docs/PCS-UI-SPEC.md | inline fix | ~5 |
+| 08:11 | Edited docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md | expanded (+9 lines) | ~356 |
+| 08:12 | Edited docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md | 4→9 lines | ~118 |
+| 08:13 | Edited pcs-backend/app/core/metrics.py | expanded (+11 lines) | ~388 |
+| 08:13 | Edited pcs-backend/app/core/metrics.py | added error handling | ~530 |
+| 08:13 | Edited pcs-backend/app/core/metrics.py | inline fix | ~17 |
+| 08:13 | Edited pcs-backend/app/core/metrics.py | 14→13 lines | ~93 |
+| 08:13 | Edited pcs-backend/app/api/v1/metrics.py | modified metrics() | ~120 |
+| 08:13 | Edited pcs-backend/app/api/v1/status.py | 6→5 lines | ~36 |
+| 08:13 | Edited pcs-backend/app/api/v1/status.py | 4→6 lines | ~87 |
+| 08:13 | Edited pcs-backend/app/db/session.py | 2→2 lines | ~25 |
+| 08:13 | Edited pcs-backend/app/db/session.py | modified _bind_pool_metrics() | ~347 |
+| 08:13 | Edited pcs-backend/app/db/session.py | 4→5 lines | ~42 |
+| 08:13 | Edited pcs-backend/app/services/state_machine.py | 3→7 lines | ~125 |
+| 08:13 | Edited pcs-backend/app/services/state_machine.py | added 1 import(s) | ~51 |
+| 08:14 | Edited deploy/prometheus/rules.yml | expanded (+15 lines) | ~225 |
+| 08:14 | Edited deploy/prometheus/rules.yml | 6→7 lines | ~68 |
+| 08:14 | Edited pcs-backend/tests/test_state_machine.py | modified test_invalid_transition_is_counted_for_prometheus() | ~620 |
+| 08:14 | Edited pcs-backend/tests/test_state_machine.py | modified _value() | ~170 |
+| 08:14 | Edited pcs-backend/tests/api/v1/test_metrics_endpoint.py | modified test_metrics_endpoint_is_not_in_the_openapi_contract() | ~390 |
+| 08:14 | Edited pcs-backend/tests/api/v1/test_metrics_endpoint.py | 9→14 lines | ~154 |
+| 08:14 | Edited docs/deploy-prerequisites.md | 2→5 lines | ~82 |
+| 08:15 | Edited docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md | expanded (+7 lines) | ~119 |
+| 08:21 | Edited pcs-backend/pyproject.toml | 8→10 lines | ~115 |
+| 08:25 | Edited pcs-backend/app/api/v1/status.py | added 1 import(s) | ~76 |
+| 08:25 | Edited pcs-backend/app/api/v1/status.py | modified status() | ~134 |
+| 08:25 | Edited pcs-backend/app/api/v1/status.py | 2→2 lines | ~16 |
+| 08:25 | Edited pcs-backend/tests/api/v1/test_status_endpoint.py | modified _auth_headers() | ~808 |
+| 08:26 | Edited docs/PCS-UI-SPEC.md | 7→10 lines | ~133 |
+| 08:26 | Edited pcs-backend/app/api/v1/status.py | 5→8 lines | ~54 |
+| 08:26 | Edited pcs-backend/app/db/session.py | modified _refresh() | ~175 |
+| 08:29 | Created .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | — | ~1191 |
+| 08:32 | Edited pcs-backend/app/core/metrics.py | expanded (+16 lines) | ~256 |
+| 10:06 | Edited pcs-backend/tests/test_strict_client_ratchet.py | expanded (+6 lines) | ~250 |
+| 10:06 | Edited pcs-backend/tests/test_strict_client_ratchet.py | 8→8 lines | ~135 |
+| 10:08 | Edited docker-compose.yml | 31→31 lines | ~362 |
+| 10:10 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | expanded (+7 lines) | ~184 |
+| 10:10 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | 1→2 lines | ~104 |
+| 10:11 | Edited pcs-backend/app/core/metrics.py | expanded (+7 lines) | ~180 |
+| 10:12 | Created docs/solutions/observability-issues/metric-must-have-a-real-feed.md | — | ~676 |
+| 10:17 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | inline fix | ~63 |
+| 10:22 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | expanded (+6 lines) | ~108 |

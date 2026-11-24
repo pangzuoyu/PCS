@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import api_router
 from app.api.v1.mock_auth import router as mock_auth_router
 from app.core.ai_audit_middleware import AIAuditMiddleware
+from app.api.v1.metrics import router as metrics_router
+from app.core.metrics import PrometheusMiddleware
 from app.core.config import (
     Settings,
     assert_secret_key_configured,
@@ -254,6 +256,11 @@ def create_app() -> FastAPI:
     #    ⇒ 必须在路由挂载**之前**注册（`add_middleware` 在 app 启动前生效）。
     app.add_middleware(AIAuditMiddleware)
 
+    # ⚠️ **Prometheus 指标中间件**（P10-C · T1a · 计划 docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md）
+    # ⇒ ⇒ 记录请求量 / 延迟 / 在飞数 ⇒ ⇒ `/metrics` 抓得到。
+    # ⇒ ⇒ 标签用**路由模板**（不是原始 URL）⇒ ⇒ ⇒ 基数有上界。
+    app.add_middleware(PrometheusMiddleware)
+
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):
         """trace_id 中间件：每次 HTTP 请求生成 UUID hex 写入 contextvar + request.state。
@@ -272,6 +279,9 @@ def create_app() -> FastAPI:
             _trace_id_var.reset(token)
 
     install_exception_handlers(app)
+    # ⚠️ **`/metrics` 挂根路径**（不是 `/api/v1/metrics`）—— Prometheus 抓的是
+    # ⇒ ⇒ 服务根 ⇒ ⇒ ⇒ 挂进 `api_router` 会被 `/api/v1` 前缀带走 ⇒ ⇒ ⇒ 404。
+    app.include_router(metrics_router)
     app.include_router(api_router)
     if not settings.is_production:
         app.include_router(mock_auth_router)

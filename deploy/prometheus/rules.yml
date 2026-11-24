@@ -1,0 +1,79 @@
+# 告警规则（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。
+#
+# ## ⚠️ **四条告警对应四个「真的会出事」的场景**
+#
+# | 规则 | 场景 | 阈值依据 |
+# |---|---|---|
+# | 5xx 率 | 代码炸了 / 依赖挂了 | 5 分钟窗口 > 1% |
+# | P95 延迟 | 用户感觉「卡」 | 5 分钟 P95 > 2s |
+# | 队列积压 | 报表生成滞后 | 深度 > 50 持续 10 分钟 |
+# | 队列**测不到** | Redis 读不到（不是「队列空」）| 序列缺失持续 5 分钟 |
+# | 状态机失败 | 签署链卡住 | 5 分钟 > 10 次 |
+#
+# ## ⚠️ **阈值是「起步值」不是「标定值」**
+#
+# ⇒ ⇒ ⇒ 真跑一段时间后按**实际基线**调 ⇒ ⇒ ⇒ ⇒
+# ⇒ ⇒ ⇒ 现在没有生产流量 ⇒ ⇒ ⇒ 只能给个保守的起手值。
+#
+# ## ⚠️ **不外发**（人裁 2026-11-24 · 裁决 ④）
+#
+# ⇒ ⇒ ⇒ 没有 Alertmanager ⇒ ⇒ ⇒ 这些告警只在 Prometheus 的 `/alerts` 里
+# ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒
+groups:
+  - name: pcs-backend
+    rules:
+      - alert: BackendHighErrorRate
+        expr: |
+          sum(rate(pcs_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(pcs_http_requests_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: PCS 后端 5xx 率超过 1%（5 分钟窗口）
+          description: "5xx 占比 {{ $value | humanizePercentage }} ⇒ ⇒ 代码炸了或依赖挂了"
+
+      - alert: BackendHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(pcs_http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: PCS 后端 P95 延迟超过 2 秒
+          description: "P95 = {{ $value | humanizeDuration }} ⇒ ⇒ 用户会觉得卡"
+
+      - alert: ArqQueueBacklog
+        expr: pcs_arq_queue_depth > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: ARQ 队列积压超过 50 个任务
+          description: "队列深度 {{ $value }} ⇒ ⇒ 报表生成会滞后（worker 停了？）"
+
+      # ⚠️ **「测不到」与「真的是 0」必须可区分**
+      #
+      # ⇒ ⇒ ⇒ 队列深度是 **scrape 时现读 Redis** 的（collector）
+      # ⇒ ⇒ ⇒ Redis 读不到 ⇒ ⇒ ⇒ **序列不产出**（而不是报 0）
+      # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 于是「序列消失」= **测不到** ⇒ ⇒ ⇒ 这条告警抓它
+      # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 而 `ArqQueueBacklog` 抓的是「**测到了**但积压」
+      - alert: ArqQueueUnmeasurable
+        expr: absent(pcs_arq_queue_depth)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ARQ 队列深度**测不到**（Redis 读不到）
+          description: "序列缺失 ⇒ ⇒ 不是「队列空」，是「读不到」⇒ ⇒ 查 Redis 连通性"
+
+      - alert: StateMachineTransitionFailures
+        expr: increase(pcs_state_machine_transition_failures_total[5m]) > 10
+        labels:
+          severity: critical
+        annotations:
+          summary: 状态机转移被拒 5 分钟内超过 10 次
+          description: "签署链可能被卡住 ⇒ ⇒ 查 transition 标签定位是哪一步"

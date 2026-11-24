@@ -1,0 +1,12 @@
+# Grafana 的 Prometheus 数据源预置（P10-C · T1d（监控栈）· 计划 `docs/superpowers/plans/2026-11-23-p10-c-deploy-observability.md`）。
+#
+# ⚠️ **预置**（provisioning）⇒ ⇒ ⇒ 容器一起来就有数据源 ⇒ ⇒ ⇒
+# ⇒ ⇒ ⇒ 不用手工点「Add data source」⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
