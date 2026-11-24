@@ -93,7 +93,7 @@
 | `TODO-167` | 🟡 | 前端还有别处把**占位常量**当真项目 id 用 |
 | `TODO-170` | 🟠 | `report_definitions.project_id` 是**死字段**（数据模型说项目级 · 授权说创建人级） |
 | `TODO-172` | 🟡 | **publish 的职责分离未定义**（产品语义待定 · **不是**越权缺口） |
-| `TODO-177` | ✅ **已裁决**（2026-11-24 人裁：**执行时选项目** ⇒ ⇒ 契约 `ReportExecuteRequest` 加 `project_id`）| **公司级模板（`project_id IS NULL`）当前不可执行**（已知限制） |
+| `TODO-177` | ✅ **已裁决**（2026-11-24 人裁：**执行时选项目** ⇒ ⇒ 契约 `ReportExecuteRequest` 加 `project_id`）⇒ ⇒ 📄 **计划已写**：`docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md` ⇒ ⇒ ⏸ **待批准后执行**（2026-11-24 用户裁决：新计划须经批准）| **公司级模板（`project_id IS NULL`）当前不可执行**（已知限制） |
 | `TODO-175` | 🟡 | `POST /projects` 允许 SYSTEM_ADMIN 在**别人**的 FORMAL 工作区里建项目（产品语义待定） |
 | `TODO-184` | 🟢 | `GET /report/styles` 的 `project_id` 是**死参数** |
 | `TODO-192` | 🔴 | **ce-code-review（P10-F 整批 · 2026-11-18）的修复项** |
