@@ -99,7 +99,7 @@
 | `TODO-192` | 🔴 | **ce-code-review（P10-F 整批 · 2026-11-18）的修复项** |
 | `TODO-196` | ✅ **已关闭**（2026-11-24 人裁「确认签字」⇒ ⇒ 签字表 `docs/adr/signatures/dmc-component-cas-signoff.md`）| DMC 专用组分的 CAS 号**待工艺室签字**（P10-C · T4 引入） |
 | `TODO-198` | 🟠 | 「待办 500ms 预算」测的是 **pytest harness 开销**，不是查询 ⇒ ⇒ 车道假红 |
-| `TODO-197b` | ✅ **已裁决**（2026-11-24 人裁四问全定：退回 DRAFT + 被退回标记 · 沿用现状可见性 · 能改 · 要通知）| 「待我审核」队列需要**「拒绝」动作** ⇒ ⇒ 状态要加 `REJECTED` |
+| `TODO-197b` | ✅ **已落地**（2026-11-24 · P10-J · T2：退回 DRAFT + 被退回标记 · 沿用现状可见性 · 能改 · 要通知）| 「待我审核」队列需要**「拒绝」动作** ⇒ ⇒ 状态要加 `REJECTED` |
 
 
 ⇒ ⇒ 搬运由 `scripts/slim_todos.py` 完成（可复跑 · 判定口径写在脚本 docstring 里）。
@@ -2037,6 +2037,18 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 **归属**：**P10-J · 功能批**（`docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md`）
 ⇒ ⇒ 与 TODO-196（CAS · 工艺室确认）· TODO-177（公司级模板可执行）同类
 ⇒ ⇒ **等人裁决后**才排得上期。
+
+### ✅ 2026-11-24 · **已裁 + 已落地**（P10-J · T2）
+
+⇒ ⇒ ⇒ 人裁四问全定（退回 DRAFT + 被退回标记 · 沿用现状可见性 · 能改 · 要通知）
+⇒ ⇒ ⇒ 计划：`docs/superpowers/plans/2026-11-24-p10-j-t2-reject-action.md`
+⇒ ⇒ ⇒ 落地：`alembic/versions/p10_005_report_definition_rejection.py`（三列）
+· `DefinitionService.reject()`（+ `update()` 清标记 + `pending_review()` 排除被打回的）
+· `POST /report-builder/definitions/{def_id}/reject` · 前端队列页「打回」+ 列表页「被退回」badge
+· **SPEC §7.18.1**（V2.19 修订登记）
+⇒ ⇒ ⇒ ⚠️ **「被退回」不是新状态** ⇒ ⇒ ⇒ 9 态机**一个字不改**
+⇒ ⇒ ⇒ ⇒ 「待审 vs 待改」是两个态 ⇒ ⇒ ⇒ 队列只装前者 ⇒ ⇒ ⇒ 打完回它离开队列
+⇒ ⇒ ⇒ ⇒ 创建人改稿 ⇒ ⇒ 标记被清 ⇒ ⇒ ⇒ 它自动回来。
 
 
 ---

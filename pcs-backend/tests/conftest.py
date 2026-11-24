@@ -343,6 +343,10 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
     # ⇒ ⇒ 队列的**过滤**（项目授权 / 自己的草稿 / CREATOR_ONLY / 角色闸）
     # ⇒ ⇒ 全部用 `strict_client` 断 ⇒ ⇒ 进台账（棘轮逐条盯）。
     "/api/v1/report-builder/definitions/pending-review",
+    # P10-J · T2（2026-11-24 · TODO-197b）：「打回」端点（项目作用域 · 新增）
+    # ⇒ ⇒ ⇒ 禁自审 / 项目授权 404（**逐字同形**）/ CREATOR_ONLY 403 / 状态 409
+    # ⇒ ⇒ ⇒ 全部用 `strict_client` 断 ⇒ ⇒ 进台账（棘轮逐条盯）。
+    "/api/v1/report-builder/definitions/{def_id}/reject",
     # P10-C · T2（2026-11-19）：管道一览表端点（新增 · 项目作用域）
     "/api/v1/projects/{project_id}/pipe-line-list",
     # P10-C · T3（2026-11-19）：设备台账列表端点（项目作用域 · 本批补的守卫）
@@ -367,7 +371,7 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS: tuple[str, ...] = (
 #:
 #: ⚠️ 2026-11-23（P10-I · T1）：+1（「待我审核」队列进台账）⇒ ⇒ **10 → 11**。
 #: ⚠️ 2026-11-23（P10-I · T2）：+2（404 同形的两族代表）⇒ ⇒ **11 → 13**。
-AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 13
+AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 14
 
 #: `strict_client` 测试函数数的**下限**（**只增不减**）⇒ ⇒ 防止
 #: ⇒ ⇒ 「把断言一条条删掉」⇒ ⇒ ⇒ 逐条路径检查只看「这个端点**还有没有**断言」
@@ -377,7 +381,10 @@ AUDITED_PROJECT_SCOPED_ENDPOINTS_MIN = 13
 #: ⇒ ⇒ 取**当前实际数** ⇒ ⇒ 删任何一条 ⇒ ⇒ 立刻红。
 #: ⚠️ 2026-11-23（P10-I · T2）：404 同形端到端（**参数化 ⇒ ⇒ 1 个函数**）
 #: ⇒ ⇒ **171 → 172**。
-STRICT_CLIENT_TEST_MIN = 172
+STRICT_CLIENT_TEST_MIN = 184
+#
+# ⚠️ 2026-11-24（P10-J · T2 · TODO-197b）：「打回」的 12 条 ⇒ ⇒ **172 → 184**
+# ⇒ ⇒ 取**当前实际数** ⇒ ⇒ 删任何一条 ⇒ ⇒ 立刻红。
 
 #: `check_user_project_access` 的**原始 classmethod 描述符**（模块导入时取）。
 #:

@@ -99,6 +99,17 @@ export const reportBuilderApi = {
       .then((r) => r.data),
 
   /**
+   * **「打回」**（P10-J · T2 · TODO-197b · 2026-11-24 人裁 ①③④）——
+   * 审核者把不合格的草稿**退回**给创建人。
+   *
+   * ⚠️ **状态不变**（仍是 DRAFT）⇒ ⇒ ⇒ 改的是**「被退回」标记**
+   * ⇒ ⇒ ⇒ 判据 = 响应里的 `rejected_at` / `reject_reason`。
+   */
+  reject: (defId: string, reason: string) =>
+    api.post<ReportDefinitionOut>(`/report-builder/definitions/${defId}/reject`, { reason })
+      .then((r) => r.data),
+
+  /**
    * **「待我审核」队列**（P10-I · T1 · TODO-197）—— 只读列表。
    *
    * ⚠️ **口径与列表页不同**（人裁约束 2）：这里返回的是「**别人交给我审**的草稿」

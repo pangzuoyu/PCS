@@ -120,6 +120,22 @@ export function ReportDefinitionListPage(): JSX.Element {
         <Tag color={STATUS_COLOR[s]}>{STATUS_LABEL[s] ?? s}</Tag>
       ),
     },
+    {
+      // ⚠️ **「被退回」不是状态**（P10-J · T2 · TODO-197b · 人裁 ①）⇒ ⇒ ⇒
+      // 状态仍是 DRAFT ⇒ ⇒ ⇒ 「待审」与「待改」的区别**只由这一列**表达
+      // ⇒ ⇒ ⇒ 判据 = `rejected_at != null`（后端给的三个字段之一）。
+      title: '审核',
+      key: 'rejected',
+      width: 110,
+      render: (_: unknown, row: ReportDefinitionOut) =>
+        row.rejected_at ? (
+          <Tooltip title={row.reject_reason ?? '（无原因）'}>
+            <Tag color="orange">被退回</Tag>
+          </Tooltip>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
     { title: '创建人', dataIndex: 'created_by', key: 'created_by', width: 130,
       render: (v: string | null) => v ?? '—' },
     {

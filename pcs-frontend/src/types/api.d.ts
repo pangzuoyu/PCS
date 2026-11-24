@@ -6633,6 +6633,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-builder/definitions/{def_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Definition
+         * @description **打回**一份草稿（P10-J · T2 · TODO-197b · 2026-11-24 人裁四问全定）。
+         *
+         *     ## ⚠️ **状态不变** —— 只加「被退回」标记
+         *
+         *     人裁 ① = 「退回 DRAFT + 一个『被退回』标记」⇒ ⇒ ⇒ 草稿本来就在 DRAFT
+         *     ⇒ ⇒ ⇒ **9 态机一个字不改** ⇒ ⇒ ⇒ 可见性 / 执行资格 / 列表过滤都不用改。
+         *
+         *     ## ⚠️ **打完回它就不在审核队列里了**
+         *
+         *     队列口径 = `rejected_at IS NULL` ⇒ ⇒ ⇒ 审核者刚打完回 ⇒ ⇒ 它若还在队列里
+         *     ⇒ ⇒ ⇒ 就是「点了必失败」⇒ ⇒ ⇒ 等创建人改稿（`update()` 清标记）⇒ ⇒ ⇒ 自动回来。
+         *
+         *     ## 角色闸在**端点层**（与 `publish` 同款）⇒ ⇒ 职责分离（禁自审 / 项目授权）
+         *     在 **service 层** ⇒ ⇒ ⇒ 端点漏调也绕不过。
+         */
+        post: operations["reject_definition_api_v1_report_builder_definitions__def_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/report-builder/definitions/{def_id}/obsolete": {
         parameters: {
             query?: never;
@@ -16799,6 +16832,23 @@ export interface components {
             created_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Rejected By */
+            rejected_by?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
+        };
+        /**
+         * ReportDefinitionRejectRequest
+         * @description 「打回」的请求体 —— **只有原因**（P10-J · T2 · TODO-197b）。
+         */
+        ReportDefinitionRejectRequest: {
+            /**
+             * Reason
+             * @description 打回原因（**创建人要看得懂要改什么** ⇒ ⇒ 不能为空）
+             */
+            reason: string;
         };
         /**
          * ReportDefinitionReviewItem
@@ -33745,6 +33795,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_definition_api_v1_report_builder_definitions__def_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportDefinitionRejectRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

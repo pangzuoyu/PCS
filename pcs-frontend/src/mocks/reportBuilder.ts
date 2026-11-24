@@ -141,6 +141,24 @@ const DRAFT: DefinitionOut = {
   updated_at: null,
 };
 
+/** 一条**被打回**的草稿（P10-J · T2 · TODO-197b）。
+ *
+ * ⚠️ **状态仍是 DRAFT**（人裁 ① = 不新增状态）⇒ ⇒ ⇒ 「被退回」**只由这三个
+ * ⇒ ⇒ ⇒ 字段表达** ⇒ ⇒ ⇒ 前端的判据 = `rejected_at != null`。
+ *
+ * ⚠️ **为什么它替掉 `DRAFT` 出现在列表里**：列表端点的既有断言是
+ * ⇒ ⇒ ⇒ 「**恰好 2 条**」⇒ ⇒ ⇒ 加第三条会破它 ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒
+ * ⇒ ⇒ ⇒ ⇒ 所以**换掉**而不是**追加** ⇒ ⇒ ⇒ 列表条数不变。
+ */
+const REJECTED_DRAFT: DefinitionOut = {
+  ...DRAFT,
+  def_id: '00000000-0000-0000-0000-0000000000c4',
+  name: '换热器明细表（被打回）',
+  rejected_at: '2026-11-24T03:00:00Z',
+  rejected_by: '00000000-0000-0000-0000-0000000000a2',
+  reject_reason: '「热负荷」字段选了 EQUIP_LIST 里不存在的列 —— 请改用 HEAT_LIST。',
+};
+
 const PUBLISHED: DefinitionOut = {
   ...DRAFT,
   definition_json: DEFINITION_BODY,
@@ -240,7 +258,9 @@ export const reportBuilderHandlers = [
   http.get('/api/v1/report-builder/definitions', ({ request }) => {
     if (!requireAuth(request)) return unauthorized();
     const status = new URL(request.url).searchParams.get('status');
-    const all = [DRAFT, PUBLISHED];
+    // ⚠️ `REJECTED_DRAFT` 替掉 `DRAFT` ⇒ ⇒ ⇒ 列表**条数不变**（既有断言 2 条）
+    // ⇒ ⇒ ⇒ 但 dev 里能看到「被退回」badge（P10-J · T2）。
+    const all = [REJECTED_DRAFT, PUBLISHED];
     const items = status ? all.filter((d) => d.status === status) : all;
     return HttpResponse.json({ items, total: items.length });
   }),
@@ -271,6 +291,18 @@ export const reportBuilderHandlers = [
     ({ request }) => (requireAuth(request)
       ? HttpResponse.json({ ...DRAFT, status: 'PUBLISHED', version: '0.1.1' })
       : unauthorized())),
+
+  // ⚠️ **「打回」**（P10-J · T2 · TODO-197b）⇒ ⇒ ⇒ **状态不变**（仍是 DRAFT）
+  // ⇒ ⇒ ⇒ 只多「被退回」三列 ⇒ ⇒ ⇒ 前端判据 = `rejected_at != null`。
+  http.post('/api/v1/report-builder/definitions/:defId/reject',
+    async ({ request }) => {
+      if (!requireAuth(request)) return unauthorized();
+      const body = (await request.json()) as { reason?: string };
+      return HttpResponse.json({
+        ...REJECTED_DRAFT,
+        reject_reason: body?.reason ?? '（mock 未给原因）',
+      });
+    }),
 
   // --- 执行 ----------------------------------------------------------------
   http.post('/api/v1/report-builder/definitions/:defId/execute',

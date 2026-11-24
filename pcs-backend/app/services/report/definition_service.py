@@ -30,6 +30,8 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Sequence
 
 from sqlalchemy import or_, select
@@ -37,9 +39,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.acl import REVIEW_ROLES
 from app.core.config import get_settings
+from app.models.notification import NotificationKind
 from app.models.project import UserProject
 from app.models.report import ReportDefinition
 from app.services.exceptions import PcsError
+from app.services.notifications.notify import notify
+from app.services.notifications.payload import NotificationDetail, NotificationPayload
 from app.services.report.datasource_registry import DATASOURCES
 from app.services.user_project_service import require_project_access_or_404
 
@@ -52,6 +57,21 @@ DEFINITION_STATUSES = frozenset({"DRAFT", "PUBLISHED", "OBSOLETE"})
 
 # 见模块 docstring 裁决 1
 SUPPORTED_SHARED_WITH = frozenset({"ALL_USERS", "CREATOR_ONLY"})
+
+@dataclass(frozen=True)
+class RejectOutcome:
+    """`reject()` 的返回值 —— API 层据此组装响应 + 提交后推送通知。
+
+    ⚠️ **刻意不返回 ORM 对象给 API 直接序列化**（同 `SignStepOutcome` 的理由）：
+    响应模型显式声明 ⇒ ⇒ ORM 上多一列就会自动多一字段
+    ⇒ ⇒ ⇒ 那是「零裸字段约束」要防的事。
+
+    ⚠️ `pending_notifications` 由**调用方**在 commit **之后**推送
+    ⇒ ⇒ ⇒ 提交前推送 ⇒ ⇒ ⇒ 用户收到一条会被回滚的通知（phantom）。
+    """
+
+    row: ReportDefinition
+    pending_notifications: list[NotificationPayload]
 
 #: **作废「已发布」定义**所需的角色（2026-11-19 · TODO-190 人裁决）。
 #:
@@ -414,6 +434,11 @@ class DefinitionService:
             .where(ReportDefinition.status == "DRAFT")
             # ⚠️ `CREATOR_ONLY` 不进队列（理由见 docstring）
             .where(ReportDefinition.shared_with != "CREATOR_ONLY")
+            # ⚠️⚠️ **被打回的草稿不进队列**（2026-11-24 · P10-J · T2 · TODO-197b）
+            # ⇒ ⇒ ⇒ 「待审」（没被打回）与「待改」（被打回）是**两个态**
+            # ⇒ ⇒ ⇒ 审核者刚打完回 ⇒ ⇒ 它若还在队列里 ⇒ ⇒ 就是「点了必失败」
+            # ⇒ ⇒ ⇒ ⇒ ⇒ 等创建人改稿（`update()` 清标记）⇒ ⇒ ⇒ 它自动回来
+            .where(ReportDefinition.rejected_at.is_(None))
             # ⚠️ **自己的草稿不进队列**（自审禁止 ⇒ 点了必失败）
             .where(or_(
                 ReportDefinition.created_by.is_(None),
@@ -480,6 +505,14 @@ class DefinitionService:
         row.output_format = output_format
         row.max_rows = max_rows
         row.shared_with = shared_with
+        # ⚠️⚠️ **改稿 ⇒ ⇒ 清掉「被退回」标记**（2026-11-24 · P10-J · T2 · TODO-197b）
+        # ⇒ ⇒ ⇒ 人裁 ③ = 「能改，改完再交审」⇒ ⇒ ⇒ 打回的理由针对的是**上一版**
+        # ⇒ ⇒ ⇒ 创建人一改 ⇒ ⇒ ⇒ 标记就该消失 ⇒ ⇒ ⇒ 否则改完了还一直显示「被退回」
+        # ⇒ ⇒ ⇒ ⇒ ⇒ 而且它会**一直不在审核队列里**（队列排除 `rejected_at IS NOT NULL`）
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **永远没人审** ⇒ ⇒ ⇒ 这条草稿就废了。
+        row.rejected_at = None
+        row.rejected_by = None
+        row.reject_reason = None
         if was_published:
             row.version = bump_patch(row.version)
             row.status = "DRAFT"
@@ -574,10 +607,143 @@ class DefinitionService:
         if row.status == "OBSOLETE":
             raise PcsError("已作废的定义不能重新发布",
                            code="REPORT_DEFINITION_OBSOLETE", status=409)
+        # ⚠️⚠️ **被打回的草稿不能直接发布**（2026-11-24 · P10-J · T2 · TODO-197b）
+        # ⇒ ⇒ ⇒ 「被打回」= **等创建人改** ⇒ ⇒ ⇒ 它已经**离开审核队列**
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 若此刻还能发布 ⇒ ⇒ ⇒ 就是把**刚刚被自己打回的那一版**
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **原样发出去** ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 那是个笑话
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **必须先由创建人改稿**（`update()` 清标记）。
+        if row.rejected_at is not None:
+            raise PcsError("该定义已被打回，请等创建人修改后再审",
+                           code="REPORT_DEFINITION_ALREADY_REJECTED", status=409)
         row.status = "PUBLISHED"
         await self.db.flush()
         await self.db.refresh(row)   # 见 update() 的同款注释
         return row
+
+    async def reject(self, *, def_id: uuid.UUID,
+                     actor_user_id: uuid.UUID,
+                     actor_roles: Sequence[str] | None = None,
+                     actor_username: str | None = None,
+                     reason: str) -> "RejectOutcome":
+        """**打回**一份草稿（P10-J · T2 · TODO-197b · 2026-11-24 人裁）。
+
+        ## ⚠️ **状态不变** —— 只加「被退回」标记
+
+        人裁 ① = 「**退回 DRAFT** + 一个『被退回』标记」⇒ ⇒ ⇒
+        草稿本来就在 `DRAFT` ⇒ ⇒ ⇒ 「退回」**不是状态迁移**
+        ⇒ ⇒ ⇒ **9 态机一个字不改** ⇒ ⇒ ⇒ 可见性 / 执行资格 / 列表过滤
+        **全都不用改** ⇒ ⇒ ⇒ 只有「被退回」这个**信号**是新的。
+
+        ## 判定顺序（**照抄 `publish()`** ⇒ ⇒ ⇒ 同一族动作同一套口径）
+
+        | # | 判定 | 错误码 | 状态码 |
+        |---|---|---|---|
+        | 1 | 定义不存在 | `REPORT_DEFINITION_NOT_FOUND` | 404 |
+        | 2 | **禁自审**（创建人自己不能打回自己的）| `REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN` | 403 |
+        | 3 | 项目级 ⇒ 打回者要**对该项目有授权** | `REPORT_DEFINITION_NOT_FOUND`（**逐字同形**）| 404 |
+        | 4 | `CREATOR_ONLY` ⇒ 不能由他人打回 | `REPORT_DEFINITION_NOT_SHAREABLE` | 403 |
+        | 5 | 不是 `DRAFT` | `REPORT_DEFINITION_STATE` / `..._OBSOLETE` | 409 |
+        | 6 | **已经打过回** ⇒ 不静默覆盖 | `REPORT_DEFINITION_ALREADY_REJECTED` | 409 |
+
+        ⚠️ **② 先于状态判定** ⇒ ⇒ ⇒ 不让无权者靠「这条已被打回了吗」探状态
+        （与 `publish()` 同款：先判身份，后判状态）。
+
+        ⚠️ **③ 的 404 与「不存在」逐字同形** ⇒ ⇒ ⇒ 否则能靠错误码区分
+        「这条草稿存在」⇒ ⇒ ⇒ 枚举得出（TODO-187b 的纪律）。
+
+        ⚠️ **⑥ 不静默覆盖**：重复打回是 409 而不是静默成功 ⇒ ⇒ ⇒
+        调用方（前端重试、脚本重复执行）需要知道这次到底改没改。
+
+        ## ⚠️ **打完回它就不在审核队列里了**
+
+        队列口径 = `rejected_at IS NULL`（`pending_review()`）
+        ⇒ ⇒ ⇒ 审核者刚打完回 ⇒ ⇒ 它若还在队列里 ⇒ ⇒ 就是「点了必失败」
+        ⇒ ⇒ ⇒ ⇒ ⇒ 等创建人改稿（`update()` 清标记）⇒ ⇒ ⇒ 它自动回来
+        ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ **「待审」与「待改」是两个态**，不需要新状态。
+
+        ## ⚠️ **不写 `audit_logs`**
+
+        定义生命周期（create / update / publish / obsolete）**本来就不写**
+        ⇒ ⇒ ⇒ 这里也不写 ⇒ ⇒ ⇒ **三个列 + 通知行**就是这次动作的痕迹
+        ⇒ ⇒ ⇒ ⇒ ⇒ 也不必动 `AuditAction` 那张**裁决过的**清单。
+        """
+        reason = (reason or "").strip()
+        if not reason:
+            raise PcsError("打回必须填原因（创建人要看得懂要改什么）",
+                           code="REPORT_DEFINITION_REJECT_REASON_REQUIRED", status=400)
+        row = await self.db.get(ReportDefinition, def_id)
+        if row is None:
+            raise PcsError(f"报表定义不存在：{def_id}",
+                           code="REPORT_DEFINITION_NOT_FOUND", status=404)
+        # ⚠️ **禁自审** —— 与 `publish()` 同款（职责分离：审核者不能审自己创建的）
+        if row.created_by is not None and row.created_by == actor_user_id:
+            raise PcsError(
+                "不能打回自己创建的报表定义（打回须由他人审核）",
+                code="REPORT_DEFINITION_SELF_REVIEW_FORBIDDEN", status=403,
+            )
+        # ⚠️ **项目授权**（公司级模板不做项目判定 ⇒ ⇒ 否则永远没人能打回）
+        if row.project_id is not None:
+            try:
+                await require_project_access_or_404(
+                    self.db, user_id=actor_user_id, project_id=row.project_id,
+                    actor_roles=actor_roles,
+                )
+            except PcsError as exc:
+                if exc.status == 404:
+                    # ⚠️ **逐字同形**：无权打回 ⇒ ⇒ 与「没有这条定义」**同一个**错误
+                    raise PcsError(
+                        f"报表定义不存在：{def_id}",
+                        code="REPORT_DEFINITION_NOT_FOUND", status=404,
+                    ) from exc
+                raise
+        # ⚠️ `CREATOR_ONLY` 的草稿不能由他人打回（与 `publish()` **同一判据**）
+        if row.shared_with == "CREATOR_ONLY":
+            raise PcsError(
+                "该定义不能由他人打回",
+                code="REPORT_DEFINITION_NOT_SHAREABLE", status=403,
+            )
+        if row.status == "PUBLISHED":
+            raise PcsError("已发布的定义不能被打回",
+                           code="REPORT_DEFINITION_STATE", status=409)
+        if row.status == "OBSOLETE":
+            raise PcsError("已作废的定义不能被打回",
+                           code="REPORT_DEFINITION_OBSOLETE", status=409)
+        if row.rejected_at is not None:
+            raise PcsError("该定义已被打回过（先由创建人修改）",
+                           code="REPORT_DEFINITION_ALREADY_REJECTED", status=409)
+        # ⚠️ **状态不变**（仍是 DRAFT）⇒ ⇒ ⇒ 只写「被退回」三列
+        row.rejected_at = datetime.now(UTC)
+        row.rejected_by = actor_user_id
+        row.reject_reason = reason
+        await self.db.flush()
+        await self.db.refresh(row)   # 见 publish() 的同款注释（服务端生成的列）
+
+        # ⚠️ **通知行**（人裁 ④ = 要通知）—— 与业务变更**同一事务**写，
+        # **推送交给调用方**（commit 之后推）⇒ ⇒ ⇒ 提交前推送 ⇒ ⇒ ⇒
+        # commit 失败时用户收到一条会被回滚的通知（phantom notification）。
+        #
+        # ⚠️ **kind 复用 `STEP_RETURNED`**（「退回」）⇒ ⇒ ⇒
+        # `NotificationKind` 的**四值裁决清单不动**（不必回 ADR-0049 补记）
+        # ⇒ ⇒ ⇒ 语义也正：「一个条目被退回」⇒ ⇒ ⇒ 前端渲染零改动。
+        pending: list[NotificationPayload] = []
+        if row.created_by is not None:
+            detail = NotificationDetail(
+                project_id=row.project_id,
+                actor_id=actor_user_id,
+                actor_name=actor_username,
+                reason=reason,
+            )
+            pending.append(
+                await notify(
+                    self.db,
+                    recipient_id=row.created_by,
+                    kind=NotificationKind.STEP_RETURNED,
+                    title=f"「{row.name}」被打回",
+                    body="请修改后重新提交审核",
+                    detail=detail,
+                )
+            )
+        return RejectOutcome(row=row, pending_notifications=pending)
 
     async def obsolete(self, *, def_id: uuid.UUID,
                        actor_user_id: uuid.UUID | None = None,

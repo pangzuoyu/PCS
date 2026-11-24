@@ -1,5 +1,5 @@
 # PCS 紧凑对照表（ORM 版 · **生成物**）
-> 生成时间：2026-11-23 | 来源：app/models/*.py（**生成物，勿手改**）
+> 生成时间：2026-11-24 | 来源：app/models/*.py（**生成物，勿手改**）
 > 重新生成：`cd pcs-backend && uv run python scripts/gen_compact_orm.py`
 > 表数量：**108**（= ORM metadata 的全部表）
 
@@ -116,7 +116,7 @@
 
 ## 报表层(2)
 ### report_definitions
-  def_id|CHARPK!, project_id|CHARFK, name|str!, category|str!, description|text!, definition_json|jsonb!, output_format|str!, max_rows|int!, version|str!, status|str!, shared_with|str!, created_by|CHAR, created_at|dt!, updated_at|dt  [UNIQUE: project_id+name]
+  def_id|CHARPK!, project_id|CHARFK, name|str!, category|str!, description|text!, definition_json|jsonb!, output_format|str!, max_rows|int!, version|str!, status|str!, shared_with|str!, rejected_at|dt, rejected_by|CHAR, reject_reason|text, created_by|CHAR, created_at|dt!, updated_at|dt  [UNIQUE: project_id+name]
 ### report_execution_logs
   log_id|CHARPK!, def_id|CHARFK!, def_version|str!, condition_snapshot|jsonb!, row_count|int!, output_format|str!, executed_by|CHAR, is_temporary_adjust|bool!, task_id|str, report_file_id|CHAR, status|str!, created_by|CHAR, created_at|dt!, updated_at|dt
 

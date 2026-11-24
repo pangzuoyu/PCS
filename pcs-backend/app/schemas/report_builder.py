@@ -188,6 +188,16 @@ class ReportDefinitionOut(BaseModel):
     created_by: uuid.UUID | None
     created_at: dt.datetime | None = None
     updated_at: dt.datetime | None = None
+    # --- 「被退回」标记（P10-J · T2 · TODO-197b · 2026-11-24 人裁 ①②③）---
+    #
+    # ⚠️ **三个都可选** ⇒ ⇒ ⇒ 「没被打回」= 全 None
+    # ⇒ ⇒ ⇒ 前端判据 = `rejected_at != null` ⇒ ⇒ ⇒ **不需要新状态**。
+    #
+    # ⚠️ `status` **不变**（打回后仍是 DRAFT）⇒ ⇒ ⇒ 这三个字段是
+    # ⇒ ⇒ ⇒ 「**待审** vs **待改**」的唯一区分信号。
+    rejected_at: dt.datetime | None = None
+    rejected_by: uuid.UUID | None = None
+    reject_reason: str | None = None
 
 
 class ReportDefinitionList(BaseModel):

@@ -20297,6 +20297,76 @@
         }
       }
     },
+    "/api/v1/report-builder/definitions/{def_id}/reject": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Reject Definition",
+        "description": "**打回**一份草稿（P10-J · T2 · TODO-197b · 2026-11-24 人裁四问全定）。\n\n## ⚠️ **状态不变** —— 只加「被退回」标记\n\n人裁 ① = 「退回 DRAFT + 一个『被退回』标记」⇒ ⇒ ⇒ 草稿本来就在 DRAFT\n⇒ ⇒ ⇒ **9 态机一个字不改** ⇒ ⇒ ⇒ 可见性 / 执行资格 / 列表过滤都不用改。\n\n## ⚠️ **打完回它就不在审核队列里了**\n\n队列口径 = `rejected_at IS NULL` ⇒ ⇒ ⇒ 审核者刚打完回 ⇒ ⇒ 它若还在队列里\n⇒ ⇒ ⇒ 就是「点了必失败」⇒ ⇒ ⇒ 等创建人改稿（`update()` 清标记）⇒ ⇒ ⇒ 自动回来。\n\n## 角色闸在**端点层**（与 `publish` 同款）⇒ ⇒ 职责分离（禁自审 / 项目授权）\n在 **service 层** ⇒ ⇒ ⇒ 端点漏调也绕不过。",
+        "operationId": "reject_definition_api_v1_report_builder_definitions__def_id__reject_post",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionRejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/report-builder/definitions/{def_id}/obsolete": {
       "post": {
         "tags": [
@@ -38865,6 +38935,41 @@
               }
             ],
             "title": "Updated At"
+          },
+          "rejected_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected At"
+          },
+          "rejected_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected By"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
           }
         },
         "type": "object",
@@ -38883,6 +38988,23 @@
           "created_by"
         ],
         "title": "ReportDefinitionOut"
+      },
+      "ReportDefinitionRejectRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "description": "打回原因（**创建人要看得懂要改什么** ⇒ ⇒ 不能为空）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ReportDefinitionRejectRequest",
+        "description": "「打回」的请求体 —— **只有原因**（P10-J · T2 · TODO-197b）。"
       },
       "ReportDefinitionReviewItem": {
         "properties": {

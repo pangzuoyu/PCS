@@ -4312,3 +4312,30 @@
 | 10:17 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | inline fix | ~63 |
 | 10:22 | Edited .gstack/qa-reports/qa-report-pcs-backend-2026-11-24-p10c-t1.md | expanded (+6 lines) | ~108 |
 | 10:53 | Created docs/adr/signatures/dmc-component-cas-signoff.md | — | ~927 |
+| 10:58 | Created docs/superpowers/plans/2026-11-24-p10-j-t2-reject-action.md | — | ~931 |
+| 10:58 | Edited pcs-backend/app/models/report.py | expanded (+17 lines) | ~234 |
+| 10:58 | Edited pcs-backend/app/models/report.py | 3→3 lines | ~34 |
+| 10:58 | Created pcs-backend/alembic/versions/p10_005_report_definition_rejection.py | — | ~600 |
+| 10:59 | Edited pcs-backend/app/services/report/definition_service.py | 16→21 lines | ~261 |
+| 10:59 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+8 lines) | ~168 |
+| 10:59 | Edited pcs-backend/app/services/report/definition_service.py | added 1 import(s) | ~33 |
+| 10:59 | Edited pcs-backend/app/services/report/definition_service.py | added error handling | ~1201 |
+| 11:01 | Edited pcs-backend/app/services/report/definition_service.py | modified reject() | ~95 |
+| 11:01 | Edited pcs-backend/app/services/report/definition_service.py | modified obsolete() | ~387 |
+| 11:01 | Edited pcs-backend/app/services/report/definition_service.py | added 4 import(s) | ~224 |
+| 11:01 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+16 lines) | ~189 |
+| 11:01 | Edited pcs-backend/app/schemas/report_builder.py | modified ReportDefinitionOut() | ~225 |
+| 11:02 | Edited pcs-backend/app/api/v1/report_builder.py | modified reject_definition() | ~476 |
+| 11:02 | Edited pcs-backend/app/api/v1/report_builder.py | added 1 import(s) | ~40 |
+| 11:03 | Created pcs-backend/tests/api/v1/test_report_definition_reject.py | — | ~3693 |
+| 11:03 | Edited pcs-backend/app/api/v1/report_builder.py | expanded (+8 lines) | ~146 |
+| 11:08 | Edited pcs-frontend/src/api/reportBuilder.ts | expanded (+11 lines) | ~147 |
+| 11:11 | Created pcs-frontend/tests/pages/report/ReportDefinitionListPage.rejected.test.tsx | — | ~802 |
+| 11:20 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | — | ~1055 |
+| 18:35 | Created docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | — | ~929 |
+| 18:37 | Created docs/solutions/framework-integration-issues/serialization-must-go-through-the-response-model.md | — | ~789 |
+| 18:37 | Created docs/solutions/database-issues/new-filter-dimension-must-update-every-read-path.md | — | ~811 |
+| 18:42 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | inline fix | ~32 |
+| 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 3→6 lines | ~55 |
+| 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 3→3 lines | ~30 |
+| 18:43 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md | 5→6 lines | ~71 |

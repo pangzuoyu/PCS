@@ -13,7 +13,7 @@
  * |---|---|---|
  * | 1 | 队列是**只读视图**，**不能进编辑器** | 名称列**不是链接**；页面上**没有**进编辑器的入口 |
  * | 2 | 过滤条件与可见性**分离** | 队列走**独立端点** `/report-builder/definitions/pending-review` |
- * | 3 | 「拒绝」本批不做 | 队列只有「发布 / 忽略」两个动作 |
+ * | 3 | ⚠️ **2026-11-24 · P10-J · T2 追加了「打回」**（TODO-197b）| 队列现在有「发布 / 打回 / 忽略」三个动作；「打回」**状态不变**（仍是 DRAFT）⇒ ⇒ ⇒ 只加「被退回」标记 |
  *
  * ## 为什么「发布」按钮只在**这个页**
  *
@@ -25,6 +25,8 @@ import type { JSX } from 'react';
 import {
   Alert,
   Button,
+  Input,
+  Modal,
   Space,
   Spin,
   Switch,
@@ -72,6 +74,10 @@ function hintFor(code: string | undefined, status: number | undefined): string |
       return '该定义不存在，或你没有该项目的权限。';
     case 'REPORT_DEFINITION_STATE':
       return '该定义已发布过（重复发布不是静默成功）。';
+    case 'REPORT_DEFINITION_ALREADY_REJECTED':
+      return '这条已经被打回过了 —— 先等创建人改完再交审。';
+    case 'REPORT_DEFINITION_REJECT_REASON_REQUIRED':
+      return '打回必须写原因（创建人要看得懂要改什么）。';
     default:
       return status === 404 ? '该定义不存在，或你没有该项目的权限。' : null;
   }
@@ -85,6 +91,10 @@ export function ReportReviewQueuePage(): JSX.Element {
   const [showIgnored, setShowIgnored] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [actionError, setActionError] = useState<{ message: string; hint: string | null } | null>(null);
+  // ⚠️ **「打回」需要原因**（P10-J · T2 · TODO-197b）⇒ ⇒ ⇒ 创建人要看得懂要改什么
+  // ⇒ ⇒ ⇒ 空原因 = 无信息 ⇒ ⇒ ⇒ 弹窗里必须填。
+  const [rejecting, setRejecting] = useState<ReportDefinitionReviewItem | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +126,25 @@ export function ReportReviewQueuePage(): JSX.Element {
       setActing(null);
     }
   }, [load]);
+
+  /** 「打回」⇒ ⇒ ⇒ 状态**不变**（仍是 DRAFT）⇒ ⇒ ⇒ 后端只加「被退回」标记。 */
+  const onReject = useCallback(async () => {
+    if (!rejecting) return;
+    const row = rejecting;
+    setActing(row.def_id);
+    setActionError(null);
+    try {
+      await reportBuilderApi.reject(row.def_id, rejectReason.trim());
+      setRejecting(null);
+      setRejectReason('');
+      await load();
+    } catch (err) {
+      const parts = errorParts(err);
+      setActionError({ message: parts.message, hint: hintFor(parts.code, parts.status) });
+    } finally {
+      setActing(null);
+    }
+  }, [load, rejecting, rejectReason]);
 
   const onIgnore = useCallback((row: ReportDefinitionReviewItem) => {
     const next = markIgnored(ignored, row.def_id, row.updated_at);
@@ -183,6 +212,14 @@ export function ReportReviewQueuePage(): JSX.Element {
             >
               发布
             </Button>
+            <Tooltip title="退回给创建人修改（**状态不变** · 他改完再交审）">
+              <Button size="small" onClick={() => {
+                setRejecting(row);
+                setRejectReason('');
+              }}>
+                打回
+              </Button>
+            </Tooltip>
             {ignoredRow
               ? (
                 <Tooltip title="取消忽略：它会重新出现在队列里">
@@ -233,6 +270,31 @@ export function ReportReviewQueuePage(): JSX.Element {
           description={loadError.hint ?? undefined}
           style={{ marginBottom: 16 }} />
       )}
+
+      <Modal
+        open={rejecting !== null}
+        title="打回这条草稿"
+        okText="打回"
+        cancelText="取消"
+        okButtonProps={{
+          disabled: rejectReason.trim().length === 0,
+          loading: acting !== null,
+        }}
+        onCancel={() => setRejecting(null)}
+        onOk={() => void onReject()}
+      >
+        <Typography.Paragraph type="secondary">
+          创建人会收到一条通知，并在这里看到「被退回」标记 ⇒ ⇒ ⇒ 请写清**要改什么**。
+        </Typography.Paragraph>
+        <Input.TextArea
+          data-testid="reject-reason-input"
+          rows={4}
+          maxLength={2000}
+          value={rejectReason}
+          placeholder="例：「热负荷」字段选了不存在的列 —— 请改用 HEAT_LIST。"
+          onChange={(e) => setRejectReason(e.target.value)}
+        />
+      </Modal>
 
       {actionError && (
         <Alert type="error" showIcon message={actionError.message}

@@ -19,11 +19,13 @@ import { MemoryRouter } from 'react-router-dom';
 
 const pendingReview = vi.fn();
 const publish = vi.fn();
+const rejectDef = vi.fn();
 
 vi.mock('../../../src/api/reportBuilder', () => ({
   reportBuilderApi: {
     pendingReview: (...a: unknown[]) => pendingReview(...a),
     publish: (...a: unknown[]) => publish(...a),
+    reject: (...a: unknown[]) => rejectDef(...a),
   },
   errorMessage: (err: unknown) => {
     const e = err as { response?: { data?: { message?: string } } };
@@ -72,8 +74,30 @@ function publishButton(): HTMLButtonElement {
 beforeEach(() => {
   pendingReview.mockReset();
   publish.mockReset();
+  rejectDef.mockReset();
   window.localStorage.clear();
 });
+
+/** 「打回」**行按钮**（antd 会给两个汉字的按钮插空格 ⇒ ⇒ 比对时去空白）。 */
+function rejectButton(): HTMLButtonElement {
+  const btn = [...document.querySelectorAll('button')]
+    .find((b) => buttonText(b) === '打回');
+  if (!btn) throw new Error('找不到「打回」按钮');
+  return btn as HTMLButtonElement;
+}
+
+/** 弹窗里的「确定」按钮。
+ *
+ * ⚠️ **不能按文案找** —— 页面上的行按钮也叫「打回」⇒ ⇒ ⇒ 两个同名
+ * ⇒ ⇒ ⇒ `find` 会拿到**行按钮** ⇒ ⇒ ⇒ 点它只是**再打开一次弹窗**
+ * ⇒ ⇒ ⇒ 看起来像「点了没反应」⇒ ⇒ ⇒ **假失败**。
+ * ⇒ ⇒ ⇒ 所以**按位置**找：弹窗 footer 里的 primary 按钮。
+ */
+function modalOkButton(): HTMLButtonElement {
+  const btn = document.querySelector('.ant-modal-footer button.ant-btn-primary');
+  if (!btn) throw new Error('找不到弹窗的确定按钮');
+  return btn as HTMLButtonElement;
+}
 
 describe('ReportReviewQueuePage —— 「待我审核」队列', () => {
   it('① 渲染后端返回的条目（**不本地过滤**）', async () => {
@@ -158,6 +182,62 @@ describe('ReportReviewQueuePage —— 「待我审核」队列', () => {
     await act(async () => { fireEvent.click(toggle as HTMLButtonElement); });
     await flush();
     expect(screen.getByText('设备一览')).toBeTruthy();
+  });
+
+  it('⑧ 「打回」⇒ ⇒ 弹窗要原因 ⇒ ⇒ 提交后**重新拉队列**', async () => {
+    pendingReview.mockResolvedValue({ items: [item('d1', '设备一览')], total: 1 });
+    rejectDef.mockResolvedValue({ def_id: 'd1', status: 'DRAFT', rejected_at: '2026-11-24T03:00:00Z' });
+    render(<MemoryRouter><ReportReviewQueuePage /></MemoryRouter>);
+    await flush();
+
+    await act(async () => { fireEvent.click(rejectButton()); });
+    await flush();
+
+    // ⚠️ **弹窗里必须能写原因**（创建人要看得懂要改什么）
+    const input = document.querySelector('[data-testid="reject-reason-input"]');
+    expect(input).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.change(input as HTMLTextAreaElement, { target: { value: '字段选错了' } });
+    });
+    await act(async () => { fireEvent.click(modalOkButton()); });
+    await flush();
+
+    expect(rejectDef).toHaveBeenCalledWith('d1', '字段选错了');
+    // ⇒ ⇒ 打回完它**不在队列里**了 ⇒ ⇒ ⇒ 页面重新拉一次
+    expect(pendingReview).toHaveBeenCalledTimes(2);
+  });
+
+  it('⑨ ⚠️ 空原因 ⇒ ⇒ 「打回」按钮**禁用**（不发请求）', async () => {
+    pendingReview.mockResolvedValue({ items: [item('d1', '设备一览')], total: 1 });
+    render(<MemoryRouter><ReportReviewQueuePage /></MemoryRouter>);
+    await flush();
+
+    await act(async () => { fireEvent.click(rejectButton()); });
+    await flush();
+
+    expect(modalOkButton().disabled).toBe(true);
+    expect(rejectDef).not.toHaveBeenCalled();
+  });
+
+  it('⑩ 打回 409（已打过回）⇒ ⇒ 页面给出可读提示', async () => {
+    pendingReview.mockResolvedValue({ items: [item('d1', '设备一览')], total: 1 });
+    rejectDef.mockRejectedValue(apiError(
+      409, 'REPORT_DEFINITION_ALREADY_REJECTED', '该定义已被打回过'));
+    render(<MemoryRouter><ReportReviewQueuePage /></MemoryRouter>);
+    await flush();
+
+    await act(async () => { fireEvent.click(rejectButton()); });
+    await flush();
+    const input = document.querySelector('[data-testid="reject-reason-input"]');
+    await act(async () => {
+      fireEvent.change(input as HTMLTextAreaElement, { target: { value: '再打回一次' } });
+    });
+    await act(async () => { fireEvent.click(modalOkButton()); });
+    await flush();
+
+    expect(document.body.textContent).toContain('该定义已被打回过');
+    expect(document.body.textContent).toContain('已经被打回过');
   });
 
   it('⑦ 非审核角色（加载期 403）⇒ ⇒ **不渲染空表**', async () => {

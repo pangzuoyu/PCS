@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T02:53:21.378Z
-> Files: 1486 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T10:43:04.692Z
+> Files: 1494 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -208,6 +208,7 @@
 - `qa-report-pcs-frontend-2026-11-23-p10f-f4pre.md` — QA 报告 —— PCS 后端 · P10-F「F4 前置批（F4-PRE）」 (~1525 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1873 tok)
+- `qa-report-pcs-frontend-2026-11-24-p10j-t2.md` — QA 报告 · P10-J · T2（「打回」动作）· 2026-11-24 (~1089 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -605,6 +606,7 @@
 - `dialect-options-invisible-on-sqlite.md` — Dialect-specific constraint options: three ways SQLite tests go blind (or lie) (~1224 tok)
 - `get-or-create-default-row-race-savepoint-reread.md` — get-or-create 默认行的并发兜底：savepoint 内插 + 撞约束重读赢家 (~478 tok)
 - `information-schema-not-scoped-by-search-path.md` — `information_schema` 不受 `search_path` 约束 —— 隔离 schema 测试的隐形跨库计数 (~584 tok)
+- `new-filter-dimension-must-update-every-read-path.md` — 加一个**筛选维度** ⇒ ⇒ ⇒ **所有读路径**都要跟着改 (~761 tok)
 - `response-enum-nullable-must-match-db-nullability.md` — 响应的可空性必须与 DB 列**一致** —— 窄声明就是 500 (~489 tok)
 
 ## docs/solutions/domain-data/
@@ -614,6 +616,7 @@
 ## docs/solutions/framework-integration-issues/
 
 - `arq-028-worker-silent-failure-modes.md` — ARQ 0.28 worker: five silent failure modes from misread framework semantics (~1515 tok)
+- `serialization-must-go-through-the-response-model.md` — 序列化**必须走声明好的响应模型** —— 否则字段会**静默**少掉 (~739 tok)
 
 ## docs/solutions/frontend-issues/
 
@@ -687,6 +690,8 @@
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
+- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~871 tok)
+- `2026-11-24-p10-j-t2-reject-action.md` — P10-J-T2 · 「拒绝 / 打回」动作 —— 计划 (~873 tok)
 
 ## docs/superpowers/specs/
 
@@ -1351,6 +1356,7 @@
 - `p10_001_ai_audit_request_fields.py` — 给 `ai_audit_log` 加 P10 的**请求审计** 8 列（P10-A · Task T7）。 (~931 tok)
 - `p10_003_backfill_workspace_project.py` — p10_003：回填 `workspaces.project_id`（P10-F 评审的 P0 修 · 2026-11-18） (~634 tok)
 - `p10_004_pms_items.py` — p10_004：pms_items 表（P10-H · T2 · TODO-195）。 (~1944 tok)
+- `p10_005_report_definition_rejection.py` — p10_005：给 `report_definitions` 加「被退回」三列（P10-J · T2 · TODO-197b）。 (~600 tok)
 - `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
@@ -1430,7 +1436,7 @@
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11161 tok)
 - `records.py` — Records API（Sprint 2）。 (~3916 tok)
-- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~5869 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~6448 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5474 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
@@ -1484,7 +1490,7 @@
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~8141 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `record_comment.py` — record_comments ORM（P9A B4c）。 (~631 tok)
-- `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2556 tok)
+- `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~3562 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3458 tok)
 - `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8361 tok)
@@ -1509,7 +1515,7 @@
 - `property.py` — 物性相关的**具名**契约（P10-H · TODO-199）。 (~1075 tok)
 - `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~2014 tok)
-- `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1961 tok)
+- `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~2072 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
 - `signature_matrix.py` — 签署矩阵管理面的 schema（TODO-070 · P9A-DLV-011 T3）。 (~1122 tok)
 - `stream_batch.py` — 批量「提交校对」的请求/响应契约（P9B-3b · D1~D6）。 (~814 tok)
@@ -1612,7 +1618,7 @@
 - `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3432 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
-- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~8026 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~9913 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
@@ -1753,6 +1759,7 @@
 - `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_definition_publish_duty.py` — **publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。 (~1815 tok)
+- `test_report_definition_reject.py` — 「打回」动作 —— **被退回**标记（P10-J · T2 · TODO-197b · 2026-11-24 人裁）。 (~3693 tok)
 - `test_report_definition_review_queue.py` — 「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。 (~3594 tok)
 - `test_report_definition_ruling_2026_11_19.py` — **2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。 (~3939 tok)
 - `test_report_project_guard.py` — `report.py` 的**项目守卫**必须真的拦住无权用户（TODO-181）。 (~1327 tok)
@@ -2042,7 +2049,7 @@
 - `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~364 tok)
 - `recordActions.ts` — 记录级写面客户端（9 态动作 + 批注）—— P9B-2 · SPEC §6.3 / §7.19.1。 (~1178 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
-- `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~2268 tok)
+- `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~2374 tok)
 - `signatureMatrices.ts` — 签署矩阵管理 API 客户端（TODO-070 · P9A-DLV-011 T3 的前端面）。 (~980 tok)
 - `status.ts` — 系统状态客户端（P10-C · T1b · SPEC §10.4）。 (~356 tok)
 - `stream.ts` — SIM 物流 API 客户端（P9B-3 · T6/T7/T8 扩展）。 (~2454 tok)
@@ -2326,6 +2333,7 @@
 ## pcs-frontend/tests/pages/report/
 
 - `ReportDefinitionEditorPage.publishHint.test.tsx` — 「保存并发布」对**创建人自己**是死按钮（2026-11-19 人裁决 · TODO-191）。 (~1187 tok)
+- `ReportDefinitionListPage.rejected.test.tsx` — 报表定义列表页 —— 「**被退回**」标记（P10-J · T2 · TODO-197b）。 (~802 tok)
 - `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
 - `ReportReviewQueuePage.test.tsx` — 「待我审核」队列页 —— P10-I · T1 · TODO-197。 (~1672 tok)
 - `ReportStylePage.test.tsx` — 样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在， (~1250 tok)

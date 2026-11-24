@@ -237,6 +237,23 @@ class ReportDefinition(TimestampMixin, Base):
     # 全部用户/指定角色/仅创建人
     shared_with: Mapped[str] = mapped_column(String(20), default="CREATOR_ONLY", nullable=False)
 
+    # --- 「被退回」标记（P10-J · T2 · TODO-197b · 2026-11-24 人裁 ①）---
+    #
+    # ⚠️ **为什么是三个列而不是一个新状态**：人裁 ① = 「**退回 DRAFT** +
+    # 一个『被退回』标记」⇒ ⇒ ⇒ 9 态机**一个字不改** ⇒ ⇒ ⇒
+    # 「待审」（DRAFT 且没被打回）与「待改」（DRAFT 且被打回）是**两个态**
+    # ⇒ ⇒ ⇒ 队列只装前者（`pending_review()` 里 `rejected_at IS NULL`）。
+    #
+    # ⚠️ **生命周期**：`reject()` 置位 ⇒ ⇒ `update()`（创建人改稿）**清空**
+    # ⇒ ⇒ ⇒ 否则创建人改完了还一直显示「被退回」。
+    #
+    # ⚠️ **可空** ⇒ ⇒ 「没被打回」= 全 NULL ⇒ ⇒ ⇒ 不需要额外的布尔列。
+    rejected_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    rejected_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
 
 class ReportExecutionLog(TimestampMixin, Base):
     """执行审计（report_execution_logs 表）。

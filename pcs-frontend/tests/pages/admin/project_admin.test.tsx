@@ -172,7 +172,12 @@ describe('ProjectAdminPage —— 建项目', () => {
 
     fireEvent.click(screen.getByTestId('project-submit'));
 
-    await waitFor(() => expect(screen.getByText('项目编号必填')).toBeTruthy());
+    // ⚠️ **超时放到 5s**（默认 1s）—— antd 的**异步校验规则**渲染校验文案要时间
+    // ⇒ ⇒ ⇒ 整 suite 跑（128 个文件并行）时**机器忙** ⇒ ⇒ ⇒ 默认 1s 会**假红**
+    // ⇒ ⇒ ⇒ 与 `vitest.config.ts` 里那条同族的历史决定（2026-10-21 · P9B-1：
+    // 「单独跑恒绿、整 suite 跑时偶发假红」⇒ ⇒ ⇒ 统一放宽到**有界**的值）。
+    await waitFor(() => expect(screen.getByText('项目编号必填')).toBeTruthy(),
+      { timeout: 5000 });
     expect(createCalls).toBe(0);
   });
 });

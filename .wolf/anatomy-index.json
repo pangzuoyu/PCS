@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-24T02:53:21.378Z",
-    "fileCount": 1486,
+    "lastScanned": "2026-11-24T10:43:04.692Z",
+    "fileCount": 1494,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ed2dd92e3b14eb876c1c118de4645688520fec30c0cc8c28a411f2243541b234",
-    "storeUpdatedAt": "2026-11-24T02:53:21.392Z",
-    "rootHash": "cb1ff5e20dcb90af"
+    "renderedHash": "86925aa1e0b5188d3b7b572643933def06c1f201bf3d2e259fb7a0e77817dacc",
+    "storeUpdatedAt": "2026-11-24T10:43:04.705Z",
+    "rootHash": "8bd6a2966284a484"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -22313,39 +22313,39 @@
     },
     "pcs-backend/app/models/report.py": {
       "description": "P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。",
-      "tokens": 2556,
-      "hash": "50608f0ec7361127",
-      "size": 11566,
-      "mtimeMs": 1791943672897.022,
-      "updatedAt": "2026-10-14T02:07:52.947Z",
+      "tokens": 3562,
+      "hash": "3ebb64d268d45780",
+      "size": 17000,
+      "mtimeMs": 1795489123087.1958,
+      "updatedAt": "2026-11-24T02:58:43.141Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ReportStyleRow",
           "kind": "class",
-          "startLine": 57,
-          "endLine": 81,
-          "tokens": 289
+          "startLine": 58,
+          "endLine": 127,
+          "tokens": 851
         },
         {
           "name": "ReportFile",
           "kind": "class",
-          "startLine": 82,
-          "endLine": 135,
+          "startLine": 128,
+          "endLine": 181,
           "tokens": 730
         },
         {
           "name": "ReportDefinition",
           "kind": "class",
-          "startLine": 136,
-          "endLine": 171,
-          "tokens": 501
+          "startLine": 182,
+          "endLine": 257,
+          "tokens": 942
         },
         {
           "name": "ReportExecutionLog",
           "kind": "class",
-          "startLine": 172,
-          "endLine": 217,
+          "startLine": 258,
+          "endLine": 303,
           "tokens": 608
         }
       ]
@@ -24938,11 +24938,11 @@
     },
     "pcs-backend/app/schemas/report_builder.py": {
       "description": "`/api/v1/report-builder` 的请求/响应模型（Phase 2）。",
-      "tokens": 1961,
-      "hash": "a3eb8ae3275afdf2",
-      "size": 8880,
-      "mtimeMs": 1795428122650.4897,
-      "updatedAt": "2026-11-23T10:02:02.703Z",
+      "tokens": 2072,
+      "hash": "6872e96d6c45730a",
+      "size": 9439,
+      "mtimeMs": 1795489313870.496,
+      "updatedAt": "2026-11-24T03:01:53.924Z",
       "source": "hook",
       "symbols": [
         {
@@ -25026,205 +25026,226 @@
           "name": "ReportDefinitionOut",
           "kind": "class",
           "startLine": 176,
-          "endLine": 192,
-          "tokens": 115
+          "endLine": 202,
+          "tokens": 225
         },
         {
           "name": "ReportDefinitionList",
           "kind": "class",
-          "startLine": 193,
-          "endLine": 197,
+          "startLine": 203,
+          "endLine": 207,
           "tokens": 27
         },
         {
           "name": "ReportDefinitionReviewItem",
           "kind": "class",
-          "startLine": 198,
-          "endLine": 216,
+          "startLine": 208,
+          "endLine": 226,
           "tokens": 186
         },
         {
           "name": "ReportDefinitionReviewList",
           "kind": "class",
-          "startLine": 217,
-          "endLine": 227,
+          "startLine": 227,
+          "endLine": 237,
           "tokens": 127
         }
       ]
     },
     "pcs-backend/app/api/v1/report_builder.py": {
       "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
-      "tokens": 5869,
-      "hash": "8f1e0b759d625df4",
-      "size": 27641,
-      "mtimeMs": 1795428161859.729,
-      "updatedAt": "2026-11-23T10:02:41.916Z",
+      "tokens": 6448,
+      "hash": "e9d5438b0bad0ec0",
+      "size": 30524,
+      "mtimeMs": 1795489423440.5854,
+      "updatedAt": "2026-11-24T03:03:43.493Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_datasources",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 104,
+          "startLine": 61,
+          "endLine": 105,
           "tokens": 463
         },
         {
           "name": "_reject_bad_format",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 118,
+          "startLine": 106,
+          "endLine": 119,
           "tokens": 124
         },
         {
           "name": "create_definition",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 147,
+          "startLine": 120,
+          "endLine": 148,
           "tokens": 363
         },
         {
           "name": "list_definitions",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 179,
+          "startLine": 149,
+          "endLine": 180,
           "tokens": 363
         },
         {
           "name": "list_pending_review",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 239,
+          "startLine": 181,
+          "endLine": 240,
           "tokens": 582
         },
         {
           "name": "get_definition",
           "kind": "fn",
-          "startLine": 240,
-          "endLine": 249,
+          "startLine": 241,
+          "endLine": 250,
           "tokens": 115
         },
         {
           "name": "update_definition",
           "kind": "fn",
-          "startLine": 250,
-          "endLine": 269,
+          "startLine": 251,
+          "endLine": 270,
           "tokens": 261
         },
         {
           "name": "_as_dict",
           "kind": "fn",
-          "startLine": 270,
-          "endLine": 307,
-          "tokens": 357
+          "startLine": 271,
+          "endLine": 316,
+          "tokens": 468
         },
         {
           "name": "publish_definition",
           "kind": "fn",
-          "startLine": 308,
-          "endLine": 330,
-          "tokens": 215
+          "startLine": 317,
+          "endLine": 338,
+          "tokens": 191
+        },
+        {
+          "name": "ReportDefinitionRejectRequest",
+          "kind": "class",
+          "startLine": 339,
+          "endLine": 350,
+          "tokens": 95
+        },
+        {
+          "name": "reject_definition",
+          "kind": "fn",
+          "startLine": 351,
+          "endLine": 390,
+          "tokens": 381
         },
         {
           "name": "obsolete_definition",
           "kind": "fn",
-          "startLine": 331,
-          "endLine": 358,
+          "startLine": 391,
+          "endLine": 418,
           "tokens": 283
         },
         {
           "name": "ReportExecuteRequest",
           "kind": "class",
-          "startLine": 359,
-          "endLine": 371,
+          "startLine": 419,
+          "endLine": 431,
           "tokens": 109
         },
         {
           "name": "ReportExecuteAccepted",
           "kind": "class",
-          "startLine": 372,
-          "endLine": 378,
+          "startLine": 432,
+          "endLine": 438,
           "tokens": 37
         },
         {
           "name": "ReportExecutionStatus",
           "kind": "class",
-          "startLine": 379,
-          "endLine": 408,
+          "startLine": 439,
+          "endLine": 468,
           "tokens": 276
         },
         {
           "name": "execution_status",
           "kind": "fn",
-          "startLine": 409,
-          "endLine": 439,
+          "startLine": 469,
+          "endLine": 499,
           "tokens": 376
         },
         {
           "name": "execute_definition_endpoint",
           "kind": "fn",
-          "startLine": 440,
-          "endLine": 560,
+          "startLine": 500,
+          "endLine": 620,
           "tokens": 1424
         }
       ]
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 8026,
-      "hash": "056358111e781578",
-      "size": 39205,
-      "mtimeMs": 1795428152307.1516,
-      "updatedAt": "2026-11-23T10:02:32.360Z",
+      "tokens": 9913,
+      "hash": "fb524966ce5d73a6",
+      "size": 48339,
+      "mtimeMs": 1795489304337.4858,
+      "updatedAt": "2026-11-24T03:01:44.389Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "RejectOutcome",
+          "kind": "class",
+          "startLine": 60,
+          "endLine": 110,
+          "tokens": 506
+        },
+        {
           "name": "bump_patch",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 107,
+          "startLine": 111,
+          "endLine": 128,
           "tokens": 128
         },
         {
           "name": "validate_definition_json",
           "kind": "fn",
-          "startLine": 108,
-          "endLine": 147,
+          "startLine": 129,
+          "endLine": 168,
           "tokens": 421
         },
         {
           "name": "align_with_columns",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 164,
+          "startLine": 169,
+          "endLine": 185,
           "tokens": 149
         },
         {
           "name": "_to_dict",
           "kind": "fn",
-          "startLine": 165,
-          "endLine": 183,
+          "startLine": 186,
+          "endLine": 204,
           "tokens": 168
         },
         {
           "name": "project_member_exists",
           "kind": "fn",
-          "startLine": 184,
-          "endLine": 205,
+          "startLine": 205,
+          "endLine": 226,
           "tokens": 194
         },
         {
           "name": "visible_clause",
           "kind": "fn",
-          "startLine": 206,
-          "endLine": 274,
+          "startLine": 227,
+          "endLine": 295,
           "tokens": 751
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 275,
-          "endLine": 716,
-          "tokens": 5364
+          "startLine": 296,
+          "endLine": 875,
+          "tokens": 7059
         }
       ]
     },
@@ -26370,18 +26391,18 @@
     },
     "pcs-frontend/src/api/reportBuilder.ts": {
       "description": "REPORT_BUILDER 前端客户端（b10–b12 + c6）。",
-      "tokens": 2268,
-      "hash": "c7314b9ef3642c01",
-      "size": 9707,
-      "mtimeMs": 1795428557020.9006,
-      "updatedAt": "2026-11-23T10:09:17.070Z",
+      "tokens": 2374,
+      "hash": "e7e4631d02b84814",
+      "size": 10208,
+      "mtimeMs": 1795489705643.6235,
+      "updatedAt": "2026-11-24T03:08:25.693Z",
       "source": "hook",
       "symbols": [
         {
           "name": "errorMessage",
           "kind": "fn",
-          "startLine": 196,
-          "endLine": 203,
+          "startLine": 207,
+          "endLine": 214,
           "tokens": 90
         }
       ]
@@ -53770,6 +53791,224 @@
       "size": 5312,
       "mtimeMs": 1795488801319.0554,
       "updatedAt": "2026-11-24T02:53:21.378Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-11-24-p10-j-t2-reject-action.md": {
+      "description": "P10-J-T2 · 「拒绝 / 打回」动作 —— 计划",
+      "tokens": 873,
+      "hash": "35f07e57b8a0804f",
+      "size": 5312,
+      "mtimeMs": 1795489087233.114,
+      "updatedAt": "2026-11-24T02:58:07.297Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p10_005_report_definition_rejection.py": {
+      "description": "p10_005：给 `report_definitions` 加「被退回」三列（P10-J · T2 · TODO-197b）。",
+      "tokens": 600,
+      "hash": "425a411ca88e39db",
+      "size": 3151,
+      "mtimeMs": 1795489133000.2168,
+      "updatedAt": "2026-11-24T02:58:53.052Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 72,
+          "tokens": 122
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 78,
+          "tokens": 68
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_report_definition_reject.py": {
+      "description": "「打回」动作 —— **被退回**标记（P10-J · T2 · TODO-197b · 2026-11-24 人裁）。",
+      "tokens": 3693,
+      "hash": "5f1715c82136874e",
+      "size": 15075,
+      "mtimeMs": 1795489393512.5662,
+      "updatedAt": "2026-11-24T03:03:13.566Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 40,
+          "tokens": 77
+        },
+        {
+          "name": "_body",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 61,
+          "tokens": 161
+        },
+        {
+          "name": "_mk_def",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 76,
+          "tokens": 152
+        },
+        {
+          "name": "_mk_project",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 95,
+          "tokens": 169
+        },
+        {
+          "name": "test_reject_marks_the_definition_without_changing_its_status",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 121,
+          "tokens": 244
+        },
+        {
+          "name": "test_reject_requires_a_reason",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 133,
+          "tokens": 123
+        },
+        {
+          "name": "test_rejecting_twice_is_a_conflict",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 155,
+          "tokens": 257
+        },
+        {
+          "name": "test_creator_cannot_reject_their_own_definition",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 169,
+          "tokens": 166
+        },
+        {
+          "name": "test_reject_without_project_grant_is_404_word_for_word",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 200,
+          "tokens": 292
+        },
+        {
+          "name": "test_creator_only_definition_cannot_be_rejected_by_others",
+          "kind": "fn",
+          "startLine": 201,
+          "endLine": 215,
+          "tokens": 163
+        },
+        {
+          "name": "test_non_reviewer_role_cannot_reject",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 227,
+          "tokens": 132
+        },
+        {
+          "name": "test_published_definition_cannot_be_rejected",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 249,
+          "tokens": 239
+        },
+        {
+          "name": "test_rejected_definition_leaves_the_review_queue",
+          "kind": "fn",
+          "startLine": 250,
+          "endLine": 281,
+          "tokens": 320
+        },
+        {
+          "name": "test_creator_editing_the_definition_clears_the_rejection",
+          "kind": "fn",
+          "startLine": 282,
+          "endLine": 324,
+          "tokens": 420
+        },
+        {
+          "name": "test_creator_sees_the_rejection_reason_in_their_list",
+          "kind": "fn",
+          "startLine": 325,
+          "endLine": 353,
+          "tokens": 267
+        },
+        {
+          "name": "test_creator_is_notified_about_the_rejection",
+          "kind": "fn",
+          "startLine": 354,
+          "endLine": 378,
+          "tokens": 263
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/report/ReportDefinitionListPage.rejected.test.tsx": {
+      "description": "报表定义列表页 —— 「**被退回**」标记（P10-J · T2 · TODO-197b）。",
+      "tokens": 802,
+      "hash": "ff093b8384697411",
+      "size": 3387,
+      "mtimeMs": 1795489885831.5476,
+      "updatedAt": "2026-11-24T03:11:25.887Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "def",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 57,
+          "tokens": 240
+        },
+        {
+          "name": "flush",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 96,
+          "tokens": 297
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-24-p10j-t2.md": {
+      "description": "QA 报告 · P10-J · T2（「打回」动作）· 2026-11-24",
+      "tokens": 1089,
+      "hash": "4c34ba926bd81d2d",
+      "size": 6810,
+      "mtimeMs": 1795516984635.9998,
+      "updatedAt": "2026-11-24T10:43:04.692Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md": {
+      "description": "P10-J-T1 · 公司级模板「执行时选项目」 —— 计划",
+      "tokens": 871,
+      "hash": "c1354b248abbe888",
+      "size": 5530,
+      "mtimeMs": 1795516510291.2402,
+      "updatedAt": "2026-11-24T10:35:10.342Z",
+      "source": "hook"
+    },
+    "docs/solutions/framework-integration-issues/serialization-must-go-through-the-response-model.md": {
+      "description": "序列化**必须走声明好的响应模型** —— 否则字段会**静默**少掉",
+      "tokens": 739,
+      "hash": "e8f33371357c5a60",
+      "size": 4970,
+      "mtimeMs": 1795516624152.1597,
+      "updatedAt": "2026-11-24T10:37:04.201Z",
+      "source": "hook"
+    },
+    "docs/solutions/database-issues/new-filter-dimension-must-update-every-read-path.md": {
+      "description": "加一个**筛选维度** ⇒ ⇒ ⇒ **所有读路径**都要跟着改",
+      "tokens": 761,
+      "hash": "a3ff890832f3aa4d",
+      "size": 5457,
+      "mtimeMs": 1795516634506.33,
+      "updatedAt": "2026-11-24T10:37:14.577Z",
       "source": "hook"
     }
   }

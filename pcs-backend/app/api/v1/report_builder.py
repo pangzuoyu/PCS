@@ -41,6 +41,7 @@ from app.schemas.report_builder import (
     ReportDefinitionUpsert,
 )
 from app.services.exceptions import PcsError
+from app.services.notifications.notify import publish
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
 from app.services.user_project_service import require_project_access_or_404
@@ -288,6 +289,14 @@ def _as_dict(row) -> dict:
         "created_by": row.created_by,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
+        # --- 「被退回」标记（P10-J · T2 · TODO-197b）---
+        # ⚠️ **必须在这里显式列出来** ⇒ ⇒ ⇒ 这份字典是**手写的字段清单**
+        # ⇒ ⇒ ⇒ ORM 上加了列而这里没加 ⇒ ⇒ ⇒ 响应里**静默少一个字段**
+        # ⇒ ⇒ ⇒ ⇒ ⇒ 前端判据 `rejected_at != null` 会**永远为假**
+        # ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 「被退回」badge **永远不亮**。
+        "rejected_at": row.rejected_at,
+        "rejected_by": row.rejected_by,
+        "reject_reason": row.reject_reason,
     }
 
 
@@ -324,6 +333,57 @@ async def publish_definition(
     )
     payload = _as_dict(row)
     await db.commit()
+    return ReportDefinitionOut(**payload)
+
+
+class ReportDefinitionRejectRequest(BaseModel):
+    """「打回」的请求体 —— **只有原因**（P10-J · T2 · TODO-197b）。"""
+
+    reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="打回原因（**创建人要看得懂要改什么** ⇒ ⇒ 不能为空）",
+    )
+
+
+@router.post("/definitions/{def_id}/reject", response_model=ReportDefinitionOut)
+async def reject_definition(
+    def_id: uuid.UUID,
+    body: ReportDefinitionRejectRequest,
+    actor: ActorDep,
+    db: DbDep,
+) -> ReportDefinitionOut:
+    """**打回**一份草稿（P10-J · T2 · TODO-197b · 2026-11-24 人裁四问全定）。
+
+    ## ⚠️ **状态不变** —— 只加「被退回」标记
+
+    人裁 ① = 「退回 DRAFT + 一个『被退回』标记」⇒ ⇒ ⇒ 草稿本来就在 DRAFT
+    ⇒ ⇒ ⇒ **9 态机一个字不改** ⇒ ⇒ ⇒ 可见性 / 执行资格 / 列表过滤都不用改。
+
+    ## ⚠️ **打完回它就不在审核队列里了**
+
+    队列口径 = `rejected_at IS NULL` ⇒ ⇒ ⇒ 审核者刚打完回 ⇒ ⇒ 它若还在队列里
+    ⇒ ⇒ ⇒ 就是「点了必失败」⇒ ⇒ ⇒ 等创建人改稿（`update()` 清标记）⇒ ⇒ ⇒ 自动回来。
+
+    ## 角色闸在**端点层**（与 `publish` 同款）⇒ ⇒ 职责分离（禁自审 / 项目授权）
+    在 **service 层** ⇒ ⇒ ⇒ 端点漏调也绕不过。
+    """
+    require_roles(actor, *REVIEW_ROLES)
+    outcome = await DefinitionService(db).reject(
+        def_id=def_id,
+        actor_user_id=actor.user_id,
+        actor_roles=list(actor.roles),
+        actor_username=actor.username,
+        reason=body.reason,
+    )
+    # ⚠️ **响应体在 commit 之前组装**（commit 后 ORM 属性会 expired
+    # ⇒ ⇒ ⇒ 再读就是一次隐式 SELECT 落在同步上下文里 ⇒ MissingGreenlet）
+    payload = _as_dict(outcome.row)
+    # ⚠️ **通知行与业务变更同一事务**（ADR-0049 §①）⇒ ⇒ ⇒ **推送在 commit 之后**
+    # ⇒ ⇒ ⇒ 提交前推送 ⇒ ⇒ ⇒ 用户收到一条会被回滚的通知（phantom notification）
+    await db.commit()
+    await publish(outcome.pending_notifications)
     return ReportDefinitionOut(**payload)
 
 
