@@ -4342,3 +4342,31 @@
 | 18:49 | Created docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | — | ~1516 |
 | 18:49 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+11 lines) | ~142 |
 | 18:49 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | "useProjectScope" → "useProjectScope().project" | ~53 |
+| 18:52 | Session end: 319 writes across 118 files (2026-11-23-p10-h-project-scope.md, projectScope.ts, useProjectScope.ts, ProjectSelector.tsx, MainLayout.tsx) | 92 reads | ~180155 tok |
+
+## Session: 2026-11-24 18:52
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 19:44 | Created docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | — | ~2191 |
+| 19:46 | Created docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | — | ~4409 |
+| 19:53 | Edited TODOS.md | expanded (+104 lines) | ~996 |
+| 19:53 | Edited TODOS.md | 1→5 lines | ~122 |
+| 19:53 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | inline fix | ~91 |
+| 19:54 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | inline fix | ~110 |
+| 19:54 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+47 lines) | ~981 |
+| 19:54 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+8 lines) | ~248 |
+| 19:54 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | 1→5 lines | ~222 |
+| 19:55 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+19 lines) | ~284 |
+| 19:55 | Edited docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | expanded (+18 lines) | ~386 |
+| 19:57 | Edited docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | 1→2 lines | ~191 |
+| 19:57 | Edited docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | 1→2 lines | ~119 |
+| 20:07 | Created docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | — | ~4690 |
+| 07:20 | Created docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | — | ~7449 |
+| 07:55 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | 6→8 lines | ~172 |
+| 07:55 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | inline fix | ~127 |
+| 07:58 | Created docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | — | ~8968 |
+| 07:58 | Edited TODOS.md | 74→76 lines | ~861 |
+| 07:58 | Edited TODOS.md | 4→4 lines | ~120 |
+| 08:00 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | 1→2 lines | ~34 |
+| 08:01 | Edited docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | inline fix | ~28 |

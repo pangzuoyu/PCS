@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-24T10:49:13.842Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T00:01:01.153Z
 > Files: 1495 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2974 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~24142 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~23439 tok)
 
 ## .claude/rules/
 
@@ -690,9 +690,9 @@
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
-- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~973 tok)
+- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~4551 tok)
 - `2026-11-24-p10-j-t2-reject-action.md` — P10-J-T2 · 「拒绝 / 打回」动作 —— 计划 (~873 tok)
-- `2026-11-24-p10-k-spec75-project-wizard.md` — P10-K · SPEC §7.5 项目向导 —— 计划 (~1421 tok)
+- `2026-11-24-p10-k-spec75-project-wizard.md` — P10-K · SPEC §7.5 项目向导 —— 计划 (~8421 tok)
 
 ## docs/superpowers/specs/
 

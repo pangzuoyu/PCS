@@ -6985,6 +6985,157 @@
     "p10-j",
     "todo-197b"
    ]
+  },
+  {
+   "id": "bug-2205",
+   "timestamp": "2026-11-24T12:09:03.435Z",
+   "severity": "medium",
+   "error_message": "前端项目选择器的候选列表**含你无权执行的项目** —— `useProjectScope().projects` 的 workspaces 腿按**所有权**过滤而不是按授权过滤 ⇒ ⇒ 授权被撤销的项目、或只是经由工作区触达的项目，仍在列表里 ⇒ ⇒ 用户在「选项目」下拉里选中它 ⇒ ⇒ 点了才吃 404（名字还会退化成 `id.slice(0,8)`）",
+   "file": "pcs-frontend/src/store/projectScope.ts",
+   "root_cause": "`fetchCandidateIds()`（:82-116）= `GET /user-projects/me`（**授权行**）∪ `GET /workspaces`（**所有权**）⇒ ⇒ 两条腿的**语义不同**却并进了同一个列表 ⇒ ⇒ 而顶栏选择器只需要「我能看的项目」⇒ ⇒ 这个并集对顶栏够用 ⇒ ⇒ **但对「选一个我能对它执行的项目」是错的** ⇒ ⇒ ⇒ 缺口不在 `useProjectScope` 本身（它答的是另一个问题），而在**没有任何一个地方提供「我可执行的项目」这个列表**",
+   "fix": "**待 P10-J-T1 落地**（计划 `docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md` · T1-5）：按角色分源 —— 普通用户 = `GET /user-projects/me`（自己的有效授权行）· SYSTEM_ADMIN = `GET /workspaces`（admin 看全部工作区 ⇒ 全部项目；**否则 admin 靠全局 bypass 通常没有授权行 ⇒ 下拉空 ⇒ 按钮永远禁用**）⇒ ⇒ 且执行页用**局部 state**，**不调** `selectProject`（那是全局 zustand 单例 ⇒ 会把顶栏项目一起改掉）",
+   "fix_commit": null,
+   "tags": [
+    "frontend",
+    "authz",
+    "project-scope",
+    "P10-J-T1",
+    "plan-eng-review-2026-11-24"
+   ]
+  },
+  {
+   "id": "bug-2206",
+   "timestamp": "2026-11-24T12:09:03.435Z",
+   "severity": "high",
+   "error_message": "公司级报表模板**永远跑不了**（主数据源是 `DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS` 时）—— 这 3 张表**没有 `project_id` 列** ⇒ ⇒ `builder_service._project_field()` 抛 **`400 REPORT_PROJECT_SCOPE_REQUIRED`** ⇒ ⇒ **与「你没选项目」是同一个错误码** ⇒ ⇒ 文案是假的；且发生在 **worker 里**（202 之后）⇒ ⇒ ⇒ 被 ARQ **重试 3 次** ⇒ ⇒ ⇒ 最终 FAILED ⇒ ⇒ ⇒ 正是这批要消灭的「202 → 神秘失败」UX 原封不动回来了",
+   "file": "pcs-backend/app/services/report/builder_service.py",
+   "root_cause": "① `datasource_registry._add_project_columns()`（:609-631）只给**表上有 `project_id` 列**的源登记该列 ⇒ ⇒ 13 个源里恰好 3 个（DATALINEAGE / SUPPLIERS / CONFIG_ASSETS —— **恰恰是最像「公司级」的那三个**）没有；② `_project_field()`（:314-328）对这个缺口抛 `REPORT_PROJECT_SCOPE_REQUIRED` ⇒ ⇒ ⇒ **错误码被复用**：它同时表示「公司级模板没选项目」和「这个数据源压根不支持按项目隔离」⇒ ⇒ 用户看到的文案是假的；③ **创建侧零拦截**（`validate_definition_json`（`definition_service.py:128-165`）只查注册表成员资格）⇒ ⇒ 且编辑器默认 `projectId: null`（`ReportDefinitionEditorPage.tsx:470-472`）⇒ ⇒ ⇒ **默认路径就在批量生产死路**",
+   "fix": "**待 P10-J-T1 落地**（同计划 · **T1-7**）：**建定义时拒** —— 公司级定义 + 主数据源是那 3 个 ⇒ ⇒ **创建就拒**（新错误码）⇒ ⇒ 把死路堵在源头；执行侧**另外**给一个**可区分**的错误码（不再复用 `REPORT_PROJECT_SCOPE_REQUIRED`）⇒ ⇒ 让已存在的旧定义跑起来时**说实话**。⚠️ **存量旧定义怎么办（清理/迁移/放任）尚未裁**",
+   "fix_commit": null,
+   "tags": [
+    "backend",
+    "report-builder",
+    "scope",
+    "error-code",
+    "P10-J-T1",
+    "plan-eng-review-2026-11-24",
+    "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2207",
+   "timestamp": "2026-11-24T12:09:03.435Z",
+   "severity": "medium",
+   "error_message": "契约**新增一个可选字段** ⇒ ⇒ **CI 不会红** —— `check-api-drift.sh` 只标 路径增删 / schema 增删 / required 变化 / **字段移除** / 类型变化 / enum 变化 ⇒ ⇒ 新增可选字段**不计入 drift_count**（byte-diff 打了 FAIL 但退出码不变）⇒ ⇒ 且它**从不校验 `src/types/api.d.ts` 是否与契约同步** ⇒ ⇒ ⇒ stale 的类型文件一路绿 ⇒ ⇒ ⇒ 直到前端真用到该字段才 `tsc --noEmit` 红",
+   "file": "pcs-frontend/scripts/check-api-drift.sh",
+   "root_cause": "闸门设计成「**破坏性变更**检测器」（required 变化 / 字段移除 / 类型变 / enum 变 ⇒ ⇒ 对下游是 breaking）⇒ ⇒ **新增可选字段按定义不是 breaking** ⇒ ⇒ ⇒ 逻辑上没错 ⇒ ⇒ ⇒ **但漏了另一半**：「生成物（api.d.ts）是否与契约同步」这件事**没人查** ⇒ ⇒ ⇒ 于是「契约改了但类型没滚」是一个**结构性的假绿**（不是忘了跑，是**没有闸门会红**）",
+   "fix": "**待 P10-J-T1 落地**（同计划 · T1-1）：实现纪律 = **手工跑 `npm run api:gen`** → 提交 `pcs-frontend/openapi.snapshot.json` **与** `pcs-frontend/src/types/api.d.ts` **两份** ⇒ ⇒ ⇒ 并手工验 `npm run api:check`。⚠️ **闸门本身要不要补「api.d.ts 与契约同步」的检查 ⇒ ⇒ 尚未裁**（⇒ ⇒ 可另开一条）",
+   "fix_commit": null,
+   "tags": [
+    "ci",
+    "openapi",
+    "drift",
+    "false-green",
+    "P10-J-T1",
+    "plan-eng-review-2026-11-24"
+   ]
+  },
+  {
+   "id": "bug-2208",
+   "timestamp": "2026-11-24T12:09:03.435Z",
+   "severity": "medium",
+   "error_message": "「两条同名公司级定义在 PG 上被 UniqueConstraint 拒」这条 **PG 车道断言是假证据** —— `_reject_duplicate` 是**应用层** SELECT，**先**抛 409 `REPORT_DEFINITION_DUPLICATE` ⇒ ⇒ ⇒ **走 API 建两条同名定义永远碰不到 UniqueConstraint** ⇒ ⇒ ⇒ 约束被删了那条测试照样绿",
+   "file": "pcs-backend/app/services/report/definition_service.py",
+   "root_cause": "**两层同名防护**：应用层 `_reject_duplicate`（:867-877，友好 409）与 DB 层 `UniqueConstraint(\"project_id\",\"name\", postgresql_nulls_not_distinct=True)`（`models/report.py:210-217`，兜底并发）⇒ ⇒ ⇒ 而**应用层先跑** ⇒ ⇒ ⇒ 通过 API/服务层做的任何断言**只能证明应用层**⇒ ⇒ ⇒ **DB 约束这条线是完全没有测试的** ⇒ ⇒ ⇒ 而 SQLite 下它**本来就不生效**（NULL 互不相等）⇒ ⇒ ⇒ 两个缺口叠在一起 ⇒ ⇒ ⇒ 「PG 车道覆盖了 NULLS NOT DISTINCT」这句话是假的",
+   "fix": "**待 P10-J-T1 落地**（同计划 · §八·修正 2）：PG 那条**直连 ORM 插入**（绕过 `_reject_duplicate`）⇒ ⇒ 真打到 UniqueConstraint ⇒ ⇒ **约束被删了它就红**。范式见 `tests/api/v1/test_stream_batch_concurrency_pg.py`（CREATE SCHEMA + `options=-csearch_path=` + `alembic upgrade head` + 测完 `DROP SCHEMA CASCADE`）",
+   "fix_commit": null,
+   "tags": [
+    "backend",
+    "pg-lane",
+    "false-evidence",
+    "report-builder",
+    "P10-J-T1",
+    "plan-eng-review-2026-11-24",
+    "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2209",
+   "timestamp": "2026-11-24T23:20:46.319Z",
+   "severity": "high",
+   "error_message": "项目向导的 happy path 在**当前环境根本跑不起来** —— `pcs` 只有 **1 个** FORMAL 工作区、且**已被那唯一的项目占用**（`workspaces.project_id` 已回填）⇒ ⇒ 第 1 步的工作区下拉（正确地过滤掉了已占用的工作区）⇒ ⇒ **恒空** ⇒ ⇒ 且 e2e 跑一次就把 seed 的工作区吃掉 ⇒ ⇒ **第二次跑 409 WORKSPACE_ALREADY_HAS_PROJECT**",
+   "file": "pcs-backend/app/api/v1/projects.py",
+   "root_cause": "① 「一个工作区只能挂一个项目」是 **1:1 数据模型**（`workspaces.project_id` 单值列 + `projects.py:143-158` 的 409 闸）⇒ ⇒ 工作区是**一次性资源**；② 但**没有任何任务为 dev QA / e2e 造备用工作区** ⇒ ⇒ ⇒ 向导（新建项目的唯一入口）**默认不可用**；③ e2e 是**真后端通道**（`e2e/channel-config.ts:42` → `127.0.0.1:8001`，数据由 `seed_e2e_flows.py` 播种）⇒ ⇒ ⇒ 消耗的是**同一批** seed 数据 ⇒ ⇒ ⇒ 天然**非幂等**",
+   "fix": "**待 P10-K 落地**（计划 `docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md` · **W-0**）：seed 三样东西 —— ① 一条 `project_templates`（`status='PUBLISHED'`）+ 它依赖的命名 SignatureMatrix + PipeCodeTemplate + `project_template_pipe_classes` 关联行 ② **一个未被占用的 FORMAL 工作区** ③ e2e 幂等（每次跑用**新的**工作区或重置）⇒ ⇒ ⇒ 专用 e2e spec 本批**降级为不做**（只做 ROUTES 扫达）",
+   "fix_commit": null,
+   "tags": [
+    "backend",
+    "wizard",
+    "seed",
+    "e2e",
+    "idempotency",
+    "P10-K",
+    "plan-eng-review-2026-11-25",
+    "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2210",
+   "timestamp": "2026-11-24T23:20:46.319Z",
+   "severity": "medium",
+   "error_message": "meta 的 ui-schema 端点**静默丢弃**字段对象里的未知键 ⇒ ⇒ `UiSchemaField(**f)`（`app/api/v1/meta.py:234`）遇到契约类里没声明的键（如新的 `unit_display`）⇒ ⇒ **pydantic v2 默认 `extra='ignore'` ⇒ 直接扔掉** ⇒ ⇒ ⇒ 症状 = 那个字段**永远标灰 / 永远不换算**，**没有任何报错**",
+   "file": "pcs-backend/app/api/v1/meta.py",
+   "root_cause": "`UiSchemaField`（:122）没有 `model_config = ConfigDict(extra='forbid')` ⇒ ⇒ ⇒ pydantic v2 的默认 `extra='ignore'` 生效 ⇒ ⇒ ⇒ 「契约类没声明」与「**故意不带**」在运行时**完全同形** ⇒ ⇒ ⇒ 任何「ui-schema 的字段多带一个键」的改动**只有在前端断言该键真的到达时**才会被发现 ⇒ ⇒ ⇒ 这是一个**结构性的假绿**（不是忘了改，是**不改也不报**）",
+   "fix": "**待 P10-K 落地**（同计划 · **W-1b**）：`UiSchemaField` **必须显式声明** `unit_display` ⇒ ⇒ ⇒ 并**加一条测试断言该字段真的到达客户端**（`GET /meta/ui-schemas/bedd` 的响应里 `unit_display` 非空）⇒ ⇒ ⇒ 否则「前端拿不到因子 ⇒ 字段永远标灰」会以**静默**的形式上线",
+   "fix_commit": null,
+   "tags": [
+    "backend",
+    "meta",
+    "ui-schema",
+    "contract",
+    "silent-drop",
+    "P10-K",
+    "plan-eng-review-2026-11-25",
+    "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2211",
+   "timestamp": "2026-11-24T23:20:46.319Z",
+   "severity": "medium",
+   "error_message": "签署矩阵绑定有一条**既有不变量**：默认矩阵绑定**不覆盖**人工改过的绑定 ⇒ ⇒ 「谁该签」的决定权不在系统手里 ⇒ ⇒ ⇒ 任何「按模板改绑」的动作若**无条件替换**，就会**静默夺走人工决定**",
+   "file": "pcs-backend/app/services/signature_matrix_service.py",
+   "root_cause": "`ensure_default_record_matrix`（:751-758）的 docstring 明写「与 `ensure_change_notice_matrix` 同形，但**不覆盖**… ① 项目**已绑定**的 RECORD 矩阵 ⇒ ⇒ **原样返回**（人工改过的绑定**不被夺走**）… ⚠️ **为什么不覆盖**：批准链由这份矩阵推导 ⇒ ⇒ 系统擅自换一份 ⇒ ⇒ 用户看到的「该谁批」**无征兆地**变了」⇒ ⇒ ⇒ 这条不变量**只写在 docstring 里**，**没有断言** ⇒ ⇒ ⇒ 谁写「按模板改绑」都不会被提醒",
+   "fix": "**待 P10-K 落地**（同计划 · **W-3c**）：模板应用里的 `record_approval` 改绑**必须条件化**为「**只替换自动绑的默认**」⇒ ⇒ ⇒ 并且**补一条断言**：先人工改绑定 → 再应用模板 → **绑定不变** ⇒ ⇒ ⇒ 另：这条不变量本身**值得一条独立断言**（今天只有 docstring 守着）",
+   "fix_commit": null,
+   "tags": [
+    "backend",
+    "signature-matrix",
+    "invariant",
+    "governance",
+    "P10-K",
+    "plan-eng-review-2026-11-25",
+    "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2212",
+   "timestamp": "2026-11-24T23:20:46.319Z",
+   "severity": "low",
+   "error_message": "OpenAPI 裸字段棘轮**正好卡在基线**上（182 个 schema 里 111 已覆盖 ⇒ **71 个裸字段 = 基线上限**）⇒ ⇒ ⇒ **任何新端点若返回裸 object（没有 `response_model`），棘轮立刻爆** ⇒ ⇒ ⇒ 而仓里**更近的先例** `GET /pipe-code-templates`（`pipe_codes.py:131`）**恰好没有 `response_model`** ⇒ ⇒ ⇒ 「照抄形状」会把棘轮推爆",
+   "file": "pcs-backend/scripts/check_openapi_payload_coverage.py",
+   "root_cause": "棘轮只比「裸字段数 ≤ 基线」⇒ ⇒ ⇒ 而基线被**历史遗留**（无 `response_model` 的端点）**顶到上限** ⇒ ⇒ ⇒ ⇒ 从此**新增任何裸 object 端点都是净增** ⇒ ⇒ ⇒ ⇒ 而「找形状参考」时最容易抄到的恰是**同域里最旧的那个端点** ⇒ ⇒ ⇒ ⇒ 陷阱是**「照抄现成先例」这个动作本身**",
+   "fix": "**待 P10-K 落地**（同计划 · **W-3**）：新端点**必须用命名响应模型**（如 `ProjectTemplateSummary`）⇒ ⇒ ⇒ ⇒ 并把「基线已顶满 ⇒ 新端点必须命名模型」写成**实施约束**（不是靠记性）",
+   "fix_commit": null,
+   "tags": [
+    "openapi",
+    "ratchet",
+    "payload-coverage",
+    "trap",
+    "P10-K",
+    "plan-eng-review-2026-11-25",
+    "hermes-found"
+   ]
   }
  ]
 }

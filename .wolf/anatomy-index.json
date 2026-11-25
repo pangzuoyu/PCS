@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-24T10:49:13.842Z",
+    "lastScanned": "2026-11-25T00:01:01.153Z",
     "fileCount": 1495,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "eb559388e91c186027175269def4117b1151cd5fca5465e5dd83ece841cd5cbb",
-    "storeUpdatedAt": "2026-11-24T10:49:13.854Z",
-    "rootHash": "b04f329e8dbac4ba"
+    "renderedHash": "b0097a7fcba23e8b03e1ada4455502278e10e6120ea97d207ae17eef64ab33a9",
+    "storeUpdatedAt": "2026-11-25T00:01:01.167Z",
+    "rootHash": "1bba3489b61c0aa4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12359,11 +12359,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 24142,
-      "hash": "5054ababb3a7f483",
-      "size": 159892,
-      "mtimeMs": 1795426078038.7524,
-      "updatedAt": "2026-11-23T09:27:58.090Z",
+      "tokens": 23439,
+      "hash": "f46c2137fda11528",
+      "size": 153833,
+      "mtimeMs": 1795564734952.4182,
+      "updatedAt": "2026-11-24T23:58:55.010Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -53986,11 +53986,11 @@
     },
     "docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md": {
       "description": "P10-J-T1 · 公司级模板「执行时选项目」 —— 计划",
-      "tokens": 973,
-      "hash": "b176a9b57ec3f585",
-      "size": 6358,
-      "mtimeMs": 1795517353792.7703,
-      "updatedAt": "2026-11-24T10:49:13.842Z",
+      "tokens": 4551,
+      "hash": "dda0cd2b8d6f74f8",
+      "size": 29609,
+      "mtimeMs": 1795564857015.753,
+      "updatedAt": "2026-11-25T00:00:57.069Z",
       "source": "hook"
     },
     "docs/solutions/framework-integration-issues/serialization-must-go-through-the-response-model.md": {
@@ -54013,11 +54013,11 @@
     },
     "docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md": {
       "description": "P10-K · SPEC §7.5 项目向导 —— 计划",
-      "tokens": 1421,
-      "hash": "5b1a901fd910a605",
-      "size": 9485,
-      "mtimeMs": 1795517347445.6519,
-      "updatedAt": "2026-11-24T10:49:07.496Z",
+      "tokens": 8421,
+      "hash": "e85bcdeaeee54993",
+      "size": 53344,
+      "mtimeMs": 1795564861101.7947,
+      "updatedAt": "2026-11-25T00:01:01.153Z",
       "source": "hook"
     }
   }
