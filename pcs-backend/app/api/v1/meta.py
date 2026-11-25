@@ -119,11 +119,35 @@ class StateMachineResponse(BaseModel):
     allowed: dict[str, list[str]]
 
 
+class UnitDisplay(BaseModel):
+    """字段的**显示单位变换**（P10-K · W-1b · SPEC §7.5 单位制切换）。
+
+    ⚠️ **canonical 恒为 SI** ⇒ ⇒ ⇒ 所以这里描述的是**非 SI（US）**那一侧
+    ⇒ ⇒ ⇒ SI 那一侧是**恒等**（`display = canonical`，单位名 = `UiSchemaField.unit`）。
+
+    - `factor` / `offset`：`display = canonical × factor + offset`
+    - `display_unit`：显示单位名（如 `psi` / `degF` / `ft`）
+
+    ⚠️ **这个字段缺了 ⇒ ⇒ ⇒ 前端必须标灰 + 提示**（不是静默不换）
+    ⇒ ⇒ ⇒ 理由：它是**约定不是类型** ⇒ ⇒ ⇒ 后端新增带单位的字段却忘了填
+    ⇒ ⇒ ⇒ ⇒ 前端必须**明确**怎么办。
+    """
+
+    factor: float
+    offset: float
+    display_unit: str
+
+
 class UiSchemaField(BaseModel):
     """UI 表单 schema 单字段（meta/ui-schemas/{resource} 端点）。
 
     业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举
     + visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。
+
+    ⚠️ **必须显式声明 `unit_display`**（P10-K · W-1b）—— `meta.py` 的
+    `UiSchemaField(**f)` 走的是 pydantic 默认 `extra="ignore"`
+    ⇒ ⇒ ⇒ **静默丢弃**未声明的键 ⇒ ⇒ ⇒ 症状 = 字段永远标灰、无任何报错
+    ⇒ ⇒ ⇒ ⇒ 所以「契约里有没有这个字段」= 「前端能不能换算」⇒ ⇒ ⇒ 必须声明。
     """
 
     path: str
@@ -136,6 +160,7 @@ class UiSchemaField(BaseModel):
     placeholder: str | None = None
     help: str | None = None
     unit: str | None = None
+    unit_display: UnitDisplay | None = None
     min_length: int | None = None
     max_length: int | None = None
     visible: bool | None = None

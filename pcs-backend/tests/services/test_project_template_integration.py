@@ -65,7 +65,7 @@ async def test_set_and_get_default_pipe_class_ids(db, make_company_pc):
         name=f"tpl-{uuid.uuid4().hex[:8]}",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
     )
     db.add(tpl)
     await db.flush()
@@ -88,7 +88,7 @@ async def test_set_default_replaces_not_appends(db, make_company_pc):
         name="tpl-replace",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
     )
     db.add(tpl)
     await db.flush()
@@ -111,7 +111,7 @@ async def test_set_default_validates_existence(db, actor):
         name="tpl-validate",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
     )
     db.add(tpl)
     await db.flush()
@@ -131,7 +131,7 @@ async def test_get_pipe_code_template_id_returns_column_value(db):
         name="tpl-pcc",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
         pipe_code_template_id=pcc_id,
     )
     db.add(tpl)
@@ -149,7 +149,7 @@ async def test_get_pipe_code_template_id_none_when_unset(db):
         name="tpl-no-pcc",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
     )
     db.add(tpl)
     await db.flush()
@@ -166,7 +166,7 @@ async def test_template_has_pipe_code_template_id_column(db):
         name="tpl-col",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
     )
     db.add(tpl)
     await db.flush()

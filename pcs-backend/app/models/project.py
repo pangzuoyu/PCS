@@ -29,7 +29,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.enums import (
     ProductCategory,
+    ProjectStatus,
     StreamSignStatus,
+    UnitSystem,
     UserStatus,
     WorkspaceStatus,
 )
@@ -69,7 +71,11 @@ class Project(TimestampMixin, Base):
     single_plant_capacity: Mapped[float | None] = mapped_column(Float)
     single_plant_capacity_unit: Mapped[str | None] = mapped_column(String(20))
     reference_plant: Mapped[str | None] = mapped_column(String(200))
-    unit_system: Mapped[str] = mapped_column(String(20))
+    unit_system: Mapped[str] = mapped_column(
+        String(20),
+        default=UnitSystem.SI.value,
+        comment="默认**显示**单位制 (SI/US) —— 存储恒为 canonical(SI)，本列只决定显示",
+    )
     bedd_json: Mapped[dict | None] = mapped_column(JSONB)
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
@@ -77,7 +83,28 @@ class Project(TimestampMixin, Base):
         ),
         comment="项目所属 FORMAL 工作区；use_alter 破解 projects↔workspaces 循环",
     )
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default=ProjectStatus.ACTIVE.value,
+        comment="项目两态 (DRAFT/ACTIVE) —— DRAFT = 向导没走完；**今天没有任何守卫读它**",
+    )
+    # --- 模板落库的 6 个标量列 + 1 列 provenance（P10-K · W-3c）---
+    # ⚠️ **为什么不建 4 张表、也不建 JSONB blob**（2026-11-25 人裁）：
+    #   ① 这 6 个**都是标量** ⇒ ⇒ ⇒ 列更好查（`WHERE` / 索引都能用）
+    #   ⇒ ⇒ ⇒ JSONB blob 得 `->>` 出来才能比较 ⇒ ⇒ ⇒ 等于把索引丢了；
+    #   ② 建表 ⇒ ⇒ ⇒ 免 JOIN、免外键、免级联删除的顺序问题。
+    # ⚠️ **这 4 段今天没有任何消费者**（只出现在 `app/schemas/project_template.py`）
+    # ⇒ ⇒ ⇒ 写了**没人读** ⇒ ⇒ ⇒ 但「谁该签」类的段才是**真消费者**
+    # ⇒ ⇒ ⇒ （那两段走 `project_signature_matrix_bindings` 与条件化改绑）。
+    stream_approval_max_depth: Mapped[int | None] = mapped_column(Integer)
+    customer_approval_proxy_allowed: Mapped[bool | None] = mapped_column(Boolean)
+    customer_approval_attachment_required: Mapped[bool | None] = mapped_column(Boolean)
+    version_sequence_skip_alpha_versions: Mapped[bool | None] = mapped_column(Boolean)
+    version_sequence_allowed_purposes: Mapped[list | None] = mapped_column(JSONB)
+    reversal_role_reversal_approver_role: Mapped[str | None] = mapped_column(String(20))
+    # ⚠️ **只记 provenance，不承载配置**（配置在上面那些落点）⇒ ⇒ ⇒
+    # 兼作「未来重放 / 审计」的依据。
+    applied_template_json: Mapped[dict | None] = mapped_column(JSONB)
     # 产品类别 — GB 30251-2024 §6.1.5 电折标系数口径判据 (用户裁决 2026-10-05).
     # REFINING/ETHYLENE ⇒ 电用等价值; 其余 ⇒ 当量值.
     # 与 project_type 语义不同: 那个是「项目类型」(无枚举无约束), 本列有 CHECK.
@@ -93,6 +120,18 @@ class Project(TimestampMixin, Base):
         CheckConstraint(
             "product_category IN ('REFINING', 'ETHYLENE', 'OTHER')",
             name="ck_projects_product_category",
+        ),
+        # ⚠️ **两条 CHECK 的意义 = 「别的环境塞不进第三种值」**（P10-K · W-2/W-2c）
+        # ⇒ ⇒ ⇒ 词表在**代码**里（`UnitSystem` / `ProjectStatus`）⇒ ⇒ ⇒
+        # ⇒ ⇒ ⇒ CHECK 在**库里** ⇒ ⇒ ⇒ 两处**都要有**（代码一处、库一处）
+        # ⇒ ⇒ ⇒ 只在代码里 ⇒ ⇒ ⇒ 直接写库的人（脚本 / 迁移）能塞进垃圾值。
+        CheckConstraint(
+            "unit_system IN ('SI', 'US')",
+            name="ck_projects_unit_system",
+        ),
+        CheckConstraint(
+            "status IN ('DRAFT', 'ACTIVE')",
+            name="ck_projects_status",
         ),
     )
 

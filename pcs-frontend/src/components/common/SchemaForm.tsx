@@ -30,6 +30,17 @@ import {
 } from 'antd';
 import type { FormInstance } from 'antd';
 
+import {
+  canConvert,
+  displayUnit,
+  fromDisplay,
+  toDisplay,
+  type UnitDisplay,
+  type UnitSystem,
+} from '../../utils/units';
+
+export type { UnitDisplay, UnitSystem };
+
 export type WidgetName =
   | 'Input'
   | 'Select'
@@ -50,7 +61,14 @@ export interface UiSchemaField {
   placeholder?: string;
   help?: string;
   order?: number;
-  unit?: string;
+  unit?: string | null;
+  /**
+   * 显示单位变换（P10-K · W-1b）—— **后端下发**，前端**没有换算表**。
+   *
+   * ⚠️ **null = 这个字段不可换算**（湿度 % / 噪声 dB …）⇒ ⇒ ⇒ 前端**标灰**
+   * ⇒ ⇒ ⇒ 按原值显示（**不是禁用**）。
+   */
+  unit_display?: UnitDisplay | null;
   min_length?: number;
   max_length?: number;
   enum_group?: string;
@@ -76,6 +94,14 @@ interface Props {
   /** enum_group → options 映射（外部提供） */
   enumOptions?: Record<string, EnumOption[]>;
   disabled?: boolean;
+  /**
+   * 当前**显示**单位制（P10-K · W-4）—— 默认 SI（= canonical）。
+   *
+   * ⚠️ **换算只在控件边界发生**（`getValueProps` / `normalize`）
+   * ⇒ ⇒ ⇒ **form state 恒为 canonical（SI）** ⇒ ⇒ ⇒ 否则每次保存时
+   * ⇒ ⇒ ⇒ **未被编辑的字段**也会在末位比特上漂移。
+   */
+  unitSystem?: UnitSystem;
 }
 
 /** 过滤 visible=false + 按 order 升序 */
@@ -91,6 +117,7 @@ export function SchemaForm({
   onChange,
   enumOptions = {},
   disabled,
+  unitSystem = 'SI',
 }: Props): JSX.Element {
   const [form] = Form.useForm<Record<string, any>>();
   const orderedFields = useMemo(() => prepareFields(schema.fields), [schema]);
@@ -134,7 +161,7 @@ export function SchemaForm({
           <InputNumber
             data-testid={`control-${field.path}`}
             data-widget="NumberInput"
-            data-unit={field.unit ?? ''}
+            data-unit={displayUnit(field, unitSystem) ?? ''}
             style={{ width: '100%' }}
             {...common}
           />
@@ -210,10 +237,30 @@ export function SchemaForm({
       disabled={disabled}
       onValuesChange={handleValuesChange}
     >
-      {orderedFields.map((f) => (
+      {orderedFields.map((f) => {
+        // ⚠️ **单位后缀按「当前显示单位制」取**（P10-K · W-4）
+        // ⇒ ⇒ ⇒ US 模式下标签显示 psi（不是 kPa）⇒ ⇒ ⇒ 否则标签在骗人。
+        const shownUnit = displayUnit(f, unitSystem);
+        // ⚠️ **不可换算的字段标灰**（有单位但换算没意义）⇒ ⇒ ⇒ **不是禁用**
+        // ⇒ ⇒ ⇒ 用户仍可录入、按原值显示。
+        const convertible = canConvert(f);
+        return (
         <Form.Item
           key={f.path}
           name={f.path}
+          // ⚠️ **换算只在控件边界**（P10-K · W-5）⇒ ⇒ ⇒ form state 恒 canonical
+          getValueProps={
+            f.widget === 'NumberInput'
+              ? (v: number | null | undefined) => ({
+                  value: toDisplay(v, f, unitSystem),
+                })
+              : undefined
+          }
+          normalize={
+            f.widget === 'NumberInput'
+              ? (v: number | null | undefined) => fromDisplay(v, f, unitSystem)
+              : undefined
+          }
           label={
             <span>
               {f.label}
@@ -222,15 +269,22 @@ export function SchemaForm({
                   必填
                 </Tag>
               )}
-              {f.unit && (
+              {shownUnit && (
                 <span
+                  data-testid={`unit-${f.path}`}
+                  title={
+                    convertible
+                      ? undefined
+                      : '该字段无换算（后端未下发换算因子）⇒ 按原值显示'
+                  }
                   style={{
                     marginLeft: 4,
                     color: 'var(--text-tertiary, #6E7781)',
                     fontFamily: 'var(--font-mono, monospace)',
+                    opacity: convertible || unitSystem === 'SI' ? 1 : 0.55,
                   }}
                 >
-                  / {f.unit}
+                  / {shownUnit}
                 </span>
               )}
             </span>
@@ -250,7 +304,8 @@ export function SchemaForm({
         >
           {renderControl(f)}
         </Form.Item>
-      ))}
+        );
+      })}
     </Form>
   );
 }

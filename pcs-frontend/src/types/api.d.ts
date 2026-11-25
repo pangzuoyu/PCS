@@ -4587,6 +4587,119 @@ export interface paths {
         patch: operations["set_product_category_api_v1_projects__project_id__product_category_patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/unit-system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 设置项目默认显示单位制（SYSTEM_ADMIN · P10-K · W-2b）
+         * @description 设置项目的**默认显示单位制**（SI / US）。
+         *
+         *     ⚠️ **它不动任何已存的值** —— 存储**恒为 canonical（SI）**
+         *     ⇒ ⇒ ⇒ 本字段只决定「这个项目默认按哪套单位显示」
+         *     ⇒ ⇒ ⇒ ⇒ 历史数据**不受影响**（换算是**视图变换**）。
+         *
+         *     ⚠️ **不要抄 `product-category` 的 422 保护** —— 那个是因为产品类别有
+         *     **冻结下游值**（已生成的综合能耗汇总固化了当时的折标口径）
+         *     ⇒ ⇒ ⇒ 而 `unit_system` **没有**冻结下游值 ⇒ ⇒ ⇒ ⇒ 抄过来就是
+         *     ⇒ ⇒ ⇒ 一条**永远不该触发**的拒绝。
+         */
+        patch: operations["set_unit_system_api_v1_projects__project_id__unit_system_patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 设置项目状态（SYSTEM_ADMIN · P10-K · W-2d）
+         * @description 把项目从 `DRAFT` 转成 `ACTIVE`（向导第 4 步「确认」）。
+         *
+         *     ⚠️ **只允许单向 `DRAFT → ACTIVE`** ⇒ ⇒ ⇒ `ACTIVE → DRAFT`（回退）
+         *     ⇒ ⇒ ⇒ **409** —— 因为 `DRAFT` 的语义是「**向导没走完**」
+         *     ⇒ ⇒ ⇒ 已经走完的项目退回去 = 「说它没走完」⇒ ⇒ ⇒ 没有这种需求
+         *     ⇒ ⇒ ⇒ ⇒ 而允许它 ⇒ ⇒ ⇒ 弃单项目的识别口径（「`status='DRAFT'`」）
+         *     ⇒ ⇒ ⇒ 就**不再可靠**。
+         *
+         *     ⚠️ **已经是 ACTIVE 再激活 ⇒ ⇒ ⇒ 409**（不是 200 空转）⇒ ⇒ ⇒
+         *     因为静默 200 会让人**以为没生效**。
+         */
+        patch: operations["set_project_status_api_v1_projects__project_id__status_patch"];
+        trace?: never;
+    };
+    "/api/v1/project-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列已发布的项目模板（SYSTEM_ADMIN · P10-K · W-3）
+         * @description 列**已发布**（`status='PUBLISHED'`）的项目模板。
+         *
+         *     ⚠️ **只列 PUBLISHED** —— 模板**没有发布端点**（本批只有 seed 写
+         *     PUBLISHED · 运营流程另开 · TODO-206）⇒ ⇒ ⇒ ⇒ 列 DRAFT/OBSOLETE
+         *     ⇒ ⇒ ⇒ 会让用户选到**没人审核过**的模板。
+         */
+        get: operations["list_project_templates_api_v1_project_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 把模板应用到项目（SYSTEM_ADMIN · P10-K · W-3d）
+         * @description 把模板应用到项目（**同一事务** · **幂等**）。
+         *
+         *     ⚠️ **7 段任一段失败 ⇒ ⇒ ⇒ 全部回滚** ⇒ ⇒ ⇒ 项目不会被配成
+         *     「一半模板、一半默认」⇒ ⇒ ⇒ ⇒ 所以端点**只 commit 一次**
+         *     （在服务层返回之后）⇒ ⇒ ⇒ 任一段抛错 ⇒ ⇒ ⇒ 事务回滚 ⇒ ⇒ ⇒ 零残留。
+         *
+         *     ⚠️ **`record_approval` 只替「自动绑的默认」** ⇒ ⇒ ⇒ 人工改过的
+         *     签署矩阵绑定**不被夺走**（见 `ProjectTemplateService.apply_to_project`）。
+         *
+         *     ⚠️ **写一条审计**（W-17）—— 模板应用 = **改变「谁该签」**的治理动作
+         *     ⇒ ⇒ ⇒ 而 `signature_matrix_service` 里**零审计** ⇒ ⇒ ⇒ 这一条
+         *     **由本端点补上**。
+         */
+        post: operations["apply_template_api_v1_projects__project_id__apply_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/pipe-line-list": {
         parameters: {
             query?: never;
@@ -7457,6 +7570,20 @@ export interface components {
              * @description 适用介质（工艺物料类别）
              */
             medium?: string | null;
+        };
+        /**
+         * ApplyTemplateRequest
+         * @description 把模板应用到项目的请求体（P10-K · W-3d）。
+         *
+         *     ⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。
+         */
+        ApplyTemplateRequest: {
+            /**
+             * Template Id
+             * Format: uuid
+             * @description 要应用的模板
+             */
+            template_id: string;
         };
         /**
          * ApprovalStepRequest
@@ -15707,11 +15834,8 @@ export interface components {
              * @description 设计阶段
              */
             design_phase: string;
-            /**
-             * Unit System
-             * @description 单位制（SI 等）
-             */
-            unit_system: string;
+            /** @description 默认**显示**单位制 (SI/US) —— 存储恒为 canonical(SI)，本字段只决定显示 */
+            unit_system: components["schemas"]["UnitSystem"];
             /**
              * Workspace Id
              * Format: uuid
@@ -15719,11 +15843,10 @@ export interface components {
              */
             workspace_id: string;
             /**
-             * Status
-             * @description 项目状态
+             * @description 项目两态 (DRAFT/ACTIVE) —— ⚠️ 向导第 1 步显式传 DRAFT（DRAFT 只是「没走完」的标签，不改变任何行为）
              * @default ACTIVE
              */
-            status: string;
+            status: components["schemas"]["ProjectStatus"];
             /**
              * @description 产品类别（GB 30251-2024 §6.1.5 电折标口径判据）
              * @default OTHER
@@ -15784,6 +15907,8 @@ export interface components {
             product_category: string;
             /** Electricity Value Type */
             electricity_value_type: string;
+            unit_system: components["schemas"]["UnitSystem"];
+            status: components["schemas"]["ProjectStatus"];
         };
         /**
          * ProjectPipeClassCreateRequest
@@ -15889,6 +16014,35 @@ export interface components {
             };
         };
         /**
+         * ProjectStatus
+         * @description 项目**两态**（P10-K · W-2c · 兑现 SPEC §12.4 V1.6 的旧承诺）。
+         *
+         *     ⚠️ **`DRAFT` 不是状态机** —— 它是「**由向导建了但没走完**」的**标签**
+         *     ⇒ ⇒ ⇒ 今天**没有任何守卫读 `Project.status`** ⇒ ⇒ ⇒ 加它**零行为影响**
+         *     ⇒ ⇒ ⇒ 转换**只单向** `DRAFT → ACTIVE`（没有「DRAFT → 取消/删除」）
+         *     ⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）。
+         *
+         *     ⚠️ 历史上 `Project.status` 的 docstring 写过「ARCHIVED / IN_PROGRESS /
+         *     CLOSED 等 5-state 设计待业务需求驱动落地」⇒ ⇒ ⇒ 本枚举**只落 2 值**
+         *     ⇒ ⇒ ⇒ 其余那些**没有实现** ⇒ ⇒ ⇒ 也不在 CHECK 里。
+         * @enum {string}
+         */
+        ProjectStatus: "DRAFT" | "ACTIVE";
+        /**
+         * ProjectStatusUpdate
+         * @description 设置项目**状态**的请求体（P10-K · W-2d）。
+         *
+         *     ⚠️ **只允许 `DRAFT → ACTIVE`**（单向）⇒ ⇒ ⇒ 没有「DRAFT → 取消/删除」
+         *     ⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）
+         *     ⇒ ⇒ ⇒ 端点对**已经是 ACTIVE** 的项目 ⇒ ⇒ ⇒ **409**（不是 200 空转）
+         *     ⇒ ⇒ ⇒ 因为「已激活」再激活一次 = 用户以为没生效、其实生效了 ⇒ ⇒ ⇒
+         *     ⇒ ⇒ ⇒ 静默 200 会让人**以为失败**。
+         */
+        ProjectStatusUpdate: {
+            /** @description 目标状态 (DRAFT/ACTIVE) */
+            status: components["schemas"]["ProjectStatus"];
+        };
+        /**
          * ProjectSymbolRequest
          * @description 项目级新增流股符号请求体（POST /projects/{id}/stream-symbols）。
          *
@@ -15924,6 +16078,42 @@ export interface components {
             category?: string | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /**
+         * ProjectTemplateSummary
+         * @description 项目模板**摘要**（P10-K · W-3 · `GET /api/v1/project-templates` 的响应）。
+         *
+         *     ⚠️ **为什么是「命名响应模型」而不是裸 object** ——
+         *     `scripts/check_openapi_payload_coverage.py` 的棘轮是「裸字段数 ≤ 基线」
+         *     ⇒ ⇒ ⇒ 而基线**恰好顶满**（71）⇒ ⇒ ⇒ ⇒ **任何新增的裸 object 端点**
+         *     ⇒ ⇒ ⇒ **立刻爆** ⇒ ⇒ ⇒ ⇒ 所以新端点**必须**有命名响应模型
+         *     ⇒ ⇒ ⇒（⚠️ **不要照抄** `pipe_codes.py:131` 那个**没有 `response_model`**
+         *     的端点 —— 那是最容易抄到的形状 ⇒ ⇒ ⇒ 抄它就把棘轮推爆。）
+         *
+         *     ⚠️ **不含 `default_config_json`** —— 那是**完整配置**（7 段）
+         *     ⇒ ⇒ ⇒ 列表端点只给「够选择的信息」⇒ ⇒ ⇒ 完整配置在应用模板时才读。
+         */
+        ProjectTemplateSummary: {
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /** Name */
+            name: string;
+            /** Industry */
+            industry?: string | null;
+            /** Version */
+            version: string;
+            /** Status */
+            status: string;
+            /** Default Pipe Class Ids */
+            default_pipe_class_ids?: string[];
+            /**
+             * Checklist Item Count
+             * @default 0
+             */
+            checklist_item_count: number;
         };
         /**
          * PsychroResultCreateRequest
@@ -20744,6 +20934,11 @@ export interface components {
          *
          *     业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举
          *     + visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。
+         *
+         *     ⚠️ **必须显式声明 `unit_display`**（P10-K · W-1b）—— `meta.py` 的
+         *     `UiSchemaField(**f)` 走的是 pydantic 默认 `extra="ignore"`
+         *     ⇒ ⇒ ⇒ **静默丢弃**未声明的键 ⇒ ⇒ ⇒ 症状 = 字段永远标灰、无任何报错
+         *     ⇒ ⇒ ⇒ ⇒ 所以「契约里有没有这个字段」= 「前端能不能换算」⇒ ⇒ ⇒ 必须声明。
          */
         UiSchemaField: {
             /** Path */
@@ -20769,6 +20964,7 @@ export interface components {
             help?: string | null;
             /** Unit */
             unit?: string | null;
+            unit_display?: components["schemas"]["UnitDisplay"] | null;
             /** Min Length */
             min_length?: number | null;
             /** Max Length */
@@ -20792,6 +20988,57 @@ export interface components {
             resource: string;
             /** Fields */
             fields: components["schemas"]["UiSchemaField"][];
+        };
+        /**
+         * UnitDisplay
+         * @description 字段的**显示单位变换**（P10-K · W-1b · SPEC §7.5 单位制切换）。
+         *
+         *     ⚠️ **canonical 恒为 SI** ⇒ ⇒ ⇒ 所以这里描述的是**非 SI（US）**那一侧
+         *     ⇒ ⇒ ⇒ SI 那一侧是**恒等**（`display = canonical`，单位名 = `UiSchemaField.unit`）。
+         *
+         *     - `factor` / `offset`：`display = canonical × factor + offset`
+         *     - `display_unit`：显示单位名（如 `psi` / `degF` / `ft`）
+         *
+         *     ⚠️ **这个字段缺了 ⇒ ⇒ ⇒ 前端必须标灰 + 提示**（不是静默不换）
+         *     ⇒ ⇒ ⇒ 理由：它是**约定不是类型** ⇒ ⇒ ⇒ 后端新增带单位的字段却忘了填
+         *     ⇒ ⇒ ⇒ ⇒ 前端必须**明确**怎么办。
+         */
+        UnitDisplay: {
+            /** Factor */
+            factor: number;
+            /** Offset */
+            offset: number;
+            /** Display Unit */
+            display_unit: string;
+        };
+        /**
+         * UnitSystem
+         * @description 项目的**默认显示单位制**（P10-K · W-2 · SPEC §7.5 单位制切换）。
+         *
+         *     ⚠️ **它不是存储单位** —— 存储**恒为 canonical（SI）** ⇒ ⇒ ⇒ 本枚举只决定
+         *     「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒ 换算是**双向视图变换**
+         *     （读 `canonical→display` · 写 `display→canonical`）⇒ ⇒ ⇒
+         *     ⇒ ⇒ **后端永远不因为本枚举改写已存的值**。
+         *
+         *     ⚠️ **与 `app/schemas/psychro.py` 的 `METRIC`/`IMPERIAL` 是同一个轴、
+         *     只是拼写不同** —— psychro 那套的 docstring 明写「METRIC 公制 SI /
+         *     IMPERIAL 英制」⇒ ⇒ ⇒ ⇒ **两套不要合并**（psychro 的 docstring 还写
+         *     「不影响算法，仅标注」⇒ ⇒ ⇒ 而本枚举**要**驱动真实换算）
+         *     ⇒ ⇒ ⇒ 合并会让 psychro 的「仅标注」语义被悄悄升级。
+         * @enum {string}
+         */
+        UnitSystem: "SI" | "US";
+        /**
+         * UnitSystemUpdate
+         * @description 设置项目**默认显示单位制**的请求体（P10-K · W-2b）。
+         *
+         *     ⚠️ **它不是「把库里的值换算一遍」** —— 存储**恒为 canonical（SI）**
+         *     ⇒ ⇒ ⇒ 本字段只决定「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒
+         *     ⇒ ⇒ ⇒ 改它**不动任何已存的值**。
+         */
+        UnitSystemUpdate: {
+            /** @description 默认显示单位制 (SI/US) */
+            unit_system: components["schemas"]["UnitSystem"];
         };
         /**
          * UpdateProjectConfigRequest
@@ -30355,6 +30602,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_unit_system_api_v1_projects__project_id__unit_system_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitSystemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_project_status_api_v1_projects__project_id__status_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectStatusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_templates_api_v1_project_templates_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectTemplateSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_template_api_v1_projects__project_id__apply_template_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

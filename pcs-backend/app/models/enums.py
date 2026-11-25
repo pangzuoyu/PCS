@@ -197,6 +197,61 @@ class ProductCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class UnitSystem(str, enum.Enum):
+    """项目的**默认显示单位制**（P10-K · W-2 · SPEC §7.5 单位制切换）。
+
+    ⚠️ **它不是存储单位** —— 存储**恒为 canonical（SI）** ⇒ ⇒ ⇒ 本枚举只决定
+    「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒ 换算是**双向视图变换**
+    （读 `canonical→display` · 写 `display→canonical`）⇒ ⇒ ⇒
+    ⇒ ⇒ **后端永远不因为本枚举改写已存的值**。
+
+    ⚠️ **与 `app/schemas/psychro.py` 的 `METRIC`/`IMPERIAL` 是同一个轴、
+    只是拼写不同** —— psychro 那套的 docstring 明写「METRIC 公制 SI /
+    IMPERIAL 英制」⇒ ⇒ ⇒ ⇒ **两套不要合并**（psychro 的 docstring 还写
+    「不影响算法，仅标注」⇒ ⇒ ⇒ 而本枚举**要**驱动真实换算）
+    ⇒ ⇒ ⇒ 合并会让 psychro 的「仅标注」语义被悄悄升级。
+    """
+
+    SI = "SI"
+    US = "US"
+
+
+class ProjectTemplateStatus(str, enum.Enum):
+    """项目模板的**发布状态**（P10-K · W-3b）。
+
+    ⚠️ **不是** config 资产那套 5 态（`ConfigStatus` 的
+    DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）⇒ ⇒ ⇒ 模板**不走**那套审核流
+    ⇒ ⇒ ⇒ 本批**只有 seed 写 `PUBLISHED`** ⇒ ⇒ ⇒ **没有发布端点**
+    ⇒ ⇒ ⇒（运营与发布流程另开 · **TODO-206**）。
+
+    ⚠️ **历史值 `ACTIVE`** —— 旧列的默认值是 `ACTIVE` ⇒ ⇒ ⇒ 而那**不是**
+    本词表里的值 ⇒ ⇒ ⇒ ⇒ 迁移 `p10_006` 把 `ACTIVE` **映射成 `DRAFT`**
+    ⇒ ⇒ ⇒（映射成 PUBLISHED 是撒谎：没人审核过它）⇒ ⇒ ⇒ 旧模板因此
+    **不进**「已发布」列表 ⇒ ⇒ ⇒ 需要时由运维改状态。
+    """
+
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    OBSOLETE = "OBSOLETE"
+
+
+class ProjectStatus(str, enum.Enum):
+    """项目**两态**（P10-K · W-2c · 兑现 SPEC §12.4 V1.6 的旧承诺）。
+
+    ⚠️ **`DRAFT` 不是状态机** —— 它是「**由向导建了但没走完**」的**标签**
+    ⇒ ⇒ ⇒ 今天**没有任何守卫读 `Project.status`** ⇒ ⇒ ⇒ 加它**零行为影响**
+    ⇒ ⇒ ⇒ 转换**只单向** `DRAFT → ACTIVE`（没有「DRAFT → 取消/删除」）
+    ⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）。
+
+    ⚠️ 历史上 `Project.status` 的 docstring 写过「ARCHIVED / IN_PROGRESS /
+    CLOSED 等 5-state 设计待业务需求驱动落地」⇒ ⇒ ⇒ 本枚举**只落 2 值**
+    ⇒ ⇒ ⇒ 其余那些**没有实现** ⇒ ⇒ ⇒ 也不在 CHECK 里。
+    """
+
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+
+
 class GasMedium(str, enum.Enum):
     """工艺气体介质分类 (P7-6B 收尾 / GB 30251-2024 附录A 表A.1).
 
@@ -401,6 +456,12 @@ class AuditAction(str, enum.Enum):
     CHECKLIST_ITEM_VERIFIED = "CHECKLIST_ITEM_VERIFIED"
     CHECKLIST_ITEM_ASSUMED = "CHECKLIST_ITEM_ASSUMED"
     CHECKLIST_COMPLETENESS_BLOCKED = "CHECKLIST_COMPLETENESS_BLOCKED"
+
+    # === 项目模板（P10-K · W-17）===
+    # ⚠️ **为什么模板应用要审计** —— 模板应用 = **改变「谁该签」**的治理动作
+    # ⇒ ⇒ ⇒ 而 `signature_matrix_service` 里**零审计** ⇒ ⇒ ⇒ ⇒ 这一条
+    # ⇒ ⇒ ⇒ 由**模板应用端点**补上（不是矩阵服务补的）。
+    PROJECT_TEMPLATE_APPLIED = "PROJECT_TEMPLATE_APPLIED"
 
     # === 通用 CRUD ===
     READ = "READ"

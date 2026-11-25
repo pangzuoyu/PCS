@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ApprovalStep(BaseModel):
@@ -114,6 +115,26 @@ class ReversalRoleConfig(BaseModel):
     reversal_approver_role: str = Field(..., min_length=1, description="可逆审批角色")
 
 
+class ProjectTemplateConfigMutuallyExclusiveError(ValueError):
+    """`record_approval` 与 `signature_matrix` **同时**填（互斥）。"""
+
+
+# ⚠️ **互斥校验放在模型上**（不是端点里手写 if）⇒ ⇒ ⇒
+#   理由：这份配置**只有一条入口**（`ProjectTemplateService.validate_config`）
+#   ⇒ ⇒ ⇒ 但**将来**若有人再加一条入口 ⇒ ⇒ ⇒ 手写的 if 会被绕过
+#   ⇒ ⇒ ⇒ ⇒ 放模型上 ⇒ ⇒ ⇒ 任何入口都过不了这一关。
+# ⚠️ **为什么互斥**：`SignatureMatrixBinding` 的 docstring 明写
+#   「**与 record_approval 互斥（用其一即可）**」
+#   ⇒ ⇒ ⇒ 两个都填 ⇒ ⇒ ⇒ 「该谁签」有**两个答案** ⇒ ⇒ ⇒ 后签名优先。
+def _assert_record_approval_exclusive(cfg: "ProjectTemplateConfig") -> "ProjectTemplateConfig":
+    if cfg.record_approval is not None and cfg.signature_matrix is not None:
+        raise ProjectTemplateConfigMutuallyExclusiveError(
+            "record_approval 与 signature_matrix **互斥**（用其一即可）"
+            "⇒ ⇒ ⇒ 两个都填 ⇒ ⇒ ⇒ 「该谁签」有两个答案。"
+        )
+    return cfg
+
+
 class ProjectTemplateConfig(BaseModel):
     """项目模板配置根（项目级模板总入口，承载 7 段可配置子项）。
 
@@ -128,3 +149,41 @@ class ProjectTemplateConfig(BaseModel):
     signature_matrix: SignatureMatrixBinding | None = Field(None, description="签署矩阵绑定")
     version_sequence: VersionSequenceConfig | None = Field(None, description="版本序列配置")
     reversal_role: ReversalRoleConfig | None = Field(None, description="逆审角色配置")
+
+    # ⚠️ **互斥**（`record_approval` ↔ `signature_matrix`）—— 见模块末尾的说明
+    _check_exclusive = model_validator(mode="after")(
+        _assert_record_approval_exclusive
+    )
+
+class ProjectTemplateSummary(BaseModel):
+    """项目模板**摘要**（P10-K · W-3 · `GET /api/v1/project-templates` 的响应）。
+
+    ⚠️ **为什么是「命名响应模型」而不是裸 object** ——
+    `scripts/check_openapi_payload_coverage.py` 的棘轮是「裸字段数 ≤ 基线」
+    ⇒ ⇒ ⇒ 而基线**恰好顶满**（71）⇒ ⇒ ⇒ ⇒ **任何新增的裸 object 端点**
+    ⇒ ⇒ ⇒ **立刻爆** ⇒ ⇒ ⇒ ⇒ 所以新端点**必须**有命名响应模型
+    ⇒ ⇒ ⇒（⚠️ **不要照抄** `pipe_codes.py:131` 那个**没有 `response_model`**
+    的端点 —— 那是最容易抄到的形状 ⇒ ⇒ ⇒ 抄它就把棘轮推爆。）
+
+    ⚠️ **不含 `default_config_json`** —— 那是**完整配置**（7 段）
+    ⇒ ⇒ ⇒ 列表端点只给「够选择的信息」⇒ ⇒ ⇒ 完整配置在应用模板时才读。
+    """
+
+    template_id: uuid.UUID
+    name: str
+    industry: str | None = None
+    version: str
+    status: str
+    #: 模板默认管道等级（**批量**查出 ⇒ ⇒ ⇒ 无 N+1）
+    default_pipe_class_ids: list[str] = Field(default_factory=list)
+    #: 输入清单条目数（列表页显示「这个模板会给你 N 项清单」）
+    checklist_item_count: int = 0
+
+
+class ApplyTemplateRequest(BaseModel):
+    """把模板应用到项目的请求体（P10-K · W-3d）。
+
+    ⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。
+    """
+
+    template_id: uuid.UUID = Field(..., description="要应用的模板")

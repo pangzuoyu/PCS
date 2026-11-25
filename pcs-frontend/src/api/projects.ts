@@ -25,7 +25,48 @@ export interface ExecutableProject {
   project_name: string;
 }
 
+/** 产品类别 3 值（契约枚举 —— 不手写字面量）。 */
+export const PRODUCT_CATEGORIES: {
+  value: components['schemas']['ProductCategory'];
+  label: string;
+}[] = [
+  { value: 'REFINING', label: '炼油（电折标按「等价值」0.21 kg 标油/kWh）' },
+  { value: 'ETHYLENE', label: '乙烯（电折标按「等价值」0.21 kg 标油/kWh）' },
+  { value: 'OTHER', label: '其他（电折标按「当量值」0.086 kg 标油/kWh）' },
+];
+
+/** 单位制 2 值（契约枚举 —— 不手写字面量）。 */
+export const UNIT_SYSTEMS: {
+  value: components['schemas']['UnitSystem'];
+  label: string;
+}[] = [
+  { value: 'SI', label: 'SI（kPa · ℃ · m）' },
+  { value: 'US', label: 'US（psi · ℉ · ft）' },
+];
+
 export const projectsApi = {
+  /**
+   * 读项目（`GET /projects/{id}`）。
+   *
+   * ⚠️ **需要对该项目有访问权** ⇒ ⇒ ⇒ 否则 **404**（与「不存在」同形）。
+   * ⇒ ⇒ ⇒ 所以**单位制默认值**拉不到时**退回 SI**（不是报错）
+   * ⇒ ⇒ ⇒（老后端 / 无权 ⇒ ⇒ ⇒ 单位制下拉恒为 SI ⇒ ⇒ ⇒ 页面仍能用）。
+   */
+  get: (projectId: string): Promise<ProjectOut> =>
+    api.get<ProjectOut>(`/projects/${projectId}`).then((r) => r.data),
+
+  /**
+   * 设置项目状态（`PATCH /projects/{id}/status` · SYSTEM_ADMIN）。
+   *
+   * ⚠️ **只允许 `DRAFT → ACTIVE`**（单向）⇒ ⇒ ⇒ `ACTIVE → DRAFT` ⇒ ⇒ ⇒ **409**
+   * ⇒ ⇒ ⇒（后端裁决：回退会让「DRAFT = 向导没走完」的识别口径失效）。
+   */
+  setStatus: (
+    projectId: string,
+    status: 'DRAFT' | 'ACTIVE',
+  ): Promise<ProjectOut> =>
+    api.patch<ProjectOut>(`/projects/${projectId}/status`, { status }).then((r) => r.data),
+
   /** 建项目（SYSTEM_ADMIN；后端同事务绑默认 RECORD 矩阵）。 */
   create: (body: ProjectCreate): Promise<ProjectOut> =>
     api.post<ProjectOut>('/projects', body).then((r) => r.data),
@@ -87,4 +128,50 @@ export const projectsApi = {
     };
     return load();
   },
+};
+
+/** 项目内角色（契约词表 —— 不手写字面量）。 */
+export type ProjectRole =
+  | 'DESIGNER'
+  | 'CHECKER'
+  | 'APPROVER'
+  | 'REVIEWER'
+  | 'VIEWER'
+  | 'PROJECT_LEAD';
+
+/** 项目模板摘要（契约 `ProjectTemplateSummary`）。 */
+export type ProjectTemplateSummary = components['schemas']['ProjectTemplateSummary'];
+
+export const userProjectsApi = {
+  /**
+   * 给用户加项目授权（`POST /user-projects/grant` · SYSTEM_ADMIN）。
+   *
+   * ⚠️ **向导第 2 步用它** ⇒ ⇒ ⇒ 但**加人员**是**管理动作**
+   * ⇒ ⇒ ⇒ ⇒ `/wizard` 在 **admin 组**（非 SYSTEM_ADMIN 看不到入口）。
+   */
+  grant: (body: {
+    user_id: string;
+    project_id: string;
+    role_in_project: ProjectRole;
+  }): Promise<UserProjectResponse> =>
+    api.post<UserProjectResponse>('/user-projects/grant', body).then((r) => r.data),
+
+  /** 列「我有授权的项目」（`GET /user-projects/me`）。 */
+  mine: (): Promise<UserProjectResponse[]> =>
+    api.get<UserProjectResponse[]>('/user-projects/me').then((r) => r.data),
+};
+
+export const projectTemplatesApi = {
+  /** 列**已发布**的项目模板（`GET /project-templates` · SYSTEM_ADMIN）。 */
+  list: (): Promise<ProjectTemplateSummary[]> =>
+    api.get<ProjectTemplateSummary[]>('/project-templates').then((r) => r.data),
+
+  /** 把模板应用到项目（`POST /projects/{id}/apply-template`）。 */
+  apply: (
+    projectId: string,
+    templateId: string,
+  ): Promise<{ template_id: string; template_name: string; segments: Record<string, string> }> =>
+    api
+      .post(`/projects/${projectId}/apply-template`, { template_id: templateId })
+      .then((r) => r.data),
 };

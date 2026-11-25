@@ -516,15 +516,9 @@ export function BeddRoute(): JSX.Element {
   return <BeddPage />;
 }
 export function WizardRoute(): JSX.Element {
-  return (
-    <ProjectWizardPage
-      initialSteps={[
-        { step_index: 0, title: '项目', description: '基础信息', done: false },
-        { step_index: 1, title: 'PMS', description: '材料规格', done: false },
-        { step_index: 2, title: 'BEDD', description: '基础数据', done: false },
-      ]}
-    />
-  );
+  // ⚠️ **向导不再收 props**（P10-K · W-6）⇒ ⇒ ⇒ 4 步是页面自己的状态
+  // ⇒ ⇒ ⇒（建项目 → 项目人员 → 选模板 → 确认）
+  return <ProjectWizardPage />;
 }
 
 // 类型导出（防止被 tree-shake 误删其它用得上的 page 子集）

@@ -95,7 +95,10 @@ describe('ProjectAdminPage —— 建项目', () => {
     fireEvent.change(screen.getByTestId('project-location'), { target: { value: '宁波' } });
     fireEvent.change(screen.getByTestId('project-type'), { target: { value: 'ENGINEERING' } });
     fireEvent.change(screen.getByTestId('project-design-phase'), { target: { value: 'FEED' } });
-    fireEvent.change(screen.getByTestId('project-unit-system'), { target: { value: 'SI' } });
+    // ⚠️ **`unit_system` 现在是 antd Select**（P10-K · W-2b · 词表化）
+    // ⇒ ⇒ ⇒ **不能**用 `fireEvent.change`（它没有 value setter）
+    // ⇒ ⇒ ⇒ ⇒ 它有**默认值**（`initialValues.unit_system = 'SI'`）
+    // ⇒ ⇒ ⇒ ⇒ 所以这里**不用填** ⇒ ⇒ ⇒ 断言里仍然是 `'SI'`。
     // ⚠️ 选工作区（antd Select ⇒ 展开下拉再点选项）
     const select = screen.getByTestId('project-workspace');
     fireEvent.mouseDown(select.querySelector('.ant-select-selector') as HTMLElement);

@@ -7066,7 +7066,7 @@
    "error_message": "项目向导的 happy path 在**当前环境根本跑不起来** —— `pcs` 只有 **1 个** FORMAL 工作区、且**已被那唯一的项目占用**（`workspaces.project_id` 已回填）⇒ ⇒ 第 1 步的工作区下拉（正确地过滤掉了已占用的工作区）⇒ ⇒ **恒空** ⇒ ⇒ 且 e2e 跑一次就把 seed 的工作区吃掉 ⇒ ⇒ **第二次跑 409 WORKSPACE_ALREADY_HAS_PROJECT**",
    "file": "pcs-backend/app/api/v1/projects.py",
    "root_cause": "① 「一个工作区只能挂一个项目」是 **1:1 数据模型**（`workspaces.project_id` 单值列 + `projects.py:143-158` 的 409 闸）⇒ ⇒ 工作区是**一次性资源**；② 但**没有任何任务为 dev QA / e2e 造备用工作区** ⇒ ⇒ ⇒ 向导（新建项目的唯一入口）**默认不可用**；③ e2e 是**真后端通道**（`e2e/channel-config.ts:42` → `127.0.0.1:8001`，数据由 `seed_e2e_flows.py` 播种）⇒ ⇒ ⇒ 消耗的是**同一批** seed 数据 ⇒ ⇒ ⇒ 天然**非幂等**",
-   "fix": "**待 P10-K 落地**（计划 `docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md` · **W-0**）：seed 三样东西 —— ① 一条 `project_templates`（`status='PUBLISHED'`）+ 它依赖的命名 SignatureMatrix + PipeCodeTemplate + `project_template_pipe_classes` 关联行 ② **一个未被占用的 FORMAL 工作区** ③ e2e 幂等（每次跑用**新的**工作区或重置）⇒ ⇒ ⇒ 专用 e2e spec 本批**降级为不做**（只做 ROUTES 扫达）",
+   "fix": "**待 P10-K 落地**（计划 `docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md` · **W-0**）：seed 三样东西 —— ① 一条 `project_templates`（`status='PUBLISHED'`）+ 它依赖的命名 SignatureMatrix + PipeCodeTemplate + `project_template_pipe_classes` 关联行 ② **一个未被占用的 FORMAL 工作区** ③ e2e 幂等（每次跑用**新的**工作区或重置）⇒ ⇒ ⇒ 专用 e2e spec 本批**降级为不做**（只做 ROUTES 扫达） —— ✅ **已修**（2026-11-25 · P10-K 落地）：① 后端 `scripts/seed_project_templates.py` 种一个**未占用的 FORMAL 工作区**（幂等）⇒ ⇒ ⇒ ② 前端 mock 补 `ws-formal-004`（FORMAL · `project_id: null`）⇒ ⇒ ⇒ ③ **前端过滤掉已挂项目的工作区**（`ProjectCreateForm`）⇒ ⇒ ⇒ ④ **向导第 1 步的下拉实测非空**（浏览器回归）",
    "fix_commit": null,
    "tags": [
     "backend",
@@ -7086,7 +7086,7 @@
    "error_message": "meta 的 ui-schema 端点**静默丢弃**字段对象里的未知键 ⇒ ⇒ `UiSchemaField(**f)`（`app/api/v1/meta.py:234`）遇到契约类里没声明的键（如新的 `unit_display`）⇒ ⇒ **pydantic v2 默认 `extra='ignore'` ⇒ 直接扔掉** ⇒ ⇒ ⇒ 症状 = 那个字段**永远标灰 / 永远不换算**，**没有任何报错**",
    "file": "pcs-backend/app/api/v1/meta.py",
    "root_cause": "`UiSchemaField`（:122）没有 `model_config = ConfigDict(extra='forbid')` ⇒ ⇒ ⇒ pydantic v2 的默认 `extra='ignore'` 生效 ⇒ ⇒ ⇒ 「契约类没声明」与「**故意不带**」在运行时**完全同形** ⇒ ⇒ ⇒ 任何「ui-schema 的字段多带一个键」的改动**只有在前端断言该键真的到达时**才会被发现 ⇒ ⇒ ⇒ 这是一个**结构性的假绿**（不是忘了改，是**不改也不报**）",
-   "fix": "**待 P10-K 落地**（同计划 · **W-1b**）：`UiSchemaField` **必须显式声明** `unit_display` ⇒ ⇒ ⇒ 并**加一条测试断言该字段真的到达客户端**（`GET /meta/ui-schemas/bedd` 的响应里 `unit_display` 非空）⇒ ⇒ ⇒ 否则「前端拿不到因子 ⇒ 字段永远标灰」会以**静默**的形式上线",
+   "fix": "**待 P10-K 落地**（同计划 · **W-1b**）：`UiSchemaField` **必须显式声明** `unit_display` ⇒ ⇒ ⇒ 并**加一条测试断言该字段真的到达客户端**（`GET /meta/ui-schemas/bedd` 的响应里 `unit_display` 非空）⇒ ⇒ ⇒ 否则「前端拿不到因子 ⇒ 字段永远标灰」会以**静默**的形式上线 —— ✅ **已修**（2026-11-25 · P10-K 落地 · W-1b）：`UiSchemaField` **显式声明** `unit_display`（契约 `UnitDisplay`）⇒ ⇒ ⇒ 另加一条后端断言「`unit_display` **真的到达客户端**」⇒ ⇒ ⇒ ⇒ 前端漏填因子 ⇒ ⇒ ⇒ ⇒ 前端**标灰 + 提示**（W-19 兵底）",
    "fix_commit": null,
    "tags": [
     "backend",
@@ -7106,7 +7106,7 @@
    "error_message": "签署矩阵绑定有一条**既有不变量**：默认矩阵绑定**不覆盖**人工改过的绑定 ⇒ ⇒ 「谁该签」的决定权不在系统手里 ⇒ ⇒ ⇒ 任何「按模板改绑」的动作若**无条件替换**，就会**静默夺走人工决定**",
    "file": "pcs-backend/app/services/signature_matrix_service.py",
    "root_cause": "`ensure_default_record_matrix`（:751-758）的 docstring 明写「与 `ensure_change_notice_matrix` 同形，但**不覆盖**… ① 项目**已绑定**的 RECORD 矩阵 ⇒ ⇒ **原样返回**（人工改过的绑定**不被夺走**）… ⚠️ **为什么不覆盖**：批准链由这份矩阵推导 ⇒ ⇒ 系统擅自换一份 ⇒ ⇒ 用户看到的「该谁批」**无征兆地**变了」⇒ ⇒ ⇒ 这条不变量**只写在 docstring 里**，**没有断言** ⇒ ⇒ ⇒ 谁写「按模板改绑」都不会被提醒",
-   "fix": "**待 P10-K 落地**（同计划 · **W-3c**）：模板应用里的 `record_approval` 改绑**必须条件化**为「**只替换自动绑的默认**」⇒ ⇒ ⇒ 并且**补一条断言**：先人工改绑定 → 再应用模板 → **绑定不变** ⇒ ⇒ ⇒ 另：这条不变量本身**值得一条独立断言**（今天只有 docstring 守着）",
+   "fix": "**待 P10-K 落地**（同计划 · **W-3c**）：模板应用里的 `record_approval` 改绑**必须条件化**为「**只替换自动绑的默认**」⇒ ⇒ ⇒ 并且**补一条断言**：先人工改绑定 → 再应用模板 → **绑定不变** ⇒ ⇒ ⇒ 另：这条不变量本身**值得一条独立断言**（今天只有 docstring 守着） —— ✅ **已修**（2026-11-25 · P10-K 落地 · W-3c）：模板应用里的 `record_approval` 改绑**条件化**为「**只替换自动绑的默认**」⇒ ⇒ ⇒ 人工改过的绑定**不被夺走**（断言：先人工改绑定 → 再应用模板 → 绑定不变）⇒ ⇒ ⇒ 连「默认矩阵不存在」时也**一律不夺**（保守）",
    "fix_commit": null,
    "tags": [
     "backend",
@@ -7135,6 +7135,71 @@
     "P10-K",
     "plan-eng-review-2026-11-25",
     "hermes-found"
+   ]
+  },
+  {
+   "id": "bug-2213",
+   "timestamp": "2026-11-25T02:20:00.000Z",
+   "severity": "high",
+   "error_message": "BEDD 页「保存」在 dev/mock 通道**永远失败** —— msw **零 `http.put` handler**",
+   "file": "pcs-frontend/src/mocks/handlers.ts",
+   "root_cause": "mock 层只 mock 了**读**端点（`GET /projects/{id}/bedd`）⇒ ⇒ ⇒ **写**路径（`PUT`）**没有任何 handler** ⇒ ⇒ ⇒ MSW 把请求**放行**到真后端 ⇒ ⇒ ⇒ 假 token ⇒ ⇒ ⇒ 401/404 ⇒ ⇒ ⇒ 而**读**路径是好的 ⇒ ⇒ ⇒ ⇒ 只在真保存那一刻才炸 ⇒ ⇒ ⇒ 「点进去才发现」的老毛病",
+   "fix": "✅ **已修**（P10-K · W-13）：补 `PUT /api/v1/projects/:project_id/bedd` handler（**整份替换**，与真端点同语义）",
+   "fix_commit": null,
+   "tags": [
+    "mock",
+    "msw",
+    "put",
+    "bedd",
+    "P10-K"
+   ]
+  },
+  {
+   "id": "bug-2214",
+   "timestamp": "2026-11-25T02:25:00.000Z",
+   "severity": "high",
+   "error_message": "前端漂移守卫的 4 元组正则 ⇒ ⇒ ⇒ 后端加第 5 个元素（`unit`）后**静默失效**（守卫变成「什么都测不到」）",
+   "file": "pcs-frontend/tests/mocks/bedd_ui_schema_drift.test.ts",
+   "root_cause": "守卫的正则 `/\\(\"([a-z_]+)\",\\s*\"[^\"]*\",\\s*\"[A-Za-z]+\",\\s*\"(number|text)\"\\)/g` **只匹配 4 元组** ⇒ ⇒ ⇒ 加第 5 个元素后**一条都匹配不到** ⇒ ⇒ ⇒ `backendFieldPaths()` 返回**空**⇒ ⇒ ⇒ 连它自己的「别让守卫悄悄失效」断言都会红 ⇒ ⇒ ⇒ ⇒ **守当天变成「什么都测不到」**",
+   "fix": "✅ **已修**（P10-K · W-10）：正则容忍第 5 个元素 ⇒ ⇒ ⇒ ⚠️ **且必须同时容忍 Python 的 `None`**（只容忍 TS 的 `null` 会漏掉 35 条「无单位」字段 ⇒ ⇒ ⇒ **半失效**）⇒ ⇒ ⇒ 并新增「单位逐条一致」+「标签里不再含单位」两条断言",
+   "fix_commit": null,
+   "tags": [
+    "drift-guard",
+    "regex",
+    "bedd",
+    "P10-K"
+   ]
+  },
+  {
+   "id": "bug-2215",
+   "timestamp": "2026-11-25T02:30:00.000Z",
+   "severity": "medium",
+   "error_message": "`unit_system` 是**自由文本框** ⇒ ⇒ ⇒ 用户填「公制」⇒ ⇒ ⇒ 真后端 **422**（词表化之后）⇒ ⇒ ⇒ dev 与生产漂移",
+   "file": "pcs-frontend/src/components/ProjectCreateForm.tsx",
+   "root_cause": "后端把 `unit_system` 词表化（`UnitSystem` = SI / US）⇒ ⇒ ⇒ 而前端还是 `<Input>` ⇒ ⇒ ⇒ 契约里那个枚举**没人用**⇒ ⇒ ⇒ 而**自由文本**正是词表化要消灭的东西",
+   "fix": "✅ **已修**（P10-K · W-2b / W-18）：改 **Select**（取值取契约枚举 `UnitSystem`）+ mock 的 `POST /projects` **拒非 SI/US**",
+   "fix_commit": null,
+   "tags": [
+    "frontend",
+    "enum",
+    "unit-system",
+    "P10-K"
+   ]
+  },
+  {
+   "id": "bug-2216",
+   "timestamp": "2026-11-25T02:35:00.000Z",
+   "severity": "medium",
+   "error_message": "mock 通道的 `POST /projects` 建的项目**查不到** ⇒ ⇒ ⇒ `GET /projects/{id}` **404**（与「不存在」同形 ⇒ 用户以为自己没建成）",
+   "file": "pcs-frontend/src/mocks/handlers.ts",
+   "root_cause": "mock 的 `POST /projects`（`signFlow.ts`）只**返回**建好的项目 ⇒ ⇒ ⇒ 不**登记** ⇒ ⇒ ⇒ 而 `GET /projects/:project_id`（`handlers.ts`）只查 `seedProjects`（静态清单）⇒ ⇒ ⇒ ⇒ 新建的项目**不在清单里**⇒ ⇒ ⇒ ⇒ 404",
+   "fix": "✅ **已修**（P10-K）：`src/mocks/seed/projects.ts` 加 `createdProjects` 可变清单（POST 登记 ⇒ GET 先查它 ⇒ 再查静态清单）",
+   "fix_commit": null,
+   "tags": [
+    "mock",
+    "msw",
+    "projects",
+    "P10-K"
    ]
   }
  ]

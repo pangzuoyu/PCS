@@ -23,6 +23,23 @@ export const seedWorkspaces: Workspace[] = [
     status: 'ACTIVE',
   },
   {
+    // ⚠️ **未占用的 FORMAL 工作区**（P10-K · W-0）—— 项目向导第 1 步要选一个
+    //   **没挂过项目**的 FORMAL 工作区（一个工作区只能挂一个项目 ⇒ ⇒ ⇒
+    //   ⇒ ⇒ 已挂的**必然 409** ⇒ ⇒ ⇒ ⇒ 那就是「点了才知道」）。
+    //   ⇒ ⇒ ⇒ ⇒ 上面那条 `ws-formal-001` **已被占用** ⇒ ⇒ ⇒ ⇒ 下拉会**过滤掉**
+    //   ⇒ ⇒ ⇒ ⇒ ⇒ 没有这一条 ⇒ ⇒ ⇒ ⇒ 向导在 mock 通道**根本跑不起来**。
+    //   ⇒ ⇒ ⇒ ⇒ 后端同款由 `scripts/seed_project_templates.py` 种。
+    workspace_id: 'ws-formal-004',
+    workspace_type: 'FORMAL',
+    name: 'FORMAL-未占用（模板向导用）',
+    project_id: null,
+    owner_id: '0a0a03b8-d27e-4c65-9874c5e-d874c5eea0aa',
+    created_at: '2026-11-25T00:00:00Z',
+    last_active_at: '2026-11-25T00:00:00Z',
+    retention_days: null,
+    status: 'ACTIVE',
+  },
+  {
     workspace_id: 'ws-personal-002',
     workspace_type: 'PERSONAL',
     name: '个人草稿空间',

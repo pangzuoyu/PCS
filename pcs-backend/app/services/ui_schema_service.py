@@ -50,18 +50,32 @@ def _bedd_fields() -> list[dict[str, Any]]:
     「分组 Tab 编辑」⇒ ⇒ 一个分组一个 Tab）。
     """
     from app.schemas.bedd import BEDD_FIELDS
+    from app.services.unit_conversion import unit_display_for
 
     out: list[dict[str, Any]] = []
     for group_key, fields in BEDD_FIELDS.items():
-        for i, (field_key, label, widget, _kind) in enumerate(fields, start=1):
-            out.append(
-                {
-                    "path": f"{group_key}.{field_key}",
-                    "label": label,
-                    "widget": widget,
-                    "order": i * 10,
+        for i, (field_key, label, widget, _kind, unit) in enumerate(fields, start=1):
+            path = f"{group_key}.{field_key}"
+            field: dict[str, Any] = {
+                "path": path,
+                "label": label,
+                "widget": widget,
+                "order": i * 10,
+            }
+            # ⚠️ **单位随字段下发**（P10-K · W-1）⇒ ⇒ ⇒ 前端**没有换算表**
+            # ⇒ ⇒ ⇒ canonical 单位（SI）· `None` = 无单位
+            if unit:
+                field["unit"] = unit
+            # ⚠️ **换算因子也随字段下发** ⇒ ⇒ ⇒ 缺它 = 这个字段**不可换算**
+            # ⇒ ⇒ ⇒ 前端**标灰 + 提示**（不是静默不换 · W-19 的兵底）
+            display = unit_display_for(path)
+            if display is not None:
+                field["unit_display"] = {
+                    "factor": display.factor,
+                    "offset": display.offset,
+                    "display_unit": display.display_unit,
                 }
-            )
+            out.append(field)
     return out
 
 

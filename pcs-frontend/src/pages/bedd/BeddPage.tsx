@@ -23,6 +23,9 @@ import { SchemaForm, type UiSchemaField } from '../../components/common/SchemaFo
 import { beddApi, type BeddDocument } from '../../api/pms';
 import { metaApi } from '../../api/meta';
 import { useProjectScope } from '../../hooks/useProjectScope';
+import { projectsApi } from '../../api/projects';
+import { UnitSystemSwitch } from './UnitSystemSwitch';
+import type { UnitSystem } from '../../utils/units';
 
 /** 分组 key → 中文 Tab 名（与后端 `BEDD_GROUP_LABELS` 一致 ⇒ ⇒ 顺序也一致）。 */
 const GROUP_LABELS: Record<string, string> = {
@@ -46,16 +49,28 @@ export function BeddPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, msgCtx] = message.useMessage();
+  // ⚠️ **单位制**（P10-K · W-4）—— 默认取**项目的默认显示单位制**
+  // ⇒ ⇒ ⇒ 切换 = **页面临时覆盖**（不写项目）⇒ ⇒ ⇒ 改默认去项目页。
+  const [projectUnitSystem, setProjectUnitSystem] = useState<UnitSystem>('SI');
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('SI');
 
   const reload = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
-      const [schema, res] = await Promise.all([
+      const [schema, res, project] = await Promise.all([
         metaApi.uiSchema('bedd'),
         beddApi.get(projectId),
+        // ⚠️ **项目默认单位制**（`ProjectOut.unit_system`）⇒ ⇒ ⇒ 缺它 ⇒ ⇒ ⇒
+        //   单位制下拉就只能恒为 SI ⇒ ⇒ ⇒ ⇒ 与 SPEC §7.5「默认取项目值」不符。
+        //   ⇒ ⇒ ⇒ 拉失败**不阻断**（老后端没有这个字段）⇒ ⇒ ⇒ 退回 SI。
+        projectsApi.get(projectId).catch(() => null),
       ]);
+      if (project?.unit_system) {
+        setProjectUnitSystem(project.unit_system);
+        setUnitSystem(project.unit_system);
+      }
       setFields(schema.fields ?? []);
       const document = (res.document ?? {}) as Record<string, unknown>;
       const next: Record<string, Record<string, unknown>> = {};
@@ -153,6 +168,15 @@ export function BeddPage(): JSX.Element {
         />
       ) : null}
 
+      <div style={{ marginBottom: 12 }}>
+        <UnitSystemSwitch
+          value={unitSystem}
+          onChange={setUnitSystem}
+          projectDefault={projectUnitSystem}
+          fields={fields}
+        />
+      </div>
+
       <Spin spinning={loading}>
         <Tabs
           data-testid="bedd-tabs"
@@ -167,6 +191,7 @@ export function BeddPage(): JSX.Element {
                   fields: groupFields,
                 }}
                 value={doc[group] ?? {}}
+                unitSystem={unitSystem}
                 onChange={(values) =>
                   setDoc((prev) => ({ ...prev, [group]: values }))
                 }

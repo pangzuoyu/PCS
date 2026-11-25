@@ -113,6 +113,12 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
           { key: '/admin/projects', label: '建项目' },
           // ⚠️ 「系统参数」限 SYSTEM_ADMIN（后端 GET/PUT 都限 SYSTEM_ADMIN）
           { key: '/admin/system-settings', label: '系统参数' },
+          // ⚠️ 「项目向导」也限 SYSTEM_ADMIN（2026-11-25 人裁）——
+          //    向导第 1 步 `POST /projects`、第 2 步 `grant`、第 3 步
+          //    `apply-template` **全是 SYSTEM_ADMIN 闸** ⇒ ⇒ ⇒ ⇒ 非管理员
+          //    进去只会撞 403 ⇒ ⇒ ⇒ ⇒ 那就是「进去才发现没权限」。
+          //    ⇒ ⇒ ⇒ ⇒ 挪进 admin 组 ⇒ ⇒ ⇒ **非管理员根本看不到入口**。
+          { key: '/wizard', label: '项目向导' },
         ]
       : []),
     { key: '/audit/logs', label: '审计日志' },
@@ -120,7 +126,8 @@ function buildMenuItems(isSystemAdmin: boolean): MenuItem[] {
   group('项目文档', 'docs', [
     { key: '/pms', label: 'PMS 规格' },
     { key: '/bedd', label: 'BEDD 文档' },
-    { key: '/wizard', label: '项目向导' },
+    // ⚠️ 「项目向导」**已挪进 admin 组**（2026-11-25 人裁）⇒ ⇒ ⇒
+    //   向导第 1/2/3 步全是 SYSTEM_ADMIN 闸 ⇒ ⇒ ⇒ ⇒ 非管理员看不到入口。
   ]),
   ];
 }

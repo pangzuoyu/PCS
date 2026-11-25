@@ -111,7 +111,7 @@ async def test_e2e_template_fork_pipe_code_generate(
         name=f"e2e-tpl-{uuid.uuid4().hex[:8]}",
         default_config_json={},
         version="v1",
-        status="ACTIVE",
+        status="DRAFT",
         pipe_code_template_id=tpl.template_id,
     )
     db.add(ptpl)

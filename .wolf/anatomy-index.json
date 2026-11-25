@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-25T00:46:23.793Z",
-    "fileCount": 1499,
+    "lastScanned": "2026-11-25T03:03:22.009Z",
+    "fileCount": 1513,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "39d2a0c88ee41b88b8394c16781daa623d4cd4525db6f3e11e483a8c916b77aa",
-    "storeUpdatedAt": "2026-11-25T00:46:23.809Z",
-    "rootHash": "e5b2e1bee53ad31d"
+    "renderedHash": "df2bc3b97aab692dd6d446bd1b507b256ac1a5f04d3e1b7fcb04faf8d068ac3d",
+    "storeUpdatedAt": "2026-11-25T03:03:22.023Z",
+    "rootHash": "73948c4375ccf0ed"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12771,11 +12771,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5566,
-      "hash": "dfaa7c04a4a2607d",
-      "size": 25205,
-      "mtimeMs": 1793639131131.968,
-      "updatedAt": "2026-11-02T17:05:31.178Z",
+      "tokens": 5932,
+      "hash": "1eb68d0a3817c7d4",
+      "size": 27287,
+      "mtimeMs": 1795567745938.3313,
+      "updatedAt": "2026-11-25T00:49:05.989Z",
       "source": "hook",
       "symbols": [
         {
@@ -12849,196 +12849,196 @@
           "tokens": 161
         },
         {
-          "name": "GasMedium",
+          "name": "UnitSystem",
           "kind": "class",
           "startLine": 200,
-          "endLine": 229,
+          "endLine": 218,
+          "tokens": 164
+        },
+        {
+          "name": "ProjectStatus",
+          "kind": "class",
+          "startLine": 219,
+          "endLine": 235,
+          "tokens": 153
+        },
+        {
+          "name": "GasMedium",
+          "kind": "class",
+          "startLine": 236,
+          "endLine": 265,
           "tokens": 365
         },
         {
           "name": "SnapshotStatus",
           "kind": "class",
-          "startLine": 230,
-          "endLine": 237,
+          "startLine": 266,
+          "endLine": 273,
           "tokens": 53
         },
         {
           "name": "EquipmentStatus",
           "kind": "class",
-          "startLine": 238,
-          "endLine": 260,
+          "startLine": 274,
+          "endLine": 296,
           "tokens": 138
         },
         {
           "name": "CalcStatus",
           "kind": "class",
-          "startLine": 261,
-          "endLine": 272,
+          "startLine": 297,
+          "endLine": 308,
           "tokens": 76
         },
         {
           "name": "ActualDataStatus",
           "kind": "class",
-          "startLine": 273,
-          "endLine": 284,
+          "startLine": 309,
+          "endLine": 320,
           "tokens": 83
         },
         {
           "name": "StateTransition",
           "kind": "class",
-          "startLine": 285,
-          "endLine": 305,
+          "startLine": 321,
+          "endLine": 341,
           "tokens": 210
         },
         {
           "name": "UserStatus",
           "kind": "class",
-          "startLine": 306,
-          "endLine": 316,
+          "startLine": 342,
+          "endLine": 352,
           "tokens": 64
         },
         {
           "name": "AuditAction",
           "kind": "class",
-          "startLine": 317,
-          "endLine": 466,
-          "tokens": 1660
+          "startLine": 353,
+          "endLine": 507,
+          "tokens": 1709
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 467,
-          "endLine": 480,
+          "startLine": 508,
+          "endLine": 521,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 481,
-          "endLine": 494,
+          "startLine": 522,
+          "endLine": 535,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 495,
-          "endLine": 508,
+          "startLine": 536,
+          "endLine": 549,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 509,
-          "endLine": 519,
+          "startLine": 550,
+          "endLine": 560,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 520,
-          "endLine": 530,
+          "startLine": 561,
+          "endLine": 571,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 531,
-          "endLine": 540,
+          "startLine": 572,
+          "endLine": 581,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 541,
-          "endLine": 555,
+          "startLine": 582,
+          "endLine": 596,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 556,
-          "endLine": 566,
+          "startLine": 597,
+          "endLine": 607,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 567,
-          "endLine": 589,
+          "startLine": 608,
+          "endLine": 630,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 590,
-          "endLine": 604,
-          "tokens": 114
-        },
-        {
-          "name": "WorkflowType",
-          "kind": "class",
-          "startLine": 605,
-          "endLine": 623,
-          "tokens": 149
-        },
-        {
-          "name": "to_value",
-          "kind": "fn",
-          "startLine": 624,
-          "endLine": 644,
-          "tokens": 184
+          "startLine": 631,
+          "endLine": 685,
+          "tokens": 446
         }
       ]
     },
     "pcs-backend/app/models/project.py": {
       "description": "项目/工作区/成员 ORM 模型（核心租户隔离维度）。",
-      "tokens": 8141,
-      "hash": "dae73b86170a4901",
-      "size": 32068,
-      "mtimeMs": 1793636118649.2812,
-      "updatedAt": "2026-11-02T16:15:18.696Z",
+      "tokens": 8664,
+      "hash": "ce97e215cf6f549d",
+      "size": 34556,
+      "mtimeMs": 1795567779605.7712,
+      "updatedAt": "2026-11-25T00:49:39.653Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Project",
           "kind": "class",
-          "startLine": 39,
-          "endLine": 99,
-          "tokens": 786
+          "startLine": 41,
+          "endLine": 138,
+          "tokens": 1299
         },
         {
           "name": "Workspace",
           "kind": "class",
-          "startLine": 100,
-          "endLine": 135,
+          "startLine": 139,
+          "endLine": 174,
           "tokens": 386
         },
         {
           "name": "User",
           "kind": "class",
-          "startLine": 136,
-          "endLine": 170,
+          "startLine": 175,
+          "endLine": 209,
           "tokens": 372
         },
         {
           "name": "UserProject",
           "kind": "class",
-          "startLine": 171,
-          "endLine": 228,
+          "startLine": 210,
+          "endLine": 267,
           "tokens": 634
         },
         {
           "name": "Stream",
           "kind": "class",
-          "startLine": 229,
-          "endLine": 627,
+          "startLine": 268,
+          "endLine": 666,
           "tokens": 5049
         },
         {
           "name": "StreamStatePoint",
           "kind": "class",
-          "startLine": 628,
-          "endLine": 688,
+          "startLine": 667,
+          "endLine": 727,
           "tokens": 712
         }
       ]
@@ -17774,43 +17774,57 @@
     },
     "pcs-backend/app/schemas/project.py": {
       "description": "项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
-      "tokens": 742,
-      "hash": "c7f0209ed6eac441",
-      "size": 3454,
-      "mtimeMs": 1793069491690.2852,
-      "updatedAt": "2026-10-27T02:51:31.742Z",
+      "tokens": 1127,
+      "hash": "2c629c01d857b81b",
+      "size": 5634,
+      "mtimeMs": 1795567902462.7715,
+      "updatedAt": "2026-11-25T00:51:42.516Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ProjectOut",
           "kind": "class",
           "startLine": 24,
-          "endLine": 36,
-          "tokens": 92
+          "endLine": 43,
+          "tokens": 175
         },
         {
           "name": "ProductCategoryUpdate",
           "kind": "class",
-          "startLine": 37,
-          "endLine": 49,
+          "startLine": 44,
+          "endLine": 56,
           "tokens": 94
+        },
+        {
+          "name": "UnitSystemUpdate",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 69,
+          "tokens": 84
+        },
+        {
+          "name": "ProjectStatusUpdate",
+          "kind": "class",
+          "startLine": 70,
+          "endLine": 82,
+          "tokens": 116
         },
         {
           "name": "ProjectCreate",
           "kind": "class",
-          "startLine": 50,
-          "endLine": 82,
-          "tokens": 398
+          "startLine": 83,
+          "endLine": 128,
+          "tokens": 493
         }
       ]
     },
     "pcs-backend/app/api/v1/projects.py": {
       "description": "项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。",
-      "tokens": 3778,
-      "hash": "6367c0c04a071412",
-      "size": 17505,
-      "mtimeMs": 1795006032196.522,
-      "updatedAt": "2026-11-18T12:47:12.252Z",
+      "tokens": 3798,
+      "hash": "b53001acb6448e85",
+      "size": 17575,
+      "mtimeMs": 1795567905158.7283,
+      "updatedAt": "2026-11-25T00:51:45.212Z",
       "source": "hook",
       "symbols": [
         {
@@ -17824,28 +17838,28 @@
           "name": "_to_out",
           "kind": "fn",
           "startLine": 81,
-          "endLine": 99,
-          "tokens": 155
+          "endLine": 101,
+          "tokens": 175
         },
         {
           "name": "create_project",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 287,
+          "startLine": 102,
+          "endLine": 289,
           "tokens": 2097
         },
         {
           "name": "get_project",
           "kind": "fn",
-          "startLine": 288,
-          "endLine": 314,
+          "startLine": 290,
+          "endLine": 316,
           "tokens": 248
         },
         {
           "name": "set_product_category",
           "kind": "fn",
-          "startLine": 315,
-          "endLine": 363,
+          "startLine": 317,
+          "endLine": 365,
           "tokens": 457
         }
       ]
@@ -20751,102 +20765,102 @@
     },
     "pcs-backend/app/models/config_domain.py": {
       "description": "配置域 ORM 模型（公司/工程级共享配置）。",
-      "tokens": 4191,
-      "hash": "aea87eddf7662957",
-      "size": 16093,
-      "mtimeMs": 1791302435462.6062,
-      "updatedAt": "2026-10-06T16:00:35.512Z",
+      "tokens": 4593,
+      "hash": "0002e03020400935",
+      "size": 18009,
+      "mtimeMs": 1795568023429.0493,
+      "updatedAt": "2026-11-25T00:53:43.477Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ConfigAsset",
           "kind": "class",
-          "startLine": 33,
-          "endLine": 60,
-          "tokens": 318
+          "startLine": 35,
+          "endLine": 73,
+          "tokens": 476
         },
         {
           "name": "ConfigVersion",
           "kind": "class",
-          "startLine": 61,
-          "endLine": 83,
+          "startLine": 74,
+          "endLine": 96,
           "tokens": 238
         },
         {
           "name": "ConfigApproval",
           "kind": "class",
-          "startLine": 84,
-          "endLine": 108,
+          "startLine": 97,
+          "endLine": 121,
           "tokens": 289
         },
         {
           "name": "FormulaDefinition",
           "kind": "class",
-          "startLine": 109,
-          "endLine": 133,
+          "startLine": 122,
+          "endLine": 146,
           "tokens": 294
         },
         {
           "name": "CoefficientTable",
           "kind": "class",
-          "startLine": 134,
-          "endLine": 155,
+          "startLine": 147,
+          "endLine": 168,
           "tokens": 240
         },
         {
           "name": "TemplateFile",
           "kind": "class",
-          "startLine": 156,
-          "endLine": 181,
+          "startLine": 169,
+          "endLine": 194,
           "tokens": 283
         },
         {
           "name": "ProjectTemplate",
           "kind": "class",
-          "startLine": 182,
-          "endLine": 214,
-          "tokens": 385
+          "startLine": 195,
+          "endLine": 241,
+          "tokens": 540
         },
         {
           "name": "PipeClass",
           "kind": "class",
-          "startLine": 215,
-          "endLine": 255,
+          "startLine": 242,
+          "endLine": 282,
           "tokens": 530
         },
         {
           "name": "ProjectPipeClass",
           "kind": "class",
-          "startLine": 256,
-          "endLine": 285,
-          "tokens": 308
+          "startLine": 283,
+          "endLine": 312,
+          "tokens": 305
         },
         {
           "name": "NumberingTemplate",
           "kind": "class",
-          "startLine": 286,
-          "endLine": 305,
-          "tokens": 246
+          "startLine": 313,
+          "endLine": 338,
+          "tokens": 318
         },
         {
           "name": "DocNoSequence",
           "kind": "class",
-          "startLine": 306,
-          "endLine": 332,
+          "startLine": 339,
+          "endLine": 365,
           "tokens": 258
         },
         {
           "name": "ToeConversionFactor",
           "kind": "class",
-          "startLine": 333,
-          "endLine": 356,
+          "startLine": 366,
+          "endLine": 389,
           "tokens": 337
         },
         {
           "name": "PipeClassImportPreview",
           "kind": "class",
-          "startLine": 357,
-          "endLine": 381,
+          "startLine": 390,
+          "endLine": 414,
           "tokens": 308
         }
       ]
@@ -48861,32 +48875,39 @@
     },
     "pcs-backend/app/services/ui_schema_service.py": {
       "description": "uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。",
-      "tokens": 2812,
-      "hash": "7c1045672f6ac4d8",
-      "size": 10660,
-      "mtimeMs": 1794918950390.3923,
-      "updatedAt": "2026-11-17T12:35:50.448Z",
+      "tokens": 3261,
+      "hash": "e9231058c681e1ae",
+      "size": 12588,
+      "mtimeMs": 1795567821877.0757,
+      "updatedAt": "2026-11-25T00:50:21.924Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Widget",
           "kind": "class",
           "startLine": 24,
-          "endLine": 335,
-          "tokens": 2422
+          "endLine": 42,
+          "tokens": 103
+        },
+        {
+          "name": "_bedd_fields",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 377,
+          "tokens": 2768
         },
         {
           "name": "list_resources",
           "kind": "fn",
-          "startLine": 336,
-          "endLine": 340,
+          "startLine": 378,
+          "endLine": 382,
           "tokens": 36
         },
         {
           "name": "get_ui_schema",
           "kind": "fn",
-          "startLine": 341,
-          "endLine": 359,
+          "startLine": 383,
+          "endLine": 401,
           "tokens": 170
         }
       ]
@@ -51241,39 +51262,32 @@
     },
     "pcs-backend/app/schemas/bedd.py": {
       "description": "BEDD 文档结构（P10-H · T2 · TODO-195 · SPEC §7.5）。",
-      "tokens": 1954,
-      "hash": "45b7516d1efdb040",
-      "size": 8532,
-      "mtimeMs": 1795391455335.6392,
-      "updatedAt": "2026-11-22T23:50:55.388Z",
+      "tokens": 2043,
+      "hash": "0ab50648ca174bd2",
+      "size": 9228,
+      "mtimeMs": 1795567807029.3188,
+      "updatedAt": "2026-11-25T00:50:07.082Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_group_model",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 161,
-          "tokens": 165
+          "startLine": 157,
+          "endLine": 171,
+          "tokens": 167
         },
         {
           "name": "_camel",
           "kind": "fn",
-          "startLine": 162,
-          "endLine": 171,
-          "tokens": 78
-        },
-        {
-          "name": "BeddDocument",
-          "kind": "class",
           "startLine": 172,
-          "endLine": 191,
-          "tokens": 224
+          "endLine": 199,
+          "tokens": 216
         },
         {
           "name": "BeddResponse",
           "kind": "class",
-          "startLine": 192,
-          "endLine": 204,
+          "startLine": 200,
+          "endLine": 212,
           "tokens": 105
         }
       ]
@@ -54178,6 +54192,590 @@
       "size": 10060,
       "mtimeMs": 1795567541204.882,
       "updatedAt": "2026-11-25T00:45:41.262Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p10_006_project_wizard_fields.py": {
+      "description": "p10_006：项目向导的字段 —— 单位制词表 + 项目两态 + 模板落库的 7 列（P10-K）。",
+      "tokens": 1335,
+      "hash": "c97dff205ad41f4e",
+      "size": 5982,
+      "mtimeMs": 1795568037865.7256,
+      "updatedAt": "2026-11-25T00:53:57.913Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 118,
+          "tokens": 510
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 131,
+          "tokens": 220
+        }
+      ]
+    },
+    "pcs-backend/app/services/unit_conversion.py": {
+      "description": "单位制换算因子（P10-K · W-1 · SPEC §7.5 单位制切换）。",
+      "tokens": 944,
+      "hash": "cb27d189257d93e5",
+      "size": 4996,
+      "mtimeMs": 1795567817745.1433,
+      "updatedAt": "2026-11-25T00:50:17.792Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UnitDisplay",
+          "kind": "class",
+          "startLine": 67,
+          "endLine": 100,
+          "tokens": 325
+        },
+        {
+          "name": "unit_display_for",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 114,
+          "tokens": 74
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/meta.py": {
+      "description": "Meta API 路由 — 4 端点 + 1 CSV 导出（enums / permissions / error-codes /",
+      "tokens": 2066,
+      "hash": "edccbe32594bb24f",
+      "size": 8707,
+      "mtimeMs": 1795567826896.9937,
+      "updatedAt": "2026-11-25T00:50:26.948Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EnumItem",
+          "kind": "class",
+          "startLine": 23,
+          "endLine": 36,
+          "tokens": 87
+        },
+        {
+          "name": "EnumsResponse",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 64,
+          "tokens": 236
+        },
+        {
+          "name": "PermissionItem",
+          "kind": "class",
+          "startLine": 65,
+          "endLine": 78,
+          "tokens": 88
+        },
+        {
+          "name": "ErrorCodeItem",
+          "kind": "class",
+          "startLine": 79,
+          "endLine": 91,
+          "tokens": 79
+        },
+        {
+          "name": "StateTransition",
+          "kind": "class",
+          "startLine": 92,
+          "endLine": 110,
+          "tokens": 127
+        },
+        {
+          "name": "StateMachineResponse",
+          "kind": "class",
+          "startLine": 111,
+          "endLine": 121,
+          "tokens": 69
+        },
+        {
+          "name": "UnitDisplay",
+          "kind": "class",
+          "startLine": 122,
+          "endLine": 140,
+          "tokens": 150
+        },
+        {
+          "name": "UiSchemaField",
+          "kind": "class",
+          "startLine": 141,
+          "endLine": 169,
+          "tokens": 248
+        },
+        {
+          "name": "UiSchemaResponse",
+          "kind": "class",
+          "startLine": 170,
+          "endLine": 185,
+          "tokens": 96
+        },
+        {
+          "name": "get_enums",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 194,
+          "tokens": 80
+        },
+        {
+          "name": "get_permissions",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 202,
+          "tokens": 84
+        },
+        {
+          "name": "get_permissions_csv",
+          "kind": "fn",
+          "startLine": 203,
+          "endLine": 215,
+          "tokens": 116
+        },
+        {
+          "name": "get_error_codes",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 223,
+          "tokens": 89
+        },
+        {
+          "name": "get_state_machine",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 235,
+          "tokens": 125
+        },
+        {
+          "name": "get_ui_schema",
+          "kind": "fn",
+          "startLine": 236,
+          "endLine": 260,
+          "tokens": 236
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/project_templates.py": {
+      "description": "项目模板 API（P10-K · W-3 / W-3d · SPEC §7.5 项目向导第 3 步）。",
+      "tokens": 1066,
+      "hash": "74e1f7ffaaa89947",
+      "size": 4854,
+      "mtimeMs": 1795568140974.9717,
+      "updatedAt": "2026-11-25T00:55:41.028Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "list_project_templates",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 72,
+          "tokens": 185
+        },
+        {
+          "name": "apply_template",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 118,
+          "tokens": 416
+        }
+      ]
+    },
+    "pcs-backend/scripts/seed_project_templates.py": {
+      "description": "种**项目模板** + 一个**未占用的 FORMAL 工作区**（幂等）—— P10-K · W-0。",
+      "tokens": 2961,
+      "hash": "cd2563ad9d0788fb",
+      "size": 11942,
+      "mtimeMs": 1795568193291.7751,
+      "updatedAt": "2026-11-25T00:56:33.341Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_seed",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 313,
+          "tokens": 1327
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 314,
+          "endLine": 329,
+          "tokens": 122
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_project_wizard_api.py": {
+      "description": "项目向导的后端面（P10-K · W-2b/W-2d/W-3/W-3d/W-8）。",
+      "tokens": 3988,
+      "hash": "ac6988ef017cb293",
+      "size": 14778,
+      "mtimeMs": 1795568264687.908,
+      "updatedAt": "2026-11-25T00:57:44.737Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "admin_headers",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 50,
+          "tokens": 48
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 57,
+          "tokens": 52
+        },
+        {
+          "name": "_guard_client",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 83,
+          "tokens": 255
+        },
+        {
+          "name": "_make_workspace",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 97,
+          "tokens": 92
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 118,
+          "tokens": 174
+        },
+        {
+          "name": "_template_config",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 130,
+          "tokens": 116
+        },
+        {
+          "name": "_make_template",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 160,
+          "tokens": 226
+        },
+        {
+          "name": "test_list_templates_requires_system_admin",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 166,
+          "tokens": 67
+        },
+        {
+          "name": "test_list_templates_only_published_and_hides_config",
+          "kind": "fn",
+          "startLine": 167,
+          "endLine": 186,
+          "tokens": 228
+        },
+        {
+          "name": "test_apply_template_applies_typed_columns_and_provenance",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 209,
+          "tokens": 247
+        },
+        {
+          "name": "test_apply_template_is_idempotent",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 237,
+          "tokens": 254
+        },
+        {
+          "name": "test_apply_template_rejects_unpublished_template",
+          "kind": "fn",
+          "startLine": 238,
+          "endLine": 251,
+          "tokens": 155
+        },
+        {
+          "name": "test_apply_template_rejects_both_approval_segments",
+          "kind": "fn",
+          "startLine": 252,
+          "endLine": 267,
+          "tokens": 169
+        },
+        {
+          "name": "test_apply_template_does_not_steal_manual_matrix_binding",
+          "kind": "fn",
+          "startLine": 268,
+          "endLine": 313,
+          "tokens": 468
+        },
+        {
+          "name": "test_set_unit_system_requires_admin_and_updates",
+          "kind": "fn",
+          "startLine": 314,
+          "endLine": 332,
+          "tokens": 194
+        },
+        {
+          "name": "test_set_unit_system_rejects_unknown_value",
+          "kind": "fn",
+          "startLine": 333,
+          "endLine": 343,
+          "tokens": 111
+        },
+        {
+          "name": "test_set_status_is_one_way",
+          "kind": "fn",
+          "startLine": 344,
+          "endLine": 371,
+          "tokens": 278
+        },
+        {
+          "name": "test_project_out_exposes_unit_system_and_status",
+          "kind": "fn",
+          "startLine": 372,
+          "endLine": 386,
+          "tokens": 173
+        },
+        {
+          "name": "test_bedd_ui_schema_carries_unit_and_no_unit_in_label",
+          "kind": "fn",
+          "startLine": 387,
+          "endLine": 408,
+          "tokens": 263
+        }
+      ]
+    },
+    "pcs-frontend/src/utils/units.ts": {
+      "description": "单位制换算（P10-K · W-5 / W-19 · SPEC §7.5 单位制切换）。",
+      "tokens": 1066,
+      "hash": "4e41d318a614170f",
+      "size": 4971,
+      "mtimeMs": 1795568346089.9343,
+      "updatedAt": "2026-11-25T00:59:06.138Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UnitDisplay",
+          "kind": "section",
+          "startLine": 35,
+          "endLine": 41,
+          "tokens": 39
+        },
+        {
+          "name": "UnitAwareField",
+          "kind": "section",
+          "startLine": 42,
+          "endLine": 54,
+          "tokens": 75
+        },
+        {
+          "name": "canConvert",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 62,
+          "tokens": 74
+        },
+        {
+          "name": "toDisplay",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 75,
+          "tokens": 116
+        },
+        {
+          "name": "fromDisplay",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 93,
+          "tokens": 156
+        },
+        {
+          "name": "displayUnit",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 104,
+          "tokens": 90
+        },
+        {
+          "name": "conversionHint",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 127,
+          "tokens": 195
+        },
+        {
+          "name": "trim",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 133,
+          "tokens": 44
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/bedd/UnitSystemSwitch.tsx": {
+      "description": "单位制切换（P10-K · W-4 · SPEC §7.5 单位制切换）。",
+      "tokens": 800,
+      "hash": "96605535402569c3",
+      "size": 3601,
+      "mtimeMs": 1795568556530.5862,
+      "updatedAt": "2026-11-25T01:02:36.583Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UnitSystemSwitchProps",
+          "kind": "section",
+          "startLine": 28,
+          "endLine": 43,
+          "tokens": 116
+        },
+        {
+          "name": "UnitSystemSwitch",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 102,
+          "tokens": 484
+        }
+      ]
+    },
+    "pcs-frontend/src/components/ProjectCreateForm.tsx": {
+      "description": "建项目表单（P10-K · W-6c）—— **项目页与向导共用**。",
+      "tokens": 1700,
+      "hash": "96474d8d044c34db",
+      "size": 7038,
+      "mtimeMs": 1795568674589.8665,
+      "updatedAt": "2026-11-25T01:04:34.645Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ProjectCreateFormProps",
+          "kind": "section",
+          "startLine": 46,
+          "endLine": 55,
+          "tokens": 93
+        },
+        {
+          "name": "ProjectCreateForm",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 196,
+          "tokens": 1161
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/wizard/ProjectWizardPage.tsx": {
+      "description": "ProjectWizardPage — 项目向导（P10-K · W-6 · SPEC §7.5）。",
+      "tokens": 3400,
+      "hash": "15fb860e0cd668d8",
+      "size": 13748,
+      "mtimeMs": 1795568703556.1143,
+      "updatedAt": "2026-11-25T01:05:03.630Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ProjectWizardPage",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 377,
+          "tokens": 2725
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/wizard/ProjectWizardPage.test.tsx": {
+      "description": "ProjectWizardPage —— **4 步向导**（P10-K · W-6 / W-15 · SPEC §7.5）。",
+      "tokens": 2540,
+      "hash": "2247f359aa4cbb9c",
+      "size": 9842,
+      "mtimeMs": 1795568763343.5532,
+      "updatedAt": "2026-11-25T01:06:03.396Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "renderPage",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 70,
+          "tokens": 138
+        },
+        {
+          "name": "submitStep1",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 239,
+          "tokens": 1947
+        }
+      ]
+    },
+    "pcs-frontend/tests/utils/units.test.ts": {
+      "description": "单位制换算（`src/utils/units.ts`）—— P10-K · W-5 / W-19。",
+      "tokens": 948,
+      "hash": "6cdcf44da92b3c01",
+      "size": 3925,
+      "mtimeMs": 1795568884923.1838,
+      "updatedAt": "2026-11-25T01:08:04.971Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_project_constraints_pg.py": {
+      "description": "项目**词表 CHECK 约束**在真 PG 上的行为（P10-K · W-2 / W-2c / W-3b）。",
+      "tokens": 2143,
+      "hash": "dfd787b8b968cdc6",
+      "size": 8182,
+      "mtimeMs": 1795575713402.0215,
+      "updatedAt": "2026-11-25T03:01:53.457Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_pg_url",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 43,
+          "tokens": 97
+        },
+        {
+          "name": "test_project_and_template_vocabularies_are_enforced_by_db_checks",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 71,
+          "tokens": 276
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 172,
+          "tokens": 844
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 231,
+          "tokens": 517
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 232,
+          "endLine": 250,
+          "tokens": 188
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10k.md": {
+      "description": "QA 报告 —— P10-K（SPEC §7.5 项目向导 · 25 个任务）（2026-11-25）",
+      "tokens": 1929,
+      "hash": "75cf6e60dc6834e3",
+      "size": 12073,
+      "mtimeMs": 1795575801959.3618,
+      "updatedAt": "2026-11-25T03:03:22.009Z",
       "source": "hook"
     }
   }

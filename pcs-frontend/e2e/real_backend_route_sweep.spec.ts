@@ -92,6 +92,13 @@ const ROUTES: RouteCase[] = [
   },
   { path: '/pms', testId: 'pms-page' },
   { path: '/bedd', testId: 'bedd-page' },
+  // ⚠️ **项目向导**（P10-K · W-14）—— 扫达即止 ⇒ ⇒ ⇒ **不做**专用 e2e
+  //   ⇒ ⇒ ⇒ 理由：向导 happy path **每次跑都消耗一个 FORMAL 工作区**
+  //   ⇒ ⇒ ⇒ ⇒（一个工作区只能挂一个项目 ⇒ ⇒ ⇒ 第二次跑必然 409）
+  //   ⇒ ⇒ ⇒ ⇒ ⇒ 要幂等就得引入「每次跑新建一个工作区」⇒ ⇒ ⇒ ⇒
+  //   ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 流程本身改由 **vitest** 覆盖（`tests/pages/wizard/`）
+  //   ⇒ ⇒ ⇒ ⇒ ⇒ ⇒ 而 e2e 只验「**路由可达 + 页面渲染**」。
+  { path: '/wizard', testId: 'project-wizard-page' },
 ];
 
 /**

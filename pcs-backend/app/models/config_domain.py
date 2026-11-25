@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.models.enums import ProjectTemplateStatus
 from app.models.mixins import TimestampMixin
 
 
@@ -214,13 +215,27 @@ class ProjectTemplate(TimestampMixin, Base):
         ),
     )
     version: Mapped[str] = mapped_column(String(50))
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    # ⚠️ **发布状态**（P10-K · W-3b）—— 词表 = DRAFT / PUBLISHED / OBSOLETE
+    # ⇒ ⇒ ⇒ ⚠️ **不是** config 资产那套 5 态（`ConfigStatus`）
+    # ⇒ ⇒ ⇒ 本批**只有 seed 写 PUBLISHED**（没有发布端点 · TODO-206）
+    # ⇒ ⇒ ⇒ 端点**只列 PUBLISHED**。
+    status: Mapped[str] = mapped_column(
+        String(20), default=ProjectTemplateStatus.DRAFT.value
+    )
     asset_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("config_assets.asset_id"), nullable=True
     )
     checklist_json: Mapped[dict | None] = mapped_column(JSON)
     pipe_code_template_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("pipe_code_templates.template_id"), nullable=True,
+    )
+    __table_args__ = (
+        # ⚠️ 词表在**代码**里（`ProjectTemplateStatus`）⇒ ⇒ ⇒ CHECK 在**库**里
+        # ⇒ ⇒ ⇒ 两处都要有 ⇒ ⇒ ⇒ 只在代码里 ⇒ ⇒ ⇒ 写库的人能塞进垃圾值。
+        CheckConstraint(
+            "status IN ('DRAFT', 'PUBLISHED', 'OBSOLETE')",
+            name="ck_project_templates_status",
+        ),
     )
 
 

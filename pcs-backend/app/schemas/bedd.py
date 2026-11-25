@@ -49,81 +49,91 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 #: 字段类型：数字 / 文本。
 BeddFieldKind = Literal["number", "text"]
 
-#: 分组 key → ((字段 key, 中文标签, 控件类型, 字段类型), ...)
+#: 分组 key → ((字段 key, 中文标签, 控件类型, 字段类型, **canonical 单位**), ...)
 #:
 #: 控件类型取 `ui_schema_service.Widget` 的字面量（Input / NumberInput /
 #: TextArea / Select）⇒ ⇒ 前端 SchemaForm 直接认。
-BEDD_FIELDS: dict[str, tuple[tuple[str, str, str, BeddFieldKind], ...]] = {
+#:
+#: ⚠️ **第五个元素 = canonical 单位**（机器可读 · P10-K · W-1）⇒ ⇒ ⇒
+#: **单位不再写在标签里** ⇒ ⇒ ⇒ 理由：标签里带单位 ⇒ ⇒ ⇒ 换算只能改字符串
+#: ⇒ ⇒ ⇒ 而「US 模式下标签还写 kPa、值是 psi」= **双重单位 / 假标签**
+#: ⇒ ⇒ ⇒ 标签的渲染由前端拼 `unit`（SI）或 `unit_display.display_unit`（US）。
+#:
+#: ⚠️ **canonical 单位 = 存储单位**（**恒 SI**）⇒ ⇒ ⇒ `None` = **无单位**
+#: （介质、类别这类**本来就没有数可换**的字段）。
+BeddFieldUnit = str | None
+
+BEDD_FIELDS: dict[str, tuple[tuple[str, str, str, BeddFieldKind, BeddFieldUnit], ...]] = {
     "meteorology": (
-        ("temperature", "温度 (℃)", "NumberInput", "number"),
-        ("humidity", "湿度 (%)", "NumberInput", "number"),
-        ("pressure", "气压 (kPa)", "NumberInput", "number"),
-        ("wind", "风 (m/s)", "NumberInput", "number"),
-        ("rainfall", "降雨 (mm/a)", "NumberInput", "number"),
-        ("snowfall", "雪 (mm/a)", "NumberInput", "number"),
-        ("evaporation", "蒸发 (mm/a)", "NumberInput", "number"),
-        ("thunderstorm", "雷暴 (d/a)", "NumberInput", "number"),
-        ("fog", "雾 (d/a)", "NumberInput", "number"),
-        ("sunshine", "日照 (h/a)", "NumberInput", "number"),
-        ("solar_radiation", "太阳辐射 (W/m²)", "NumberInput", "number"),
-        ("soil", "土壤", "Input", "text"),
-        ("dust", "粉尘", "Input", "text"),
-        ("altitude", "海拔 (m)", "NumberInput", "number"),
+        ("temperature", "温度", "NumberInput", "number", "degC"),
+        ("humidity", "湿度", "NumberInput", "number", "%"),
+        ("pressure", "气压", "NumberInput", "number", "kPa"),
+        ("wind", "风", "NumberInput", "number", "m/s"),
+        ("rainfall", "降雨", "NumberInput", "number", "mm/a"),
+        ("snowfall", "雪", "NumberInput", "number", "mm/a"),
+        ("evaporation", "蒸发", "NumberInput", "number", "mm/a"),
+        ("thunderstorm", "雷暴", "NumberInput", "number", "d/a"),
+        ("fog", "雾", "NumberInput", "number", "d/a"),
+        ("sunshine", "日照", "NumberInput", "number", "h/a"),
+        ("solar_radiation", "太阳辐射", "NumberInput", "number", "W/m2"),
+        ("soil", "土壤", "Input", "text", None),
+        ("dust", "粉尘", "Input", "text", None),
+        ("altitude", "海拔", "NumberInput", "number", "m"),
     ),
     "hydrology_geology": (
-        ("tidal", "潮汐", "Input", "text"),
-        ("river", "河流", "Input", "text"),
-        ("geology", "地质", "Input", "text"),
+        ("tidal", "潮汐", "Input", "text", None),
+        ("river", "河流", "Input", "text", None),
+        ("geology", "地质", "Input", "text", None),
     ),
     "seismic": (
-        ("intensity", "设防烈度", "Input", "text"),
-        ("acceleration", "加速度 (g)", "NumberInput", "number"),
-        ("group", "分组", "Input", "text"),
-        ("site_category", "场地类别", "Input", "text"),
+        ("intensity", "设防烈度", "Input", "text", None),
+        ("acceleration", "加速度", "NumberInput", "number", "g"),
+        ("group", "分组", "Input", "text", None),
+        ("site_category", "场地类别", "Input", "text", None),
     ),
     "utilities": (
-        ("steam", "蒸汽", "Input", "text"),
-        ("water", "水", "Input", "text"),
-        ("air", "空气", "Input", "text"),
-        ("nitrogen", "氮气", "Input", "text"),
-        ("fuel_gas", "燃料气", "Input", "text"),
-        ("fuel_oil", "燃料油", "Input", "text"),
-        ("hydrogen", "氢气", "Input", "text"),
-        ("chemicals", "化学品", "Input", "text"),
-        ("heat_transfer_oil", "导热油", "Input", "text"),
-        ("condensate", "凝液", "Input", "text"),
-        ("electrical", "电气", "Input", "text"),
+        ("steam", "蒸汽", "Input", "text", None),
+        ("water", "水", "Input", "text", None),
+        ("air", "空气", "Input", "text", None),
+        ("nitrogen", "氮气", "Input", "text", None),
+        ("fuel_gas", "燃料气", "Input", "text", None),
+        ("fuel_oil", "燃料油", "Input", "text", None),
+        ("hydrogen", "氢气", "Input", "text", None),
+        ("chemicals", "化学品", "Input", "text", None),
+        ("heat_transfer_oil", "导热油", "Input", "text", None),
+        ("condensate", "凝液", "Input", "text", None),
+        ("electrical", "电气", "Input", "text", None),
     ),
     "emission_limits": (
-        ("gas", "气体", "Input", "text"),
-        ("incineration", "焚烧", "Input", "text"),
-        ("dust", "粉尘", "Input", "text"),
-        ("wastewater", "废水", "Input", "text"),
-        ("noise", "噪声 (dB)", "NumberInput", "number"),
-        ("workplace_air", "工作区空气", "Input", "text"),
+        ("gas", "气体", "Input", "text", None),
+        ("incineration", "焚烧", "Input", "text", None),
+        ("dust", "粉尘", "Input", "text", None),
+        ("wastewater", "废水", "Input", "text", None),
+        ("noise", "噪声", "NumberInput", "number", "dB"),
+        ("workplace_air", "工作区空气", "Input", "text", None),
     ),
     "design_criteria": (
-        ("design_life", "设计寿命 (a)", "NumberInput", "number"),
-        ("operation", "操作", "Input", "text"),
-        ("transportation", "运输", "Input", "text"),
-        ("noise", "噪声 (dB)", "NumberInput", "number"),
+        ("design_life", "设计寿命", "NumberInput", "number", "a"),
+        ("operation", "操作", "Input", "text", None),
+        ("transportation", "运输", "Input", "text", None),
+        ("noise", "噪声", "NumberInput", "number", "dB"),
     ),
     "safety_fire": (
-        ("fire_pump", "消防泵", "Input", "text"),
-        ("fire_truck", "消防车", "Input", "text"),
-        ("foam", "泡沫", "Input", "text"),
-        ("sprinkler", "喷淋", "Input", "text"),
-        ("detection", "探测", "Input", "text"),
-        ("isolation_valve", "隔离阀", "Input", "text"),
-        ("safety_shower", "安全淋浴", "Input", "text"),
+        ("fire_pump", "消防泵", "Input", "text", None),
+        ("fire_truck", "消防车", "Input", "text", None),
+        ("foam", "泡沫", "Input", "text", None),
+        ("sprinkler", "喷淋", "Input", "text", None),
+        ("detection", "探测", "Input", "text", None),
+        ("isolation_valve", "隔离阀", "Input", "text", None),
+        ("safety_shower", "安全淋浴", "Input", "text", None),
     ),
     "flare": (
-        ("back_pressure", "背压 (kPa)", "NumberInput", "number"),
-        ("radiation", "辐射 (kW/m²)", "NumberInput", "number"),
+        ("back_pressure", "背压", "NumberInput", "number", "kPa"),
+        ("radiation", "辐射", "NumberInput", "number", "kW/m2"),
     ),
     "interface_conditions": (
-        ("inlet", "进界区条件表", "Input", "text"),
-        ("outlet", "出界区条件表", "Input", "text"),
+        ("inlet", "进界区条件表", "Input", "text", None),
+        ("outlet", "出界区条件表", "Input", "text", None),
     ),
 }
 
@@ -147,7 +157,7 @@ BEDD_GROUP_ORDER: tuple[str, ...] = tuple(BEDD_GROUP_LABELS)
 def _group_model(group_key: str) -> type[BaseModel]:
     """按字段表生成一个分组模型（`extra="forbid"` ⇒ ⇒ 未知字段 ⇒ 422）。"""
     fields: dict[str, Any] = {}
-    for field_key, _label, _widget, kind in BEDD_FIELDS[group_key]:
+    for field_key, _label, _widget, kind, _unit in BEDD_FIELDS[group_key]:
         annotation = float | None if kind == "number" else str | None
         fields[field_key] = (annotation | None, Field(default=None))
     model = create_model(

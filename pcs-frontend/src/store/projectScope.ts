@@ -56,6 +56,14 @@ interface ProjectScopeState {
   ensureLoaded: () => Promise<void>;
   /** 换项目（用户操作）。 */
   selectProject: (projectId: string) => void;
+  /**
+   * **强制重拉**候选列表（P10-K · W-16）。
+   *
+   * ⚠️ **为什么需要**：`ensureLoaded` 是**每会话一次** ⇒ ⇒ ⇒ 刚建的项目
+   * **不会**出现在候选里 ⇒ ⇒ ⇒ 「去项目录 BEDD」就没有明确目标 ⇒ ⇒ ⇒
+   * ⇒ ⇒ 刷一次 ⇒ ⇒ ⇒ 候选里才有它。
+   */
+  refresh: () => Promise<void>;
   /** 登出 / 换身份 ⇒ 清干净。 */
   reset: () => void;
 }
@@ -193,6 +201,20 @@ export const useProjectScopeStore = create<ProjectScopeState>((set, get) => ({
 
   selectProject: (projectId: string) => {
     set({ currentProjectId: projectId });
+  },
+
+  refresh: async () => {
+    // ⚠️ **先等在飞的那一轮** ⇒ ⇒ ⇒ 再重跑 ⇒ ⇒ ⇒ 否则两轮并发 ⇒ ⇒ ⇒
+    //   旧的那轮可能**后到** ⇒ ⇒ ⇒ ⇒ 把旧清单写回 store。
+    if (inflight) {
+      try {
+        await inflight;
+      } catch {
+        /* 上一轮失败不影响刷新 */
+      }
+    }
+    inflight = null;
+    return get().ensureLoaded();
   },
 
   reset: () => {

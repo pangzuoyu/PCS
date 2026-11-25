@@ -55,7 +55,8 @@ import { metaSeed, MOCK_TOKEN } from "./seed/meta";
 import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/common";
 import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
-import { seedBedd, seedBeddUiSchema, seedPmsList } from "./seed/pms";
+import { seedBedd, seedBeddUiSchema, seedPmsList, seedProjectTemplates } from "./seed/pms";
+import { createdProjects } from "./seed/projects";
 import { seedEquipmentList } from "./seed/equipment";
 import {
   seedStreams,
@@ -1453,7 +1454,12 @@ export const handlers = [
   }),
   http.get("/api/v1/projects/:project_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    const row = seedProjects.find((p) => p.project_id === params.project_id);
+    // ⚠️ **先查「已建项目」清单**（`signFlow.ts` 的 POST 建出来的）
+    // ⇒ ⇒ ⇒ 否则 dev 里「建完项目 ⇒ 打开它的页」⇒ ⇒ ⇒ **404**
+    // ⇒ ⇒ ⇒ ⇒（404 与「项目不存在」同形 ⇒ ⇒ ⇒ ⇒ 用户以为自己没建成）。
+    const row =
+      createdProjects.find((p) => p.project_id === params.project_id) ??
+      seedProjects.find((p) => p.project_id === params.project_id);
     // ⚠️ **命中不到 ⇒ 404**（与真端点同形：`PROJECT_NOT_FOUND`）⇒ ⇒
     //    否则「选了一个不存在的项目」在 mock 通道里看不出来。
     if (!row) {
@@ -1475,6 +1481,82 @@ export const handlers = [
   http.get("/api/v1/projects/:project_id/bedd", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json(seedBedd);
+  }),
+  // ⚠️ **`PUT` handler 此前是零**（P10-K · W-13）⇒ ⇒ ⇒ BEDD 页在 dev/mock
+  //   通道**保存不了** ⇒ ⇒ ⇒ 页面上「保存」永远报错 ⇒ ⇒ ⇒ 而**没人发现**
+  //   ⇒ ⇒ ⇒ ⇒ 因为「读」是好的 ⇒ ⇒ ⇒ ⇒ 只在真保存那一刻才炸。
+  // ⇒ ⇒ ⇒ 现在补上（**整份替换**，与真端点同语义）。
+  http.put("/api/v1/projects/:project_id/bedd", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { document?: Record<string, unknown> };
+    return HttpResponse.json({
+      ...seedBedd,
+      document: body?.document ?? {},
+      updated_at: new Date().toISOString(),
+    });
+  }),
+  // === 项目模板的**写路径**（P10-K · W-13）===
+  // ⚠️ **零 handler ⇒ 请求会打到真后端** ⇒ ⇒ ⇒ dev 里点「应用模板」⇒ ⇒ ⇒
+  //   404/401 ⇒ ⇒ ⇒ ⇒ 向导**跑不通**（而**读**路径是好的 ⇒ ⇒ ⇒ ⇒ 只在
+  //   真正写的那一刻才炸 ⇒ ⇒ ⇒ ⇒ 「点进去才发现」的老毛病）。
+  http.post("/api/v1/projects/:project_id/apply-template", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { template_id?: string };
+    if (!body?.template_id) {
+      return HttpResponse.json(
+        { code: "VALIDATION_ERROR", message: "缺少 template_id" },
+        { status: 422 },
+      );
+    }
+    const tpl = seedProjectTemplates.find((t) => t.template_id === body.template_id);
+    if (!tpl) {
+      return HttpResponse.json(
+        { code: "TEMPLATE_NOT_FOUND", message: `模板不存在：${body.template_id}` },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json({
+      template_id: tpl.template_id,
+      template_name: tpl.name,
+      template_version: tpl.version,
+      segments: { stream_approval: "applied", checklist_json: "seeded:0" },
+    });
+  }),
+  // ⚠️ **项目状态**（P10-K · W-2d）—— 向导第 4 步「确认」调它。
+  http.patch("/api/v1/projects/:project_id/status", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { status?: string };
+    if (body?.status !== "ACTIVE" && body?.status !== "DRAFT") {
+      return HttpResponse.json(
+        { code: "VALIDATION_ERROR", message: "status 只能是 DRAFT / ACTIVE" },
+        { status: 422 },
+      );
+    }
+    return HttpResponse.json({
+      ...seedProjects[0],
+      project_id: "p-mock",
+      status: body.status,
+    });
+  }),
+  // ⚠️ **单位制**（P10-K · W-2b）—— BEDD 页的「改项目默认」入口。
+  http.patch("/api/v1/projects/:project_id/unit-system", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as { unit_system?: string };
+    if (body?.unit_system !== "SI" && body?.unit_system !== "US") {
+      return HttpResponse.json(
+        { code: "VALIDATION_ERROR", message: "unit_system 只能是 SI / US" },
+        { status: 422 },
+      );
+    }
+    return HttpResponse.json({ ...seedProjects[0], unit_system: body.unit_system });
+  }),
+
+  // === 项目模板（P10-K · W-3）===
+  // ⚠️ **契约端点**（`GET /project-templates` 在 OpenAPI 里）⇒ ⇒ ⇒ 形状照抄契约
+  // ⇒ ⇒ ⇒ **不含** `default_config_json`（那是「应用模板」时才读的东西）。
+  http.get("/api/v1/project-templates", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedProjectTemplates);
   }),
 
   // === 表单节点契约（uiSchema）===

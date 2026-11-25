@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T00:46:23.793Z
-> Files: 1499 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T03:03:22.009Z
+> Files: 1513 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -210,6 +210,7 @@
 - `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1873 tok)
 - `qa-report-pcs-frontend-2026-11-24-p10j-t2.md` — QA 报告 · P10-J · T2（「打回」动作）· 2026-11-24 (~1089 tok)
 - `qa-report-pcs-frontend-2026-11-25-p10j-t1.md` — QA 报告 —— P10-J-T1 公司级模板「执行时选项目」（2026-11-25） (~1686 tok)
+- `qa-report-pcs-frontend-2026-11-25-p10k.md` — QA 报告 —— P10-K（SPEC §7.5 项目向导 · 25 个任务）（2026-11-25） (~1929 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -1360,6 +1361,7 @@
 - `p10_003_backfill_workspace_project.py` — p10_003：回填 `workspaces.project_id`（P10-F 评审的 P0 修 · 2026-11-18） (~634 tok)
 - `p10_004_pms_items.py` — p10_004：pms_items 表（P10-H · T2 · TODO-195）。 (~1944 tok)
 - `p10_005_report_definition_rejection.py` — p10_005：给 `report_definitions` 加「被退回」三列（P10-J · T2 · TODO-197b）。 (~600 tok)
+- `p10_006_project_wizard_fields.py` — p10_006：项目向导的字段 —— 单位制词表 + 项目两态 + 模板落库的 7 列（P10-K）。 (~1335 tok)
 - `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
@@ -1424,6 +1426,7 @@
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~1932 tok)
 - `lineage.py` — Lineage API（Sprint 3）。 (~3731 tok)
 - `locks.py` — 编辑锁 API（ADR-0048 §①⑤ · SPEC §6.21 EditLockIndicator）。 (~1958 tok)
+- `meta.py` — Meta API 路由 — 4 端点 + 1 CSV 导出（enums / permissions / error-codes / (~2066 tok)
 - `metrics.py` — `GET /metrics` —— Prometheus 抓取端点（P10-C · T1a（exporters）· 计划 `docs/superpowers/plans/2026-11-23-p10- (~359 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~816 tok)
 - `notifications.py` — 通知读 / 标已读 API（SPEC P9A-NOT-001/005 / ADR-0049 §① + §⑤ 约束 1）。 (~654 tok)
@@ -1433,7 +1436,8 @@
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
 - `pipe.py` — P4-2-5 PIPE 计算链 API。 (~2299 tok)
 - `pms.py` — PMS 管道材料规格 API（P10-H · T2 · TODO-195）。 (~1389 tok)
-- `projects.py` — 项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~3778 tok)
+- `project_templates.py` — 项目模板 API（P10-K · W-3 / W-3d · SPEC §7.5 项目向导第 3 步）。 (~1066 tok)
+- `projects.py` — 项目 API —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~3798 tok)
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
@@ -1482,15 +1486,15 @@
 
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~334 tok)
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~17119 tok)
-- `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
+- `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4593 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
 - `deliverable.py` — 交付物 ORM 模型（P5-3 报告/文档输出）。 (~3084 tok)
-- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5566 tok)
+- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5932 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `mixins.py` — ORM mixin 集合（公用字段 + 状态机 hook）。 (~1453 tok)
 - `notification.py` — notifications ORM（ADR-0049 §① 通知建表）。 (~975 tok)
 - `pms.py` — PMS 管道材料规格（PMS = Pipe Material Specification）· P10-H · T2 · TODO-195。 (~584 tok)
-- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~8141 tok)
+- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~8664 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `record_comment.py` — record_comments ORM（P9A B4c）。 (~631 tok)
 - `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~3562 tok)
@@ -1503,7 +1507,7 @@
 
 - `ai.py` — AI 预留接口的请求/响应 schema（P10-A · Task T9）。 (~686 tok)
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
-- `bedd.py` — BEDD 文档结构（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~1954 tok)
+- `bedd.py` — BEDD 文档结构（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~2043 tok)
 - `deliverable_progress.py` — 交付物工作流进度聚合响应（TODO-065 · P9B-2 · T0）。 (~552 tok)
 - `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1290 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~1340 tok)
@@ -1514,7 +1518,7 @@
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `pipe_line_list.py` — 管道一览表响应 schema（P10-C · T2 · TODO-159）。 (~1068 tok)
 - `pms.py` — PMS 管道材料规格的请求/响应契约（P10-H · T2 · TODO-195）。 (~491 tok)
-- `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~742 tok)
+- `project.py` — 项目 schema —— product_category 口径判据 + **项目创建**（P9B-2 · T-1）。 (~1127 tok)
 - `property.py` — 物性相关的**具名**契约（P10-H · TODO-199）。 (~1075 tok)
 - `record_edits.py` — 编辑审计读端点的响应（TODO-066 · P9B-2 · T1）。 (~336 tok)
 - `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~2014 tok)
@@ -1566,7 +1570,8 @@
 - `system_setting_service.py` — 系统参数读写（§7.20.1 · T4）。 (~1550 tok)
 - `todo_service.py` — 待办**实时计算**（ADR-0049 §② / SPEC P9A-NOT-002）。 (~1768 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~2413 tok)
-- `ui_schema_service.py` — uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。 (~2812 tok)
+- `ui_schema_service.py` — uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。 (~3261 tok)
+- `unit_conversion.py` — 单位制换算因子（P10-K · W-1 · SPEC §7.5 单位制切换）。 (~944 tok)
 - `user_project_service.py` — UserProjectService — 用户-项目关联管理 + 访问守卫 (P7-7+ BLOCKER-3 修复)。 (~3146 tok)
 - `user_status_service.py` — 用户**账号状态**判定（P9B-4 T0-B · TODO-132 · 评审 #10）。 (~740 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
@@ -1674,6 +1679,7 @@
 - `run_gate.py` — 跑一条闸门命令并报告**它自己**的退出码（TODO-050）。 (~752 tok)
 - `seed_e2e_data.py` — E2E 种子数据（P10-A · Task T2）—— **幂等**。 (~2797 tok)
 - `seed_e2e_flows.py` — 流程级 E2E 种子 —— P10-B（`scripts/seed_e2e_flows.py`）。 (~9673 tok)
+- `seed_project_templates.py` — 种**项目模板** + 一个**未占用的 FORMAL 工作区**（幂等）—— P10-K · W-0。 (~2961 tok)
 - `seed_user_project_access.py` — 给「指定用户名 × 指定项目」授权（幂等）—— P9B-4 紧急批次 T0。 (~1468 tok)
 - `serve_e2e_backend.sh` — 真后端通道的**后端**起服脚本 —— P10-B 评审 #23。 (~634 tok)
 - `verify_component_cas.py` — **联网**核对 `component_cas.py` 的 CAS 号（TODO-196 · bug-2197）。 (~2784 tok)
@@ -1751,9 +1757,11 @@
 - `test_pipe_line_list.py` — **管道一览表端点**（`GET /projects/{project_id}/pipe-line-list`）—— P10-C · T2。 (~1725 tok)
 - `test_pms_bedd_api.py` — PMS / BEDD 端点（P10-H · T2 · TODO-195）。 (~3304 tok)
 - `test_probe_stale_read.py` — 临时探针：验证 T3 引入的 identity map 陈旧读（C-1）。**不提交**。 (~604 tok)
+- `test_project_constraints_pg.py` — 项目**词表 CHECK 约束**在真 PG 上的行为（P10-K · W-2 / W-2c / W-3b）。 (~2143 tok)
 - `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~5232 tok)
 - `test_project_owner_access.py` — 「建项目 ⇒ 自动授权创建者」—— P9B-4 紧急批次 T0。 (~2165 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_project_wizard_api.py` — 项目向导的后端面（P10-K · W-2b/W-2d/W-3/W-3d/W-8）。 (~3988 tok)
 - `test_record_approval_chain.py` — 记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。 (~7732 tok)
 - `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3528 tok)
 - `test_record_type_vocabulary.py` — `record_type` **只有一套词表** —— P9A-5 Task A（TODO-060）。 (~2180 tok)
@@ -2060,6 +2068,10 @@
 - `systemSettings.ts` — 系统参数客户端（§7.20.1 · P9B-3）。 (~263 tok)
 - `todos.ts` — 待办 API 客户端（P9A Z 收口 · SPEC §6.22 · ADR-0049 §②）。 (~182 tok)
 
+## pcs-frontend/src/components/
+
+- `ProjectCreateForm.tsx` — 建项目表单（P10-K · W-6c）—— **项目页与向导共用**。 (~1700 tok)
+
 ## pcs-frontend/src/components/common/
 
 - `ChangeImpactPanel.tsx` — ChangeImpactPanel — 变更影响分析面板（P45-1-8 / Task 13）。 (~3965 tok)
@@ -2142,6 +2154,7 @@
 ## pcs-frontend/src/pages/bedd/
 
 - `BeddPage.tsx` — BeddPage — BEDD 文档（P10-H · T2 · TODO-195 · SPEC §7.5）。 (~1573 tok)
+- `UnitSystemSwitch.tsx` — 单位制切换（P10-K · W-4 · SPEC §7.5 单位制切换）。 (~800 tok)
 
 ## pcs-frontend/src/pages/common/
 
@@ -2223,6 +2236,10 @@
 
 - `EnergySummaryAggregatePage.tsx` — EnergySummaryAggregatePage — 综合能耗聚合 UI（P7 Sprint 2 T5 / R1 §7）。 (~3359 tok)
 
+## pcs-frontend/src/pages/wizard/
+
+- `ProjectWizardPage.tsx` — ProjectWizardPage — 项目向导（P10-K · W-6 · SPEC §7.5）。 (~3400 tok)
+
 ## pcs-frontend/src/store/
 
 - `degradation.ts` — 降级横幅的全局状态（P9B-1 · SPEC §6.21 P9A-LCK-004）。 (~182 tok)
@@ -2233,6 +2250,10 @@
 - `pipe.ts` — PIPE 模块类型（P45-3-5 / Task 32）。 (~617 tok)
 - `stream.ts` — Stream 类型定义（P45-3-1 / Task 28）。 (~1025 tok)
 - `strictColumns.ts` — `dataIndex` 的编译期闸（2026-10-19，TODO-041）。 (~933 tok)
+
+## pcs-frontend/src/utils/
+
+- `units.ts` — 单位制换算（P10-K · W-5 / W-19 · SPEC §7.5 单位制切换）。 (~1066 tok)
 
 ## pcs-frontend/tests/api/
 
@@ -2368,6 +2389,10 @@
 
 - `StatusPage.test.tsx` — 系统状态页的守卫（P10-C · T1b · SPEC §10.4）。 (~682 tok)
 
+## pcs-frontend/tests/pages/wizard/
+
+- `ProjectWizardPage.test.tsx` — ProjectWizardPage —— **4 步向导**（P10-K · W-6 / W-15 · SPEC §7.5）。 (~2540 tok)
+
 ## pcs-frontend/tests/report/
 
 - `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~3334 tok)
@@ -2378,6 +2403,10 @@
 
 - `no_handwritten_result_types.test.ts` — 防漂移：`src/types/` 的手写类型 vs 生成的契约（P9B-1 Task F0）。 (~1488 tok)
 - `strictColumns.test.ts` — `dataIndex` 闸的自检（2026-10-19，TODO-041）。 (~851 tok)
+
+## pcs-frontend/tests/utils/
+
+- `units.test.ts` — 单位制换算（`src/utils/units.ts`）—— P10-K · W-5 / W-19。 (~948 tok)
 
 ## scripts/
 

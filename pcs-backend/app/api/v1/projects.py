@@ -33,9 +33,16 @@ from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
+from app.models.enums import ProjectStatus
 from app.models.project import Project, User, Workspace
 from app.models.util import UtilityEnergySummary
-from app.schemas.project import ProductCategoryUpdate, ProjectCreate, ProjectOut
+from app.schemas.project import (
+    ProductCategoryUpdate,
+    ProjectCreate,
+    ProjectOut,
+    ProjectStatusUpdate,
+    UnitSystemUpdate,
+)
 from app.services.exceptions import WorkspaceNotFoundError
 from app.services.signature_matrix_service import SignatureMatrixService
 from app.services.user_project_service import UserProjectService, ensure_user_row
@@ -88,6 +95,8 @@ def _to_out(record: Project) -> ProjectOut:
         electricity_value_type=derive_electricity_value_type(
             record.product_category
         ),
+        unit_system=record.unit_system,
+        status=record.status,
     )
 
 
@@ -357,6 +366,109 @@ async def set_product_category(
         )
 
     record.product_category = payload.product_category.value
+    await db.commit()
+    await db.refresh(record)
+    return _to_out(record)
+
+
+@router.patch(
+    "/{project_id}/unit-system",
+    response_model=ProjectOut,
+    status_code=http_status.HTTP_200_OK,
+    summary="设置项目默认显示单位制（SYSTEM_ADMIN · P10-K · W-2b）",
+)
+async def set_unit_system(
+    project_id: uuid.UUID,
+    payload: UnitSystemUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> ProjectOut:
+    """设置项目的**默认显示单位制**（SI / US）。
+
+    ⚠️ **它不动任何已存的值** —— 存储**恒为 canonical（SI）**
+    ⇒ ⇒ ⇒ 本字段只决定「这个项目默认按哪套单位显示」
+    ⇒ ⇒ ⇒ ⇒ 历史数据**不受影响**（换算是**视图变换**）。
+
+    ⚠️ **不要抄 `product-category` 的 422 保护** —— 那个是因为产品类别有
+    **冻结下游值**（已生成的综合能耗汇总固化了当时的折标口径）
+    ⇒ ⇒ ⇒ 而 `unit_system` **没有**冻结下游值 ⇒ ⇒ ⇒ ⇒ 抄过来就是
+    ⇒ ⇒ ⇒ 一条**永远不该触发**的拒绝。
+    """
+    require_roles(user, "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=list(user.roles),
+    )
+    record = (
+        await db.execute(select(Project).where(Project.project_id == project_id))
+    ).scalar_one_or_none()
+    if record is None:
+        raise PcsError(
+            code="PROJECT_NOT_FOUND", message=f"Project not found: {project_id}",
+            status=404,
+        )
+    record.unit_system = payload.unit_system.value
+    await db.commit()
+    await db.refresh(record)
+    return _to_out(record)
+
+
+@router.patch(
+    "/{project_id}/status",
+    response_model=ProjectOut,
+    status_code=http_status.HTTP_200_OK,
+    summary="设置项目状态（SYSTEM_ADMIN · P10-K · W-2d）",
+)
+async def set_project_status(
+    project_id: uuid.UUID,
+    payload: ProjectStatusUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> ProjectOut:
+    """把项目从 `DRAFT` 转成 `ACTIVE`（向导第 4 步「确认」）。
+
+    ⚠️ **只允许单向 `DRAFT → ACTIVE`** ⇒ ⇒ ⇒ `ACTIVE → DRAFT`（回退）
+    ⇒ ⇒ ⇒ **409** —— 因为 `DRAFT` 的语义是「**向导没走完**」
+    ⇒ ⇒ ⇒ 已经走完的项目退回去 = 「说它没走完」⇒ ⇒ ⇒ 没有这种需求
+    ⇒ ⇒ ⇒ ⇒ 而允许它 ⇒ ⇒ ⇒ 弃单项目的识别口径（「`status='DRAFT'`」）
+    ⇒ ⇒ ⇒ 就**不再可靠**。
+
+    ⚠️ **已经是 ACTIVE 再激活 ⇒ ⇒ ⇒ 409**（不是 200 空转）⇒ ⇒ ⇒
+    因为静默 200 会让人**以为没生效**。
+    """
+    require_roles(user, "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=list(user.roles),
+    )
+    record = (
+        await db.execute(select(Project).where(Project.project_id == project_id))
+    ).scalar_one_or_none()
+    if record is None:
+        raise PcsError(
+            code="PROJECT_NOT_FOUND", message=f"Project not found: {project_id}",
+            status=404,
+        )
+    target = payload.status.value
+    if record.status == target:
+        raise PcsError(
+            code="PROJECT_STATUS_UNCHANGED",
+            message=(
+                f"项目 {project_id} 的状态已经是 {target} ⇒ ⇒ ⇒ 拒绝空转"
+                "（静默 200 会让人以为没生效）。"
+            ),
+            status=409,
+        )
+    if target == ProjectStatus.DRAFT.value:
+        raise PcsError(
+            code="PROJECT_STATUS_TRANSITION_INVALID",
+            message=(
+                "项目状态只允许 DRAFT → ACTIVE（单向）⇒ ⇒ ⇒ "
+                "ACTIVE → DRAFT 会让「DRAFT = 向导没走完」的识别口径失效。"
+            ),
+            status=409,
+        )
+    record.status = target
     await db.commit()
     await db.refresh(record)
     return _to_out(record)

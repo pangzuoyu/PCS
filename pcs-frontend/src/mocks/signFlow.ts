@@ -13,6 +13,7 @@ import { http, HttpResponse } from 'msw';
 import type { components } from '../types/api';
 
 import { bindRecordMatrix } from './signatureMatrices';
+import { createdProjects } from './seed/projects';
 
 import {
   seedAdminUsers,
@@ -112,6 +113,27 @@ export const signFlowHandlers = [
         { status: 422 },
       );
     }
+    // ⚠️ **词表校验**（P10-K · W-18）—— 后端 `unit_system` / `status` 现在是
+    // **枚举** ⇒ ⇒ ⇒ mock **也必须**拒 ⇒ ⇒ ⇒ 否则 dev 接受 `"公制"`、
+    // prod 422 ⇒ ⇒ ⇒ ⇒ **dev 与生产漂移**（而漂移只在真库上暴露）。
+    if (body.unit_system !== 'SI' && body.unit_system !== 'US') {
+      return HttpResponse.json(
+        {
+          code: 'VALIDATION_ERROR',
+          message: `unit_system 只能是 SI / US（收到 ${String(body.unit_system)}）`,
+        },
+        { status: 422 },
+      );
+    }
+    if (body.status !== undefined && body.status !== 'DRAFT' && body.status !== 'ACTIVE') {
+      return HttpResponse.json(
+        {
+          code: 'VALIDATION_ERROR',
+          message: `status 只能是 DRAFT / ACTIVE（收到 ${String(body.status)}）`,
+        },
+        { status: 422 },
+      );
+    }
     const projectId = `p-${Date.now()}`;
     // ⚠️ 建项目 ⇒ **自动绑一份 RECORD 矩阵**（后端同事务）⇒ 建完当场能送审。
     bindRecordMatrix(projectId);
@@ -127,7 +149,14 @@ export const signFlowHandlers = [
         body.product_category === 'REFINING' || body.product_category === 'ETHYLENE'
           ? 'AC_380V_EQUIVALENT'
           : 'AC_380V',
+      // ⚠️ **默认显示单位制**（P10-K · W-2b）—— 存储恒为 canonical(SI)
+      unit_system: (body.unit_system as 'SI' | 'US') ?? 'SI',
+      // ⚠️ **项目两态**（P10-K · W-2c）—— 向导第 1 步显式传 DRAFT
+      status: (body.status as 'DRAFT' | 'ACTIVE') ?? 'ACTIVE',
     };
+    // ⚠️ **登记进「已建项目」清单** ⇒ ⇒ ⇒ 否则后续
+    //   `GET /projects/{id}` 在 mock 通道**查不到** ⇒ ⇒ ⇒ 404。
+    createdProjects.push(projectOut);
     return HttpResponse.json(projectOut, { status: 201 });
   }),
 

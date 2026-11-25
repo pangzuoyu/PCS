@@ -4412,3 +4412,35 @@
 | 08:46 | Edited TODOS.md | expanded (+44 lines) | ~408 |
 | 08:46 | Edited TODOS.md | 1→3 lines | ~79 |
 | 08:46 | Edited TODOS.md | inline fix | ~49 |
+| 08:49 | Edited pcs-backend/app/models/enums.py | modified UnitSystem() | ~337 |
+| 08:49 | Edited pcs-backend/app/models/project.py | 3→7 lines | ~87 |
+| 08:49 | Edited pcs-backend/app/models/project.py | expanded (+21 lines) | ~362 |
+| 08:49 | Edited pcs-backend/app/models/project.py | expanded (+12 lines) | ~189 |
+| 08:49 | Edited pcs-backend/app/models/project.py | 6→8 lines | ~42 |
+| 08:49 | Created pcs-backend/alembic/versions/p10_006_project_wizard_fields.py | — | ~1175 |
+| 08:49 | Edited pcs-backend/app/schemas/bedd.py | expanded (+10 lines) | ~1098 |
+| 08:50 | Edited pcs-backend/app/schemas/bedd.py | inline fix | ~22 |
+| 08:50 | Created pcs-backend/app/services/unit_conversion.py | — | ~944 |
+| 08:50 | Edited pcs-backend/app/services/ui_schema_service.py | modified items() | ~320 |
+| 08:50 | Edited pcs-backend/app/api/v1/meta.py | modified UnitDisplay() | ~397 |
+| 08:51 | Edited pcs-backend/app/schemas/project.py | modified ProjectOut() | ~196 |
+| 08:51 | Edited pcs-backend/app/schemas/project.py | expanded (+10 lines) | ~121 |
+| 08:51 | Edited pcs-backend/app/schemas/project.py | modified ProjectCreate() | ~9 |
+| 08:51 | Edited pcs-backend/app/schemas/project.py | modified UnitSystemUpdate() | ~209 |
+| 08:51 | Edited pcs-backend/app/schemas/project.py | modified ProjectCreate() | ~24 |
+| 08:51 | Edited pcs-backend/app/api/v1/projects.py | 4→6 lines | ~53 |
+| 08:53 | Edited pcs-backend/app/models/config_domain.py | reduced (-6 lines) | ~108 |
+| 08:53 | Edited pcs-backend/app/models/config_domain.py | expanded (+6 lines) | ~161 |
+| 08:53 | Edited pcs-backend/alembic/versions/p10_006_project_wizard_fields.py | expanded (+12 lines) | ~172 |
+| 08:53 | Edited pcs-backend/alembic/versions/p10_006_project_wizard_fields.py | modified downgrade() | ~65 |
+| 08:55 | Created pcs-backend/app/api/v1/project_templates.py | — | ~1066 |
+| 08:56 | Created pcs-backend/scripts/seed_project_templates.py | — | ~2961 |
+| 08:57 | Created pcs-backend/tests/api/v1/test_project_wizard_api.py | — | ~3988 |
+| 08:59 | Created pcs-frontend/src/utils/units.ts | — | ~1066 |
+| 09:02 | Created pcs-frontend/src/pages/bedd/UnitSystemSwitch.tsx | — | ~800 |
+| 09:04 | Created pcs-frontend/src/components/ProjectCreateForm.tsx | — | ~1700 |
+| 09:05 | Created pcs-frontend/src/pages/wizard/ProjectWizardPage.tsx | — | ~3400 |
+| 09:06 | Created pcs-frontend/tests/pages/wizard/ProjectWizardPage.test.tsx | — | ~2540 |
+| 09:08 | Created pcs-frontend/tests/utils/units.test.ts | — | ~948 |
+| 11:01 | Created pcs-backend/tests/api/v1/test_project_constraints_pg.py | — | ~2143 |
+| 11:03 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10k.md | — | ~2058 |

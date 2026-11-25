@@ -13829,6 +13829,272 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/unit-system": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "设置项目默认显示单位制（SYSTEM_ADMIN · P10-K · W-2b）",
+        "description": "设置项目的**默认显示单位制**（SI / US）。\n\n⚠️ **它不动任何已存的值** —— 存储**恒为 canonical（SI）**\n⇒ ⇒ ⇒ 本字段只决定「这个项目默认按哪套单位显示」\n⇒ ⇒ ⇒ ⇒ 历史数据**不受影响**（换算是**视图变换**）。\n\n⚠️ **不要抄 `product-category` 的 422 保护** —— 那个是因为产品类别有\n**冻结下游值**（已生成的综合能耗汇总固化了当时的折标口径）\n⇒ ⇒ ⇒ 而 `unit_system` **没有**冻结下游值 ⇒ ⇒ ⇒ ⇒ 抄过来就是\n⇒ ⇒ ⇒ 一条**永远不该触发**的拒绝。",
+        "operationId": "set_unit_system_api_v1_projects__project_id__unit_system_patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnitSystemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/status": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "设置项目状态（SYSTEM_ADMIN · P10-K · W-2d）",
+        "description": "把项目从 `DRAFT` 转成 `ACTIVE`（向导第 4 步「确认」）。\n\n⚠️ **只允许单向 `DRAFT → ACTIVE`** ⇒ ⇒ ⇒ `ACTIVE → DRAFT`（回退）\n⇒ ⇒ ⇒ **409** —— 因为 `DRAFT` 的语义是「**向导没走完**」\n⇒ ⇒ ⇒ 已经走完的项目退回去 = 「说它没走完」⇒ ⇒ ⇒ 没有这种需求\n⇒ ⇒ ⇒ ⇒ 而允许它 ⇒ ⇒ ⇒ 弃单项目的识别口径（「`status='DRAFT'`」）\n⇒ ⇒ ⇒ 就**不再可靠**。\n\n⚠️ **已经是 ACTIVE 再激活 ⇒ ⇒ ⇒ 409**（不是 200 空转）⇒ ⇒ ⇒\n因为静默 200 会让人**以为没生效**。",
+        "operationId": "set_project_status_api_v1_projects__project_id__status_patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/project-templates": {
+      "get": {
+        "tags": [
+          "project-templates"
+        ],
+        "summary": "列已发布的项目模板（SYSTEM_ADMIN · P10-K · W-3）",
+        "description": "列**已发布**（`status='PUBLISHED'`）的项目模板。\n\n⚠️ **只列 PUBLISHED** —— 模板**没有发布端点**（本批只有 seed 写\nPUBLISHED · 运营流程另开 · TODO-206）⇒ ⇒ ⇒ ⇒ 列 DRAFT/OBSOLETE\n⇒ ⇒ ⇒ 会让用户选到**没人审核过**的模板。",
+        "operationId": "list_project_templates_api_v1_project_templates_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectTemplateSummary"
+                  },
+                  "title": "Response List Project Templates Api V1 Project Templates Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/apply-template": {
+      "post": {
+        "tags": [
+          "project-templates"
+        ],
+        "summary": "把模板应用到项目（SYSTEM_ADMIN · P10-K · W-3d）",
+        "description": "把模板应用到项目（**同一事务** · **幂等**）。\n\n⚠️ **7 段任一段失败 ⇒ ⇒ ⇒ 全部回滚** ⇒ ⇒ ⇒ 项目不会被配成\n「一半模板、一半默认」⇒ ⇒ ⇒ ⇒ 所以端点**只 commit 一次**\n（在服务层返回之后）⇒ ⇒ ⇒ 任一段抛错 ⇒ ⇒ ⇒ 事务回滚 ⇒ ⇒ ⇒ 零残留。\n\n⚠️ **`record_approval` 只替「自动绑的默认」** ⇒ ⇒ ⇒ 人工改过的\n签署矩阵绑定**不被夺走**（见 `ProjectTemplateService.apply_to_project`）。\n\n⚠️ **写一条审计**（W-17）—— 模板应用 = **改变「谁该签」**的治理动作\n⇒ ⇒ ⇒ 而 `signature_matrix_service` 里**零审计** ⇒ ⇒ ⇒ 这一条\n**由本端点补上**。",
+        "operationId": "apply_template_api_v1_projects__project_id__apply_template_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Apply Template Api V1 Projects  Project Id  Apply Template Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/pipe-line-list": {
       "get": {
         "tags": [
@@ -22742,6 +23008,22 @@
         "type": "object",
         "title": "ApplicableConditions",
         "description": "设备适用工况区间（equip_lib.applicable_conditions_json 内嵌段）。\n\n业务：标准化沉淀时记录设备适用的压力/温度/介质区间（自由文本格式如\n\"0.1~2.5 MPa\"/\"-20~200 °C\"）；便于后续项目选型快速匹配复用。"
+      },
+      "ApplyTemplateRequest": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Template Id",
+            "description": "要应用的模板"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id"
+        ],
+        "title": "ApplyTemplateRequest",
+        "description": "把模板应用到项目的请求体（P10-K · W-3d）。\n\n⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。"
       },
       "ApprovalStepRequest": {
         "properties": {
@@ -36938,11 +37220,8 @@
             "description": "设计阶段"
           },
           "unit_system": {
-            "type": "string",
-            "maxLength": 20,
-            "minLength": 1,
-            "title": "Unit System",
-            "description": "单位制（SI 等）"
+            "$ref": "#/components/schemas/UnitSystem",
+            "description": "默认**显示**单位制 (SI/US) —— 存储恒为 canonical(SI)，本字段只决定显示"
           },
           "workspace_id": {
             "type": "string",
@@ -36951,10 +37230,8 @@
             "description": "所属 FORMAL 工作区（必须已存在）"
           },
           "status": {
-            "type": "string",
-            "maxLength": 20,
-            "title": "Status",
-            "description": "项目状态",
+            "$ref": "#/components/schemas/ProjectStatus",
+            "description": "项目两态 (DRAFT/ACTIVE) —— ⚠️ 向导第 1 步显式传 DRAFT（DRAFT 只是「没走完」的标签，不改变任何行为）",
             "default": "ACTIVE"
           },
           "product_category": {
@@ -37043,6 +37320,12 @@
           "electricity_value_type": {
             "type": "string",
             "title": "Electricity Value Type"
+          },
+          "unit_system": {
+            "$ref": "#/components/schemas/UnitSystem"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
           }
         },
         "type": "object",
@@ -37052,7 +37335,9 @@
           "project_name",
           "project_type",
           "product_category",
-          "electricity_value_type"
+          "electricity_value_type",
+          "unit_system",
+          "status"
         ],
         "title": "ProjectOut",
         "description": "项目只读响应 (product_category 视角的最小字段集)."
@@ -37198,6 +37483,29 @@
         "title": "ProjectPipeClassOverrideRequest",
         "description": "项目级管号等级字段覆盖请求体（PATCH /project-pipe-classes/{id}）。\n\n业务：override 仅覆盖同名字段（与公司级 fork 后合并）；不影响 snapshot_json。"
       },
+      "ProjectStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "ACTIVE"
+        ],
+        "title": "ProjectStatus",
+        "description": "项目**两态**（P10-K · W-2c · 兑现 SPEC §12.4 V1.6 的旧承诺）。\n\n⚠️ **`DRAFT` 不是状态机** —— 它是「**由向导建了但没走完**」的**标签**\n⇒ ⇒ ⇒ 今天**没有任何守卫读 `Project.status`** ⇒ ⇒ ⇒ 加它**零行为影响**\n⇒ ⇒ ⇒ 转换**只单向** `DRAFT → ACTIVE`（没有「DRAFT → 取消/删除」）\n⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）。\n\n⚠️ 历史上 `Project.status` 的 docstring 写过「ARCHIVED / IN_PROGRESS /\nCLOSED 等 5-state 设计待业务需求驱动落地」⇒ ⇒ ⇒ 本枚举**只落 2 值**\n⇒ ⇒ ⇒ 其余那些**没有实现** ⇒ ⇒ ⇒ 也不在 CHECK 里。"
+      },
+      "ProjectStatusUpdate": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus",
+            "description": "目标状态 (DRAFT/ACTIVE)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ProjectStatusUpdate",
+        "description": "设置项目**状态**的请求体（P10-K · W-2d）。\n\n⚠️ **只允许 `DRAFT → ACTIVE`**（单向）⇒ ⇒ ⇒ 没有「DRAFT → 取消/删除」\n⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）\n⇒ ⇒ ⇒ 端点对**已经是 ACTIVE** 的项目 ⇒ ⇒ ⇒ **409**（不是 200 空转）\n⇒ ⇒ ⇒ 因为「已激活」再激活一次 = 用户以为没生效、其实生效了 ⇒ ⇒ ⇒\n⇒ ⇒ ⇒ 静默 200 会让人**以为失败**。"
+      },
       "ProjectSymbolRequest": {
         "properties": {
           "symbol": {
@@ -37273,6 +37581,59 @@
         "type": "object",
         "title": "ProjectSymbolUpdateRequest",
         "description": "项目级流股符号更新请求体（PUT /projects/{id}/stream-symbols/{id}）。\n\n业务：override 字段重写 + name/category/is_active 增量更新；\npayload.model_dump(exclude_none=True) 排除 None 避免无意清空。"
+      },
+      "ProjectTemplateSummary": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "default_pipe_class_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Default Pipe Class Ids"
+          },
+          "checklist_item_count": {
+            "type": "integer",
+            "title": "Checklist Item Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "version",
+          "status"
+        ],
+        "title": "ProjectTemplateSummary",
+        "description": "项目模板**摘要**（P10-K · W-3 · `GET /api/v1/project-templates` 的响应）。\n\n⚠️ **为什么是「命名响应模型」而不是裸 object** ——\n`scripts/check_openapi_payload_coverage.py` 的棘轮是「裸字段数 ≤ 基线」\n⇒ ⇒ ⇒ 而基线**恰好顶满**（71）⇒ ⇒ ⇒ ⇒ **任何新增的裸 object 端点**\n⇒ ⇒ ⇒ **立刻爆** ⇒ ⇒ ⇒ ⇒ 所以新端点**必须**有命名响应模型\n⇒ ⇒ ⇒（⚠️ **不要照抄** `pipe_codes.py:131` 那个**没有 `response_model`**\n的端点 —— 那是最容易抄到的形状 ⇒ ⇒ ⇒ 抄它就把棘轮推爆。）\n\n⚠️ **不含 `default_config_json`** —— 那是**完整配置**（7 段）\n⇒ ⇒ ⇒ 列表端点只给「够选择的信息」⇒ ⇒ ⇒ 完整配置在应用模板时才读。"
       },
       "PsychroResultCreateRequest": {
         "properties": {
@@ -45932,6 +46293,16 @@
             ],
             "title": "Unit"
           },
+          "unit_display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitDisplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "min_length": {
             "anyOf": [
               {
@@ -45984,7 +46355,7 @@
           "widget"
         ],
         "title": "UiSchemaField",
-        "description": "UI 表单 schema 单字段（meta/ui-schemas/{resource} 端点）。\n\n业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举\n+ visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。"
+        "description": "UI 表单 schema 单字段（meta/ui-schemas/{resource} 端点）。\n\n业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举\n+ visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。\n\n⚠️ **必须显式声明 `unit_display`**（P10-K · W-1b）—— `meta.py` 的\n`UiSchemaField(**f)` 走的是 pydantic 默认 `extra=\"ignore\"`\n⇒ ⇒ ⇒ **静默丢弃**未声明的键 ⇒ ⇒ ⇒ 症状 = 字段永远标灰、无任何报错\n⇒ ⇒ ⇒ ⇒ 所以「契约里有没有这个字段」= 「前端能不能换算」⇒ ⇒ ⇒ 必须声明。"
       },
       "UiSchemaResponse": {
         "properties": {
@@ -46012,6 +46383,53 @@
         ],
         "title": "UiSchemaResponse",
         "description": "UI Schema 响应（meta/ui-schemas/{resource} 端点）。\n\n业务：schema_version 版本号 + resource 资源名 + fields 字段列表；\n前端 SchemaForm 直接消费，无需本地硬编码字段。"
+      },
+      "UnitDisplay": {
+        "properties": {
+          "factor": {
+            "type": "number",
+            "title": "Factor"
+          },
+          "offset": {
+            "type": "number",
+            "title": "Offset"
+          },
+          "display_unit": {
+            "type": "string",
+            "title": "Display Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor",
+          "offset",
+          "display_unit"
+        ],
+        "title": "UnitDisplay",
+        "description": "字段的**显示单位变换**（P10-K · W-1b · SPEC §7.5 单位制切换）。\n\n⚠️ **canonical 恒为 SI** ⇒ ⇒ ⇒ 所以这里描述的是**非 SI（US）**那一侧\n⇒ ⇒ ⇒ SI 那一侧是**恒等**（`display = canonical`，单位名 = `UiSchemaField.unit`）。\n\n- `factor` / `offset`：`display = canonical × factor + offset`\n- `display_unit`：显示单位名（如 `psi` / `degF` / `ft`）\n\n⚠️ **这个字段缺了 ⇒ ⇒ ⇒ 前端必须标灰 + 提示**（不是静默不换）\n⇒ ⇒ ⇒ 理由：它是**约定不是类型** ⇒ ⇒ ⇒ 后端新增带单位的字段却忘了填\n⇒ ⇒ ⇒ ⇒ 前端必须**明确**怎么办。"
+      },
+      "UnitSystem": {
+        "type": "string",
+        "enum": [
+          "SI",
+          "US"
+        ],
+        "title": "UnitSystem",
+        "description": "项目的**默认显示单位制**（P10-K · W-2 · SPEC §7.5 单位制切换）。\n\n⚠️ **它不是存储单位** —— 存储**恒为 canonical（SI）** ⇒ ⇒ ⇒ 本枚举只决定\n「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒ 换算是**双向视图变换**\n（读 `canonical→display` · 写 `display→canonical`）⇒ ⇒ ⇒\n⇒ ⇒ **后端永远不因为本枚举改写已存的值**。\n\n⚠️ **与 `app/schemas/psychro.py` 的 `METRIC`/`IMPERIAL` 是同一个轴、\n只是拼写不同** —— psychro 那套的 docstring 明写「METRIC 公制 SI /\nIMPERIAL 英制」⇒ ⇒ ⇒ ⇒ **两套不要合并**（psychro 的 docstring 还写\n「不影响算法，仅标注」⇒ ⇒ ⇒ 而本枚举**要**驱动真实换算）\n⇒ ⇒ ⇒ 合并会让 psychro 的「仅标注」语义被悄悄升级。"
+      },
+      "UnitSystemUpdate": {
+        "properties": {
+          "unit_system": {
+            "$ref": "#/components/schemas/UnitSystem",
+            "description": "默认显示单位制 (SI/US)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit_system"
+        ],
+        "title": "UnitSystemUpdate",
+        "description": "设置项目**默认显示单位制**的请求体（P10-K · W-2b）。\n\n⚠️ **它不是「把库里的值换算一遍」** —— 存储**恒为 canonical（SI）**\n⇒ ⇒ ⇒ 本字段只决定「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒\n⇒ ⇒ ⇒ 改它**不动任何已存的值**。"
       },
       "UpdateProjectConfigRequest": {
         "properties": {

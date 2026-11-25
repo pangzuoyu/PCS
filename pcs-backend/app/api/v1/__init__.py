@@ -33,6 +33,7 @@ from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.pipe_line_list import router as pipe_line_list_router  # P10-C · T2（TODO-159）
 from app.api.v1.pipe_net import router as pipe_net_router
 from app.api.v1.pms import router as pms_router  # P10-H · T2（TODO-195）PMS 材料规格
+from app.api.v1.project_templates import router as project_templates_router  # P10-K · W-3 项目模板
 from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
@@ -104,6 +105,7 @@ api_router.include_router(restriction_router)  # P6-1 Task 14
 api_router.include_router(thermosiphon_router)  # P5-0-1b T1
 api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
 api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
+api_router.include_router(project_templates_router)  # P10-K · W-3 项目模板 / 应用模板
 api_router.include_router(pipe_line_list_router)  # P10-C · T2（TODO-159）管道一览表
 api_router.include_router(pms_router)  # P10-H · T2（TODO-195）PMS 材料规格
 api_router.include_router(bedd_router)  # P10-H · T2（TODO-195）BEDD 文档

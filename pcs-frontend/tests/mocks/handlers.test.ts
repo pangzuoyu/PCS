@@ -19,6 +19,7 @@ import { signatureMatrixHandlers } from "../../src/mocks/signatureMatrices";
 import { changeNoticeHandlers } from "../../src/mocks/changeNotices";
 import { signFlowHandlers } from "../../src/mocks/signFlow";
 import { metaSeed } from "../../src/mocks/seed/meta";
+import { seedProjectTemplates } from "../../src/mocks/seed/pms";
 import { seedPipeLineRows } from "../../src/mocks/seed/pipe-line";
 import { seedStreams } from "../../src/mocks/seed/streams";
 import { seedDeliverables } from "../../src/mocks/seed/deliverables";
@@ -81,6 +82,19 @@ function inlineRefs(node: unknown, docRoot: unknown = node): unknown {
     return out;
   }
   return walk(node);
+}
+
+/** 按**完整路径**校验（P10-K · W-13 —— 新端点不在 `/meta/` 下）。 */
+function validateAgainstPath(path: string, data: unknown, method = "get") {
+  const op = openapi.paths[path]?.[method];
+  if (!op) throw new Error(`no OpenAPI op for ${method.toUpperCase()} ${path}`);
+  const schemaJson = op.responses["200"].content["application/json"].schema;
+  const schema = schemaJson.$ref
+    ? inlineRefs(resolveRef(openapi, schemaJson.$ref), openapi)
+    : inlineRefs(schemaJson, openapi);
+  const validate = ajv.compile(schema as AnySchema);
+  const ok = validate(data);
+  expect(ok, `schema ${path} mismatch: ${JSON.stringify(validate.errors)}`).toBe(true);
 }
 
 function validateAgainst(name: string, data: unknown) {
@@ -154,6 +168,16 @@ describe("meta seed fixture 形状 ↔ OpenAPI", () => {
       expect(roles.has(r), `missing role ${r}`).toBe(true);
     }
     expect(roles.has("SYSADMIN"), "SYSADMIN 应已收敛为 SYSTEM_ADMIN").toBe(false);
+  });
+});
+
+describe("P10-K · 项目模板 seed 形状 ↔ OpenAPI（W-13）", () => {
+  it("GET /project-templates — **不含** `default_config_json`（那是「应用」时才读的）", () => {
+    validateAgainstPath("/api/v1/project-templates", seedProjectTemplates);
+    for (const t of seedProjectTemplates) {
+      expect(t).not.toHaveProperty("default_config_json");
+      expect(t.status).toBe("PUBLISHED");
+    }
   });
 });
 

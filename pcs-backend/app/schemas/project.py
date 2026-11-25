@@ -18,7 +18,7 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import ProductCategory
+from app.models.enums import ProductCategory, ProjectStatus, UnitSystem
 
 
 class ProjectOut(BaseModel):
@@ -32,6 +32,13 @@ class ProjectOut(BaseModel):
     # 派生态: 该项目当前生效的电折标口径 (GB 30251-2024 §6.1.5)
     # 由后端按 product_category 推导后一并返回, 运维不必读代码推断。
     electricity_value_type: str
+    # ⚠️ **默认显示单位制**（P10-K · W-2b）—— 前端 BEDD 页的单位制下拉
+    # **默认取项目值** ⇒ ⇒ ⇒ 所以必须暴露 ⇒ ⇒ ⇒ 它是**显示**单位制，
+    # **不是**存储单位（存储恒为 canonical/SI）。
+    unit_system: UnitSystem
+    # ⚠️ **项目两态**（P10-K · W-2c）—— `DRAFT` = 向导没走完
+    # ⇒ ⇒ ⇒ ⚠️ **今天没有任何守卫读它** ⇒ ⇒ ⇒ 它只是**标签**。
+    status: ProjectStatus
 
 
 class ProductCategoryUpdate(BaseModel):
@@ -45,6 +52,32 @@ class ProductCategoryUpdate(BaseModel):
             "(0.086 kg标油/kWh)"
         ),
     )
+
+
+class UnitSystemUpdate(BaseModel):
+    """设置项目**默认显示单位制**的请求体（P10-K · W-2b）。
+
+    ⚠️ **它不是「把库里的值换算一遍」** —— 存储**恒为 canonical（SI）**
+    ⇒ ⇒ ⇒ 本字段只决定「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒
+    ⇒ ⇒ ⇒ 改它**不动任何已存的值**。
+    """
+
+    unit_system: UnitSystem = Field(
+        ..., description="默认显示单位制 (SI/US)"
+    )
+
+
+class ProjectStatusUpdate(BaseModel):
+    """设置项目**状态**的请求体（P10-K · W-2d）。
+
+    ⚠️ **只允许 `DRAFT → ACTIVE`**（单向）⇒ ⇒ ⇒ 没有「DRAFT → 取消/删除」
+    ⇒ ⇒ ⇒ 弃单项目**可被识别、可被清理**（运维只需 `status='DRAFT'` 一句）
+    ⇒ ⇒ ⇒ 端点对**已经是 ACTIVE** 的项目 ⇒ ⇒ ⇒ **409**（不是 200 空转）
+    ⇒ ⇒ ⇒ 因为「已激活」再激活一次 = 用户以为没生效、其实生效了 ⇒ ⇒ ⇒
+    ⇒ ⇒ ⇒ 静默 200 会让人**以为失败**。
+    """
+
+    status: ProjectStatus = Field(..., description="目标状态 (DRAFT/ACTIVE)")
 
 
 class ProjectCreate(BaseModel):
@@ -75,9 +108,19 @@ class ProjectCreate(BaseModel):
     location: str = Field(min_length=1, max_length=500, description="所在地")
     project_type: str = Field(min_length=1, max_length=30, description="项目类型")
     design_phase: str = Field(min_length=1, max_length=30, description="设计阶段")
-    unit_system: str = Field(min_length=1, max_length=20, description="单位制（SI 等）")
+    unit_system: UnitSystem = Field(
+        description=(
+            "默认**显示**单位制 (SI/US) —— 存储恒为 canonical(SI)，本字段只决定显示"
+        )
+    )
     workspace_id: uuid.UUID = Field(description="所属 FORMAL 工作区（必须已存在）")
-    status: str = Field(default="ACTIVE", max_length=20, description="项目状态")
+    status: ProjectStatus = Field(
+        default=ProjectStatus.ACTIVE,
+        description=(
+            "项目两态 (DRAFT/ACTIVE) —— ⚠️ 向导第 1 步显式传 DRAFT"
+            "（DRAFT 只是「没走完」的标签，不改变任何行为）"
+        ),
+    )
     product_category: ProductCategory = Field(
         default=ProductCategory.OTHER,
         description="产品类别（GB 30251-2024 §6.1.5 电折标口径判据）",
