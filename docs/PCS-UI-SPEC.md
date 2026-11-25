@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V2.22
+当前版本: V2.23
 发布日期: 2026-11-25
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
@@ -1710,15 +1710,15 @@ BEDD 默认结构
 
 撤销批准角色
 
-⚠️ **这 11 项与「模板应用」的对应关系**（2026-11-25 实测登记 + **同日裁决**）——
-**9 项已落 · 2 项已定规则待实现**：
+⚠️ **这 11 项与「模板应用」的对应关系**（2026-11-25 实测登记 + **同日裁决**
++ **同日落地**）—— **11 项全已落**：
 
 | # | 项 | 落点 | 状态 |
 |---|---|---|---|
 | 1 | 输入清单模板 | `project_input_checklist` 行（**按 `item_key` 幂等**）| ✅ 已落 |
-| 2 | 默认单位制 | `projects.unit_system`（**有列**）| ⚠️ **规则已定 · 待实现**（见下「D1」）|
+| 2 | 默认单位制 | `projects.unit_system`（**有列**）+ `project_templates.unit_system`（模板的默认值）| ✅ 已落（D1 · 2026-11-25 落地 · 见下）|
 | 3 | 默认管道等级 | `project_template_pipe_classes` 关联行 | ✅ 已落 |
-| 4 | BEDD_JSON 默认结构 | `projects.bedd_json`（**有列**）| ⚠️ **规则已定 · 待实现**（见下「D3」）|
+| 4 | BEDD_JSON 默认结构 | `projects.bedd_json`（**有列**）+ `project_templates.bedd_defaults_json`（模板的预填值）| ✅ 已落（D3 · 2026-11-25 落地 · 见下）|
 | 5 | 版本序列配置 | `projects.version_sequence_skip_alpha_versions` + `_allowed_purposes` | ✅ 已落 |
 | 6 | 签署矩阵绑定 | `project_signature_matrix_bindings`（**唯一干净落点**）| ✅ 已落 |
 | 7 | 记录批准深度 | `record_approval` 段 ⇒ ⇒ **条件化改绑**（只替自动绑的默认）| ✅ 已落 |
@@ -1733,7 +1733,7 @@ BEDD 默认结构
 本节**不承载**它 ⇒ ⇒ ⇒ 若将来要「项目级模块启用」（藏导航？拦端点？）⇒ ⇒ ⇒
 那是**新功能 + 权限口径** ⇒ ⇒ ⇒ ⇒ 另开一批。
 
-⚠️ **两条待实现项的规则（2026-11-25 人裁）**：
+✅ **两条规则的落地（2026-11-25 人裁 · 同日落地 · TODO-210 批）**：
 
 **D1 · 默认单位制 = 「默认值」** ⇒ ⇒ ⇒ **用户显式选过 ⇒ ⇒ ⇒ 不覆盖**
 
@@ -1756,10 +1756,23 @@ BEDD 默认结构
   **不丢用户数据**；
 - ⇒ ⇒ ⇒ 用户第 4 步录 BEDD 时看到的是「已按模板预填的初值」。
 
+✅ **落点**（2026-11-25 · TODO-210 批）：
+
+| 位置 | 内容 |
+|---|---|
+| `project_templates.unit_system` | 模板的**默认**单位制（`SI` / `US`）⇒ ⇒ ⇒ **可空** ⇒ ⇒ ⇒ 「没带默认」是合法的 ⇒ ⇒ ⇒ CHECK `ck_project_templates_unit_system`（与 `projects.unit_system` **同一个词表**）|
+| `project_templates.bedd_defaults_json` | `{"分组.字段": 值}` ⇒ ⇒ ⇒ apply **只填空缺** ⇒ ⇒ ⇒ 字段路径**对着 `BEDD_FIELDS` 校验** ⇒ ⇒ ⇒ 不认识的路径 ⇒ ⇒ ⇒ **422 `TEMPLATE_BEDD_DEFAULTS_INVALID`**（不是静默丢弃）|
+| `POST /projects/{id}/apply-template` 的 body | `unit_system_source: 'FORM' \| 'TEMPLATE'` ⇒ ⇒ ⇒ **默认 `FORM`**（保守：不动用户的值）⇒ ⇒ ⇒ 响应 `segments.unit_system` ∈ `applied:<X>` / `kept_form_value` / `skipped_no_template_default` |
+| 向导第 4 步 | 两者不一致 ⇒ ⇒ ⇒ 出提示「模板的单位制是 X，你选的是 Y ⇒ ⇒ ⇒ 以**你的**为准」⇒ ⇒ ⇒ **不静默** |
+
+⚠️ **两个模板默认值必须各占一列** ⇒ ⇒ ⇒ **不能塞进 `default_config_json`**
+⇒ ⇒ ⇒ 那里只有 7 段的 pydantic 模型 ⇒ ⇒ ⇒ ⇒ 多出来的键会被**静默丢弃**
+⇒ ⇒ ⇒ ⇒ （= bug-2210 同款）。
+
 ⚠️ **这两项都不需要改向导的 4 步顺序** ⇒ ⇒ ⇒ ⚠️ 初版 §十 写的「要补就得
 让**模板选择前置于建项目**」**已作废**（用户质疑后复核：三项里两项**本来就有
 落点**、第三项是**概念缺口**）⇒ ⇒ ⇒ ⇒ 真正待定的是**两条规则**（已裁）+
-**一处落库**（已裁）。
+**一处落库**（已裁）⇒ ⇒ ⇒ ⇒ **三条已全部落地**（2026-11-25 · TODO-210 批）。
 
 ⚠️ **`record_approval` ↔ `signature_matrix` 互斥** ⇒ ⇒ ⇒ **一条模板填不满
 11 项** ⇒ ⇒ ⇒ ⇒ 种子种**两条**（签署矩阵型 / 审批深度型）⇒ ⇒ ⇒ ⇒
@@ -2782,6 +2795,7 @@ V2.19	2026-11-24	P10-J · T2 新增 **§7.18.1「打回」动作**（TODO-197b �
 V2.20	2026-11-25	新增 **§7.18.2 公司级模板「执行时选项目」**（TODO-177）：①**为什么**：公司级模板（`project_id IS NULL`）**不绑定项目** ⇒ ⇒ ⇒ 不选就执行 ⇒ ⇒ ⇒ **不带项目过滤的全库扫描** ⇒ ⇒ ⇒ 导出件混着别的项目的数据而**用户看不出来** ⇒ ⇒ ⇒ 这是「以为跑的是 A 其实是 B」类事故的**唯一闸门**；②**scope 解析规则**（服务端裁决）：项目级 + 不带 ⇒ ⇒ **定义自带项目**；项目级 + 带**别的** ⇒ ⇒ **400** `REPORT_PROJECT_SCOPE_MISMATCH`（**不静默忽略**）；公司级 + 带**有权**的项目 ⇒ ⇒ **请求指定的项目**；公司级 + 带**无权**的项目 ⇒ ⇒ **404** `PROJECT_NOT_FOUND`（与「不存在」同形）；公司级 + 不带 ⇒ ⇒ **400** `REPORT_PROJECT_SCOPE_REQUIRED`；③**必选、无默认**（2026-11-24 人裁）⇒ ⇒ ⇒ 也**不取**顶栏当前项目 ⇒ ⇒ ⇒ 用户**必须亲手选** ⇒ ⇒ ⇒ **不设二次确认弹窗**（人裁）；④⚠️ **作用域要在选中之前可见** ⇒ ⇒ ⇒ 定义下拉每项标「公司级 / 项目级」⇒ ⇒ ⇒ 否则用户选中公司级模板时界面**没有任何提示**说明它还要再选一个项目；⑤**候选按角色分**（普通用户 = `GET /user-projects/me` 的**自己的授权行** · `SYSTEM_ADMIN` = `GET /workspaces`）⇒ ⇒ ⇒ **不复用**顶栏 `useProjectScope` 的候选列表（那条「工作区」的腿按**所有权**过滤 ⇒ ⇒ ⇒ 授权被撤的项目仍在里面 ⇒ ⇒ ⇒ 用户选了才吃 404）；⑥**执行面板的选择是局部状态** ⇒ ⇒ ⇒ **不写**全局顶栏项目作用域；⑦**没选项目 ⇒ ⇒ 执行按钮禁用**（不给「点了才 400」）⇒ ⇒ ⇒ 同理**定义详情未到达**时也禁用；⑧⚠️ **错误按 `code` 分流**（`REPORT_PROJECT_SCOPE_REQUIRED` / `REPORT_PROJECT_SCOPE_MISMATCH` / `PROJECT_NOT_FOUND` / `REPORT_DEFINITION_NOT_FOUND` / `REPORT_DATASOURCE_NOT_PROJECT_SCOPED` 各一句「该干什么」）⇒ ⇒ ⇒ **文案取后端 `message` 原文**，前端只**补**下一步动作；⑨⚠️ **建定义时拒**「公司级 + 主数据源没有 `project_id` 列」（`DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS`）⇒ ⇒ ⇒ 那是「批量生产永远跑不了的死路」⇒ ⇒ ⇒ 在**源头**拦住（400 `REPORT_DATASOURCE_NOT_PROJECT_SCOPED`）⇒ ⇒ ⇒ 执行侧给**同一个可区分的错误码**（不与「没选项目」混用 ⇒ ⇒ ⇒ 用户选了也没用 ⇒ ⇒ ⇒ 必须能区分）；⑩**契约是增量**：`ReportExecuteRequest` 加**可选** `project_id`（`uuid`）⇒ ⇒ ⇒ 前端类型已重生成。	Claude Code
 V2.21	2026-11-25	P10-K 新增 **§7.5 项目向导改 4 步 + 单位制换算口径** + **§7.10.6 的 12 项对应关系登记**（TODO-195 / TODO-203 / TODO-177b · 计划 `docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md`）：①**4 步**（建项目 → 项目人员 → 选模板 → 确认）—— ⚠️ **BEDD 必须在项目建完后录**（2026-11-24 人裁：BEDD 是项目的基本依据文件）⇒ ⇒ ⇒ 第 4 步给「去项目录 BEDD」的**深链**入口 ⇒ ⇒ ⇒ **不嵌** BEDD 表单；②⚠️ **第 1 步建的项目一律 `status='DRAFT'`** ⇒ ⇒ ⇒ 中途弃单**可被识别**（运维一句 `status='DRAFT'`）⇒ ⇒ ⇒ 第 2/3 步失败 ⇒ ⇒ ⇒ **保留项目 + 明确告知 + 两个出口** ⇒ ⇒ ⇒ **不引入删除能力**（本仓没有删除项目的端点）；③⚠️ **向导不可重入** + **`/wizard` 挪进 admin 组**（第 1/2/3 步全是 SYSTEM_ADMIN 闸 ⇒ ⇒ ⇒ 非管理员**看不到入口**）；④**项目两态**（`DRAFT`/`ACTIVE`）—— 兑现 §12.4 V1.6 早就承诺过、但模型里一直没落地的旧承诺 ⇒ ⇒ ⇒ ⚠️ **它不是状态机**（今天**没有任何守卫读** `Project.status` ⇒ ⇒ ⇒ 零行为影响）⇒ ⇒ ⇒ 只**单向** `DRAFT → ACTIVE`；⑤**单位制切换**：**存储恒为 canonical（SI）** + 换算是**双向视图变换** + **下拉默认取项目值**、切换 = **页面临时覆盖**（不写项目）⇒ ⇒ ⇒ ⚠️ **只有 8 个字段能换算**（其余 10 个**标灰但仍可录入**、35 个无单位）⇒ ⇒ ⇒ ⚠️ **换算因子由后端拥有**（`UiSchemaField.unit_display`）⇒ ⇒ ⇒ 前端**没有换算表** ⇒ ⇒ ⇒ ⚠️ 但那是**约定不是类型** ⇒ ⇒ ⇒ ⇒ 后端漏填因子 ⇒ ⇒ ⇒ ⇒ 前端**标灰 + 提示**（不是静默不换）⇒ ⇒ ⇒ ⚠️ **提示文案按实际量纲生成**（不再用「1 bar = 100 kPa」那句 —— US 是 psi）⇒ ⇒ ⇒ ⚠️ **往返相对误差 ≤ 1e-9**（**14.5 psi = 99.97 kPa**，不是 100）⇒ ⇒ ⇒ ⚠️ **标签里不再写单位**（否则 US 模式下标签写 kPa、值是 psi）；⑥**§7.10.6 的 12 项对应关系登记**（**9 项已落 · 3 项待定**：默认单位制 / 默认模块启用状态 / BEDD_JSON 默认结构 ⇒ ⇒ ⇒ ⚠️ **2026-11-25 复核修正**：那三项**不是**「要求模板选择先于建项目」⇒ ⇒ ⇒ 「默认单位制」与「BEDD 默认结构」**都有落点**（`projects.unit_system` / `projects.bedd_json`）⇒ ⇒ ⇒ **不需要改 4 步顺序** ⇒ ⇒ ⇒ 「默认模块启用状态」是**概念缺口**（今天只在 **license 级**）⇒ ⇒ ⇒ ⇒ 待裁的是**三条规则**，不是顺序）⇒ ⇒ ⇒ ⚠️ **`record_approval` ↔ `signature_matrix` 互斥** ⇒ ⇒ ⇒ **一条模板填不满** ⇒ ⇒ ⇒ ⇒ 种子种**两条**；⑦**新错误码 / 端点**：`400 REPORT_TEMPLATE_MATRIX_NOT_FOUND` / `409 TEMPLATE_NOT_PUBLISHED` / `409 PROJECT_STATUS_TRANSITION_INVALID` / `409 PROJECT_STATUS_UNCHANGED` + `GET /project-templates` · `POST /projects/{id}/apply-template` · `PATCH /projects/{id}/unit-system` · `PATCH /projects/{id}/status`；⑧⚠️ **`UnitSystem`（SI/US）与 psychro 的 `METRIC/IMPERIAL` 是同一个轴、只是拼写不同** ⇒ ⇒ ⇒ **两套不要合并**（psychro 那套的 docstring 明写「不影响算法，仅标注」）⇒ ⇒ ⇒ 本 SPEC **登记**这层关系；⑨**契约是增量**：`ReportExecuteRequest` 之外的改动 = `ProjectOut` 加 `unit_system`/`status` + `UiSchemaField` 加 `unit_display` + 4 个新端点 ⇒ ⇒ ⇒ 前端类型已重生成。	Claude Code
 V2.22	2026-11-25	**§7.10.6「项目模板」的 12 项 ⇒ ⇒ ⇒ 减到 11 项 + 两条规则落定**（同日人裁 D1/D2/D3）：①**D1 · 默认单位制 = 「默认值」** ⇒ ⇒ ⇒ **用户显式选过 ⇒ ⇒ ⇒ 不覆盖**（用户的显式选择优先）⇒ ⇒ ⇒ 「用户动没动过」**由前端判定**（向导持有表单状态）⇒ ⇒ ⇒ 前端传「**单位制由谁决定**」⇒ ⇒ ⇒ 后端**不猜** ⇒ ⇒ ⇒ 契约：`POST /projects/{id}/apply-template` 的 body 加 `unit_system_source: 'FORM' | 'TEMPLATE'`；②**D2 · 「默认模块启用状态」从本节划掉** ⇒ ⇒ ⇒ 「模块启用」是 **license 级**的事（`license_configs.modules_json`）⇒ ⇒ ⇒ 且它今天**全仓零读者** ⇒ ⇒ ⇒ 项目级再开一份 = **同一个概念两个真相源** ⇒ ⇒ ⇒ ⇒ 若将来要「项目级模块启用」（藏导航？拦端点？）⇒ ⇒ ⇒ 那是**新功能 + 权限口径** ⇒ ⇒ ⇒ ⇒ 另开一批；③**D3 · BEDD_JSON 默认结构 = 「模板预填默认值」** ⇒ ⇒ ⇒ 模板带 `bedd_defaults`（`分组.字段` → 值）⇒ ⇒ ⇒ apply **只填空缺**（用户已填的不动）⇒ ⇒ ⇒ 与「**输入清单**」**完全同款**（按 key 幂等）⇒ ⇒ ⇒ 重复 apply **不丢用户数据**；④⚠️ **修正了本 SPEC V2.21 与计划 §十 的一处推论** —— 那两处写的「那 3 项都是『模板给新项目预填』⇒ ⇒ ⇒ **要补就得让模板选择前置于建项目** ⇒ ⇒ ⇒ 与『项目先建』冲突」**已作废**（用户质疑后复核：三项里**两项本来就有落点**（`projects.unit_system` / `projects.bedd_json`）· 第三项是**概念缺口**）⇒ ⇒ ⇒ ⇒ **两项都不需要改向导的 4 步顺序**；⑤本版**只裁规则、不改实现** ⇒ ⇒ ⇒ D1/D3 的落库（契约增量 + `project_templates` 两个新列 + apply 逻辑 + 向导告知）⇒ ⇒ ⇒ 属**下一批**。	Claude Code
+V2.23	2026-11-25	**§7.10.6 的 D1 / D3 两条规则落地**（TODO-210 批 · V2.22 的「属下一批」兑现）：①**§7.10.6 的 11 项 ⇒ ⇒ ⇒ 全部已落**（第 2 / 4 项从「规则已定 · 待实现」改成「✅ 已落」）；②**两个模板默认值各占一列** —— `project_templates.unit_system`（`VARCHAR(2)` · 可空 · CHECK `ck_project_templates_unit_system` 与 `projects.unit_system` **同一个词表**）+ `project_templates.bedd_defaults_json`（`JSONB` · 可空 · `{"分组.字段": 值}`）⇒ ⇒ ⇒ ⚠️ **不能塞进 `default_config_json`** ⇒ ⇒ ⇒ 那里只有 7 段的 pydantic 模型 ⇒ ⇒ ⇒ ⇒ 多出来的键会被**静默丢弃**（= bug-2210 同款）；③**契约增量** —— `POST /projects/{id}/apply-template` 的 body 加 `unit_system_source: 'FORM' | 'TEMPLATE'`（**默认 `FORM`** ⇒ ⇒ ⇒ 保守：不动用户的值）⇒ ⇒ ⇒ 响应 `segments.unit_system` ∈ `applied:<X>` / `kept_form_value` / `skipped_no_template_default`；④**D3 只填空缺** ⇒ ⇒ ⇒ 字段路径**对着 `BEDD_FIELDS` 校验** ⇒ ⇒ ⇒ 不认识的路径 ⇒ ⇒ ⇒ **422 `TEMPLATE_BEDD_DEFAULTS_INVALID`**（不是静默丢弃）⇒ ⇒ ⇒ 与「输入清单」**完全同款**（按 key 幂等）⇒ ⇒ ⇒ 重复 apply **不丢用户数据**；⑤**向导第 4 步的告知** —— 模板的默认单位制与用户选的不一致 ⇒ ⇒ ⇒ 出提示「模板的单位制是 X，你选的是 Y ⇒ ⇒ ⇒ 以**你的**为准」⇒ ⇒ ⇒ **不静默**；⑥**后端不猜** —— 「用户动没动过」**由前端判定**（向导持有表单状态 ⇒ antd Form 的 `onValuesChange`）⇒ ⇒ ⇒ 后端只认 `unit_system_source` ⇒ ⇒ ⇒ 猜错 = 静默推翻用户的显式选择。	Claude Code
 
 ---
 

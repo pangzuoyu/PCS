@@ -138,9 +138,21 @@ async def main():
             status="ACTIVE",
         )
 
+    def bad_template_unit():
+        # ⚠️ 模板的**默认单位制**（P10-K · TODO-210 · D1）—— 同款 CHECK
+        return ProjectTemplate(
+            name=f"tpl-badu-{uuid.uuid4().hex[:6]}",
+            industry="CHEMICAL",
+            default_config_json={},
+            version="1.0.0",
+            status="DRAFT",
+            unit_system="公制",
+        )
+
     await expect_check_violation("unit_system", bad_unit)
     await expect_check_violation("status", bad_status)
     await expect_check_violation("template_status", bad_template_status)
+    await expect_check_violation("template_unit_system", bad_template_unit)
 
     # ⇒ ⇒ ⇒ 合法值**能插进去**（约束不是「全拒」）
     async with maker() as s:

@@ -86,6 +86,14 @@ export function ProjectWizardPage(): JSX.Element {
   // ---- 第 1 步的产物 -------------------------------------------------
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectNo, setProjectNo] = useState<string>('');
+  // ⚠️ **「用户动没动过单位制」**（P10-K · TODO-210 · D1 裁决）——
+  // ⇒ ⇒ ⇒ 只有表单知道 ⇒ ⇒ ⇒ 向导记下来 ⇒ ⇒ ⇒ apply 时**明说**给后端
+  // ⇒ ⇒ ⇒ ⇒ 后端**不猜**（「猜错」= 静默推翻用户的显式选择）。
+  const [unitSystemTouched, setUnitSystemTouched] = useState(false);
+  /** 用户在创建表单里选的单位制（D1 的告知要用）。 */
+  const [chosenUnitSystem, setChosenUnitSystem] = useState<'SI' | 'US'>('SI');
+  /** 模板的默认单位制与用户选的不一致 ⇒ ⇒ ⇒ **明确告知**（不静默）。 */
+  const [unitSystemNotice, setUnitSystemNotice] = useState<string | null>(null);
   // ---- 第 2 步 -------------------------------------------------------
   const [grantUserId, setGrantUserId] = useState<string>('');
   const [grantRole, setGrantRole] = useState<ProjectRole>('DESIGNER');
@@ -130,6 +138,8 @@ export function ProjectWizardPage(): JSX.Element {
       });
       setProjectId(created.project_id);
       setProjectNo(created.project_no);
+      // ⚠️ **记下用户在表单里选的单位制**（D1 的告知要用）
+      setChosenUnitSystem((values.unit_system as 'SI' | 'US') ?? 'SI');
       // ⚠️ **store 的候选列表要刷新**（P10-K · W-16）⇒ ⇒ ⇒ 否则刚建的项目
       // **不出现在顶栏** ⇒ ⇒ ⇒ 「去项目」没有明确目标。
       await useProjectScopeStore.getState().refresh();
@@ -171,7 +181,18 @@ export function ProjectWizardPage(): JSX.Element {
     setSubmitting(true);
     setErrorMsg(null);
     try {
-      await projectTemplatesApi.apply(projectId, templateId);
+      const source = unitSystemTouched ? 'FORM' : 'TEMPLATE';
+      await projectTemplatesApi.apply(projectId, templateId, source);
+      // ⚠️ **两者不一致 ⇒ ⇒ ⇒ 明确告知**（D1 · 不静默）
+      const tpl = templates.find((t) => t.template_id === templateId);
+      if (tpl?.unit_system && tpl.unit_system !== chosenUnitSystem) {
+        setUnitSystemNotice(
+          `模板的单位制是 ${tpl.unit_system}，你在建项目时选的是 ${chosenUnitSystem}` +
+            ' ⇒ ⇒ ⇒ 以「你的选择」为准（模板的单位制只是默认值，不覆盖你选过的）。',
+        );
+      } else {
+        setUnitSystemNotice(null);
+      }
       setPartial(null);
       setCurrent(3);
     } catch (err: unknown) {
@@ -260,6 +281,9 @@ export function ProjectWizardPage(): JSX.Element {
             form={form}
             submitting={submitting}
             hiddenValues={{ status: 'DRAFT' }}
+            onValuesChange={(changed) => {
+              if ('unit_system' in changed) setUnitSystemTouched(true);
+            }}
             onFinish={(v) => void createProject(v)}
           />
         ) : null}
@@ -350,6 +374,15 @@ export function ProjectWizardPage(): JSX.Element {
                 },
               ]}
             />
+            {unitSystemNotice ? (
+              <Alert
+                type="info"
+                showIcon
+                message="单位制：模板的默认值没有覆盖你的选择"
+                description={unitSystemNotice}
+                data-testid="wizard-unit-system-notice"
+              />
+            ) : null}
             <Typography.Text type="secondary">
               确认 ⇒ ⇒ ⇒ 项目转 <b>ACTIVE</b> ⇒ ⇒ ⇒ 然后去项目录 BEDD
               （BEDD 是项目的基本依据文件 ⇒ ⇒ ⇒ 必须在项目建好后录）。

@@ -1501,10 +1501,27 @@ export const handlers = [
   //   真正写的那一刻才炸 ⇒ ⇒ ⇒ ⇒ 「点进去才发现」的老毛病）。
   http.post("/api/v1/projects/:project_id/apply-template", async ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    const body = (await request.json()) as { template_id?: string };
+    const body = (await request.json()) as {
+      template_id?: string;
+      unit_system_source?: string;
+    };
     if (!body?.template_id) {
       return HttpResponse.json(
         { code: "VALIDATION_ERROR", message: "缺少 template_id" },
+        { status: 422 },
+      );
+    }
+    // ⚠️ **来源合法性**（D1）⇒ ⇒ ⇒ 非法值 ⇒ ⇒ ⇒ 422（不是静默当 FORM）
+    if (
+      body.unit_system_source !== undefined &&
+      body.unit_system_source !== "FORM" &&
+      body.unit_system_source !== "TEMPLATE"
+    ) {
+      return HttpResponse.json(
+        {
+          code: "VALIDATION_ERROR",
+          message: `unit_system_source 只能是 FORM / TEMPLATE（收到 ${body.unit_system_source}）`,
+        },
         { status: 422 },
       );
     }
@@ -1519,7 +1536,16 @@ export const handlers = [
       template_id: tpl.template_id,
       template_name: tpl.name,
       template_version: tpl.version,
-      segments: { stream_approval: "applied", checklist_json: "seeded:0" },
+      segments: {
+        stream_approval: "applied",
+        checklist_json: "seeded:0",
+        // ⚠️ **D1**：来源 = TEMPLATE ⇒ ⇒ ⇒ 模板的默认单位制**生效**
+        //   ⇒ ⇒ ⇒ FORM ⇒ ⇒ ⇒ **保留用户的值**（kept_form_value）
+        unit_system:
+          body.unit_system_source === "TEMPLATE" && tpl.unit_system
+            ? `applied:${tpl.unit_system}`
+            : "kept_form_value",
+      },
     });
   }),
   // ⚠️ **项目状态**（P10-K · W-2d）—— 向导第 4 步「确认」调它。

@@ -226,6 +226,19 @@ class ProjectTemplate(TimestampMixin, Base):
         Uuid, ForeignKey("config_assets.asset_id"), nullable=True
     )
     checklist_json: Mapped[dict | None] = mapped_column(JSON)
+    # ⚠️ **模板的「默认单位制」**（P10-K · TODO-210 · D1 裁决）——
+    #   **默认值**语义 ⇒ ⇒ ⇒ 「用户显式选过 ⇒ ⇒ ⇒ 不覆盖」（裁决 D1）
+    #   ⇒ ⇒ ⇒ 值域 = `UnitSystem`（SI / US）⇒ ⇒ ⇒ 存**可空**（NULL = 该模板
+    #   不带默认单位制 ⇒ ⇒ ⇒ apply 时**不动**项目的单位制）。
+    # ⚠️ **为什么单独一列、不是塞进 `default_config_json`** —— 那里只有 7 段的
+    #   pydantic 模型（`ProjectTemplateConfig`）⇒ ⇒ ⇒ 多出来的键会被
+    #   **静默丢弃**（= bug-2210 同款）⇒ ⇒ ⇒ ⇒ 必须**各占一列**。
+    unit_system: Mapped[str | None] = mapped_column(String(2))
+    # ⚠️ **模板的「BEDD 默认值」**（P10-K · TODO-210 · D3 裁决）——
+    #   形状 = `{"分组.字段": 值}`（如 `{"meteorology.pressure": 101.325}`）
+    #   ⇒ ⇒ ⇒ apply 时**只填空缺**（用户已填的不动）⇒ ⇒ ⇒ 与「输入清单」
+    #   **完全同款**（按 key 幂等）⇒ ⇒ ⇒ 重复 apply **不丢用户数据**。
+    bedd_defaults_json: Mapped[dict | None] = mapped_column(JSONB)
     pipe_code_template_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("pipe_code_templates.template_id"), nullable=True,
     )
@@ -235,6 +248,12 @@ class ProjectTemplate(TimestampMixin, Base):
         CheckConstraint(
             "status IN ('DRAFT', 'PUBLISHED', 'OBSOLETE')",
             name="ck_project_templates_status",
+        ),
+        # ⚠️ 与 `projects.unit_system` 同款（词表在代码里 · CHECK 在库里）
+        # ⇒ ⇒ ⇒ **可空** ⇒ ⇒ ⇒ NULL 通过 CHECK（没带默认单位制的模板）。
+        CheckConstraint(
+            "unit_system IS NULL OR unit_system IN ('SI', 'US')",
+            name="ck_project_templates_unit_system",
         ),
     )
 

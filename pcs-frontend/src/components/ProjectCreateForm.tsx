@@ -38,6 +38,16 @@ export interface ProjectCreateFormProps {
   submitting?: boolean;
   /** 额外的表单项（如向导的 `status='DRAFT'` ⇒ ⇒ 隐藏即可，默认不传）。 */
   hiddenValues?: Partial<ProjectCreate>;
+  /**
+   * **哪些字段被用户动过**（`onValuesChange` 的 `changed` 里出现过的键）。
+   *
+   * ⚠️ **为什么需要它** —— P10-K · TODO-210 · **D1 裁决**：「用户动没动过
+   * 单位制」这个信息**只有表单持有** ⇒ ⇒ ⇒ 后端**猜不出来** ⇒ ⇒ ⇒
+   * ⇒ ⇒ ⇒ 调用方**明说**（「单位制由谁决定」）⇒ ⇒ ⇒ 后端照办
+   * ⇒ ⇒ ⇒ ⇒ 否则要么**静默覆盖**用户的显式选择（= 本仓最恨的那类事故）
+   * ⇒ ⇒ ⇒ ⇒ 要么**永远不覆盖**（模板的默认值形同虚设）。
+   */
+  onValuesChange?: (changed: Partial<ProjectCreate>) => void;
 }
 
 type FormInstance<T> = ReturnType<typeof Form.useForm<T>>[0];
@@ -47,6 +57,7 @@ export function ProjectCreateForm({
   onFinish,
   submitting,
   hiddenValues,
+  onValuesChange,
 }: ProjectCreateFormProps): JSX.Element {
   const [workspaces, setWorkspaces] = useState<WorkspaceOut[]>([]);
   const [loadingWs, setLoadingWs] = useState(false);
@@ -87,6 +98,7 @@ export function ProjectCreateForm({
         form={form}
         layout="vertical"
         onFinish={(v) => void onFinish({ ...hiddenValues, ...v })}
+        onValuesChange={(changed) => onValuesChange?.(changed)}
         initialValues={{ product_category: 'OTHER', unit_system: 'SI' }}
       >
         <Form.Item

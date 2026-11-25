@@ -7573,7 +7573,7 @@ export interface components {
         };
         /**
          * ApplyTemplateRequest
-         * @description 把模板应用到项目的请求体（P10-K · W-3d）。
+         * @description 把模板应用到项目的请求体（P10-K · W-3d + TODO-210 · D1）。
          *
          *     ⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。
          */
@@ -7584,6 +7584,11 @@ export interface components {
              * @description 要应用的模板
              */
             template_id: string;
+            /**
+             * @description 「单位制由谁决定」—— FORM = 用户在创建表单里**显式选过** ⇒ ⇒ ⇒ **不覆盖**项目的单位制；TEMPLATE = 用户**没动过** ⇒ ⇒ ⇒ 模板的默认单位制**生效**（模板没带默认单位制 ⇒ ⇒ ⇒ 什么都不做）
+             * @default FORM
+             */
+            unit_system_source: components["schemas"]["UnitSystemSource"];
         };
         /**
          * ApprovalStepRequest
@@ -16109,6 +16114,8 @@ export interface components {
             status: string;
             /** Default Pipe Class Ids */
             default_pipe_class_ids?: string[];
+            /** Unit System */
+            unit_system?: string | null;
             /**
              * Checklist Item Count
              * @default 0
@@ -21028,6 +21035,19 @@ export interface components {
          * @enum {string}
          */
         UnitSystem: "SI" | "US";
+        /**
+         * UnitSystemSource
+         * @description 「单位制由谁决定」（P10-K · TODO-210 · **D1 裁决**）。
+         *
+         *     ⚠️ **为什么由调用方说、而不是后端猜** —— 「**用户动没动过**单位制」这个
+         *     信息**只有向导有**（它持有表单状态 ⇒ antd Form 的 `onValuesChange` 能知道
+         *     哪个字段被碰过）⇒ ⇒ ⇒ 后端**猜不出来** ⇒ ⇒ ⇒ 猜错 ⇒ ⇒ ⇒
+         *     要么**静默覆盖**用户的显式选择（= 本仓最恨的那类事故）⇒ ⇒ ⇒
+         *     要么**永远不覆盖**（模板的默认值形同虚设）⇒ ⇒ ⇒ ⇒
+         *     ⇒ ⇒ ⇒ **调用方明说** ⇒ ⇒ ⇒ 后端照办。
+         * @enum {string}
+         */
+        UnitSystemSource: "FORM" | "TEMPLATE";
         /**
          * UnitSystemUpdate
          * @description 设置项目**默认显示单位制**的请求体（P10-K · W-2b）。

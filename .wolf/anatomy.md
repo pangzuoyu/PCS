@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T03:03:22.009Z
-> Files: 1513 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T10:33:07.587Z
+> Files: 1516 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -211,6 +211,7 @@
 - `qa-report-pcs-frontend-2026-11-24-p10j-t2.md` — QA 报告 · P10-J · T2（「打回」动作）· 2026-11-24 (~1089 tok)
 - `qa-report-pcs-frontend-2026-11-25-p10j-t1.md` — QA 报告 —— P10-J-T1 公司级模板「执行时选项目」（2026-11-25） (~1686 tok)
 - `qa-report-pcs-frontend-2026-11-25-p10k.md` — QA 报告 —— P10-K（SPEC §7.5 项目向导 · 25 个任务）（2026-11-25） (~1929 tok)
+- `qa-report-pcs-frontend-2026-11-25-todo210.md` — QA 报告 —— TODO-210 批（D1 模板默认单位制 + D3 BEDD 默认值落库）（2026-11-25） (~1058 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -436,7 +437,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~21407 tok)
+- `PCS-UI-SPEC.md` (~23798 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -1362,6 +1363,7 @@
 - `p10_004_pms_items.py` — p10_004：pms_items 表（P10-H · T2 · TODO-195）。 (~1944 tok)
 - `p10_005_report_definition_rejection.py` — p10_005：给 `report_definitions` 加「被退回」三列（P10-J · T2 · TODO-197b）。 (~600 tok)
 - `p10_006_project_wizard_fields.py` — p10_006：项目向导的字段 —— 单位制词表 + 项目两态 + 模板落库的 7 列（P10-K）。 (~1335 tok)
+- `p10_007_template_unit_and_bedd_defaults.py` — p10_007：模板的「默认单位制」+「BEDD 默认值」两列（P10-K · TODO-210 · D1/D3 裁决）。 (~603 tok)
 - `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
@@ -1761,6 +1763,7 @@
 - `test_project_creation.py` — 项目创建 API（`POST /projects`）+ 默认绑 RECORD 矩阵 —— P9B-2 · T-1。 (~5232 tok)
 - `test_project_owner_access.py` — 「建项目 ⇒ 自动授权创建者」—— P9B-4 紧急批次 T0。 (~2165 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_project_template_defaults_api.py` — 模板的「默认单位制」（D1）+「BEDD 默认值」（D3）—— P10-K · TODO-210。 (~2290 tok)
 - `test_project_wizard_api.py` — 项目向导的后端面（P10-K · W-2b/W-2d/W-3/W-3d/W-8）。 (~3988 tok)
 - `test_record_approval_chain.py` — 记录级送审批准链**从项目矩阵推导**（TODO-054 · P9B-2 · T2 · R-17）。 (~7732 tok)
 - `test_record_edits_endpoint.py` — 记录编辑审计读端点（`GET /records/{module}/{record_id}/edits`）—— P9B-2 · T1。 (~3528 tok)
@@ -2238,7 +2241,7 @@
 
 ## pcs-frontend/src/pages/wizard/
 
-- `ProjectWizardPage.tsx` — ProjectWizardPage — 项目向导（P10-K · W-6 · SPEC §7.5）。 (~3400 tok)
+- `ProjectWizardPage.tsx` — ProjectWizardPage — 项目向导（P10-K · W-6 · SPEC §7.5）。 (~3820 tok)
 
 ## pcs-frontend/src/store/
 

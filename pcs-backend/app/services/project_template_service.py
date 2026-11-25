@@ -18,7 +18,11 @@ from app.models.project import Project
 from app.models.pipe_code_template import PipeCodeTemplate, ProjectPipeCodeConfig
 from app.models.project_template_pipe_class import ProjectTemplatePipeClass
 from app.models.system import ProjectInputChecklist
-from app.schemas.project_template import ProjectTemplateConfig, ProjectTemplateSummary
+from app.schemas.project_template import (
+    ProjectTemplateConfig,
+    ProjectTemplateSummary,
+    UnitSystemSource,
+)
 from app.services.exceptions import PcsError
 from app.services.signature_matrix_service import SignatureMatrixService
 
@@ -174,6 +178,9 @@ class ProjectTemplateService:
                     status=r.status,
                     default_pipe_class_ids=by_template.get(r.template_id, []),
                     checklist_item_count=_checklist_item_count(r.checklist_json),
+                    # ⚠️ 模板的**默认**单位制（D1）⇒ ⇒ ⇒ 向导据此告知
+                    # 「模板是 US，你选的是 SI ⇒ 以你的为准」
+                    unit_system=r.unit_system,
                 )
             )
         return out
@@ -186,6 +193,7 @@ class ProjectTemplateService:
         project_id: uuid.UUID,
         template_id: UUID,
         actor: Any,
+        unit_system_source: str = UnitSystemSource.FORM.value,
     ) -> dict[str, Any]:
         """把模板应用到项目（**同一事务** · **幂等** · P10-K · W-3d）。
 
@@ -302,6 +310,26 @@ class ProjectTemplateService:
                 cfg.reversal_role.reversal_approver_role
             )
             segments["reversal_role"] = "applied"
+
+        # ---- ⑦ 模板的**默认单位制**（D1）--------------------------------
+        # ⚠️ **默认值语义** ⇒ ⇒ ⇒ 「用户显式选过 ⇒ ⇒ ⇒ **不覆盖**」
+        # ⇒ ⇒ ⇒ 「用户动没动过」由**调用方**说（`unit_system_source`）
+        # ⇒ ⇒ ⇒ 后端**不猜**（猜错 = 静默推翻用户的显式选择）。
+        # ⚠️ 模板**没带**默认单位制（NULL）⇒ ⇒ ⇒ 什么都不做。
+        if unit_system_source == UnitSystemSource.TEMPLATE.value:
+            if tpl.unit_system:
+                project.unit_system = tpl.unit_system
+                segments["unit_system"] = f"applied:{tpl.unit_system}"
+            else:
+                segments["unit_system"] = "skipped_no_template_default"
+        else:
+            segments["unit_system"] = "kept_form_value"
+
+        # ---- ⑧ 模板的 **BEDD 默认值**（D3）------------------------------
+        if tpl.bedd_defaults_json:
+            segments["bedd_defaults"] = await cls._apply_bedd_defaults(
+                db, project=project, defaults=tpl.bedd_defaults_json
+            )
 
         # ---- provenance ------------------------------------------------
         project.applied_template_json = {
@@ -500,6 +528,60 @@ class ProjectTemplateService:
         )
         await db.flush()
         return f"forked:{config_name}"
+
+    @classmethod
+    async def _apply_bedd_defaults(
+        cls, db: AsyncSession, *, project: Project, defaults: dict
+    ) -> str:
+        """把模板的 **BEDD 默认值**写进项目（**只填空缺** · D3 裁决）。
+
+        ## 形状
+
+        `{"分组.字段": 值}`（如 `{"meteorology.pressure": 101.325}`）
+        ⇒ ⇒ ⇒ 与 BEDD 文档的形状（`{分组: {字段: 值}}`）**一一对应**。
+
+        ## ⚠️ **只填空缺**（与「输入清单」**完全同款**）
+
+        - 项目里**已经填了**的字段 ⇒ ⇒ ⇒ **不动**（用户的编辑不被模板冲掉）；
+        - 空缺（**没有这个键**或值是 `None`）⇒ ⇒ ⇒ 填上模板的默认值；
+        - ⇒ ⇒ ⇒ 重复 apply **幂等** ⇒ ⇒ ⇒ 用户的数据不丢。
+
+        ## ⚠️ **字段路径要校验**
+
+        路径不在 `BEDD_FIELDS` 里 ⇒ ⇒ ⇒ **422**（不是静默丢弃）
+        ⇒ ⇒ ⇒ ⇒ 否则模板作者写错一个键 ⇒ ⇒ ⇒ 用户永远看不到那个字段
+        ⇒ ⇒ ⇒ ⇒ 而模板看起来「生效了」。
+        """
+        from app.schemas.bedd import BEDD_FIELDS
+
+        valid_paths: set[str] = set()
+        for group_key, fields in BEDD_FIELDS.items():
+            for field_key, *_rest in fields:
+                valid_paths.add(f"{group_key}.{field_key}")
+
+        unknown = [p for p in defaults if p not in valid_paths]
+        if unknown:
+            raise PcsError(
+                f"模板的 BEDD 默认值里有**不存在的字段路径**：{sorted(unknown)}"
+                f"（合法路径见 BEDD 的 {len(valid_paths)} 个字段）",
+                code="TEMPLATE_BEDD_DEFAULTS_INVALID",
+                status=422,
+            )
+
+        document = dict(project.bedd_json or {})
+        filled = 0
+        for path, value in defaults.items():
+            group_key, field_key = path.split(".", 1)
+            group = dict(document.get(group_key) or {})
+            # ⚠️ **只填空缺** ⇒ ⇒ ⇒ 已填的值（哪怕是 0 / ""）**不动**
+            if group.get(field_key) is not None:
+                continue
+            group[field_key] = value
+            document[group_key] = group
+            filled += 1
+        project.bedd_json = document
+        await db.flush()
+        return f"filled:{filled}"
 
     @classmethod
     async def _seed_checklist(

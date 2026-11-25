@@ -28,7 +28,7 @@
 ### template_files
   template_id|CHARPK!, name|str!, file_type|str!, file_path|str!, placeholders_json|jsonb!, version|str!, template_version_seq|int!, status|str!, asset_id|CHARFK, created_by|CHAR, created_at|dt!, updated_at|dt
 ### project_templates
-  template_id|CHARPK!, name|str!, industry|str, default_config_json|jsonb!, version|str!, status|str!, asset_id|CHARFK, checklist_json|jsonb, pipe_code_template_id|CHARFK, created_by|CHAR, created_at|dt!, updated_at|dt
+  template_id|CHARPK!, name|str!, industry|str, default_config_json|jsonb!, version|str!, status|str!, asset_id|CHARFK, checklist_json|jsonb, unit_system|str, bedd_defaults_json|jsonb, pipe_code_template_id|CHARFK, created_by|CHAR, created_at|dt!, updated_at|dt
 ### pipe_classes
   class_id|strPK!, asset_id|CHARFK, class_name|str!, material_standard|str!, base_material|str, corrosion_allowance|float!, design_pressure|float!, design_temperature|float!, fluid_service|str, allowable_stress_json|jsonb!, dn_series_json|jsonb!, sch_series_json|jsonb!, flange_class|str!, fitting_type|str, branch_table_json|jsonb, source|str!, version|str!, status|str!, created_by|CHAR, created_at|dt!, updated_at|dt
 ### project_pipe_classes

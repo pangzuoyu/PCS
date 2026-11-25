@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -176,14 +177,40 @@ class ProjectTemplateSummary(BaseModel):
     status: str
     #: 模板默认管道等级（**批量**查出 ⇒ ⇒ ⇒ 无 N+1）
     default_pipe_class_ids: list[str] = Field(default_factory=list)
+    #: 模板的**默认**单位制（P10-K · TODO-210 · D1）⇒ ⇒ ⇒ NULL = 该模板
+    #: **不带**默认单位制 ⇒ ⇒ ⇒ apply 时**不动**项目的单位制
+    unit_system: str | None = None
     #: 输入清单条目数（列表页显示「这个模板会给你 N 项清单」）
     checklist_item_count: int = 0
 
 
+class UnitSystemSource(str, Enum):
+    """「单位制由谁决定」（P10-K · TODO-210 · **D1 裁决**）。
+
+    ⚠️ **为什么由调用方说、而不是后端猜** —— 「**用户动没动过**单位制」这个
+    信息**只有向导有**（它持有表单状态 ⇒ antd Form 的 `onValuesChange` 能知道
+    哪个字段被碰过）⇒ ⇒ ⇒ 后端**猜不出来** ⇒ ⇒ ⇒ 猜错 ⇒ ⇒ ⇒
+    要么**静默覆盖**用户的显式选择（= 本仓最恨的那类事故）⇒ ⇒ ⇒
+    要么**永远不覆盖**（模板的默认值形同虚设）⇒ ⇒ ⇒ ⇒
+    ⇒ ⇒ ⇒ **调用方明说** ⇒ ⇒ ⇒ 后端照办。
+    """
+
+    FORM = "FORM"
+    TEMPLATE = "TEMPLATE"
+
+
 class ApplyTemplateRequest(BaseModel):
-    """把模板应用到项目的请求体（P10-K · W-3d）。
+    """把模板应用到项目的请求体（P10-K · W-3d + TODO-210 · D1）。
 
     ⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。
     """
 
     template_id: uuid.UUID = Field(..., description="要应用的模板")
+    unit_system_source: UnitSystemSource = Field(
+        default=UnitSystemSource.FORM,
+        description=(
+            "「单位制由谁决定」—— FORM = 用户在创建表单里**显式选过** ⇒ ⇒ ⇒ "
+            "**不覆盖**项目的单位制；TEMPLATE = 用户**没动过** ⇒ ⇒ ⇒ "
+            "模板的默认单位制**生效**（模板没带默认单位制 ⇒ ⇒ ⇒ 什么都不做）"
+        ),
+    )

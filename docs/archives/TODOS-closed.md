@@ -4071,3 +4071,73 @@ UPDATE user_projects SET user_id = <派生 id> WHERE user_id = <遗留 id>;
 
 ---
 
+---
+
+## TODO-210: 模板的「默认单位制」+「BEDD 默认值」两项**落库**（D1 / D3 已裁） ✅ 已关闭（2026-11-25）
+
+**来源**：2026-11-25 · P10-K 落地后的 §7.10.6 复核（用户质疑 → 复核 → 逐条裁定）
+
+**人裁（2026-11-25 · D1 / D3）**：
+
+| 裁决 | 内容 |
+|---|---|
+| **D1** | 模板的「默认单位制」= **默认值** ⇒ ⇒ ⇒ **用户显式选过 ⇒ ⇒ ⇒ 不覆盖** ⇒ ⇒ ⇒ 「用户动没动过」**由前端判定** ⇒ ⇒ ⇒ 前端传「**单位制由谁决定**」⇒ ⇒ ⇒ 后端**不猜** ⇒ ⇒ ⇒ 契约：`POST /projects/{id}/apply-template` 的 body 加 `unit_system_source: 'FORM' \| 'TEMPLATE'` ⇒ ⇒ ⇒ 两者不一致时向导**明确告知**（不静默）|
+| **D2** | 「默认模块启用状态」**从 §7.10.6 划掉** ⇒ ⇒ ⇒ 归 **license 级**（`license_configs.modules_json`，且**全仓零读者**）⇒ ⇒ ⇒ 若要项目级 ⇒ ⇒ ⇒ 另开一批（新功能 + 权限口径）|
+| **D3** | 模板带 `bedd_defaults`（`分组.字段` → 值）⇒ ⇒ ⇒ apply **只填空缺** ⇒ ⇒ ⇒ 与「输入清单」**完全同款**（按 key 幂等）⇒ ⇒ ⇒ 重复 apply **不丢用户数据** |
+
+**要落的东西**（D1 + D3）：
+
+| # | 内容 | 位置 |
+|---|---|---|
+| 1 | `ApplyTemplateRequest` 加 `unit_system_source`（`'FORM'` / `'TEMPLATE'`）| `app/schemas/project_template.py` |
+| 2 | apply 时按来源决定**写 / 跳过** `projects.unit_system` | `app/services/project_template_service.py` |
+| 3 | **`project_templates` 加两列**：`unit_system`（模板的默认单位制）+ `bedd_defaults_json`（`分组.字段` → 值）⇒ ⇒ ⇒ ⚠️ **不能塞进 `default_config_json`** ⇒ ⇒ ⇒ 那里只有 7 段的 pydantic 模型 ⇒ ⇒ ⇒ ⇒ 多出来的键会被**静默丢弃**（= bug-2210 同款）⇒ ⇒ ⇒ ⇒ 迁移 `p10_007` | `app/models/config_domain.py` · `alembic/versions/*` |
+| 4 | apply 时把 `bedd_defaults` **只填空缺**写进 `projects.bedd_json` | `app/services/project_template_service.py` |
+| 5 | 向导记住「用户动没动过单位制」⇒ ⇒ ⇒ 传来源 ⇒ ⇒ ⇒ 两者不一致时**明确告知** | `src/pages/wizard/ProjectWizardPage.tsx` |
+| 6 | seed 的两条模板补这两项 | `scripts/seed_project_templates.py` + 前端 mock |
+
+**归属**：下一批（**小批**：契约增量 + 2 列 + apply 逻辑 + 向导 1 处告知）
+⇒ ⇒ ⇒ 不与 P10-K 的其余部分耦合。
+
+### ✅ 关闭记录（2026-11-25 · P10-K · TODO-210 批）
+
+**落点**（上表 6 项**全部落地**）：
+
+| # | 内容 | 落点 | 证据 |
+|---|---|---|---|
+| 1 | 契约加 `unit_system_source` | `app/schemas/project_template.py`（`UnitSystemSource` 枚举）| `ApplyTemplateRequest.unit_system_source` 默认 `FORM` ⇒ ⇒ ⇒ **不传 = 不动用户的值** |
+| 2 | apply 按来源决定写 / 跳过 | `app/services/project_template_service.py`（`apply_to_project`）| 响应 `segments.unit_system` ∈ `applied:<X>` / `kept_form_value` / `skipped_no_template_default` |
+| 3 | 模板加两列 | `app/models/config_domain.py` + `alembic/versions/p10_007_template_unit_and_bedd_defaults.py`| `unit_system` VARCHAR(2) 可空 + `bedd_defaults_json` JSONB 可空 + CHECK `ck_project_templates_unit_system`（与 `projects.unit_system` **同一个词表**）|
+| 4 | BEDD 默认值只填空缺 | `_apply_bedd_defaults()`| 字段路径**对着 `BEDD_FIELDS` 校验** ⇒ 不认识的路径 ⇒ **422 `TEMPLATE_BEDD_DEFAULTS_INVALID`**（不是静默丢弃）|
+| 5 | 向导记住「动没动过」+ 不一致时告知 | `src/pages/wizard/ProjectWizardPage.tsx`| `onValuesChange` 判定 `unit_system` ⇒ ⇒ ⇒ 传 `FORM` / `TEMPLATE` ⇒ ⇒ ⇒ 第 4 步出 Alert（`data-testid="wizard-unit-system-notice"`）|
+| 6 | seed 两条模板补这两项 | `scripts/seed_project_templates.py` + 前端 `src/mocks/seed/pms.ts`| 模板 A = SI + 3 条 BEDD 默认；模板 B = US + 1 条 ⇒ ⇒ ⇒ 两条腿都能在浏览器里看见差别 |
+
+**发布前检查**（全绿）：
+
+| 检查 | 结果 |
+|---|---|
+| 后端默认车道 | **6193 passed** / 166 skipped / 0 failed |
+| PG 车道（`bash scripts/pytest_pg.sh` · 唯一入口）| **48 passed**（含 `ck_project_templates_unit_system` 的**真 PG 违例** ⇒ ORM 声明 ≠ DB 约束的盲区被覆盖）|
+| 前端 | **130 文件 / 1149 tests passed**；`npm run typecheck` clean；`npm run lint` clean |
+| 裸载荷棘轮 | **71**（`check_openapi_payload_coverage.py` RC 0 ⇒ 未涨）|
+| 迁移幂等 | `check_migration_idempotency.py` RC 0（53 个迁移 0 违例）|
+| `alembic check` | **两库各跑一次 · 独立进程** ⇒ `pcs` 与 `pcs_test` 均 `p10_007 (head)` + exit 0 |
+| 浏览器实测（MSW mock 通道 · dan / SYSTEM_ADMIN）| 两条腿都验过（见下）|
+
+**浏览器实测**（**线上请求体**级别的证据 —— 不是「函数返回了」那种）：
+
+| 场景 | 实际发出的 body | 结果 |
+|---|---|---|
+| 用户**动过**单位制（选 US）| `{"template_id":"…c001","unit_system_source":"FORM"}` | 项目单位制**保持用户选的值** + 第 4 步出提示「模板的默认值没有覆盖你的选择」|
+| 用户**没动过**单位制 | `{"template_id":"…c001","unit_system_source":"TEMPLATE"}` | 模板默认值**生效**（`segments.unit_system = applied:SI`）⇒ ⇒ ⇒ **无**提示（两者一致 ⇒ 没���什么可告知的）|
+
+⇒ ⇒ ⇒ **D1 的两条腿都有线上的字面证据** ⇒ ⇒ ⇒ 后端**不猜**「用户动没动过」
+⇒ ⇒ ⇒ 猜错 = 静默推翻用户的显式选择 ⇒ ⇒ ⇒ 本仓最恨的那类事故。
+
+**残留**（**不在本条**）：
+
+- **D2**（「默认模块启用状态」）已按人裁**从 §7.10.6 划掉** ⇒ ⇒ ⇒ 归 license 级
+  ⇒ ⇒ ⇒ 项目级若要做 ⇒ ⇒ ⇒ **另开一批**（新功能 + 权限口径）；
+- **模板运营与发布流程**仍开着 = **TODO-206**（本批只有 seed 写 `PUBLISHED`）；
+- **`unit_system` 之后可被改**（`PATCH /projects/{id}/unit-system`）⇒ ⇒ ⇒ 模板默认值
+  **只在 apply 那一刻**作用一次 ⇒ ⇒ ⇒ 后续改不影响 ⇒ ⇒ ⇒ 这是 D1 的语义，不是漏做。

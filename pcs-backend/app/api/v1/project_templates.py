@@ -100,6 +100,9 @@ async def apply_template(
         project_id=project_id,
         template_id=payload.template_id,
         actor=user,
+        # ⚠️ **「单位制由谁决定」由调用方说**（D1 裁决）⇒ ⇒ ⇒ 后端**不猜**
+        # ⇒ ⇒ ⇒ 「用户动没动过」只有向导知道（它持有表单状态）。
+        unit_system_source=payload.unit_system_source.value,
     )
     await db.commit()
     await AuditService(db).write(

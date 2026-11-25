@@ -166,12 +166,23 @@ export const projectTemplatesApi = {
   list: (): Promise<ProjectTemplateSummary[]> =>
     api.get<ProjectTemplateSummary[]>('/project-templates').then((r) => r.data),
 
-  /** 把模板应用到项目（`POST /projects/{id}/apply-template`）。 */
+  /**
+   * 把模板应用到项目（`POST /projects/{id}/apply-template`）。
+   *
+   * ⚠️ **`unitSystemSource` = 「单位制由谁决定」**（P10-K · TODO-210 · D1 裁决）
+   * ⇒ ⇒ ⇒ `FORM` = 用户在创建表单里**显式选过** ⇒ ⇒ ⇒ **不覆盖**项目的单位制；
+   * ⇒ ⇒ ⇒ `TEMPLATE` = 用户**没动过** ⇒ ⇒ ⇒ 模板的默认单位制**生效**。
+   * ⇒ ⇒ ⇒ ⚠️ **后端不猜**（「动没动过」只有向导知道 ⇒ ⇒ ⇒ 它持有表单状态）。
+   */
   apply: (
     projectId: string,
     templateId: string,
+    unitSystemSource: 'FORM' | 'TEMPLATE' = 'FORM',
   ): Promise<{ template_id: string; template_name: string; segments: Record<string, string> }> =>
     api
-      .post(`/projects/${projectId}/apply-template`, { template_id: templateId })
+      .post(`/projects/${projectId}/apply-template`, {
+        template_id: templateId,
+        unit_system_source: unitSystemSource,
+      })
       .then((r) => r.data),
 };

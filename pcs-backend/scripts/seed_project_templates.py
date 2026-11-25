@@ -164,6 +164,31 @@ CHECKLIST_B: dict = {
     ]
 }
 
+#: 模板 A 的**默认单位制**（P10-K · TODO-210 · **D1 裁决**）
+#:
+#: ⚠️ **默认值语义** ⇒ ⇒ ⇒ 「用户显式选过 ⇒ ⇒ ⇒ **不覆盖**」⇒ ⇒ ⇒
+#: ⇒ ⇒ ⇒ 向导第 1 步**没动过**单位制时 ⇒ ⇒ ⇒ 这个值**生效**。
+TPL_A_UNIT_SYSTEM = "SI"
+
+#: 模板 B 的**默认单位制**（**故意用 US** ⇒ ⇒ ⇒ 用来验「D1 的两条路径」
+#: ⇒ ⇒ ⇒ —— ① 用户没动 ⇒ ⇒ ⇒ 生效（写成 US）② 用户选过 ⇒ ⇒ ⇒ 不覆盖）。
+TPL_B_UNIT_SYSTEM = "US"
+
+#: 模板 A 的 **BEDD 默认值**（P10-K · TODO-210 · **D3 裁决**）
+#:
+#: 形状 = `{"分组.字段": 值}` ⇒ ⇒ ⇒ apply 时**只填空缺** ⇒ ⇒ ⇒
+#: ⇒ ⇒ ⇒ 与「输入清单」完全同款（按 key 幂等）⇒ ⇒ ⇒ 用户已填的不动。
+TPL_A_BEDD_DEFAULTS: dict = {
+    "meteorology.pressure": 101.325,
+    "meteorology.temperature": 25.0,
+    "flare.back_pressure": 101.325,
+}
+
+#: 模板 B 的 BEDD 默认值（**只一条** ⇒ ⇒ ⇒ 用来验「只填空缺」）
+TPL_B_BEDD_DEFAULTS: dict = {
+    "meteorology.pressure": 101.325,
+}
+
 PIPE_CODE_FORMAT: dict = {
     "segments": [
         {"type": "PREFIX", "value": "P-"},
@@ -234,9 +259,11 @@ async def _seed(db, *, dry_run: bool) -> None:
     await db.flush()
 
     # ---- ③ 两条已发布模板 --------------------------------------------
-    for name, cfg, checklist, pipe_id in (
-        (TPL_A_NAME, TPL_A_CONFIG, CHECKLIST_A, pipe_tpl.template_id),
-        (TPL_B_NAME, TPL_B_CONFIG, CHECKLIST_B, pipe_tpl.template_id),
+    for name, cfg, checklist, pipe_id, unit_system, bedd_defaults in (
+        (TPL_A_NAME, TPL_A_CONFIG, CHECKLIST_A, pipe_tpl.template_id,
+         TPL_A_UNIT_SYSTEM, TPL_A_BEDD_DEFAULTS),
+        (TPL_B_NAME, TPL_B_CONFIG, CHECKLIST_B, pipe_tpl.template_id,
+         TPL_B_UNIT_SYSTEM, TPL_B_BEDD_DEFAULTS),
     ):
         tpl = (
             await db.execute(select(ProjectTemplate).where(ProjectTemplate.name == name))
@@ -250,6 +277,8 @@ async def _seed(db, *, dry_run: bool) -> None:
                 status=ProjectTemplateStatus.PUBLISHED.value,
                 checklist_json=checklist,
                 pipe_code_template_id=pipe_id,
+                unit_system=unit_system,
+                bedd_defaults_json=bedd_defaults,
             )
             db.add(tpl)
             print(f"+ 项目模板 {name}")
@@ -258,6 +287,8 @@ async def _seed(db, *, dry_run: bool) -> None:
             tpl.checklist_json = checklist
             tpl.pipe_code_template_id = pipe_id
             tpl.status = ProjectTemplateStatus.PUBLISHED.value
+            tpl.unit_system = unit_system
+            tpl.bedd_defaults_json = bedd_defaults
             print(f"= 项目模板 {name}（已存在 ⇒ 已更新配置）")
         await db.flush()
 

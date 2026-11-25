@@ -23016,6 +23016,11 @@
             "format": "uuid",
             "title": "Template Id",
             "description": "要应用的模板"
+          },
+          "unit_system_source": {
+            "$ref": "#/components/schemas/UnitSystemSource",
+            "description": "「单位制由谁决定」—— FORM = 用户在创建表单里**显式选过** ⇒ ⇒ ⇒ **不覆盖**项目的单位制；TEMPLATE = 用户**没动过** ⇒ ⇒ ⇒ 模板的默认单位制**生效**（模板没带默认单位制 ⇒ ⇒ ⇒ 什么都不做）",
+            "default": "FORM"
           }
         },
         "type": "object",
@@ -23023,7 +23028,7 @@
           "template_id"
         ],
         "title": "ApplyTemplateRequest",
-        "description": "把模板应用到项目的请求体（P10-K · W-3d）。\n\n⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。"
+        "description": "把模板应用到项目的请求体（P10-K · W-3d + TODO-210 · D1）。\n\n⚠️ **同一个项目可以重复应用**（幂等）⇒ ⇒ ⇒ 重试安全。"
       },
       "ApprovalStepRequest": {
         "properties": {
@@ -37619,6 +37624,17 @@
             "type": "array",
             "title": "Default Pipe Class Ids"
           },
+          "unit_system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit System"
+          },
           "checklist_item_count": {
             "type": "integer",
             "title": "Checklist Item Count",
@@ -46416,6 +46432,15 @@
         ],
         "title": "UnitSystem",
         "description": "项目的**默认显示单位制**（P10-K · W-2 · SPEC §7.5 单位制切换）。\n\n⚠️ **它不是存储单位** —— 存储**恒为 canonical（SI）** ⇒ ⇒ ⇒ 本枚举只决定\n「**这个项目默认按哪套单位显示**」⇒ ⇒ ⇒ 换算是**双向视图变换**\n（读 `canonical→display` · 写 `display→canonical`）⇒ ⇒ ⇒\n⇒ ⇒ **后端永远不因为本枚举改写已存的值**。\n\n⚠️ **与 `app/schemas/psychro.py` 的 `METRIC`/`IMPERIAL` 是同一个轴、\n只是拼写不同** —— psychro 那套的 docstring 明写「METRIC 公制 SI /\nIMPERIAL 英制」⇒ ⇒ ⇒ ⇒ **两套不要合并**（psychro 的 docstring 还写\n「不影响算法，仅标注」⇒ ⇒ ⇒ 而本枚举**要**驱动真实换算）\n⇒ ⇒ ⇒ 合并会让 psychro 的「仅标注」语义被悄悄升级。"
+      },
+      "UnitSystemSource": {
+        "type": "string",
+        "enum": [
+          "FORM",
+          "TEMPLATE"
+        ],
+        "title": "UnitSystemSource",
+        "description": "「单位制由谁决定」（P10-K · TODO-210 · **D1 裁决**）。\n\n⚠️ **为什么由调用方说、而不是后端猜** —— 「**用户动没动过**单位制」这个\n信息**只有向导有**（它持有表单状态 ⇒ antd Form 的 `onValuesChange` 能知道\n哪个字段被碰过）⇒ ⇒ ⇒ 后端**猜不出来** ⇒ ⇒ ⇒ 猜错 ⇒ ⇒ ⇒\n要么**静默覆盖**用户的显式选择（= 本仓最恨的那类事故）⇒ ⇒ ⇒\n要么**永远不覆盖**（模板的默认值形同虚设）⇒ ⇒ ⇒ ⇒\n⇒ ⇒ ⇒ **调用方明说** ⇒ ⇒ ⇒ 后端照办。"
       },
       "UnitSystemUpdate": {
         "properties": {

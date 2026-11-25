@@ -4444,3 +4444,16 @@
 | 09:08 | Created pcs-frontend/tests/utils/units.test.ts | — | ~948 |
 | 11:01 | Created pcs-backend/tests/api/v1/test_project_constraints_pg.py | — | ~2143 |
 | 11:03 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10k.md | — | ~2058 |
+| 18:09 | Created pcs-backend/alembic/versions/p10_007_template_unit_and_bedd_defaults.py | — | ~603 |
+| 18:12 | Created pcs-backend/tests/api/v1/test_project_template_defaults_api.py | — | ~2290 |
+| 18:31 | Edited docs/PCS-UI-SPEC.md | 2→2 lines | ~22 |
+| 18:31 | Edited docs/PCS-UI-SPEC.md | inline fix | ~32 |
+| 18:31 | Edited docs/PCS-UI-SPEC.md | inline fix | ~35 |
+| 18:31 | Edited docs/PCS-UI-SPEC.md | 3→3 lines | ~27 |
+| 18:31 | Edited docs/PCS-UI-SPEC.md | expanded (+13 lines) | ~291 |
+| 18:32 | Edited docs/PCS-UI-SPEC.md | 1→2 lines | ~323 |
+| 18:32 | Edited docs/PCS-UI-SPEC.md | 22 → 23 | ~3 |
+| 18:32 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-todo210.md | — | ~1104 |
+| 18:32 | Edited pcs-frontend/src/pages/wizard/ProjectWizardPage.tsx | " ⇒ ⇒ ⇒ 以**你的选择**为准（模板的单位制" → " ⇒ ⇒ ⇒ 以「你的选择」为准（模板的单位制只是" | ~16 |
+| 18:33 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-todo210.md | 10→11 lines | ~68 |
+| 18:33 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-todo210.md | 4→4 lines | ~59 |

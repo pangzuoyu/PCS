@@ -230,6 +230,8 @@ export const seedProjectTemplates = [
     status: 'PUBLISHED',
     default_pipe_class_ids: [],
     checklist_item_count: 3,
+    // ⚠️ 模板的**默认**单位制（P10-K · TODO-210 · D1）⇒ ⇒ ⇒ 模板 A = SI
+    unit_system: 'SI',
   },
   {
     template_id: '00000000-0000-0000-0000-00000000c002',
@@ -239,5 +241,9 @@ export const seedProjectTemplates = [
     status: 'PUBLISHED',
     default_pipe_class_ids: [],
     checklist_item_count: 2,
+    // ⚠️ 模板 B = **US**（**故意**）⇒ ⇒ ⇒ 用来验 D1 的两条路径
+    //   ⇒ ⇒ ⇒ —— ① 用户没动 ⇒ ⇒ ⇒ 生效（写成 US）
+    //   ⇒ ⇒ ⇒ —— ② 用户选过 ⇒ ⇒ ⇒ **不覆盖**（以用户的为准）
+    unit_system: 'US',
   },
 ];

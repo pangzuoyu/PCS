@@ -123,6 +123,9 @@ beforeEach(() => {
       status: 'PUBLISHED',
       default_pipe_class_ids: [],
       checklist_item_count: 2,
+      // ⚠️ **故意用 US** ⇒ ⇒ ⇒ 与表单默认的 SI **不一致**
+      //   ⇒ ⇒ ⇒ 用来验 D1 的「**明确告知**」（不静默）
+      unit_system: 'US',
     },
   ]);
   refresh.mockResolvedValue(undefined);
@@ -218,7 +221,9 @@ describe('ProjectWizardPage —— 4 步（P10-K · W-6）', () => {
       expect(screen.getByTestId('wizard-apply-template')).not.toBeDisabled(),
     );
     fireEvent.click(screen.getByTestId('wizard-apply-template'));
-    await waitFor(() => expect(apply).toHaveBeenCalledWith('p-new', 't-1'));
+    // ⚠️ **第三个参数 = 「单位制由谁决定」**（D1）⇒ ⇒ ⇒ 用户**没动过**单位制
+    //   ⇒ ⇒ ⇒ 传 `TEMPLATE`（模板的默认值生效）
+    await waitFor(() => expect(apply).toHaveBeenCalledWith('p-new', 't-1', 'TEMPLATE'));
   });
 
   it('第 4 步：激活 ⇒ ⇒ ⇒ 切当前项目 + 跳 BEDD', async () => {
@@ -246,6 +251,88 @@ describe('ProjectWizardPage —— 4 步（P10-K · W-6）', () => {
     await waitFor(() => expect(setStatus).toHaveBeenCalledWith('p-new', 'ACTIVE'));
     expect(selectProject).toHaveBeenCalledWith('p-new');
     await waitFor(() => expect(screen.getByTestId('bedd-page')).toBeInTheDocument());
+  });
+
+  it('⚠️ **D1 · 用户没动过单位制 ⇒ ⇒ ⇒ 传 `TEMPLATE`**（模板的默认值生效）', async () => {
+    renderPage();
+    await submitStep1();
+    await waitFor(() => expect(screen.getByTestId('wizard-grant-user-id')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('wizard-skip-people'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-template-select')).toBeInTheDocument(),
+    );
+    fireEvent.mouseDown(
+      screen.getByTestId('wizard-template-select').querySelector(
+        '.ant-select-selector',
+      ) as HTMLElement,
+    );
+    const option = await screen.findByTitle('通用项目模板（v1.0.0）· 2 项清单');
+    fireEvent.click(option);
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-apply-template')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('wizard-apply-template'));
+    await waitFor(() => expect(apply).toHaveBeenCalled());
+    expect(apply).toHaveBeenCalledWith('p-new', 't-1', 'TEMPLATE');
+  });
+
+  it('⚠️ **D1 · 用户动过单位制 ⇒ ⇒ ⇒ 传 `FORM`**（用户的显式选择优先）', async () => {
+    renderPage();
+    // ⇒ ⇒ ⇒ **先动单位制**（⇒ ⇒ ⇒ 「动没动过」= true）
+    await waitFor(() => expect(screen.getByTestId('project-unit-system')).toBeTruthy());
+    fireEvent.mouseDown(
+      screen.getByTestId('project-unit-system').querySelector(
+        '.ant-select-selector',
+      ) as HTMLElement,
+    );
+    const us = await screen.findByTitle('US（psi · ℉ · ft）');
+    fireEvent.click(us);
+    await submitStep1();
+    await waitFor(() => expect(screen.getByTestId('wizard-grant-user-id')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('wizard-skip-people'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-template-select')).toBeInTheDocument(),
+    );
+    fireEvent.mouseDown(
+      screen.getByTestId('wizard-template-select').querySelector(
+        '.ant-select-selector',
+      ) as HTMLElement,
+    );
+    const option = await screen.findByTitle('通用项目模板（v1.0.0）· 2 项清单');
+    fireEvent.click(option);
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-apply-template')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('wizard-apply-template'));
+    await waitFor(() => expect(apply).toHaveBeenCalled());
+    expect(apply).toHaveBeenCalledWith('p-new', 't-1', 'FORM');
+  });
+
+  it('⚠️ **D1 · 两者不一致 ⇒ ⇒ ⇒ 明确告知**（不静默）', async () => {
+    renderPage();
+    await submitStep1();
+    await waitFor(() => expect(screen.getByTestId('wizard-grant-user-id')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('wizard-skip-people'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-template-select')).toBeInTheDocument(),
+    );
+    fireEvent.mouseDown(
+      screen.getByTestId('wizard-template-select').querySelector(
+        '.ant-select-selector',
+      ) as HTMLElement,
+    );
+    const option = await screen.findByTitle('通用项目模板（v1.0.0）· 2 项清单');
+    fireEvent.click(option);
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-apply-template')).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByTestId('wizard-apply-template'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wizard-unit-system-notice')).toBeInTheDocument(),
+    );
+    const notice = screen.getByTestId('wizard-unit-system-notice').textContent ?? '';
+    expect(notice).toContain('US');
+    expect(notice).toContain('SI');
   });
 
   it('⚠️ **没有已发布模板 ⇒ ⇒ ⇒ 明确报错**（不静默空列表）', async () => {

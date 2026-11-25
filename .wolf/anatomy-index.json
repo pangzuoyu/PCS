@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-25T03:03:22.009Z",
-    "fileCount": 1513,
+    "lastScanned": "2026-11-25T10:33:07.587Z",
+    "fileCount": 1516,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "df2bc3b97aab692dd6d446bd1b507b256ac1a5f04d3e1b7fcb04faf8d068ac3d",
-    "storeUpdatedAt": "2026-11-25T03:03:22.023Z",
-    "rootHash": "73948c4375ccf0ed"
+    "renderedHash": "373d9a94eabebbce4330ba5419882a4314857ea9216e642fa513c3836ef28ca9",
+    "storeUpdatedAt": "2026-11-25T10:33:07.602Z",
+    "rootHash": "357844cc9f1a5c82"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1755,11 +1755,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 21407,
-      "hash": "7bb895be43160754",
-      "size": 144207,
-      "mtimeMs": 1795566296963.608,
-      "updatedAt": "2026-11-25T00:24:57.024Z",
+      "tokens": 23798,
+      "hash": "48f84b45a9b54028",
+      "size": 160606,
+      "mtimeMs": 1795602744831.815,
+      "updatedAt": "2026-11-25T10:32:24.884Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -54673,19 +54673,19 @@
     },
     "pcs-frontend/src/pages/wizard/ProjectWizardPage.tsx": {
       "description": "ProjectWizardPage — 项目向导（P10-K · W-6 · SPEC §7.5）。",
-      "tokens": 3400,
-      "hash": "15fb860e0cd668d8",
-      "size": 13748,
-      "mtimeMs": 1795568703556.1143,
-      "updatedAt": "2026-11-25T01:05:03.630Z",
+      "tokens": 3820,
+      "hash": "4e45d111349976cf",
+      "size": 15684,
+      "mtimeMs": 1795602765003.2131,
+      "updatedAt": "2026-11-25T10:32:45.073Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ProjectWizardPage",
           "kind": "fn",
           "startLine": 78,
-          "endLine": 377,
-          "tokens": 2725
+          "endLine": 410,
+          "tokens": 3146
         }
       ]
     },
@@ -54776,6 +54776,142 @@
       "size": 12073,
       "mtimeMs": 1795575801959.3618,
       "updatedAt": "2026-11-25T03:03:22.009Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p10_007_template_unit_and_bedd_defaults.py": {
+      "description": "p10_007：模板的「默认单位制」+「BEDD 默认值」两列（P10-K · TODO-210 · D1/D3 裁决）。",
+      "tokens": 603,
+      "hash": "d3a7bf62ae6b81d1",
+      "size": 2979,
+      "mtimeMs": 1795601374770.4673,
+      "updatedAt": "2026-11-25T10:09:34.821Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 67,
+          "tokens": 140
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 75,
+          "tokens": 83
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_project_template_defaults_api.py": {
+      "description": "模板的「默认单位制」（D1）+「BEDD 默认值」（D3）—— P10-K · TODO-210。",
+      "tokens": 2290,
+      "hash": "f26eeb476836b9bf",
+      "size": 8963,
+      "mtimeMs": 1795601539939.9084,
+      "updatedAt": "2026-11-25T10:12:19.992Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_admin_headers",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 39,
+          "tokens": 43
+        },
+        {
+          "name": "_make_project",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 69,
+          "tokens": 218
+        },
+        {
+          "name": "_make_template",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 91,
+          "tokens": 157
+        },
+        {
+          "name": "_apply",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 100,
+          "tokens": 82
+        },
+        {
+          "name": "_get_project",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 111,
+          "tokens": 104
+        },
+        {
+          "name": "test_template_unit_system_applies_when_user_did_not_choose",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 126,
+          "tokens": 162
+        },
+        {
+          "name": "test_template_unit_system_does_not_override_user_choice",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 141,
+          "tokens": 162
+        },
+        {
+          "name": "test_unit_system_source_defaults_to_form",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 153,
+          "tokens": 129
+        },
+        {
+          "name": "test_template_without_unit_system_changes_nothing",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 166,
+          "tokens": 158
+        },
+        {
+          "name": "test_unit_system_source_must_be_known_value",
+          "kind": "fn",
+          "startLine": 167,
+          "endLine": 180,
+          "tokens": 162
+        },
+        {
+          "name": "test_bedd_defaults_fill_only_empty_fields",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 208,
+          "tokens": 299
+        },
+        {
+          "name": "test_bedd_defaults_reject_unknown_field_path",
+          "kind": "fn",
+          "startLine": 209,
+          "endLine": 220,
+          "tokens": 133
+        },
+        {
+          "name": "test_bedd_defaults_are_idempotent",
+          "kind": "fn",
+          "startLine": 221,
+          "endLine": 237,
+          "tokens": 200
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-todo210.md": {
+      "description": "QA 报告 —— TODO-210 批（D1 模板默认单位制 + D3 BEDD 默认值落库）（2026-11-25）",
+      "tokens": 1058,
+      "hash": "13436cb1c6fd358d",
+      "size": 6509,
+      "mtimeMs": 1795602787539.6555,
+      "updatedAt": "2026-11-25T10:33:07.587Z",
       "source": "hook"
     }
   }
