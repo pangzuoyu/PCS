@@ -2313,6 +2313,34 @@ admin 腿**真跑起来**会不会空、会不会 401，**没有端到端证据*
 
 ---
 
+## TODO-210: 模板的「默认单位制」+「BEDD 默认值」两项**落库**（D1 / D3 已裁 · 待实现） 🟡
+
+**来源**：2026-11-25 · P10-K 落地后的 §7.10.6 复核（用户质疑 → 复核 → 逐条裁定）
+
+**人裁（2026-11-25 · D1 / D3）**：
+
+| 裁决 | 内容 |
+|---|---|
+| **D1** | 模板的「默认单位制」= **默认值** ⇒ ⇒ ⇒ **用户显式选过 ⇒ ⇒ ⇒ 不覆盖** ⇒ ⇒ ⇒ 「用户动没动过」**由前端判定** ⇒ ⇒ ⇒ 前端传「**单位制由谁决定**」⇒ ⇒ ⇒ 后端**不猜** ⇒ ⇒ ⇒ 契约：`POST /projects/{id}/apply-template` 的 body 加 `unit_system_source: 'FORM' \| 'TEMPLATE'` ⇒ ⇒ ⇒ 两者不一致时向导**明确告知**（不静默）|
+| **D2** | 「默认模块启用状态」**从 §7.10.6 划掉** ⇒ ⇒ ⇒ 归 **license 级**（`license_configs.modules_json`，且**全仓零读者**）⇒ ⇒ ⇒ 若要项目级 ⇒ ⇒ ⇒ 另开一批（新功能 + 权限口径）|
+| **D3** | 模板带 `bedd_defaults`（`分组.字段` → 值）⇒ ⇒ ⇒ apply **只填空缺** ⇒ ⇒ ⇒ 与「输入清单」**完全同款**（按 key 幂等）⇒ ⇒ ⇒ 重复 apply **不丢用户数据** |
+
+**要落的东西**（D1 + D3）：
+
+| # | 内容 | 位置 |
+|---|---|---|
+| 1 | `ApplyTemplateRequest` 加 `unit_system_source`（`'FORM'` / `'TEMPLATE'`）| `app/schemas/project_template.py` |
+| 2 | apply 时按来源决定**写 / 跳过** `projects.unit_system` | `app/services/project_template_service.py` |
+| 3 | **`project_templates` 加两列**：`unit_system`（模板的默认单位制）+ `bedd_defaults_json`（`分组.字段` → 值）⇒ ⇒ ⇒ ⚠️ **不能塞进 `default_config_json`** ⇒ ⇒ ⇒ 那里只有 7 段的 pydantic 模型 ⇒ ⇒ ⇒ ⇒ 多出来的键会被**静默丢弃**（= bug-2210 同款）⇒ ⇒ ⇒ ⇒ 迁移 `p10_007` | `app/models/config_domain.py` · `alembic/versions/*` |
+| 4 | apply 时把 `bedd_defaults` **只填空缺**写进 `projects.bedd_json` | `app/services/project_template_service.py` |
+| 5 | 向导记住「用户动没动过单位制」⇒ ⇒ ⇒ 传来源 ⇒ ⇒ ⇒ 两者不一致时**明确告知** | `src/pages/wizard/ProjectWizardPage.tsx` |
+| 6 | seed 的两条模板补这两项 | `scripts/seed_project_templates.py` + 前端 mock |
+
+**归属**：下一批（**小批**：契约增量 + 2 列 + apply 逻辑 + 向导 1 处告知）
+⇒ ⇒ ⇒ 不与 P10-K 的其余部分耦合。
+
+---
+
 # F4-PRE 裁决表（2026-11-23 · P10-F · F4 前置批）
 
 > **为什么有这张表**：F4-PRE 的主任务（FP-T1）是「**逐条裁决**」14 条遗留债
@@ -2465,3 +2493,4 @@ admin 腿**真跑起来**会不会空、会不会 401，**没有端到端证据*
 | `TODO-207` | `postgresql_nulls_not_distinct` 的约束在 SQLite **不生效** ⇒ ⇒ 默认车道照绿、真库 500 | 2026-11-24 |
 | `TODO-208` | P10-J-T1 的 **admin 候选腿**（`GET /workspaces`）**未在浏览器通道验过** ⇒ ⇒ 只被单测覆盖 | 2026-11-25 |
 | `TODO-209` | 裸载荷棘轮**已顶满基线（71）** ⇒ ⇒ **P10-K 新增端点时必须跑覆盖率脚本** + 新端点一律用**命名响应模型** | 2026-11-25 |
+| `TODO-210` | 模板的「默认单位制」+「BEDD 默认值」两项**落库**（D1/D3 已裁 · 待实现）⇒ ⇒ D2 已把「默认模块启用状态」**划掉** | 2026-11-25 |
