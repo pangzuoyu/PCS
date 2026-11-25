@@ -632,3 +632,37 @@ def _add_project_columns() -> None:
 
 
 _add_project_columns()
+
+
+def source_supports_project_scope(source: str) -> bool:
+    """这个数据源**能不能**按项目隔离执行。
+
+    ⚠️ **为什么不直接读 `DATASOURCES[source].fields`**：那个 dict 里的
+    `project_id` 是**模块导入期**由 `_add_project_columns()` 按「ORM 表有
+    没有 `project_id` 列」补进去的 ⇒ ⇒ ⇒ 而那个函数跑在 import 期 ⇒ ⇒ ⇒
+    若 `datasource_registry` **先于**各模型模块被导入 ⇒ ⇒ ⇒
+    `Base.registry.mappers` 还是空的 ⇒ ⇒ ⇒ **`project_id` 一个都不会被
+    登记** ⇒ ⇒ ⇒ 读它会得出「**全部不可隔离**」的错误结论
+    （实测：单独 `import app.services.report.datasource_registry` ⇒
+    `EQUIP_LIST` 就没有 `project_id` 了）。
+
+    ⇒ ⇒ ⇒ 这里**直接查 ORM 表** ⇒ ⇒ ⇒ **与 import 顺序无关**。
+
+    ⚠️ 为什么需要这个判据（2026-11-25 · plan-eng-review + hermes）：
+    `DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS` 这 3 张表**没有
+    `project_id` 列** ⇒ ⇒ 执行引擎的 `_project_field()` 对它们抛错 ⇒ ⇒ ⇒
+    且那个错**与「公司级模板没选项目」同码** ⇒ ⇒ ⇒ 文案是假的 ⇒ ⇒ ⇒
+    公司级模板**建的时候**就该拒（否则就是批量生产死路）。
+    """
+    import app.models  # noqa: F401  —— 保证全部 mapper 已注册
+
+    from app.db.base import Base
+
+    ds = DATASOURCES.get(source)
+    if ds is None:
+        return False
+    for mapper in Base.registry.mappers:
+        lt = mapper.local_table
+        if lt is not None and lt.name == ds.model and "project_id" in lt.columns:
+            return True
+    return False

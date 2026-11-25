@@ -551,7 +551,12 @@ async def test_execute_returns_202_not_a_synchronous_report(client, fake_queue):
     """
     d = await _make(client, "author-1")
     await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
-    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"))
+    # ⚠️ **P10-J-T1**：公司级模板执行时**必须**指定项目 ⇒ ⇒ ⇒ 否则端点
+    # ⇒ ⇒ 早失败 400（这条测的是「202 而不同步出文件」⇒ ⇒ ⇒ 与 scope 无关
+    # ⇒ ⇒ ⇒ ⇒ 带一个项目走 happy path）。守卫在 `client` 下是 mock ⇒ ⇒
+    # ⇒ ⇒ ⇒ 不需要真项目行。
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"),
+                          json={"project_id": str(uuid.uuid4())})
     assert r.status_code == 202, f"实得 {r.status_code}：{r.text}"
     assert fake_queue, "端点压根没入队却回了 202"
 
@@ -587,7 +592,9 @@ async def test_execute_reports_503_when_queue_is_down(client, monkeypatch):
 
     d = await _make(client, "author-1")
     await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
-    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"))
+    # ⚠️ **P10-J-T1**：同上 —— 公司级模板要带项目才能走到「入队」这一步
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"),
+                          json={"project_id": str(uuid.uuid4())})
     assert r.status_code == 503, f"实得 {r.status_code}：{r.text}"
     assert r.json()["code"] == "REPORT_QUEUE_UNAVAILABLE"
 
@@ -1141,8 +1148,10 @@ async def test_csv_is_offered_by_the_execute_endpoint(client, fake_queue):
 
     d = await _make(client, "author-1")
     await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    # ⚠️ **P10-J-T1**：同上 —— 公司级模板要带项目才能走到「校验输出格式」这一步
     r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"),
-                          json={"output_format": "csv"})
+                          json={"output_format": "csv",
+                                "project_id": str(uuid.uuid4())})
     assert r.status_code == 202, f"CSV 仍被拒：{r.text} {r.json()}"
 
 
@@ -2213,4 +2222,228 @@ async def test_execution_without_a_known_executor_is_refused(client, db_session)
         await execute_definition(db_session, def_id=row.def_id, user_id=None)
     assert exc.value.code == "REPORT_EXECUTOR_UNKNOWN", (
         f"错误码不对：{exc.value.code} ⇒ ⇒ {exc.value.message}"
+    )
+
+
+# ============================================================================
+# P10-J-T1 · 公司级模板「执行时选项目」（TODO-177 · 人裁 2026-11-24/25）
+# ============================================================================
+#
+# ⚠️ **为什么这组测试要打「入队载荷」而不只打状态码**：
+#   端点回 202 只说明「收下了」⇒ ⇒ **产出文件有没有项目归属**取决于
+#   **入队载荷里带的是不是解析后的 scope** ⇒ ⇒ 只断言状态码 ⇒ ⇒ 载荷错了
+#   也绿 ⇒ ⇒ ⇒ 必须断言载荷本身（`fake_queue[0]["project_id"]`）。
+#
+# ⚠️ **为什么用 `strict_client` 而不是默认 `client`**：
+#   默认 client 把项目守卫**mock 成永远 True** ⇒ ⇒ 「无权 ⇒ 404」那条
+#   永远是绿的 ⇒ ⇒ ⇒ 授权路径必须用 `strict_client` 真跑守卫。
+
+
+@pytest.mark.asyncio
+async def test_company_level_execute_carries_chosen_project_into_queue_and_snapshot(
+    strict_client, db_session, fake_queue, grant_project
+):
+    """公司级模板 + 选了**有权**的项目 ⇒ ⇒ 202，且**入队载荷与快照都带那个项目**。
+
+    ⚠️ 快照里的 `project_id` 是「**入队时申报了什么**」（`condition_snapshot`
+    的 docstring 明写）⇒ ⇒ ⇒ 它必须是**解析后的 scope**，不是定义的空值
+    ⇒ ⇒ ⇒ 否则事后查「这次执行针对哪个项目」查不到。
+    """
+    from sqlalchemy import select as _sel
+
+    from app.models.report import ReportExecutionLog
+    from app.services.token_issuer import derive_user_id
+
+    proj = await _make_project(db_session, "公司级执行的目标项目")
+    d = await _make(strict_client, "author-1", project_id=None,
+                    definition_json=DEF_JSON_EQUIP)
+    await strict_client.post(PUBLISH.format(d=d["def_id"]),
+                             headers=_auth("rev", "REVIEWER"))
+
+    await grant_project(derive_user_id("executor"), proj.project_id)
+
+    r = await strict_client.post(
+        EXEC.format(d=d["def_id"]), headers=_auth("executor"),
+        json={"project_id": str(proj.project_id)},
+    )
+    assert r.status_code == 202, f"实得 {r.status_code}：{r.text[:300]}"
+    assert fake_queue, "没入队却回了 202"
+    assert fake_queue[0]["project_id"] == str(proj.project_id), (
+        f"入队载荷的 project_id 是 {fake_queue[0].get('project_id')!r}，"
+        f"期望 {str(proj.project_id)!r} ⇒ ⇒ **产出文件会没有项目归属**"
+    )
+
+    log = (await db_session.execute(
+        _sel(ReportExecutionLog).where(
+            ReportExecutionLog.def_id == uuid.UUID(d["def_id"]))
+    )).scalar_one()
+    assert log.condition_snapshot["project_id"] == str(proj.project_id), (
+        f"快照里的 project_id 是 {log.condition_snapshot.get('project_id')!r}，"
+        f"期望 {str(proj.project_id)!r} ⇒ ⇒ 事后查不到「这次执行针对哪个项目」"
+    )
+
+
+@pytest.mark.asyncio
+async def test_company_level_execute_with_unauthorized_project_returns_404(
+    strict_client, db_session, fake_queue
+):
+    """公司级模板 + 选了一个**无权访问**的项目 ⇒ ⇒ **404**（不是 403 · 不是 202）。
+
+    ⚠️ **404 而不是 403**：403 会泄露「这个项目存在」⇒ ⇒ 与「不存在」同形
+    ⇒ ⇒ 与 `check_project_access_or_404` 的口径一致。
+    ⚠️ **不许入队**：入队了就等于「先收下再判」⇒ ⇒ 队列里躺一个注定失败的
+    任务，用户看到「202 → 失败」。
+    """
+    proj = await _make_project(db_session, "执行者无权访问的项目")
+    d = await _make(strict_client, "author-1", project_id=None,
+                    definition_json=DEF_JSON_EQUIP)
+    await strict_client.post(PUBLISH.format(d=d["def_id"]),
+                             headers=_auth("rev", "REVIEWER"))
+
+    r = await strict_client.post(
+        EXEC.format(d=d["def_id"]), headers=_auth("no-access-executor"),
+        json={"project_id": str(proj.project_id)},
+    )
+    assert r.status_code == 404, f"实得 {r.status_code}：{r.text[:300]}"
+    assert r.json()["code"] == "PROJECT_NOT_FOUND", (
+        f"错误码是 {r.json().get('code')!r} ⇒ ⇒ 期望 PROJECT_NOT_FOUND"
+    )
+    assert not fake_queue, "无权也入队了 ⇒ ⇒ 队列里躺一个注定失败的任务"
+
+
+@pytest.mark.asyncio
+async def test_company_level_execute_without_project_returns_400_and_leaves_no_log(
+    strict_client, db_session, fake_queue
+):
+    """公司级模板 + **不选**项目 ⇒ ⇒ **400** `REPORT_PROJECT_SCOPE_REQUIRED`。
+
+    ⚠️ **400 必须发生在端点**，不是 worker ⇒ ⇒ 今天的形状是「端点回 202 ⇒
+    worker 里 400」⇒ ⇒ 用户看到「提交成功 → 执行失败」，说不清是「没权限」
+    还是「系统坏了」。
+    ⚠️ **不许留下执行日志行**：端点先落库再入队（bug-167 的顺序约束）⇒ ⇒
+    若 400 落在落库之后 ⇒ ⇒ 会留一行永远 QUEUED 的日志等 15 分钟回收器
+    ⇒ ⇒ ⇒ 断言**日志表里一行都没有**。
+    """
+    from sqlalchemy import select as _sel
+
+    from app.models.report import ReportExecutionLog
+
+    d = await _make(strict_client, "author-1", project_id=None,
+                    definition_json=DEF_JSON_EQUIP)
+    await strict_client.post(PUBLISH.format(d=d["def_id"]),
+                             headers=_auth("rev", "REVIEWER"))
+
+    r = await strict_client.post(
+        EXEC.format(d=d["def_id"]), headers=_auth("executor"), json={},
+    )
+    assert r.status_code == 400, f"实得 {r.status_code}：{r.text[:300]}"
+    assert r.json()["code"] == "REPORT_PROJECT_SCOPE_REQUIRED", (
+        f"错误码是 {r.json().get('code')!r}"
+    )
+    assert not fake_queue, "没选项目也入队了"
+    logs = (await db_session.execute(
+        _sel(ReportExecutionLog).where(
+            ReportExecutionLog.def_id == uuid.UUID(d["def_id"]))
+    )).scalars().all()
+    assert logs == [], f"留下了 {len(logs)} 行执行日志 ⇒ ⇒ 会挂到 15 分钟后被回收器收掉"
+
+
+@pytest.mark.asyncio
+async def test_project_level_execute_without_project_uses_definition_project(
+    strict_client, db_session, fake_queue, grant_project
+):
+    """回归：**项目级**模板 + 不带项目 ⇒ ⇒ 仍然跑**定义自带**的项目。
+
+    ⚠️ 这是本批最容易改坏的一条：scope 解析规则一动，项目级模板的
+    执行范围就可能变 ⇒ ⇒ ⇒ 必须钉住。
+    """
+    from app.services.token_issuer import derive_user_id
+
+    proj = await _make_project(db_session, "项目级定义自带的项目")
+    # ⚠️ 建**项目级**定义时创建人必须对该项目有授权（create 侧判定）⇒ ⇒ 先授权
+    await grant_project(derive_user_id("author-1"), proj.project_id)
+    d = await _make(strict_client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await grant_project(derive_user_id("rev"), proj.project_id)
+    await strict_client.post(PUBLISH.format(d=d["def_id"]),
+                             headers=_auth("rev", "REVIEWER"))
+    await grant_project(derive_user_id("executor"), proj.project_id)
+
+    r = await strict_client.post(
+        EXEC.format(d=d["def_id"]), headers=_auth("executor"), json={},
+    )
+    assert r.status_code == 202, f"实得 {r.status_code}：{r.text[:300]}"
+    assert fake_queue[0]["project_id"] == str(proj.project_id), (
+        f"入队载荷的 project_id 是 {fake_queue[0].get('project_id')!r}，"
+        f"期望定义自带的 {str(proj.project_id)!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_project_level_execute_with_mismatched_project_returns_400(
+    strict_client, db_session, fake_queue, grant_project
+):
+    """**项目级**模板 + 请求带**别的**项目 ⇒ ⇒ **400** 拒绝（不是静默忽略）。
+
+    ⚠️ **为什么不是静默忽略**：用户显式传了一个项目，服务端悄悄丢掉它 ⇒ ⇒
+    用户以为跑的是 B、实际跑的是 A ⇒ ⇒ ⇒ 那正是这批要消灭的
+    「以为跑的是 A 其实是 B」类事故 ⇒ ⇒ ⇒ 显式拒绝。
+    """
+    from app.services.token_issuer import derive_user_id
+
+    proj_a = await _make_project(db_session, "定义自带的项目甲")
+    proj_b = await _make_project(db_session, "请求里带的项目乙")
+    # ⚠️ 建**项目级**定义时创建人必须对该项目有授权（create 侧判定）⇒ ⇒ 先授权
+    await grant_project(derive_user_id("author-1"), proj_a.project_id)
+    d = await _make(strict_client, "author-1", project_id=str(proj_a.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await grant_project(derive_user_id("rev"), proj_a.project_id)
+    await strict_client.post(PUBLISH.format(d=d["def_id"]),
+                             headers=_auth("rev", "REVIEWER"))
+    await grant_project(derive_user_id("executor"), proj_a.project_id)
+    await grant_project(derive_user_id("executor"), proj_b.project_id)
+
+    r = await strict_client.post(
+        EXEC.format(d=d["def_id"]), headers=_auth("executor"),
+        json={"project_id": str(proj_b.project_id)},
+    )
+    assert r.status_code == 400, f"实得 {r.status_code}：{r.text[:300]}"
+    assert r.json()["code"] == "REPORT_PROJECT_SCOPE_MISMATCH", (
+        f"错误码是 {r.json().get('code')!r} ⇒ ⇒ 期望 REPORT_PROJECT_SCOPE_MISMATCH"
+    )
+    assert not fake_queue, "不一致也入队了"
+
+
+@pytest.mark.asyncio
+async def test_company_level_definition_with_project_less_source_is_rejected(
+    strict_client, db_session
+):
+    """公司级模板 + **主数据源没有 `project_id` 列** ⇒ ⇒ **建定义时就拒**。
+
+    ⚠️ **为什么必须建的时候拒**：`DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS`
+    这 3 张表**没有 `project_id` 列** ⇒ ⇒ 执行引擎的 `_project_field()` 对
+    它们抛 **`REPORT_PROJECT_SCOPE_REQUIRED`** ⇒ ⇒ ⇒ **与「公司级模板没选
+    项目」是同一个错误码** ⇒ ⇒ ⇒ 文案是假的；而且它发生在 **worker 里**
+    （202 之后）⇒ ⇒ ⇒ 被 ARQ 重试 3 次 ⇒ ⇒ ⇒ 最终 FAILED ⇒ ⇒ ⇒ 用户看到
+    「提交成功 → 神秘失败」⇒ ⇒ ⇒ **正是这批要消灭的 UX 原封不动回来了**。
+    ⚠️ 编辑器默认 `projectId: null` ⇒ ⇒ ⇒ 不在建的时候拦 ⇒ ⇒ 就是**默认
+    路径在批量生产死路**。
+    """
+    def_json = {
+        "DataSources": [{"source": "SUPPLIERS"}],
+        "SelectedFields": [
+            {"source": "SUPPLIERS", "field": "supplier_name",
+             "alias": "供应商", "order": 0, "visible": True},
+        ],
+    }
+    r = await strict_client.post(
+        "/api/v1/report-builder/definitions",
+        headers=_auth("author-1"),
+        json=_definition_body(project_id=None, definition_json=def_json),
+    )
+    assert r.status_code == 400, f"实得 {r.status_code}：{r.text[:300]}"
+    assert r.json()["code"] == "REPORT_DATASOURCE_NOT_PROJECT_SCOPED", (
+        f"错误码是 {r.json().get('code')!r} ⇒ ⇒ 期望 "
+        "REPORT_DATASOURCE_NOT_PROJECT_SCOPED（**不能**复用 "
+        "REPORT_PROJECT_SCOPE_REQUIRED —— 那是「你没选项目」）"
     )

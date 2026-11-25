@@ -4370,3 +4370,45 @@
 | 07:58 | Edited TODOS.md | 4→4 lines | ~120 |
 | 08:00 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | 1→2 lines | ~34 |
 | 08:01 | Edited docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md | inline fix | ~28 |
+| 08:07 | Edited pcs-backend/tests/api/v1/test_report_builder.py | 5→7 lines | ~105 |
+| 08:07 | Edited pcs-backend/tests/api/v1/test_report_builder.py | 4→6 lines | ~106 |
+| 08:09 | Edited pcs-backend/app/api/v1/report_builder.py | expanded (+8 lines) | ~167 |
+| 08:09 | Edited pcs-backend/app/api/v1/report_builder.py | added 1 condition(s) | ~680 |
+| 08:09 | Edited pcs-backend/app/api/v1/report_builder.py | inline fix | ~11 |
+| 08:09 | Edited pcs-backend/app/api/v1/report_builder.py | inline fix | ~17 |
+| 08:10 | Edited pcs-backend/app/services/report/datasource_registry.py | modified source_supports_project_scope() | ~354 |
+| 08:10 | Edited pcs-backend/app/services/report/definition_service.py | 2→3 lines | ~48 |
+| 08:10 | Edited pcs-backend/app/services/report/definition_service.py | 2→3 lines | ~57 |
+| 08:10 | Edited pcs-backend/app/services/report/definition_service.py | modified _assert_primary_source_project_scopable() | ~429 |
+| 08:10 | Edited pcs-backend/app/services/report/definition_service.py | 1→4 lines | ~31 |
+| 08:10 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+8 lines) | ~179 |
+| 08:10 | Edited pcs-backend/app/services/report/builder_service.py | 2→2 lines | ~26 |
+| 08:16 | Edited pcs-frontend/src/api/projects.ts | expanded (+7 lines) | ~133 |
+| 08:16 | Edited pcs-frontend/src/api/projects.ts | 13→13 lines | ~139 |
+| 08:16 | Edited pcs-frontend/src/api/projects.ts | added error handling | ~552 |
+| 08:16 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | added 3 import(s) | ~124 |
+| 08:16 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | expanded (+7 lines) | ~136 |
+| 08:16 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | CSS: project_id | ~300 |
+| 08:16 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | added error handling | ~338 |
+| 08:17 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | CSS: display, marginTop | ~513 |
+| 08:17 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | added 1 import(s) | ~59 |
+| 08:17 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | CSS: code, default | ~245 |
+| 08:18 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | 10→11 lines | ~123 |
+| 08:20 | Created pcs-frontend/tests/pages/report/ReportExecutePageProjectScope.test.tsx | — | ~1791 |
+| 08:20 | Edited pcs-frontend/tests/pages/report/ReportExecutePageProjectScope.test.tsx | 1→5 lines | ~82 |
+| 08:22 | Created pcs-frontend/tests/pages/report/ReportExecutePageProjectScope.test.tsx | — | ~2193 |
+| 08:23 | Edited pcs-frontend/tests/pages/report/ReportExecutePageProjectScope.test.tsx | modified executeButton() | ~82 |
+| 08:24 | Edited docs/PCS-UI-SPEC.md | expanded (+63 lines) | ~675 |
+| 08:24 | Edited docs/PCS-UI-SPEC.md | 2→3 lines | ~403 |
+| 08:24 | Edited docs/PCS-UI-SPEC.md | 2→2 lines | ~8 |
+| 08:25 | Created docs/adr/0051-report-execution-scope-resolution.md | — | ~1942 |
+| 08:25 | Edited docs/adr/README.md | inline fix | ~47 |
+| 08:25 | Created pcs-backend/tests/api/v1/test_report_definition_scope_uniqueness_pg.py | — | ~2328 |
+| 08:28 | Edited pcs-backend/tests/api/v1/test_report_definition_scope_uniqueness_pg.py | 8→12 lines | ~162 |
+| 08:45 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | 1→2 lines | ~56 |
+| 08:45 | Edited docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md | expanded (+28 lines) | ~567 |
+| 08:45 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10j-t1.md | — | ~1799 |
+| 08:46 | Edited TODOS.md | expanded (+14 lines) | ~238 |
+| 08:46 | Edited TODOS.md | expanded (+44 lines) | ~408 |
+| 08:46 | Edited TODOS.md | 1→3 lines | ~79 |
+| 08:46 | Edited TODOS.md | inline fix | ~49 |

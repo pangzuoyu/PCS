@@ -66,6 +66,9 @@ function deferred<T>() {
 
 const body = (id: string, name: string) => ({
   def_id: id, name, version: '0.1.0', status: 'PUBLISHED',
+  // ⚠️ **P10-J-T1**：带 `project_id` ⇒ ⇒ 是**项目级**模板 ⇒ ⇒ 不出现
+  // 「选项目」下拉 ⇒ ⇒ ⇒ 这组要验的**竞态**行为不受影响。
+  project_id: 'p1',
   output_format: 'pdf', max_rows: 10000,
   definition_json: {
     DataSources: [{ source: 'PUMP_RESULTS' }],

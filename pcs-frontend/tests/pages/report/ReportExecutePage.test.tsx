@@ -77,11 +77,15 @@ beforeEach(() => {
   execute.mockReset(); executionStatus.mockReset();
   datasources.mockReset(); list.mockReset(); get.mockReset();
   datasources.mockResolvedValue({ datasources: [] });
+  // ⚠️ **P10-J-T1**：带 `project_id` ⇒ ⇒ 是**项目级**模板 ⇒ ⇒ 不出现
+  // 「选项目」下拉 ⇒ ⇒ ⇒ 这组要验的**轮询**行为不受影响。
   list.mockResolvedValue({
-    items: [{ def_id: 'd1', name: '泵数据表', version: '0.1.0', status: 'PUBLISHED' }],
+    items: [{ def_id: 'd1', name: '泵数据表', version: '0.1.0', status: 'PUBLISHED',
+              project_id: 'p1' }],
   });
   get.mockResolvedValue({
     def_id: 'd1', name: '泵数据表', version: '0.1.0', status: 'PUBLISHED',
+    project_id: 'p1',
     output_format: 'pdf', max_rows: 10000, definition_json: {
       DataSources: [{ source: 'PUMP_RESULTS' }],
       SelectedFields: [{ source: 'PUMP_RESULTS', field: 'tag_number',

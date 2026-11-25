@@ -321,9 +321,17 @@ def _project_field(source: str) -> str:
     """
     ds = DATASOURCES[source]
     if "project_id" not in ds.fields:
+        # ⚠️ **错误码不复用 `REPORT_PROJECT_SCOPE_REQUIRED`**（2026-11-25）：
+        # 那个码表示「公司级模板没选项目」⇒ ⇒ ⇒ 复用 ⇒ ⇒ ⇒ 用户看到
+        # 「请选一个项目」、而他**选了也没用**（这个源压根不支持按项目
+        # 隔离）⇒ ⇒ ⇒ 必须**可区分**。
+        # ⇒ ⇒ ⇒ 且公司级模板**建的时候**就该被拒（`definition_service
+        # ._assert_primary_source_project_scopable`）⇒ ⇒ ⇒ 到这里的是
+        # **存量**定义 ⇒ ⇒ ⇒ 至少要说实话。
         raise PcsError(
-            f"数据源 {source} 没有 project_id 列，无法按项目隔离执行。",
-            code="REPORT_PROJECT_SCOPE_REQUIRED", status=400,
+            f"数据源 {source} 没有 project_id 列，无法按项目隔离执行"
+            "（这条模板的主数据源不支持按项目选数据）。",
+            code="REPORT_DATASOURCE_NOT_PROJECT_SCOPED", status=400,
         )
     return "project_id"
 

@@ -4,6 +4,7 @@
 > **人裁**：2026-11-23（见 `2026-11-23-p10-j-feature-backlog.md` §P10-J-T1）· 2026-11-24 补充（见 §七）· **2026-11-24 plan-eng-review + hermes 第三方审查增补（见 §八）**
 > **性质**：**新功能**（**滚 OpenAPI 契约**）
 > **状态**：✅ **已批准**（2026-11-25 · 人裁「approve」）⇒ ⇒ ⇒ **可开工** · 本批为**下一批的第一件事**（与 P10-K **串行**）
+> **落地**：✅ **已落地**（2026-11-25 · 见 §十「落地记录」）⇒ ⇒ ⇒ **T1-1 / T1-3 / T1-4 / T1-5 / T1-6 / T1-7 / T1-8 全部完成**（**T1-2 已删**）
 
 ---
 
@@ -41,13 +42,13 @@
 
 | # | 内容 | 文件 | 状态 |
 |---|---|---|---|
-| **T1-1** | 契约：`ReportExecuteRequest` **加 `project_id`** ⇒ ⇒ 滚 openapi（`pcs-backend/docs/openapi.json`）· **`pcs-frontend/src/types/api.d.ts`**（**不是** `src/api/api.d.ts`）· **`pcs-frontend/openapi.snapshot.json`** ⇒ ⇒ ⚠️ **CI 拦不住「新增可选字段」⇒ ⇒ 必须手工跑 `npm run api:gen` 并提交那两份**（见 §八·修正 6）| `app/api/v1/report_builder.py` | ⬜ |
-| **T1-3** | 端点：**解析 scope + 三道新判定**（顺序见 §四·判定顺序，**不重排既有行为**）⇒ ⇒ ① **MISMATCH 400**（请求项目 ≠ 定义自带项目）② **SCOPE_REQUIRED 400**（公司级 + 未指定项目）③ 对**解析出的 scope** 做授权判定 ⇒ ⇒ 无权 ⇒ ⇒ **404** `PROJECT_NOT_FOUND` | `app/api/v1/report_builder.py` | ⬜ |
-| **T1-4** | **入队与快照传「解析后的 scope」**（`:591` 入队 + **`:572` 快照** 两处）⇒ ⇒ 产出文件有项目归属 | `app/api/v1/report_builder.py` | ⬜ |
-| **T1-7** 🆕 | **建定义时拒「公司级 + 主数据源无 `project_id` 列」** ⇒ ⇒ `DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS` 这 3 个源**没有项目列** ⇒ ⇒ 选了项目也**无法按项目隔离** ⇒ ⇒ 若不在源头拦住，编辑器默认 `projectId: null` ⇒ ⇒ **批量生产永远跑不了的死路**（见 §八·修正 12）<br>✅ **零存量**（两库实测：`pcs` 8 条公司级定义主源全有项目列 · `pcs_test` 0 条定义）⇒ ⇒ ⇒ **零迁移、零清理**；执行侧**另外**给一个**可区分**的错误码（不再复用 `REPORT_PROJECT_SCOPE_REQUIRED`）⇒ ⇒ ⇒ 让别处环境里的旧定义跑起来时**说实话** | `app/services/report/definition_service.py` · `app/services/report/datasource_registry.py` | ⬜ |
-| **T1-5** | 前端：执行页 —— 选中**公司级**定义（`def.project_id === null`，**生成类型里已有该字段**：`src/types/api.d.ts:16811`）时给「**选项目**」入口 ⇒ ⇒ **必选、无默认**（人裁 2026-11-24）⇒ ⇒ ⇒ 未选 ⇒ ⇒ **执行按钮禁用** ⇒ ⇒ 项目级**不出现**<br>⚠️ **四条实现约束**（见 §八·修正 7~9）：① 候选源**按角色分**（普通用户 = 自己的授权行 · SYSTEM_ADMIN = 工作区并集）② **不用** `useProjectScope().projects` 那个并集（**含你无权执行的项目**）③ **不能**用 `selectProject`（会改**全局顶栏**项目）④ Select 的 label **要标出作用域**（今天公司级与项目级在界面上**长得一模一样**）| `src/pages/report/ReportExecutePage.tsx` | ⬜ |
-| **T1-6** | **SPEC §7.18 补条款（§7.18.2）** + §12.4 修订登记 + 断言（后端默认车道 + **PG 车道 1 条直连 ORM** · 前端 vitest）| `docs/PCS-UI-SPEC.md` · `tests/` · `pcs-frontend/tests/` | ⬜ |
-| **T1-8** 🆕 | **ADR**：scope 解析裁决（定义自带项目优先 + 不一致 400）+ 「**谁能对哪个项目执行公司级模板**」的权限口径 | `docs/adr/` | ⬜ |
+| **T1-1** | 契约：`ReportExecuteRequest` **加 `project_id`** ⇒ ⇒ 滚 openapi（`pcs-backend/docs/openapi.json`）· **`pcs-frontend/src/types/api.d.ts`**（**不是** `src/api/api.d.ts`）· **`pcs-frontend/openapi.snapshot.json`** ⇒ ⇒ ⚠️ **CI 拦不住「新增可选字段」⇒ ⇒ 必须手工跑 `npm run api:gen` 并提交那两份**（见 §八·修正 6）| `app/api/v1/report_builder.py` | ✅ |
+| **T1-3** | 端点：**解析 scope + 三道新判定**（顺序见 §四·判定顺序，**不重排既有行为**）⇒ ⇒ ① **MISMATCH 400**（请求项目 ≠ 定义自带项目）② **SCOPE_REQUIRED 400**（公司级 + 未指定项目）③ 对**解析出的 scope** 做授权判定 ⇒ ⇒ 无权 ⇒ ⇒ **404** `PROJECT_NOT_FOUND` | `app/api/v1/report_builder.py` | ✅ |
+| **T1-4** | **入队与快照传「解析后的 scope」**（`:591` 入队 + **`:572` 快照** 两处）⇒ ⇒ 产出文件有项目归属 | `app/api/v1/report_builder.py` | ✅ |
+| **T1-7** 🆕 | **建定义时拒「公司级 + 主数据源无 `project_id` 列」** ⇒ ⇒ `DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS` 这 3 个源**没有项目列** ⇒ ⇒ 选了项目也**无法按项目隔离** ⇒ ⇒ 若不在源头拦住，编辑器默认 `projectId: null` ⇒ ⇒ **批量生产永远跑不了的死路**（见 §八·修正 12）<br>✅ **零存量**（两库实测：`pcs` 8 条公司级定义主源全有项目列 · `pcs_test` 0 条定义）⇒ ⇒ ⇒ **零迁移、零清理**；执行侧**另外**给一个**可区分**的错误码（不再复用 `REPORT_PROJECT_SCOPE_REQUIRED`）⇒ ⇒ ⇒ 让别处环境里的旧定义跑起来时**说实话** | `app/services/report/definition_service.py` · `app/services/report/datasource_registry.py` | ✅ |
+| **T1-5** | 前端：执行页 —— 选中**公司级**定义（`def.project_id === null`，**生成类型里已有该字段**：`src/types/api.d.ts:16811`）时给「**选项目**」入口 ⇒ ⇒ **必选、无默认**（人裁 2026-11-24）⇒ ⇒ ⇒ 未选 ⇒ ⇒ **执行按钮禁用** ⇒ ⇒ 项目级**不出现**<br>⚠️ **四条实现约束**（见 §八·修正 7~9）：① 候选源**按角色分**（普通用户 = 自己的授权行 · SYSTEM_ADMIN = 工作区并集）② **不用** `useProjectScope().projects` 那个并集（**含你无权执行的项目**）③ **不能**用 `selectProject`（会改**全局顶栏**项目）④ Select 的 label **要标出作用域**（今天公司级与项目级在界面上**长得一模一样**）| `src/pages/report/ReportExecutePage.tsx` | ✅ |
+| **T1-6** | **SPEC §7.18 补条款（§7.18.2）** + §12.4 修订登记 + 断言（后端默认车道 + **PG 车道 1 条直连 ORM** · 前端 vitest）| `docs/PCS-UI-SPEC.md` · `tests/` · `pcs-frontend/tests/` | ✅ |
+| **T1-8** 🆕 | **ADR**：scope 解析裁决（定义自带项目优先 + 不一致 400）+ 「**谁能对哪个项目执行公司级模板**」的权限口径 | `docs/adr/` | ✅ |
 
 ### T1-2（**已删**）
 
@@ -270,6 +271,34 @@ W-6 的 SPEC 条款必须写明「**必须选一个项目**」⇒ ⇒ ⇒ **不�
 | ⚠️ **P10-J-T2 的「被退回」与本批无耦合** | ✅ **确认无耦合** ⇒ ⇒ 可并行，但**不并行改同一处契约** |
 | ⚠️ **与 P10-K（§7.5 向导）耦合** | ✅ **串行**（两批都改契约 + 前端类型）⇒ ⇒ ⇒ **P10-K 先落地会先占一个 SPEC 版本号** ⇒ ⇒ ⇒ 本批的 SPEC 版本号在 P10-K 之后重算 |
 | ⚠️ **PLAN MODE 未启** | ⚠️ **状态项**：本计划**尚未获批执行**（2026-11-24 用户裁决：新计划须经批准才能执行）⇒ ⇒ **不是缺陷，是闸门** |
+
+---
+
+## 十、落地记录（2026-11-25）
+
+| 任务 | 落地位置 | 备注 |
+|---|---|---|
+| **T1-1** | `app/api/v1/report_builder.py`（`ReportExecuteRequest.project_id`）· `pcs-backend/docs/openapi.json` · `pcs-frontend/openapi.snapshot.json` · `pcs-frontend/src/types/api.d.ts` | ⚠️ **三份契约都提交了**（CI 拦不住「新增可选字段」⇒ ⇒ 手工 `npm run api:check` 验过）|
+| **T1-3** | `app/api/v1/report_builder.py`（**判定顺序照抄 §四**）| ⚠️ **service 的 `project_id or row.project_id` 原样不动**（T1-2 已删 ⇒ 规则只在端点一处）|
+| **T1-4** | 快照 `:572` + 入队 `:591` ⇒ ⇒ 都传**解析后的 scope** ⇒ ⇒ `report_files.project_id` 不再落 NULL | |
+| **T1-5** | `src/pages/report/ReportExecutePage.tsx` · `src/api/projects.ts`（`executableProjects(isAdmin)`）| ⚠️ 候选源**按角色分**；**不动**全局顶栏；Select label 标作用域；未选 ⇒ 执行按钮禁用 |
+| **T1-6** | `docs/PCS-UI-SPEC.md` **§7.18.2** + §12.4 **V2.20**（文件头 V2.19 ⇒ V2.20）· 后端 6 条新用例 · 前端 5 条新用例 · **PG 车道 1 条**（`tests/api/v1/test_report_definition_scope_uniqueness_pg.py` · **直连 ORM**）| |
+| **T1-7** | `definition_service._assert_primary_source_project_scopable()`（create + update 都调）· `datasource_registry.source_supports_project_scope()`（**ORM 直查** ⇒ 不受导入顺序影响）· `builder_service._project_field()` 改抛**可区分**的码 | |
+| **T1-8** | `docs/adr/0051-report-execution-scope-resolution.md`（+ `docs/adr/README.md` 索引）| |
+
+**车道**（2026-11-25 实测）：
+
+| 车道 | 结果 |
+|---|---|
+| 后端默认（`uv run pytest`）| **6172 passed** / 164 skipped（上批 6166 ⇒ **+6**）· RC=0 |
+| 后端 PG（`bash scripts/pytest_pg.sh`）| **47 passed**（上批 46 ⇒ **+1**）· RC=0 |
+| 前端 `npm run typecheck` | clean |
+| 前端 `npm run lint` | clean（`--max-warnings 0` + `.` 范围）|
+| 前端 `npm run test` | **129 files / 1139 tests passed**（上批 1134 ⇒ **+5**）|
+| `alembic check`（**pcs / pcs_test 各一进程**）| 两库都 `p10_005 (head)` + `No new upgrade operations detected` · RC=0 |
+| 浏览器（gstack browse · CI=1）| 登录 200 → 仪表盘 → 报表定义 → **执行页：公司级模板出现「选项目」下拉 · 未选时执行按钮禁用 · 选了项目解禁 · 定义下拉 label 标「公司级」** · 执行 POST 202 · 控制台无 error · 无 404 |
+
+⚠️ **本批改了 SPEC 版本号**（V2.19 ⇒ **V2.20**）⇒ ⇒ ⇒ 与 §九 那条「P10-K 先落地会先占一个版本号」的预判**相反**（本批先落地）⇒ ⇒ ⇒ **P10-K 的 SPEC 版本号从 V2.21 起算**。
 
 ---
 

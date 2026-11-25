@@ -16955,6 +16955,8 @@ export interface components {
             max_rows?: number | null;
             /** Output Format */
             output_format?: string | null;
+            /** Project Id */
+            project_id?: string | null;
         };
         /**
          * ReportExecutionStatus

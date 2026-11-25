@@ -45,7 +45,10 @@ from app.models.report import ReportDefinition
 from app.services.exceptions import PcsError
 from app.services.notifications.notify import notify
 from app.services.notifications.payload import NotificationDetail, NotificationPayload
-from app.services.report.datasource_registry import DATASOURCES
+from app.services.report.datasource_registry import (
+    DATASOURCES,
+    source_supports_project_scope,
+)
 from app.services.user_project_service import require_project_access_or_404
 
 # 状态集 —— SPEC §3.2.2(2) 的 `Status enum 草稿/已发布/已作废`。
@@ -123,6 +126,45 @@ def bump_patch(version: str) -> str:
     if patch >= 10:
         patch, minor = 0, minor + 1
     return f"{major}.{minor}.{patch}"
+
+
+def _assert_primary_source_project_scopable(
+    definition_json: dict[str, Any], project_id: uuid.UUID | None
+) -> None:
+    """**公司级模板**（`project_id IS NULL`）⇒ ⇒ 主数据源必须**支持按项目隔离**。
+
+    ⚠️ **为什么要在建定义时拦**（2026-11-25 · plan-eng-review + hermes 第三方审查）：
+    `DATALINEAGE` / `SUPPLIERS` / `CONFIG_ASSETS` 这 3 张表**没有 `project_id`
+    列** ⇒ ⇒ 执行引擎的 `_project_field()` 对它们抛错 ⇒ ⇒ ⇒ 而那个错
+    **与「公司级模板没选项目」是同一个错误码** ⇒ ⇒ ⇒ **文案是假的**；且它
+    发生在 **worker 里**（202 之后）⇒ ⇒ ⇒ 被 ARQ **重试 3 次** ⇒ ⇒ ⇒
+    最终 FAILED ⇒ ⇒ ⇒ 用户看到「提交成功 → 神秘失败」⇒ ⇒ ⇒ **正是这批
+    要消灭的 UX 原封不动回来了**。
+
+    ⚠️ **为什么必须现在拦**：报表定义编辑器的默认 `projectId: null`
+    ⇒ ⇒ ⇒ 不在建的时候拦 ⇒ ⇒ 就是**默认路径在批量生产死路**。
+
+    ⚠️ **错误码不复用 `REPORT_PROJECT_SCOPE_REQUIRED`**：那个码表示
+    「公司级模板没选项目」⇒ ⇒ ⇒ 复用 ⇒ ⇒ ⇒ 用户看到「请选一个项目」，
+    而他**选了也没用**（这个源压根不支持按项目隔离）⇒ ⇒ ⇒ 必须**可区分**。
+    """
+    if project_id is not None:
+        return  # 项目级模板 ⇒ scope 就是它 ⇒ 不存在「按项目隔离」的问题
+    sources = [
+        s.get("source") if isinstance(s, dict) else s
+        for s in (definition_json.get("DataSources") or [])
+    ]
+    primary = sources[0] if sources else None
+    if primary is None:
+        return  # 未知源 / 没源 ⇒ 由 validate_definition_json 报它自己的码
+    if source_supports_project_scope(primary):
+        return
+    raise PcsError(
+        f"数据源 {primary} 没有 project_id 列，无法按项目隔离执行；"
+        "公司级模板（未绑定项目）不能用它作主数据源 —— "
+        "否则选了项目也跑不了（且错误信息会与「没选项目」混淆）。",
+        code="REPORT_DATASOURCE_NOT_PROJECT_SCOPED", status=400,
+    )
 
 
 def validate_definition_json(payload: dict[str, Any]) -> None:
@@ -320,6 +362,7 @@ class DefinitionService:
                 code="REPORT_DEFINITION_INVALID", status=400,
             )
         validate_definition_json(definition_json)
+        _assert_primary_source_project_scopable(definition_json, project_id)
         await self._check_demo_limit()
         await self._reject_duplicate(project_id, name, exclude=None)
         definition_json = align_with_columns(
@@ -492,6 +535,7 @@ class DefinitionService:
                 code="REPORT_DEFINITION_INVALID", status=400,
             )
         validate_definition_json(definition_json)
+        _assert_primary_source_project_scopable(definition_json, project_id)
         await self._reject_duplicate(project_id, name, exclude=def_id)
         definition_json = align_with_columns(
             definition_json, max_rows=max_rows, output_format=output_format)

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-11-25T00:01:01.153Z",
-    "fileCount": 1495,
+    "lastScanned": "2026-11-25T00:46:23.793Z",
+    "fileCount": 1499,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b0097a7fcba23e8b03e1ada4455502278e10e6120ea97d207ae17eef64ab33a9",
-    "storeUpdatedAt": "2026-11-25T00:01:01.167Z",
-    "rootHash": "1bba3489b61c0aa4"
+    "renderedHash": "39d2a0c88ee41b88b8394c16781daa623d4cd4525db6f3e11e483a8c916b77aa",
+    "storeUpdatedAt": "2026-11-25T00:46:23.809Z",
+    "rootHash": "e5b2e1bee53ad31d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1086,13 +1086,12 @@
     },
     "docs/adr/README.md": {
       "description": "Project documentation",
-      "tokens": 242,
-      "hash": "451f87878cc98a1e",
-      "size": 1807,
-      "mtimeMs": 1789478151630.8352,
-      "updatedAt": "2026-10-02T12:43:34.550Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 298,
+      "hash": "04119099eb83c4ef",
+      "size": 2258,
+      "mtimeMs": 1795566322147.135,
+      "updatedAt": "2026-11-25T00:25:22.194Z",
+      "source": "hook"
     },
     "docs/adr/signatures/0028-acceptance-resolution.md": {
       "description": "ADR-0028 V1.1 评审委员会决议（接受）",
@@ -1756,11 +1755,11 @@
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 19923,
-      "hash": "dc9196aa07ff152c",
-      "size": 133067,
-      "mtimeMs": 1795479963171.7344,
-      "updatedAt": "2026-11-24T00:26:03.227Z",
+      "tokens": 21407,
+      "hash": "7bb895be43160754",
+      "size": 144207,
+      "mtimeMs": 1795566296963.608,
+      "updatedAt": "2026-11-25T00:24:57.024Z",
       "source": "hook"
     },
     "docs/superpowers/plans/2026-08-29-p0-skeleton-schema.md": {
@@ -12359,11 +12358,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 23439,
-      "hash": "f46c2137fda11528",
-      "size": 153833,
-      "mtimeMs": 1795564734952.4182,
-      "updatedAt": "2026-11-24T23:58:55.010Z",
+      "tokens": 23999,
+      "hash": "caba56d3ba48b27a",
+      "size": 157598,
+      "mtimeMs": 1795567583743.1213,
+      "updatedAt": "2026-11-25T00:46:23.793Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -23077,11 +23076,11 @@
     },
     "pcs-backend/app/services/report/datasource_registry.py": {
       "description": "数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。",
-      "tokens": 8146,
-      "hash": "1109daf5667061a2",
-      "size": 34704,
-      "mtimeMs": 1791852154998.826,
-      "updatedAt": "2026-10-13T00:42:35.057Z",
+      "tokens": 8487,
+      "hash": "9adaba0798578e6b",
+      "size": 36382,
+      "mtimeMs": 1795565408665.294,
+      "updatedAt": "2026-11-25T00:10:08.714Z",
       "source": "hook",
       "symbols": [
         {
@@ -23179,8 +23178,15 @@
           "name": "_add_project_columns",
           "kind": "fn",
           "startLine": 609,
-          "endLine": 635,
+          "endLine": 636,
           "tokens": 252
+        },
+        {
+          "name": "source_supports_project_scope",
+          "kind": "fn",
+          "startLine": 637,
+          "endLine": 669,
+          "tokens": 341
         }
       ]
     },
@@ -24717,11 +24723,11 @@
     },
     "pcs-backend/tests/api/v1/test_report_builder.py": {
       "description": "`/api/v1/report-builder` 路由契约（Phase 2）。",
-      "tokens": 17878,
-      "hash": "7f72f88f6e05c6cc",
-      "size": 74222,
-      "mtimeMs": 1791936185374.8792,
-      "updatedAt": "2026-10-14T00:03:05.426Z",
+      "tokens": 27456,
+      "hash": "ac119ec4f1e31204",
+      "size": 116046,
+      "mtimeMs": 1795565238687.0796,
+      "updatedAt": "2026-11-25T00:07:18.746Z",
       "source": "hook",
       "symbols": [
         {
@@ -24931,8 +24937,8 @@
           "name": "test_max_rows_survives_round_trip",
           "kind": "fn",
           "startLine": 444,
-          "endLine": 1573,
-          "tokens": 12759
+          "endLine": 2439,
+          "tokens": 22337
         }
       ]
     },
@@ -25054,11 +25060,11 @@
     },
     "pcs-backend/app/api/v1/report_builder.py": {
       "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
-      "tokens": 6448,
-      "hash": "e9d5438b0bad0ec0",
-      "size": 30524,
-      "mtimeMs": 1795489423440.5854,
-      "updatedAt": "2026-11-24T03:03:43.493Z",
+      "tokens": 6991,
+      "hash": "60e442c1c2010cab",
+      "size": 33744,
+      "mtimeMs": 1795565389807.1648,
+      "updatedAt": "2026-11-25T00:09:49.860Z",
       "source": "hook",
       "symbols": [
         {
@@ -25149,113 +25155,120 @@
           "name": "ReportExecuteRequest",
           "kind": "class",
           "startLine": 419,
-          "endLine": 431,
-          "tokens": 109
+          "endLine": 439,
+          "tokens": 212
         },
         {
           "name": "ReportExecuteAccepted",
           "kind": "class",
-          "startLine": 432,
-          "endLine": 438,
+          "startLine": 440,
+          "endLine": 446,
           "tokens": 37
         },
         {
           "name": "ReportExecutionStatus",
           "kind": "class",
-          "startLine": 439,
-          "endLine": 468,
+          "startLine": 447,
+          "endLine": 476,
           "tokens": 276
         },
         {
           "name": "execution_status",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 499,
+          "startLine": 477,
+          "endLine": 507,
           "tokens": 376
         },
         {
           "name": "execute_definition_endpoint",
           "kind": "fn",
-          "startLine": 500,
-          "endLine": 620,
-          "tokens": 1424
+          "startLine": 508,
+          "endLine": 668,
+          "tokens": 1864
         }
       ]
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 9913,
-      "hash": "fb524966ce5d73a6",
-      "size": 48339,
-      "mtimeMs": 1795489304337.4858,
-      "updatedAt": "2026-11-24T03:01:44.389Z",
+      "tokens": 10514,
+      "hash": "48b4c234e87ed8fb",
+      "size": 51496,
+      "mtimeMs": 1795565445110.54,
+      "updatedAt": "2026-11-25T00:10:45.168Z",
       "source": "hook",
       "symbols": [
         {
           "name": "RejectOutcome",
           "kind": "class",
-          "startLine": 60,
-          "endLine": 110,
-          "tokens": 506
+          "startLine": 65,
+          "endLine": 112,
+          "tokens": 481
         },
         {
           "name": "bump_patch",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 128,
+          "startLine": 113,
+          "endLine": 130,
           "tokens": 128
+        },
+        {
+          "name": "_assert_primary_source_project_scopable",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 169,
+          "tokens": 411
         },
         {
           "name": "validate_definition_json",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 168,
+          "startLine": 170,
+          "endLine": 209,
           "tokens": 421
         },
         {
           "name": "align_with_columns",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 185,
+          "startLine": 210,
+          "endLine": 226,
           "tokens": 149
         },
         {
           "name": "_to_dict",
           "kind": "fn",
-          "startLine": 186,
-          "endLine": 204,
+          "startLine": 227,
+          "endLine": 245,
           "tokens": 168
         },
         {
           "name": "project_member_exists",
           "kind": "fn",
-          "startLine": 205,
-          "endLine": 226,
+          "startLine": 246,
+          "endLine": 267,
           "tokens": 194
         },
         {
           "name": "visible_clause",
           "kind": "fn",
-          "startLine": 227,
-          "endLine": 295,
+          "startLine": 268,
+          "endLine": 336,
           "tokens": 751
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 296,
-          "endLine": 875,
-          "tokens": 7059
+          "startLine": 337,
+          "endLine": 926,
+          "tokens": 7236
         }
       ]
     },
     "pcs-backend/app/services/report/builder_service.py": {
       "description": "REPORT_BUILDER 执行引擎（P8b b7）。",
-      "tokens": 3432,
-      "hash": "4b9059fdb61d1eed",
-      "size": 16153,
-      "mtimeMs": 1795007135428.7234,
-      "updatedAt": "2026-11-18T13:05:35.477Z",
+      "tokens": 3541,
+      "hash": "ee12e6f3d6ab68ea",
+      "size": 16815,
+      "mtimeMs": 1795565458521.6294,
+      "updatedAt": "2026-11-25T00:10:58.579Z",
       "source": "hook",
       "symbols": [
         {
@@ -25304,8 +25317,8 @@
           "name": "_project_field",
           "kind": "fn",
           "startLine": 314,
-          "endLine": 331,
-          "tokens": 147
+          "endLine": 339,
+          "tokens": 256
         }
       ]
     },
@@ -26480,25 +26493,32 @@
     },
     "pcs-frontend/src/pages/report/ReportExecutePage.tsx": {
       "description": "ReportExecutePage — 执行面板（b11）。",
-      "tokens": 3851,
-      "hash": "d03a6cf8f1a9256c",
-      "size": 16932,
-      "mtimeMs": 1792341247871.2673,
-      "updatedAt": "2026-10-18T16:34:07.918Z",
+      "tokens": 5091,
+      "hash": "f8611a60468ca9cb",
+      "size": 23145,
+      "mtimeMs": 1795565938285.319,
+      "updatedAt": "2026-11-25T00:18:58.340Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "hintFor",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 91,
+          "tokens": 153
+        },
+        {
           "name": "ReportExecutePage",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 380,
-          "tokens": 3267
+          "startLine": 92,
+          "endLine": 487,
+          "tokens": 4226
         },
         {
           "name": "describe",
           "kind": "fn",
-          "startLine": 381,
-          "endLine": 388,
+          "startLine": 488,
+          "endLine": 495,
           "tokens": 98
         }
       ]
@@ -40268,12 +40288,21 @@
     },
     "pcs-frontend/src/api/projects.ts": {
       "description": "项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。",
-      "tokens": 364,
-      "hash": "907f5805fe451d5c",
-      "size": 1799,
-      "mtimeMs": 1793282286663.3318,
-      "updatedAt": "2026-10-29T13:58:06.709Z",
-      "source": "hook"
+      "tokens": 925,
+      "hash": "5a4cecbe1ad1ddf8",
+      "size": 4439,
+      "mtimeMs": 1795565785606.6663,
+      "updatedAt": "2026-11-25T00:16:25.660Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ExecutableProject",
+          "kind": "section",
+          "startLine": 23,
+          "endLine": 91,
+          "tokens": 695
+        }
+      ]
     },
     "pcs-frontend/src/pages/admin/ProjectAdminPage.tsx": {
       "description": "ADMIN 建项目页（P9B-2 · 延后的 minor · Batch F · SPEC §7.20）。",
@@ -53986,11 +54015,11 @@
     },
     "docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md": {
       "description": "P10-J-T1 · 公司级模板「执行时选项目」 —— 计划",
-      "tokens": 4551,
-      "hash": "dda0cd2b8d6f74f8",
-      "size": 29609,
-      "mtimeMs": 1795564857015.753,
-      "updatedAt": "2026-11-25T00:00:57.069Z",
+      "tokens": 5081,
+      "hash": "03536b7a1866e2ff",
+      "size": 32521,
+      "mtimeMs": 1795567525650.1636,
+      "updatedAt": "2026-11-25T00:45:25.701Z",
       "source": "hook"
     },
     "docs/solutions/framework-integration-issues/serialization-must-go-through-the-response-model.md": {
@@ -54018,6 +54047,137 @@
       "size": 53344,
       "mtimeMs": 1795564861101.7947,
       "updatedAt": "2026-11-25T00:01:01.153Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/report/ReportExecutePageProjectScope.test.tsx": {
+      "description": "ReportExecutePage 的**「执行时选项目」**行为（P10-J-T1 · 公司级模板）。",
+      "tokens": 2228,
+      "hash": "59d30aed86870724",
+      "size": 9414,
+      "mtimeMs": 1795566187490.705,
+      "updatedAt": "2026-11-25T00:23:07.550Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "renderPage",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 68,
+          "tokens": 79
+        },
+        {
+          "name": "flush",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 75,
+          "tokens": 57
+        },
+        {
+          "name": "detail",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 91,
+          "tokens": 168
+        },
+        {
+          "name": "placeholderTexts",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 97,
+          "tokens": 59
+        },
+        {
+          "name": "openSelect",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 111,
+          "tokens": 160
+        },
+        {
+          "name": "pickOption",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 125,
+          "tokens": 136
+        },
+        {
+          "name": "executeButton",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 241,
+          "tokens": 1011
+        }
+      ]
+    },
+    "docs/adr/0051-report-execution-scope-resolution.md": {
+      "description": "ADR-0051：报表执行的项目作用域解析 —— 公司级模板「执行时选项目」",
+      "tokens": 1821,
+      "hash": "6c224844f93bf640",
+      "size": 12250,
+      "mtimeMs": 1795566319384.294,
+      "updatedAt": "2026-11-25T00:25:19.434Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_report_definition_scope_uniqueness_pg.py": {
+      "description": "公司级报表定义的**同名唯一性**（PG 车道 · P10-J-T1 · T1-6）。",
+      "tokens": 2371,
+      "hash": "c083ed9eab4afc82",
+      "size": 9778,
+      "mtimeMs": 1795566488948.6213,
+      "updatedAt": "2026-11-25T00:28:08.996Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_pg_url",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 68,
+          "tokens": 113
+        },
+        {
+          "name": "test_company_level_definition_name_is_unique_nulls_not_distinct",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 109,
+          "tokens": 375
+        },
+        {
+          "name": "make_def",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 124,
+          "tokens": 100
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 201,
+          "tokens": 683
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 260,
+          "tokens": 518
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 261,
+          "endLine": 279,
+          "tokens": 188
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10j-t1.md": {
+      "description": "QA 报告 —— P10-J-T1 公司级模板「执行时选项目」（2026-11-25）",
+      "tokens": 1686,
+      "hash": "510333368b9a20f7",
+      "size": 10060,
+      "mtimeMs": 1795567541204.882,
+      "updatedAt": "2026-11-25T00:45:41.262Z",
       "source": "hook"
     }
   }

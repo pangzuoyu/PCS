@@ -93,7 +93,7 @@
 | `TODO-167` | 🟡 | 前端还有别处把**占位常量**当真项目 id 用 |
 | `TODO-170` | 🟠 | `report_definitions.project_id` 是**死字段**（数据模型说项目级 · 授权说创建人级） |
 | `TODO-172` | 🟡 | **publish 的职责分离未定义**（产品语义待定 · **不是**越权缺口） |
-| `TODO-177` | ✅ **已裁决**（2026-11-24 人裁：**执行时选项目** ⇒ ⇒ 契约 `ReportExecuteRequest` 加 `project_id`）⇒ ⇒ 📄 **计划已写**：`docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md` ⇒ ⇒ ⏸ **待批准后执行**（2026-11-24 用户裁决：新计划须经批准）| **公司级模板（`project_id IS NULL`）当前不可执行**（已知限制） |
+| `TODO-177` | ✅ **已关闭**（2026-11-25 · **P10-J-T1 落地**）⇒ ⇒ 公司级模板**现在可执行**（`ReportExecuteRequest` 加**可选** `project_id` · 端点解析 scope · 无权 404 · 不一致 400）⇒ ⇒ ADR-0051 + SPEC §7.18.2 | — |
 | `TODO-175` | 🟡 | `POST /projects` 允许 SYSTEM_ADMIN 在**别人**的 FORMAL 工作区里建项目（产品语义待定） |
 | `TODO-184` | 🟢 | `GET /report/styles` 的 `project_id` 是**死参数** |
 | `TODO-192` | 🔴 | **ce-code-review（P10-F 整批 · 2026-11-18）的修复项** |
@@ -1719,7 +1719,21 @@ service 层的 `publish(def_id=...)` / `obsolete(def_id=...)`
 
 ---
 
-## TODO-177: **公司级模板（`project_id IS NULL`）当前不可执行**（已知限制）🟡
+## TODO-177: **公司级模板（`project_id IS NULL`）当前不可执行**（已知限制）🟢
+
+↪️ **已关闭**（2026-11-25 · **P10-J-T1 落地**）—— 公司级模板**现在可执行**了：
+`ReportExecuteRequest` 加了**可选** `project_id` ⇒ ⇒ ⇒ 端点解析 scope
+（定义自带项目优先 · 不一致 ⇒ **400** `REPORT_PROJECT_SCOPE_MISMATCH` · 都没给 ⇒
+**400** `REPORT_PROJECT_SCOPE_REQUIRED`）⇒ ⇒ ⇒ 对解析出的 scope 做授权判定
+⇒ ⇒ ⇒ 无权 ⇒ ⇒ **404** `PROJECT_NOT_FOUND`（与「不存在」同形）⇒ ⇒ ⇒
+入队与快照都传**解析后的 scope** ⇒ ⇒ ⇒ 产出文件**有项目归属**。
+
+⇒ ⇒ ⇒ 计划 `docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md`
+⇒ ⇒ ⇒ 裁决 `docs/adr/0051-report-execution-scope-resolution.md`
+⇒ ⇒ ⇒ SPEC §7.18.2（+ §12.4 V2.20）
+⇒ ⇒ ⇒ 车道：后端默认 6172（+6）· PG 47（+1）· 前端 1139（+5）⇒ ⇒ ⇒ **全绿**
+⇒ ⇒ ⇒ ⚠️ **本条下面那三段「现状」是历史记录**（2026-11-18 核实）⇒ ⇒ ⇒ **已过期** ⇒ ⇒ ⇒
+**保留原文**（当现场）⇒ ⇒ ⇒ 现状见上面那段关闭说明。
 
 ↪️ **已裁决 · 转批**（2026-11-23 · F4-PRE · FP-T1）—— **P10-J**（`docs/superpowers/plans/2026-11-23-p10-j-feature-backlog.md`）⇒ ⇒ 属新功能（要改契约）⇒ ⇒ 待人裁决后开工。
 
@@ -2233,6 +2247,50 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 
 ---
 
+## TODO-208: P10-J-T1 的 **admin 候选腿**（`GET /workspaces`）**未在浏览器通道验过** 🟡
+
+**来源**：2026-11-25 · P10-J-T1 的浏览器回归（QA 报告
+`.gstack/qa-reports/qa-report-pcs-frontend-2026-11-25-p10j-t1.md` §5·2）
+
+**现状**：`projectsApi.executableProjects(isAdmin)` 有**两条腿**：
+
+| 角色 | 候选来源 | 浏览器验过？ |
+|---|---|---|
+| 普通用户 | `GET /user-projects/me`（**自己的授权行**）| ✅ **验过**（mock 账号 alice = DESIGNER ⇒ 候选两条：`30 万吨乙烯项目` · `炼油改扩建项目`）|
+| `SYSTEM_ADMIN` | `GET /workspaces`（工作区挂的项目）| ❌ **没验**（dev mock 账号不是 admin）|
+
+⇒ ⇒ ⇒ **只被单测覆盖**（`executableProjects` 传 `false` 那条断言）⇒ ⇒ ⇒
+admin 腿**真跑起来**会不会空、会不会 401，**没有端到端证据**。
+
+**建议改法**：以 SYSTEM_ADMIN 身份在 dev 通道跑一次「执行报表」页 ⇒ ⇒ ⇒
+确认候选**非空**且名字能取到（名字走 N× `GET /projects/{id}`）⇒ ⇒ ⇒
+顺带看 `GET /workspaces` 那条腿在 mock 通道的返回形状够不够。
+
+**归属**：低优先级 · 可与下一批（P10-K）的手测合并
+
+---
+
+## TODO-209: 裸载荷棘轮**已顶满基线** ⇒ ⇒ **下一批新增端点必须跑覆盖率脚本** 🟠
+
+**来源**：2026-11-25 · P10-J-T1 的发布前检查（bug-2212 登记的同一条）
+
+**现状**：`scripts/check_openapi_payload_coverage.py` 的棘轮是「**裸字段数 ≤ 基线**」
+⇒ ⇒ ⇒ 基线 = **71**（182 个 schema 里 111 已覆盖）⇒ ⇒ ⇒ **恰好卡在上限**
+⇒ ⇒ ⇒ ⇒ 从此**任何新增的裸 object 端点**（没有 `response_model`）⇒ ⇒ ⇒
+**立刻爆** ⇒ ⇒ ⇒ 而「找形状参考」时最容易抄到的恰是**同域里最旧的那个端点**
+⇒ ⇒ ⇒ ⇒ 陷阱是「**照抄现成先例**」这个动作本身。
+
+⚠️ **P10-J-T1 为什么没跑**：本批**未新增端点**（只给**既有**端点的 request body
+加了**可选**字段）⇒ ⇒ ⇒ 裸字段数**不变** ⇒ ⇒ ⇒ 棘轮**不可能涨**。
+
+**要做的**：**P10-K 会新增端点**（模板列表 · 套用模板 · 项目状态 PATCH …）
+⇒ ⇒ ⇒ **那一批必须跑** `uv run python scripts/check_openapi_payload_coverage.py`
+⇒ ⇒ ⇒ ⇒ 且**新端点一律用命名响应模型**（不要抄同域最旧的那个端点）。
+
+**归属**：P10-K 的**发布前检查项**（不是独立一批）
+
+---
+
 # F4-PRE 裁决表（2026-11-23 · P10-F · F4 前置批）
 
 > **为什么有这张表**：F4-PRE 的主任务（FP-T1）是「**逐条裁决**」14 条遗留债
@@ -2383,3 +2441,5 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 | `TODO-205` | `/wizard` 导航对所有人可见，但建项目与加人员**都只收 SYSTEM_ADMIN** ⇒ ⇒ ✅ **人裁：挪进 admin 组**（P10-K 内落地）| 2026-11-24 |
 | `TODO-206` | `project_templates` 的**运营与发布流程**未定（谁建、怎么发布、怎么下架）⇒ ⇒ P10-K 已定 `status` 词表 + 只列 `PUBLISHED`，**流程本身仍开着** | 2026-11-24 |
 | `TODO-207` | `postgresql_nulls_not_distinct` 的约束在 SQLite **不生效** ⇒ ⇒ 默认车道照绿、真库 500 | 2026-11-24 |
+| `TODO-208` | P10-J-T1 的 **admin 候选腿**（`GET /workspaces`）**未在浏览器通道验过** ⇒ ⇒ 只被单测覆盖 | 2026-11-25 |
+| `TODO-209` | 裸载荷棘轮**已顶满基线（71）** ⇒ ⇒ **P10-K 新增端点时必须跑覆盖率脚本** + 新端点一律用**命名响应模型** | 2026-11-25 |

@@ -42,6 +42,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../../components/common/PageHeader';
 import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
 import type { ReportDefinitionOut } from '../../api/reportBuilder';
+import { projectsApi } from '../../api/projects';
+import type { ExecutableProject } from '../../api/projects';
+import { extractPcsError } from '../../api/errors';
+import { useAuth } from '../../store/auth';
 import { buildTempFilterPayload, toFilterTree } from './definitionBody';
 import type {
   FieldNodeOption as ReportBuilderFieldOption,
@@ -60,6 +64,31 @@ const POLL_TIMEOUT_MS = 180_000;
 
 type Phase = 'idle' | 'submitting' | 'polling' | 'done' | 'failed' | 'timeout';
 
+/**
+ * 按错误码给一句**人话**（真相在后端 `message` ⇒ 这里只补「该怎么办」）。
+ *
+ * ⚠️ **为什么要按码分流**（P10-J-T1）：这批把「公司级模板没选项目」从
+ * worker 里的 400 **提前到端点**⇒ ⇒ ⇒ 用户**当场**拿到真因 ⇒ ⇒ ⇒
+ * ⇒ 但不同码的**下一步动作**完全不同（选项目 / 换项目 / 找人授权）⇒ ⇒ ⇒
+ * ⇒ ⇒ 光给后端原文 ⇒ ⇒ ⇒ 用户知道「错了」但不知道「该干嘛」。
+ */
+function hintFor(code: string | undefined): string | null {
+  switch (code) {
+    case 'REPORT_PROJECT_SCOPE_REQUIRED':
+      return '公司级模板执行时必须选一个项目 —— 请在上面的下拉里选一个。';
+    case 'REPORT_PROJECT_SCOPE_MISMATCH':
+      return '请求的项目与该定义绑定的项目不一致 ⇒ ⇒ 已拒绝执行（不静默忽略）。';
+    case 'PROJECT_NOT_FOUND':
+      return '所选项目不存在，或你没有它的访问权限。';
+    case 'REPORT_DEFINITION_NOT_FOUND':
+      return '该定义不存在，或你看不见它。';
+    case 'REPORT_DATASOURCE_NOT_PROJECT_SCOPED':
+      return '这条模板的主数据源不支持按项目隔离 ⇒ ⇒ 选哪个项目都跑不了。';
+    default:
+      return null;
+  }
+}
+
 export function ReportExecutePage(): JSX.Element {
   const { defId } = useParams<{ defId: string }>();
   const navigate = useNavigate();
@@ -70,9 +99,19 @@ export function ReportExecutePage(): JSX.Element {
   const [fields, setFields] = useState<ReportBuilderFieldOption[]>([]);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
+  // ⚠️ **按错误码的补充提示**（P10-J-T1）⇒ ⇒ 后端 message 说「发生了什么」、
+  // ⇒ ⇒ 这里说「该怎么办」⇒ ⇒ 两者一起显示（Alert 的 message + description）
+  const [errorHint, setErrorHint] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
+  // ⚠️ **P10-J-T1 · 公司级模板「执行时选项目」**
+  // ⇒ ⇒ 公司级模板（`project_id IS NULL`）执行时**必须**选一个项目 ⇒ ⇒
+  // ⇒ ⇒ **必选、无默认**（人裁 2026-11-24）⇒ ⇒ ⇒ 用户必须**亲手选** ⇒ ⇒
+  // ⇒ ⇒ 理由：少一层「以为跑的是 A 其实是 B」的推断。
+  const [execProjects, setExecProjects] = useState<ExecutableProject[]>([]);
+  const [execProjectId, setExecProjectId] = useState<string | undefined>(undefined);
+  const [execProjectLoading, setExecProjectLoading] = useState(false);
   // 临时调整（SPEC §3.2.2(5)）：**不落库**。`null` = 用定义里的原条件。
   // ⚠️ 用户在这里改的东西回不到定义编辑器 —— 所以界面上必须写明，
   // 否则「我调好了」会被理解成「保存了」。
@@ -136,6 +175,10 @@ export function ReportExecutePage(): JSX.Element {
 
   useEffect(() => {
     if (!selected) { setDef(null); return; }
+    // ⚠️ **先清掉上一条的详情**（P10-J-T1）：`def` 是「作用域」的权威来源
+    // ⇒ ⇒ 留着上一条的 ⇒ ⇒ 切换到公司级模板后 **`needsProject` 仍是上一条
+    // ⇒ ⇒ ⇒ 的值** ⇒ ⇒ ⇒ 用户不用选项目就能点执行 ⇒ ⇒ ⇒ 后端 400。
+    setDef(null);
     // 同上：切换定义时，旧请求的响应不得覆盖新选择。
     let ignore = false;
     void (async () => {
@@ -147,10 +190,49 @@ export function ReportExecutePage(): JSX.Element {
     return () => { ignore = true; };
   }, [selected]);
 
+  /**
+   * 是不是**公司级模板**（`project_id IS NULL`）⇒ ⇒ 执行时必须选项目。
+   *
+   * ⚠️ **为什么用详情（`def`）而不是列表那条**：列表**可能为空**（路由参数
+   * 直达、或列表请求失败）⇒ ⇒ 用列表判 ⇒ ⇒ 「公司级」会被**漏判** ⇒ ⇒ ⇒
+   * ⇒ 用户就能不选项目直接执行 ⇒ ⇒ ⇒ 后端 400（晚失败）。
+   * ⇒ ⇒ ⇒ 详情是**权威**（`ReportDefinitionOut.project_id`）⇒ ⇒ ⇒
+   * ⇒ 代价是详情到达前**不知道作用域** ⇒ ⇒ ⇒ 那就**先禁用执行按钮**
+   * ⇒ ⇒ ⇒ （见下 `disabled`）⇒ ⇒ ⇒ 宁可晚 200ms 也不给「点了才 400」。
+   */
+  const needsProject = def != null && def.project_id == null;
+
+  // ⚠️ **换定义 ⇒ ⇒ 清掉已选的项目**（必选、无默认 ⇒ ⇒ 每次都要重新亲手选）
+  useEffect(() => { setExecProjectId(undefined); }, [selected]);
+
+  // ⚠️ **候选项目按需拉**（只有选了公司级模板才拉 ⇒ ⇒ 项目级模板零开销）
+  useEffect(() => {
+    if (!needsProject || execProjects.length > 0) return;
+    let ignore = false;
+    setExecProjectLoading(true);
+    void (async () => {
+      try {
+        const isAdmin = useAuth.getState().role === 'SYSTEM_ADMIN';
+        const list = await projectsApi.executableProjects(isAdmin);
+        if (!ignore) setExecProjects(list);
+      } catch (err) {
+        if (!ignore) setError(errorMessage(err));
+      } finally {
+        if (!ignore) setExecProjectLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  }, [needsProject, execProjects.length]);
+
   const run = async () => {
     if (!selected) { message.warning('先选一个已发布的定义'); return; }
+    if (needsProject && !execProjectId) {
+      message.warning('公司级模板必须先选一个要执行的项目');
+      return;
+    }
     setPhase('submitting');
     setError(null);
+    setErrorHint(null);
     setFileId(null);
     setTaskId(null);
     stopPolling();
@@ -162,8 +244,12 @@ export function ReportExecutePage(): JSX.Element {
       //   null = 没做临时调整 ⇒ 继承定义；[] = 显式删光 ⇒ 不筛选。
       // 详见 `buildTempFilterPayload` 的 docstring。
       const filters = buildTempFilterPayload(tempFilters);
+      // ⚠️ **P10-J-T1**：公司级模板 ⇒ ⇒ 必须带上「这次要执行哪个项目」
+      // ⇒ ⇒ ⇒ **项目级模板不传** ⇒ ⇒ ⇒ 后端会拿定义自带的项目 ⇒ ⇒ ⇒
+      // ⇒ ⇒ ⇒ （传了不一致的 ⇒ ⇒ ⇒ 后端 400 拒绝，见 REPORT_PROJECT_SCOPE_MISMATCH）
       const accepted = await reportBuilderApi.execute(selected, {
         filters, max_rows: tempMaxRows ?? undefined,
+        ...(needsProject && execProjectId ? { project_id: execProjectId } : {}),
       });
       setTaskId(accepted.task_id);
       setPhase('polling');
@@ -172,6 +258,7 @@ export function ReportExecutePage(): JSX.Element {
       poll(accepted.task_id, generation.current);
     } catch (err) {
       setError(errorMessage(err));
+      setErrorHint(hintFor(extractPcsError(err)?.code));
       setPhase('failed');
     }
   };
@@ -248,6 +335,7 @@ export function ReportExecutePage(): JSX.Element {
       actions={<Button onClick={() => navigate('/report/definitions')}>返回列表</Button>}
     />
       {error && <Alert type="error" showIcon message={error}
+        description={errorHint ?? undefined}
         style={{ marginBottom: 16 }} />}
 
       <Card size="small" style={{ marginBottom: 16 }}>
@@ -255,17 +343,44 @@ export function ReportExecutePage(): JSX.Element {
           <Select style={{ width: 360 }} placeholder="选一个已发布的定义"
             value={selected} onChange={setSelected}
             options={definitions.map((d) => ({
-              value: d.def_id, label: `${d.name}（${d.version}）` }))} />
+              value: d.def_id,
+              // ⚠️ **标出作用域**（P10-J-T1）：今天公司级与项目级在界面上
+              // ⇒ ⇒ **长得一模一样** ⇒ ⇒ 用户选中公司级模板时，界面**没有任何
+              // ⇒ ⇒ 提示**说明它需要再选一个项目 ⇒ ⇒ ⇒ 突然冒出一个下拉
+              // ⇒ ⇒ ⇒ 会让人莫名其妙。
+              label: `${d.name}（${d.version}）· ${d.project_id == null ? '公司级' : '项目级'}`,
+            }))} />
+          {needsProject && (
+            <Select style={{ width: 320 }} placeholder="选一个要执行的项目"
+              value={execProjectId} onChange={setExecProjectId}
+              loading={execProjectLoading}
+              // ⚠️ **必选、无默认**（人裁 2026-11-24）⇒ ⇒ ⇒ 不给默认值 ⇒ ⇒
+              // ⇒ ⇒ 理由：少一层「以为跑的是 A 其实是 B」的推断。
+              options={execProjects.map((p) => ({
+                value: p.project_id, label: p.project_name }))} />
+          )}
           <Button type="primary" icon={<PlayCircleOutlined />}
             loading={phase === 'submitting'}
             // ⚠️ 轮询期间也禁用（评审 P1 #7）。世代号守卫已经让重跑**安全**了
             // （旧循环会被作废），但「能安全重跑」不等于「该允许重跑」——
             // 用户在轮询途中点执行，丢掉的正是他刚提交的那一次。
-            disabled={phase === 'polling'}
+            // ⚠️ **公司级模板没选项目 ⇒ ⇒ 禁用**（P10-J-T1）⇒ ⇒ ⇒ 不给
+            // ⇒ ⇒ ⇒ 「点了才 400」的体验。
+            // ⚠️ **`def == null`（详情未到）⇒ ⇒ 也禁用**：那意味着「还不知道
+            // ⇒ ⇒ ⇒ 作用域」⇒ ⇒ ⇒ 放行 = 赌它不是公司级 ⇒ ⇒ ⇒ 赌输了就是
+            // ⇒ ⇒ ⇒ 「点了才 400」⇒ ⇒ ⇒ 宁可晚 200ms。
+            disabled={phase === 'polling' || def == null
+              || (needsProject && !execProjectId)}
             onClick={() => void run()}>
             执行
           </Button>
         </Space>
+        {needsProject && !execProjectId && (
+          <Typography.Text type="warning" style={{ display: 'block', marginTop: 8 }}>
+            这是**公司级模板**（不绑定项目）⇒ ⇒ 执行时必须选一个项目 ⇒ ⇒ ⇒
+            选的项目决定了这次导出**哪些数据**。
+          </Typography.Text>
+        )}
       </Card>
 
       {def && (

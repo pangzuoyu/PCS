@@ -427,6 +427,14 @@ class ReportExecuteRequest(BaseModel):
     filters: ReportDefFilterGroup | ReportDefCondition | None = None
     max_rows: int | None = Field(default=None, ge=1, le=MAX_ROWS_CEILING)
     output_format: str | None = None
+    # ⚠️ **P10-J-T1 · TODO-177**：公司级模板（`project_id IS NULL`）执行时
+    # **必须**指定项目 ⇒ ⇒ 否则 scope 为空 ⇒ ⇒ 执行引擎只能全库扫 ⇒ ⇒
+    # ⇒ **那会把别的项目的数据一起导出去**。
+    # ⇒ ⇒ ⚠️ 它是「**执行时的目标项目**」，**不是**「把定义改挂到某项目」
+    # ⇒ ⇒ ⇒ 与定义自带的 `project_id` 不一致 ⇒ ⇒ ⇒ **400 拒绝**
+    # ⇒ ⇒ ⇒ （不静默忽略 —— 用户显式传了一个项目、服务端悄悄丢掉 ⇒ ⇒
+    # ⇒ ⇒ ⇒ 用户以为跑的是 B、实际跑的是 A）
+    project_id: uuid.UUID | None = None
 
 
 class ReportExecuteAccepted(BaseModel):
@@ -520,9 +528,10 @@ async def execute_definition_endpoint(
     # ⇒ ⇒ 位置：`row` 取到之后、**落执行日志 / 入队之前**
     # ⇒ ⇒ ⇒ 端点直接 **404**（而不是 202 之后任务失败 ⇒ ⇒ 用户只看到
     # ⇒ ⇒ 「执行失败」⇒ ⇒ 说不清是「没权限」还是「系统坏了」）。
-    # ⇒ ⇒ ⚠️ `ReportExecuteRequest` **没有** `project_id` 字段 ⇒ ⇒
-    # ⇒ ⇒ scope 只能来自定义 ⇒ ⇒ 与 `execute_definition` 里的算法一致。
     # ⇒ ⇒ 无权 ⇒ ⇒ 404（与「不存在」同形 ⇒ ⇒ 不泄露项目存在性）。
+    # ⇒ ⇒ ⚠️ **P10-J-T1**：这一步只管**定义自带项目**（`row.project_id`）
+    # ⇒ ⇒ ⇒ 公司级模板（`row.project_id IS NULL`）在这里**跳过** ⇒ ⇒ ⇒
+    # ⇒ ⇒ 它的 scope 由**请求指定的项目**决定 ⇒ ⇒ ⇒ 那条判定在下面第 ⑥ 步。
     if row.project_id is not None:
         await require_project_access_or_404(
             db, user_id=actor.user_id, project_id=row.project_id,
@@ -535,6 +544,45 @@ async def execute_definition_endpoint(
         raise PcsError(
             f"只有已发布的定义可执行，该定义当前是 {row.status}。",
             code="REPORT_DEFINITION_STATE", status=409,
+        )
+
+    # ⚠️⚠️⚠️ **P10-J-T1 · 公司级模板「执行时选项目」**（2026-11-25 人裁）
+    # ⇒ ⇒ 下面四步的**顺序不能换** ⇒ ⇒ 换了就重排了既有行为。
+    #
+    # ④ **MISMATCH**：请求指定的项目 ≠ 定义自带的项目 ⇒ ⇒ **400 拒绝**
+    # ⇒ ⇒ ⇒ 为什么不是「静默忽略」：用户显式传了一个项目、服务端悄悄丢掉
+    # ⇒ ⇒ ⇒ ⇒ 用户以为跑的是 B、实际跑的是 A ⇒ ⇒ ⇒ 那正是这批要消灭的
+    # ⇒ ⇒ ⇒ ⇒ 「以为跑的是 A 其实是 B」类事故 ⇒ ⇒ ⇒ 显式 > 隐式。
+    if (body.project_id is not None and row.project_id is not None
+            and body.project_id != row.project_id):
+        raise PcsError(
+            f"该报表定义属于项目 {row.project_id}，请求指定的项目"
+            f"（{body.project_id}）与之不符。",
+            code="REPORT_PROJECT_SCOPE_MISMATCH", status=400,
+        )
+
+    # ⑤ **SCOPE**：公司级模板 + 没指定项目 ⇒ ⇒ **400**
+    # ⇒ ⇒ ⇒ 为什么在端点而不是 worker：worker 里抛 ⇒ ⇒ 用户看到
+    # ⇒ ⇒ ⇒ 「202 已提交 → 执行失败」⇒ ⇒ ⇒ 说不清是「没选项目」还是
+    # ⇒ ⇒ ⇒ 「系统坏了」⇒ ⇒ ⇒ 端点抛 ⇒ ⇒ 用户当场拿到真因。
+    # ⇒ ⇒ ⇒ 为什么在落执行日志**之前**：端点先落库再入队（bug-167 的顺序
+    # ⇒ ⇒ ⇒ 约束）⇒ ⇒ ⇒ 若 400 落在落库之后 ⇒ ⇒ ⇒ 会留一行永远 QUEUED 的
+    # ⇒ ⇒ ⇒ 日志等 15 分钟回收器 ⇒ ⇒ ⇒ 断言「日志表一行都没有」。
+    scope = row.project_id or body.project_id
+    if scope is None:
+        raise PcsError(
+            "该报表定义未绑定项目（公司级模板），执行时必须指定 project_id。"
+            "**不能默认全库查询** —— 那会把别的项目的数据一起导出去。",
+            code="REPORT_PROJECT_SCOPE_REQUIRED", status=400,
+        )
+
+    # ⑥ **公司级模板 + 指定了项目** ⇒ ⇒ 对**那个项目**判授权
+    # ⇒ ⇒ ⇒ 与第 ② 步（定义自带项目）同一条守卫 ⇒ ⇒ ⇒ 无权 ⇒ ⇒ 404
+    # ⇒ ⇒ ⇒ （与「不存在」同形 ⇒ ⇒ ⇒ 不泄露项目存在性）
+    if row.project_id is None:
+        await require_project_access_or_404(
+            db, user_id=actor.user_id, project_id=scope,
+            actor_roles=list(actor.roles),
         )
 
     from app.services.report import arq_queue
@@ -569,7 +617,7 @@ async def execute_definition_endpoint(
         condition_snapshot={
             "queued_at": dt.datetime.now(dt.UTC).isoformat(),
             "def_id": str(row.def_id),
-            "project_id": str(row.project_id or ""),
+            "project_id": str(scope),
             "filters": body.filters.model_dump() if body.filters else None,
             "max_rows": body.max_rows,
             "output_format": body.output_format or row.output_format,
@@ -588,7 +636,7 @@ async def execute_definition_endpoint(
     # ⚠️ 入队在 commit **之后**：这时 worker 无论多快，那一行都在库里了。
     try:
         await arq_queue.enqueue_definition_execution(
-            def_id=str(row.def_id), project_id=str(row.project_id or ""),
+            def_id=str(row.def_id), project_id=str(scope),
             user_id=str(actor.user_id),
             # ⚠️ **roles 也要进队列** —— 任务体里那道 scope 授权判定要判
             # ⇒ ⇒ SYSTEM_ADMIN bypass（判据是角色）⇒ ⇒ 没有角色就误伤超级用户。

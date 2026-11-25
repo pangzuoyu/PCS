@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T00:01:01.153Z
-> Files: 1495 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-11-25T00:46:23.793Z
+> Files: 1499 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~2974 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~5993 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~23439 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~23999 tok)
 
 ## .claude/rules/
 
@@ -209,6 +209,7 @@
 - `qa-report-pcs-frontend-2026-11-23-p10h.md` — QA 报告 —— PCS 前端 + 后端 · P10-H「项目作用域批」（TODO-194 / 195 / 193） (~1352 tok)
 - `qa-report-pcs-frontend-2026-11-23-p10i-t1.md` — QA 报告 · P10-I · T1（待我审核队列 + publish 补洞）· 2026-11-23 (~1873 tok)
 - `qa-report-pcs-frontend-2026-11-24-p10j-t2.md` — QA 报告 · P10-J · T2（「打回」动作）· 2026-11-24 (~1089 tok)
+- `qa-report-pcs-frontend-2026-11-25-p10j-t1.md` — QA 报告 —— P10-J-T1 公司级模板「执行时选项目」（2026-11-25） (~1686 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -434,7 +435,7 @@
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
 - `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
-- `PCS-UI-SPEC.md` (~19923 tok)
+- `PCS-UI-SPEC.md` (~21407 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
 - `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
@@ -475,9 +476,10 @@
 - `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3977 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
 - `0050-sign-responsibility-and-task-participation.md` — ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期 (~5162 tok)
+- `0051-report-execution-scope-resolution.md` — ADR-0051：报表执行的项目作用域解析 —— 公司级模板「执行时选项目」 (~1821 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
-- `README.md` — Project documentation (~242 tok)
+- `README.md` — Project documentation (~298 tok)
 
 ## docs/adr/signatures/
 
@@ -690,7 +692,7 @@
 - `2026-11-23-p10-i-guard-hardening.md` — P10-I · 守卫补洞批（Guard Hardening）—— 计划 (~461 tok)
 - `2026-11-23-p10-i-report-review-publish.md` — P10-I · 报表审核发布 + 守卫文案收口批 —— 计划 (~3185 tok)
 - `2026-11-23-p10-j-feature-backlog.md` — P10-J · 功能批（产品语义 · **待人裁决**）—— 计划 (~1574 tok)
-- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~4551 tok)
+- `2026-11-24-p10-j-t1-company-template-execute.md` — P10-J-T1 · 公司级模板「执行时选项目」 —— 计划 (~5081 tok)
 - `2026-11-24-p10-j-t2-reject-action.md` — P10-J-T2 · 「拒绝 / 打回」动作 —— 计划 (~873 tok)
 - `2026-11-24-p10-k-spec75-project-wizard.md` — P10-K · SPEC §7.5 项目向导 —— 计划 (~8421 tok)
 
@@ -1437,7 +1439,7 @@
 - `record_edits.py` — 记录编辑审计读端点（TODO-066 · P9B-2 · T1）。 (~976 tok)
 - `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~11161 tok)
 - `records.py` — Records API（Sprint 2）。 (~3916 tok)
-- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~6448 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~6991 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5474 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `signature_matrices.py` — 签署矩阵管理端点（TODO-070 · P9A-DLV-011 T3）。 (~3071 tok)
@@ -1616,10 +1618,10 @@
 
 - `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~1060 tok)
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
-- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3432 tok)
+- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3541 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
-- `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
-- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~9913 tok)
+- `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8487 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~10514 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
@@ -1758,11 +1760,12 @@
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~4315 tok)
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~5118 tok)
 - `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)
-- `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
+- `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~27456 tok)
 - `test_report_definition_publish_duty.py` — **publish 的职责分离**（人裁决 2026-11-18 · TODO-172 / TODO-178）。 (~1815 tok)
 - `test_report_definition_reject.py` — 「打回」动作 —— **被退回**标记（P10-J · T2 · TODO-197b · 2026-11-24 人裁）。 (~3693 tok)
 - `test_report_definition_review_queue.py` — 「待我审核」队列 —— **只读视图**（2026-11-23 · P10-I · T1 · TODO-197）。 (~3594 tok)
 - `test_report_definition_ruling_2026_11_19.py` — **2026-11-19 人裁决落地** —— 报表定义的可见性 / 作废 / 工作区守卫。 (~3939 tok)
+- `test_report_definition_scope_uniqueness_pg.py` — 公司级报表定义的**同名唯一性**（PG 车道 · P10-J-T1 · T1-6）。 (~2371 tok)
 - `test_report_project_guard.py` — `report.py` 的**项目守卫**必须真的拦住无权用户（TODO-181）。 (~1327 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~6052 tok)
@@ -2047,7 +2050,7 @@
 - `meta.ts` — Meta API 客户端（状态机 + 权限矩阵）—— P9B-2 · T4 的数据源。 (~324 tok)
 - `notifications.ts` — 通知 API 客户端（P9A Z 收口 · SPEC §6.20 · ADR-0049 §①）。 (~634 tok)
 - `pms.ts` — PMS / BEDD API 客户端（P10-H · T2 · TODO-195）。 (~644 tok)
-- `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~364 tok)
+- `projects.ts` — 项目 API 客户端（P9B-2 · 延后的 minor · Batch F）。 (~925 tok)
 - `recordActions.ts` — 记录级写面客户端（9 态动作 + 批注）—— P9B-2 · SPEC §6.3 / §7.19.1。 (~1178 tok)
 - `records.ts` — 记录域 API 客户端（P9B-1 · SPEC §6.21 · ADR-0048）。 (~1079 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~2374 tok)
@@ -2179,7 +2182,7 @@
 - `JoinPicker.tsx` — JOIN 白名单选择器（b6 第二批）。 (~724 tok)
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
-- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3851 tok)
+- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~5091 tok)
 - `ReportReviewQueuePage.tsx` — ReportReviewQueuePage —— **「待我审核」队列**（P10-I · T1 · TODO-197）。 (~2190 tok)
 - `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
 - `reviewIgnored.ts` — 「忽略」的本地存储 —— P10-I · T1（人裁 ④ · 2026-11-23）。 (~721 tok)
@@ -2336,6 +2339,7 @@
 - `ReportDefinitionEditorPage.publishHint.test.tsx` — 「保存并发布」对**创建人自己**是死按钮（2026-11-19 人裁决 · TODO-191）。 (~1187 tok)
 - `ReportDefinitionListPage.rejected.test.tsx` — 报表定义列表页 —— 「**被退回**」标记（P10-J · T2 · TODO-197b）。 (~802 tok)
 - `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
+- `ReportExecutePageProjectScope.test.tsx` — ReportExecutePage 的**「执行时选项目」**行为（P10-J-T1 · 公司级模板）。 (~2228 tok)
 - `ReportReviewQueuePage.test.tsx` — 「待我审核」队列页 —— P10-I · T1 · TODO-197。 (~1672 tok)
 - `ReportStylePage.test.tsx` — 样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在， (~1250 tok)
 
