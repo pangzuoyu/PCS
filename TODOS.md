@@ -2127,6 +2127,112 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 
 ---
 
+# 2026-11-24 · plan-eng-review 新登记（4 条）
+
+> **来源**：`/plan-eng-review` 审 P10-J-T1（`docs/superpowers/plans/2026-11-24-p10-j-t1-company-template-execute.md`）
+> 与 P10-K（`docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md`）⇒ ⇒ 人裁「**4 条全登记**」。
+
+## TODO-204: 项目向导**弃单**留下 ACTIVE 空项目 + 占用 FORMAL 工作区（无回滚路径） 🟢
+
+**来源**：2026-11-24 · plan-eng-review · P10-K 评审
+
+**现状**（实测）：
+
+| 事实 | 位置 |
+|---|---|
+| `Project` **只有 ACTIVE 一态**（ARCHIVED 在 Workspace 层落地）| `pcs-backend/app/models/project.py:46-47` |
+| `projects.status` 是 `String(20)`，**但全仓没有任何代码读它** | `models/project.py:80` · `grep "Project.status"` 在 `app/` 下**零命中** |
+| `POST /projects` 建项目时**回填 `workspaces.project_id`** ⇒ 工作区被占用 | `pcs-backend/app/api/v1/projects.py:198` |
+| **一个工作区只能挂一个项目**（第二个 ⇒ 409）| `projects.py:143-158` |
+| **没有项目删除端点**（`projects.py` 只有 POST / GET-by-id / PATCH-`product-category`）| `projects.py` |
+
+⇒ ⇒ ⇒ **向导弃单 ⇒ 一个 ACTIVE 空项目 + 一个不可复用的 FORMAL 工作区 ⇒ 且无任何清理手段**
+
+**✅ 人裁（2026-11-25）**：**给项目加 `DRAFT` 态** ⇒ ⇒ 向导第 1 步建项目时落 `DRAFT` ⇒ ⇒ 第 4 步「确认」时转 `ACTIVE` ⇒ ⇒ ⇒ **弃单 = 一个可按 `status` 识别的 DRAFT 项目** ⇒ ⇒ ⇒ **不再需要单独的清理脚本**（运维按 `status='DRAFT'` 一句即可）
+⇒ ⇒ ⇒ ⚠️ 这**兑现 SPEC §12.4 V1.6 早就承诺过的「项目两态 DRAFT/ACTIVE」**（模型里一直没落地）
+⇒ ⇒ ⇒ ⚠️ `projects.status` **今天无人读** ⇒ ⇒ ⇒ 加这个态**行为影响几乎为零**（只加一个 `CHECK` 约束防第三种值）
+
+**落地位置**：P10-K 计划（`docs/superpowers/plans/2026-11-24-p10-k-spec75-project-wizard.md`）· 任务 **W-2c**（枚举 + CHECK）+ **W-2d**（激活端点）
+
+**归属**：P10-K（**本批内落地** ⇒ ⇒ 落地后本条**关闭**）
+
+---
+
+## TODO-205: `/wizard` 的导航项对所有人可见，但**建项目与加人员都只收 SYSTEM_ADMIN** 🟢
+
+**来源**：2026-11-24 · plan-eng-review · P10-K 评审
+
+**现状**（实测）：
+
+| 事实 | 位置 |
+|---|---|
+| `POST /projects` ⇒ **`require_roles(user, "SYSTEM_ADMIN")`** | `pcs-backend/app/api/v1/projects.py:120` |
+| `POST /user-projects/grant` ⇒ **`require_roles(actor, "SYSTEM_ADMIN")`** | `pcs-backend/app/api/v1/user_projects.py:86` |
+| 向导路由 `/wizard` 注册在**普通组**（非 admin 门）| `pcs-frontend/src/App.tsx:158` |
+| 导航项在 `MainLayout.tsx:123` 的**普通组** | `pcs-frontend/src/layouts/MainLayout.tsx:123` |
+
+⇒ ⇒ ⇒ **非 SYSTEM_ADMIN 点进向导 ⇒ 第 1 步就 403，且没有任何前置解释**
+
+**✅ 人裁（2026-11-25）**：**`/wizard` 挪进 admin 组**（与 `/admin/projects` 同口径）⇒ ⇒ ⇒ 非 SYSTEM_ADMIN **根本看不到入口** ⇒ ⇒ ⇒ 不会有「进去了才发现没权限」⇒ ⇒ ⇒ ✅ **本条关闭**
+
+**落地位置**：P10-K 计划 · 任务 **W-6**（`src/layouts/MainLayout.tsx`）
+
+**归属**：P10-K（**本批内落地**）
+
+---
+
+## TODO-206: `project_templates` 的**运营与发布流程**未定（谁建、怎么发布、怎么下架） 🟠
+
+**来源**：2026-11-24 · plan-eng-review · P10-K 评审
+
+**现状**（实测）：
+
+| 事实 | 位置 |
+|---|---|
+| `ProjectTemplate` 挂 `config_assets`（**资产治理层**，有 DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE 状态机）| `pcs-backend/app/models/config_domain.py:194-224`（`asset_id` FK）|
+| `ProjectTemplate.status` 默认 `"ACTIVE"` ⇒ **与治理状态机重复** | 同上 |
+| `config_assets.asset_subtype` **没有** `PROJECT_TEMPLATE` 取值 | `config_domain.py:67-69` |
+| **全仓没有任何 seed 往 `project_templates` 插行** | 实测 |
+| 零 API 端点 · 零**生产**调用方（3 个测试文件在调）| 实测 |
+
+**✅ 已由 P10-K 定下的部分**（2026-11-25）：
+- `ProjectTemplate.status` 词表化 = **`DRAFT` / `PUBLISHED` / `OBSOLETE`**（**3 值，不是 config 资产那套 5 态**）
+- **本批模板不挂 `config_assets`**（`asset_id` 留空）⇒ ⇒ 「与治理状态机重复」这条**本批不解决**
+- 端点 `GET /project-templates` **只列 `PUBLISHED`**；**本批只有 seed 写 `PUBLISHED`** ⇒ ⇒ **没有发布端点**
+- ⚠️ 两库 `project_templates` 都是 **0 行** ⇒ ⇒ ⇒ 「已发布」**没有可参照的现状** ⇒ ⇒ ⇒ 本批 seed 是唯一的写者
+
+**仍未定**：**谁能建模板 / 怎么发布 / 怎么下架 / 模板要不要走 `config_assets` 的审批** ⇒ ⇒ ⇒ 本条**保持开着**
+
+**建议改法**：定一条模板运营流程（建模板的角色 · 发布是否走 `config_assets` 状态机 · `asset_subtype` 要不要加 `PROJECT_TEMPLATE` · 下架语义）⇒ ⇒ ⇒ 并**收敛 `ProjectTemplate.status` 与治理状态机的重复**（只留一个真相源）
+
+**归属**：P10-K 后续批
+
+---
+
+---
+
+## TODO-207: `postgresql_nulls_not_distinct` 的约束在 SQLite **不生效** ⇒ ⇒ 默认车道照绿、真库 500 🟠
+
+**来源**：2026-11-24 · plan-eng-review · P10-J-T1 评审
+
+**现状**（实测）：
+
+| 事实 | 位置 |
+|---|---|
+| `UniqueConstraint("project_id", "name", postgresql_nulls_not_distinct=True)` ⇒ **Postgres 拒两条同名 NULL 行，SQLite 允许** | `pcs-backend/app/models/report.py:210-217`（ORM 注释明写「不加 NULLS NOT DISTINCT 就能有两个同名公司级定义」）|
+| ⇒ ⇒ ⇒ **默认单测车道（内存 SQLite）照绿，真库直接 500** | — |
+| 同仓已有同类假绿前科：`config_energy_conversion_factors` 的 4 个列从未迁移（bug-137）| `docs/PCS-UI-SPEC.md` 相关记录 |
+
+**人裁（2026-11-24）**：P10-J-T1 **只加 1 条 PG 用例**钉住这一处 ⇒ ⇒ ⇒
+**其余表上的同类约束没人管** ⇒ ⇒ ⇒ 本条另开
+
+**建议改法**：枚举出所有用了 `postgresql_nulls_not_distinct` 的表 ⇒ ⇒ ⇒
+给每条加一条 PG 车道断言（或一条统一的「NULLS 语义差异」守卫）
+
+**归属**：通用债务 · 与 P10-J-T1 无耦合
+
+---
+
 # F4-PRE 裁决表（2026-11-23 · P10-F · F4 前置批）
 
 > **为什么有这张表**：F4-PRE 的主任务（FP-T1）是「**逐条裁决**」14 条遗留债
@@ -2273,3 +2379,7 @@ PROPALD）⇒ ⇒ 别名表里没有 ⇒ ⇒ 组成落不到 CAS ⇒ ⇒ 「导�
 | `TODO-201` | ✅ **已关闭**（2026-11-24 人裁：**维持现状 · 只落 Prometheus** —— 真运维环境还没到 ⇒ ⇒ 收件人 / 凭据 / 通道都未定）| 2026-11-24 |
 | `TODO-203` | SPEC §7.5 **项目向导按 SPEC 全做**（4 步 + BEDD 录入表单 + 单位制切换）⇒ ⇒ ⚠️「模板选择」**没有模板实体** ⇒ ⇒ 那一step 的数据源**待定** | 2026-11-24 |
 | `TODO-202` | ✅ **已关闭**（2026-11-24 人裁：**不建页** · 归并现有「报表执行」页 ⇒ ⇒ TODO-153 一并改判**不适用**）| 2026-11-24 |
+| `TODO-204` | 项目向导**弃单**留 ACTIVE 空项目 + 占用 FORMAL 工作区 ⇒ ⇒ ✅ **人裁：加项目 DRAFT 态**（P10-K 内落地）| 2026-11-24 |
+| `TODO-205` | `/wizard` 导航对所有人可见，但建项目与加人员**都只收 SYSTEM_ADMIN** ⇒ ⇒ ✅ **人裁：挪进 admin 组**（P10-K 内落地）| 2026-11-24 |
+| `TODO-206` | `project_templates` 的**运营与发布流程**未定（谁建、怎么发布、怎么下架）⇒ ⇒ P10-K 已定 `status` 词表 + 只列 `PUBLISHED`，**流程本身仍开着** | 2026-11-24 |
+| `TODO-207` | `postgresql_nulls_not_distinct` 的约束在 SQLite **不生效** ⇒ ⇒ 默认车道照绿、真库 500 | 2026-11-24 |
